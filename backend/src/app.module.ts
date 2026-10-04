@@ -1,8 +1,17 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { RequestIdMiddleware } from './common/interceptors/request-id.middleware';
+import { AuthModule } from './infra/auth/auth.module';
+import { AuthGuard } from './infra/auth/auth.guard';
 import { CacheModule } from './infra/cache/cache.module';
 import { AnalyticsModule } from './infra/analytics/analytics.module';
+import { HealthModule } from './infra/health/health.module';
+import { JobsModule } from './infra/jobs/jobs.module';
+import { StorageModule } from './infra/storage/storage.module';
 import { EventsModule } from './modules/events/events.module';
 import { GuestsModule } from './modules/guests/guests.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
@@ -16,9 +25,24 @@ import { CommunicationsModule } from './modules/communications/communications.mo
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
+    // Public endpoints — RSVP, checkout, payment registration — are
+    // unauthenticated by design, so the throttle is the only thing standing
+    // between them and a script.
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 10 },
+      { name: 'medium', ttl: 60_000, limit: 100 },
+    ]),
+
+    // ── infrastructure ──
     PrismaModule,
     CacheModule,
     AnalyticsModule,
+    StorageModule,
+    AuthModule,
+    HealthModule,
+
+    // ── domain ──
     EventsModule,
     GuestsModule,
     InvitationsModule,
@@ -28,6 +52,20 @@ import { CommunicationsModule } from './modules/communications/communications.mo
     TicketingModule,
     PublicEventsModule,
     CommunicationsModule,
+
+    // Last: its sweeps depend on the domain modules above.
+    JobsModule,
+  ],
+  providers: [
+    // Authentication is default-on. A route opts out with @Public, which is
+    // a visible decision in the code rather than an omission nobody notices.
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

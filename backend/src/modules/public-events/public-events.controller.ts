@@ -1,12 +1,14 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PublicEventsService } from './public-events.service';
+import { Public } from '../../infra/auth/actor';
 
 @ApiTags('public-events')
 @Controller('public/events')
 export class PublicEventsController {
   constructor(private readonly publicEvents: PublicEventsService) {}
 
+  @Public()
   @Get()
   @ApiOperation({ summary: 'Browse published public events' })
   list(
@@ -17,6 +19,7 @@ export class PublicEventsController {
     return this.publicEvents.list({ locale, category, limit: limit ? Number(limit) : undefined });
   }
 
+  @Public()
   @Get(':slug')
   @ApiOperation({
     summary: 'One announcement, with ticket availability and preview metadata',

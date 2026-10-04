@@ -2,12 +2,15 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { TicketingService } from './ticketing.service';
+import { Public, RequirePermission } from '../../infra/auth/actor';
 
 @ApiTags('ticketing')
 @Controller()
 export class TicketingController {
   constructor(private readonly ticketing: TicketingService) {}
 
+  // A stranger buys a ticket without an account.
+  @Public()
   @Post('public/events/:slug/orders')
   @ApiOperation({
     summary: 'Reserve tickets and start payment',
@@ -19,12 +22,14 @@ export class TicketingController {
     return this.ticketing.createOrder(slug, dto);
   }
 
+  @Public()
   @Get('ticket-orders/:accessToken')
   @ApiOperation({ summary: "A buyer's own order and issued tickets" })
   findOrder(@Param('accessToken') accessToken: string) {
     return this.ticketing.findByAccessToken(accessToken);
   }
 
+  @Public()
   @Post('ticket-orders/:accessToken/confirm')
   @ApiOperation({
     summary: 'Settle an order after the buyer returns from the bank',
@@ -36,6 +41,8 @@ export class TicketingController {
     return this.ticketing.confirmOrder(accessToken);
   }
 
+  // Door staff, not the public: possession of a code must not admit itself.
+  @RequirePermission('guest:write')
   @Post('tickets/:code/admit')
   @ApiOperation({
     summary: 'Admit a ticket at the door',
@@ -45,6 +52,7 @@ export class TicketingController {
     return this.ticketing.admit(code);
   }
 
+  @RequirePermission('event:write')
   @Post('ticket-orders/release-expired')
   @ApiOperation({
     summary: 'Return inventory held by abandoned checkouts',

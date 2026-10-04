@@ -3,6 +3,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ArrangementService } from './arrangement.service';
 import { ArrangeBlocksDto } from './dto/arrange-blocks.dto';
 import { InvitationsService } from './invitations.service';
+import { EventScope, Public, RequirePermission } from '../../infra/auth/actor';
 
 @ApiTags('invitations')
 @Controller('invitations')
@@ -12,6 +13,8 @@ export class InvitationsController {
     private readonly arrangement: ArrangementService,
   ) {}
 
+  // The capability link IS the credential — see docs/ACCESS_CONTROL.md §1.
+  @Public()
   @Get(':slug')
   @ApiOperation({ summary: 'Public invitation page payload (cached per slug and locale)' })
   @ApiOkResponse({ description: 'Hydrated, locale-resolved invitation' })
@@ -19,6 +22,8 @@ export class InvitationsController {
     return this.invitations.getCachedInvitation(slug, locale);
   }
 
+  @RequirePermission('invitation:design')
+  @EventScope('invitationSlug')
   @Patch(':slug/arrangement')
   @ApiOperation({
     summary: 'Reorder, toggle and re-variant every block in one atomic request',
@@ -29,6 +34,7 @@ export class InvitationsController {
     return this.arrangement.arrange(slug, dto);
   }
 
+  @Public()
   @Get(':slug/g/:guestToken')
   @ApiOperation({ summary: 'Invitation personalized for one guest' })
   getForGuest(@Param('slug') slug: string, @Param('guestToken') guestToken: string) {
