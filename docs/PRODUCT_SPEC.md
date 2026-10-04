@@ -392,7 +392,72 @@ a job and never inside a request. See [DATA_STORES.md](DATA_STORES.md).
 
 ---
 
-## 13. Open decisions
+## 13. Public events, announcements and ticketing
+
+Everything above assumes a **closed guest list**: the host knows who is
+invited, and each guest reaches a capability link. Public events invert that.
+Attendees self-identify, arrive unknown, and capacity is global rather than
+per-household.
+
+This is a second product shape on one platform, not a feature bolted onto the
+first — but it reuses the whole spine: the same event, venues, timeline,
+design system, operations views and payment core.
+
+### 13.1 Visibility
+
+Three states, and the default is the safe one.
+
+| Visibility | Reachable by | Listed | Indexable | Ticketing |
+|---|---|---|---|---|
+| **PRIVATE** | capability link only | no | never | no |
+| **UNLISTED** | anyone with the URL | no | never | yes |
+| **PUBLIC** | anyone | yes | opt-in | yes |
+
+A wedding is PRIVATE and must stay so: a page carrying venue addresses,
+timings and a guest list has no business in a search index. Indexing is
+opt-in even for PUBLIC, and UNLISTED is never indexable whatever its flag
+says.
+
+### 13.2 Announcements
+
+An `EventListing` is the public face: translated headline, summary and body,
+a hero image, browse categories, and the link-preview metadata.
+
+**Preview metadata matters more than search ranking.** These links are shared
+in messaging apps, where the preview is the first thing anyone sees. The API
+returns title, description, image, locale, alternates, canonical path and the
+robots directive, so the client renders rather than invents them.
+
+### 13.3 Ticketing
+
+| Concept | Purpose |
+|---|---|
+| **TicketType** | A sellable tier: price, capacity, sales window, per-order limits |
+| **TicketOrder** | One purchase. Buyers are not users — a stranger must not need an account, the same reasoning that makes guests capability-based |
+| **Ticket** | One admitted person, with an unguessable code |
+
+**Inventory is held before payment, never after.** Charging for a seat that no
+longer exists is the worst outcome available, so a checkout reserves first,
+pays second, and issues third. Abandoned baskets are swept and returned, or a
+popular event sells out to nobody.
+
+**Overselling is a correctness failure, not a tolerable race.** Every
+inventory change is a single conditional `UPDATE` whose predicate carries the
+invariant, with database `CHECK` constraints as a backstop. Tested with ten
+concurrent buyers racing for five seats: exactly five win.
+
+A ticket code admits once. Two scanners at one door cannot both admit it.
+
+### 13.4 Where the two shapes meet
+
+A ticket may link to a `Guest`, which lets seating, catering and check-in
+treat ticket holders and invited guests identically. A corporate client can
+run an invited-only dinner and a public conference from one account, with one
+operations dashboard.
+
+---
+
+## 14. Open decisions
 
 1. **Build order.** Invitation + guest graph + headcount is the minimum coherent product. Seating is the most compelling demonstration but the largest build.
 2. **Concierge capacity.** §11 assumes we can staff manual intake at launch.

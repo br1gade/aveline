@@ -25,9 +25,11 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships OrganizationMembership[]
-  events      Event[]
-  payments    Payment[]
+  memberships      OrganizationMembership[]
+  events           Event[]
+  payments         Payment[]
+  messages         Message[]
+  messageTemplates MessageTemplate[]
 
   @@map("organizations")
 }
@@ -133,12 +135,23 @@ model Event {
   sideALabel String?
   sideBLabel String?
 
+  /// Who may see this event at all. PRIVATE is the default and the model the
+  /// invitation flow assumes; PUBLIC opens the announcement and ticketing
+  /// surfaces. See docs/PUBLIC_EVENTS.md.
+  visibility EventVisibility @default(PRIVATE)
+
   status    EventStatus @default(DRAFT)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberships    EventMembership[]
+  listing        EventListing?
+  ticketTypes    TicketType[]
+  ticketOrders   TicketOrder[]
+  tickets        Ticket[]
+  messages       Message[]
+  guestImports   GuestImport[]
   venues         Venue[]
   timeline       TimelineEntry[]
   invitation     Invitation?
@@ -162,6 +175,16 @@ enum EventType {
   ANNIVERSARY
   CORPORATE
   OTHER
+}
+
+enum EventVisibility {
+  /// Reachable only by capability link. Never indexed, never listed.
+  PRIVATE
+  /// Reachable by anyone with the public URL, but excluded from listings
+  /// and marked noindex.
+  UNLISTED
+  /// Listed, indexable, and eligible for ticketing.
+  PUBLIC
 }
 
 enum EventStatus {
@@ -392,6 +415,8 @@ model Guest {
   rsvp      Rsvp?
   seat      Seat?
   checkIn   CheckIn?
+  ticket    Ticket?
+  messages  Message[]
 
   @@index([eventId])
   @@index([householdId])
@@ -503,9 +528,10 @@ model MediaAsset {
   uploadedBy String?
   createdAt  DateTime  @default(now())
 
-  event            Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  invitationCovers Invitation[] @relation("InvitationCover")
-  rsvpSignatures   Rsvp[]       @relation("RsvpSignature")
+  event            Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  invitationCovers Invitation[]   @relation("InvitationCover")
+  listingHeroes    EventListing[] @relation("ListingHero")
+  rsvpSignatures   Rsvp[]         @relation("RsvpSignature")
 
   @@index([eventId])
   @@map("media_assets")
@@ -742,4 +768,326 @@ enum PaymentEventSource {
   CALLBACK
   RECONCILIATION
   MANUAL
+}
+
+// ──────────────────── Public events & announcements ────────────────────
+
+/// The public face of an event: what a stranger sees and what a search engine
+/// is allowed to index. Separate from Event because a private wedding has no
+/// listing at all, and because its fields are presentation rather than domain.
+model EventListing {
+  id      String @id @default(cuid())
+  eventId String @unique
+  /// Public URL segment. Distinct from Invitation.slug: one is an
+  /// announcement anyone may read, the other a capability link.
+  slug    String @unique
+
+  /// Translated per locale, like every other guest-facing string.
+  headline Json @default("{}")
+  summary  Json @default("{}")
+  body     Json @default("{}")
+
+  heroAssetId String?
+  /// Free-text grouping for browse and filter, e.g. "concert", "workshop".
+  categories  String[] @default([])
+
+  /// Link-preview copy. Matters more than SEO: these events are shared in
+  /// chat apps, where the preview is the first thing anyone sees.
+  ogTitle       Json    @default("{}")
+  ogDescription Json    @default("{}")
+  ogImageId     String?
+
+  /// Search engines are opt-in, never assumed. An UNLISTED event is always
+  /// excluded regardless of this flag.
+  isIndexable Boolean   @default(false)
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  heroAsset MediaAsset? @relation("ListingHero", fields: [heroAssetId], references: [id], onDelete: SetNull)
+
+  @@index([publishedAt])
+  @@map("event_listings")
+}
+
+// ─────────────────────────────── Ticketing ─────────────────────────────
+
+/// A sellable tier. Inventory lives here and is mutated only by the atomic
+/// statements in TicketInventoryService — never by read-then-write — because
+/// overselling under concurrent checkout is a correctness failure, not a
+/// race to be tolerated.
+model TicketType {
+  id      String @id @default(cuid())
+  eventId String
+
+  name        Json   @default("{}")
+  description Json   @default("{}")
+  priceMinor  BigInt
+  currency    String @default("AMD")
+
+  /// Capacity. `sold` counts paid tickets, `reserved` counts seats held by
+  /// an in-flight checkout. Available = total - sold - reserved, and a
+  /// database CHECK guarantees that never goes negative.
+  quantityTotal    Int
+  quantitySold     Int @default(0)
+  quantityReserved Int @default(0)
+
+  minPerOrder Int @default(1)
+  maxPerOrder Int @default(10)
+
+  salesStartAt DateTime?
+  salesEndAt   DateTime?
+  isActive     Boolean   @default(true)
+  sortOrder    Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event   Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  items   TicketOrderItem[]
+  tickets Ticket[]
+
+  @@index([eventId, isActive])
+  @@map("ticket_types")
+}
+
+model TicketOrder {
+  id      String @id @default(cuid())
+  eventId String
+
+  /// Buyers are not Users. A stranger buying a ticket must not need an
+  /// account, the same reasoning that makes guests capability-based.
+  buyerName  String
+  buyerEmail String
+  buyerPhone String?
+  locale     String  @default("hy")
+
+  status     TicketOrderStatus @default(RESERVED)
+  totalMinor BigInt
+  currency   String            @default("AMD")
+
+  /// Set once a payment is registered. Nullable because free events exist.
+  paymentOrderNumber String?   @unique
+  /// Held inventory is released after this moment by the reservation sweep.
+  reservesUntil      DateTime?
+  /// Supplied by the client; makes a double-tapped checkout safe.
+  idempotencyKey     String    @unique
+
+  /// Capability token for the buyer's own order page.
+  accessToken String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event   Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  items   TicketOrderItem[]
+  tickets Ticket[]
+
+  @@index([eventId, status])
+  /// The reservation sweep scans expiring holds oldest-first.
+  @@index([status, reservesUntil])
+  @@map("ticket_orders")
+}
+
+enum TicketOrderStatus {
+  /// Inventory held, payment not yet settled.
+  RESERVED
+  PAID
+  CANCELLED
+  /// The hold lapsed before payment; inventory has been returned.
+  EXPIRED
+  REFUNDED
+}
+
+model TicketOrderItem {
+  id             String @id @default(cuid())
+  orderId        String
+  ticketTypeId   String
+  quantity       Int
+  /// Captured at purchase so a later price change never rewrites history.
+  unitPriceMinor BigInt
+
+  order      TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketType TicketType  @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, ticketTypeId])
+  @@map("ticket_order_items")
+}
+
+/// One admitted person. Issued only after payment settles.
+model Ticket {
+  id           String @id @default(cuid())
+  eventId      String
+  orderId      String
+  ticketTypeId String
+
+  /// Printed and encoded into the QR. Unguessable, because possession is
+  /// what admits someone.
+  code        String  @unique
+  holderName  String?
+  holderEmail String?
+
+  status   TicketStatus @default(VALID)
+  issuedAt DateTime     @default(now())
+  usedAt   DateTime?
+  /// Set when a ticket holder is also tracked in the guest graph, which lets
+  /// seating and catering treat both populations the same way.
+  guestId  String?      @unique
+
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  order      TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketType TicketType  @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  guest      Guest?      @relation(fields: [guestId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, status])
+  @@map("tickets")
+}
+
+enum TicketStatus {
+  VALID
+  /// Admitted. Set once, so a code cannot be reused at the door.
+  USED
+  VOID
+  REFUNDED
+}
+
+// ───────────────────────────── Communications ──────────────────────────
+//
+// Until now nothing in the system could actually reach a guest. Invitations
+// were links someone copied by hand. These models give the product a way to
+// send, and — more importantly — a record of what was sent and what happened.
+
+/// Reusable copy for one kind of message, translated per locale. Templates are
+/// rows rather than code so copy changes do not need a deployment, and so an
+/// organization can override the default wording.
+model MessageTemplate {
+  id             String         @id @default(cuid())
+  /// Null for an Aveline default; set when an organization overrides it.
+  organizationId String?
+  /// Stable identifier, e.g. "invitation.send", "rsvp.reminder".
+  key            String
+  channel        MessageChannel
+
+  subject Json @default("{}")
+  body    Json @default("{}")
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Covers organization overrides. Global templates (organizationId NULL) are
+  /// made unique by the partial index in 20261004170000, because Postgres
+  /// treats NULLs as distinct and this constraint alone would not bind them.
+  @@unique([organizationId, key, channel])
+  @@map("message_templates")
+}
+
+/// One outbound message. Written in the same transaction as the action that
+/// causes it and dispatched afterwards — an outbox — so a send can never be
+/// lost because the process died between committing and calling the provider.
+model Message {
+  id             String  @id @default(cuid())
+  organizationId String
+  eventId        String?
+  /// Set when the recipient is a known guest, which is what lets delivery
+  /// failures surface against a name rather than an address.
+  guestId        String?
+
+  channel     MessageChannel
+  templateKey String?
+  /// Email address, phone number or chat id, depending on channel.
+  toAddress   String
+  locale      String         @default("hy")
+
+  /// Rendered at enqueue time, so what was sent stays knowable even after
+  /// the template changes.
+  subject String?
+  body    String
+
+  status        MessageStatus @default(QUEUED)
+  attempts      Int           @default(0)
+  providerRef   String?
+  failureReason String?
+
+  scheduledFor DateTime  @default(now())
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+
+  /// Makes retries and double-clicks safe: the same logical message is only
+  /// ever enqueued once.
+  dedupeKey String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event        Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  guest        Guest?       @relation(fields: [guestId], references: [id], onDelete: SetNull)
+
+  /// The dispatcher claims due work oldest-first.
+  @@index([status, scheduledFor])
+  @@index([eventId])
+  @@map("messages")
+}
+
+enum MessageChannel {
+  EMAIL
+  SMS
+  /// Both chat channels carry a link rather than the invitation itself; the
+  /// preview metadata is what makes them work.
+  TELEGRAM
+  WHATSAPP
+  PUSH
+}
+
+enum MessageStatus {
+  QUEUED
+  SENDING
+  SENT
+  /// Confirmed by the provider, not merely accepted by it.
+  DELIVERED
+  FAILED
+  BOUNCED
+  /// Recipient opted out; never attempted.
+  SUPPRESSED
+}
+
+// ─────────────────────────── Guest list import ─────────────────────────
+
+/// A host with four hundred guests will not type them in. An import is a
+/// durable record of one upload so a partial failure can be reported per row
+/// and retried without duplicating the rows that succeeded.
+model GuestImport {
+  id      String @id @default(cuid())
+  eventId String
+
+  filename     String
+  status       ImportStatus @default(PENDING)
+  rowsTotal    Int          @default(0)
+  rowsImported Int          @default(0)
+  rowsFailed   Int          @default(0)
+  /// Per-row errors, so a host can fix twelve bad rows rather than re-upload
+  /// four hundred good ones.
+  errors       Json         @default("[]")
+
+  uploadedBy String?
+  createdAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("guest_imports")
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
 }

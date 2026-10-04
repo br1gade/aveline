@@ -243,6 +243,107 @@ async function seedGuests(eventId: string, slug: string): Promise<string[]> {
   return links;
 }
 
+/** A public, ticketed event so the announcement and checkout surfaces are
+ *  exercisable alongside the private wedding. */
+async function seedPublicEvent(organizationId: string) {
+  const startsAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 45);
+
+  const event = await prisma.event.create({
+    data: {
+      organizationId,
+      type: 'CORPORATE',
+      title: 'Yerevan Design Summit',
+      hostsLabel: 'Aveline',
+      startsAt,
+      locales: ['hy', 'en'],
+      defaultLocale: 'hy',
+      visibility: 'PUBLIC',
+      status: 'PUBLISHED',
+      venues: {
+        create: {
+          role: VenueRole.RECEPTION,
+          name: 'Demo Conference Hall',
+          address: '5 Demo Avenue, Yerevan',
+          capacity: 300,
+        },
+      },
+      listing: {
+        create: {
+          slug: 'design-summit',
+          headline: { hy: 'Երևանյան դիզայնի գագաթնաժողով', en: 'Yerevan Design Summit' },
+          summary: { hy: 'Մեկօրյա համաժողով', en: 'A one-day conference' },
+          categories: ['conference'],
+          isIndexable: true,
+          publishedAt: new Date(),
+        },
+      },
+      ticketTypes: {
+        create: [
+          {
+            name: { hy: 'Ընդհանուր', en: 'General' },
+            priceMinor: 15000n,
+            quantityTotal: 200,
+            maxPerOrder: 6,
+            sortOrder: 0,
+          },
+          {
+            name: { hy: 'Ուսանողական', en: 'Student' },
+            priceMinor: 7000n,
+            quantityTotal: 50,
+            maxPerOrder: 2,
+            sortOrder: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  return event;
+}
+
+/** Default message copy, so the outbox has something to render. */
+async function seedMessageTemplates() {
+  const templates = [
+    {
+      key: 'invitation.send',
+      channel: 'EMAIL' as const,
+      subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}' },
+      body: {
+        hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ։ {{link}}',
+        en: 'Dear {{guestName}}, you are warmly invited. {{link}}',
+      },
+    },
+    {
+      key: 'rsvp.reminder',
+      channel: 'EMAIL' as const,
+      subject: { hy: 'Հիշեցում', en: 'A gentle reminder' },
+      body: {
+        hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։ {{link}}',
+        en: '{{guestName}}, we are still hoping to hear from you. {{link}}',
+      },
+    },
+    {
+      key: 'ticket.issued',
+      channel: 'EMAIL' as const,
+      subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },
+      body: {
+        hy: 'Շնորհակալություն, {{buyerName}}։ Ձեր տոմսերը՝ {{link}}',
+        en: 'Thank you, {{buyerName}}. Your tickets: {{link}}',
+      },
+    },
+  ];
+
+  // Not an upsert: Prisma cannot address a compound unique whose component is
+  // null. The partial index added in 20261004170000 is what guarantees
+  // uniqueness here; this only avoids re-inserting on a repeat seed.
+  for (const template of templates) {
+    const existing = await prisma.messageTemplate.findFirst({
+      where: { organizationId: null, key: template.key, channel: template.channel },
+    });
+    if (!existing) await prisma.messageTemplate.create({ data: template });
+  }
+}
+
 async function main() {
   await prisma.organization.deleteMany({ where: { name: DEMO_ORG } });
 
@@ -271,11 +372,14 @@ async function main() {
   });
 
   const links = await seedGuests(event.id, invitation.slug);
+  const publicEvent = await seedPublicEvent(organization.id);
+  await seedMessageTemplates();
 
   console.log('\nSeeded event:', event.id);
   console.log('Invitation:   /api/invitations/' + invitation.slug);
   console.log('Guest links:\n' + links.join('\n'));
-  console.log('\nOperations:   /api/events/' + event.id + '/headcount\n');
+  console.log('\nOperations:   /api/events/' + event.id + '/headcount');
+  console.log('Public event: /api/public/events/design-summit  (' + publicEvent.id + ')\n');
 }
 
 main()
