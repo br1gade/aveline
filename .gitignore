@@ -1,0 +1,355 @@
+# ─────────────────────────────────────────────────────────────
+#  Aveline — .gitignore
+# ─────────────────────────────────────────────────────────────
+
+# =============================================================
+#  PROJECT-SPECIFIC — research material
+#  Market research, reference captures and any mirrored sources
+#  stay on local disk. Never commit them.
+# =============================================================
+research/
+reference/
+market-research/
+scraped/
+mirrors/
+offline/
+*-offline/
+*-mirror/
+
+# Site-mirroring tool artifacts (HTTrack, wget -m, etc.)
+hts-cache/
+hts-log.txt
+*.whtt
+new.lst
+new.zip
+doit.log
+cookies.txt
+backblue.gif
+fade.gif
+
+# =============================================================
+#  EDITOR & IDE
+# =============================================================
+
+# VSCode local history extension
+.history/
+.vscode-test/
+
+# VSCode — ignore all but shared team config
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+*.code-workspace
+
+# JetBrains (IntelliJ, WebStorm, PyCharm, …)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+cmake-build-*/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim / Neovim
+*.swp
+*.swo
+*.swn
+*~
+Session.vim
+Sessionx.vim
+.netrwhist
+tags
+
+# Emacs
+\#*\#
+.\#*
+*.elc
+auto-save-list/
+tramp
+
+# Eclipse / NetBeans
+.project
+.classpath
+.settings/
+nbproject/private/
+
+# Zed / Helix / Kate
+.zed/
+.helix/
+*.kate-swp
+
+# =============================================================
+#  OPERATING SYSTEM
+# =============================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.DocumentRevisions-V100
+Icon
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+.fuse_hidden*
+
+# =============================================================
+#  SECRETS & ENVIRONMENT  — never commit these
+# =============================================================
+.env
+.env.*
+!.env.example
+!.env.template
+!.env.sample
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.ppk
+secrets.json
+secrets.yml
+secrets.yaml
+credentials.json
+service-account*.json
+*.tfvars
+!*.tfvars.example
+.netrc
+.htpasswd
+auth.json
+
+# =============================================================
+#  NODE / JAVASCRIPT / TYPESCRIPT
+# =============================================================
+node_modules/
+jspm_packages/
+bower_components/
+web_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Build output
+dist/
+build/
+out/
+.output/
+.vercel/
+.netlify/
+.wrangler/
+
+# Framework caches
+.next/
+.nuxt/
+.svelte-kit/
+.astro/
+.docusaurus/
+.cache/
+.parcel-cache/
+.turbo/
+.vite/
+.rollup.cache/
+.webpack/
+
+# Test & coverage
+coverage/
+.nyc_output/
+*.lcov
+.jest-cache/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+cypress/videos/
+cypress/screenshots/
+
+# Type checking & linting caches
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# =============================================================
+#  PYTHON
+# =============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+virtualenv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+.eggs/
+.ipynb_checkpoints/
+poetry.lock.bak
+__pypackages__/
+
+# =============================================================
+#  OTHER LANGUAGES
+# =============================================================
+
+# Ruby
+.bundle/
+vendor/bundle/
+*.gem
+.byebug_history
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.test
+*.out
+vendor/
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Java / Kotlin / Gradle / Maven
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+gradle-app.setting
+.mvn/timing.properties
+target/
+
+# PHP / Composer
+/vendor/
+composer.phar
+.phpunit.result.cache
+
+# =============================================================
+#  DATABASES & DATA
+# =============================================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.rdb
+dump.rdb
+*.sql.gz
+/data/
+/backups/
+
+# =============================================================
+#  LOGS, TEMP & ARCHIVES
+# =============================================================
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+tmp/
+temp/
+.tmp/
+scratch/
+scratchpad/
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
+
+# Archives (usually build artifacts or downloads)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# =============================================================
+#  INFRASTRUCTURE & TOOLING
+# =============================================================
+.terraform/
+*.tfstate
+*.tfstate.*
+.terragrunt-cache/
+.serverless/
+.pulumi/
+docker-compose.override.yml
+.dockerignore.local
+
+# =============================================================
+#  CLAUDE CODE / AI TOOLING
+# =============================================================
+.claude/settings.local.json
+.claude/.credentials.json
+.claudeignore.local
+.aider*
+.cursorignore.local
