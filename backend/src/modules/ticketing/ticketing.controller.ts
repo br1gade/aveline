@@ -1,0 +1,56 @@
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { TicketingService } from './ticketing.service';
+
+@ApiTags('ticketing')
+@Controller()
+export class TicketingController {
+  constructor(private readonly ticketing: TicketingService) {}
+
+  @Post('public/events/:slug/orders')
+  @ApiOperation({
+    summary: 'Reserve tickets and start payment',
+    description:
+      'Inventory is held before payment, never after — charging for a seat that ' +
+      'no longer exists is the worst outcome available. Idempotent by key.',
+  })
+  createOrder(@Param('slug') slug: string, @Body() dto: CreateOrderDto) {
+    return this.ticketing.createOrder(slug, dto);
+  }
+
+  @Get('ticket-orders/:accessToken')
+  @ApiOperation({ summary: "A buyer's own order and issued tickets" })
+  findOrder(@Param('accessToken') accessToken: string) {
+    return this.ticketing.findByAccessToken(accessToken);
+  }
+
+  @Post('ticket-orders/:accessToken/confirm')
+  @ApiOperation({
+    summary: 'Settle an order after the buyer returns from the bank',
+    description:
+      'Asks the bank server-to-server, then commits inventory and issues ' +
+      'tickets. The return redirect alone never issues anything.',
+  })
+  confirmOrder(@Param('accessToken') accessToken: string) {
+    return this.ticketing.confirmOrder(accessToken);
+  }
+
+  @Post('tickets/:code/admit')
+  @ApiOperation({
+    summary: 'Admit a ticket at the door',
+    description: 'A code may only be used once; two scanners cannot both admit it.',
+  })
+  admit(@Param('code') code: string) {
+    return this.ticketing.admit(code);
+  }
+
+  @Post('ticket-orders/release-expired')
+  @ApiOperation({
+    summary: 'Return inventory held by abandoned checkouts',
+    description: 'Without this sweep, abandoned baskets permanently remove seats from sale.',
+  })
+  releaseExpired() {
+    return this.ticketing.releaseExpiredReservations();
+  }
+}

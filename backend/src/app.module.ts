@@ -9,6 +9,9 @@ import { InvitationsModule } from './modules/invitations/invitations.module';
 import { RsvpModule } from './modules/rsvp/rsvp.module';
 import { OperationsModule } from './modules/operations/operations.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { TicketingModule } from './modules/ticketing/ticketing.module';
+import { PublicEventsModule } from './modules/public-events/public-events.module';
+import { CommunicationsModule } from './modules/communications/communications.module';
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { PaymentsModule } from './modules/payments/payments.module';
     RsvpModule,
     OperationsModule,
     PaymentsModule,
+    TicketingModule,
+    PublicEventsModule,
+    CommunicationsModule,
   ],
 })
 export class AppModule {}
