@@ -1,0 +1,113 @@
+# Backend Gap Analysis
+
+What the backend must still do to deliver [PRODUCT_SPEC.md](PRODUCT_SPEC.md),
+and which manual, paper-based or chat-based process each piece replaces.
+
+The category we are entering runs on messaging apps, spreadsheets and phone
+calls. Every gap below is a process that exists today and is performed by a
+human retyping something another human already typed.
+
+---
+
+## 1. Built
+
+| Capability | Replaces |
+|---|---|
+| Invitation rendering, data-bound, multi-language | A page hand-assembled per customer |
+| Per-guest capability links | One link forwarded to everyone |
+| RSVP intake into a guest graph | Answers landing in an inbox |
+| Headcount, catering, bar, playlist sheets | Counting a spreadsheet by hand |
+| Guest graph with households and attribution | A flat list of names |
+| One-call dashboard, atomic block arrangement | Multi-step editing workflows |
+| Access policy (roles, scoped vendor briefs) | "Who do I forward this to?" |
+| Payments core + three bank gateways | Bank transfer screenshots over chat |
+| Public announcements and ticketing | Phone bookings and paper tickets |
+| Concurrency-safe ticket inventory | Overselling discovered at the door |
+| Messaging outbox with templates | Copy-pasting a message 400 times |
+
+## 2. Blocking — nothing ships without these
+
+| # | Gap | Why it blocks |
+|---|---|---|
+| 1 | **Authentication and session management** | Every organizer endpoint is open. `access-policy.ts` is written and tested but nothing calls it. This is the single largest gap |
+| 2 | **Authorization guard** | Resolve the actor, load membership, check permission *and* ownership |
+| 3 | **Rate limiting** | Public RSVP, ticket checkout and payment registration are unauthenticated and unthrottled |
+| 4 | **Job scheduler** | Three sweeps exist and nothing runs them: payment reconciliation, ticket reservation release, message dispatch. Each is correctness-critical — an unrun sweep means a paid order stuck pending, seats held forever, or an invitation never sent |
+| 5 | **File upload pipeline** | `MediaAsset` is modelled; nothing accepts an upload. Invitations cannot have photographs |
+
+## 3. High value — the actual digitalisation
+
+Each replaces a process the incumbent market performs by hand.
+
+| # | Gap | Replaces |
+|---|---|---|
+| 6 | **Guest list import** (CSV, contacts) | Typing 400 guests one at a time. `GuestImport` is modelled; the parser is not built |
+| 7 | **Seating assignment** | A paper chart redrawn whenever one RSVP changes. `Table`/`Seat` modelled, read path works, the constrained algorithm is not written |
+| 8 | **Invitation sending** | Pasting a link into 400 chats individually. The outbox exists; nothing calls it from the invitation flow |
+| 9 | **Reminders and follow-ups** | Chasing non-responders by phone. Scheduled messages are modelled, the triggers are not |
+| 10 | **Vendor brief endpoints** | Forwarding a spreadsheet to the caterer. `briefScopes`/`briefToken` modelled, endpoints not built |
+| 11 | **Exports** (PDF/CSV: seating chart, place cards, catering sheet) | The one artefact a venue still genuinely needs on paper |
+| 12 | **Day-of check-in** | A clipboard at the door. `CheckIn` modelled; ticket admission is built, guest check-in is not |
+| 13 | **Design endpoints + theme validation** | Design changes requested over chat and applied by staff |
+| 14 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
+
+## 4. Revenue — unbuilt business model lines
+
+Per [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §9.
+
+| # | Gap | Stream |
+|---|---|---|
+| 15 | **Subscription billing** (card binding) | §9.4 — the only recurring line, and the strategic one |
+| 16 | **Plan and entitlement enforcement** | §8 — tiers are documented, nothing enforces them |
+| 17 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
+| 18 | **Corporate contracts** | §9.5 — multi-event, branded |
+| 19 | **Invoicing and tax** | Required for any corporate customer |
+
+## 5. Operations and trust
+
+| # | Gap | Why |
+|---|---|---|
+| 20 | **Audit trail** | Mongo-shaped and documented; blocked on authentication, since there is no actor to record |
+| 21 | **Health and readiness endpoints** | Nothing reports whether Postgres, Redis or Mongo is reachable |
+| 22 | **Structured logging + request correlation** | A payment spanning three services cannot currently be traced |
+| 23 | **Backups and retention policy** | Page lifetime after an event is still an open decision (§13.8) |
+| 24 | **GDPR-shaped data export and erasure** | Guest PII with a diaspora customer base in the EU |
+| 25 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
+
+## 6. Physical-service bridge
+
+The spec commits to coordinating physical services (§7). These make that real
+rather than a phone call.
+
+| # | Gap |
+|---|---|
+| 26 | **Vendor availability calendar** — booking a caterer currently means asking them |
+| 27 | **Delivery and logistics tracking** for decor and printed stationery |
+| 28 | **Printed companion orders** — print-on-demand from the same design |
+| 29 | **On-site staff assignment** for the day-of coordinator in Production tier |
+| 30 | **Physical ticket fallback** — QR on paper for guests without smartphones |
+
+---
+
+## 7. Suggested order
+
+The sequencing argument, not just a list.
+
+**First — unblock everything else.** Authentication, the guard, and the job
+scheduler (#1, #2, #4). Nothing is deployable without the first two, and three
+correctness-critical sweeps are inert without the third.
+
+**Second — the sending loop.** Upload pipeline, guest import, invitation
+sending, reminders (#5, #6, #8, #9). Together these close the loop the product
+actually sells: import a guest list, send invitations, collect responses, chase
+non-responders. Today each step requires a human.
+
+**Third — the operational payoff.** Seating, exports, check-in (#7, #11, #12).
+This is the Managed tier's visible value and the hardest thing for a
+page-builder competitor to copy.
+
+**Fourth — revenue.** Subscription billing and entitlements (#15, #16), which
+convert the product from a transaction into infrastructure.
+
+**Throughout — trust.** Rate limiting, audit, health, logging (#3, #20–22)
+alongside the above rather than after.

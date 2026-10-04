@@ -32,8 +32,8 @@ that has to be decoded. Optimize for being understood, not for being short.
 Names are the primary documentation. Get them right and most comments vanish.
 
 - **Say what it is, not how it works.** `cateringSheet`, not `getGuestsWithDiet`.
-- **Booleans read as assertions**: `isPublished`, `hasSeats`, `canEdit`.
-  Enforced by lint.
+- **Booleans read as assertions**: `isPublished`, `hasSeats`, `canEdit`,
+  `wasClaimed`. Enforced by lint (`is/has/can/should/did/will/was/were`).
 - **Functions that do something start with a verb**; functions that answer a
   question read as the question.
 - **No abbreviations** except the ones the domain already uses (`rsvp`, `id`).

@@ -41,10 +41,12 @@ export default tseslint.config(
         { selector: 'function', format: ['camelCase'] },
         {
           // Booleans must read as assertions: isPublished, hasSeats, canEdit.
+          // 'was' and 'were' are included for past-tense outcomes such as
+          // wasClaimed, which read as assertions just as 'did' does.
           selector: 'variable',
           types: ['boolean'],
           format: ['PascalCase'],
-          prefix: ['is', 'has', 'can', 'should', 'did', 'will'],
+          prefix: ['is', 'has', 'can', 'should', 'did', 'will', 'was', 'were'],
         },
       ],
 
