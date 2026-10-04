@@ -33,10 +33,11 @@ human retyping something another human already typed.
 ~~1. Authentication~~, ~~2. Authorization guard~~, ~~3. Rate limiting~~ and
 ~~4. Job scheduler~~ are **built** — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+~~5. File upload~~ is built: `POST /events/:eventId/media`.
+
 | # | Gap | Why it blocks |
 |---|---|---|
-| 5 | **File upload pipeline** | `StorageService` and `MediaAsset` exist; no endpoint accepts multipart, so invitations still cannot have photographs |
-| 5b | **Real message transports** | The outbox dispatches correctly but every channel resolves to the console. Nothing actually reaches a guest yet |
+| 5 | **Real message transports** | The outbox renders, queues, claims and dispatches correctly — but every channel resolves to the console transport, so nothing actually reaches a guest. This is now the single thing standing between the product and its core loop |
 
 ## 3. High value — the actual digitalisation
 

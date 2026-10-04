@@ -123,6 +123,127 @@ describe('Operations UX (e2e)', () => {
     });
   });
 
+  describe('skeleton contracts', () => {
+    // Every list endpoint shares one envelope, so a client learns it once.
+    it('returns a paged envelope', async () => {
+      const { body } = await http().get('/api/public/events').expect(200);
+
+      expect(body).toMatchObject({ total: expect.any(Number), limit: 20, offset: 0 });
+      expect(Array.isArray(body.items)).toBe(true);
+      expect(typeof body.hasMore).toBe('boolean');
+    });
+
+    it('honours a limit within range', async () => {
+      const { body } = await http().get('/api/public/events').query({ limit: 5 }).expect(200);
+      expect(body.limit).toBe(5);
+    });
+
+    // Rejecting an out-of-range limit beats silently changing it: a client
+    // asking for 500 and receiving 100 has no way to tell.
+    it.each([{ limit: 500 }, { limit: 0 }, { limit: -1 }, { limit: 'abc' }, { offset: -1 }])(
+      'rejects $0 with 400',
+      async (query) => {
+        await http().get('/api/public/events').query(query).expect(400);
+      },
+    );
+
+    // BigInt is not JSON-serialisable; the interceptor converts it globally.
+    it('serialises money as a string rather than throwing', async () => {
+      const { slug, primaryGuestToken } = await seedEvent(prisma);
+      await http()
+        .post(`/api/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
+        .send({ status: 'ATTENDING' })
+        .expect(201);
+
+      const { body } = await http().get('/api/public/events').expect(200);
+      const { items } = body as { items: { fromPriceMinor: unknown }[] };
+      expect(
+        items.every(
+          (item) => item.fromPriceMinor === null || typeof item.fromPriceMinor === 'string',
+        ),
+      ).toBe(true);
+    });
+
+    it('stamps every response with a request id', async () => {
+      const response = await http().get('/api/health/live').expect(200);
+      expect(response.headers['x-request-id']).toMatch(/[0-9a-f-]{36}/);
+    });
+
+    it('honours a request id supplied upstream, so a trace survives a proxy', async () => {
+      const response = await http()
+        .get('/api/health/live')
+        .set('x-request-id', 'trace-from-upstream')
+        .expect(200);
+
+      expect(response.headers['x-request-id']).toBe('trace-from-upstream');
+    });
+
+    it('reports errors in one shape, carrying the request id', async () => {
+      const { body } = await http().get('/api/invitations/does-not-exist').expect(404);
+
+      expect(body).toMatchObject({
+        statusCode: 404,
+        path: '/api/invitations/does-not-exist',
+      });
+      expect(typeof body.requestId).toBe('string');
+      expect(typeof body.at).toBe('string');
+    });
+  });
+
+  describe('media upload', () => {
+    // A 1x1 PNG — the smallest thing that is genuinely an image.
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+
+    it('stores a file and records it against the event', async () => {
+      const { eventId } = await seedEvent(prisma);
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId,
+        role: EventRole.DESIGNER,
+      });
+
+      const { body } = await http()
+        .post(`/api/events/${eventId}/media`)
+        .set('Authorization', authorization)
+        .attach('file', pixel, { filename: 'pixel.png', contentType: 'image/png' })
+        .expect(201);
+
+      expect(body).toMatchObject({ kind: 'PHOTO', sizeBytes: pixel.byteLength });
+      expect(body.url).toContain('/files/');
+
+      const stored = await prisma.mediaAsset.findUniqueOrThrow({ where: { id: body.id } });
+      expect(stored.eventId).toBe(eventId);
+    });
+
+    it('refuses a file type that is not on the allowlist', async () => {
+      const { eventId } = await seedEvent(prisma);
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId,
+        role: EventRole.DESIGNER,
+      });
+
+      await http()
+        .post(`/api/events/${eventId}/media`)
+        .set('Authorization', authorization)
+        .attach('file', Buffer.from('#!/bin/sh'), {
+          filename: 'script.sh',
+          contentType: 'application/x-sh',
+        })
+        .expect(415);
+    });
+
+    it('refuses an upload without a session', async () => {
+      const { eventId } = await seedEvent(prisma);
+
+      await http()
+        .post(`/api/events/${eventId}/media`)
+        .attach('file', pixel, { filename: 'pixel.png', contentType: 'image/png' })
+        .expect(401);
+    });
+  });
+
   describe('locale negotiation', () => {
     // Regression: an unvalidated ?locale= became a Redis cache key, so junk
     // values grew the keyspace without limit on a public endpoint.

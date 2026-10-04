@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
+import { Page, PaginationQuery, resolvePaging, toPage } from '../../common/dto/pagination.dto';
 
 const listingInclude = {
   event: {
@@ -21,19 +22,32 @@ export class PublicEventsService {
    * reachable by URL but deliberately absent from every listing, which is the
    * entire point of that visibility.
    */
-  async list(params: { locale?: string; category?: string; limit?: number }) {
-    const listings = await this.prisma.eventListing.findMany({
-      where: {
-        publishedAt: { not: null, lte: new Date() },
-        event: { visibility: EventVisibility.PUBLIC, status: 'PUBLISHED' },
-        ...(params.category ? { categories: { has: params.category } } : {}),
-      },
-      include: listingInclude,
-      orderBy: { event: { startsAt: 'asc' } },
-      take: Math.min(params.limit ?? 20, 100),
-    });
+  async list(
+    params: PaginationQuery & { locale?: string; category?: string },
+  ): Promise<Page<ReturnType<PublicEventsService['summarize']>>> {
+    const paging = resolvePaging(params);
+    const where = {
+      publishedAt: { not: null, lte: new Date() },
+      event: { visibility: EventVisibility.PUBLIC, status: 'PUBLISHED' as const },
+      ...(params.category ? { categories: { has: params.category } } : {}),
+    };
 
-    return listings.map((listing) => this.summarize(listing, params.locale));
+    // Count and page in one round trip rather than two sequential queries.
+    const [listings, total] = await Promise.all([
+      this.prisma.eventListing.findMany({
+        where,
+        include: listingInclude,
+        orderBy: { event: { startsAt: 'asc' } },
+        ...paging,
+      }),
+      this.prisma.eventListing.count({ where }),
+    ]);
+
+    return toPage(
+      listings.map((listing) => this.summarize(listing, params.locale)),
+      total,
+      paging,
+    );
   }
 
   async findBySlug(slug: string, requestedLocale?: string) {
@@ -111,7 +125,7 @@ export class PublicEventsService {
     };
   }
 
-  private summarize(
+  summarize(
     listing: Prisma.EventListingGetPayload<{ include: typeof listingInclude }>,
     requestedLocale?: string,
   ) {

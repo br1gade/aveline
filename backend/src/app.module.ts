@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestIdMiddleware } from './common/interceptors/request-id.middleware';
+import { validateEnv } from './common/env.validation';
 import { AuthModule } from './infra/auth/auth.module';
 import { AuthGuard } from './infra/auth/auth.guard';
 import { CacheModule } from './infra/cache/cache.module';
@@ -21,10 +22,13 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { TicketingModule } from './modules/ticketing/ticketing.module';
 import { PublicEventsModule } from './modules/public-events/public-events.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Configuration is validated here so a missing setting stops the boot
+    // rather than surfacing on the first request that needs it.
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
 
     // Public endpoints — RSVP, checkout, payment registration — are
     // unauthenticated by design, so the throttle is the only thing standing
@@ -52,6 +56,7 @@ import { CommunicationsModule } from './modules/communications/communications.mo
     TicketingModule,
     PublicEventsModule,
     CommunicationsModule,
+    MediaModule,
 
     // Last: its sweeps depend on the domain modules above.
     JobsModule,

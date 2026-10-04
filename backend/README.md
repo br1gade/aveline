@@ -93,6 +93,7 @@ test/
 | `POST` | `/api/auth/refresh` | Rotate a refresh token; the old one is revoked |
 | `POST` | `/api/auth/logout` | Revoke one session |
 | `POST` | `/api/auth/logout-everywhere` | Revoke every session |
+| `POST` | `/api/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `GET` | `/api/health/live` · `/ready` | Liveness and readiness |
 
 **Every route requires a session unless it is marked `@Public()`.** Organizer
@@ -217,7 +218,8 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
    actor to record yet.
 10. **Payments**: no bank credentials yet, so no adapter has run against a real
     sandbox. See `../docs/PAYMENTS.md` §6–7.
-11. **Upload endpoint.** `StorageService` exists; nothing accepts multipart.
+11. **Structured logging, metrics, tracing.** Request ids correlate log lines;
+    the format is still Nest's default and there is no tracing.
 12. **Transports are console-only.** The messaging pipeline is real; no SMTP,
     SMS or chat provider is wired.
 

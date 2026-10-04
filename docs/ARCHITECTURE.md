@@ -36,12 +36,16 @@ is a module despite feeling infrastructural, because what a captured payment
 ## 2. Request lifecycle
 
 ```
+boot
+  → validateEnv             missing config stops the boot, not the first request
+
 request
   → RequestIdMiddleware     assigns x-request-id, honours one from upstream
   → ThrottlerGuard          10/s, 100/min
   → AuthGuard               verify token → resolve roles → check permission
   → ValidationPipe          whitelist, reject unknown fields, transform
   → controller → service → Prisma
+  → SerializeInterceptor    BigInt → string, globally
   → AllExceptionsFilter     one error shape, request id attached
 ```
 
@@ -126,6 +130,14 @@ stopped, the invitation endpoint serves correct content in ~20 ms.
   A requested locale is negotiated against what the event publishes, never
   trusted — it becomes a cache key.
 - **Errors are thrown, never returned.** The filter decides what a client sees.
+- **Lists return a page envelope.** `PaginationQuery` in, `toPage(...)` out —
+  `{ items, total, limit, offset, hasMore }`. An out-of-range limit is a 400,
+  not a silent clamp: a client asking for 500 and receiving 100 cannot tell.
+- **Money needs no manual conversion.** `SerializeInterceptor` turns every
+  BigInt into a string on the way out. Strings, not numbers, because a
+  JavaScript number cannot hold every integer we store.
+- **Files go through `StorageService`**, never straight to disk. It enforces
+  the type allowlist and size ceiling wherever the file came from.
 
 ## 6. Adding a feature
 
@@ -138,13 +150,28 @@ stopped, the invitation endpoint serves correct content in ~20 ms.
 5. Update the doc in the same commit.
 6. `npm run verify`.
 
-## 7. Still missing from the frame
+## 7. Production posture
 
-- **BullMQ** for queued work with retries and backoff
-- **Upload endpoint** — `StorageService` exists, nothing accepts multipart yet
-- **Audit trail** — Mongo-shaped, waiting on nothing now that auth exists
-- **Metrics and tracing** — request ids correlate logs but there is no tracing
-- **Outbound webhook signature verification**
+Three things behave differently when `NODE_ENV=production`, each because the
+development default is dangerous:
+
+| Setting | Development | Production |
+|---|---|---|
+| `JWT_SECRET` | a known default | **required**, boot fails without it |
+| CORS | any origin | **only** `CORS_ORIGINS`, else none |
+| `/docs` | served | not served |
+| `FAKE` payment gateway | registered | refused |
+
+## 8. Still missing from the frame
+
+- **BullMQ** for queued work with retries and backoff. Cron plus a lock covers
+  periodic sweeps; per-item retryable work needs a queue
+- **Audit trail** — Mongo-shaped, and unblocked now that auth exists
+- **Structured JSON logging** — request ids correlate, but the format is still
+  Nest's human-readable default
+- **Metrics and tracing**
 - **Per-actor rate limits** — the throttle is global, not per account
+- **Outbound webhook signature verification**
+- **API versioning** — the prefix is `/api` with no version in it
 
 See [BACKEND_GAPS.md](BACKEND_GAPS.md) for the product-level list.

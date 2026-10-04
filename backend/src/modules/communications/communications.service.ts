@@ -101,11 +101,11 @@ export class CommunicationsService {
     return { sent, failed };
   }
 
-  async findForEvent(eventId: string) {
+  async findForEvent(eventId: string, paging: { take: number; skip: number }) {
     return this.prisma.message.findMany({
       where: { eventId },
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      ...paging,
       select: {
         id: true,
         channel: true,
