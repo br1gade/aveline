@@ -10,6 +10,7 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`../docs/VENUES_AND_SEATING.md`](../docs/VENUES_AND_SEATING.md) | Venues, tables, seats |
 | [`../docs/INVITATION_DESIGN.md`](../docs/INVITATION_DESIGN.md) | Templates, blocks, media, signatures |
 | [`../docs/DATA_STORES.md`](../docs/DATA_STORES.md) | Postgres / Redis / MongoDB — what goes where and why |
+| [`../docs/PAYMENTS.md`](../docs/PAYMENTS.md) | Card acquiring: gateways, sandboxes, the rules that matter |
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7
 
@@ -58,6 +59,7 @@ src/
     rsvp/            the write side — guest responses
     operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
+    payments/        card acquiring; providers/ holds one adapter per bank
   infra/
     cache/           Redis read-through cache, degrades to Postgres
     analytics/       MongoDB engagement events, fire-and-forget
@@ -97,6 +99,11 @@ test/
 | `GET` | `/api/events/:id/bar-sheet` | Drink preferences as quantities |
 | `GET` | `/api/events/:id/playlist` | Deduplicated song requests |
 | `GET` | `/api/events/:id/guest-book` | Messages left by guests |
+| `POST` | `/api/payments` | Register an order, get the bank form URL (idempotent) |
+| `GET` | `/api/payments/:orderNumber` | Payment state |
+| `POST` | `/api/payments/:orderNumber/confirm` | Server-to-server outcome check |
+| `POST` | `/api/payments/:orderNumber/refund` | Full or partial refund |
+| `POST` | `/api/payments/reconcile` | Sweep unresolved payments |
 
 ## Three design decisions worth knowing
 
@@ -173,3 +180,6 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 8. **Job queue** (BullMQ on Redis) for seating, exports and image processing.
 9. **Audit trail** in MongoDB — blocked on authentication, since there is no
    actor to record yet.
+10. **Payments**: no bank credentials yet, so no adapter has run against a real
+    sandbox; reconciliation needs scheduling; ticketing and subscription
+    verticals are unbuilt. See `../docs/PAYMENTS.md` §6–7.

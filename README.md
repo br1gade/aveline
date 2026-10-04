@@ -15,6 +15,7 @@ Custom event invitations, organization and management.
 | [`docs/VENUES_AND_SEATING.md`](docs/VENUES_AND_SEATING.md) | Venues, tables, seats and seating constraints |
 | [`docs/INVITATION_DESIGN.md`](docs/INVITATION_DESIGN.md) | Templates, blocks, media, input requests, signatures |
 | [`docs/DATA_STORES.md`](docs/DATA_STORES.md) | Postgres, Redis and MongoDB — what goes where and why |
+| [`docs/PAYMENTS.md`](docs/PAYMENTS.md) | Ameriabank, Inecobank, IDBank — gateways, sandboxes, Apple Pay |
 | [`backend/`](backend/) | TypeScript · NestJS · PostgreSQL · Prisma · Redis · MongoDB |
 | [`.claude/`](.claude/) | Hooks and the `/feature` workflow skill |
 

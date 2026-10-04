@@ -20,6 +20,7 @@ Read the doc that governs the area you are about to change:
 | Venues, tables, seats, seating rules | `docs/VENUES_AND_SEATING.md` |
 | Templates, blocks, media, RSVP questions | `docs/INVITATION_DESIGN.md` |
 | Caching, queues, analytics, store choice | `docs/DATA_STORES.md` |
+| Payments, refunds, providers, money handling | `docs/PAYMENTS.md` |
 | Endpoints, setup | `backend/README.md` |
 
 If the doc and the code disagree, **stop and say so**. Do not silently pick one.
@@ -77,6 +78,8 @@ Aveline is IO-bound. Re-read what you wrote and confirm:
 - A screen needs one request, not five. An intent is one atomic call.
 - Anything cached is invalidated by every write that changes it.
 - Redis or Mongo being down degrades the request, never fails it.
+- Money is integer minor units; AMD has no subunit.
+- Anything chargeable is idempotent by a database constraint, not a check.
 
 ## 5. Schema changes
 

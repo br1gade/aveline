@@ -254,6 +254,11 @@ Enquiry → Consultation → Event setup → Invitation design
 
 **Commitment model:** a deposit confirms a booking. Managed-tier engagements should begin several weeks to several months before the event date, depending on scale.
 
+Card acquiring runs through Armenian bank gateways — Ameriabank, Inecobank and
+IDBank — which also carry Visa, Mastercard, ArCa and Apple Pay. See
+[PAYMENTS.md](PAYMENTS.md). The payment core is built and tested; wiring a
+captured deposit to a confirmed booking is not.
+
 ---
 
 ## 8. Packaging
