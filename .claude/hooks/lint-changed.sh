@@ -18,7 +18,7 @@ if ! output=$(cd "$backend" && npx eslint --fix "$file" 2>&1); then
     systemMessage: "ESLint found problems in the file just written.",
     hookSpecificOutput: {
       hookEventName: "PostToolUse",
-      additionalContext: ("ESLint reported problems. Fix them before committing (CLAUDE.md §7 requires zero warnings). Do not add eslint-disable to silence a complexity rule — extract instead.\n\n" + $out)
+      additionalContext: ("ESLint reported problems. Fix them before committing (CLAUDE.md §9 requires zero warnings). Do not add eslint-disable to silence a complexity rule — extract instead.\n\n" + $out)
     }
   }'
 fi

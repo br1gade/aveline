@@ -11,7 +11,7 @@ docs=$(git -C "$root" status --porcelain -- docs CLAUDE.md backend/README.md 2>/
 
 if [ "$code" -gt 0 ] && [ "$docs" -eq 0 ]; then
   jq -nc --arg n "$code" '{
-    systemMessage: ("Docs check: " + $n + " backend source/schema file(s) changed, no doc changed. CLAUDE.md §8 requires docs to move in the same commit.")
+    systemMessage: ("Docs check: " + $n + " backend source/schema file(s) changed, no doc changed. CLAUDE.md §10 requires docs to move in the same commit.")
   }'
 fi
 exit 0

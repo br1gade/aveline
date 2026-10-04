@@ -19,6 +19,7 @@ Read the doc that governs the area you are about to change:
 | Roles, permissions, who-can-do-what | `docs/ACCESS_CONTROL.md` |
 | Venues, tables, seats, seating rules | `docs/VENUES_AND_SEATING.md` |
 | Templates, blocks, media, RSVP questions | `docs/INVITATION_DESIGN.md` |
+| Caching, queues, analytics, store choice | `docs/DATA_STORES.md` |
 | Endpoints, setup | `backend/README.md` |
 
 If the doc and the code disagree, **stop and say so**. Do not silently pick one.
@@ -73,6 +74,9 @@ Aveline is IO-bound. Re-read what you wrote and confirm:
 - Nothing CPU-heavy runs inline in a request. Seating, exports and image work
   belong in a job.
 - Any new filter or sort column has an index.
+- A screen needs one request, not five. An intent is one atomic call.
+- Anything cached is invalidated by every write that changes it.
+- Redis or Mongo being down degrades the request, never fails it.
 
 ## 5. Schema changes
 

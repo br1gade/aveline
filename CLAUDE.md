@@ -80,7 +80,46 @@ computation. Design accordingly.
 - **Bound everything that comes from outside.** Array sizes, string lengths,
   page sizes. Enforced in DTOs.
 
-## 6. Testing — TDD
+## 6. API shape follows the UX promise
+
+`docs/PRODUCT_SPEC.md` §12 commits to operations that are fast and easily
+arranged. Most of that is decided here, not in the frontend.
+
+- **A screen is one request.** If a view needs five numbers, build one endpoint
+  that returns five numbers. `GET /events/:id/dashboard` is the reference.
+  Independent queries inside it run with `Promise.all` — the cost is the
+  slowest, not the sum.
+- **A user intent is one request, atomically.** Rearranging blocks is one
+  `PATCH`, not one call per block. A partial failure must not be able to leave
+  the page half-changed.
+- **Validate before you write.** A rejected request changes nothing, and the
+  error names the offending field or item.
+- **Omitted means "leave as is".** Never force a client to restate unchanged
+  fields to change one.
+- **Order is data.** Take the array order; never make the client compute
+  indices.
+
+Hit the latency targets in §12. If a surface cannot, it belongs in a job.
+
+## 7. Choosing a store
+
+Three stores, one job each. Full rationale in `docs/DATA_STORES.md`.
+
+- **PostgreSQL holds the entire domain.** Nothing that must be correct lives
+  anywhere else. Variably shaped data that belongs to an aggregate stays here
+  as a `Json` column — splitting an aggregate across stores buys nothing and
+  costs consistency.
+- **Redis holds only what can be rebuilt.** Cache, rate limits, job queue. A
+  cache outage must never become a product outage: every path degrades to
+  "not cached" and proceeds against Postgres. Invalidate with `SCAN`, never
+  `KEYS`.
+- **MongoDB holds append-only observability.** All four must hold: append-only,
+  never joined, variably shaped, and losing it costs insight rather than
+  correctness. Writes are fire-and-forget; aggregate in Mongo, never in Node.
+
+When unsure, it is Postgres.
+
+## 8. Testing — TDD
 
 **Write the failing test first.** Red, green, refactor. A bug fix starts with a
 test that reproduces it.
@@ -113,13 +152,13 @@ npm run verify       # lint + build + all three layers
 
 Framework behaviour, Prisma's own correctness, or getters. Test *our* rules.
 
-## 7. Linting
+## 9. Linting
 
 `npm run lint` must pass with **zero warnings** before any commit.
 Never add `eslint-disable` without a comment on the same line explaining why,
 and never to silence a complexity rule — extract instead.
 
-## 8. Docs and code stay in sync
+## 10. Docs and code stay in sync
 
 **This is not optional and it is the rule most easily skipped.**
 
@@ -128,6 +167,7 @@ When behaviour changes, the doc changes **in the same commit**:
 | Change | Also update |
 |---|---|
 | Business model, pricing, packaging, positioning | `docs/PRODUCT_SPEC.md` |
+| Caching, queues, analytics, a new store | `docs/DATA_STORES.md` |
 | Roles, permissions, who-can-do-what | `docs/ACCESS_CONTROL.md` |
 | Venues, tables, seats, seating rules | `docs/VENUES_AND_SEATING.md` |
 | Templates, blocks, media, questions | `docs/INVITATION_DESIGN.md` |
@@ -141,7 +181,7 @@ well enough to ship it.
 **Every doc states what is not yet built.** Keep those sections honest — they
 are the first thing a new reader checks.
 
-## 9. Migrations
+## 11. Migrations
 
 - **Every migration must be safe against a populated database.** Adding a
   `NOT NULL` column means: add nullable, backfill, then constrain. See
@@ -150,7 +190,7 @@ are the first thing a new reader checks.
 - **Destructive operations need explicit human consent.** Never run
   `migrate reset` against anything you did not create seconds ago.
 
-## 10. Definition of done
+## 12. Definition of done
 
 - [ ] Failing test written first, now passing
 - [ ] All three test layers pass

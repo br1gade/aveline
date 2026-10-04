@@ -320,7 +320,74 @@ This yields three things at once: a sales motion requiring no behaviour change; 
 
 ---
 
-## 12. Open decisions
+## 12. Operational speed and arrangeability
+
+Everything in §6 is worthless if using it is a chore. This is a product
+requirement, not a polish item, and most of it is decided in the backend.
+
+### The principle
+
+> **Management and operations must be fast, versatile and easily arranged.
+> The shortest path from intent to result, never a multi-step workflow that
+> exists because the API was shaped that way.**
+
+A host should be able to move three blocks and switch one off, and have that
+be one action. A coordinator opening the operations screen should see numbers,
+not five spinners resolving in sequence.
+
+### What this obliges the backend to do
+
+Bad operational UX is usually an API shape problem wearing a frontend costume.
+Four rules follow:
+
+| Rule | Why |
+|---|---|
+| **A screen is one request** | `GET /events/:id/dashboard` returns headcount, catering, bar, playlist and engagement together. Five calls means five spinners, five failure modes, and a screen that renders in waves |
+| **A user intent is one request** | Rearranging an invitation is one atomic `PATCH`, not one call per block. A partial failure must not be able to leave the page half-rearranged |
+| **The hot path is cached** | One invitation link is opened by every guest, usually within minutes of being sent, and the payload is identical for everyone reading the same language |
+| **Order is data, not arithmetic** | The client sends blocks in the order it wants them. It never computes indices, so it cannot compute them wrongly |
+
+### Versatility without complexity
+
+Arrangeability means the host can express what they want, not that they are
+given more switches. Concretely:
+
+- **Blocks reorder by array order.** No index fields, no move-up/move-down
+  endpoints, no drag state to reconcile.
+- **Omitted fields mean "leave as is".** A reorder does not have to restate
+  every block's enabled flag and variant.
+- **Rejected arrangements change nothing.** Validation runs before any write,
+  and the error names the offending block.
+- **The template guarantees the result renders.** A host arranging within
+  `supportedBlocks` cannot produce a broken page, so the interface can allow
+  rather than warn.
+
+### Latency targets
+
+These are commitments, not aspirations. They are what makes the difference
+between a tool someone reaches for and one they avoid.
+
+| Surface | Target | Measured (demo event) |
+|---|---|---|
+| Public invitation page payload | < 50 ms cached, < 200 ms cold | 13 ms / 17 ms |
+| RSVP submission | < 300 ms | ~20 ms |
+| Operations dashboard | < 500 ms | 6–18 ms |
+| Block arrangement | < 300 ms | ~25 ms |
+
+Measured on a small demo event, so these are a floor rather than a guarantee at
+400 guests. The point of recording them is that a regression is visible.
+
+A **degraded** store must not break the budget either. With Redis and MongoDB
+both stopped, the invitation endpoint serves correct content in ~20 ms and the
+dashboard in ~6 ms — see [DATA_STORES.md](DATA_STORES.md) for the two failures
+that had to be fixed to make that true.
+
+Anything CPU-bound — seating computation, exports, image processing — runs as
+a job and never inside a request. See [DATA_STORES.md](DATA_STORES.md).
+
+---
+
+## 13. Open decisions
 
 1. **Build order.** Invitation + guest graph + headcount is the minimum coherent product. Seating is the most compelling demonstration but the largest build.
 2. **Concierge capacity.** §11 assumes we can staff manual intake at launch.
