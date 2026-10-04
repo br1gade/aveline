@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BlockType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../../infra/analytics/analytics.service';
+import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
 import { resolveTranslation } from '../../common/locale';
 
 const invitationInclude = {
@@ -26,7 +29,45 @@ type Translate = <T>(content: unknown) => T | null;
 
 @Injectable()
 export class InvitationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly cacheTtlSeconds: number;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+    private readonly analytics: AnalyticsService,
+    config: ConfigService,
+  ) {
+    this.cacheTtlSeconds = Number(config.get<string>('INVITATION_CACHE_TTL') ?? 300);
+  }
+
+  /**
+   * The hot path. One invitation link is opened by every guest, often in the
+   * same few minutes after it is sent, and the payload is identical for every
+   * guest reading the same language. It is cached per slug and locale and
+   * dropped on any write that changes what the page renders.
+   *
+   * The personalized variant is NOT cached: it is per-guest by definition, and
+   * caching it would multiply the keyspace by the guest count for no reuse.
+   */
+  async getCachedInvitation(slug: string, locale?: string) {
+    const published = await this.loadPublished(slug);
+    const effectiveLocale = locale ?? published.event.defaultLocale;
+
+    const payload = await this.cache.readThrough(
+      invitationCacheKey(slug, effectiveLocale),
+      this.cacheTtlSeconds,
+      () => Promise.resolve(this.buildPayload(published, null, effectiveLocale)),
+    );
+
+    // Fire and forget: a guest's page must never wait on analytics.
+    void this.analytics.recordInvitationView({
+      slug,
+      eventId: published.event.id,
+      locale: effectiveLocale,
+    });
+
+    return payload;
+  }
 
   /**
    * The public invitation payload. Blocks are data-bound: VENUE, TIMELINE and
@@ -40,10 +81,27 @@ export class InvitationsService {
    */
   async getPublicInvitation(slug: string, guestToken?: string) {
     const invitation = await this.loadPublished(slug);
-    const { event } = invitation;
+    const guest = guestToken ? await this.findGuest(guestToken, invitation.event.id) : null;
 
-    const guest = guestToken ? await this.findGuest(guestToken, event.id) : null;
-    const locale = guest?.locale ?? event.defaultLocale;
+    if (guest) {
+      void this.analytics.recordInvitationView({
+        slug,
+        eventId: invitation.event.id,
+        locale: guest.locale ?? invitation.event.defaultLocale,
+        guestId: guest.id,
+      });
+    }
+
+    return this.buildPayload(invitation, guest, guest?.locale ?? undefined);
+  }
+
+  private buildPayload(
+    invitation: LoadedInvitation,
+    guest: LoadedGuest | null,
+    requestedLocale?: string,
+  ) {
+    const { event } = invitation;
+    const locale = requestedLocale ?? event.defaultLocale;
     const translate: Translate = (content) => resolveTranslation(content, locale, event.defaultLocale);
 
     return {

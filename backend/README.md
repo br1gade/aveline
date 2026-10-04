@@ -9,8 +9,9 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`../docs/ACCESS_CONTROL.md`](../docs/ACCESS_CONTROL.md) | Accounts, roles, permissions |
 | [`../docs/VENUES_AND_SEATING.md`](../docs/VENUES_AND_SEATING.md) | Venues, tables, seats |
 | [`../docs/INVITATION_DESIGN.md`](../docs/INVITATION_DESIGN.md) | Templates, blocks, media, signatures |
+| [`../docs/DATA_STORES.md`](../docs/DATA_STORES.md) | Postgres / Redis / MongoDB — what goes where and why |
 
-**Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6
+**Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7
 
 ---
 
@@ -28,7 +29,7 @@ is a derived view over it. Nothing in that module is separately maintained.
 ```bash
 cp .env.example .env
 npm install
-npm run db:up          # Postgres in Docker on :5433
+npm run db:up          # Postgres :5433, Redis :6380, Mongo :27018
 npx prisma generate
 npx prisma migrate dev
 npm run db:seed        # one demo wedding, prints guest links
@@ -37,8 +38,12 @@ npm run start:dev
 
 API at `http://localhost:3000/api`, OpenAPI docs at `http://localhost:3000/docs`.
 
-> The container binds **5433**, not 5432, so it does not collide with a
-> Postgres already running on the host.
+> All three bind non-default ports so they cannot collide with instances
+> already running on the host.
+>
+> Redis and Mongo are **optional at runtime**. With either down the API still
+> serves correctly — the invitation payload is rebuilt from Postgres and the
+> engagement panel reports zero. Only latency and insight degrade.
 
 ## Layout
 
@@ -51,8 +56,11 @@ src/
     guests/          guest graph by household; find-your-seat lookup
     invitations/     public invitation payload, data-bound + personalized
     rsvp/            the write side — guest responses
-    operations/      derived views: headcount, catering, bar, playlist
+    operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
+  infra/
+    cache/           Redis read-through cache, degrades to Postgres
+    analytics/       MongoDB engagement events, fire-and-forget
 prisma/
   schema.prisma      the domain model
   seed.ts            one realistic wedding
@@ -69,11 +77,12 @@ test/
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/invitations/:slug` | Invitation payload, default locale |
+| `GET` | `/api/invitations/:slug` | Invitation payload, cached per slug and locale |
 | `GET` | `/api/invitations/:slug/g/:guestToken` | Personalized for one guest |
 | `GET` | `/api/invitations/:slug/g/:guestToken/rsvp` | Read current response |
 | `POST` | `/api/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
 | `GET` | `/api/events/:eventId/find-seat?q=` | Guest seat lookup by name |
+| `PATCH` | `/api/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
 
 ### Organizer — **auth not yet implemented** (see Next)
 
@@ -81,6 +90,7 @@ test/
 |---|---|---|
 | `GET` | `/api/events` | List events |
 | `GET` | `/api/events/:id` | Detail with venues and timeline |
+| `GET` | `/api/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
 | `GET` | `/api/events/:id/guests` | Guest graph grouped by household |
 | `GET` | `/api/events/:id/headcount` | Live headcount by response and side |
 | `GET` | `/api/events/:id/catering-sheet` | Covers plus dietary requirements |
@@ -88,7 +98,7 @@ test/
 | `GET` | `/api/events/:id/playlist` | Deduplicated song requests |
 | `GET` | `/api/events/:id/guest-book` | Messages left by guests |
 
-## Two design decisions worth knowing
+## Three design decisions worth knowing
 
 **Blocks are data-bound.** An `InvitationBlock` of type `VENUE`, `TIMELINE` or
 `COUNTDOWN` stores no copy of the event's data. `InvitationsService.hydrateBlock`
@@ -101,6 +111,14 @@ entitlement; named party members become real `Guest` rows inside it, flagged
 `addedByGuest`. Seating, catering and check-in all operate on households. A flat
 guest list with an `plusOnes: 2` integer cannot express this, and seating becomes
 intractable without it.
+
+**A screen is one request; an intent is one request.** `/dashboard` returns
+headcount, catering, bar, playlist and engagement together, its independent
+queries running concurrently. `PATCH /arrangement` reorders, toggles and
+re-variants every block in one transaction, with display order taken from the
+array order so the client never computes an index. Both exist because bad
+operational UX is usually an API shape problem — see `../docs/PRODUCT_SPEC.md`
+§12.
 
 ## Testing
 
@@ -150,4 +168,8 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 5. **Vendor brief endpoints.** `briefScopes` and `briefToken` are modelled; the
    scoped reads are not built.
 6. **Check-in.** `CheckIn` is modelled; no endpoint yet.
-7. **Rate limiting** on the public RSVP route.
+7. **Rate limiting** and **idempotency keys** on the public RSVP route —
+   Redis is wired, the limiter is not.
+8. **Job queue** (BullMQ on Redis) for seating, exports and image processing.
+9. **Audit trail** in MongoDB — blocked on authentication, since there is no
+   actor to record yet.

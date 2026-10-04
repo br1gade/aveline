@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { GuestAttribution, RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../../infra/analytics/analytics.service';
 
 /**
  * Every surface here is a *derived view* over the guest graph (spec §6).
@@ -10,7 +11,40 @@ import { PrismaService } from '../../prisma/prisma.service';
  */
 @Injectable()
 export class OperationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly analytics: AnalyticsService,
+  ) {}
+
+  /**
+   * Everything the operations screen renders, in one request.
+   *
+   * The product rule (spec §12): a screen is one round trip. Five separate
+   * calls would make the dashboard render in five waves, each with its own
+   * spinner and its own failure mode. The sheets run concurrently because
+   * none depends on another — the wall-clock cost is the slowest query, not
+   * their sum.
+   */
+  async dashboard(eventId: string) {
+    await this.assertEvent(eventId);
+
+    const [headcount, catering, bar, playlist, views] = await Promise.all([
+      this.headcount(eventId),
+      this.cateringSheet(eventId),
+      this.barSheet(eventId),
+      this.playlist(eventId),
+      this.analytics.invitationViewSummary(eventId),
+    ]);
+
+    return {
+      headcount,
+      catering,
+      bar,
+      playlist,
+      engagement: views,
+      generatedAt: new Date().toISOString(),
+    };
+  }
 
   /** Live headcount, broken down by response, household and side. */
   async headcount(eventId: string) {

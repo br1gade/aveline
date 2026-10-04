@@ -7,6 +7,17 @@ import { OperationsService } from './operations.service';
 export class OperationsController {
   constructor(private readonly operations: OperationsService) {}
 
+  @Get('dashboard')
+  @ApiOperation({
+    summary: 'Everything the operations screen needs, in one request',
+    description:
+      'Headcount, catering, bar, playlist and invitation engagement together. ' +
+      'Prefer this over the individual endpoints when rendering a screen.',
+  })
+  dashboard(@Param('eventId') eventId: string) {
+    return this.operations.dashboard(eventId);
+  }
+
   @Get('headcount')
   @ApiOperation({ summary: 'Live headcount by response, household and side' })
   headcount(@Param('eventId') eventId: string) {

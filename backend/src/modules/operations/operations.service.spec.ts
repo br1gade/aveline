@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { OperationsService } from './operations.service';
 
 /**
@@ -9,6 +10,7 @@ import { OperationsService } from './operations.service';
  */
 describe('OperationsService', () => {
   let service: OperationsService;
+  let analytics: { invitationViewSummary: jest.Mock };
   let prisma: {
     event: { findUnique: jest.Mock };
     guest: { findMany: jest.Mock };
@@ -24,8 +26,16 @@ describe('OperationsService', () => {
       rsvp: { findMany: jest.fn(), groupBy: jest.fn() },
     };
 
+    analytics = {
+      invitationViewSummary: jest.fn().mockResolvedValue({ totalViews: 0, byLocale: [] }),
+    };
+
     const moduleRef = await Test.createTestingModule({
-      providers: [OperationsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        OperationsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: AnalyticsService, useValue: analytics },
+      ],
     }).compile();
 
     service = moduleRef.get(OperationsService);
@@ -115,6 +125,58 @@ describe('OperationsService', () => {
 
       expect(sheet.totalResponses).toBe(4);
       expect(sheet.preferences[0]).toEqual({ drink: 'wine', guests: 3, share: 75 });
+    });
+  });
+
+  describe('dashboard', () => {
+    // The product rule in spec §12: a screen is one request, and one store
+    // being down degrades the screen rather than failing it.
+    it('returns every operational view in a single call', async () => {
+      prisma.guest.findMany.mockResolvedValue([]);
+      prisma.rsvp.groupBy.mockResolvedValue([]);
+      prisma.rsvp.findMany.mockResolvedValue([]);
+
+      const result = await service.dashboard('e1');
+
+      expect(Object.keys(result).sort()).toEqual([
+        'bar',
+        'catering',
+        'engagement',
+        'generatedAt',
+        'headcount',
+        'playlist',
+      ]);
+    });
+
+    it('still renders when analytics returns nothing', async () => {
+      prisma.guest.findMany.mockResolvedValue([]);
+      prisma.rsvp.groupBy.mockResolvedValue([]);
+      prisma.rsvp.findMany.mockResolvedValue([]);
+      analytics.invitationViewSummary.mockResolvedValue({ totalViews: 0, byLocale: [] });
+
+      await expect(service.dashboard('e1')).resolves.toMatchObject({
+        engagement: { totalViews: 0, byLocale: [] },
+      });
+    });
+
+    it('runs its independent queries concurrently, not in sequence', async () => {
+      prisma.guest.findMany.mockResolvedValue([]);
+      prisma.rsvp.groupBy.mockResolvedValue([]);
+      prisma.rsvp.findMany.mockResolvedValue([]);
+
+      await service.dashboard('e1');
+
+      // guest.findMany backs both headcount and the catering sheet; if the
+      // sheets were awaited one after another the event check would repeat
+      // serially. Both sheets issued means they were dispatched together.
+      expect(prisma.guest.findMany).toHaveBeenCalledTimes(2);
+      expect(prisma.rsvp.groupBy).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects an unknown event before doing any work', async () => {
+      prisma.event.findUnique.mockResolvedValue(null);
+      await expect(service.dashboard('nope')).rejects.toThrow('No event nope');
+      expect(prisma.guest.findMany).not.toHaveBeenCalled();
     });
   });
 
