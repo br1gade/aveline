@@ -27,6 +27,7 @@ model Organization {
 
   memberships OrganizationMembership[]
   events      Event[]
+  payments    Payment[]
 
   @@map("organizations")
 }
@@ -145,6 +146,7 @@ model Event {
   guests         Guest[]
   tables         Table[]
   mediaAssets    MediaAsset[]
+  payments       Payment[]
   vendorBookings VendorBooking[]
 
   @@index([organizationId])
@@ -628,4 +630,116 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+}
+
+// ────────────────────────────── Payments ───────────────────────────────
+//
+// All three Armenian gateways we support are hosted-redirect gateways of the
+// same shape: register an order, send the payer to the bank's form, then
+// CONFIRM SERVER-TO-SERVER. The return redirect is attacker-controlled and is
+// never treated as proof of payment. See docs/PAYMENTS.md.
+
+model Payment {
+  id             String  @id @default(cuid())
+  organizationId String
+  /// Set for a deposit or ticket; null for Aveline's own subscription billing.
+  eventId        String?
+
+  purpose  PaymentPurpose
+  provider PaymentProvider
+
+  /// Our order reference, handed to the bank. Ours so that a provider outage
+  /// or a migration between banks never changes how we identify a payment.
+  orderNumber String @unique
+
+  /// Minor units as an integer. Money is never a float, and never a Decimal
+  /// that someone can accidentally round: 1000 AMD is 1000, $10.50 is 1050.
+  amountMinor   BigInt
+  refundedMinor BigInt        @default(0)
+  currency      String        @default("AMD")
+  status        PaymentStatus @default(CREATED)
+
+  /// The bank's own reference, learned at registration.
+  providerRef String?
+  /// Hosted form URL to send the payer to.
+  redirectUrl String?
+  /// Where the bank returns the payer afterwards.
+  returnUrl   String?
+
+  /// Supplied by the caller; makes retrying a registration safe.
+  idempotencyKey String  @unique
+  description    String?
+  failureReason  String?
+
+  authorizedAt DateTime?
+  capturedAt   DateTime?
+  /// Registered orders do not stay payable forever; reconciliation expires them.
+  expiresAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event        Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  events       PaymentEvent[]
+
+  @@index([organizationId])
+  @@index([eventId])
+  /// Reconciliation sweeps unresolved payments oldest-first.
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+enum PaymentPurpose {
+  DEPOSIT
+  TICKET
+  SUBSCRIPTION
+  OTHER
+}
+
+enum PaymentProvider {
+  AMERIABANK
+  INECOBANK
+  IDBANK
+  /// In-process gateway for tests and local development. Never reachable in
+  /// production; selecting it there is a startup error.
+  FAKE
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  EXPIRED
+}
+
+/// Every state transition with the raw provider payload that caused it.
+/// Payment disputes are settled from this table, so it is append-only.
+model PaymentEvent {
+  id         String             @id @default(cuid())
+  paymentId  String
+  fromStatus PaymentStatus?
+  toStatus   PaymentStatus
+  source     PaymentEventSource
+  /// Verbatim provider response. Never parsed for business decisions; kept so
+  /// a disagreement with the bank can be reconstructed.
+  payload    Json               @default("{}")
+  at         DateTime           @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, at])
+  @@map("payment_events")
+}
+
+enum PaymentEventSource {
+  API
+  CALLBACK
+  RECONCILIATION
+  MANUAL
 }
