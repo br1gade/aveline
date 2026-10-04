@@ -17,5 +17,37 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: aveline-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'no', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    container_name: aveline-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: aveline
+      MONGO_INITDB_ROOT_PASSWORD: aveline
+      MONGO_INITDB_DATABASE: aveline
+    ports:
+      - '27018:27017'
+    volumes:
+      - aveline-mongodata:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   aveline-pgdata:
+  aveline-mongodata:

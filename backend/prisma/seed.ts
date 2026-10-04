@@ -48,18 +48,29 @@ async function seedTemplate() {
   });
 }
 
-/** One org owner plus one Aveline concierge, to exercise both access paths. */
+/**
+ * One org owner plus one Aveline concierge, to exercise both access paths.
+ *
+ * Upserted rather than created: deleting the demo organization cascades its
+ * memberships but not the users themselves, and the concierge never had a
+ * membership to begin with. Creating them outright makes a second `db:seed`
+ * fail on the unique email.
+ */
 async function seedUsers(organizationId: string): Promise<User> {
-  const owner = await prisma.user.create({
-    data: {
+  const owner = await prisma.user.upsert({
+    where: { email: 'owner@demo.test' },
+    update: { organizationMemberships: { create: { organizationId, role: 'OWNER' } } },
+    create: {
       email: 'owner@demo.test',
       name: 'Demo Owner',
       organizationMemberships: { create: { organizationId, role: 'OWNER' } },
     },
   });
 
-  await prisma.user.create({
-    data: { email: 'concierge@aveline.test', name: 'Concierge', platformRole: 'SUPPORT' },
+  await prisma.user.upsert({
+    where: { email: 'concierge@aveline.test' },
+    update: {},
+    create: { email: 'concierge@aveline.test', name: 'Concierge', platformRole: 'SUPPORT' },
   });
 
   return owner;
