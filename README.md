@@ -9,8 +9,13 @@ Custom event invitations, organization and management.
 
 | Path | What |
 |---|---|
+| [`CLAUDE.md`](CLAUDE.md) | Engineering rules — binding for humans and agents |
 | [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) | Product definition: positioning, architecture, feature set, services, packaging |
+| [`docs/ACCESS_CONTROL.md`](docs/ACCESS_CONTROL.md) | Account types, roles, permissions |
+| [`docs/VENUES_AND_SEATING.md`](docs/VENUES_AND_SEATING.md) | Venues, tables, seats and seating constraints |
+| [`docs/INVITATION_DESIGN.md`](docs/INVITATION_DESIGN.md) | Templates, blocks, media, input requests, signatures |
 | [`backend/`](backend/) | TypeScript · NestJS · PostgreSQL · Prisma |
+| [`.claude/`](.claude/) | Hooks and the `/feature` workflow skill |
 
 ## Getting started
 

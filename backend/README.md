@@ -1,7 +1,14 @@
 # Aveline Backend
 
 Event invitations, the guest graph, and the operations derived from them.
-Product definition lives in [`../docs/PRODUCT_SPEC.md`](../docs/PRODUCT_SPEC.md).
+
+| Doc | Covers |
+|---|---|
+| [`../CLAUDE.md`](../CLAUDE.md) | Engineering rules — binding |
+| [`../docs/PRODUCT_SPEC.md`](../docs/PRODUCT_SPEC.md) | Product definition and domain model |
+| [`../docs/ACCESS_CONTROL.md`](../docs/ACCESS_CONTROL.md) | Accounts, roles, permissions |
+| [`../docs/VENUES_AND_SEATING.md`](../docs/VENUES_AND_SEATING.md) | Venues, tables, seats |
+| [`../docs/INVITATION_DESIGN.md`](../docs/INVITATION_DESIGN.md) | Templates, blocks, media, signatures |
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6
 
@@ -45,9 +52,15 @@ src/
     invitations/     public invitation payload, data-bound + personalized
     rsvp/            the write side — guest responses
     operations/      derived views: headcount, catering, bar, playlist
+    access/          permission policy (pure, table-driven)
 prisma/
   schema.prisma      the domain model
   seed.ts            one realistic wedding
+test/
+  setup/             test database lifecycle
+  fixtures/          event fixture builder
+  integration/       service-level, real Postgres
+  e2e/               HTTP-level, real Postgres
 ```
 
 ## Endpoints
@@ -89,33 +102,52 @@ entitlement; named party members become real `Guest` rows inside it, flagged
 guest list with an `plusOnes: 2` integer cannot express this, and seating becomes
 intractable without it.
 
-## Verified working
+## Testing
 
-The RSVP slice runs end to end against a live database:
+Three layers, each with a distinct job. See `../CLAUDE.md` §6.
 
-- Personalized invitation resolves Armenian/Russian/English with fallback
-- Named plus-ones become household members and inherit attribution
-- Household capacity is enforced (`3 allotted, 3 named, 1 more submitted` → 400)
-- Unknown guest token → 404; invalid enum → 400 with field detail
-- Headcount, catering, bar and playlist all derive correctly from the responses
+| Layer | Location | Subject | Database |
+|---|---|---|---|
+| Unit | `src/**/*.spec.ts` | Pure logic, derivations, access policy | Mocked |
+| Integration | `test/integration/**/*.int-spec.ts` | Services against real Prisma | Real |
+| E2E | `test/e2e/**/*.e2e-spec.ts` | HTTP: status codes, validation, shapes | Real |
 
 ```bash
-npm test        # 10 unit tests
-npm run build
+npm run test:unit    # fast, no database
+npm run test:int     # needs Postgres
+npm run test:e2e     # needs Postgres
+npm run verify       # lint + build + all three
 ```
+
+Integration and e2e create and migrate a separate `aveline_test` database
+automatically, and truncate between tests with a single `TRUNCATE ... CASCADE`
+rather than a per-table delete loop.
+
+## Linting
+
+```bash
+npm run lint         # must be clean, zero warnings
+npm run lint:fix
+```
+
+The config enforces the house rules: complexity ≤ 10, depth ≤ 3, 60 lines per
+function, boolean names as assertions (`isPublished`, `hasSeats`), and
+`no-floating-promises` / `no-misused-promises` to catch the async mistakes that
+cause races. Never add `eslint-disable` to silence a complexity rule — extract.
 
 ## Next
 
-Nothing here is blocked on design — these are the obvious increments.
-
-1. **Authentication and tenant scoping.** Organizer endpoints are currently
-   open. Every `/api/events/*` route needs an authenticated user scoped to the
-   owning organization before this is deployed anywhere.
+1. **Authentication and the access guard.** `src/modules/access/access-policy.ts`
+   is a pure, fully tested policy, but nothing calls it yet and there is no
+   session or token issuance. Every `/api/events/*` route is currently open.
 2. **Seating assignment.** `Table` and `Seat` are modelled and the read path
-   (`find-seat`) works; the assignment algorithm with household and side
-   constraints is not written.
-3. **Vendor brief endpoints.** `VendorBooking.briefScopes` and `briefToken` are
-   modelled; the scoped read endpoints are not built.
-4. **Check-in.** `CheckIn` is modelled; no endpoint yet.
-5. **Rate limiting** on the public RSVP route.
-6. **E2E test suite** against a throwaway database.
+   (`find-seat`) works; the constrained assignment algorithm is not written.
+   See `../docs/VENUES_AND_SEATING.md` §5 for the intended approach.
+3. **Design endpoints.** Templates, blocks, media and themes are modelled;
+   nothing writes them over HTTP, and theme values are not yet validated
+   against the template's `allowedFonts` / `palettes`.
+4. **Upload pipeline** for `MediaAsset` — storage, resizing, `sizeBytes`.
+5. **Vendor brief endpoints.** `briefScopes` and `briefToken` are modelled; the
+   scoped reads are not built.
+6. **Check-in.** `CheckIn` is modelled; no endpoint yet.
+7. **Rate limiting** on the public RSVP route.
