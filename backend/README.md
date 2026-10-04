@@ -11,6 +11,7 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`../docs/INVITATION_DESIGN.md`](../docs/INVITATION_DESIGN.md) | Templates, blocks, media, signatures |
 | [`../docs/DATA_STORES.md`](../docs/DATA_STORES.md) | Postgres / Redis / MongoDB — what goes where and why |
 | [`../docs/PAYMENTS.md`](../docs/PAYMENTS.md) | Card acquiring: gateways, sandboxes, the rules that matter |
+| [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | The frame: lifecycle, auth, jobs, degradation, conventions |
 | [`../docs/BACKEND_GAPS.md`](../docs/BACKEND_GAPS.md) | What is still unbuilt, prioritised |
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7
@@ -65,8 +66,12 @@ src/
     public-events/   announcements, listings, preview metadata
     communications/  outbox messaging; channels/ holds one transport each
   infra/
+    auth/            sessions, the guard, @Public / @RequirePermission
     cache/           Redis read-through cache, degrades to Postgres
     analytics/       MongoDB engagement events, fire-and-forget
+    storage/         file storage port, local-disk adapter
+    jobs/            scheduled sweeps behind a Redis lock
+    health/          liveness and readiness
 prisma/
   schema.prisma      the domain model
   seed.ts            one realistic wedding
@@ -78,6 +83,21 @@ test/
 ```
 
 ## Endpoints
+
+### Authentication
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/auth/register` | Create an account, get a token pair |
+| `POST` | `/api/auth/login` | Exchange credentials for a token pair |
+| `POST` | `/api/auth/refresh` | Rotate a refresh token; the old one is revoked |
+| `POST` | `/api/auth/logout` | Revoke one session |
+| `POST` | `/api/auth/logout-everywhere` | Revoke every session |
+| `GET` | `/api/health/live` · `/ready` | Liveness and readiness |
+
+**Every route requires a session unless it is marked `@Public()`.** Organizer
+routes additionally declare `@RequirePermission(...)`, and routes not keyed by
+`:eventId` declare `@EventScope(...)` so the guard can resolve ownership.
 
 ### Public — no auth, guest-facing
 
@@ -177,9 +197,9 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 
 ## Next
 
-1. **Authentication and the access guard.** `src/modules/access/access-policy.ts`
-   is a pure, fully tested policy, but nothing calls it yet and there is no
-   session or token issuance. Every `/api/events/*` route is currently open.
+1. **Real message transports.** The outbox and dispatcher work; every channel
+   currently resolves to the console transport. SMTP, SMS and chat providers
+   implement the same two-method port.
 2. **Seating assignment.** `Table` and `Seat` are modelled and the read path
    (`find-seat`) works; the constrained assignment algorithm is not written.
    See `../docs/VENUES_AND_SEATING.md` §5 for the intended approach.
@@ -197,9 +217,7 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
    actor to record yet.
 10. **Payments**: no bank credentials yet, so no adapter has run against a real
     sandbox. See `../docs/PAYMENTS.md` §6–7.
-11. **Three sweeps have no scheduler.** Payment reconciliation, ticket
-    reservation release and message dispatch are all implemented and all
-    inert until a job runner calls them.
+11. **Upload endpoint.** `StorageService` exists; nothing accepts multipart.
 12. **Transports are console-only.** The messaging pipeline is real; no SMTP,
     SMS or chat provider is wired.
 

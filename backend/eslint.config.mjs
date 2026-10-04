@@ -91,6 +91,20 @@ export default tseslint.config(
   },
 
   {
+    // Decorator factories are PascalCase by NestJS convention — @Public(),
+    // @RequirePermission(). Scoped to the file that defines them so the rule
+    // still binds everywhere else.
+    files: ['src/infra/auth/actor.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': [
+        'error',
+        { selector: 'variable', format: ['camelCase', 'UPPER_CASE', 'PascalCase'] },
+        { selector: 'typeLike', format: ['PascalCase'] },
+      ],
+    },
+  },
+
+  {
     files: ['prisma/seed.ts'],
     rules: { 'no-console': 'off', '@typescript-eslint/no-non-null-assertion': 'off' },
   },

@@ -24,16 +24,19 @@ human retyping something another human already typed.
 | Public announcements and ticketing | Phone bookings and paper tickets |
 | Concurrency-safe ticket inventory | Overselling discovered at the door |
 | Messaging outbox with templates | Copy-pasting a message 400 times |
+| Authentication, sessions, the guard | — |
+| Scheduled sweeps behind a distributed lock | — |
+| Health, request correlation, one error shape | — |
 
 ## 2. Blocking — nothing ships without these
 
+~~1. Authentication~~, ~~2. Authorization guard~~, ~~3. Rate limiting~~ and
+~~4. Job scheduler~~ are **built** — see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 | # | Gap | Why it blocks |
 |---|---|---|
-| 1 | **Authentication and session management** | Every organizer endpoint is open. `access-policy.ts` is written and tested but nothing calls it. This is the single largest gap |
-| 2 | **Authorization guard** | Resolve the actor, load membership, check permission *and* ownership |
-| 3 | **Rate limiting** | Public RSVP, ticket checkout and payment registration are unauthenticated and unthrottled |
-| 4 | **Job scheduler** | Three sweeps exist and nothing runs them: payment reconciliation, ticket reservation release, message dispatch. Each is correctness-critical — an unrun sweep means a paid order stuck pending, seats held forever, or an invitation never sent |
-| 5 | **File upload pipeline** | `MediaAsset` is modelled; nothing accepts an upload. Invitations cannot have photographs |
+| 5 | **File upload pipeline** | `StorageService` and `MediaAsset` exist; no endpoint accepts multipart, so invitations still cannot have photographs |
+| 5b | **Real message transports** | The outbox dispatches correctly but every channel resolves to the console. Nothing actually reaches a guest yet |
 
 ## 3. High value — the actual digitalisation
 

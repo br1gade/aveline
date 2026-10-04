@@ -1,10 +1,11 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { PrismaClient, RsvpStatus } from '@prisma/client';
+import { EventRole, PrismaClient, RsvpStatus } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
@@ -56,7 +57,11 @@ describe('Operations UX (e2e)', () => {
         })
         .expect(201);
 
-      const { body } = await http().get(`/api/events/${eventId}/dashboard`).expect(200);
+      const { authorization } = await authenticateAs(app, prisma, { eventId });
+      const { body } = await http()
+        .get(`/api/events/${eventId}/dashboard`)
+        .set('Authorization', authorization)
+        .expect(200);
 
       expect(Object.keys(body as Record<string, unknown>).sort()).toEqual([
         'bar',
@@ -73,7 +78,15 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('404s an unknown event rather than returning an empty dashboard', async () => {
-      await http().get('/api/events/does-not-exist/dashboard').expect(404);
+      const { authorization } = await authenticateAs(app, prisma);
+      // A platform account with no membership is still refused by the policy,
+      // so this asserts the 404 path for someone who could otherwise read it.
+      await prisma.user.updateMany({ where: {}, data: { platformRole: 'ADMIN' } });
+
+      await http()
+        .get('/api/events/does-not-exist/dashboard')
+        .set('Authorization', authorization)
+        .expect(404);
     });
   });
 
@@ -88,7 +101,11 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('reflects a rearrangement immediately, proving invalidation works', async () => {
-      const { slug } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma);
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId,
+        role: EventRole.DESIGNER,
+      });
 
       const before = await http().get(`/api/invitations/${slug}`).expect(200);
       const beforeTypes = (before.body as { blocks: { type: string }[] }).blocks.map((b) => b.type);
@@ -96,6 +113,7 @@ describe('Operations UX (e2e)', () => {
 
       await http()
         .patch(`/api/invitations/${slug}/arrangement`)
+        .set('Authorization', authorization)
         .send({ blocks: [{ type: 'RSVP' }, { type: 'HERO' }] })
         .expect(200);
 
@@ -138,10 +156,17 @@ describe('Operations UX (e2e)', () => {
 
   describe('block arrangement', () => {
     it('reorders, toggles and re-variants in one atomic request', async () => {
-      const { slug } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma);
+      // DESIGNER is the least-privileged role that may change an invitation,
+      // so using it here also asserts the permission is scoped correctly.
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId,
+        role: EventRole.DESIGNER,
+      });
 
       const { body } = await http()
         .patch(`/api/invitations/${slug}/arrangement`)
+        .set('Authorization', authorization)
         .send({
           blocks: [
             { type: 'RSVP', variant: 'split' },
@@ -162,10 +187,15 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('rejects a block the template cannot render and changes nothing', async () => {
-      const { slug } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma);
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId,
+        role: EventRole.DESIGNER,
+      });
 
       const response = await http()
         .patch(`/api/invitations/${slug}/arrangement`)
+        .set('Authorization', authorization)
         .send({ blocks: [{ type: 'HERO' }, { type: 'TIMELINE' }] })
         .expect(400);
       expect(response.body.message).toContain('TIMELINE');
@@ -181,14 +211,26 @@ describe('Operations UX (e2e)', () => {
       { label: 'unknown block type', payload: { blocks: [{ type: 'NOT_A_BLOCK' }] } },
       { label: 'unknown field', payload: { blocks: [{ type: 'HERO', colour: 'red' }] } },
     ])('rejects $label with 400', async ({ payload }) => {
-      const { slug } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma);
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId,
+        role: EventRole.DESIGNER,
+      });
 
-      await http().patch(`/api/invitations/${slug}/arrangement`).send(payload).expect(400);
+      await http()
+        .patch(`/api/invitations/${slug}/arrangement`)
+        .set('Authorization', authorization)
+        .send(payload)
+        .expect(400);
     });
 
     it('404s an unknown invitation', async () => {
+      const { authorization } = await authenticateAs(app, prisma);
+      await prisma.user.updateMany({ where: {}, data: { platformRole: 'ADMIN' } });
+
       await http()
         .patch('/api/invitations/nope/arrangement')
+        .set('Authorization', authorization)
         .send({ blocks: [{ type: 'HERO' }] })
         .expect(404);
     });

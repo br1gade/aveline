@@ -5,6 +5,7 @@ import { PrismaClient, RsvpStatus } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
@@ -81,20 +82,36 @@ describe('RSVP flow (e2e)', () => {
       })
       .expect(201);
 
-    const headcount = await http().get(`/api/events/${eventId}/headcount`).expect(200);
+    const { authorization } = await authenticateAs(app, prisma, { eventId });
+    const headcount = await http()
+      .get(`/api/events/${eventId}/headcount`)
+      .set('Authorization', authorization)
+      .expect(200);
     expect(headcount.body).toMatchObject({ invited: 2, attending: 2, declined: 0, responseRate: 100 });
 
-    const catering = await http().get(`/api/events/${eventId}/catering-sheet`).expect(200);
+    const catering = await http()
+      .get(`/api/events/${eventId}/catering-sheet`)
+      .set('Authorization', authorization)
+      .expect(200);
     expect(catering.body.covers).toBe(2);
     expect(catering.body.requirements).toContainEqual({ requirement: 'vegan', count: 1 });
 
-    const bar = await http().get(`/api/events/${eventId}/bar-sheet`).expect(200);
+    const bar = await http()
+      .get(`/api/events/${eventId}/bar-sheet`)
+      .set('Authorization', authorization)
+      .expect(200);
     expect(bar.body.preferences).toContainEqual({ drink: 'wine', guests: 1, share: 100 });
 
-    const playlist = await http().get(`/api/events/${eventId}/playlist`).expect(200);
+    const playlist = await http()
+      .get(`/api/events/${eventId}/playlist`)
+      .set('Authorization', authorization)
+      .expect(200);
     expect(playlist.body.tracks).toContainEqual({ track: 'Sirun Yar', requests: 1 });
 
-    const guestBook = await http().get(`/api/events/${eventId}/guest-book`).expect(200);
+    const guestBook = await http()
+      .get(`/api/events/${eventId}/guest-book`)
+      .set('Authorization', authorization)
+      .expect(200);
     expect(guestBook.body[0]).toMatchObject({ from: 'Primary Guest', message: 'Congratulations' });
   });
 
