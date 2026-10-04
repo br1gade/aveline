@@ -25,8 +25,8 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users  User[]
-  events Event[]
+  memberships OrganizationMembership[]
+  events      Event[]
 
   @@map("organizations")
 }
@@ -38,23 +38,76 @@ enum OrgKind {
 }
 
 model User {
-  id             String   @id @default(cuid())
-  email          String   @unique
-  name           String
-  role           UserRole @default(OWNER)
-  organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  /// Aveline's own staff. Customers are NONE; concierge operators are SUPPORT.
+  platformRole PlatformRole @default(NONE)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationMemberships OrganizationMembership[]
+  eventMemberships        EventMembership[]
 
-  @@index([organizationId])
   @@map("users")
 }
 
-enum UserRole {
+/// Aveline staff capability. Orthogonal to customer roles: a SUPPORT operator
+/// acts on a customer's event without being a member of their organization.
+enum PlatformRole {
+  NONE
+  SUPPORT
+  ADMIN
+}
+
+/// A user's standing in a customer organization. Separate from EventMembership
+/// so a planner's staff can hold org-wide access or per-event access, not both
+/// forced together.
+model OrganizationMembership {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrganizationRole
+  createdAt      DateTime         @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("organization_memberships")
+}
+
+enum OrganizationRole {
+  OWNER
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+/// Access to one event. A planner agency assigns a coordinator to the events
+/// they actually work on, and a designer who may change the invitation's look
+/// without seeing guest contact details or vendor fees.
+model EventMembership {
+  id        String    @id @default(cuid())
+  userId    String
+  eventId   String
+  role      EventRole
+  createdAt DateTime  @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@map("event_memberships")
+}
+
+enum EventRole {
   OWNER
   COORDINATOR
+  DESIGNER
   VIEWER
 }
 
@@ -83,13 +136,15 @@ model Event {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    EventMembership[]
   venues         Venue[]
   timeline       TimelineEntry[]
   invitation     Invitation?
   households     Household[]
   guests         Guest[]
   tables         Table[]
+  mediaAssets    MediaAsset[]
   vendorBookings VendorBooking[]
 
   @@index([organizationId])
@@ -117,6 +172,9 @@ enum EventStatus {
 model Venue {
   id        String    @id @default(cuid())
   eventId   String
+  /// Set when this venue came from the reusable directory rather than being
+  /// typed ad hoc. Keeps a one-off address possible without a directory entry.
+  profileId String?
   role      VenueRole
   name      String
   address   String
@@ -125,13 +183,41 @@ model Venue {
   longitude Float?
   mapUrl    String?
   arriveAt  DateTime?
+  /// Seats this venue can hold for this event. Seating validates against it.
+  capacity  Int?
   sortOrder Int       @default(0)
 
   event    Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  profile  VenueProfile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
   timeline TimelineEntry[]
+  tables   Table[]
 
   @@index([eventId])
   @@map("venues")
+}
+
+/// A venue in the reusable directory, shared across events and organizations.
+/// Linked to a Vendor when the venue is also a booked partner (spec §7.3).
+model VenueProfile {
+  id        String   @id @default(cuid())
+  vendorId  String?  @unique
+  name      String
+  address   String
+  city      String?
+  latitude  Float?
+  longitude Float?
+  /// Typical seated capacity; a given event may seat fewer.
+  capacity  Int?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  venues Venue[]
+
+  @@index([city])
+  @@map("venue_profiles")
 }
 
 enum VenueRole {
@@ -161,26 +247,55 @@ model TimelineEntry {
 // ───────────────────────────── Invitation ──────────────────────────────
 
 model Invitation {
-  id        String           @id @default(cuid())
-  eventId   String           @unique
+  id           String           @id @default(cuid())
+  eventId      String           @unique
   /// Public URL segment
-  slug      String           @unique
-  template  String           @default("classic")
-  /// Palette, fonts and template options
-  theme     Json             @default("{}")
-  musicUrl  String?
-  coverUrl  String?
-  status    InvitationStatus @default(DRAFT)
+  slug         String           @unique
+  templateId   String
+  /// Resolved design tokens: palette, font choices, spacing. Validated against
+  /// the template's allowed sets before write (see DesignTemplate).
+  theme        Json             @default("{}")
+  musicUrl     String?
+  coverUrl     String?
+  coverAssetId String?
+  status       InvitationStatus @default(DRAFT)
   /// Invitation stays reachable until this moment; null = indefinitely
-  expiresAt DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  expiresAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  blocks    InvitationBlock[]
-  questions RsvpQuestion[]
+  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template   DesignTemplate    @relation(fields: [templateId], references: [id])
+  coverAsset MediaAsset?       @relation("InvitationCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  blocks     InvitationBlock[]
+  questions  RsvpQuestion[]
 
+  @@index([templateId])
   @@map("invitations")
+}
+
+/// A template is data, not a code branch. It declares which fonts, palettes
+/// and blocks a host may choose from, so "qualified users" edit design within
+/// bounds the template guarantees will still render (spec §5.2).
+model DesignTemplate {
+  id              String      @id @default(cuid())
+  key             String      @unique
+  name            String
+  /// Font families this template renders correctly, e.g. ["Noto Serif Armenian"]
+  allowedFonts    String[]    @default([])
+  /// Named palettes the host may pick, each an array of hex values
+  palettes        Json        @default("[]")
+  /// Block types this template supports, in their default order
+  supportedBlocks BlockType[] @default([])
+  /// Default design tokens applied when an invitation is created
+  defaultTheme    Json        @default("{}")
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  invitations Invitation[]
+
+  @@map("design_templates")
 }
 
 enum InvitationStatus {
@@ -199,6 +314,10 @@ model InvitationBlock {
   type         BlockType
   enabled      Boolean   @default(true)
   sortOrder    Int       @default(0)
+  /// Template-provided layout variant for this block, e.g. "split", "stacked".
+  variant      String?
+  /// Media shown by this block, ordered. Gallery uses many, hero uses one.
+  assetIds     String[]  @default([])
   /// { "hy": { "title": "...", "body": "..." }, "en": { ... } }
   content      Json      @default("{}")
   /// Block-specific non-translated settings (palette swatches, toggles)
@@ -223,6 +342,7 @@ enum BlockType {
   NOTES
   GALLERY
   RSVP
+  SIGNATURE
   CHAT
   CONTACT
 }
@@ -248,22 +368,22 @@ model Household {
 }
 
 model Guest {
-  id          String           @id @default(cuid())
-  eventId     String
-  householdId String
-  firstName   String
-  lastName    String?
-  email       String?
-  phone       String?
+  id           String           @id @default(cuid())
+  eventId      String
+  householdId  String
+  firstName    String
+  lastName     String?
+  email        String?
+  phone        String?
   /// Per-guest invitation link segment. Drives §5.4 personalization.
-  token       String           @unique
-  locale      String?
-  attribution GuestAttribution @default(UNKNOWN)
-  isPrimary   Boolean          @default(false)
+  token        String           @unique
+  locale       String?
+  attribution  GuestAttribution @default(UNKNOWN)
+  isPrimary    Boolean          @default(false)
   /// A guest added by the primary respondent rather than by the host
-  addedByGuest Boolean         @default(false)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  addedByGuest Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
@@ -291,18 +411,22 @@ model Rsvp {
   status  RsvpStatus @default(PENDING)
 
   /// Well-known operational answers — each one feeds a view in §6.
-  dietary        String[] @default([])  // → catering sheet
-  dietaryNotes   String?                // → catering sheet
-  drinkPreference String?               // → bar sheet
-  songRequest    String?                // → playlist
-  message        String?                // → guest book
+  dietary         String[] @default([]) // → catering sheet
+  dietaryNotes    String? // → catering sheet
+  drinkPreference String? // → bar sheet
+  songRequest     String? // → playlist
+  message         String? // → guest book
+
+  /// Set when the invitation asked the guest to sign something.
+  signatureAssetId String?
 
   respondedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  guest   Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  answers RsvpAnswer[]
+  guest          Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  signatureAsset MediaAsset?  @relation("RsvpSignature", fields: [signatureAssetId], references: [id], onDelete: SetNull)
+  answers        RsvpAnswer[]
 
   @@map("rsvps")
 }
@@ -339,6 +463,9 @@ enum QuestionType {
   SINGLE_CHOICE
   MULTI_CHOICE
   BOOLEAN
+  /// Captures a drawn signature, stored as a MediaAsset. Used where a guest
+  /// must acknowledge something: photo consent, a corporate waiver.
+  SIGNATURE
 }
 
 model RsvpAnswer {
@@ -355,19 +482,59 @@ model RsvpAnswer {
   @@map("rsvp_answers")
 }
 
+// ────────────────────────────── Media ──────────────────────────────────
+
+/// Every uploaded image belongs to an event, so deleting an event reclaims its
+/// storage and no asset is reachable from an unrelated invitation.
+model MediaAsset {
+  id         String    @id @default(cuid())
+  eventId    String
+  kind       MediaKind
+  url        String
+  /// Bytes; used to enforce upload limits and report storage per event.
+  sizeBytes  Int?
+  width      Int?
+  height     Int?
+  mimeType   String?
+  /// Accessibility text, translated per locale.
+  altText    Json      @default("{}")
+  uploadedBy String?
+  createdAt  DateTime  @default(now())
+
+  event            Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  invitationCovers Invitation[] @relation("InvitationCover")
+  rsvpSignatures   Rsvp[]       @relation("RsvpSignature")
+
+  @@index([eventId])
+  @@map("media_assets")
+}
+
+enum MediaKind {
+  PHOTO
+  COVER
+  SIGNATURE
+  LOGO
+  AUDIO
+}
+
 // ───────────────────────────── Seating ─────────────────────────────────
 
 model Table {
-  id        String  @id @default(cuid())
-  eventId   String
-  name      String
-  capacity  Int
+  id       String  @id @default(cuid())
+  eventId  String
+  /// Which venue this table stands in. Null for a single-venue event.
+  venueId  String?
+  name     String
+  capacity Int
+  /// Free-text grouping inside a venue, e.g. "main hall", "terrace".
+  zone     String?
   /// Canvas position for the seating editor
-  posX      Float?
-  posY      Float?
-  shape     String  @default("round")
+  posX     Float?
+  posY     Float?
+  shape    String  @default("round")
 
   event Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue Venue? @relation(fields: [venueId], references: [id], onDelete: SetNull)
   seats Seat[]
 
   @@unique([eventId, name])
@@ -379,11 +546,14 @@ model Seat {
   id         String   @id @default(cuid())
   tableId    String
   guestId    String   @unique
+  /// Place at the table, for place cards and printed plans.
+  position   Int?
   assignedAt DateTime @default(now())
 
   table Table @relation(fields: [tableId], references: [id], onDelete: Cascade)
   guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
+  @@unique([tableId, position])
   @@index([tableId])
   @@map("seats")
 }
@@ -411,7 +581,8 @@ model Vendor {
   active    Boolean        @default(true)
   createdAt DateTime       @default(now())
 
-  bookings VendorBooking[]
+  bookings     VendorBooking[]
+  venueProfile VenueProfile?
 
   @@map("vendors")
 }

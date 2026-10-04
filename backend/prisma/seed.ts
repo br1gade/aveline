@@ -2,28 +2,77 @@
  * Seeds one realistic wedding so the RSVP slice can be exercised end to end.
  * Run: npm run db:seed
  */
-import { BlockType, PrismaClient, QuestionType, VenueRole } from '@prisma/client';
+import {
+  BlockType,
+  Event,
+  Organization,
+  PrismaClient,
+  QuestionType,
+  User,
+  Venue,
+  VenueRole,
+} from '@prisma/client';
 import { customAlphabet } from 'nanoid';
 
 const prisma = new PrismaClient();
-const token = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 12);
+const newGuestToken = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 12);
 
-async function main() {
-  await prisma.organization.deleteMany({ where: { name: 'Demo Hosts' } });
+const DEMO_ORG = 'Demo Hosts';
+const EVENT_START = new Date(Date.now() + 1000 * 60 * 60 * 24 * 90);
 
-  const org = await prisma.organization.create({
-    data: { name: 'Demo Hosts', kind: 'HOST' },
+async function seedTemplate() {
+  return prisma.designTemplate.upsert({
+    where: { key: 'classic' },
+    update: {},
+    create: {
+      key: 'classic',
+      name: 'Classic',
+      allowedFonts: ['Noto Serif Armenian', 'Cormorant Garamond', 'Inter'],
+      palettes: [
+        { key: 'ivory-gold', colors: ['#F3E9DD', '#C9A227', '#2E2A26'] },
+        { key: 'sage', colors: ['#EDF1EA', '#7A8B74', '#2E2A26'] },
+      ],
+      supportedBlocks: [
+        BlockType.HERO,
+        BlockType.STORY,
+        BlockType.COUNTDOWN,
+        BlockType.VENUE,
+        BlockType.MAP,
+        BlockType.TIMELINE,
+        BlockType.DRESS_CODE,
+        BlockType.RSVP,
+        BlockType.CONTACT,
+      ],
+      defaultTheme: { font: 'Noto Serif Armenian', palette: 'ivory-gold' },
+    },
+  });
+}
+
+/** One org owner plus one Aveline concierge, to exercise both access paths. */
+async function seedUsers(organizationId: string): Promise<User> {
+  const owner = await prisma.user.create({
+    data: {
+      email: 'owner@demo.test',
+      name: 'Demo Owner',
+      organizationMemberships: { create: { organizationId, role: 'OWNER' } },
+    },
   });
 
-  const startsAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 90);
+  await prisma.user.create({
+    data: { email: 'concierge@aveline.test', name: 'Concierge', platformRole: 'SUPPORT' },
+  });
 
-  const event = await prisma.event.create({
+  return owner;
+}
+
+async function seedEvent(organization: Organization) {
+  return prisma.event.create({
     data: {
-      organizationId: org.id,
+      organizationId: organization.id,
       type: 'WEDDING',
       title: 'Anna & Davit',
       hostsLabel: 'Anna & Davit',
-      startsAt,
+      startsAt: EVENT_START,
       timezone: 'Asia/Yerevan',
       locales: ['hy', 'ru', 'en'],
       defaultLocale: 'hy',
@@ -37,23 +86,26 @@ async function main() {
             name: 'Demo Cathedral',
             address: '1 Demo Square, Yerevan',
             sortOrder: 0,
-            arriveAt: new Date(startsAt.getTime() - 1000 * 60 * 60 * 4),
+            arriveAt: new Date(EVENT_START.getTime() - 1000 * 60 * 60 * 4),
           },
           {
             role: VenueRole.RECEPTION,
             name: 'Riverside Hall',
+            capacity: 120,
             address: '12 Demo Street, Yerevan',
             sortOrder: 1,
-            arriveAt: startsAt,
+            arriveAt: EVENT_START,
           },
         ],
       },
     },
     include: { venues: true },
   });
+}
 
-  const ceremony = event.venues.find((v) => v.role === VenueRole.CEREMONY)!;
-  const reception = event.venues.find((v) => v.role === VenueRole.RECEPTION)!;
+async function seedTimeline(event: Event, ceremony: Venue, reception: Venue) {
+  const at = (hoursFromStart: number) =>
+    new Date(EVENT_START.getTime() + hoursFromStart * 60 * 60 * 1000);
 
   await prisma.timelineEntry.createMany({
     data: [
@@ -61,43 +113,49 @@ async function main() {
         eventId: event.id,
         venueId: ceremony.id,
         label: { hy: 'Պսակադրություն', ru: 'Венчание', en: 'Ceremony' },
-        occursAt: new Date(startsAt.getTime() - 1000 * 60 * 60 * 4),
+        occursAt: at(-4),
         sortOrder: 0,
       },
       {
         eventId: event.id,
         venueId: reception.id,
         label: { hy: 'Հյուրերի դիմավորում', ru: 'Встреча гостей', en: 'Guest reception' },
-        occursAt: new Date(startsAt.getTime() - 1000 * 60 * 30),
+        occursAt: at(-0.5),
         sortOrder: 1,
       },
       {
         eventId: event.id,
         venueId: reception.id,
         label: { hy: 'Հարսանյաց հանդես', ru: 'Банкет', en: 'Dinner' },
-        occursAt: startsAt,
+        occursAt: at(0),
         sortOrder: 2,
       },
       {
         eventId: event.id,
         venueId: reception.id,
         label: { hy: 'Տորթի կտրում', ru: 'Торт', en: 'Cake cutting' },
-        occursAt: new Date(startsAt.getTime() + 1000 * 60 * 60 * 4),
+        occursAt: at(4),
         sortOrder: 3,
       },
     ],
   });
+}
 
-  const invitation = await prisma.invitation.create({
+async function seedInvitation(eventId: string, templateId: string) {
+  return prisma.invitation.create({
     data: {
-      eventId: event.id,
+      eventId,
       slug: 'anna-davit',
-      template: 'classic',
-      theme: { palette: ['#F3E9DD', '#C9A227', '#2E2A26'], font: 'serif' },
+      templateId,
+      theme: { palette: 'ivory-gold', font: 'Cormorant Garamond' },
       status: 'PUBLISHED',
       blocks: {
         create: [
-          { type: BlockType.HERO, sortOrder: 0, content: { hy: { title: 'Անna & Դավիթ' }, en: { title: 'Anna & Davit' } } },
+          {
+            type: BlockType.HERO,
+            sortOrder: 0,
+            content: { hy: { title: 'Աննա և Դավիթ' }, en: { title: 'Anna & Davit' } },
+          },
           {
             type: BlockType.STORY,
             sortOrder: 1,
@@ -117,7 +175,11 @@ async function main() {
             settings: { palette: ['#2E2A26', '#C9A227', '#7A8B74'] },
           },
           { type: BlockType.RSVP, sortOrder: 7 },
-          { type: BlockType.CONTACT, sortOrder: 8, content: { en: { organizer: 'Aveline', phone: '+374 00 000000' } } },
+          {
+            type: BlockType.CONTACT,
+            sortOrder: 8,
+            content: { en: { organizer: 'Aveline', phone: '+374 00 000000' } },
+          },
         ],
       },
       questions: {
@@ -125,7 +187,6 @@ async function main() {
           {
             type: QuestionType.SINGLE_CHOICE,
             sortOrder: 0,
-            required: false,
             prompt: { hy: 'Ինչպե՞ս եք հասնելու', en: 'How will you be arriving?' },
             options: { hy: ['Մեքենայով', 'Տրանսֆերով'], en: ['Own car', 'Shuttle'] },
           },
@@ -133,51 +194,82 @@ async function main() {
       },
     },
   });
+}
 
-  // Three households, five guests.
-  const seedHouseholds = [
-    { name: 'Petrosyan family', seats: 3, primary: 'Armen', last: 'Petrosyan', side: 'SIDE_A' as const },
-    { name: 'Sargsyan', seats: 2, primary: 'Mariam', last: 'Sargsyan', side: 'SIDE_B' as const },
-    { name: 'Hakobyan', seats: 1, primary: 'Tigran', last: 'Hakobyan', side: 'SIDE_B' as const },
-  ];
+const HOUSEHOLDS = [
+  { name: 'Petrosyan family', seats: 3, first: 'Armen', last: 'Petrosyan', side: 'SIDE_A' },
+  { name: 'Sargsyan', seats: 2, first: 'Mariam', last: 'Sargsyan', side: 'SIDE_B' },
+  { name: 'Hakobyan', seats: 1, first: 'Tigran', last: 'Hakobyan', side: 'SIDE_B' },
+] as const;
 
+async function seedGuests(eventId: string, slug: string): Promise<string[]> {
   const links: string[] = [];
-  for (const h of seedHouseholds) {
+
+  for (const entry of HOUSEHOLDS) {
     const household = await prisma.household.create({
-      data: { eventId: event.id, name: h.name, seatsAllotted: h.seats },
+      data: { eventId, name: entry.name, seatsAllotted: entry.seats },
     });
+
     const guest = await prisma.guest.create({
       data: {
-        eventId: event.id,
+        eventId,
         householdId: household.id,
-        firstName: h.primary,
-        lastName: h.last,
-        token: token(),
-        attribution: h.side,
+        firstName: entry.first,
+        lastName: entry.last,
+        token: newGuestToken(),
+        attribution: entry.side,
         isPrimary: true,
         rsvp: { create: { status: 'PENDING' } },
       },
     });
-    links.push(`  ${h.primary} ${h.last} (${h.seats} seat/s) → /api/invitations/${invitation.slug}/g/${guest.token}`);
+
+    links.push(
+      `  ${entry.first} ${entry.last} (${entry.seats} seat/s) ` +
+        `→ /api/invitations/${slug}/g/${guest.token}`,
+    );
   }
+
+  return links;
+}
+
+async function main() {
+  await prisma.organization.deleteMany({ where: { name: DEMO_ORG } });
+
+  const template = await seedTemplate();
+  const organization = await prisma.organization.create({
+    data: { name: DEMO_ORG, kind: 'HOST' },
+  });
+  const owner = await seedUsers(organization.id);
+
+  const event = await seedEvent(organization);
+  const ceremony = event.venues.find((venue) => venue.role === VenueRole.CEREMONY)!;
+  const reception = event.venues.find((venue) => venue.role === VenueRole.RECEPTION)!;
+
+  await seedTimeline(event, ceremony, reception);
+  const invitation = await seedInvitation(event.id, template.id);
+
+  await prisma.eventMembership.create({
+    data: { userId: owner.id, eventId: event.id, role: 'OWNER' },
+  });
 
   await prisma.table.createMany({
     data: [
-      { eventId: event.id, name: 'Table 1', capacity: 10 },
-      { eventId: event.id, name: 'Table 2', capacity: 10 },
+      { eventId: event.id, venueId: reception.id, name: 'Table 1', capacity: 10, zone: 'main hall' },
+      { eventId: event.id, venueId: reception.id, name: 'Table 2', capacity: 10, zone: 'main hall' },
     ],
   });
 
+  const links = await seedGuests(event.id, invitation.slug);
+
   console.log('\nSeeded event:', event.id);
   console.log('Invitation:   /api/invitations/' + invitation.slug);
-  console.log('Guest links:');
-  console.log(links.join('\n'));
+  console.log('Guest links:\n' + links.join('\n'));
   console.log('\nOperations:   /api/events/' + event.id + '/headcount\n');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error(error);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
