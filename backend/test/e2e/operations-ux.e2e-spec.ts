@@ -105,6 +105,37 @@ describe('Operations UX (e2e)', () => {
     });
   });
 
+  describe('locale negotiation', () => {
+    // Regression: an unvalidated ?locale= became a Redis cache key, so junk
+    // values grew the keyspace without limit on a public endpoint.
+    it.each(['zz', 'de', '../../etc/passwd', 'a'.repeat(300)])(
+      'falls back to the default locale for %p instead of echoing it',
+      async (junk) => {
+        const { slug } = await seedEvent(prisma);
+
+        const { body } = await http()
+          .get(`/api/invitations/${slug}`)
+          .query({ locale: junk })
+          .expect(200);
+
+        const page = body as { locale: string; availableLocales: string[] };
+        expect(page.availableLocales).toContain(page.locale);
+        expect(page.locale).toBe('hy');
+      },
+    );
+
+    it('serves a locale the event does publish', async () => {
+      const { slug } = await seedEvent(prisma);
+
+      const { body } = await http()
+        .get(`/api/invitations/${slug}`)
+        .query({ locale: 'en' })
+        .expect(200);
+
+      expect((body as { locale: string }).locale).toBe('en');
+    });
+  });
+
   describe('block arrangement', () => {
     it('reorders, toggles and re-variants in one atomic request', async () => {
       const { slug } = await seedEvent(prisma);

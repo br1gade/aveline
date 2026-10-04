@@ -59,6 +59,17 @@ reuse at all.
 Invalidation uses `SCAN`, never `KEYS`. `KEYS` blocks the Redis event loop
 across the whole keyspace and stalls every other client on a shared instance.
 
+**Every component of a cache key must be bounded.** The locale in the key comes
+from a public query parameter, and it was briefly taken at face value: 50
+requests with junk locales created 50 entries. On an unauthenticated endpoint
+with `allkeys-lru`, that lets anyone evict every real entry and send the load to
+Postgres. The locale is now negotiated against the event's published list, so
+the keyspace per invitation is bounded by the number of languages it offers.
+Measured after the fix: 100 junk requests, 1 key.
+
+Treat this as the general rule, not a one-off. Before any value becomes part of
+a cache key, ask what bounds it.
+
 ### Measured
 
 With Redis stopped mid-flight, the invitation endpoint keeps serving correct

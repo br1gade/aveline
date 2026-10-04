@@ -20,3 +20,29 @@ export function resolveTranslation<T = unknown>(
   const first = Object.values(map)[0];
   return first === undefined ? null : (first as T);
 }
+
+/**
+ * Resolves a requested locale to one the event actually publishes.
+ *
+ * This is a boundary guard, not a convenience. The resolved value becomes a
+ * Redis cache key, so an unvalidated locale on a public endpoint would let
+ * anyone grow the keyspace without limit and evict every real entry. Bounding
+ * the result to `available` bounds the keyspace to one entry per published
+ * language.
+ *
+ * It also keeps the response honest: reporting a locale we are not serving is
+ * a lie the client has no way to detect.
+ */
+export function negotiateLocale(
+  requested: string | undefined,
+  available: readonly string[],
+  defaultLocale: string,
+): string {
+  if (!requested || available.length === 0) return defaultLocale;
+
+  // Region tags are accepted for a language we publish: en-GB resolves to en.
+  const language = requested.toLowerCase().split('-')[0];
+  const match = available.find((locale) => locale.toLowerCase() === language);
+
+  return match ?? defaultLocale;
+}

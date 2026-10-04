@@ -4,7 +4,7 @@ import { BlockType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
-import { resolveTranslation } from '../../common/locale';
+import { negotiateLocale, resolveTranslation } from '../../common/locale';
 
 const invitationInclude = {
   template: true,
@@ -51,7 +51,12 @@ export class InvitationsService {
    */
   async getCachedInvitation(slug: string, locale?: string) {
     const published = await this.loadPublished(slug);
-    const effectiveLocale = locale ?? published.event.defaultLocale;
+    // Bounds the cache keyspace to the locales this event publishes.
+    const effectiveLocale = negotiateLocale(
+      locale,
+      published.event.locales,
+      published.event.defaultLocale,
+    );
 
     const payload = await this.cache.readThrough(
       invitationCacheKey(slug, effectiveLocale),
@@ -101,7 +106,7 @@ export class InvitationsService {
     requestedLocale?: string,
   ) {
     const { event } = invitation;
-    const locale = requestedLocale ?? event.defaultLocale;
+    const locale = negotiateLocale(requestedLocale, event.locales, event.defaultLocale);
     const translate: Translate = (content) => resolveTranslation(content, locale, event.defaultLocale);
 
     return {
