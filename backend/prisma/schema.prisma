@@ -46,14 +46,44 @@ model User {
   name         String
   /// Aveline's own staff. Customers are NONE; concierge operators are SUPPORT.
   platformRole PlatformRole @default(NONE)
+  /// Null for an account that has never set a password — an invited member who
+  /// has not accepted, or one that will authenticate another way.
+  passwordHash String?
   isActive     Boolean      @default(true)
+  lastLoginAt  DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   organizationMemberships OrganizationMembership[]
   eventMemberships        EventMembership[]
+  sessions                Session[]
 
   @@map("users")
+}
+
+/// One refresh token, stored so a session can actually be revoked. A JWT
+/// alone cannot be withdrawn before it expires, which is unacceptable for
+/// staff accounts that can act on a customer's behalf.
+model Session {
+  id     String @id @default(cuid())
+  userId String
+
+  /// SHA-256 of the refresh token. The token itself is never stored, so a
+  /// database leak does not hand over live sessions.
+  tokenHash String @unique
+
+  userAgent String?
+  ipAddress String?
+
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("sessions")
 }
 
 /// Aveline staff capability. Orthogonal to customer roles: a SUPPORT operator
