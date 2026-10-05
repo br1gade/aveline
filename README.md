@@ -2,6 +2,10 @@
 
 Custom event invitations, organization and management.
 
+> **Status: under local development.** Not deployed, no real users, no real
+> money. Everything runs against local containers. See
+> [docs/GOING_LIVE.md](docs/GOING_LIVE.md) for what has to be true before that changes.
+
 > The invitation is the front door. Everything behind it — the guest graph,
 > the headcount, the seating, the vendor briefs — is the product.
 
@@ -31,6 +35,7 @@ npx openapi-typescript backend/openapi.json -o src/api/schema.ts
 | [`docs/INVITATION_DESIGN.md`](docs/INVITATION_DESIGN.md) | Templates, blocks, media, RSVP questions |
 | [`docs/VENUES_AND_SEATING.md`](docs/VENUES_AND_SEATING.md) | Venues, tables, seats, seating constraints |
 | [`docs/PAYMENTS.md`](docs/PAYMENTS.md) | Armenian card acquiring and the redirect flow |
+| [`docs/GOING_LIVE.md`](docs/GOING_LIVE.md) | What blocks production, and what is already ready |
 
 ## Backend
 

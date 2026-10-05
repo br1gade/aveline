@@ -182,6 +182,45 @@ POST /api/v1/auth/logout            { refreshToken }   // public
 POST /api/v1/auth/logout-everywhere                    // authenticated
 ```
 
+### Recovering an account
+
+```http
+POST /api/v1/auth/password-reset           { email }              # public
+POST /api/v1/auth/password-reset/confirm   { token, password }    # public
+POST /api/v1/auth/verify-email                                    # authenticated
+POST /api/v1/auth/verify-email/confirm     { token }              # public
+```
+
+Requesting a reset **always reports `{ sent: true }`**, for a known address or
+an unknown one. Do not try to tell the user which — answering differently is
+an account-enumeration oracle, and the person who genuinely forgot checks
+their inbox either way.
+
+Confirming a reset **revokes every session**, since a reset is what someone
+does when they believe an account is compromised. Expect to sign the user in
+again afterwards.
+
+A link is single-use and asking for a new one invalidates the previous one, so
+a user who clicks an older email gets a 400. Say so plainly rather than
+showing a generic failure.
+
+### Joining an organization
+
+```http
+GET    /api/v1/organization/invites            # needs member:manage
+POST   /api/v1/organization/invites            { email, role }
+DELETE /api/v1/organization/invites/:email
+POST   /api/v1/invites/accept                  { token, name, password }  # public
+```
+
+Accepting creates the account when the invitee has none, in the same
+transaction as the membership — so there is no state where someone has a login
+and no reason for it. The response says `accountCreated`, which is how you
+decide whether to show a welcome or a sign-in.
+
+Re-inviting the same address replaces the previous invitation rather than
+adding a second, so only the most recent link works.
+
 ### What a token does not carry
 
 Roles are **not** in the token. They are read from the database on every
@@ -524,7 +563,23 @@ and analytics, not correctness.
 
 ---
 
-## 9. Not built yet
+## 9. Development-only behaviour
+
+While the backend is pre-production, endpoints that would normally email a
+link return it in the response instead, because no mail transport exists yet:
+
+```json
+{ "sent": true, "devLink": "http://localhost:5173/reset-password?token=..." }
+```
+
+Affects `POST /auth/password-reset`, `POST /auth/verify-email` and
+`POST /organization/invites`.
+
+**`devLink` is absent in production.** Build the flow as though it were never
+there — read the token from the URL the user arrives on, not from this field.
+It exists so you can complete the flow locally today.
+
+## 10. Not built yet
 
 So you can plan around them rather than discover them:
 
@@ -540,4 +595,5 @@ So you can plan around them rather than discover them:
   performs them.
 - **No image resizing.**
 
-The authoritative list is [GAPS.md](../backend/docs/GAPS.md).
+The authoritative list is [GAPS.md](../backend/docs/GAPS.md), and
+[GOING_LIVE.md](GOING_LIVE.md) is what blocks production.

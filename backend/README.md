@@ -2,6 +2,10 @@
 
 Event invitations, the guest graph, and the operations derived from them.
 
+> **Status: under local development.** Not deployed, no real users, no real
+> money. Everything runs against local containers. See
+> [../docs/GOING_LIVE.md](../docs/GOING_LIVE.md) for what has to be true before that changes.
+
 | Doc | Covers |
 |---|---|
 | [`CLAUDE.md`](CLAUDE.md) | Engineering rules — binding here |
@@ -16,6 +20,7 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`../docs/INVITATION_DESIGN.md`](../docs/INVITATION_DESIGN.md) | Templates, blocks, media, signatures |
 | [`../docs/VENUES_AND_SEATING.md`](../docs/VENUES_AND_SEATING.md) | Venues, tables, seats |
 | [`../docs/PAYMENTS.md`](../docs/PAYMENTS.md) | Card acquiring: gateways, sandboxes |
+| [`../docs/GOING_LIVE.md`](../docs/GOING_LIVE.md) | Production blockers |
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7
 
@@ -99,6 +104,14 @@ test/
 | `POST` | `/api/v1/auth/refresh` | Rotate a refresh token; the old one is revoked |
 | `POST` | `/api/v1/auth/logout` | Revoke one session |
 | `POST` | `/api/v1/auth/logout-everywhere` | Revoke every session |
+| `POST` | `/api/v1/auth/password-reset` | Request a reset link (always reports success) |
+| `POST` | `/api/v1/auth/password-reset/confirm` | Set a new password; revokes every session |
+| `POST` | `/api/v1/auth/verify-email` | Send a verification link to the signed-in account |
+| `POST` | `/api/v1/auth/verify-email/confirm` | Confirm an email address |
+| `GET` | `/api/v1/organization/invites` | Pending invitations |
+| `POST` | `/api/v1/organization/invites` | Invite someone; re-inviting replaces the link |
+| `DELETE` | `/api/v1/organization/invites/:email` | Revoke a pending invitation |
+| `POST` | `/api/v1/invites/accept` | Accept an invitation, creating the account if needed |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `POST` | `/api/v1/devices` | Register this device for push (idempotent by token) |
 | `DELETE` | `/api/v1/devices/:token` | Stop sending to this device |

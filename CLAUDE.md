@@ -6,6 +6,14 @@ Two teams work in this repository: **backend** and **client**. This file is
 what both share. Each area has its own rules file, which takes precedence
 inside that area.
 
+**The project is under local development.** Nothing is deployed, there are no
+real users and no real money has moved. Development-only affordances are
+acceptable where they are guarded — the password-reset endpoint returning its
+own link outside production is one — but each must be impossible to reach in
+production, not merely discouraged. [`docs/GOING_LIVE.md`](docs/GOING_LIVE.md)
+is the list of what must be true before that status changes; add to it when
+you find something rather than assuming it is known.
+
 ---
 
 ## 1. Where things live

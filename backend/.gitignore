@@ -6,6 +6,9 @@ coverage/
 *.tsbuildinfo
 storage/
 
+# Local development keys, written down so they are not lost between sessions
+.dev-credentials.md
+
 # Garage node config — contains rpc_secret and admin_token
 garage/garage.toml
 !garage/garage.toml.example
