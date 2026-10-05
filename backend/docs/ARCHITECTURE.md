@@ -24,6 +24,7 @@ src/
     access/         permission policy — pure, table-driven
     events/ guests/ invitations/ rsvp/ operations/
     seating/        tables, seats, the packing algorithm
+    design/         templates, theme, block content, questions, venues
     organizations/  the tenant a new account creates for itself
     billing/        plans, subscriptions, invoices, promo codes
     vendors/        the partner network and scoped briefs

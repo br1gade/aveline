@@ -48,7 +48,7 @@ Each replaces a process the incumbent market performs by hand.
 | 6 | **Invitation sending** | Pasting a link into 400 chats individually. The outbox exists; nothing calls it from the invitation flow |
 | 7 | **Reminders and follow-ups** | Chasing non-responders by phone. Scheduled messages are modelled, the triggers are not |
 | 8 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
-| 9 | **Design endpoints + theme validation** | Design changes requested over chat and applied by staff |
+| 9 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
 | 10 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
 
 ## 4. Revenue — unbuilt business model lines

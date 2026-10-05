@@ -71,6 +71,7 @@ src/
     invitations/     public invitation payload, data-bound + personalized
     rsvp/            the write side — guest responses
     seating/         tables, seat assignment, the packing algorithm
+    design/          templates, theme, block content, questions, venues
     organizations/   the tenant a new account creates for itself
     billing/         plans, subscriptions, invoices, promo codes
     vendors/         the partner network and scoped briefs
@@ -152,6 +153,29 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:id/bar-sheet` | Drink preferences as quantities |
 | `GET` | `/api/v1/events/:id/playlist` | Deduplicated song requests |
 | `GET` | `/api/v1/events/:id/guest-book` | Messages left by guests |
+
+#### Designing the invitation
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/events/:eventId/design-templates` | The template catalogue and its constraints |
+| `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
+| `PATCH` | `/api/v1/invitations/:slug/theme` | Fonts and colours, validated against the template |
+| `PATCH` | `/api/v1/invitations/:slug/blocks/:type` | Edit one block's content |
+| `GET` | `/api/v1/invitations/:slug/questions` | Custom RSVP questions |
+| `POST` | `/api/v1/invitations/:slug/questions` | Add one |
+| `PATCH` | `/api/v1/invitations/:slug/questions/:questionId` | Change one |
+| `DELETE` | `/api/v1/invitations/:slug/questions/:questionId` | Remove one; refused once answered |
+
+#### Venues
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/events/:eventId/venue-profiles` | The reusable venue directory |
+| `GET` | `/api/v1/events/:eventId/venues` | This event's venues, in order |
+| `POST` | `/api/v1/events/:eventId/venues` | Add one; directory details are copied |
+| `PATCH` | `/api/v1/events/:eventId/venues/:venueId` | Change one |
+| `DELETE` | `/api/v1/events/:eventId/venues/:venueId` | Remove one nothing depends on |
 
 #### Guest list
 

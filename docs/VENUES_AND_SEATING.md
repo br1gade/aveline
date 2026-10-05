@@ -131,6 +131,7 @@ not.
    so it cannot find a packing that requires rearranging. Unseating first is
    the current answer.
 3. **Venue capacity.** `Table.capacity` is enforced on every assignment;
-   `Venue.capacity` is stored but not checked against the headcount.
+   `Venue.capacity` is copied from the directory entry and stored, but not
+   checked against the headcount.
 4. **Floor plan editor** persistence beyond `posX` / `posY` / `shape`.
 5. **Printed outputs** — place cards and seating charts.

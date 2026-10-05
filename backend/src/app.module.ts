@@ -26,6 +26,7 @@ import { PublicEventsModule } from './modules/public-events/public-events.module
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { MediaModule } from './modules/media/media.module';
 import { DevicesModule } from './modules/devices/devices.module';
+import { DesignModule } from './modules/design/design.module';
 import { ExportsModule } from './modules/exports/exports.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -76,6 +77,7 @@ import { SeatingModule } from './modules/seating/seating.module';
     BillingModule,
     VendorsModule,
     OrganizationsModule,
+    DesignModule,
     ExportsModule,
     PrivacyModule,
 

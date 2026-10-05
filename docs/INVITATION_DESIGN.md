@@ -155,12 +155,17 @@ filename.
 
 ## 7. Not yet built
 
-1. **Theme validation.** `allowedFonts` and `palettes` are *exposed* in the
-   invitation payload but never checked on write, so an out-of-range font can
-   still be stored. Blocks are validated; the rest of the theme is not.
-2. **Image processing** — resizing, format conversion, thumbnails. One
+1. **Image processing** — resizing, format conversion, thumbnails. One
    original is stored as uploaded.
-3. **Content endpoints.** Block copy, themes and cover images have no write
-   path yet; only arrangement does.
-4. **Signature capture** on the client and its asset write path.
-5. **Template preview** rendering.
+2. **Cover images.** `Invitation.coverAssetId` is modelled and upload works,
+   but nothing attaches an asset as the cover.
+3. **Block creation outside the arrangement call.** Which blocks exist is
+   decided there; there is no way to add one while editing its content.
+4. **Reordering custom RSVP questions.** They can be added, changed and
+   removed, but a question's `sortOrder` is assigned on creation and nothing
+   changes it.
+5. **Signature capture** on the client and its asset write path.
+6. **Template preview** rendering.
+
+Theme validation, block content, template switching, RSVP questions and venue
+CRUD are built — see [API.md](API.md) §6.

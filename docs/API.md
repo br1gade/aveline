@@ -1039,6 +1039,130 @@ not render it as a missing value.
 `RECTIFICATION` returns `400`: a correction is applied by editing the record,
 then the request is closed with `PATCH`.
 
+### Designing the invitation
+
+```http
+GET /api/v1/events/:eventId/design-templates
+```
+
+```json
+[{
+  "key": "classic-armenian", "name": "Classic",
+  "allowedFonts": ["Noto Serif Armenian", "Mardoto"],
+  "palettes": [{ "name": "blush", "colors": ["#f5e1e0", "#b76e79"] }],
+  "supportedBlocks": ["HERO", "STORY", "VENUE", "RSVP"],
+  "defaultTheme": { "bodyFont": "Mardoto", "palette": "blush" }
+}]
+```
+
+**Build the design UI from these three lists.** `allowedFonts` and `palettes`
+are enforced on write, so a font picker offering anything else produces a
+`400`. `supportedBlocks` is what the arrangement call will accept. Keyed by
+event because a plan may later narrow the catalogue.
+
+```http
+POST /api/v1/invitations/:slug/template   { "templateKey": "minimal" }
+```
+
+Switching **disables** blocks the new template does not support rather than
+deleting them, so switching back does not lose the host's copy — a disabled
+block still holds its content. The theme resets to the new template's
+`defaultTheme`, because carrying a font the new template does not ship over
+would produce the broken render that validation exists to prevent. Warn before
+calling it.
+
+```http
+PATCH /api/v1/invitations/:slug/theme
+{ "headingFont": "Mardoto", "bodyFont": "Mardoto", "palette": "blush", "colors": ["#1a2b3c"] }
+```
+
+Every field is optional and **omitted means "leave as is"** — changing one font
+does not clear the palette. A rejection changes nothing and `message` is an
+array naming every problem at once, so a form can mark four fields in one
+round trip:
+
+```json
+{ "message": [
+  "bodyFont: \"Comic Sans\" is not one of this template's fonts (Noto Serif Armenian, Mardoto)",
+  "palette: \"neon\" is not one of this template's palettes (blush, olive)"
+] }
+```
+
+`colors` is for a host-tuned palette: one to eight six-digit hex values
+(`#1a2b3c`). `#fff`, `red` and `rgb(...)` are rejected. An empty array is a
+`400` telling you to omit the field instead, because clearing is not what it
+means.
+
+```http
+PATCH /api/v1/invitations/:slug/blocks/:type
+{ "content": { "hy": { "title": "..." } }, "settings": {}, "variant": "split",
+  "assetIds": ["..."], "enabled": true }
+```
+
+`:type` is a `BlockType` — `HERO`, `STORY`, `COUNTDOWN`, `MUSIC`, `VENUE`,
+`MAP`, `TIMELINE`, `DRESS_CODE`, `NOTES`, `GALLERY`, `RSVP`, `SIGNATURE`,
+`CHAT`, `CONTACT`.
+
+**This call edits what is inside a block. It does not create one.** Which
+blocks exist, and in what order, is `PATCH /invitations/:slug/arrangement` —
+one place decides that. Patching a block the invitation does not have returns
+`404` saying so.
+
+`content` is keyed by locale. `assetIds` must belong to this event; one from
+another event is a `400`. `VENUE`, `TIMELINE` and `COUNTDOWN` blocks ignore
+content you put here for the fields they bind from the event — see
+§Rendering blocks.
+
+### Custom RSVP questions
+
+```http
+GET    /api/v1/invitations/:slug/questions
+POST   /api/v1/invitations/:slug/questions   { "type": "SINGLE_CHOICE", "prompt": {...}, "options": {...} }
+PATCH  /api/v1/invitations/:slug/questions/:questionId
+DELETE /api/v1/invitations/:slug/questions/:questionId
+```
+
+`type` is `TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE`, `BOOLEAN` or
+`SIGNATURE`. `prompt` is translated (`{ "hy": "...", "en": "..." }`) and must
+carry at least one language. `options` is translated too
+(`{ "hy": ["Միս", "Ձուկ"] }`) and is **required for the choice types** — a
+choice question with no choices cannot be answered, so it is a `400`.
+
+New questions go last; `sortOrder` comes back on each.
+
+**Deleting is refused once any guest has answered**, with a `400` saying how
+many and suggesting you make it optional instead — deleting would discard what
+those guests told the host, which is not what "remove this field" means to the
+person clicking it.
+
+### Venues
+
+```http
+GET    /api/v1/events/:eventId/venue-profiles?city=Yerevan
+GET    /api/v1/events/:eventId/venues
+POST   /api/v1/events/:eventId/venues
+PATCH  /api/v1/events/:eventId/venues/:venueId
+DELETE /api/v1/events/:eventId/venues/:venueId
+```
+
+This is where an address is typed, once. It then appears in the invitation's
+venue block, the map block, the day-of timeline and the vendor brief — nothing
+re-enters it.
+
+`POST` takes `{ role, name, address, profileId?, mapUrl?, arriveAt? }` where
+`role` is `CEREMONY`, `RECEPTION`, `AFTER_PARTY`, `PREPARATION` or `OTHER`.
+
+Naming a `profileId` from the directory **copies** its coordinates and capacity
+rather than referencing them, so a hall that moves next year does not rewrite
+the address on an invitation already sent.
+
+`DELETE` is refused with a `400` while timeline entries or tables still point
+at the venue, naming how many — the cascade would otherwise detach a running
+order from where it happens.
+
+Reading needs `event:read`; writing needs `event:write`. Design calls need
+`invitation:design`, which a `DESIGNER` has.
+
 ### Uploading a file
 
 ```http
@@ -1178,8 +1302,10 @@ So you can plan around them rather than discover them:
 - **No renewal or dunning.** A subscription's period lapses and nothing
   charges again or moves it to `PAST_DUE`.
 - **One organization per account.** See §6.
-- **No design write endpoints** beyond block arrangement. Content, themes and
-  cover images have no write path.
+- **No cover-image write path.** `Invitation.coverAssetId` is modelled; upload
+  works, but nothing attaches an asset as the cover.
+- **No block creation outside the arrangement call**, and no way to reorder
+  custom RSVP questions once added.
 - **No image resizing.**
 - **PDF and XLSX exports.** CSV works; the other two formats return `400`.
 - **No automatic suppression from bounces.** A hard bounce can be recorded, but
