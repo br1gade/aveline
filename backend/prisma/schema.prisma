@@ -477,8 +477,9 @@ model Guest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  event        Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  household    Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  channels     GuestChannel[]
   rsvp         Rsvp?
   seat         Seat?
   checkIn      CheckIn?
@@ -1051,6 +1052,13 @@ model MessageTemplate {
   subject Json @default("{}")
   body    Json @default("{}")
 
+  /// For channels that only accept pre-registered templates — WhatsApp — the
+  /// provider's own template name, and the variable names in the order the
+  /// provider expects them as positional parameters. Null for channels that
+  /// take the rendered `body` as it is.
+  providerTemplate String?
+  providerParams   String[] @default([])
+
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1092,6 +1100,13 @@ model Message {
   subject String?
   body    String
 
+  /// For a channel that only sends registered templates (WhatsApp): which
+  /// template carried this message and the parameters it was given, resolved
+  /// at enqueue for the same reason the body is. Null on channels that send
+  /// the body as it is.
+  providerTemplate String?
+  providerParams   String[] @default([])
+
   status        MessageStatus @default(QUEUED)
   attempts      Int           @default(0)
   providerRef   String?
@@ -1122,6 +1137,38 @@ model Message {
 enum MessageDirection {
   OUTBOUND
   INBOUND
+}
+
+/// How one guest can be reached on one channel.
+///
+/// A table rather than columns on Guest, because these arrive at different
+/// times and by different routes: a host types an email, a guest opts into
+/// Telegram themselves by tapping a deep link, and Viber would otherwise be a
+/// third column nobody remembers to populate.
+model GuestChannel {
+  id      String         @id @default(cuid())
+  guestId String
+  channel MessageChannel
+
+  /// A Telegram chat id, an E.164 phone number, or an email address —
+  /// whatever the channel's transport addresses a recipient by.
+  address String
+
+  /// When the guest themselves opted in, as opposed to the host supplying the
+  /// address. Telegram requires the guest to start the conversation, so for
+  /// that channel this is never null — and it is the record that they did.
+  optedInAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  /// One address per guest per channel. A second Telegram account for the same
+  /// guest is a replacement, not an addition.
+  @@unique([guestId, channel])
+  @@index([channel, address])
+  @@map("guest_channels")
 }
 
 enum MessageChannel {

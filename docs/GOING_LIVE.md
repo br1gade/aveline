@@ -37,17 +37,18 @@ customer's trust.
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
 | 10 | **No backups** | Postgres holds the entire domain and Garage holds every photo. Both are single-node. Losing either disk loses everything permanently |
 | 11 | **No TLS** | Everything is plain HTTP on localhost today |
-| 12 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
-| 13 | **No audit trail** | Modelled and unbuilt. Matters most for `SUPPORT` staff acting on a customer's behalf |
+| 12 | **WhatsApp business verification** | The transport is built and inert. Meta needs a verified business — trade licence, tax papers, a dedicated number — and message templates approved in advance. Days to weeks, like the bank accounts |
+| 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
+| 14 | **No audit trail** | Modelled and unbuilt. Matters most for `SUPPORT` staff acting on a customer's behalf |
 
 ### Operations
 
 | # | Blocker | Why |
 |---|---|---|
-| 14 | **No deployment** | No container build, no host, no process supervision, no restart policy |
-| 15 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
-| 16 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
-| 17 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
+| 15 | **No deployment** | No container build, no host, no process supervision, no restart policy |
+| 16 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
+| 17 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
+| 18 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
 
 ---
 

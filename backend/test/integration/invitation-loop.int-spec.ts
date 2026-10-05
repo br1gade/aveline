@@ -3,6 +3,7 @@ import { MessageChannel, PrismaClient } from '@prisma/client';
 import { MessageTransport } from '../../src/modules/communications/channels/message-channel';
 import { SmtpTransport } from '../../src/modules/communications/channels/smtp.transport';
 import { CommunicationsService } from '../../src/modules/communications/communications.service';
+import { GuestChannelsService } from '../../src/modules/communications/guest-channels.service';
 import { SuppressionService } from '../../src/modules/communications/suppression.service';
 import { InvitationSenderService } from '../../src/modules/invitations/sending/invitation-sender.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -10,6 +11,10 @@ import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
 const MAILPIT_API = process.env.MAILPIT_API ?? 'http://localhost:8025';
+
+/** A ConfigService that answers only the keys it is given. */
+const configOf = (values: Record<string, string>) =>
+  ({ get: (key: string) => values[key] }) as unknown as ConfigService;
 
 interface MailpitMessage {
   ID: string;
@@ -59,10 +64,12 @@ describe('invitation loop (integration)', () => {
       transports,
       suppressions,
     );
+    const guestChannels = new GuestChannelsService(prisma as unknown as PrismaService);
     sender = new InvitationSenderService(
       prisma as unknown as PrismaService,
       communications,
-      { get: () => 'https://aveline.test' } as unknown as ConfigService,
+      guestChannels,
+      configOf({ PUBLIC_APP_URL: 'https://aveline.test' }),
     );
   });
 

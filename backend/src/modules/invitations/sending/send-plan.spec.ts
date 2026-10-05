@@ -1,9 +1,19 @@
+import { MessageChannel } from '@prisma/client';
+import { GuestAddress } from './channel-preference';
 import {
   SendableGuest,
   SendableHousehold,
   displayName,
   planInvitationSend,
 } from './send-plan';
+
+const ALL_CHANNELS = [MessageChannel.TELEGRAM, MessageChannel.WHATSAPP, MessageChannel.EMAIL];
+
+const address = (
+  channel: MessageChannel,
+  value: string,
+  optedInAt: Date | null = null,
+): GuestAddress => ({ channel, address: value, optedInAt });
 
 const guest = (overrides: Partial<SendableGuest> = {}): SendableGuest => ({
   id: `g-${Math.random().toString(36).slice(2, 8)}`,
@@ -149,6 +159,129 @@ describe('planInvitationSend', () => {
     expect(planInvitationSend([])).toEqual({ recipients: [], skipped: [] });
   });
 });
+
+describe('planInvitationSend across channels', () => {
+  const guestWith = (addresses: GuestAddress[], overrides: Partial<SendableGuest> = {}) =>
+    guest({ addresses, ...overrides });
+
+  it('reaches a household on the channel the guest opted into', () => {
+    const plan = planInvitationSend(
+      [
+        household([
+          guestWith(
+            [
+              address(MessageChannel.EMAIL, 'armen@test.local'),
+              address(MessageChannel.TELEGRAM, '123', new Date('2026-10-01')),
+            ],
+            { isPrimary: true },
+          ),
+        ]),
+      ],
+      ALL_CHANNELS,
+    );
+
+    expect(plan.recipients[0].via).toEqual({ channel: MessageChannel.TELEGRAM, address: '123' });
+  });
+
+  it('falls back to email when only email is configured', () => {
+    const plan = planInvitationSend(
+      [
+        household([
+          guestWith(
+            [
+              address(MessageChannel.EMAIL, 'armen@test.local'),
+              address(MessageChannel.TELEGRAM, '123', new Date('2026-10-01')),
+            ],
+            { isPrimary: true },
+          ),
+        ]),
+      ],
+      [MessageChannel.EMAIL],
+    );
+
+    expect(plan.recipients[0].via.channel).toBe(MessageChannel.EMAIL);
+  });
+
+  /**
+   * The two decisions constrain each other, so they are made together: a
+   * primary with no usable address loses to a spouse who has one. Choosing the
+   * person first would pick the primary and then discover they are unreachable.
+   */
+  it('prefers a reachable spouse over an unreachable primary', () => {
+    const plan = planInvitationSend(
+      [
+        household([
+          guestWith([], { isPrimary: true, firstName: 'Armen', email: null }),
+          guestWith([address(MessageChannel.WHATSAPP, '+37410000000')], {
+            firstName: 'Lusine',
+          }),
+        ]),
+      ],
+      ALL_CHANNELS,
+    );
+
+    expect(plan.recipients[0].guest.firstName).toBe('Lusine');
+    expect(plan.recipients[0].via.channel).toBe(MessageChannel.WHATSAPP);
+  });
+
+  it('keeps the primary when both are reachable', () => {
+    const plan = planInvitationSend(
+      [
+        household([
+          guestWith([address(MessageChannel.EMAIL, 'lusine@test.local')], { firstName: 'Lusine' }),
+          guestWith([address(MessageChannel.EMAIL, 'armen@test.local')], {
+            firstName: 'Armen',
+            isPrimary: true,
+          }),
+        ]),
+      ],
+      ALL_CHANNELS,
+    );
+
+    expect(plan.recipients[0].guest.firstName).toBe('Armen');
+  });
+
+  // A Telegram address with no opt-in cannot be sent to at all.
+  it('skips a household whose only address is an un-opted-in Telegram', () => {
+    const plan = planInvitationSend(
+      [household([guestWith([address(MessageChannel.TELEGRAM, '123')], { email: null })])],
+      ALL_CHANNELS,
+    );
+
+    expect(plan.recipients).toHaveLength(0);
+    expect(plan.skipped[0].reason).toContain('Telegram link');
+  });
+
+  it('never writes to an erased guest, whatever addresses remain', () => {
+    const plan = planInvitationSend(
+      [
+        household([
+          guestWith([address(MessageChannel.TELEGRAM, '123', new Date('2026-10-01'))], {
+            anonymizedAt: new Date('2026-10-02'),
+            email: null,
+          }),
+        ]),
+      ],
+      ALL_CHANNELS,
+    );
+
+    expect(plan.recipients).toHaveLength(0);
+  });
+
+  /**
+   * Backwards compatibility: a guest built without `addresses` — which is
+   * every caller that predates channels — still sends by email.
+   */
+  it('still sends by email for a guest with no addresses listed', () => {
+    const plan = planInvitationSend([household([guest({ isPrimary: true })])], ALL_CHANNELS);
+
+    expect(plan.recipients[0].via).toEqual({
+      channel: MessageChannel.EMAIL,
+      address: 'armen@test.local',
+    });
+  });
+});
+
 
 describe('displayName', () => {
   it('joins the names a guest actually has', () => {

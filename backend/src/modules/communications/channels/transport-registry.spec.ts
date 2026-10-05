@@ -2,7 +2,9 @@ import { ConfigService } from '@nestjs/config';
 import { MessageChannel } from '@prisma/client';
 import { ConsoleTransport } from './console.transport';
 import { SmtpTransport } from './smtp.transport';
-import { buildTransports, smtpSettingsFrom } from './transport-registry';
+import { TelegramTransport } from './telegram.transport';
+import { WhatsAppTransport } from './whatsapp.transport';
+import { buildTransports, deliverableChannels, smtpSettingsFrom } from './transport-registry';
 
 /** A ConfigService over a plain object. */
 const configOf = (values: Record<string, string>) =>
@@ -133,4 +135,67 @@ describe('buildTransports', () => {
       expect(transports.get(channel)).toBeInstanceOf(ConsoleTransport);
     },
   );
+
+  it('uses the Bot API for Telegram once a token is configured', () => {
+    const transports = buildTransports(configOf({ TELEGRAM_BOT_TOKEN: 'bot-token' }));
+
+    expect(transports.get(MessageChannel.TELEGRAM)).toBeInstanceOf(TelegramTransport);
+  });
+
+  it('uses the Cloud API for WhatsApp once both halves are configured', () => {
+    const transports = buildTransports(
+      configOf({ WHATSAPP_PHONE_NUMBER_ID: '123', WHATSAPP_ACCESS_TOKEN: 'tok' }),
+    );
+
+    expect(transports.get(MessageChannel.WHATSAPP)).toBeInstanceOf(WhatsAppTransport);
+  });
+
+  /**
+   * One half of a WhatsApp configuration is a mistake that would surface as a
+   * run of authentication failures against real guests.
+   */
+  it.each<{ label: string; values: Record<string, string> }>([
+    { label: 'only the phone number id', values: { WHATSAPP_PHONE_NUMBER_ID: '123' } },
+    { label: 'only the access token', values: { WHATSAPP_ACCESS_TOKEN: 'tok' } },
+  ])('leaves WhatsApp on the console with $label', ({ values }) => {
+    const transports = buildTransports(configOf(values));
+
+    expect(transports.get(MessageChannel.WHATSAPP)).toBeInstanceOf(ConsoleTransport);
+  });
+});
+
+describe('deliverableChannels', () => {
+  /**
+   * The senders read this so they never choose a channel whose transport is
+   * only the console — which would tell a host their guest had been written
+   * to when nothing left the building.
+   */
+  it('reports only what is configured', () => {
+    expect(
+      deliverableChannels(
+        configOf({ SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c', TELEGRAM_BOT_TOKEN: 'tok' }),
+      ),
+    ).toEqual([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
+  });
+
+  it('reports all three when all three are configured', () => {
+    expect(
+      deliverableChannels(
+        configOf({
+          SMTP_HOST: 'smtp.test',
+          MAIL_FROM: 'a@b.c',
+          TELEGRAM_BOT_TOKEN: 'tok',
+          WHATSAPP_PHONE_NUMBER_ID: '123',
+          WHATSAPP_ACCESS_TOKEN: 'tok',
+        }),
+      ),
+    ).toHaveLength(3);
+  });
+
+  // A product that can plan no sends at all is harder to work on than one
+  // that plans them to the console.
+  it('falls back to email when nothing is configured', () => {
+    expect(deliverableChannels(configOf({}))).toEqual([MessageChannel.EMAIL]);
+  });
+
 });

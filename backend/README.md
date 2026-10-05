@@ -84,6 +84,38 @@ no bounce or complaint webhooks, no suppression API and no delivery events, so
 a bounce arriving after the send is never recorded. Moving is a change of
 credentials, not of code, since the adapter speaks plain SMTP.
 
+## Chat channels
+
+Email always works from nothing, which is why an invitation goes out on it.
+The chat channels each have a constraint worth knowing before wiring them up.
+
+**Telegram** is free and needs no approval — create a bot with `@BotFather`,
+set `TELEGRAM_BOT_TOKEN`. The constraint is absolute: **a bot cannot message
+anyone who has not started a conversation with it.** So the invitation email
+carries a deep link, `t.me/<bot>?start=<guestToken>`, available to template
+copy as `{{telegramLink}}`. Tapping it posts `/start` to
+`POST /webhooks/telegram`, which records the chat id — and reminders then go
+there instead of to email. Set `TELEGRAM_WEBHOOK_SECRET` so only Telegram can
+call that endpoint; production refuses to boot without it once a bot token is
+set, because otherwise anyone who guessed a guest token could register their
+own chat against that guest.
+
+**WhatsApp** can reach someone cold, which is why it exists here, but it is
+gated: a Meta Business account, a verified business, a dedicated number, and
+**message templates approved in advance**. It will not send free text at all,
+so a `MessageTemplate` used on WhatsApp needs `providerTemplate` (Meta's
+template name) and `providerParams` (the variable names in the order Meta
+expects them). Every delivered template is billed.
+
+A channel is only used when **both** its transport is configured and the
+organization has copy for it. An organization with no Telegram template keeps
+getting email, with nothing to configure — and nothing fails mid-send with
+"template not found" after half the households have been written to.
+
+Preference order is in `channel-preference.ts`: Telegram if the guest opted
+in, then WhatsApp if we have a number, then email. An opted-in channel
+outranks a paid one.
+
 ## Layout
 
 ```
@@ -147,6 +179,7 @@ test/
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `POST` | `/api/v1/devices` | Register this device for push (idempotent by token) |
 | `DELETE` | `/api/v1/devices/:token` | Stop sending to this device |
+| `POST` | `/api/v1/webhooks/telegram` | Telegram opt-ins and blocks (**called by Telegram**) |
 | `GET` | `/api/v1/health/live` | Process is running |
 | `GET` | `/api/v1/health/ready` | Dependencies reachable; only Postgres is required |
 
@@ -393,10 +426,9 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 
 ## Next
 
-1. **Transports beyond email.** Email is delivered over SMTP, retries a
-   temporary failure and suppresses an address that hard-bounces. SMS,
-   Telegram and WhatsApp still resolve to the console transport; each is one
-   adapter behind the same two-method port.
+1. **SMS.** Email, Telegram and WhatsApp are delivered. SMS still resolves to
+   the console transport; it is one adapter behind the same two-method port,
+   and it is the channel that reaches guests who read neither email nor chat.
 2. **Reminders on other channels.** RSVP reminders go out by email on a
    three-week / one-week / two-day schedule, and by hand on request. SMS would
    reach the guests who do not read email, and needs a transport first.

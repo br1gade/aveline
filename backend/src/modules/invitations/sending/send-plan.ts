@@ -10,6 +10,9 @@
  * Pure, because "who gets the email" is a product rule that must be
  * inspectable and testable without a database or a mail server.
  */
+import { MessageChannel } from '@prisma/client';
+import { ChannelChoice, GuestAddress, chooseChannel, unreachableReason } from './channel-preference';
+
 export interface SendableGuest {
   id: string;
   firstName: string;
@@ -21,6 +24,8 @@ export interface SendableGuest {
   token: string;
   /** Set once an erasure request has been carried out. */
   anonymizedAt: Date | null;
+  /** Every way this guest can be reached, email and phone folded in. */
+  addresses?: GuestAddress[];
 }
 
 export interface SendableHousehold {
@@ -33,6 +38,8 @@ export interface Recipient {
   householdId: string;
   householdName: string;
   guest: SendableGuest;
+  /** Which channel this household is reached on, and at what address. */
+  via: ChannelChoice;
 }
 
 export interface SkippedHousehold {
@@ -59,20 +66,28 @@ export interface SendPlan {
  * and rotated the token, so writing to them would be both impossible and a
  * breach of the request they made.
  */
-export function planInvitationSend(households: readonly SendableHousehold[]): SendPlan {
+export function planInvitationSend(
+  households: readonly SendableHousehold[],
+  available: readonly MessageChannel[] = [MessageChannel.EMAIL],
+): SendPlan {
   const recipients: Recipient[] = [];
   const skipped: SkippedHousehold[] = [];
 
   for (const household of households) {
-    const guest = chooseRecipient(household.guests);
+    const chosen = chooseForHousehold(household.guests, available);
 
-    if (guest) {
-      recipients.push({ householdId: household.id, householdName: household.name, guest });
+    if (chosen) {
+      recipients.push({
+        householdId: household.id,
+        householdName: household.name,
+        guest: chosen.guest,
+        via: chosen.via,
+      });
     } else {
       skipped.push({
         householdId: household.id,
         householdName: household.name,
-        reason: reasonFor(household.guests),
+        reason: reasonFor(household.guests, available),
       });
     }
   }
@@ -80,14 +95,45 @@ export function planInvitationSend(households: readonly SendableHousehold[]): Se
   return { recipients, skipped };
 }
 
-function chooseRecipient(guests: readonly SendableGuest[]): SendableGuest | null {
-  const contactable = guests.filter(isContactable);
+/**
+ * The household's recipient and the channel to reach them on.
+ *
+ * Both decisions at once, because they constrain each other: the primary guest
+ * is preferred, but a primary with no usable address loses to a spouse who has
+ * one — and "usable" depends on which transports are configured. Taking them
+ * separately would pick a person first and then discover they cannot be
+ * reached.
+ */
+function chooseForHousehold(
+  guests: readonly SendableGuest[],
+  available: readonly MessageChannel[],
+): { guest: SendableGuest; via: ChannelChoice } | null {
+  const candidates = [...guests]
+    .filter((guest) => guest.anonymizedAt === null)
+    // Primary first, so they win whenever they are reachable at all.
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
 
-  return contactable.find((guest) => guest.isPrimary) ?? contactable[0] ?? null;
+  for (const guest of candidates) {
+    const via = chooseChannel(addressesOf(guest), available);
+    if (via) return { guest, via };
+  }
+
+  return null;
 }
 
-function isContactable(guest: SendableGuest): boolean {
-  return guest.anonymizedAt === null && isUsableEmail(guest.email);
+/**
+ * A guest's addresses, falling back to the email on the Guest row.
+ *
+ * The fallback keeps every existing caller working: a `SendableGuest` built
+ * without `addresses` still sends by email exactly as it did before channels
+ * existed.
+ */
+function addressesOf(guest: SendableGuest): GuestAddress[] {
+  if (guest.addresses) return guest.addresses;
+
+  return guest.email && isUsableEmail(guest.email)
+    ? [{ channel: MessageChannel.EMAIL, address: guest.email, optedInAt: null }]
+    : [];
 }
 
 /**
@@ -105,16 +151,22 @@ function isUsableEmail(email: string | null): boolean {
  * Reasons are written for a host reading a list of who was not invited, so
  * each one says what to do about it.
  */
-function reasonFor(guests: readonly SendableGuest[]): string {
+function reasonFor(
+  guests: readonly SendableGuest[],
+  available: readonly MessageChannel[],
+): string {
   if (guests.length === 0) return 'This household has no guests in it yet';
   if (guests.every((guest) => guest.anonymizedAt !== null)) {
     return 'This guest asked for their data to be removed';
   }
 
+  // A typo quoted back is fixable; "no address" when one is present sends the
+  // host looking in the wrong place.
   const malformed = guests.find((guest) => guest.email !== null && !isUsableEmail(guest.email));
   if (malformed) return `"${malformed.email ?? ''}" does not look like an email address`;
 
-  return 'No email address for anyone in this household';
+  const addresses = guests.filter((guest) => guest.anonymizedAt === null).flatMap(addressesOf);
+  return unreachableReason(addresses, available);
 }
 
 /** The display name an invitation greets a guest by. */

@@ -5,12 +5,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MessageTransport } from './channels/message-channel';
 import { buildTransports } from './channels/transport-registry';
 import { CommunicationsService } from './communications.service';
+import { GuestChannelsService } from './guest-channels.service';
 import { SuppressionService } from './suppression.service';
+import { TelegramWebhookController } from './telegram-webhook.controller';
 
 export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
 
 @Global()
 @Module({
+  controllers: [TelegramWebhookController],
   providers: [
     {
       provide: MESSAGE_TRANSPORTS,
@@ -18,6 +21,7 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
       useFactory: buildTransports,
     },
     SuppressionService,
+    GuestChannelsService,
     {
       provide: CommunicationsService,
       inject: [PrismaService, MESSAGE_TRANSPORTS, SuppressionService],
@@ -28,6 +32,6 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
       ) => new CommunicationsService(prisma, transports, suppressions),
     },
   ],
-  exports: [CommunicationsService, SuppressionService],
+  exports: [CommunicationsService, SuppressionService, GuestChannelsService],
 })
 export class CommunicationsModule {}

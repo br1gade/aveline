@@ -4,6 +4,8 @@ import { MessageChannel } from '@prisma/client';
 import { ConsoleTransport } from './console.transport';
 import { MessageTransport } from './message-channel';
 import { SmtpSettings, SmtpTransport } from './smtp.transport';
+import { TelegramSettings, TelegramTransport } from './telegram.transport';
+import { WhatsAppSettings, WhatsAppTransport } from './whatsapp.transport';
 
 const logger = new Logger('TransportRegistry');
 
@@ -44,7 +46,56 @@ export function buildTransports(config: ConfigService): Map<MessageChannel, Mess
     logger.warn('no SMTP configured — email is written to the log and not delivered');
   }
 
+  const telegram = telegramSettingsFrom(config);
+  if (telegram) {
+    transports.set(MessageChannel.TELEGRAM, new TelegramTransport(telegram));
+    logger.log('telegram over the Bot API');
+  }
+
+  const whatsapp = whatsAppSettingsFrom(config);
+  if (whatsapp) {
+    transports.set(MessageChannel.WHATSAPP, new WhatsAppTransport(whatsapp));
+    logger.log(`whatsapp over the Cloud API as ${whatsapp.phoneNumberId}`);
+  }
+
   return transports;
+}
+
+/**
+ * Which channels can actually reach a guest.
+ *
+ * Read by the senders so they never choose a channel whose transport is only
+ * the console: queueing a WhatsApp message with no credentials would tell a
+ * host their guest had been written to when nothing had left the building.
+ */
+export function deliverableChannels(config: ConfigService): MessageChannel[] {
+  const configured: MessageChannel[] = [];
+
+  if (smtpSettingsFrom(config)) configured.push(MessageChannel.EMAIL);
+  if (telegramSettingsFrom(config)) configured.push(MessageChannel.TELEGRAM);
+  if (whatsAppSettingsFrom(config)) configured.push(MessageChannel.WHATSAPP);
+
+  // In development nothing may be configured, and a product that can plan no
+  // sends at all is harder to work on than one that plans them to the console.
+  return configured.length > 0 ? configured : [MessageChannel.EMAIL];
+}
+
+export function telegramSettingsFrom(config: ConfigService): TelegramSettings | null {
+  const botToken = config.get<string>('TELEGRAM_BOT_TOKEN');
+  return botToken ? { botToken } : null;
+}
+
+/**
+ * WhatsApp needs both halves: the phone number id identifies which sender,
+ * the token authorises it. One without the other is a configuration mistake
+ * that would surface as a run of authentication failures.
+ */
+export function whatsAppSettingsFrom(config: ConfigService): WhatsAppSettings | null {
+  const phoneNumberId = config.get<string>('WHATSAPP_PHONE_NUMBER_ID');
+  const accessToken = config.get<string>('WHATSAPP_ACCESS_TOKEN');
+  if (!phoneNumberId || !accessToken) return null;
+
+  return { phoneNumberId, accessToken };
 }
 
 /**

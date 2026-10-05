@@ -90,6 +90,12 @@ export class CommunicationsService {
         body: renderTemplate(body, params.variables),
         scheduledFor: params.scheduledFor ?? new Date(),
         dedupeKey: params.dedupeKey ?? null,
+        // Resolved here, not at dispatch, for the same reason the body is:
+        // what was sent must stay knowable after the template changes.
+        providerTemplate: template.providerTemplate,
+        providerParams: template.providerTemplate
+          ? positionalParams(template.providerParams, params.variables)
+          : [],
         // Recorded rather than dropped: a host asking why a guest never got
         // their invitation deserves the answer "they opted out", and a
         // message that silently never existed cannot give it.
@@ -199,6 +205,8 @@ export class CommunicationsService {
     body: string;
     locale: string;
     attempts: number;
+    providerTemplate?: string | null;
+    providerParams?: string[];
   }): Promise<DeliveryOutcome> {
     const transport = this.transports.get(message.channel);
     if (!transport) {
@@ -212,6 +220,12 @@ export class CommunicationsService {
         subject: message.subject ?? undefined,
         body: message.body,
         locale: message.locale,
+        template: message.providerTemplate
+          ? {
+              providerTemplate: message.providerTemplate,
+              params: message.providerParams ?? [],
+            }
+          : undefined,
       });
 
       await this.prisma.message.update({
@@ -327,4 +341,18 @@ function queueState(isSuppressed: boolean): { status: MessageStatus; failureReas
   return isSuppressed
     ? { status: MessageStatus.SUPPRESSED, failureReason: 'Recipient is suppressed' }
     : { status: MessageStatus.QUEUED, failureReason: null };
+}
+
+/**
+ * The template's variables in the order the provider expects them.
+ *
+ * A provider template addresses its variables by position, so the order in
+ * `providerParams` is part of the contract with the provider. A missing
+ * variable becomes an empty string rather than throwing: the rendered body has
+ * already been validated by `renderTemplate`, so a gap here means the
+ * provider mapping lists a name the copy does not use — worth seeing in the
+ * sent message rather than failing the whole send.
+ */
+function positionalParams(names: string[], variables: Record<string, string>): string[] {
+  return names.map((name) => variables[name] ?? '');
 }

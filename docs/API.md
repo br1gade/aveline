@@ -1169,6 +1169,42 @@ conversations inside one request would hold it open for minutes and fail
 halfway with no record of where it stopped. `queued` means accepted into the
 outbox; delivery is the next call's business.
 
+### Which channel a message goes out on
+
+Guests are reached on email, Telegram or WhatsApp, decided per household by
+the server. The client does not choose, but two things are visible to it.
+
+**`POST /invitations/:slug/send` and `/remind` report the channel used**, on
+each entry in `recipients`:
+
+```json
+{ "householdName": "Petrosyan family", "toAddress": "123456789", "channel": "TELEGRAM" }
+```
+
+`GET /invitations/:slug/delivery` carries `channel` per household too, and
+`toAddress` is whatever that channel addresses — an email address, a Telegram
+chat id, or a phone number. Do not assume it is an email address.
+
+**Preference order:** Telegram if the guest opted in, then WhatsApp if there
+is a phone number, then email. A channel the guest opted into outranks one
+that costs per message.
+
+**An invitation always goes by email.** A Telegram bot cannot message anyone
+who has not started a conversation with it, so Telegram can never be first
+contact. The sequence is: invitation by email → guest taps a Telegram deep
+link → reminders go to Telegram.
+
+**That deep link is yours to place.** Invitation copy can include
+`{{telegramLink}}`, which renders as `https://t.me/<bot>?start=<guestToken>`.
+Put it in the email and on the invitation page as "get updates on Telegram" —
+without it, no guest ever opts in and the channel stays unused. It is empty
+when no bot is configured, so render it conditionally.
+
+**Unreachable reasons now distinguish the cases.** A household whose only
+address is a Telegram chat that has not opted in reports *"has not opened the
+Telegram link yet"*, which is a different action for the host than a missing
+address.
+
 ### Chasing non-responders
 
 ```http
@@ -1380,6 +1416,16 @@ Idempotent by token — re-register freely on every app start.
 
 ---
 
+### Not for you: the Telegram webhook
+
+```http
+POST /api/v1/webhooks/telegram
+```
+
+Telegram calls this; no client should. It is listed only so it is not mistaken
+for something to integrate with. It records a guest's opt-in when they tap the
+deep link, and treats blocking the bot as an unsubscribe.
+
 ## 7. Health
 
 ```http
@@ -1434,8 +1480,10 @@ way a user will see it, formatting included.
 
 So you can plan around them rather than discover them:
 
-- **Only email is delivered.** SMS, Telegram and WhatsApp still write to the
-  server log instead of sending. Email over SMTP is real, retries a temporary
+- **SMS is not delivered.** Email, Telegram and WhatsApp are. SMS still writes
+  to the server log.
+- **No WhatsApp delivery receipts.** Meta reports delivery and read status by
+  webhook; we do not consume it, so a WhatsApp message stays `SENT`. Email over SMTP is real, retries a temporary
   failure and suppresses an address that hard-bounces.
 - **Nothing enforces plan entitlements.** They are published on `/plans` and on
   the subscription, but the server will not refuse a fourth event on a

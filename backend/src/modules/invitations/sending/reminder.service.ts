@@ -7,7 +7,9 @@ import {
   RsvpStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { deliverableChannels } from '../../communications/channels/transport-registry';
 import { CommunicationsService } from '../../communications/communications.service';
+import { GuestChannelsService } from '../../communications/guest-channels.service';
 import {
   REMINDER_MILESTONES,
   dueMilestone,
@@ -27,12 +29,37 @@ export class ReminderService {
   private readonly logger = new Logger(ReminderService.name);
   private readonly appUrl: string;
 
+  private readonly configuredChannels: MessageChannel[];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly communications: CommunicationsService,
+    private readonly guestChannels: GuestChannelsService,
     config: ConfigService,
   ) {
     this.appUrl = config.get<string>('PUBLIC_APP_URL') ?? 'http://localhost:5173';
+    this.configuredChannels = deliverableChannels(config);
+  }
+
+  /**
+   * Channels we can send a reminder on and have copy for.
+   *
+   * A reminder is the message most likely to go over Telegram — the guest
+   * opted in after receiving the invitation by email, which is exactly the
+   * sequence the opt-in deep link creates.
+   */
+  private async usableChannels(organizationId: string): Promise<MessageChannel[]> {
+    const templates = await this.prisma.messageTemplate.findMany({
+      where: {
+        key: TEMPLATE_KEY,
+        isActive: true,
+        OR: [{ organizationId }, { organizationId: null }],
+      },
+      select: { channel: true },
+    });
+
+    const withCopy = new Set(templates.map((template) => template.channel));
+    return this.configuredChannels.filter((channel) => withCopy.has(channel));
   }
 
   /**
@@ -144,8 +171,9 @@ export class ReminderService {
     households: SendableHousehold[],
     dedupeKeyFor: (guestId: string) => string,
   ) {
-    const plan = planInvitationSend(households);
-    const queued: { householdName: string; toAddress: string }[] = [];
+    const available = await this.usableChannels(invitation.organizationId);
+    const plan = planInvitationSend(households, available);
+    const queued: { householdName: string; toAddress: string; channel: MessageChannel }[] = [];
     let alreadyRemindedToday = 0;
 
     for (const recipient of plan.recipients) {
@@ -160,9 +188,9 @@ export class ReminderService {
         organizationId: invitation.organizationId,
         eventId: invitation.eventId,
         guestId: recipient.guest.id,
-        channel: MessageChannel.EMAIL,
+        channel: recipient.via.channel,
         templateKey: TEMPLATE_KEY,
-        toAddress: recipient.guest.email ?? '',
+        toAddress: recipient.via.address,
         locale: recipient.guest.locale ?? invitation.defaultLocale,
         variables: {
           guestName: displayName(recipient.guest),
@@ -176,7 +204,8 @@ export class ReminderService {
       if (message.status !== MessageStatus.SUPPRESSED) {
         queued.push({
           householdName: recipient.householdName,
-          toAddress: recipient.guest.email ?? '',
+          toAddress: recipient.via.address,
+          channel: recipient.via.channel,
         });
       }
     }
@@ -225,16 +254,24 @@ export class ReminderService {
             firstName: true,
             lastName: true,
             email: true,
+            phone: true,
             isPrimary: true,
             locale: true,
             token: true,
             anonymizedAt: true,
+            channels: { select: { channel: true, address: true, optedInAt: true } },
           },
         },
       },
     });
 
-    return households;
+    return households.map((household) => ({
+      ...household,
+      guests: household.guests.map((guest) => ({
+        ...guest,
+        addresses: this.guestChannels.addressesFor(guest),
+      })),
+    }));
   }
 
   private async loadRemindable(slug: string) {

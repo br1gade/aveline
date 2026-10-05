@@ -39,7 +39,14 @@ export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
 
 function assertRequiredPresent(raw: Record<string, unknown>): void {
   const isProduction = raw.NODE_ENV === 'production';
-  const required = [...ALWAYS_REQUIRED, ...(isProduction ? PRODUCTION_REQUIRED : [])];
+  const required = [
+    ...ALWAYS_REQUIRED,
+    ...(isProduction ? PRODUCTION_REQUIRED : []),
+    // An unauthenticated bot webhook lets anyone who guesses a guest token
+    // register their own chat and receive that guest's invitation. Required
+    // only once a bot exists, so a deployment without Telegram is unaffected.
+    ...(isProduction && raw.TELEGRAM_BOT_TOKEN ? (['TELEGRAM_WEBHOOK_SECRET'] as const) : []),
+  ];
 
   const missing = required.filter((key) => !raw[key]);
   if (missing.length === 0) return;

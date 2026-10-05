@@ -3,6 +3,7 @@ import { MessageChannel, MessageStatus, PrismaClient, RsvpStatus } from '@prisma
 import { ConsoleTransport } from '../../src/modules/communications/channels/console.transport';
 import { MessageTransport } from '../../src/modules/communications/channels/message-channel';
 import { CommunicationsService } from '../../src/modules/communications/communications.service';
+import { GuestChannelsService } from '../../src/modules/communications/guest-channels.service';
 import { SuppressionService } from '../../src/modules/communications/suppression.service';
 import { InvitationSenderService } from '../../src/modules/invitations/sending/invitation-sender.service';
 import { ReminderService } from '../../src/modules/invitations/sending/reminder.service';
@@ -11,6 +12,10 @@ import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** A ConfigService that answers only the keys it is given. */
+const configOf = (values: Record<string, string>) =>
+  ({ get: (key: string) => values[key] }) as unknown as ConfigService;
 
 /**
  * Chasing non-responders, which is the work hosts most want taken off them.
@@ -36,9 +41,20 @@ describe('reminders (integration)', () => {
       transports,
       suppressions,
     );
-    const config = { get: () => 'https://aveline.test' } as unknown as ConfigService;
-    sender = new InvitationSenderService(prisma as unknown as PrismaService, communications, config);
-    reminders = new ReminderService(prisma as unknown as PrismaService, communications, config);
+    const config = configOf({ PUBLIC_APP_URL: 'https://aveline.test' });
+    const guestChannels = new GuestChannelsService(prisma as unknown as PrismaService);
+    sender = new InvitationSenderService(
+      prisma as unknown as PrismaService,
+      communications,
+      guestChannels,
+      config,
+    );
+    reminders = new ReminderService(
+      prisma as unknown as PrismaService,
+      communications,
+      guestChannels,
+      config,
+    );
   });
 
   beforeEach(() => resetTestDatabase());

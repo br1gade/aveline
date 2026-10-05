@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InvitationStatus, MessageChannel, MessageStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
+import { deliverableChannels } from '../../communications/channels/transport-registry';
 import { CommunicationsService } from '../../communications/communications.service';
+import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   Recipient,
@@ -18,12 +20,45 @@ export class InvitationSenderService {
   private readonly logger = new Logger(InvitationSenderService.name);
   private readonly appUrl: string;
 
+  private readonly configuredChannels: MessageChannel[];
+  private readonly botUsername: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly communications: CommunicationsService,
+    private readonly guestChannels: GuestChannelsService,
     config: ConfigService,
   ) {
     this.appUrl = config.get<string>('PUBLIC_APP_URL') ?? 'http://localhost:5173';
+    this.configuredChannels = deliverableChannels(config);
+    this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
+  }
+
+  /**
+   * Channels we can both send on and have copy for.
+   *
+   * Both halves are required. A configured transport with no template for this
+   * message would fail mid-send with "template not found" after some
+   * households had already been written to; copy with no transport would queue
+   * messages that can only fail. Intersecting them means an organization that
+   * has not written Telegram copy simply keeps getting email, with no
+   * configuration to remember.
+   */
+  private async usableChannels(
+    organizationId: string,
+    templateKey: string,
+  ): Promise<MessageChannel[]> {
+    const templates = await this.prisma.messageTemplate.findMany({
+      where: {
+        key: templateKey,
+        isActive: true,
+        OR: [{ organizationId }, { organizationId: null }],
+      },
+      select: { channel: true },
+    });
+
+    const withCopy = new Set(templates.map((template) => template.channel));
+    return this.configuredChannels.filter((channel) => withCopy.has(channel));
   }
 
   /**
@@ -51,8 +86,9 @@ export class InvitationSenderService {
       );
     }
 
-    const plan = planInvitationSend(households);
-    const queued: { householdName: string; toAddress: string }[] = [];
+    const available = await this.usableChannels(invitation.organizationId, TEMPLATE_KEY);
+    const plan = planInvitationSend(households, available);
+    const queued: { householdName: string; toAddress: string; channel: MessageChannel }[] = [];
     const alreadySent: string[] = [];
     const suppressed: { householdName: string; toAddress: string }[] = [];
 
@@ -63,12 +99,13 @@ export class InvitationSenderService {
       else if (outcome === 'SUPPRESSED') {
         suppressed.push({
           householdName: recipient.householdName,
-          toAddress: recipient.guest.email ?? '',
+          toAddress: recipient.via.address,
         });
       } else {
         queued.push({
           householdName: recipient.householdName,
-          toAddress: recipient.guest.email ?? '',
+          toAddress: recipient.via.address,
+          channel: recipient.via.channel,
         });
       }
     }
@@ -122,14 +159,16 @@ export class InvitationSenderService {
       }
     }
 
-    const plan = planInvitationSend(households);
+    const available = await this.usableChannels(invitation.organizationId, TEMPLATE_KEY);
+    const plan = planInvitationSend(households, available);
     const rows = plan.recipients.map((recipient) => {
       const message = latestByGuest.get(recipient.guest.id);
       return {
         householdId: recipient.householdId,
         household: recipient.householdName,
         guest: displayName(recipient.guest),
-        toAddress: recipient.guest.email,
+        channel: recipient.via.channel,
+        toAddress: recipient.via.address,
         status: message?.status ?? 'NOT_SENT',
         attempts: message?.attempts ?? 0,
         failureReason: message?.failureReason ?? null,
@@ -159,15 +198,16 @@ export class InvitationSenderService {
       organizationId: invitation.organizationId,
       eventId: invitation.eventId,
       guestId: guest.id,
-      channel: MessageChannel.EMAIL,
+      channel: recipient.via.channel,
       templateKey: TEMPLATE_KEY,
-      toAddress: guest.email ?? '',
+      toAddress: recipient.via.address,
       locale: guest.locale ?? invitation.defaultLocale,
       variables: {
         guestName: displayName(guest),
         hosts: invitation.hosts,
         eventTitle: invitation.title,
         link: this.linkFor(invitation.slug, guest.token),
+        telegramLink: this.telegramLinkFor(guest.token),
       },
       dedupeKey,
     });
@@ -178,6 +218,19 @@ export class InvitationSenderService {
   /** The guest's own capability URL — the thing the whole email exists to carry. */
   private linkFor(slug: string, token: string): string {
     return `${this.appUrl}/invitations/${slug}/g/${token}`;
+  }
+
+  /**
+   * The Telegram deep link, when a bot is configured.
+   *
+   * Carried as a template variable so a host can offer it in the invitation
+   * copy: tapping it is the only way a guest can ever receive anything on
+   * Telegram, since a bot cannot open a conversation itself. The payload is
+   * the guest's existing capability token — the same one already in their
+   * invitation URL — so this adds no new secret.
+   */
+  private telegramLinkFor(token: string): string {
+    return this.botUsername ? `https://t.me/${this.botUsername}?start=${token}` : '';
   }
 
   private async loadInvitation(slug: string) {
@@ -251,15 +304,23 @@ export class InvitationSenderService {
             firstName: true,
             lastName: true,
             email: true,
+            phone: true,
             isPrimary: true,
             locale: true,
             token: true,
             anonymizedAt: true,
+            channels: { select: { channel: true, address: true, optedInAt: true } },
           },
         },
       },
     });
 
-    return households;
+    return households.map((household) => ({
+      ...household,
+      guests: household.guests.map((guest) => ({
+        ...guest,
+        addresses: this.guestChannels.addressesFor(guest),
+      })),
+    }));
   }
 }
