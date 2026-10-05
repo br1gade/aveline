@@ -4,17 +4,18 @@ Event invitations, the guest graph, and the operations derived from them.
 
 | Doc | Covers |
 |---|---|
-| [`../CLAUDE.md`](../CLAUDE.md) | Engineering rules — binding |
+| [`CLAUDE.md`](CLAUDE.md) | Engineering rules — binding here |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The frame: lifecycle, auth, jobs, degradation |
+| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Every model and the database's invariants |
+| [`docs/DATA_STORES.md`](docs/DATA_STORES.md) | Postgres / Redis / MongoDB |
+| [`docs/STORAGE.md`](docs/STORAGE.md) | Garage object storage |
+| [`docs/GAPS.md`](docs/GAPS.md) | What is still unbuilt, prioritised |
+| [`../docs/API.md`](../docs/API.md) | **The client contract — update it when a response shape changes** |
 | [`../docs/PRODUCT_SPEC.md`](../docs/PRODUCT_SPEC.md) | Product definition and domain model |
 | [`../docs/ACCESS_CONTROL.md`](../docs/ACCESS_CONTROL.md) | Accounts, roles, permissions |
-| [`../docs/VENUES_AND_SEATING.md`](../docs/VENUES_AND_SEATING.md) | Venues, tables, seats |
 | [`../docs/INVITATION_DESIGN.md`](../docs/INVITATION_DESIGN.md) | Templates, blocks, media, signatures |
-| [`../docs/DATA_STORES.md`](../docs/DATA_STORES.md) | Postgres / Redis / MongoDB — what goes where and why |
-| [`../docs/PAYMENTS.md`](../docs/PAYMENTS.md) | Card acquiring: gateways, sandboxes, the rules that matter |
-| [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | The frame: lifecycle, auth, jobs, degradation, conventions |
-| [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md) | Every model, where data lives, and the invariants the database enforces |
-| [`../docs/STORAGE.md`](../docs/STORAGE.md) | Garage setup, the adapter port, durability |
-| [`../docs/BACKEND_GAPS.md`](../docs/BACKEND_GAPS.md) | What is still unbuilt, prioritised |
+| [`../docs/VENUES_AND_SEATING.md`](../docs/VENUES_AND_SEATING.md) | Venues, tables, seats |
+| [`../docs/PAYMENTS.md`](../docs/PAYMENTS.md) | Card acquiring: gateways, sandboxes |
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7
 
@@ -199,6 +200,7 @@ rather than a per-table delete loop.
 npm run lint         # must be clean, zero warnings
 npm run lint:fix
 npm run docs:check   # fails when the docs contradict the code
+npm run openapi      # regenerate openapi.json for the client team
 ```
 
 `docs:check` compares documented endpoints against the controllers, verifies
@@ -237,4 +239,4 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 12. **Transports are console-only.** The messaging pipeline is real; no SMTP,
     SMS or chat provider is wired.
 
-`../docs/BACKEND_GAPS.md` is the full list, prioritised.
+`docs/GAPS.md` is the full list, prioritised.

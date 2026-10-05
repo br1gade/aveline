@@ -20,9 +20,11 @@ const problems = [];
 const read = (p) => readFileSync(p, 'utf8');
 const docFiles = [
   ...readdirSync(join(repo, 'docs')).map((f) => join(repo, 'docs', f)),
+  ...readdirSync(join(backend, 'docs')).map((f) => join(backend, 'docs', f)),
   join(repo, 'README.md'),
   join(repo, 'CLAUDE.md'),
   join(backend, 'README.md'),
+  join(backend, 'CLAUDE.md'),
 ].filter((f) => f.endsWith('.md'));
 
 function walk(dir) {
@@ -69,6 +71,18 @@ for (const line of read(join(backend, 'README.md')).split('\n')) {
 for (const route of actualRoutes) {
   if (!documentedRoutes.has(route)) problems.push(`backend/README.md: route not documented → ${route}`);
 }
+
+// ── 2b. The client contract must mention every path ───────────────────
+// docs/API.md is prose, so this checks only that each path appears somewhere
+// in it. A client being unable to find an endpoint at all is the failure
+// worth catching mechanically; whether the prose is accurate is a human job.
+const apiGuide = read(join(repo, 'docs/API.md'));
+for (const route of actualRoutes) {
+  const path = route.split(' ')[1].replace(/:x/g, '');
+  const segments = path.split('/').filter((s) => s && s !== 'api' && s !== 'v1');
+  const isMentioned = segments.every((segment) => apiGuide.includes(segment));
+  if (!isMentioned) problems.push(`docs/API.md: endpoint missing from the client guide → ${route}`);
+}
 for (const route of documentedRoutes) {
   if (!actualRoutes.has(route)) problems.push(`backend/README.md: documents a route that does not exist → ${route}`);
 }
@@ -85,12 +99,12 @@ for (const permission of actualPermissions) {
 }
 
 // ── 4. The module tree in ARCHITECTURE.md must match src/ ─────────────
-const architecture = read(join(repo, 'docs/ARCHITECTURE.md'));
+const architecture = read(join(backend, 'docs/ARCHITECTURE.md'));
 for (const area of ['infra', 'modules']) {
   for (const entry of readdirSync(join(backend, 'src', area), { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     if (!new RegExp(`\\b${entry.name}/`).test(architecture)) {
-      problems.push(`docs/ARCHITECTURE.md: src/${area}/${entry.name}/ missing from the module tree`);
+      problems.push(`backend/docs/ARCHITECTURE.md: src/${area}/${entry.name}/ missing from the module tree`);
     }
   }
 }

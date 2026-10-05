@@ -28,7 +28,8 @@
     "lint:fix": "eslint . --fix",
     "verify": "npm run lint && npm run docs:check && npm run build && npm run test:all",
     "docs:check": "node scripts/check-docs.mjs",
-    "storage:up": "docker compose up -d garage && ./scripts/garage-bootstrap.sh"
+    "storage:up": "docker compose up -d garage && ./scripts/garage-bootstrap.sh",
+    "openapi": "ts-node scripts/export-openapi.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

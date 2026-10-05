@@ -1,7 +1,7 @@
 # Data Model
 
 The authoritative map of what is stored and where. 42 models across three
-stores. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §4 explains *why* the core entities
+stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
 ---

@@ -5,7 +5,7 @@ description: Build or change an Aveline backend feature end to end, following th
 
 # Aveline feature workflow
 
-The rules live in `CLAUDE.md`. This skill is the order to apply them in.
+The rules live in `backend/CLAUDE.md`. This skill is the order to apply them in.
 Do not skip steps because a change "looks small" — the docs step is the one
 most often skipped and the one that rots the codebase fastest.
 
@@ -19,9 +19,10 @@ Read the doc that governs the area you are about to change:
 | Roles, permissions, who-can-do-what | `docs/ACCESS_CONTROL.md` |
 | Venues, tables, seats, seating rules | `docs/VENUES_AND_SEATING.md` |
 | Templates, blocks, media, RSVP questions | `docs/INVITATION_DESIGN.md` |
-| Caching, queues, analytics, store choice | `docs/DATA_STORES.md` |
+| Caching, queues, analytics, store choice | `../../../backend/docs/DATA_STORES.md` |
 | Payments, refunds, providers, money handling | `docs/PAYMENTS.md` |
 | Endpoints, setup | `backend/README.md` |
+| **Anything a client can see** | **`docs/API.md` — a contract, not a description** |
 
 If the doc and the code disagree, **stop and say so**. Do not silently pick one.
 
@@ -98,7 +99,10 @@ Not the next commit. This one.
 - Update the governing doc from step 1 to match the new behaviour.
 - Update its **"Not yet built"** list — remove what you just built, add what you
   discovered is missing.
-- If you added or changed an endpoint, update `backend/README.md`.
+- If you added or changed an endpoint, update `backend/README.md` **and**
+  `docs/API.md`. The second is what the client team builds against: adding a
+  field is safe, renaming or removing one is breaking, and the commit message
+  should say which.
 - If business rules changed, update `docs/PRODUCT_SPEC.md`.
 
 A doc describing code that no longer exists is worse than no doc, because it is

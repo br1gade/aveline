@@ -140,7 +140,7 @@ Visa, Mastercard and ArCa come with any of the three gateways.
    `PaymentsService`, so corrections stay inside one adapter.
 2. **Run the certification** each bank requires.
 3. **Schedule reconciliation.** Nothing calls `/reconcile` on a timer yet; it
-   needs a job (BullMQ on Redis — see [DATA_STORES.md](DATA_STORES.md)).
+   needs a job (BullMQ on Redis — see [DATA_STORES.md](../backend/docs/DATA_STORES.md)).
 4. **Authenticate the endpoints.** Payments inherit the project-wide gap: there
    is no auth, so `/api/payments` is currently open. This must not ship.
 5. **Decide two-step vs one-step** for deposits and request the authority.

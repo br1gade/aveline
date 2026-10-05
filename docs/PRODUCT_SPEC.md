@@ -82,7 +82,7 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 
 The entities below are the ones the product argument rests on. The complete
 inventory — 42 models, what each is for, and the invariants the database
-enforces — is in [DATA_MODEL.md](DATA_MODEL.md).
+enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 
 | Entity | Purpose |
 |---|---|
@@ -380,11 +380,11 @@ Measured on a small demo event, so these are a floor rather than a guarantee at
 
 A **degraded** store must not break the budget either. With Redis and MongoDB
 both stopped, the invitation endpoint serves correct content in ~20 ms and the
-dashboard in ~6 ms — see [DATA_STORES.md](DATA_STORES.md) for the two failures
+dashboard in ~6 ms — see [DATA_STORES.md](../backend/docs/DATA_STORES.md) for the two failures
 that had to be fixed to make that true.
 
 Anything CPU-bound — seating computation, exports, image processing — runs as
-a job and never inside a request. See [DATA_STORES.md](DATA_STORES.md).
+a job and never inside a request. See [DATA_STORES.md](../backend/docs/DATA_STORES.md).
 
 ---
 

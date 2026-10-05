@@ -61,7 +61,7 @@ is a visible decision in the diff rather than an omission nobody notices.
 
 Three populations reach the system without accounts, each by capability
 token: guests (invitation link), ticket buyers (order token), vendors (brief
-token). See [ACCESS_CONTROL.md](ACCESS_CONTROL.md).
+token). See [ACCESS_CONTROL.md](../../docs/ACCESS_CONTROL.md).
 
 ### Authorization is two questions, kept apart
 
@@ -179,4 +179,4 @@ development default is dangerous:
 - **Outbound webhook signature verification**
 - **API versioning** — the prefix is `/api` with no version in it
 
-See [BACKEND_GAPS.md](BACKEND_GAPS.md) for the product-level list.
+See [BACKEND_GAPS.md](GAPS.md) for the product-level list.

@@ -13,7 +13,7 @@ preference.
 
 ## 1. PostgreSQL — the domain, all of it
 
-Every entity in [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §4 lives here and nowhere
+Every entity in [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 lives here and nowhere
 else. The guest graph is the product's core asset and it is deeply relational:
 households own guests, guests carry attribution, seats reference both tables
 and guests, memberships join users to organizations and events. Foreign keys,

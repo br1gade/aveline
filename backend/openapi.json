@@ -1,0 +1,1389 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create an account and start a session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Exchange credentials for a token pair",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "The presented token is revoked, so a stolen one works at most once.",
+        "operationId": "AuthController_refresh",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Rotate a refresh token for a new pair",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke one session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout-everywhere": {
+      "post": {
+        "operationId": "AuthController_logoutEverywhere",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke every session for the signed-in account",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "operationId": "HealthController_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Process is running",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Dependencies reachable; only Postgres is required",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "description": "Scoped to the actor's own organization. Platform staff see every event.",
+        "operationId": "EventsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List the signed-in account's events",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{id}": {
+      "get": {
+        "operationId": "EventsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Event detail with venues and timeline",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guests": {
+      "get": {
+        "operationId": "GuestsController_list",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Guest graph grouped by household",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/find-seat": {
+      "get": {
+        "operationId": "GuestsController_findSeat",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Guest-facing seat lookup by name",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}": {
+      "get": {
+        "operationId": "InvitationsController_getBySlug",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hydrated, locale-resolved invitation"
+          }
+        },
+        "summary": "Public invitation page payload (cached per slug and locale)",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/arrangement": {
+      "patch": {
+        "description": "Display order is the array order. Rejected arrangements change nothing.",
+        "operationId": "InvitationsController_arrange",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArrangeBlocksDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Reorder, toggle and re-variant every block in one atomic request",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}": {
+      "get": {
+        "operationId": "InvitationsController_getForGuest",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Invitation personalized for one guest",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/rsvp": {
+      "get": {
+        "operationId": "RsvpController_get",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a guest's current response",
+        "tags": [
+          "rsvp"
+        ]
+      },
+      "post": {
+        "operationId": "RsvpController_submit",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRsvpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Submit or update a response",
+        "tags": [
+          "rsvp"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/dashboard": {
+      "get": {
+        "description": "Headcount, catering, bar, playlist and invitation engagement together. Prefer this over the individual endpoints when rendering a screen.",
+        "operationId": "OperationsController_dashboard",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Everything the operations screen needs, in one request",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/headcount": {
+      "get": {
+        "operationId": "OperationsController_headcount",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Live headcount by response, household and side",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/catering-sheet": {
+      "get": {
+        "operationId": "OperationsController_catering",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Covers and dietary requirements for the venue",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/bar-sheet": {
+      "get": {
+        "operationId": "OperationsController_bar",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Drink preferences aggregated into quantities",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/playlist": {
+      "get": {
+        "operationId": "OperationsController_playlist",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Deduplicated song requests",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guest-book": {
+      "get": {
+        "operationId": "OperationsController_guestBook",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Messages left by guests",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/api/v1/payments": {
+      "post": {
+        "description": "Idempotent by idempotencyKey — a retry returns the original payment.",
+        "operationId": "PaymentsController_start",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register an order and get the bank form URL to redirect the payer to",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/{orderNumber}": {
+      "get": {
+        "operationId": "PaymentsController_find",
+        "parameters": [
+          {
+            "name": "orderNumber",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Current state of a payment",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/{orderNumber}/confirm": {
+      "post": {
+        "description": "Called after the payer returns. The return redirect is attacker-controlled and proves nothing; this server-to-server check is what decides the outcome.",
+        "operationId": "PaymentsController_confirm",
+        "parameters": [
+          {
+            "name": "orderNumber",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Ask the bank what happened and record it",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/{orderNumber}/refund": {
+      "post": {
+        "operationId": "PaymentsController_refund",
+        "parameters": [
+          {
+            "name": "orderNumber",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Refund all or part of a captured payment",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/reconcile": {
+      "post": {
+        "description": "Bank callbacks get lost; without this sweep a paid order can stay pending.",
+        "operationId": "PaymentsController_reconcile",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Re-ask the bank about every unresolved payment",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/public/events/{slug}/orders": {
+      "post": {
+        "description": "Inventory is held before payment, never after — charging for a seat that no longer exists is the worst outcome available. Idempotent by key.",
+        "operationId": "TicketingController_createOrder",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Reserve tickets and start payment",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/ticket-orders/{accessToken}": {
+      "get": {
+        "operationId": "TicketingController_findOrder",
+        "parameters": [
+          {
+            "name": "accessToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "A buyer's own order and issued tickets",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/ticket-orders/{accessToken}/confirm": {
+      "post": {
+        "description": "Asks the bank server-to-server, then commits inventory and issues tickets. The return redirect alone never issues anything.",
+        "operationId": "TicketingController_confirmOrder",
+        "parameters": [
+          {
+            "name": "accessToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Settle an order after the buyer returns from the bank",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/tickets/{code}/admit": {
+      "post": {
+        "description": "A code may only be used once; two scanners cannot both admit it.",
+        "operationId": "TicketingController_admit",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Admit a ticket at the door",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/ticket-orders/release-expired": {
+      "post": {
+        "description": "Without this sweep, abandoned baskets permanently remove seats from sale.",
+        "operationId": "TicketingController_releaseExpired",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Return inventory held by abandoned checkouts",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/public/events": {
+      "get": {
+        "operationId": "PublicEventsController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "locale",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Browse published public events",
+        "tags": [
+          "public-events"
+        ]
+      }
+    },
+    "/api/v1/public/events/{slug}": {
+      "get": {
+        "operationId": "PublicEventsController_findOne",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One announcement, with ticket availability and preview metadata",
+        "tags": [
+          "public-events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/media": {
+      "post": {
+        "description": "Assets are scoped to an event, so deleting the event reclaims its storage and no asset is reachable from an unrelated invitation.",
+        "operationId": "MediaController_upload",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "PHOTO",
+                      "COVER",
+                      "SIGNATURE",
+                      "LOGO",
+                      "AUDIO",
+                      "DOCUMENT"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Upload an image or audio file for an event",
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/devices": {
+      "post": {
+        "description": "Idempotent by token — re-registering updates rather than duplicating.",
+        "operationId": "DevicesController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDeviceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register this device for push notifications",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/{token}": {
+      "delete": {
+        "operationId": "DevicesController_revoke",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Stop sending to this device",
+        "tags": [
+          "devices"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Aveline API",
+    "description": "Event invitations, guest graph, ticketing and operations. See docs/API.md for conventions that apply across every endpoint.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "name"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "RefreshDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "BlockPlacementDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "HERO",
+              "STORY",
+              "COUNTDOWN",
+              "MUSIC",
+              "VENUE",
+              "MAP",
+              "TIMELINE",
+              "DRESS_CODE",
+              "NOTES",
+              "GALLERY",
+              "RSVP",
+              "SIGNATURE",
+              "CHAT",
+              "CONTACT"
+            ]
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Omit to leave the block enabled as-is"
+          },
+          "variant": {
+            "type": "string",
+            "description": "Template layout variant, e.g. 'split'"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "ArrangeBlocksDto": {
+        "type": "object",
+        "properties": {
+          "blocks": {
+            "description": "Blocks in their new display order",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlockPlacementDto"
+            }
+          }
+        },
+        "required": [
+          "blocks"
+        ]
+      },
+      "PartyMemberDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "firstName"
+        ]
+      },
+      "CustomAnswerDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string"
+          },
+          "value": {
+            "type": "object",
+            "description": "Scalar or array, shape depends on question type"
+          }
+        },
+        "required": [
+          "questionId",
+          "value"
+        ]
+      },
+      "SubmitRsvpDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ]
+          },
+          "attribution": {
+            "type": "string",
+            "enum": [
+              "SIDE_A",
+              "SIDE_B",
+              "SHARED",
+              "UNKNOWN"
+            ],
+            "description": "Which host invited the guest"
+          },
+          "party": {
+            "description": "Additional household members",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartyMemberDto"
+            }
+          },
+          "dietary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dietaryNotes": {
+            "type": "string"
+          },
+          "drinkPreference": {
+            "type": "string"
+          },
+          "songRequest": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomAnswerDto"
+            }
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "StartPaymentDto": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "DEPOSIT",
+              "TICKET",
+              "SUBSCRIPTION",
+              "OTHER"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "AMERIABANK",
+              "INECOBANK",
+              "IDBANK",
+              "FAKE"
+            ]
+          },
+          "amountMinor": {
+            "type": "string",
+            "description": "Minor units as a decimal string, e.g. \"25000\" for 25,000 AMD"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "AMD",
+              "USD",
+              "EUR",
+              "RUB"
+            ]
+          },
+          "returnUrl": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "Caller-supplied; makes a retried request safe"
+          }
+        },
+        "required": [
+          "organizationId",
+          "purpose",
+          "provider",
+          "amountMinor",
+          "currency",
+          "returnUrl",
+          "idempotencyKey"
+        ]
+      },
+      "OrderLineDto": {
+        "type": "object",
+        "properties": {
+          "ticketTypeId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "ticketTypeId",
+          "quantity"
+        ]
+      },
+      "CreateOrderDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineDto"
+            }
+          },
+          "buyerName": {
+            "type": "string"
+          },
+          "buyerEmail": {
+            "type": "string"
+          },
+          "buyerPhone": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "AMERIABANK",
+              "INECOBANK",
+              "IDBANK",
+              "FAKE"
+            ],
+            "description": "Omit for a free event"
+          },
+          "returnUrl": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "Caller-supplied; makes a double-tapped checkout safe"
+          }
+        },
+        "required": [
+          "items",
+          "buyerName",
+          "buyerEmail",
+          "idempotencyKey"
+        ]
+      },
+      "RegisterDeviceDto": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "IOS",
+              "ANDROID",
+              "WEB"
+            ]
+          },
+          "token": {
+            "type": "string",
+            "description": "APNs or FCM registration token"
+          },
+          "appVersion": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "token"
+        ]
+      }
+    }
+  }
+}

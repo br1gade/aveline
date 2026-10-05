@@ -1,6 +1,6 @@
 # Backend Gap Analysis
 
-What the backend must still do to deliver [PRODUCT_SPEC.md](PRODUCT_SPEC.md),
+What the backend must still do to deliver [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md),
 and which manual, paper-based or chat-based process each piece replaces.
 
 The category we are entering runs on messaging apps, spreadsheets and phone
@@ -57,7 +57,7 @@ Each replaces a process the incumbent market performs by hand.
 
 ## 4. Revenue — unbuilt business model lines
 
-Per [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §9.
+Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 
 | # | Gap | Stream |
 |---|---|---|
