@@ -74,6 +74,8 @@ src/
     organizations/   the tenant a new account creates for itself
     billing/         plans, subscriptions, invoices, promo codes
     vendors/         the partner network and scoped briefs
+    exports/         generated CSV documents
+    privacy/         data-subject requests and suppression lists
     operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
     payments/        card acquiring; providers/ holds one adapter per bank
@@ -182,6 +184,14 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/vendors/:bookingId/rotate-brief` | Replace the brief link |
 | `DELETE` | `/api/v1/events/:eventId/vendors/:bookingId` | Cancel an engagement |
 
+#### Exports
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/events/:eventId/exports` | Past exports, newest first |
+| `POST` | `/api/v1/events/:eventId/exports` | Generate one; CSV is produced inline |
+| `GET` | `/api/v1/events/:eventId/exports/:exportId` | One export and its file |
+
 #### Check-in on the day
 
 | Method | Path | Purpose |
@@ -214,6 +224,18 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/promo-codes` | Create one |
 | `PATCH` | `/api/v1/promo-codes/:codeId` | Change its limits |
 | `DELETE` | `/api/v1/promo-codes/:codeId` | Deactivate it |
+
+### Privacy
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/privacy/requests` | Ask what is held, or for erasure (**public**) |
+| `GET` | `/api/v1/privacy/requests` | Open requests, soonest due first |
+| `PATCH` | `/api/v1/privacy/requests/:requestId` | Move one through verification |
+| `POST` | `/api/v1/privacy/requests/:requestId/fulfil` | Carry out a verified request |
+| `GET` | `/api/v1/suppressions` | Addresses that will not be contacted |
+| `POST` | `/api/v1/suppressions` | Stop contacting an address |
+| `DELETE` | `/api/v1/suppressions/:suppressionId` | Resume; global entries cannot be lifted |
 
 ### Public — vendor briefs and discounts
 

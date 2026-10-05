@@ -26,6 +26,8 @@ import { PublicEventsModule } from './modules/public-events/public-events.module
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { MediaModule } from './modules/media/media.module';
 import { DevicesModule } from './modules/devices/devices.module';
+import { ExportsModule } from './modules/exports/exports.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -74,6 +76,8 @@ import { SeatingModule } from './modules/seating/seating.module';
     BillingModule,
     VendorsModule,
     OrganizationsModule,
+    ExportsModule,
+    PrivacyModule,
 
     // Last: its sweeps depend on the domain modules above.
     JobsModule,

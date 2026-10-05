@@ -1348,6 +1348,11 @@ model Suppression {
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  /// Covers organization-scoped rows only: in Postgres two NULLs never
+  /// conflict, so this constraint does not reach a global suppression. The
+  /// global case is covered by a partial unique index created in
+  /// `20261005190000_global_suppression_uniqueness` — Prisma cannot express a
+  /// partial index, so it lives in SQL and must not be dropped.
   @@unique([organizationId, channel, address])
   @@index([channel, address])
   @@map("suppressions")

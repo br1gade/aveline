@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MessageChannel, MessageStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SuppressionService } from './suppression.service';
 import { resolveTranslation } from '../../common/locale';
 import { MessageTransport } from './channels/message-channel';
 import { renderTemplate } from './message-renderer';
@@ -35,6 +36,7 @@ export class CommunicationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly transports: Map<MessageChannel, MessageTransport>,
+    private readonly suppressions: SuppressionService,
   ) {}
 
   /** Renders now, sends later. Returns the queued message. */
@@ -45,6 +47,12 @@ export class CommunicationsService {
       });
       if (existing) return existing;
     }
+
+    const isSuppressed = await this.suppressions.isSuppressed(
+      params.channel,
+      params.toAddress,
+      params.organizationId,
+    );
 
     const template = await this.loadTemplate(
       params.organizationId,
@@ -71,6 +79,10 @@ export class CommunicationsService {
         body: renderTemplate(body, params.variables),
         scheduledFor: params.scheduledFor ?? new Date(),
         dedupeKey: params.dedupeKey ?? null,
+        // Recorded rather than dropped: a host asking why a guest never got
+        // their invitation deserves the answer "they opted out", and a
+        // message that silently never existed cannot give it.
+        ...queueState(isSuppressed),
       },
     });
   }
@@ -80,7 +92,7 @@ export class CommunicationsService {
    * conditioned on it still being QUEUED, so two dispatchers running at once
    * cannot both send the same message.
    */
-  async dispatchDue(limit = 50): Promise<{ sent: number; failed: number }> {
+  async dispatchDue(limit = 50): Promise<{ sent: number; failed: number; suppressed: number }> {
     const due = await this.prisma.message.findMany({
       where: { status: MessageStatus.QUEUED, scheduledFor: { lte: new Date() } },
       orderBy: { scheduledFor: 'asc' },
@@ -89,16 +101,38 @@ export class CommunicationsService {
 
     let sent = 0;
     let failed = 0;
+    let suppressed = 0;
     for (const message of due) {
       const wasClaimed = await this.claim(message.id);
       if (!wasClaimed) continue;
+
+      // Checked again here, not only at enqueue: a bounce or an unsubscribe
+      // between queueing and sending must stop the send, and a scheduled
+      // reminder can sit in the outbox for weeks.
+      const isSuppressed = await this.suppressions.isSuppressed(
+        message.channel,
+        message.toAddress,
+        message.organizationId,
+      );
+      if (isSuppressed) {
+        await this.markSuppressed(message.id);
+        suppressed += 1;
+        continue;
+      }
 
       const didSend = await this.deliver(message);
       if (didSend) sent += 1;
       else failed += 1;
     }
 
-    return { sent, failed };
+    return { sent, failed, suppressed };
+  }
+
+  private async markSuppressed(messageId: string): Promise<void> {
+    await this.prisma.message.update({
+      where: { id: messageId },
+      data: { status: MessageStatus.SUPPRESSED, failureReason: 'Recipient is suppressed' },
+    });
   }
 
   async findForEvent(eventId: string, paging: { take: number; skip: number }) {
@@ -191,4 +225,11 @@ export class CommunicationsService {
     if (!found) throw new NotFoundException(`No ${channel} template "${key}"`);
     return found;
   }
+}
+
+/** A suppressed recipient is recorded as such instead of being queued. */
+function queueState(isSuppressed: boolean): { status: MessageStatus; failureReason: string | null } {
+  return isSuppressed
+    ? { status: MessageStatus.SUPPRESSED, failureReason: 'Recipient is suppressed' }
+    : { status: MessageStatus.QUEUED, failureReason: null };
 }

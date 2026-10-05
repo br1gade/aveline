@@ -60,9 +60,11 @@ customer's trust.
 | Orphan reclamation | Nothing deletes assets when an event is archived; usage only grows |
 | Invitation expiry | Decided (indefinite paid, 3 months free) and modelled; nothing sets `expiresAt` or sweeps |
 | CDN | Garage serves media directly |
-| Rate limits per actor | The throttle is global, not per account |
+| Rate limits per actor | The throttle is global, not per account. `POST /privacy/requests` is public and unthrottled |
+| Bounce handling | A hard bounce suppresses an address only if something reports one; no transport does yet |
+| Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
-| Seating chart export | Seating is assigned and readable; nothing prints it, and a venue still wants paper |
+| Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |
 | Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
 | Invoice tax | `taxMinor` is always zero, so an invoice is not a tax document |
 | Entitlement enforcement | Plans publish limits that nothing refuses an action against |

@@ -907,6 +907,138 @@ Cancelling a booking rotates too, so a cancelled engagement's sent link stops
 working. An old link returns `404`; a cancelled booking's current link returns
 `403`.
 
+### Exports
+
+```http
+POST /api/v1/events/:eventId/exports   { "kind": "GUEST_LIST", "format": "CSV" }
+GET  /api/v1/events/:eventId/exports
+GET  /api/v1/events/:eventId/exports/:exportId
+```
+
+`kind` is one of `GUEST_LIST`, `SEATING_CHART`, `PLACE_CARDS`,
+`CATERING_SHEET`, `BAR_SHEET`, `PLAYLIST`, `TICKET_MANIFEST`.
+
+```json
+{
+  "id": "clz...", "kind": "GUEST_LIST", "format": "CSV", "status": "COMPLETED",
+  "completedAt": "2026-10-05T...",
+  "asset": { "url": "https://storage/...csv", "sizeBytes": 48213 }
+}
+```
+
+CSV is generated during the request, so `status` is already `COMPLETED` and
+`asset.url` is ready to hand to the browser. **Read `status` anyway** — PDF
+will be queued when it exists, and a client that already branches on it will
+not need changing. `FAILED` carries `failureReason`.
+
+`format` defaults to `CSV`. `PDF` and `XLSX` return `400` today; the message
+says so rather than queueing something that never runs.
+
+The files are UTF-8 with a BOM and CRLF endings, so Excel opens Armenian text
+correctly, and every cell is quoted — including a defensive tab in front of
+anything starting with `=`, `+`, `-` or `@`, so a guest's free text cannot
+become a formula in whoever's spreadsheet opens it.
+
+Requires `operations:read`.
+
+### Suppression — who must not be contacted
+
+```http
+GET    /api/v1/suppressions
+POST   /api/v1/suppressions              { "channel": "EMAIL", "address": "ani@example.am" }
+DELETE /api/v1/suppressions/:suppressionId
+```
+
+```json
+[{ "id": "clz...", "channel": "EMAIL", "address": "ani@example.am",
+   "reason": "UNSUBSCRIBED", "scope": "ORGANIZATION", "createdAt": "..." }]
+```
+
+`scope` is the field that matters. `ORGANIZATION` is an ordinary unsubscribe
+from your events and you can lift it. `GLOBAL` is a hard bounce or a spam
+complaint, applies platform-wide, and `DELETE` on it returns `409` — one
+customer's send must not be allowed to damage delivery for the others. Show
+global entries as informational, without a remove button.
+
+Addresses are matched case-insensitively for email, and `POST` is idempotent.
+`reason` defaults to `MANUAL`; a later, stronger reason replaces a weaker one.
+
+**A suppressed recipient still produces a `Message` row**, with status
+`SUPPRESSED` and a reason — so "why did my guest never get this?" has an
+answer. Nothing is silently dropped. Suppression is checked both when a message
+is queued and again when it is sent, because a reminder can wait in the outbox
+for weeks.
+
+Listing needs `guest:contact:read`; changing needs `guest:write`.
+
+### Data-subject requests — GDPR
+
+```http
+POST /api/v1/privacy/requests   { "kind": "EXPORT", "subjectEmail": "ani@example.am" }
+```
+
+**Public, and deliberately uninformative.** A data subject is usually a guest
+with no account, so requiring one would make the right unexercisable.
+
+```json
+{
+  "reference": "clz...", "kind": "EXPORT", "status": "RECEIVED",
+  "dueAt": "2026-11-04T...",
+  "message": "Your request has been recorded. We will verify your identity and respond within one month."
+}
+```
+
+The response is **identical whether or not anything is held about that
+address** — "we hold nothing about you" is itself information, and anyone can
+type any address into this form. Do not build a UI that implies otherwise.
+
+`kind` is `EXPORT` (Article 15), `ERASURE` (Article 17) or `RECTIFICATION`
+(Article 16). `dueAt` is one month out, per Article 12. Submitting the same
+kind for the same address while one is open returns the existing `reference`
+rather than opening a second.
+
+```http
+GET   /api/v1/privacy/requests?status=RECEIVED
+PATCH /api/v1/privacy/requests/:requestId   { "status": "IN_PROGRESS", "notes": "..." }
+POST  /api/v1/privacy/requests/:requestId/fulfil
+```
+
+Staff-facing, and they need `privacy:manage` — an organization `OWNER` or
+Aveline `ADMIN`, never a coordinator. The list is a deadline queue, soonest
+`dueAt` first.
+
+`fulfil` is refused with `400` unless the request is `IN_PROGRESS`, which a
+human sets after establishing who the requester is. **Acting on an unverified
+request is itself a breach**: the form is public, so without that gate anyone
+could erase a stranger's data by typing their address.
+
+An `EXPORT` returns the data as JSON in the response — account, guest records,
+ticket orders, messages sent and suppressions. It is assembled on demand and
+never stored, because a copy waiting to be collected is a second place it can
+leak from.
+
+An `ERASURE` anonymises in place and reports what it touched:
+
+```json
+{ "reference": "clz...", "kind": "ERASURE", "guestsAnonymised": 1,
+  "ticketOrdersAnonymised": 1, "messagesRedacted": 4, "suppressionsRemoved": 1 }
+```
+
+What goes: names, emails, phone numbers, the guest's own free text (their
+guest-book message, dietary note and song request), message bodies, and the
+invitation token — which is itself identifying and would otherwise still open
+their RSVP from a group chat.
+
+What stays, on purpose: the household, the seat, the RSVP status and dietary
+tags, and a paid order's amount. A wedding that had 96 covers still had 96
+covers, the caterer was already paid for them, and a financial record has its
+own retention obligation. So an erased guest appears in sheets as **`Removed`**
+with their structural data intact — expect that string in a guest list and do
+not render it as a missing value.
+
+`RECTIFICATION` returns `400`: a correction is applied by editing the record,
+then the request is closed with `PATCH`.
+
 ### Uploading a file
 
 ```http
@@ -1048,9 +1180,10 @@ So you can plan around them rather than discover them:
 - **One organization per account.** See §6.
 - **No design write endpoints** beyond block arrangement. Content, themes and
   cover images have no write path.
-- **No GDPR endpoints.** The schema supports erasure and export; nothing
-  performs them.
 - **No image resizing.**
+- **PDF and XLSX exports.** CSV works; the other two formats return `400`.
+- **No automatic suppression from bounces.** A hard bounce can be recorded, but
+  nothing records one, because no real mail transport is wired yet.
 
 The authoritative list is [GAPS.md](../backend/docs/GAPS.md), and
 [GOING_LIVE.md](GOING_LIVE.md) is what blocks production.

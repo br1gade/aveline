@@ -27,6 +27,8 @@ src/
     organizations/  the tenant a new account creates for itself
     billing/        plans, subscriptions, invoices, promo codes
     vendors/        the partner network and scoped briefs
+    exports/        generated CSV documents
+    privacy/        data-subject requests and suppression lists
     payments/       providers/ holds one adapter per bank
     ticketing/      inventory, checkout, admission
     public-events/  announcements and listings

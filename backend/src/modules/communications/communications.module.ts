@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ConsoleTransport } from './channels/console.transport';
 import { MessageTransport } from './channels/message-channel';
 import { CommunicationsService } from './communications.service';
+import { SuppressionService } from './suppression.service';
 
 export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
 
@@ -32,13 +33,17 @@ function buildTransports(_config: ConfigService): Map<MessageChannel, MessageTra
       inject: [ConfigService],
       useFactory: buildTransports,
     },
+    SuppressionService,
     {
       provide: CommunicationsService,
-      inject: [PrismaService, MESSAGE_TRANSPORTS],
-      useFactory: (prisma: PrismaService, transports: Map<MessageChannel, MessageTransport>) =>
-        new CommunicationsService(prisma, transports),
+      inject: [PrismaService, MESSAGE_TRANSPORTS, SuppressionService],
+      useFactory: (
+        prisma: PrismaService,
+        transports: Map<MessageChannel, MessageTransport>,
+        suppressions: SuppressionService,
+      ) => new CommunicationsService(prisma, transports, suppressions),
     },
   ],
-  exports: [CommunicationsService],
+  exports: [CommunicationsService, SuppressionService],
 })
 export class CommunicationsModule {}

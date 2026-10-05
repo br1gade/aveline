@@ -47,7 +47,7 @@ Each replaces a process the incumbent market performs by hand.
 |---|---|---|
 | 6 | **Invitation sending** | Pasting a link into 400 chats individually. The outbox exists; nothing calls it from the invitation flow |
 | 7 | **Reminders and follow-ups** | Chasing non-responders by phone. Scheduled messages are modelled, the triggers are not |
-| 8 | **Exports** (PDF/CSV: seating chart, place cards, catering sheet) | The one artefact a venue still genuinely needs on paper |
+| 8 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
 | 9 | **Design endpoints + theme validation** | Design changes requested over chat and applied by staff |
 | 10 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
 
@@ -72,7 +72,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 | 18b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
 | 19 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
 | 20 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
-| 21 | **GDPR behaviour** | The schema is in place — `DataSubjectRequest`, `anonymizedAt`, consent fields — but no endpoint accepts a request, nothing anonymises, and nothing assembles an export |
+| 21 | **GDPR automation** | Requests are accepted, tracked against the one-month clock, and carried out — export assembles, erasure anonymises. What is missing is automation: identity verification is a human step, the clock is not alerted on, and nothing records a hard bounce because no real transport is wired |
 | 22 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 
 ## 6. Physical-service bridge

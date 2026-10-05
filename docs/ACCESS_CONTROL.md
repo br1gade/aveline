@@ -116,11 +116,16 @@ numbers, nor see what the caterer is charging. The role grants
 | `member:manage` | Invite and remove members, change roles |
 | `billing:read` | Invoices, plan and promo codes |
 | `billing:write` | Change the plan, create and withdraw promo codes |
+| `privacy:manage` | Handle data-subject requests, including erasure |
 
 Two permissions are split out from their obvious parents on purpose:
 `guest:contact:read` from `guest:read`, and `vendor:fee:read` from
 `vendor:read`. Both exist so a `DESIGNER` can be useful without being trusted
 with PII or commercial terms.
+
+`privacy:manage` carries the power to erase a person's data and to assemble a
+copy of it, so it is held by organization `OWNER` and platform `ADMIN` only and
+is deliberately absent from `RUN_EVENT` and from `SUPPORT`.
 
 `billing:read` and `billing:write` are granted by organization `OWNER` and
 platform `ADMIN` only — they are not part of `RUN_EVENT`. A planner running
