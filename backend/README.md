@@ -12,6 +12,7 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`../docs/DATA_STORES.md`](../docs/DATA_STORES.md) | Postgres / Redis / MongoDB — what goes where and why |
 | [`../docs/PAYMENTS.md`](../docs/PAYMENTS.md) | Card acquiring: gateways, sandboxes, the rules that matter |
 | [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | The frame: lifecycle, auth, jobs, degradation, conventions |
+| [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md) | Every model, where data lives, and the invariants the database enforces |
 | [`../docs/BACKEND_GAPS.md`](../docs/BACKEND_GAPS.md) | What is still unbuilt, prioritised |
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7

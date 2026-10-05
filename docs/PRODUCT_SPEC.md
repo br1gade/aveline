@@ -80,37 +80,33 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 
 ## 4. Domain model
 
-| Entity | Purpose | Key relationships |
-|---|---|---|
-| **Organization** | Tenant. A couple, a family, a company, or a planner | has Events, Memberships |
-| **User** | An account holder. Carries a platform role for Aveline staff | has Organization and Event memberships |
-| **OrganizationMembership** | A user's standing in a customer organization | links User and Organization |
-| **EventMembership** | Access to one event, e.g. a coordinator or a designer | links User and Event |
-| **Event** | The root aggregate | has Venues, Guests, Invitation, Timeline, Tables |
-| **EventType** | wedding, engagement, baptism, birthday, anniversary, corporate, other | classifies Event |
-| **VenueProfile** | A reusable venue in the directory, shared across events | may link to a Vendor; has Venues |
-| **Venue** | This event's use of a place: ceremony, reception, after-party | belongs to Event, may reference VenueProfile |
-| **TimelineEntry** | A moment with a time and a place | belongs to Event, references Venue |
-| **DesignTemplate** | Declares the fonts, palettes and blocks a template renders | has Invitations |
-| **Invitation** | The published page: template, theme, language set, status | belongs to Event and DesignTemplate |
-| **InvitationBlock** | One section, ordered, data-bound, toggleable, with a layout variant | belongs to Invitation |
-| **MediaAsset** | An uploaded image, signature or audio file, scoped to an event | belongs to Event |
-| **Household** | A group invited together; the unit plus-ones attach to | belongs to Event, has Guests |
-| **Guest** | A person. Reaches their invitation by capability token | belongs to Household, has one Rsvp |
-| **GuestAttribution** | Which host's side the guest belongs to | on Guest |
-| **Rsvp** | A guest's response, including a captured signature | belongs to Guest, has RsvpAnswers |
-| **RsvpQuestion** | A configurable question on the invitation | belongs to Invitation |
-| **RsvpAnswer** | One answer to one question | links Rsvp and RsvpQuestion |
-| **Table** | A seating table in a venue, with a capacity and zone | belongs to Event and Venue, has Seats |
-| **Seat** | A guest's assigned place at a table | links Table and Guest |
-| **Vendor** | A service provider in the network | linked to Events via VendorBooking |
-| **VendorBooking** | A vendor engaged for an event, with scoped brief access | links Vendor and Event |
-| **CheckIn** | A guest's day-of arrival | belongs to Guest |
+The entities below are the ones the product argument rests on. The complete
+inventory — 42 models, what each is for, and the invariants the database
+enforces — is in [DATA_MODEL.md](DATA_MODEL.md).
+
+| Entity | Purpose |
+|---|---|
+| **Organization** | Tenant: a couple, a family, a company, or a planner |
+| **User** | An account holder. Guests, buyers and vendors have none |
+| **Event** | The root aggregate, carrying visibility and locales |
+| **Venue** · **VenueProfile** | This event's booking / the reusable directory entry |
+| **Invitation** · **InvitationBlock** | The published page and its sections |
+| **DesignTemplate** | What a template can render, so customization stays safe |
+| **Household** | The unit invitations and seating operate on |
+| **Guest** | A person, reached by capability token |
+| **Rsvp** | The response every operational view is derived from |
+| **Table** · **Seat** | Furniture, and who sits where |
+| **EventListing** | The public face of a public event |
+| **TicketType** · **TicketOrder** · **Ticket** | Capacity, a purchase, an admitted person |
+| **Payment** | A charge, with every transition recorded |
+| **Plan** · **Subscription** | The recurring revenue line (§9.4) |
+| **Message** | One outbound message — the only way the product reaches anyone |
+| **Vendor** · **VendorBooking** | The partner network, with scoped briefs |
 
 Access control — who may do what, and how guests and vendors reach the system
-without accounts — is specified in [ACCESS_CONTROL.md](ACCESS_CONTROL.md).
-Venues and seating are detailed in [VENUES_AND_SEATING.md](VENUES_AND_SEATING.md),
-the design system in [INVITATION_DESIGN.md](INVITATION_DESIGN.md).
+without accounts — is in [ACCESS_CONTROL.md](ACCESS_CONTROL.md). Venues and
+seating are detailed in [VENUES_AND_SEATING.md](VENUES_AND_SEATING.md), the
+design system in [INVITATION_DESIGN.md](INVITATION_DESIGN.md).
 
 ### Why households matter
 

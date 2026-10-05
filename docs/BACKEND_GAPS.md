@@ -61,11 +61,11 @@ Per [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §9.
 
 | # | Gap | Stream |
 |---|---|---|
-| 15 | **Subscription billing** (card binding) | §9.4 — the only recurring line, and the strategic one |
-| 16 | **Plan and entitlement enforcement** | §8 — tiers are documented, nothing enforces them |
+| 15 | **Subscription billing** (card binding) | §9.4 — `Plan`, `Subscription` and `Invoice` are **modelled**; nothing charges or renews yet |
+| 16 | **Plan and entitlement enforcement** | §8 — entitlements are columns on `Plan`; nothing reads them |
 | 17 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
 | 18 | **Corporate contracts** | §9.5 — multi-event, branded |
-| 19 | **Invoicing and tax** | Required for any corporate customer |
+| 19 | **Invoicing and tax** | `Invoice` is modelled; nothing issues one, and nothing computes tax |
 
 ## 5. Operations and trust
 

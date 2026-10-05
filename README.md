@@ -17,6 +17,7 @@ Custom event invitations, organization and management.
 | [`docs/DATA_STORES.md`](docs/DATA_STORES.md) | Postgres, Redis and MongoDB — what goes where and why |
 | [`docs/PAYMENTS.md`](docs/PAYMENTS.md) | Ameriabank, Inecobank, IDBank — gateways, sandboxes, Apple Pay |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The frame every feature plugs into — request lifecycle, auth, jobs, degradation |
+| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Every model, where data lives, and the invariants the database enforces |
 | [`docs/BACKEND_GAPS.md`](docs/BACKEND_GAPS.md) | What is still unbuilt, and which manual process each piece replaces |
 | [`backend/`](backend/) | TypeScript · NestJS · PostgreSQL · Prisma · Redis · MongoDB |
 | [`.claude/`](.claude/) | Hooks and the `/feature` workflow skill |

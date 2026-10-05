@@ -30,6 +30,11 @@ model Organization {
   payments         Payment[]
   messages         Message[]
   messageTemplates MessageTemplate[]
+  invites          OrganizationInvite[]
+  suppressions     Suppression[]
+  subscription     Subscription?
+  invoices         Invoice[]
+  promoCodes       PromoCode[]
 
   @@map("organizations")
 }
@@ -57,6 +62,7 @@ model User {
   organizationMemberships OrganizationMembership[]
   eventMemberships        EventMembership[]
   sessions                Session[]
+  verificationTokens      VerificationToken[]
 
   @@map("users")
 }
@@ -182,6 +188,8 @@ model Event {
   tickets        Ticket[]
   messages       Message[]
   guestImports   GuestImport[]
+  promoCodes     PromoCode[]
+  exports        Export[]
   venues         Venue[]
   timeline       TimelineEntry[]
   invitation     Invitation?
@@ -561,6 +569,7 @@ model MediaAsset {
   event            Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   invitationCovers Invitation[]   @relation("InvitationCover")
   listingHeroes    EventListing[] @relation("ListingHero")
+  exports          Export[]       @relation("ExportFile")
   rsvpSignatures   Rsvp[]         @relation("RsvpSignature")
 
   @@index([eventId])
@@ -573,6 +582,8 @@ enum MediaKind {
   SIGNATURE
   LOGO
   AUDIO
+  /// A generated export: seating chart, place cards, catering sheet.
+  DOCUMENT
 }
 
 // ───────────────────────────── Seating ─────────────────────────────────
@@ -738,6 +749,7 @@ model Payment {
   organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   event        Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   events       PaymentEvent[]
+  refunds      Refund[]
 
   @@index([organizationId])
   @@index([eventId])
@@ -905,15 +917,21 @@ model TicketOrder {
   /// Supplied by the client; makes a double-tapped checkout safe.
   idempotencyKey     String    @unique
 
+  /// Applied discount, captured so a later code change never rewrites what
+  /// a buyer was actually charged.
+  promoCodeId   String?
+  discountMinor BigInt  @default(0)
+
   /// Capability token for the buyer's own order page.
   accessToken String @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  event   Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  items   TicketOrderItem[]
-  tickets Ticket[]
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  promoCode PromoCode?        @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  items     TicketOrderItem[]
+  tickets   Ticket[]
 
   @@index([eventId, status])
   /// The reservation sweep scans expiring holds oldest-first.
@@ -1120,4 +1138,354 @@ enum ImportStatus {
   COMPLETED
   PARTIAL
   FAILED
+}
+
+// ──────────────────── Account lifecycle (was missing) ──────────────────
+//
+// Authentication shipped without these, which left two ordinary things
+// impossible: recovering a forgotten password, and adding a teammate to an
+// organization without writing a row by hand.
+
+/// A single-use, time-limited token for an account action. Only the hash is
+/// stored, for the same reason as a refresh token: a database leak must not
+/// hand over the ability to take over accounts.
+model VerificationToken {
+  id      String              @id @default(cuid())
+  userId  String
+  purpose VerificationPurpose
+
+  tokenHash String @unique
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("verification_tokens")
+}
+
+enum VerificationPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
+/// An invitation to join an organization.
+///
+/// Separate from VerificationToken because the invitee may have no account
+/// yet — the invitation is addressed to an email, and accepting it is what
+/// creates the membership.
+model OrganizationInvite {
+  id              String           @id @default(cuid())
+  organizationId  String
+  email           String
+  role            OrganizationRole
+  invitedByUserId String?
+
+  tokenHash String @unique
+
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// One live invitation per address per organization; re-inviting replaces.
+  @@unique([organizationId, email])
+  @@index([email])
+  @@map("organization_invites")
+}
+
+// ───────────────────── Messaging suppression (was missing) ─────────────
+//
+// MessageStatus.SUPPRESSED existed with nothing behind it. Sending to someone
+// who unsubscribed, or who hard-bounced, is a legal problem and a
+// deliverability one.
+
+model Suppression {
+  id             String            @id @default(cuid())
+  /// Null suppresses an address everywhere — a hard bounce or a complaint.
+  /// Set suppresses it for one organization only — an ordinary unsubscribe.
+  organizationId String?
+  channel        MessageChannel
+  /// Email address or phone number, normalised by the caller.
+  address        String
+  reason         SuppressionReason
+  notes          String?
+  createdAt      DateTime          @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, channel, address])
+  @@index([channel, address])
+  @@map("suppressions")
+}
+
+enum SuppressionReason {
+  UNSUBSCRIBED
+  HARD_BOUNCE
+  COMPLAINT
+  MANUAL
+}
+
+// ───────────────── Subscription billing (PRODUCT_SPEC §9.4) ────────────
+//
+// The only recurring revenue line, and the one that turns Aveline from a
+// transaction into infrastructure.
+
+/// A purchasable plan. Entitlements live here as columns rather than in a
+/// separate table: there are a handful of limits, they are read on nearly
+/// every request, and a join to discover "may this account do that" is cost
+/// with no benefit.
+model Plan {
+  id   String   @id @default(cuid())
+  key  String   @unique
+  name String
+  tier PlanTier
+
+  priceMinor BigInt
+  currency   String          @default("AMD")
+  interval   BillingInterval
+
+  // ── entitlements ──
+  maxEventsPerPeriod Int?
+  maxGuestsPerEvent  Int?
+  maxLocales         Int      @default(1)
+  /// Capability flags, e.g. ["seating", "vendor-briefs", "check-in"].
+  features           String[] @default([])
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+enum PlanTier {
+  INVITATION
+  MANAGED
+  PRODUCTION
+  PLANNER
+  CORPORATE
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+  /// Charged per event rather than per period.
+  PER_EVENT
+}
+
+model Subscription {
+  id             String @id @default(cuid())
+  organizationId String
+  planId         String
+
+  status SubscriptionStatus @default(TRIALING)
+
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean   @default(false)
+  cancelledAt        DateTime?
+  trialEndsAt        DateTime?
+
+  /// Token the bank returns for a stored card. Recurring charges on Armenian
+  /// gateways are card bindings, not a stored PAN — we never hold card data.
+  /// See docs/PAYMENTS.md §7.
+  bindingRef      String?
+  bindingProvider PaymentProvider?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
+  invoices     Invoice[]
+
+  /// One live subscription per organization.
+  @@unique([organizationId])
+  /// The renewal sweep scans subscriptions whose period has lapsed.
+  @@index([status, currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  /// Payment failed; access continues briefly while retries run.
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model Invoice {
+  id             String  @id @default(cuid())
+  organizationId String
+  subscriptionId String?
+
+  /// Human-facing, sequential, and never reused — a legal requirement in
+  /// most jurisdictions, including for Armenian corporate customers.
+  number String @unique
+
+  status        InvoiceStatus @default(DRAFT)
+  subtotalMinor BigInt
+  taxMinor      BigInt        @default(0)
+  totalMinor    BigInt
+  currency      String        @default("AMD")
+
+  /// Line items captured at issue, so a later price change never rewrites a
+  /// document someone has already filed.
+  lines Json @default("[]")
+
+  issuedAt           DateTime?
+  dueAt              DateTime?
+  paidAt             DateTime?
+  /// Links to the Payment that settled it, when one did.
+  paymentOrderNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+// ───────────────────── Refunds as records, not a total ─────────────────
+
+/// Payment.refundedMinor is a running total, which is enough to decide
+/// whether another refund fits but loses the history. A dispute needs to know
+/// what was refunded, when, and why.
+model Refund {
+  id        String @id @default(cuid())
+  paymentId String
+
+  amountMinor BigInt
+  currency    String       @default("AMD")
+  reason      String?
+  status      RefundStatus @default(PENDING)
+
+  providerRef       String?
+  failureReason     String?
+  requestedByUserId String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+enum RefundStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// ───────────────────────── Ticketing: discounts ────────────────────────
+
+model PromoCode {
+  id             String  @id @default(cuid())
+  organizationId String
+  /// Null applies the code across the organization's events.
+  eventId        String?
+
+  code  String
+  kind  DiscountKind
+  /// Percent (1–100) or an amount in minor units, per `kind`.
+  value BigInt
+
+  maxRedemptions Int?
+  redemptions    Int     @default(0)
+  minOrderMinor  BigInt?
+
+  validFrom  DateTime?
+  validUntil DateTime?
+  isActive   Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event        Event?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  orders       TicketOrder[]
+
+  @@unique([organizationId, code])
+  @@index([eventId, isActive])
+  @@map("promo_codes")
+}
+
+enum DiscountKind {
+  PERCENT
+  FIXED
+}
+
+// ──────────────────────────── Exports ──────────────────────────────────
+
+/// A generated document: a seating chart, place cards, a catering sheet.
+///
+/// A row rather than a synchronous download because generating a PDF for four
+/// hundred guests is CPU-bound and must not run inside a request
+/// (CLAUDE.md §5). The caller polls or is notified.
+model Export {
+  id      String @id @default(cuid())
+  eventId String
+
+  kind   ExportKind
+  format ExportFormat
+  status ExportStatus @default(QUEUED)
+
+  /// The generated file, once there is one.
+  assetId           String?
+  failureReason     String?
+  requestedByUserId String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  asset MediaAsset? @relation("ExportFile", fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, status])
+  @@map("exports")
+}
+
+enum ExportStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ExportKind {
+  GUEST_LIST
+  SEATING_CHART
+  PLACE_CARDS
+  CATERING_SHEET
+  BAR_SHEET
+  PLAYLIST
+  TICKET_MANIFEST
+}
+
+enum ExportFormat {
+  PDF
+  CSV
+  XLSX
 }
