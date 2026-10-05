@@ -5,10 +5,14 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsInt,
+  IsISO8601,
   IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 /** Translated content arrives as { "<locale>": { ... } } and is bounded by
@@ -128,6 +132,33 @@ export class CreateVenueDto {
   @IsOptional()
   @IsString()
   arriveAt?: string;
+}
+
+
+export class UpsertTimelineEntryDto {
+  @ApiProperty({ description: 'Translated name keyed by locale', example: { hy: 'Պսակադրություն' } })
+  @IsObject()
+  label!: Record<string, unknown>;
+
+  @ApiProperty({ description: 'When it happens, ISO 8601' })
+  @IsISO8601()
+  occursAt!: string;
+
+  @ApiPropertyOptional({ description: 'Which of this event’s venues it happens at' })
+  @IsOptional()
+  @IsString()
+  venueId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Breaks ties between entries at the same minute',
+    minimum: 0,
+    maximum: 1000,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1_000)
+  sortOrder?: number;
 }
 
 export { BlockType };

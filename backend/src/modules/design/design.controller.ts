@@ -10,7 +10,9 @@ import {
   UpdateBlockDto,
   UpdateThemeDto,
   UpsertQuestionDto,
+  UpsertTimelineEntryDto,
 } from './dto/design.dto';
+import { TimelineService } from './timeline.service';
 import { VenuesService } from './venues.service';
 
 class CityQuery {
@@ -26,6 +28,7 @@ export class DesignController {
   constructor(
     private readonly design: DesignService,
     private readonly venues: VenuesService,
+    private readonly timeline: TimelineService,
   ) {}
 
   // Keyed by event rather than platform-wide, so an event-level designer can
@@ -119,6 +122,41 @@ export class DesignController {
   })
   removeQuestion(@Param('slug') slug: string, @Param('questionId') questionId: string) {
     return this.design.removeQuestion(slug, questionId);
+  }
+
+  @RequirePermission('event:read')
+  @Get('events/:eventId/timeline')
+  @ApiOperation({
+    summary: 'The running order, soonest first',
+    description: 'Read by the TIMELINE block, the vendor brief and the operations view.',
+  })
+  listTimeline(@Param('eventId') eventId: string) {
+    return this.timeline.list(eventId);
+  }
+
+  @RequirePermission('event:write')
+  @Post('events/:eventId/timeline')
+  @ApiOperation({ summary: 'Add something to the running order' })
+  createTimelineEntry(@Param('eventId') eventId: string, @Body() dto: UpsertTimelineEntryDto) {
+    return this.timeline.create(eventId, dto);
+  }
+
+  @RequirePermission('event:write')
+  @Patch('events/:eventId/timeline/:entryId')
+  @ApiOperation({ summary: 'Change an entry' })
+  updateTimelineEntry(
+    @Param('eventId') eventId: string,
+    @Param('entryId') entryId: string,
+    @Body() dto: UpsertTimelineEntryDto,
+  ) {
+    return this.timeline.update(eventId, entryId, dto);
+  }
+
+  @RequirePermission('event:write')
+  @Delete('events/:eventId/timeline/:entryId')
+  @ApiOperation({ summary: 'Remove an entry' })
+  removeTimelineEntry(@Param('eventId') eventId: string, @Param('entryId') entryId: string) {
+    return this.timeline.remove(eventId, entryId);
   }
 
   @RequirePermission('event:read')

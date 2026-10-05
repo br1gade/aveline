@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CreateEventDto } from './dto/create-event.dto';
+import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { UpdateEventSettingsDto } from './dto/event-settings.dto';
 import { EventsService } from './events.service';
 import {
@@ -26,11 +28,48 @@ export class EventsController {
     return this.events.findAll(actor.organizationId ?? undefined);
   }
 
+  // No permission beyond a session and an organization: a host creating their
+  // first event has no event to hold a permission on yet.
+  @OrganizationScope()
+  @Post()
+  @ApiOperation({
+    summary: 'Create an event, with its draft invitation',
+    description:
+      'The caller becomes its OWNER. An invitation is created alongside, so ' +
+      'there is something to design immediately.',
+  })
+  create(@CurrentActor() actor: RequestActor, @Body() dto: CreateEventDto) {
+    return this.events.create(actor.organizationId ?? '', actor.userId, dto);
+  }
+
+  @RequirePermission('event:write')
+  @Post(':id/invitation')
+  @ApiOperation({
+    summary: 'Add an invitation to an event that has none',
+    description: 'Only needed when no design template existed when the event was created.',
+  })
+  createInvitation(@Param('id') id: string, @Body() dto: CreateInvitationDto) {
+    return this.events.createInvitation(id, dto.templateKey);
+  }
+
   @RequirePermission('event:read')
   @Get(':id')
   @ApiOperation({ summary: 'Event detail with venues and timeline' })
   findOne(@Param('id') id: string) {
     return this.events.findOne(id);
+  }
+
+  @RequirePermission('member:manage')
+  @Get(':id/audit-trail')
+  @ApiOperation({
+    summary: 'Who changed what on this event',
+    description:
+      'Successful writes only, newest first. Records that something changed, ' +
+      'never the content that changed — a guest list does not belong in a ' +
+      'second store.',
+  })
+  auditTrail(@Param('id') id: string) {
+    return this.events.auditTrail(id);
   }
 
   @RequirePermission('event:write')

@@ -323,6 +323,15 @@ async function seedMessageTemplates() {
       },
     },
     {
+      key: 'thankyou.send',
+      channel: 'EMAIL' as const,
+      subject: { hy: 'Շնորհակալություն', en: 'Thank you' },
+      body: {
+        hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։ {{link}}',
+        en: '{{guestName}}, thank you for being with us. {{link}}',
+      },
+    },
+    {
       key: 'ticket.issued',
       channel: 'EMAIL' as const,
       subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },

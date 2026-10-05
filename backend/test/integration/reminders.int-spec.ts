@@ -68,7 +68,7 @@ describe('reminders (integration)', () => {
       data: { startsAt: new Date(Date.now() + daysAway * DAY_MS) },
     });
 
-    for (const key of ['invitation.send', 'rsvp.reminder']) {
+    for (const key of ['invitation.send', 'rsvp.reminder', 'thankyou.send']) {
       await prisma.messageTemplate.create({
         data: {
           organizationId: event.organizationId,
@@ -333,4 +333,83 @@ describe('reminders (integration)', () => {
     });
     expect(reminder.status).toBe(MessageStatus.DELIVERED);
   });
+
+  describe('thanking the guests who came', () => {
+    /** An event in the past, with one guest who actually arrived. */
+    const attendedEvent = async () => {
+      const seeded = await invitedEvent(10);
+      await sender.send(seeded.slug);
+      const guest = await prisma.guest.findFirstOrThrow({ where: { eventId: seeded.eventId } });
+      await prisma.checkIn.create({ data: { guestId: guest.id } });
+      await prisma.event.update({
+        where: { id: seeded.eventId },
+        data: { startsAt: new Date(Date.now() - DAY_MS) },
+      });
+      return { ...seeded, guest };
+    };
+
+    const thankYousFor = (eventId: string) =>
+      prisma.message.count({ where: { eventId, templateKey: 'thankyou.send' } });
+
+    it('thanks a household that arrived', async () => {
+      const { slug, eventId } = await attendedEvent();
+
+      const result = await reminders.thankAttendees(slug);
+
+      expect(result.queued).toBe(1);
+      expect(await thankYousFor(eventId)).toBe(1);
+    });
+
+    /**
+     * Arrival, not an RSVP. Thanking someone who said yes and then did not
+     * come is worse than saying nothing.
+     */
+    it('does not thank a guest who accepted but never arrived', async () => {
+      const seeded = await invitedEvent(10);
+      await sender.send(seeded.slug);
+      await prisma.rsvp.updateMany({
+        where: { guest: { eventId: seeded.eventId } },
+        data: { status: RsvpStatus.ATTENDING },
+      });
+      await prisma.event.update({
+        where: { id: seeded.eventId },
+        data: { startsAt: new Date(Date.now() - DAY_MS) },
+      });
+
+      expect(await reminders.thankAttendees(seeded.slug)).toMatchObject({ queued: 0 });
+    });
+
+    // A thank-you that arrives before the event reads as a mistake and cannot
+    // be unsent.
+    it('refuses before the event has happened', async () => {
+      const { slug } = await invitedEvent(10);
+
+      await expect(reminders.thankAttendees(slug)).rejects.toThrow(/not happened yet/);
+    });
+
+    // Once ever, not once a day: a second thank-you is not a follow-up.
+    it('thanks each household only once, however many times it is pressed', async () => {
+      const { slug, eventId } = await attendedEvent();
+
+      await reminders.thankAttendees(slug);
+      const second = await reminders.thankAttendees(slug);
+
+      expect(second).toMatchObject({ queued: 0, alreadyThanked: 1 });
+      expect(await thankYousFor(eventId)).toBe(1);
+    });
+
+    it('goes out through the same outbox', async () => {
+      const { slug, eventId } = await attendedEvent();
+      await reminders.thankAttendees(slug);
+
+      await communications.dispatchDue();
+
+      const message = await prisma.message.findFirstOrThrow({
+        where: { eventId, templateKey: 'thankyou.send' },
+      });
+      expect(message.status).toBe(MessageStatus.DELIVERED);
+      expect(message.body).toContain('Primary Guest');
+    });
+  });
+
 });

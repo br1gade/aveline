@@ -6,6 +6,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
+import { Sentry } from '../../infra/observability/sentry';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ERASED_RSVP_FIELDS, anonymisedGuestFields } from './anonymisation';
 import {
@@ -15,6 +16,9 @@ import {
 
 /** GDPR Article 12: one month from receipt. */
 const RESPONSE_WINDOW_DAYS = 30;
+
+/** How much warning is useful: a week is enough to verify an identity and act. */
+const WARNING_WINDOW_DAYS = 7;
 
 @Injectable()
 export class PrivacyService {
@@ -268,6 +272,70 @@ export class PrivacyService {
         suppressionsRemoved: removedSuppressions.count,
       };
     });
+  }
+
+  /**
+   * Requests whose one-month clock is running down.
+   *
+   * GDPR Article 12 gives a month from receipt, and the penalty for missing it
+   * falls on us, not on whoever forgot. The schema has carried the deadline
+   * and an index on it since the privacy work; nothing read them, so the clock
+   * was stored and never watched — which is the same as not having one.
+   *
+   * Returns the overdue separately from the merely close, because they need
+   * different responses: one is a breach to disclose, the other is a day's work
+   * to schedule.
+   */
+  async dueSoon(now = new Date(), withinDays = WARNING_WINDOW_DAYS) {
+    const horizon = new Date(now.getTime() + withinDays * 24 * 60 * 60 * 1000);
+
+    const open = await this.prisma.dataSubjectRequest.findMany({
+      where: {
+        status: {
+          in: [
+            DataSubjectRequestStatus.RECEIVED,
+            DataSubjectRequestStatus.VERIFYING,
+            DataSubjectRequestStatus.IN_PROGRESS,
+          ],
+        },
+        dueAt: { lte: horizon },
+      },
+      orderBy: { dueAt: 'asc' },
+      select: { id: true, kind: true, status: true, subjectEmail: true, dueAt: true },
+    });
+
+    const overdue = open.filter((request) => request.dueAt <= now);
+    return { overdue, dueSoon: open.filter((request) => request.dueAt > now) };
+  }
+
+  /**
+   * The sweep's report, logged and raised so a missed deadline is noticed.
+   *
+   * Deliberately loud rather than a dashboard nobody opens: an overdue
+   * data-subject request is a regulatory exposure, and the failure mode is
+   * that everyone assumed someone else was watching.
+   */
+  async reportDueRequests(now = new Date()): Promise<{ overdue: number; dueSoon: number }> {
+    const { overdue, dueSoon } = await this.dueSoon(now);
+
+    if (overdue.length > 0) {
+      this.logger.error(
+        `${overdue.length} data-subject request(s) are past their one-month deadline: ` +
+          overdue.map((request) => `${request.id} (${request.kind})`).join(', '),
+      );
+      // Raised, not only logged: a log line nobody reads is how a deadline
+      // gets missed in the first place.
+      Sentry.captureMessage(
+        `${overdue.length} data-subject request(s) past the GDPR deadline`,
+        'error',
+      );
+    }
+
+    if (dueSoon.length > 0) {
+      this.logger.warn(`${dueSoon.length} data-subject request(s) due within ${WARNING_WINDOW_DAYS} days`);
+    }
+
+    return { overdue: overdue.length, dueSoon: dueSoon.length };
   }
 
   private async require(requestId: string) {

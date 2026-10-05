@@ -14,6 +14,7 @@ src/
     auth/           sessions, the guard, @Public / @RequirePermission
     cache/          Redis read-through, degrades to Postgres
     analytics/      MongoDB engagement, self-healing connection
+    audit/          who did what, append-only in Mongo beside analytics
     storage/        storage port; adapters/ holds Garage (S3) and local disk
     jobs/           scheduled sweeps behind a Redis lock
     health/         liveness and readiness
@@ -24,7 +25,7 @@ src/
     access/         permission policy — pure, table-driven
     events/ guests/ invitations/ rsvp/ operations/
     seating/        tables, seats, the packing algorithm
-    design/         templates, theme, block content, questions, venues
+    design/         templates, theme, block content, questions, venues, timeline
     organizations/  the tenant a new account creates for itself
     billing/        plans, subscriptions, invoices, promo codes
     vendors/        the partner network and scoped briefs

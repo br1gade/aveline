@@ -1039,6 +1039,66 @@ not render it as a missing value.
 `RECTIFICATION` returns `400`: a correction is applied by editing the record,
 then the request is closed with `PATCH`.
 
+### Creating an event — start here
+
+```http
+POST /api/v1/events
+{ "type": "WEDDING", "title": "Anna & Davit", "startsAt": "2027-06-12T15:00:00.000Z",
+  "locales": ["hy", "en"] }
+```
+
+**This is step two of onboarding**, after `POST /organizations`. It creates the
+event, its draft invitation and the caller's ownership in one request, because
+nothing can be done with an event that has no invitation and an event nobody
+owns cannot be read back.
+
+```json
+{
+  "id": "clz...", "title": "Anna & Davit", "type": "WEDDING", "status": "DRAFT",
+  "hostsLabel": "Anna & Davit", "timezone": "Asia/Yerevan", "defaultLocale": "hy",
+  "invitation": { "slug": "anna-davit-3f8a1c20", "status": "DRAFT", "theme": {...} },
+  "venues": [], "timeline": []
+}
+```
+
+`type` is `WEDDING`, `ENGAGEMENT`, `BAPTISM`, `BIRTHDAY`, `ANNIVERSARY`,
+`CORPORATE` or `OTHER`. Optional: `hostsLabel` (defaults to the title),
+`endsAt`, `timezone` (defaults to `Asia/Yerevan`), `locales`, `defaultLocale`,
+`sideALabel` / `sideBLabel`, `visibility`, and `templateKey`.
+
+**The slug is generated, not chosen.** It reads as the hosts' names where they
+are URL-safe and falls back to `event-<random>` otherwise — an Armenian title
+contains nothing URL-safe, so that is the normal case, not the edge one. Two
+events with the same hosts get different slugs. There is no endpoint to choose
+a custom slug yet.
+
+**`403` means the account has no organization.** Create one first; the message
+says so.
+
+If no design template existed when the event was created, `invitation` comes
+back `null` and `POST /events/:id/invitation` adds one later.
+
+### The running order
+
+```http
+GET    /api/v1/events/:eventId/timeline
+POST   /api/v1/events/:eventId/timeline   { "label": {...}, "occursAt": "...", "venueId": "..." }
+PATCH  /api/v1/events/:eventId/timeline/:entryId
+DELETE /api/v1/events/:eventId/timeline/:entryId
+```
+
+Ceremony, reception, first dance, cake, close. Typed once here and read by
+three places: the invitation's `TIMELINE` block, the day-of vendor brief, and
+the operations view.
+
+`label` is translated (`{ "hy": "Պսակադրություն", "en": "Ceremony" }`) and
+needs at least one language — a blank row on the invitation reads as a bug to
+the guests looking at it. `venueId` must be one of this event's venues.
+`sortOrder` breaks ties between two things at the same minute; entries come
+back ordered by `occursAt` first, so you do not have to maintain it.
+
+Reading needs `event:read`, writing `event:write`.
+
 ### Designing the invitation
 
 ```http
@@ -1235,6 +1295,24 @@ invitation.
 
 Requires `invitation:publish`, like sending.
 
+### Thanking the guests afterwards
+
+```http
+POST /api/v1/invitations/:slug/thank-you
+```
+
+Goes to the households where **someone actually checked in** — arrival, not an
+RSVP, because thanking a guest who accepted and then did not come is worse
+than saying nothing. Refused with a `400` before the event has happened.
+
+```json
+{ "queued": 88, "alreadyThanked": 0, "recipients": [...], "notInvited": [] }
+```
+
+**Once ever, not once a day** — unlike `remind`. A second thank-you is not a
+follow-up, so `alreadyThanked` counts the households skipped. Requires
+`invitation:publish`.
+
 ### Reminders go out on their own, too
 
 Three automatic reminders per event, at **21 days, 7 days and 2 days before**
@@ -1425,6 +1503,32 @@ POST /api/v1/webhooks/telegram
 Telegram calls this; no client should. It is listed only so it is not mistaken
 for something to integrate with. It records a guest's opt-in when they tap the
 deep link, and treats blocking the bot as an unsubscribe.
+
+### The audit trail
+
+```http
+GET /api/v1/events/:eventId/audit-trail
+```
+
+```json
+[{
+  "action": "events.guests.import.create", "method": "POST",
+  "route": "/events/:eventId/guests/import",
+  "userId": "clz...", "email": "host@example.am",
+  "eventId": "clz...", "statusCode": 201,
+  "requestId": "...", "at": "2026-10-05T18:02:11.000Z"
+}]
+```
+
+Successful writes only, newest first, up to 100. Requires `member:manage`
+rather than `event:read`, because the trail names the people who did things —
+including Aveline `SUPPORT` staff acting on a customer's behalf, which is who
+it mainly exists to hold accountable.
+
+**It records that something changed, never what it changed to.** A guest list,
+a reset payload and a card binding do not belong in a second store with
+weaker access controls than Postgres. Reads are not recorded either — they are
+almost all the traffic and would bury the writes.
 
 ## 7. Health
 

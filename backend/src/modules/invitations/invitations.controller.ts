@@ -65,6 +65,19 @@ export class InvitationsController {
     return this.reminders.remindNow(slug);
   }
 
+  @RequirePermission('invitation:publish')
+  @EventScope('invitationSlug')
+  @Post(':slug/thank-you')
+  @ApiOperation({
+    summary: 'Thank the guests who came',
+    description:
+      'Only those who actually checked in, and only once ever. Refused before ' +
+      'the event, because a thank-you that arrives first cannot be unsent.',
+  })
+  thankAttendees(@Param('slug') slug: string) {
+    return this.reminders.thankAttendees(slug);
+  }
+
   @RequirePermission('invitation:read')
   @EventScope('invitationSlug')
   @Get(':slug/delivery')

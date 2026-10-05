@@ -79,4 +79,5 @@ export const SCHEDULES = {
   everyMinute: '* * * * *',
   everyFiveMinutes: '*/5 * * * *',
   hourly: '0 * * * *',
+  dailyAt9: '0 9 * * *',
 } as const;

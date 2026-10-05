@@ -202,9 +202,12 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
+| `POST` | `/api/v1/events` | **Create an event** and its draft invitation |
+| `POST` | `/api/v1/events/:id/invitation` | Add an invitation to an event that has none |
 | `GET` | `/api/v1/events` | List events |
 | `GET` | `/api/v1/events/:id` | Detail with venues and timeline |
 | `PATCH` | `/api/v1/events/:id/settings` | Flip automatic RSVP reminders on or off |
+| `GET` | `/api/v1/events/:id/audit-trail` | Who changed what on this event |
 | `GET` | `/api/v1/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
 | `GET` | `/api/v1/events/:id/guests` | Guest graph grouped by household |
 | `GET` | `/api/v1/events/:id/headcount` | Live headcount by response and side |
@@ -221,6 +224,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
 | `POST` | `/api/v1/invitations/:slug/send` | **Send it** — one email per household, safe to press twice |
 | `POST` | `/api/v1/invitations/:slug/remind` | Chase the households that have not answered |
+| `POST` | `/api/v1/invitations/:slug/thank-you` | Thank the guests who actually came |
 | `GET` | `/api/v1/invitations/:slug/delivery` | Who has been invited and what happened to each email |
 | `PATCH` | `/api/v1/invitations/:slug/theme` | Fonts and colours, validated against the template |
 | `PATCH` | `/api/v1/invitations/:slug/blocks/:type` | Edit one block's content |
@@ -233,6 +237,10 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/events/:eventId/timeline` | The running order |
+| `POST` | `/api/v1/events/:eventId/timeline` | Add something to it |
+| `PATCH` | `/api/v1/events/:eventId/timeline/:entryId` | Change an entry |
+| `DELETE` | `/api/v1/events/:eventId/timeline/:entryId` | Remove an entry |
 | `GET` | `/api/v1/events/:eventId/venue-profiles` | The reusable venue directory |
 | `GET` | `/api/v1/events/:eventId/venues` | This event's venues, in order |
 | `POST` | `/api/v1/events/:eventId/venues` | Add one; directory details are copied |

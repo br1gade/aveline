@@ -39,16 +39,15 @@ customer's trust.
 | 11 | **No TLS** | Everything is plain HTTP on localhost today |
 | 12 | **WhatsApp business verification** | The transport is built and inert. Meta needs a verified business — trade licence, tax papers, a dedicated number — and message templates approved in advance. Days to weeks, like the bank accounts |
 | 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
-| 14 | **No audit trail** | Modelled and unbuilt. Matters most for `SUPPORT` staff acting on a customer's behalf |
 
 ### Operations
 
 | # | Blocker | Why |
 |---|---|---|
-| 15 | **No deployment** | No container build, no host, no process supervision, no restart policy |
-| 16 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
-| 17 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
-| 18 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
+| 14 | **No deployment** | No container build, no host, no process supervision, no restart policy |
+| 15 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
+| 16 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
+| 17 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
 
 ---
 

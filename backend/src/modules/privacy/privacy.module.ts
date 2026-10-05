@@ -11,5 +11,6 @@ import { SuppressionsController } from './suppressions.controller';
 @Module({
   controllers: [PrivacyController, SuppressionsController],
   providers: [PrivacyService],
+  exports: [PrivacyService],
 })
 export class PrivacyModule {}
