@@ -1275,7 +1275,8 @@ and analytics, not correctness.
 ## 9. Development-only behaviour
 
 While the backend is pre-production, endpoints that would normally email a
-link return it in the response instead, because no mail transport exists yet:
+link also return it in the response, so a flow can be completed locally
+without opening a mailbox:
 
 ```json
 { "sent": true, "devLink": "http://localhost:5173/reset-password?token=..." }
@@ -1286,15 +1287,18 @@ Affects `POST /auth/password-reset`, `POST /auth/verify-email` and
 
 **`devLink` is absent in production.** Build the flow as though it were never
 there — read the token from the URL the user arrives on, not from this field.
-It exists so you can complete the flow locally today.
+
+Mail is really sent in development too: a local SMTP server holds it, and the
+dev inbox is at <http://localhost:8025>. So the same flow can be checked the
+way a user will see it, formatting included.
 
 ## 10. Not built yet
 
 So you can plan around them rather than discover them:
 
-- **Nothing actually sends messages.** The outbox works; every channel writes
-  to the server log instead of delivering. Reset and invite links come back in
-  the response body in development — see §9.
+- **Only email is delivered.** SMS, Telegram and WhatsApp still write to the
+  server log instead of sending. Email over SMTP is real, retries a temporary
+  failure and suppresses an address that hard-bounces.
 - **Nothing enforces plan entitlements.** They are published on `/plans` and on
   the subscription, but the server will not refuse a fourth event on a
   three-event plan.
@@ -1308,8 +1312,9 @@ So you can plan around them rather than discover them:
   custom RSVP questions once added.
 - **No image resizing.**
 - **PDF and XLSX exports.** CSV works; the other two formats return `400`.
-- **No automatic suppression from bounces.** A hard bounce can be recorded, but
-  nothing records one, because no real mail transport is wired yet.
+- **Asynchronous bounce reports.** A rejection at send time suppresses the
+  address automatically. A bounce that arrives later, as a report to the
+  sending mailbox, is not read by anything.
 
 The authoritative list is [GAPS.md](../backend/docs/GAPS.md), and
 [GOING_LIVE.md](GOING_LIVE.md) is what blocks production.

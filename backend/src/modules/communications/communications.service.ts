@@ -1,6 +1,14 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { MessageChannel, MessageStatus, Prisma } from '@prisma/client';
+import { MessageChannel, MessageStatus, Prisma,
+  SuppressionReason,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  classifyDeliveryFailure,
+  isWorthRetrying,
+  nextAttemptAt,
+  shouldSuppressAddress,
+} from './delivery-outcome';
 import { SuppressionService } from './suppression.service';
 import { resolveTranslation } from '../../common/locale';
 import { MessageTransport } from './channels/message-channel';
@@ -29,6 +37,9 @@ export interface EnqueueParams {
  * process dies between committing the action and the provider replying, and
  * makes every send a latency cost the user pays for.
  */
+/** What one dispatch attempt resolved to. */
+type DeliveryOutcome = 'SENT' | 'RETRYING' | 'FAILED';
+
 @Injectable()
 export class CommunicationsService {
   private readonly logger = new Logger(CommunicationsService.name);
@@ -92,7 +103,9 @@ export class CommunicationsService {
    * conditioned on it still being QUEUED, so two dispatchers running at once
    * cannot both send the same message.
    */
-  async dispatchDue(limit = 50): Promise<{ sent: number; failed: number; suppressed: number }> {
+  async dispatchDue(
+    limit = 50,
+  ): Promise<{ sent: number; failed: number; suppressed: number; retrying: number }> {
     const due = await this.prisma.message.findMany({
       where: { status: MessageStatus.QUEUED, scheduledFor: { lte: new Date() } },
       orderBy: { scheduledFor: 'asc' },
@@ -102,9 +115,10 @@ export class CommunicationsService {
     let sent = 0;
     let failed = 0;
     let suppressed = 0;
+    let retrying = 0;
     for (const message of due) {
-      const wasClaimed = await this.claim(message.id);
-      if (!wasClaimed) continue;
+      const attempt = await this.claim(message.id);
+      if (attempt === null) continue;
 
       // Checked again here, not only at enqueue: a bounce or an unsubscribe
       // between queueing and sending must stop the send, and a scheduled
@@ -120,12 +134,13 @@ export class CommunicationsService {
         continue;
       }
 
-      const didSend = await this.deliver(message);
-      if (didSend) sent += 1;
+      const outcome = await this.deliver({ ...message, attempts: attempt });
+      if (outcome === 'SENT') sent += 1;
+      else if (outcome === 'RETRYING') retrying += 1;
       else failed += 1;
     }
 
-    return { sent, failed, suppressed };
+    return { sent, failed, suppressed, retrying };
   }
 
   private async markSuppressed(messageId: string): Promise<void> {
@@ -152,26 +167,43 @@ export class CommunicationsService {
     });
   }
 
-  private async claim(messageId: string): Promise<boolean> {
+  /**
+   * Takes ownership of one message and returns which attempt this is.
+   *
+   * The count comes back from the claim rather than from the row that was
+   * read a moment earlier: the claim is what increments it, so a caller using
+   * the stale value would allow one attempt more than the budget — which is
+   * exactly the off-by-one this signature prevents. Null means another
+   * dispatcher got there first.
+   */
+  private async claim(messageId: string): Promise<number | null> {
     const claimed = await this.prisma.message.updateMany({
       where: { id: messageId, status: MessageStatus.QUEUED },
       data: { status: MessageStatus.SENDING, attempts: { increment: 1 } },
     });
-    return claimed.count === 1;
+    if (claimed.count !== 1) return null;
+
+    const { attempts } = await this.prisma.message.findUniqueOrThrow({
+      where: { id: messageId },
+      select: { attempts: true },
+    });
+    return attempts;
   }
 
   private async deliver(message: {
     id: string;
+    organizationId: string;
     channel: MessageChannel;
     toAddress: string;
     subject: string | null;
     body: string;
     locale: string;
-  }): Promise<boolean> {
+    attempts: number;
+  }): Promise<DeliveryOutcome> {
     const transport = this.transports.get(message.channel);
     if (!transport) {
       await this.fail(message.id, `No transport configured for ${message.channel}`);
-      return false;
+      return 'FAILED';
     }
 
     try {
@@ -187,15 +219,78 @@ export class CommunicationsService {
         data: {
           status: result.isDelivered ? MessageStatus.DELIVERED : MessageStatus.SENT,
           providerRef: result.providerRef ?? null,
+          failureReason: null,
           sentAt: new Date(),
           deliveredAt: result.isDelivered ? new Date() : null,
         },
       });
-      return true;
+      return 'SENT';
     } catch (error) {
-      await this.fail(message.id, error instanceof Error ? error.message : String(error));
-      return false;
+      return this.handleFailure(message, error);
     }
+  }
+
+  /**
+   * Decides what a failed send means.
+   *
+   * Three outcomes, because conflating them is how a product either loses mail
+   * or keeps writing to an address that will never accept it:
+   *
+   *   - the recipient refused it      → bounced, and the address is suppressed
+   *                                     platform-wide so no other host wastes
+   *                                     reputation on it
+   *   - the provider could not now    → back in the queue with a backoff
+   *   - our configuration is wrong    → back in the queue, logged as ours, and
+   *                                     never held against the recipient
+   */
+  private async handleFailure(
+    message: { id: string; organizationId: string; channel: MessageChannel; toAddress: string; attempts: number },
+    error: unknown,
+  ): Promise<DeliveryOutcome> {
+    const failure = classifyDeliveryFailure(error);
+
+    if (failure.kind === 'MISCONFIGURED') {
+      // Loud, because every message on this channel is failing for the same
+      // reason and no amount of retrying will fix it.
+      this.logger.error(
+        `${message.channel} transport is misconfigured: ${failure.reason}. ` +
+          'Queued messages will retry; fix the credentials.',
+      );
+    }
+
+    if (shouldSuppressAddress(failure.kind)) {
+      await this.suppressions.suppress({
+        organizationId: null,
+        channel: message.channel,
+        address: message.toAddress,
+        reason: SuppressionReason.HARD_BOUNCE,
+        notes: failure.reason,
+      });
+      await this.prisma.message.update({
+        where: { id: message.id },
+        data: { status: MessageStatus.BOUNCED, failureReason: failure.reason },
+      });
+      this.logger.warn(`message ${message.id} bounced: ${failure.reason}`);
+      return 'FAILED';
+    }
+
+    if (!isWorthRetrying(failure.kind, message.attempts)) {
+      await this.fail(message.id, `${failure.reason} (gave up after ${message.attempts} attempts)`);
+      return 'FAILED';
+    }
+
+    await this.prisma.message.update({
+      where: { id: message.id },
+      data: {
+        // Back to QUEUED rather than a separate state: the dispatcher's own
+        // claim is what makes re-queueing safe, and one fewer state is one
+        // fewer thing a future reader has to reason about.
+        status: MessageStatus.QUEUED,
+        failureReason: failure.reason,
+        scheduledFor: nextAttemptAt(message.attempts, new Date()),
+      },
+    });
+    return 'RETRYING';
   }
 
   private async fail(messageId: string, reason: string): Promise<void> {

@@ -26,7 +26,7 @@ customer's trust.
 
 | # | Blocker | Why |
 |---|---|---|
-| 6 | **Nothing reaches anyone** | Every channel resolves to the console transport. Invitations, reset links and ticket confirmations are written to a log file |
+| 6 | **A sending domain and its DNS** | Email is implemented over SMTP and refuses to boot in production without it, but no mail account, sending domain or SPF/DKIM/DMARC records exist. Without them mail is sent and then filed as spam, which looks like delivery and is not |
 | 7 | **No sending domain or SPF/DKIM/DMARC** | Mail from a new domain with no authentication goes to spam, which for an invitation product is indistinguishable from being broken |
 | 8 | **Google Workspace limit is ~500/day** | A 400-guest wedding plus one reminder round approaches it. Fine for early events, not for several in a week |
 
@@ -61,7 +61,7 @@ customer's trust.
 | Invitation expiry | Decided (indefinite paid, 3 months free) and modelled; nothing sets `expiresAt` or sweeps |
 | CDN | Garage serves media directly |
 | Rate limits per actor | The throttle is global, not per account. `POST /privacy/requests` is public and unthrottled |
-| Bounce handling | A hard bounce suppresses an address only if something reports one; no transport does yet |
+| Asynchronous bounce reports | A rejection at send time is classified and suppresses the address. A bounce that arrives minutes later, as a report to the sending mailbox, is not read by anything |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
 | Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |
@@ -94,7 +94,7 @@ Worth stating, so the list above is read as scope rather than alarm.
 
 1. **Decide the bank** and open the merchant account. It has the longest lead
    time and blocks everything commercial.
-2. **One real mail transport**, plus the sending domain and its DNS records.
+2. **A sending domain and its DNS records** (SPF, DKIM, DMARC). The mail transport itself is built.
    Without it the product cannot do its main job.
 3. **Deploy somewhere**, with TLS, secrets and backups. Until this exists,
    nothing else can be verified under real conditions.

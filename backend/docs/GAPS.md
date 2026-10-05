@@ -37,7 +37,7 @@ human retyping something another human already typed.
 
 | # | Gap | Why it blocks |
 |---|---|---|
-| 5 | **Real message transports** | The outbox renders, queues, claims and dispatches correctly — but every channel resolves to the console transport, so nothing actually reaches a guest. This is now the single thing standing between the product and its core loop. **Decided:** start with Google Workspace SMTP. Note its ~500/day send limit — fine for development and early events, but a 400-guest wedding plus reminders approaches it, so plan to move to a transactional provider before volume arrives. Writing the adapter against plain SMTP keeps that a configuration change |
+| 5 | **Message transports beyond email** | Email is real: SMTP, with retry on a temporary failure and a platform-wide suppression on a hard bounce. SMS, Telegram and WhatsApp still resolve to the console transport, so nothing reaches a guest on those channels. Each is one adapter behind the same two-method port |
 
 ## 3. High value — the actual digitalisation
 
@@ -72,7 +72,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 | 18b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
 | 19 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
 | 20 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
-| 21 | **GDPR automation** | Requests are accepted, tracked against the one-month clock, and carried out — export assembles, erasure anonymises. What is missing is automation: identity verification is a human step, the clock is not alerted on, and nothing records a hard bounce because no real transport is wired |
+| 21 | **GDPR automation** | Requests are accepted, tracked against the one-month clock, and carried out — export assembles, erasure anonymises. What is missing is automation: identity verification is a human step and the clock is not alerted on |
 | 22 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 
 ## 6. Physical-service bridge

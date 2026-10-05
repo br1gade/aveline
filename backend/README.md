@@ -59,6 +59,26 @@ API at `http://localhost:3000/api`, OpenAPI docs at `http://localhost:3000/docs`
 > serves correctly — the invitation payload is rebuilt from Postgres and the
 > engagement panel reports zero. Only latency and insight degrade.
 
+## Mail in development
+
+`npm run db:up` starts a local SMTP server alongside the databases. Mail is
+really sent, over real SMTP, and never leaves the machine.
+
+```
+Dev inbox   http://localhost:8025
+SMTP        localhost:1025   (no credentials; anything is accepted)
+Clear it    curl -X DELETE http://localhost:8025/api/v1/messages
+```
+
+Leaving `SMTP_HOST` unset falls back to writing email to the log — acceptable
+locally, and a **startup failure** under `NODE_ENV=production`, because an
+invitation written to a log file looks exactly like one that was delivered.
+
+Production is Google Workspace SMTP (`smtp.gmail.com:587` with an app
+password). Its ~500/day limit will not survive a 400-guest wedding plus
+reminders, so expect to move to a transactional provider — which is a change
+of credentials, not of code, since the adapter speaks plain SMTP.
+
 ## Layout
 
 ```
@@ -364,9 +384,10 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 
 ## Next
 
-1. **Real message transports.** The outbox and dispatcher work; every channel
-   resolves to the console transport. SMTP, SMS and chat providers implement
-   the same two-method port. Nothing leaves the server until one is wired.
+1. **Transports beyond email.** Email is delivered over SMTP, retries a
+   temporary failure and suppresses an address that hard-bounces. SMS,
+   Telegram and WhatsApp still resolve to the console transport; each is one
+   adapter behind the same two-method port.
 2. **Design endpoints.** Templates, blocks, media and themes are modelled and
    `PATCH /invitations/:slug/arrangement` rearranges a page, but there is no
    endpoint to create a block, and theme values are not validated against the
