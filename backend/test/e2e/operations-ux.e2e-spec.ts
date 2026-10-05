@@ -211,7 +211,10 @@ describe('Operations UX (e2e)', () => {
         .expect(201);
 
       expect(body).toMatchObject({ kind: 'PHOTO', sizeBytes: pixel.byteLength });
-      expect(body.url).toContain('/files/');
+      // Backend-agnostic: the URL ends in the generated key, whichever
+      // adapter is configured. Asserting a path prefix would pin the test to
+      // local disk and fail the moment object storage is used.
+      expect(body.url).toMatch(/[0-9a-f-]{36}\.png$/);
 
       const stored = await prisma.mediaAsset.findUniqueOrThrow({ where: { id: body.id } });
       expect(stored.eventId).toBe(eventId);

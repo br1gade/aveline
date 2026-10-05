@@ -13,6 +13,7 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`../docs/PAYMENTS.md`](../docs/PAYMENTS.md) | Card acquiring: gateways, sandboxes, the rules that matter |
 | [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | The frame: lifecycle, auth, jobs, degradation, conventions |
 | [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md) | Every model, where data lives, and the invariants the database enforces |
+| [`../docs/STORAGE.md`](../docs/STORAGE.md) | Garage setup, the adapter port, durability |
 | [`../docs/BACKEND_GAPS.md`](../docs/BACKEND_GAPS.md) | What is still unbuilt, prioritised |
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7
@@ -35,7 +36,8 @@ is a derived view over it. Nothing in that module is separately maintained.
 ```bash
 cp .env.example .env
 npm install
-npm run db:up          # Postgres :5433, Redis :6380, Mongo :27018
+npm run db:up          # Postgres :5433, Redis :6380, Mongo :27018, Garage :3900
+npm run storage:up     # Garage alone, printing credentials for .env
 npx prisma generate
 npx prisma migrate dev
 npm run db:seed        # one demo wedding, prints guest links

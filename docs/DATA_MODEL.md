@@ -133,30 +133,12 @@ reject the bad row.
 
 ## 5. Storage layout
 
-Files go through `StorageService`, never straight to disk.
+Files go through `StorageService`, never straight to disk or a bucket. Two
+adapters sit behind it — Garage (S3) and the local filesystem — selected by
+configuration. Keys are generated UUIDs, never the uploaded filename.
 
-```
-<STORAGE_ROOT>/<first 2 chars of key>/<key>
-```
-
-The key is a generated UUID plus an extension derived from the MIME type —
-never the uploaded filename, which is a path-traversal and overwrite risk. The
-two-character shard keeps directory sizes manageable on filesystems that
-degrade with very large directories.
-
-Enforced on write, wherever the file came from: a MIME **allowlist** (not a
-blocklist) and a 10 MB ceiling.
-
-### Not yet built
-
-- **S3 adapter.** The port's surface is already the one an object store offers
-  — put a buffer, get a key and URL — so this is a new class, not a change at
-  every call site
-- **Image variants.** One original is stored; no thumbnails or responsive sizes
-- **CDN** in front of the public URL
-- **Virus scanning** for host-uploaded files
-- **Retention and cleanup.** Orphaned assets are never reclaimed, and how long
-  an invitation stays live after its event is still open (PRODUCT_SPEC §14)
+Full detail, including why reads are anonymous and what durability actually
+depends on, is in [STORAGE.md](STORAGE.md).
 
 ## 6. Not yet modelled
 

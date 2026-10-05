@@ -48,6 +48,18 @@ services:
       timeout: 5s
       retries: 10
 
+  garage:
+    image: dxflrs/garage:v2.1.0
+    container_name: aveline-garage
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - aveline-garage-meta:/var/lib/garage/meta
+      - aveline-garage-data:/var/lib/garage/data
+
 volumes:
   aveline-pgdata:
   aveline-mongodata:
+  aveline-garage-meta:
+  aveline-garage-data:

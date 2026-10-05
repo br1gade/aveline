@@ -5,3 +5,7 @@ coverage/
 .env
 *.tsbuildinfo
 storage/
+
+# Garage node config — contains rpc_secret and admin_token
+garage/garage.toml
+!garage/garage.toml.example

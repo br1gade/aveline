@@ -18,6 +18,7 @@ Custom event invitations, organization and management.
 | [`docs/PAYMENTS.md`](docs/PAYMENTS.md) | Ameriabank, Inecobank, IDBank — gateways, sandboxes, Apple Pay |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The frame every feature plugs into — request lifecycle, auth, jobs, degradation |
 | [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Every model, where data lives, and the invariants the database enforces |
+| [`docs/STORAGE.md`](docs/STORAGE.md) | Garage, the adapter port, and how guests read a file |
 | [`docs/BACKEND_GAPS.md`](docs/BACKEND_GAPS.md) | What is still unbuilt, and which manual process each piece replaces |
 | [`backend/`](backend/) | TypeScript · NestJS · PostgreSQL · Prisma · Redis · MongoDB |
 | [`.claude/`](.claude/) | Hooks and the `/feature` workflow skill |

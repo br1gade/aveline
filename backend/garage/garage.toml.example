@@ -1,0 +1,33 @@
+# Garage node configuration.
+#
+# Copy to garage.toml and fill in the two secrets:
+#   rpc_secret:  openssl rand -hex 32
+#   admin_token: openssl rand -hex 32
+#
+# garage.toml itself is gitignored because it holds both.
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "sqlite"
+
+# Single node. Durability comes from backing up data_dir, not replication —
+# raise this only when there is a second machine to hold a replica.
+replication_factor = 1
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret      = "REPLACE_WITH_openssl_rand_hex_32"
+
+[s3_api]
+s3_region     = "garage"
+api_bind_addr = "[::]:3900"
+root_domain   = ".s3.garage.localhost"
+
+[s3_web]
+bind_addr   = "[::]:3902"
+root_domain = ".web.garage.localhost"
+index       = "index.html"
+
+[admin]
+api_bind_addr = "[::]:3903"
+admin_token   = "REPLACE_WITH_openssl_rand_hex_32"

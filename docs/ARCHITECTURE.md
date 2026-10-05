@@ -14,7 +14,7 @@ src/
     auth/           sessions, the guard, @Public / @RequirePermission
     cache/          Redis read-through, degrades to Postgres
     analytics/      MongoDB engagement, self-healing connection
-    storage/        file storage port, local-disk adapter
+    storage/        storage port; adapters/ holds Garage (S3) and local disk
     jobs/           scheduled sweeps behind a Redis lock
     health/         liveness and readiness
   common/           locale resolution, error filter, request correlation
@@ -140,8 +140,9 @@ stopped, the invitation endpoint serves correct content in ~20 ms.
 - **Money needs no manual conversion.** `SerializeInterceptor` turns every
   BigInt into a string on the way out. Strings, not numbers, because a
   JavaScript number cannot hold every integer we store.
-- **Files go through `StorageService`**, never straight to disk. It enforces
-  the type allowlist and size ceiling wherever the file came from.
+- **Files go through `StorageService`**, never straight to disk or a bucket.
+  It enforces the type allowlist and size ceiling wherever the file came from,
+  and the adapter behind it is chosen by configuration. See [STORAGE.md](STORAGE.md).
 
 ## 6. Adding a feature
 
