@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { Sentry } from '../../infra/observability/sentry';
 import type { Request, Response } from 'express';
 
 /**
@@ -34,6 +35,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         `${request.method} ${request.url} → ${status} [${request.requestId ?? '-'}]`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+
+      // Only ours. A 404 or a failed validation is the caller's mistake, and
+      // reporting those would bury the incidents that matter under noise.
+      Sentry.captureException(exception, {
+        tags: { requestId: request.requestId ?? 'unknown' },
+      });
     }
 
     response.status(status).json({

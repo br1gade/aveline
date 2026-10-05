@@ -1,12 +1,22 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+// Sentry patches modules as they load, so it must be initialised before
+// anything else is imported. This import has to stay first.
+import { initialiseSentry } from './infra/observability/sentry';
+const isSentryEnabled = initialiseSentry(process.env);
+
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SerializeInterceptor } from './common/interceptors/serialize';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const logger = new Logger('Bootstrap');
+  // bufferLogs holds startup messages until pino is attached, so nothing is
+  // emitted in the default format and then again in ours.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(PinoLogger));
+
+  const logger = app.get(PinoLogger);
   const isProduction = process.env.NODE_ENV === 'production';
 
   // Versioned from the start. Adding a version once clients exist means
@@ -42,7 +52,11 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-  logger.log(`Aveline API on http://localhost:${port}/api${isProduction ? '' : '  ·  docs at /docs'}`);
+  logger.log(
+    `Aveline API on http://localhost:${port}/api/v1` +
+      `${isProduction ? '' : '  ·  docs at /docs'}` +
+      `  ·  errors ${isSentryEnabled ? 'reported to Sentry' : 'logged locally only'}`,
+  );
 }
 
 void bootstrap();

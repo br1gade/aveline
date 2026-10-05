@@ -194,6 +194,23 @@ Integration and e2e create and migrate a separate `aveline_test` database
 automatically, and truncate between tests with a single `TRUNCATE ... CASCADE`
 rather than a per-table delete loop.
 
+## Logging and errors
+
+Structured via pino: JSON in production, readable locally, and **every line
+carries the same request id as the response** — so a user's screenshot maps to
+the exact request.
+
+```bash
+LOG_LEVEL=warn npm run start:dev    # trace|debug|info|warn|error|fatal
+```
+
+Health checks are not logged. 4xx logs as `warn`, 5xx as `error`.
+
+Errors go to Sentry when `SENTRY_DSN` is set, and nowhere when it is not.
+**Errors only** — tracing is off and profiling is not installed. Credential
+headers, capability tokens in URLs and request bodies are stripped before
+anything leaves. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Linting
 
 ```bash

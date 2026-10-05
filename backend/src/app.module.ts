@@ -2,6 +2,8 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
+import { loggingConfig } from './infra/logging/logging.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestIdMiddleware } from './common/interceptors/request-id.middleware';
@@ -30,6 +32,11 @@ import { DevicesModule } from './modules/devices/devices.module';
     // Configuration is validated here so a missing setting stops the boot
     // rather than surfacing on the first request that needs it.
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+
+    // Replaces Nest's logger everywhere, so the fifteen services already
+    // using `new Logger(X)` emit structured lines with a request id without
+    // any of them changing.
+    LoggerModule.forRoot(loggingConfig(process.env)),
 
     // Public endpoints — RSVP, checkout, payment registration — are
     // unauthenticated by design, so the throttle is the only thing standing

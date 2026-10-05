@@ -17,6 +17,8 @@ src/
     storage/        storage port; adapters/ holds Garage (S3) and local disk
     jobs/           scheduled sweeps behind a Redis lock
     health/         liveness and readiness
+    logging/        structured logs, request-id correlated
+    observability/  Sentry error reporting
   common/           locale resolution, error filter, request correlation
   modules/          the domain
     access/         permission policy — pure, table-driven
@@ -41,17 +43,49 @@ All routes are served under `/api/v1`.
 
 ```
 boot
+  → initialiseSentry        first, before any module loads
   → validateEnv             missing config stops the boot, not the first request
 
 request
   → RequestIdMiddleware     assigns x-request-id, honours one from upstream
+  → pino-http               logs the request, carrying that id
   → ThrottlerGuard          10/s, 100/min
   → AuthGuard               verify token → resolve roles → check permission
   → ValidationPipe          whitelist, reject unknown fields, transform
   → controller → service → Prisma
   → SerializeInterceptor    BigInt → string, globally
-  → AllExceptionsFilter     one error shape, request id attached
+  → AllExceptionsFilter     one error shape, request id attached;
+                            5xx reported to Sentry, 4xx never
 ```
+
+### Logging
+
+Structured, via pino replacing Nest's logger app-wide — so the fifteen
+services already calling `new Logger(X)` emit correlated lines without any of
+them changing.
+
+| | |
+|---|---|
+| **Format** | JSON in production for a log shipper; pretty locally for a human |
+| **Level** | `LOG_LEVEL`, defaulting to `info` in production and `debug` elsewhere |
+| **Correlation** | Every line carries the same `x-request-id` the response does, so a user's screenshot maps to the exact request |
+| **Severity** | 4xx is `warn`, 5xx is `error`. A 404 is the caller's mistake; logging it as an error buries real incidents |
+| **Redaction** | Authorization and cookie headers, passwords, refresh tokens and email addresses never reach a line |
+| **Noise** | Health checks are not logged. Every few seconds they would drown everything else |
+
+### Error reporting
+
+Sentry, **errors only**. Tracing is set to zero and profiling needs an
+integration that is simply not added — both are a separate decision with their
+own cost.
+
+`beforeSend` strips what the SDK would otherwise carry off-site: credential
+headers, capability tokens embedded in URLs, and request bodies entirely —
+bodies here hold guest names, emails and dietary notes, none of which helps
+diagnose a stack trace and all of which is personal data.
+
+Only 5xx is reported. Without a `SENTRY_DSN` it stays off, which is how
+development is quiet without needing a flag.
 
 ### Authentication is default-on
 
