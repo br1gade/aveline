@@ -45,9 +45,10 @@ Each replaces a process the incumbent market performs by hand.
 
 | # | Gap | Replaces |
 |---|---|---|
-| 6 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
-| 7 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
-| 8 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
+| 6 | **Timeline construction** | PRODUCT_SPEC §7.2 lists it as a Managed service, the TIMELINE invitation block binds to it, and the vendor brief has a section for it — but `TimelineEntry` has only a read path. Nothing can create the running order it all depends on |
+| 7 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
+| 8 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
+| 9 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
 
 ## 4. Revenue — unbuilt business model lines
 
@@ -55,23 +56,23 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 
 | # | Gap | Stream |
 |---|---|---|
-| 9 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
-| 12 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them |
-| 13 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
-| 14 | **Corporate contracts** | §9.5 — multi-event, branded |
-| 15 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
+| 10 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
+| 11 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them |
+| 12 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
+| 13 | **Corporate contracts** | §9.5 — multi-event, branded |
+| 14 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
 
 ## 5. Operations and trust
 
 | # | Gap | Why |
 |---|---|---|
-| 17 | **Audit trail** | Mongo-shaped and documented; blocked on authentication, since there is no actor to record |
-| 18 | ~~Health and readiness endpoints~~ | **Done** |
+| 15 | **Audit trail** | Mongo-shaped and documented; blocked on authentication, since there is no actor to record |
+| 16 | ~~Health and readiness endpoints~~ | **Done** |
 | 18b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
-| 19 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
-| 20 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
-| 21 | **GDPR automation** | Requests are accepted, tracked against the one-month clock, and carried out — export assembles, erasure anonymises. What is missing is automation: identity verification is a human step and the clock is not alerted on |
-| 22 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
+| 17 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
+| 18 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
+| 19 | **GDPR automation** | Requests are accepted, tracked against the one-month clock, and carried out — export assembles, erasure anonymises. What is missing is automation: identity verification is a human step and the clock is not alerted on |
+| 20 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 
 ## 6. Physical-service bridge
 
@@ -80,11 +81,11 @@ rather than a phone call.
 
 | # | Gap |
 |---|---|
-| 23 | **Vendor availability calendar** — booking a caterer currently means asking them |
-| 24 | **Delivery and logistics tracking** for decor and printed stationery |
-| 25 | **Printed companion orders** — print-on-demand from the same design |
-| 26 | **On-site staff assignment** for the day-of coordinator in Production tier |
-| 27 | **Physical ticket fallback** — QR on paper for guests without smartphones |
+| 21 | **Vendor availability calendar** — booking a caterer currently means asking them |
+| 22 | **Delivery and logistics tracking** for decor and printed stationery |
+| 23 | **Printed companion orders** — print-on-demand from the same design |
+| 24 | **On-site staff assignment** for the day-of coordinator in Production tier |
+| 25 | **Physical ticket fallback** — QR on paper for guests without smartphones |
 
 ---
 
