@@ -95,7 +95,8 @@ test/
 | `POST` | `/api/auth/logout` | Revoke one session |
 | `POST` | `/api/auth/logout-everywhere` | Revoke every session |
 | `POST` | `/api/events/:eventId/media` | Upload an image or audio file (multipart) |
-| `GET` | `/api/health/live` · `/ready` | Liveness and readiness |
+| `GET` | `/api/health/live` | Process is running |
+| `GET` | `/api/health/ready` | Dependencies reachable; only Postgres is required |
 
 **Every route requires a session unless it is marked `@Public()`.** Organizer
 routes additionally declare `@RequirePermission(...)`, and routes not keyed by
@@ -109,7 +110,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/invitations/:slug/g/:guestToken` | Personalized for one guest |
 | `GET` | `/api/invitations/:slug/g/:guestToken/rsvp` | Read current response |
 | `POST` | `/api/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
-| `GET` | `/api/events/:eventId/find-seat?q=` | Guest seat lookup by name |
+| `GET` | `/api/events/:eventId/find-seat` | Guest seat lookup by name (`?q=`) |
 | `PATCH` | `/api/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
 
 ### Organizer — **auth not yet implemented** (see Next)
@@ -139,6 +140,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/public/events/:slug` | One announcement, availability, preview metadata |
 | `POST` | `/api/public/events/:slug/orders` | Reserve tickets and start payment (idempotent) |
 | `GET` | `/api/ticket-orders/:accessToken` | A buyer's own order and tickets |
+| `POST` | `/api/ticket-orders/:accessToken/confirm` | Settle after the bank; issues tickets |
 | `POST` | `/api/tickets/:code/admit` | Admit at the door; a code admits once |
 | `POST` | `/api/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
 
@@ -190,7 +192,12 @@ rather than a per-table delete loop.
 ```bash
 npm run lint         # must be clean, zero warnings
 npm run lint:fix
+npm run docs:check   # fails when the docs contradict the code
 ```
+
+`docs:check` compares documented endpoints against the controllers, verifies
+every link in every doc resolves, and checks that each permission the policy
+grants is described. `npm run verify` runs it.
 
 The config enforces the house rules: complexity ≤ 10, depth ≤ 3, 60 lines per
 function, boolean names as assertions (`isPublished`, `hasSeats`), and

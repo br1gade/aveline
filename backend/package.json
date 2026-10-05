@@ -1,7 +1,7 @@
 {
   "name": "@aveline/backend",
   "version": "0.1.0",
-  "description": "Aveline backend — event invitations, guest graph and operations",
+  "description": "Aveline backend \u2014 event invitations, guest graph and operations",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -26,7 +26,8 @@
     "test:int": "jest --config ./test/jest-integration.json --runInBand",
     "test:all": "npm run test:unit && npm run test:int && npm run test:e2e",
     "lint:fix": "eslint . --fix",
-    "verify": "npm run lint && npm run build && npm run test:all"
+    "verify": "npm run lint && npm run docs:check && npm run build && npm run test:all",
+    "docs:check": "node scripts/check-docs.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

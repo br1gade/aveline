@@ -179,7 +179,17 @@ it is believed. If you cannot update the doc, you do not understand the change
 well enough to ship it.
 
 **Every doc states what is not yet built.** Keep those sections honest — they
-are the first thing a new reader checks.
+are the first thing a new reader checks, and they are the part that rots
+fastest. When you build something, delete its entry; do not leave it for later.
+
+`npm run docs:check` fails the build on the drift that can be detected
+mechanically: a broken link, an endpoint in the code but not the README or the
+reverse, a permission the policy grants but the doc never mentions, a module
+missing from the architecture tree. It runs inside `npm run verify`.
+
+It cannot check prose. A "not yet built" list that has quietly become false is
+still on you — and that is the failure that has actually happened here, more
+than once.
 
 ## 11. Migrations
 

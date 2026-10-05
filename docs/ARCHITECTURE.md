@@ -25,6 +25,7 @@ src/
     ticketing/      inventory, checkout, admission
     public-events/  announcements and listings
     communications/ outbox; channels/ holds one transport each
+    media/          uploads, recorded as MediaAsset
   prisma/           PrismaService
 ```
 

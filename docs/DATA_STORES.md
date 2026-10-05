@@ -75,12 +75,33 @@ a cache key, ask what bounds it.
 With Redis stopped mid-flight, the invitation endpoint keeps serving correct
 content in ~20 ms — the payload is simply rebuilt from Postgres each time.
 
+### Also in use
+
+**Rate limiting.** A global throttle (10/s, 100/min) stands in front of every
+route, which matters most for the unauthenticated ones — RSVP, ticket checkout
+and payment registration.
+
+**Distributed locks.** Each scheduled sweep takes a lock with `SET NX EX`, one
+atomic operation, so two API instances cannot both run it. If Redis is
+unreachable the sweeps are skipped rather than run unguarded: delaying a
+message is better than sending it twice.
+
 ### Intended, not yet built
 
-- **Rate limiting** the public RSVP endpoint
-- **Idempotency keys** so a double-tapped RSVP cannot double-submit
-- **Job queue** (BullMQ) for seating computation, exports and image processing
-- **Session storage** once authentication exists
+- **Job queue** (BullMQ) for retryable per-item work — exports, image
+  processing, seating computation. Cron plus a lock covers periodic sweeps and
+  is far less machinery; a queue is for work that must retry individually
+- **Per-actor rate limits** rather than one global throttle
+
+### Decided differently
+
+**Sessions live in Postgres, not Redis.** They were going to go here, but a
+session must be revocable and auditable, and losing the store would sign
+everyone out — which fails the "only what can be rebuilt" rule above.
+
+**Idempotency is a database constraint**, not a Redis key. A unique column
+holds under concurrency; a cache entry can be evicted at exactly the wrong
+moment.
 
 ---
 

@@ -5,7 +5,8 @@ import prettier from 'eslint-config-prettier';
 import jest from 'eslint-plugin-jest';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'eslint.config.mjs'] },
+    // Build tooling: plain Node ESM, outside the TypeScript project service.
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'storage/**', '*.mjs', 'scripts/**'] },
 
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

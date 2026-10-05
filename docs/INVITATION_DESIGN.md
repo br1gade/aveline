@@ -141,12 +141,26 @@ numbers.
 
 ---
 
-## 6. Not yet built
+## 6. What is built
 
-1. **Design endpoints.** The models exist; nothing writes blocks, themes or
-   media over HTTP yet.
-2. **Theme validation** against `allowedFonts`, `palettes` and
-   `supportedBlocks` on write. Currently nothing stops an out-of-range value.
-3. **Upload pipeline** — storage, resizing, format conversion, `sizeBytes`.
+**Arrangement.** `PATCH /invitations/:slug/arrangement` reorders, toggles and
+re-variants every block in one transaction, validated against the template's
+`supportedBlocks` before any write — so a rejected arrangement changes
+nothing and the error names the offending block.
+
+**Uploads.** `POST /events/:eventId/media` accepts multipart, enforces a MIME
+allowlist and a 10 MB ceiling, and records a `MediaAsset` with its
+`sizeBytes`. Files are stored under a generated key, never the uploaded
+filename.
+
+## 7. Not yet built
+
+1. **Theme validation.** `allowedFonts` and `palettes` are *exposed* in the
+   invitation payload but never checked on write, so an out-of-range font can
+   still be stored. Blocks are validated; the rest of the theme is not.
+2. **Image processing** — resizing, format conversion, thumbnails. One
+   original is stored as uploaded.
+3. **Content endpoints.** Block copy, themes and cover images have no write
+   path yet; only arrangement does.
 4. **Signature capture** on the client and its asset write path.
 5. **Template preview** rendering.

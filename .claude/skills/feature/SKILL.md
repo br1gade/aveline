@@ -104,6 +104,10 @@ Not the next commit. This one.
 A doc describing code that no longer exists is worse than no doc, because it is
 believed.
 
+`npm run docs:check` catches broken links, undocumented endpoints and missing
+permissions. It cannot catch a "not yet built" list that has become false —
+re-read that section and delete what you just built.
+
 ## 7. Verify
 
 ```bash

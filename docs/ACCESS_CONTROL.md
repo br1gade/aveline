@@ -131,13 +131,36 @@ is what makes the policy a pure function.
 
 ---
 
-## 5. Not yet built
+## 5. How a session works
 
-1. **Authentication.** There is no session, token issuance or password flow.
-   Organizer endpoints are currently unauthenticated.
-2. **The guard.** `access-policy.ts` is pure; nothing calls it from a NestJS
-   guard yet. That guard must resolve the actor, load memberships, and check
-   both permission *and* ownership.
-3. **Token rotation** for guest links and vendor briefs.
-4. **Audit trail** — who changed what, which matters most for `SUPPORT` acting
-   on a customer's behalf.
+Accounts authenticate with email and password. A successful login returns a
+short-lived **access token** (a JWT carrying only the user id, email and
+platform role) and a long-lived **refresh token**.
+
+Refresh tokens are stored as rows (`Session`) rather than trusted on their
+own, because a JWT cannot be withdrawn before it expires and a staff account
+that acts on customers' behalf must be revocable immediately. Only the
+SHA-256 of each token is stored, so a database leak does not hand over live
+sessions.
+
+**Refresh rotates.** Presenting a refresh token revokes it and issues a new
+pair, so a stolen token works at most once — and its use invalidates the
+victim's session, which is how the theft becomes visible.
+
+Roles are **never** read from the token. `AuthGuard` loads membership from the
+database on every request, so removing someone from an event takes effect
+immediately rather than when their token expires.
+
+Two supporting models complete the lifecycle: `VerificationToken` for password
+reset and email verification, and `OrganizationInvite` for adding a teammate —
+separate, because an invitee may not have an account yet.
+
+## 6. Not yet built
+
+1. **Rotation for guest links and vendor briefs.** Account sessions rotate;
+   capability tokens are still issued once and never replaced.
+2. **Audit trail** — who changed what, which matters most for `SUPPORT` acting
+   on a customer's behalf. Unblocked now that there is an actor to record.
+3. **Per-actor rate limits.** The throttle is global rather than per account.
+4. **Accepting an invite / resetting a password.** Both are modelled; neither
+   has an endpoint.

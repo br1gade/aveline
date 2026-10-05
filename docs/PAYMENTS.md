@@ -47,6 +47,9 @@ card data and PCI scope stays minimal. Do not break that by proxying a form.
 | In-process fake, for tests and local dev | [`providers/fake.gateway.ts`](../backend/src/modules/payments/providers/fake.gateway.ts) |
 | Orchestration, idempotency, reconciliation | [`payments.service.ts`](../backend/src/modules/payments/payments.service.ts) |
 
+`Refund` records each refund individually; `Payment.refundedMinor` is the
+running total used to decide whether another one fits.
+
 Inecobank and IDBank share one adapter because they run the same ArCa protocol
 (`register.do`, `getOrderStatusExtended.do`); only the base URL and credentials
 differ.
@@ -144,18 +147,24 @@ Visa, Mastercard and ArCa come with any of the three gateways.
 6. **Confirm the callback mechanism** each bank offers. We poll on confirm and
    reconcile; if a bank pushes a webhook, its signature must be verified.
 
-## 7. Not yet built
+## 7. What uses it
 
-- **Ticketing.** `PaymentPurpose.TICKET` exists; the subsystem around it does
-  not — `Event.visibility`, ticket tiers, concurrency-safe inventory, orders
-  and issuance. Overselling under concurrent purchase is a correctness problem
-  and is the hard part.
-- **Subscriptions.** `PaymentPurpose.SUBSCRIPTION` exists. Recurring charges on
-  these gateways mean **card binding** (storing a token with the bank and
-  charging it later), which is a different API surface and usually a separate
-  authorization from the bank.
+**Ticketing** is built on this core: checkout registers a payment, and
+confirming it commits inventory and issues tickets. Ticketing calls payments
+rather than the reverse, so payments stays ignorant of what it is paying for.
+See [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §13.
+
+## 8. Not yet built
+
+- **Subscriptions.** `Plan`, `Subscription` and `Invoice` are modelled, and
+  `Subscription.bindingRef` is where a stored-card token goes. Nothing charges
+  or renews yet. Recurring charges on these gateways mean **card binding** —
+  the bank holds the card and returns a token — which is a different API
+  surface and usually a separate authorization from the bank.
 - **Deposits wired to the booking flow.** The payment core supports it; nothing
   yet marks an event confirmed when a deposit captures.
-- **Payouts to vendors.** `VendorBooking.feeAmount` records what is owed; no
-  disbursement exists.
-- **Invoicing and tax.**
+- **Tax.** `Invoice.taxMinor` holds an amount; nothing computes one.
+- **Payouts to vendors.** `VendorBooking.feeAmount` records what is owed;
+  disbursement needs a banking relationship we do not have.
+- **Refund execution against a real bank.** The `Refund` model and the gateway
+  calls exist but have never run against a sandbox.
