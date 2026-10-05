@@ -1,0 +1,37 @@
+# TLS, obtained and renewed by Caddy itself.
+#
+# The renewal is the part that fails silently months later, so it is the
+# proxy's own job here rather than a cron job nobody checks.
+
+{
+	email {$ACME_EMAIL}
+	# Uncomment while testing, to avoid Let's Encrypt's rate limits on a
+	# domain whose DNS is still being sorted out:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# The app reads X-Forwarded-For to rate-limit per client; Caddy sets it,
+	# and TRUST_PROXY_HOPS=1 is what makes the app believe exactly this hop.
+	reverse_proxy api:3000
+
+	header {
+		# HSTS. Only safe once the domain is definitely served over TLS —
+		# a browser that has seen this will refuse plain HTTP for a year.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# The API serves JSON, not pages, so nothing needs to be framed or
+		# to load scripts.
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

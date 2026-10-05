@@ -1,0 +1,171 @@
+# Aveline in production, on one host.
+#
+# Deliberately a single machine: every blocker in docs/GOING_LIVE.md that this
+# file does not solve — replication, failover — costs more to run than the
+# product earns at this stage, and pretending otherwise would mean an
+# architecture nobody can operate. What it does solve is the set of things
+# whose absence loses data or customers: TLS, restarts, health-gated startup,
+# migrations, and backups.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Everything secret comes from the env file, which is never committed. See
+# docs/DEPLOYMENT.md.
+
+name: aveline
+
+services:
+  # ── The edge ──────────────────────────────────────────────────────────
+  # Caddy terminates TLS and obtains certificates by itself. Chosen over
+  # nginx plus certbot because the renewal is the part that fails silently at
+  # 3am, and here it is the proxy's own job rather than a cron nobody checks.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+    depends_on:
+      api:
+        condition: service_started
+
+  # ── Migrations ────────────────────────────────────────────────────────
+  # A separate one-shot container, not a step inside the API's start command.
+  # Two reasons: a failed migration must stop the deploy instead of leaving an
+  # API restarting against a schema it cannot use, and running them once is
+  # what keeps two API replicas from migrating concurrently later.
+  migrate:
+    image: ${API_IMAGE:-aveline-api:latest}
+    build:
+      context: .
+    restart: 'no'
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    env_file: [.env.production]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: ${API_IMAGE:-aveline-api:latest}
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      # One proxy in front: Caddy. Without this the rate limiter sees every
+      # request as coming from Caddy and its per-client limit becomes global.
+      TRUST_PROXY_HOPS: '1'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    # Long enough for Nest's shutdown hooks to close the Postgres, Redis and
+    # Mongo connections. The default 10s is usually enough and occasionally
+    # is not, and the cost of being generous is a slower deploy.
+    stop_grace_period: 30s
+    expose:
+      - '3000'
+
+  # ── Stores ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-aveline}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-aveline}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published. Nothing outside this network needs to reach the database,
+    # and an exposed Postgres is found by scanners within hours.
+    expose:
+      - '5432'
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # No persistence: everything in Redis is a cache, a rate-limit counter or
+    # a job lock, all of which rebuild. An eviction policy rather than an
+    # out-of-memory error is the behaviour a cache should have.
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'no',
+        '--save',
+        '',
+        '--maxmemory',
+        '${REDIS_MAXMEMORY:-512mb}',
+        '--maxmemory-policy',
+        'allkeys-lru',
+      ]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    expose:
+      - '6379'
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?set MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?set MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-aveline}
+    volumes:
+      - mongodata:/data/db
+    expose:
+      - '27017'
+
+  garage:
+    image: dxflrs/garage:v2.1.0
+    restart: unless-stopped
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    expose:
+      - '3900'
+      - '3902'
+
+  # ── Backups ───────────────────────────────────────────────────────────
+  # In the same compose file as the thing it protects, because a backup that
+  # lives in someone's personal crontab is a backup nobody knows the state of.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: [.env.production]
+    volumes:
+      - ./scripts:/scripts:ro
+      - backups:/backups
+      - garage-data:/garage-data:ro
+      - garage-meta:/garage-meta:ro
+    entrypoint: ['/bin/sh', '/scripts/backup-loop.sh']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  mongodata:
+  garage-meta:
+  garage-data:
+  caddy-data:
+  caddy-config:
+  backups:

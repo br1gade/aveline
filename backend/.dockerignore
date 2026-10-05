@@ -1,0 +1,19 @@
+# Everything the build does not need, which is most of it. A smaller context
+# means a faster build and less chance of a secret reaching the image.
+node_modules
+dist
+coverage
+.git
+.env
+.env.*
+!.env.example
+.dev-credentials.md
+*.log
+.history
+.vscode
+.idea
+test
+garage
+docker-compose*.yml
+Dockerfile
+.dockerignore

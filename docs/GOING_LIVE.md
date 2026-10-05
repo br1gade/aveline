@@ -35,8 +35,8 @@ customer's trust.
 |---|---|---|
 | 8 | **`JWT_SECRET` must be real** | The app refuses to boot in production without it, which is the guard — but it must be generated, stored in a secret manager, and rotatable |
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
-| 10 | **No backups** | Postgres holds the entire domain and Garage holds every photo. Both are single-node. Losing either disk loses everything permanently |
-| 11 | **No TLS** | Everything is plain HTTP on localhost today |
+| 10 | **Off-host backup copies** | A verified nightly Postgres dump and Garage archive now run on the host, with a tested restore. They do not survive losing the machine until `BACKUP_SYNC_COMMAND` points somewhere else |
+| 11 | **A host and a domain** | The deployment is built — container, compose, TLS via Caddy, health-gated migrations — and has never run anywhere but this laptop. It needs a machine and DNS |
 | 12 | **WhatsApp business verification** | The transport is built and inert. Meta needs a verified business — trade licence, tax papers, a dedicated number — and message templates approved in advance. Days to weeks, like the bank accounts |
 | 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
 
@@ -44,7 +44,7 @@ customer's trust.
 
 | # | Blocker | Why |
 |---|---|---|
-| 14 | **No deployment** | No container build, no host, no process supervision, no restart policy |
+| 14 | **Zero-downtime deploys** | One API container, so a deploy is a restart and requests in flight fail. Acceptable at a few hundred guests; two replicas is the real answer |
 | 15 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
 | 16 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
 | 17 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |

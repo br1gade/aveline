@@ -5,6 +5,7 @@ const isSentryEnabled = initialiseSentry(process.env);
 
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -13,7 +14,7 @@ import { SerializeInterceptor } from './common/interceptors/serialize';
 async function bootstrap() {
   // bufferLogs holds startup messages until pino is attached, so nothing is
   // emitted in the default format and then again in ours.
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.useLogger(app.get(PinoLogger));
 
   const logger = app.get(PinoLogger);
@@ -32,6 +33,22 @@ async function bootstrap() {
   // Without this, the disconnect handlers on the Redis and Mongo modules never
   // run: a deploy leaves connections open until the server times them out.
   app.enableShutdownHooks();
+
+  /**
+   * How many reverse proxies sit in front of us.
+   *
+   * This matters more than it looks. Behind a proxy every request arrives from
+   * the proxy's address, so without this the rate limiter sees one client and
+   * its per-client limit becomes a global one — a hundred requests a minute
+   * for the entire internet.
+   *
+   * It is a count rather than `true` on purpose: trusting the whole
+   * `X-Forwarded-For` chain lets a caller prepend any address they like and
+   * evade the limiter entirely. The default of 0 trusts nothing, so running
+   * without a proxy is safe and the deployment that has one declares it.
+   */
+  const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+  if (proxyHops > 0) app.set('trust proxy', proxyHops);
 
   // An open CORS policy lets any site call the API with a user's credentials.
   // Development stays permissive; production must name its origins.
