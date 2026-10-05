@@ -26,6 +26,7 @@ src/
     public-events/  announcements and listings
     communications/ outbox; channels/ holds one transport each
     media/          uploads, recorded as MediaAsset
+    devices/        push registration tokens
   prisma/           PrismaService
 ```
 
@@ -35,6 +36,8 @@ is a module despite feeling infrastructural, because what a captured payment
 *means* is a product decision.
 
 ## 2. Request lifecycle
+
+All routes are served under `/api/v1`.
 
 ```
 boot

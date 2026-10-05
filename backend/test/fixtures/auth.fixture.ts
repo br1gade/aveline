@@ -18,7 +18,7 @@ export async function authenticateAs(
   const email = `test-${randomUUID().slice(0, 8)}@aveline.test`;
 
   const { body } = await request(app.getHttpServer() as Server)
-    .post('/api/auth/register')
+    .post('/api/v1/auth/register')
     .send({ email, password: 'a-long-enough-test-password', name: 'Test User' })
     .expect(201);
 

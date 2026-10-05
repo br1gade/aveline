@@ -51,7 +51,7 @@ for (const file of walk(join(backend, 'src')).filter((f) => f.endsWith('.control
   const src = read(file);
   const base = src.match(/@Controller\('([^']*)'\)/)?.[1] ?? '';
   for (const [, verb, path] of src.matchAll(/@(Get|Post|Patch|Put|Delete)\('?([^')]*)'?\)/g)) {
-    const full = ['api', base, path].filter(Boolean).join('/');
+    const full = ['api/v1', base, path].filter(Boolean).join('/');
     actualRoutes.add(`${verb.toUpperCase()} ${normalise('/' + full)}`);
   }
 }

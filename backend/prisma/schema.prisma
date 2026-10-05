@@ -56,6 +56,9 @@ model User {
   passwordHash String?
   isActive     Boolean      @default(true)
   lastLoginAt  DateTime?
+  /// Account closure. Soft rather than hard, because a deleted user is still
+  /// referenced by the events they ran and the payments they authorised.
+  deletedAt    DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -63,6 +66,7 @@ model User {
   eventMemberships        EventMembership[]
   sessions                Session[]
   verificationTokens      VerificationToken[]
+  deviceTokens            DeviceToken[]
 
   @@map("users")
 }
@@ -448,13 +452,14 @@ model Guest {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  rsvp      Rsvp?
-  seat      Seat?
-  checkIn   CheckIn?
-  ticket    Ticket?
-  messages  Message[]
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  rsvp         Rsvp?
+  seat         Seat?
+  checkIn      CheckIn?
+  ticket       Ticket?
+  messages     Message[]
+  deviceTokens DeviceToken[]
 
   @@index([eventId])
   @@index([householdId])
@@ -1045,11 +1050,17 @@ model Message {
   /// failures surface against a name rather than an address.
   guestId        String?
 
+  /// Outbound today. The field exists so receiving a reply later is an
+  /// additive change rather than a reshape of a table with history in it.
+  direction   MessageDirection @default(OUTBOUND)
   channel     MessageChannel
+  /// Groups a message with its replies. Null until two-way messaging exists;
+  /// a provider's conversation id goes here when it does.
+  threadKey   String?
   templateKey String?
   /// Email address, phone number or chat id, depending on channel.
   toAddress   String
-  locale      String         @default("hy")
+  locale      String           @default("hy")
 
   /// Rendered at enqueue time, so what was sent stays knowable even after
   /// the template changes.
@@ -1078,8 +1089,14 @@ model Message {
 
   /// The dispatcher claims due work oldest-first.
   @@index([status, scheduledFor])
+  @@index([threadKey])
   @@index([eventId])
   @@map("messages")
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
 }
 
 enum MessageChannel {
@@ -1102,6 +1119,103 @@ enum MessageStatus {
   BOUNCED
   /// Recipient opted out; never attempted.
   SUPPRESSED
+}
+
+// ─────────────────────── Data-subject requests ─────────────────────────
+
+/// A person asking what is held about them, or asking for it to go.
+///
+/// Tracked as a row because the obligation has a clock: a response is due
+/// within one month, and being able to show *when* a request arrived and what
+/// was done is the point. An ad-hoc deletion leaves no evidence it happened.
+///
+/// Note that `Rsvp.dietary` and `dietaryNotes` are special-category data under
+/// GDPR — they can reveal health or religion — so an erasure must clear them
+/// even though they look operational.
+model DataSubjectRequest {
+  id     String                   @id @default(cuid())
+  kind   DataSubjectRequestKind
+  status DataSubjectRequestStatus @default(RECEIVED)
+
+  /// How the requester identified themselves. They may be a guest with no
+  /// account, so an address is the only reliable handle.
+  subjectEmail   String
+  organizationId String?
+  guestId        String?
+  userId         String?
+
+  requestedAt DateTime  @default(now())
+  /// One month from receipt, per GDPR Article 12.
+  dueAt       DateTime
+  completedAt DateTime?
+
+  /// Where an export landed, when the request was for one.
+  resultAssetId   String?
+  handledByUserId String?
+  notes           String?
+
+  @@index([status, dueAt])
+  @@index([subjectEmail])
+  @@map("data_subject_requests")
+}
+
+enum DataSubjectRequestKind {
+  /// Article 15 — a copy of what is held.
+  EXPORT
+  /// Article 17 — erasure.
+  ERASURE
+  /// Article 16 — correction.
+  RECTIFICATION
+}
+
+enum DataSubjectRequestStatus {
+  RECEIVED
+  /// Identity not yet established. Acting on an unverified request is itself
+  /// a breach.
+  VERIFYING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+// ──────────────────────────── Push delivery ────────────────────────────
+
+/// A device that can receive a push notification.
+///
+/// MessageChannel.PUSH existed as a channel nothing could deliver on. A token
+/// belongs to a user (an organizer's app) or to a guest (a guest-facing app),
+/// never both, and tokens are rotated by the platform, so the same device may
+/// re-register with a new one.
+model DeviceToken {
+  id      String  @id @default(cuid())
+  userId  String?
+  guestId String?
+
+  platform DevicePlatform
+  /// APNs/FCM registration token. Unique so a re-registration replaces rather
+  /// than duplicating, which would deliver the same notification twice.
+  token    String         @unique
+
+  appVersion String?
+  locale     String?
+
+  lastSeenAt DateTime  @default(now())
+  /// Set when the platform reports the token as no longer valid.
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guest Guest? @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([guestId, revokedAt])
+  @@map("device_tokens")
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
 }
 
 // ─────────────────────────── Guest list import ─────────────────────────

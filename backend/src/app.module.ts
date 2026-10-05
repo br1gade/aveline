@@ -23,6 +23,7 @@ import { TicketingModule } from './modules/ticketing/ticketing.module';
 import { PublicEventsModule } from './modules/public-events/public-events.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { MediaModule } from './modules/media/media.module';
+import { DevicesModule } from './modules/devices/devices.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { MediaModule } from './modules/media/media.module';
     PublicEventsModule,
     CommunicationsModule,
     MediaModule,
+    DevicesModule,
 
     // Last: its sweeps depend on the domain modules above.
     JobsModule,

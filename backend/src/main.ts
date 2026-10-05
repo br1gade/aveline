@@ -9,7 +9,9 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const isProduction = process.env.NODE_ENV === 'production';
 
-  app.setGlobalPrefix('api');
+  // Versioned from the start. Adding a version once clients exist means
+  // supporting both forever; carrying one from day one costs nothing.
+  app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );

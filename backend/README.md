@@ -17,6 +17,8 @@ Event invitations, the guest graph, and the operations derived from them.
 
 **Stack:** TypeScript · NestJS 11 · PostgreSQL 16 · Prisma 6 · Redis 7 · MongoDB 7
 
+All routes are under `/api/v1`.
+
 ---
 
 ## The idea in one paragraph
@@ -89,14 +91,16 @@ test/
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/auth/register` | Create an account, get a token pair |
-| `POST` | `/api/auth/login` | Exchange credentials for a token pair |
-| `POST` | `/api/auth/refresh` | Rotate a refresh token; the old one is revoked |
-| `POST` | `/api/auth/logout` | Revoke one session |
-| `POST` | `/api/auth/logout-everywhere` | Revoke every session |
-| `POST` | `/api/events/:eventId/media` | Upload an image or audio file (multipart) |
-| `GET` | `/api/health/live` | Process is running |
-| `GET` | `/api/health/ready` | Dependencies reachable; only Postgres is required |
+| `POST` | `/api/v1/auth/register` | Create an account, get a token pair |
+| `POST` | `/api/v1/auth/login` | Exchange credentials for a token pair |
+| `POST` | `/api/v1/auth/refresh` | Rotate a refresh token; the old one is revoked |
+| `POST` | `/api/v1/auth/logout` | Revoke one session |
+| `POST` | `/api/v1/auth/logout-everywhere` | Revoke every session |
+| `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
+| `POST` | `/api/v1/devices` | Register this device for push (idempotent by token) |
+| `DELETE` | `/api/v1/devices/:token` | Stop sending to this device |
+| `GET` | `/api/v1/health/live` | Process is running |
+| `GET` | `/api/v1/health/ready` | Dependencies reachable; only Postgres is required |
 
 **Every route requires a session unless it is marked `@Public()`.** Organizer
 routes additionally declare `@RequirePermission(...)`, and routes not keyed by
@@ -106,43 +110,43 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/invitations/:slug` | Invitation payload, cached per slug and locale |
-| `GET` | `/api/invitations/:slug/g/:guestToken` | Personalized for one guest |
-| `GET` | `/api/invitations/:slug/g/:guestToken/rsvp` | Read current response |
-| `POST` | `/api/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
-| `GET` | `/api/events/:eventId/find-seat` | Guest seat lookup by name (`?q=`) |
-| `PATCH` | `/api/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
+| `GET` | `/api/v1/invitations/:slug` | Invitation payload, cached per slug and locale |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken` | Personalized for one guest |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Read current response |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
+| `GET` | `/api/v1/events/:eventId/find-seat` | Guest seat lookup by name (`?q=`) |
+| `PATCH` | `/api/v1/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
 
 ### Organizer — **auth not yet implemented** (see Next)
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/events` | List events |
-| `GET` | `/api/events/:id` | Detail with venues and timeline |
-| `GET` | `/api/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
-| `GET` | `/api/events/:id/guests` | Guest graph grouped by household |
-| `GET` | `/api/events/:id/headcount` | Live headcount by response and side |
-| `GET` | `/api/events/:id/catering-sheet` | Covers plus dietary requirements |
-| `GET` | `/api/events/:id/bar-sheet` | Drink preferences as quantities |
-| `GET` | `/api/events/:id/playlist` | Deduplicated song requests |
-| `GET` | `/api/events/:id/guest-book` | Messages left by guests |
-| `POST` | `/api/payments` | Register an order, get the bank form URL (idempotent) |
-| `GET` | `/api/payments/:orderNumber` | Payment state |
-| `POST` | `/api/payments/:orderNumber/confirm` | Server-to-server outcome check |
-| `POST` | `/api/payments/:orderNumber/refund` | Full or partial refund |
-| `POST` | `/api/payments/reconcile` | Sweep unresolved payments |
+| `GET` | `/api/v1/events` | List events |
+| `GET` | `/api/v1/events/:id` | Detail with venues and timeline |
+| `GET` | `/api/v1/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
+| `GET` | `/api/v1/events/:id/guests` | Guest graph grouped by household |
+| `GET` | `/api/v1/events/:id/headcount` | Live headcount by response and side |
+| `GET` | `/api/v1/events/:id/catering-sheet` | Covers plus dietary requirements |
+| `GET` | `/api/v1/events/:id/bar-sheet` | Drink preferences as quantities |
+| `GET` | `/api/v1/events/:id/playlist` | Deduplicated song requests |
+| `GET` | `/api/v1/events/:id/guest-book` | Messages left by guests |
+| `POST` | `/api/v1/payments` | Register an order, get the bank form URL (idempotent) |
+| `GET` | `/api/v1/payments/:orderNumber` | Payment state |
+| `POST` | `/api/v1/payments/:orderNumber/confirm` | Server-to-server outcome check |
+| `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |
+| `POST` | `/api/v1/payments/reconcile` | Sweep unresolved payments |
 
 ### Public — announcements and ticketing
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/public/events` | Browse published public events |
-| `GET` | `/api/public/events/:slug` | One announcement, availability, preview metadata |
-| `POST` | `/api/public/events/:slug/orders` | Reserve tickets and start payment (idempotent) |
-| `GET` | `/api/ticket-orders/:accessToken` | A buyer's own order and tickets |
-| `POST` | `/api/ticket-orders/:accessToken/confirm` | Settle after the bank; issues tickets |
-| `POST` | `/api/tickets/:code/admit` | Admit at the door; a code admits once |
-| `POST` | `/api/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
+| `GET` | `/api/v1/public/events` | Browse published public events |
+| `GET` | `/api/v1/public/events/:slug` | One announcement, availability, preview metadata |
+| `POST` | `/api/v1/public/events/:slug/orders` | Reserve tickets and start payment (idempotent) |
+| `GET` | `/api/v1/ticket-orders/:accessToken` | A buyer's own order and tickets |
+| `POST` | `/api/v1/ticket-orders/:accessToken/confirm` | Settle after the bank; issues tickets |
+| `POST` | `/api/v1/tickets/:code/admit` | Admit at the door; a code admits once |
+| `POST` | `/api/v1/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
 
 ## Three design decisions worth knowing
 

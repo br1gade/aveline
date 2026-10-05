@@ -15,6 +15,7 @@ import {
   EVENT_SCOPE,
   EventScopeSource,
   IS_PUBLIC,
+  ORGANIZATION_SCOPE,
   REQUIRED_PERMISSION,
   RequestActor,
 } from './actor';
@@ -60,8 +61,13 @@ export class AuthGuard implements CanActivate {
       context.getClass(),
     ]);
 
+    const isOrganizationScoped = this.reflector.getAllAndOverride<boolean>(ORGANIZATION_SCOPE, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
     const claims = await this.verifyToken(request.headers.authorization);
-    const actor = await this.resolveActor(claims, request.params, scope);
+    const actor = await this.resolveActor(claims, request.params, scope, isOrganizationScoped);
     request.actor = actor;
 
     const required = this.reflector.getAllAndOverride<Permission | undefined>(
@@ -98,6 +104,7 @@ export class AuthGuard implements CanActivate {
     claims: AccessTokenClaims,
     params: Record<string, string | undefined>,
     scope: EventScopeSource | undefined,
+    isOrganizationScoped = false,
   ): Promise<RequestActor> {
     const user = await this.prisma.user.findUnique({
       where: { id: claims.sub },
@@ -106,7 +113,11 @@ export class AuthGuard implements CanActivate {
     if (!user?.isActive) throw new UnauthorizedException('Account is not active');
 
     const eventId = await this.eventIdFrom(params, scope);
-    const { eventRole, organizationRole, organizationId } = await this.rolesOn(user.id, eventId);
+    const { eventRole, organizationRole, organizationId } = await this.standingOf(
+      user.id,
+      eventId,
+      isOrganizationScoped,
+    );
 
     return {
       userId: user.id,
@@ -115,6 +126,37 @@ export class AuthGuard implements CanActivate {
       eventRole,
       organizationRole,
       organizationId,
+    };
+  }
+
+  /**
+   * What this actor's standing is, by how the route is scoped: on one event,
+   * on their own organization, or — for a route scoped to neither — nothing,
+   * leaving only their platform role to grant anything.
+   */
+  private async standingOf(userId: string, eventId: string | undefined, isOrganizationScoped: boolean) {
+    if (eventId) return this.rolesOn(userId, eventId);
+    if (isOrganizationScoped) return this.organizationRoleOf(userId);
+    return { eventRole: null, organizationRole: null, organizationId: null };
+  }
+
+  /**
+   * The actor's own organization, for routes not scoped to one event.
+   *
+   * Read from their membership rather than a request parameter: taking an
+   * organization id from the caller would let any authenticated account name
+   * someone else's tenant.
+   */
+  private async organizationRoleOf(userId: string) {
+    const membership = await this.prisma.organizationMembership.findFirst({
+      where: { userId },
+      select: { role: true, organizationId: true },
+    });
+
+    return {
+      eventRole: null,
+      organizationRole: membership?.role ?? null,
+      organizationId: membership?.organizationId ?? null,
     };
   }
 

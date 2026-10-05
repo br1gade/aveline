@@ -43,6 +43,17 @@ export const EVENT_SCOPE = 'eventScope';
 export type EventScopeSource = 'eventId' | 'id' | 'invitationSlug' | 'listingSlug';
 export const EventScope = (source: EventScopeSource) => SetMetadata(EVENT_SCOPE, source);
 
+/**
+ * Marks a route scoped to an organization rather than one event.
+ *
+ * Without this, a route with no `:eventId` resolved no roles at all, so an
+ * ordinary member was refused access to a list of their own events and only
+ * platform staff could use it. The organization is taken from the actor's
+ * membership, never from a query parameter the caller controls.
+ */
+export const ORGANIZATION_SCOPE = 'organizationScope';
+export const OrganizationScope = () => SetMetadata(ORGANIZATION_SCOPE, true);
+
 /** Injects the resolved actor into a handler. */
 export const CurrentActor = createParamDecorator(
   (_data: unknown, context: ExecutionContext): RequestActor | undefined =>

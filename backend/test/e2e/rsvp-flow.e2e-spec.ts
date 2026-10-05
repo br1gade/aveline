@@ -31,7 +31,7 @@ describe('RSVP flow (e2e)', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api');
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
   });
@@ -46,14 +46,14 @@ describe('RSVP flow (e2e)', () => {
   it('serves a published invitation and personalizes it for a guest', async () => {
     const { slug, primaryGuestToken } = await seedEvent(prisma);
 
-    const anonymous = await http().get(`/api/invitations/${slug}`).expect(200);
+    const anonymous = await http().get(`/api/v1/invitations/${slug}`).expect(200);
     expect(anonymous.body.guest).toBeNull();
     expect(anonymous.body.locale).toBe('hy');
     const { blocks } = anonymous.body as { blocks: { type: string }[] };
     expect(blocks.map((block) => block.type)).toEqual(['HERO', 'RSVP']);
 
     const personalized = await http()
-      .get(`/api/invitations/${slug}/g/${primaryGuestToken}`)
+      .get(`/api/v1/invitations/${slug}/g/${primaryGuestToken}`)
       .expect(200);
     expect(personalized.body.guest.name).toBe('Primary Guest');
     expect(personalized.body.guest.household.seatsAllotted).toBe(2);
@@ -62,15 +62,15 @@ describe('RSVP flow (e2e)', () => {
   it('404s an unknown slug and an unpublished invitation', async () => {
     const draft = await seedEvent(prisma, { isPublished: false });
 
-    await http().get('/api/invitations/does-not-exist').expect(404);
-    await http().get(`/api/invitations/${draft.slug}`).expect(404);
+    await http().get('/api/v1/invitations/does-not-exist').expect(404);
+    await http().get(`/api/v1/invitations/${draft.slug}`).expect(404);
   });
 
   it('accepts a response and reflects it in the operational views', async () => {
     const { slug, primaryGuestToken, eventId } = await seedEvent(prisma, { seatsAllotted: 2 });
 
     await http()
-      .post(`/api/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
+      .post(`/api/v1/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
       .send({
         status: RsvpStatus.ATTENDING,
         attribution: 'SIDE_A',
@@ -84,32 +84,32 @@ describe('RSVP flow (e2e)', () => {
 
     const { authorization } = await authenticateAs(app, prisma, { eventId });
     const headcount = await http()
-      .get(`/api/events/${eventId}/headcount`)
+      .get(`/api/v1/events/${eventId}/headcount`)
       .set('Authorization', authorization)
       .expect(200);
     expect(headcount.body).toMatchObject({ invited: 2, attending: 2, declined: 0, responseRate: 100 });
 
     const catering = await http()
-      .get(`/api/events/${eventId}/catering-sheet`)
+      .get(`/api/v1/events/${eventId}/catering-sheet`)
       .set('Authorization', authorization)
       .expect(200);
     expect(catering.body.covers).toBe(2);
     expect(catering.body.requirements).toContainEqual({ requirement: 'vegan', count: 1 });
 
     const bar = await http()
-      .get(`/api/events/${eventId}/bar-sheet`)
+      .get(`/api/v1/events/${eventId}/bar-sheet`)
       .set('Authorization', authorization)
       .expect(200);
     expect(bar.body.preferences).toContainEqual({ drink: 'wine', guests: 1, share: 100 });
 
     const playlist = await http()
-      .get(`/api/events/${eventId}/playlist`)
+      .get(`/api/v1/events/${eventId}/playlist`)
       .set('Authorization', authorization)
       .expect(200);
     expect(playlist.body.tracks).toContainEqual({ track: 'Sirun Yar', requests: 1 });
 
     const guestBook = await http()
-      .get(`/api/events/${eventId}/guest-book`)
+      .get(`/api/v1/events/${eventId}/guest-book`)
       .set('Authorization', authorization)
       .expect(200);
     expect(guestBook.body[0]).toMatchObject({ from: 'Primary Guest', message: 'Congratulations' });
@@ -126,7 +126,7 @@ describe('RSVP flow (e2e)', () => {
     const { slug, primaryGuestToken } = await seedEvent(prisma);
 
     const response = await http()
-      .post(`/api/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
+      .post(`/api/v1/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
       .send(payload)
       .expect(400);
 
@@ -137,7 +137,7 @@ describe('RSVP flow (e2e)', () => {
     const { slug, primaryGuestToken } = await seedEvent(prisma, { seatsAllotted: 1 });
 
     const response = await http()
-      .post(`/api/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
+      .post(`/api/v1/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
       .send({ status: RsvpStatus.ATTENDING, party: [{ firstName: 'TooMany' }] })
       .expect(400);
 
@@ -148,7 +148,7 @@ describe('RSVP flow (e2e)', () => {
     const { slug } = await seedEvent(prisma);
 
     await http()
-      .post(`/api/invitations/${slug}/g/unknown-token/rsvp`)
+      .post(`/api/v1/invitations/${slug}/g/unknown-token/rsvp`)
       .send({ status: RsvpStatus.ATTENDING })
       .expect(404);
   });

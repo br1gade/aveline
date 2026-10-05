@@ -75,7 +75,7 @@ Per [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §9.
 | 21 | **Health and readiness endpoints** | Nothing reports whether Postgres, Redis or Mongo is reachable |
 | 22 | **Structured logging + request correlation** | A payment spanning three services cannot currently be traced |
 | 23 | **Backups and retention policy** | Page lifetime after an event is still an open decision (§13.8) |
-| 24 | **GDPR-shaped data export and erasure** | Guest PII with a diaspora customer base in the EU |
+| 24 | **GDPR behaviour** | The schema is in place — `DataSubjectRequest`, `anonymizedAt`, consent fields — but no endpoint accepts a request, nothing anonymises, and nothing assembles an export |
 | 25 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 
 ## 6. Physical-service bridge

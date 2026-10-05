@@ -80,8 +80,17 @@ lives outside Postgres.
 | Model | Purpose |
 |---|---|
 | `MessageTemplate` | Reusable copy, translated, overridable per organization |
-| `Message` | One outbound message — an outbox |
+| `Message` | One message — an outbox. Carries `direction` and `threadKey` so inbound is additive later |
 | `Suppression` | Who must not be contacted, and why |
+| `DeviceToken` | A phone or browser that can receive a push |
+
+### Privacy
+| Model | Purpose |
+|---|---|
+| `DataSubjectRequest` | An export, erasure or rectification request, with its one-month clock |
+
+Guests carry `consentAt` / `consentSource` and `anonymizedAt`; `User` and
+`Organization` carry `deletedAt`.
 
 ## 3. Decisions worth knowing before changing anything
 
@@ -118,6 +127,8 @@ reject the bad row.
 | `plans` | price never negative |
 | `ticket_orders` | discount never negative |
 | `subscriptions` | period end after period start |
+| `device_tokens` | exactly one subject — a user or a guest, never both or neither |
+| `data_subject_requests` | the response deadline cannot precede the request |
 | `message_templates` | one global template per key and channel (partial index — Postgres treats NULLs as distinct, so the compound unique alone does not bind) |
 
 ## 5. Storage layout
@@ -153,11 +164,38 @@ Deliberate, with the reason.
 
 | Missing | Why it is not here yet |
 |---|---|
-| `AuditLog` | Belongs in MongoDB per [DATA_STORES.md](DATA_STORES.md) §3 — append-only, never joined, shape still settling |
 | `Payout` | `VendorBooking.feeAmount` records what is owed; disbursement needs a banking relationship we do not have |
 | `WebhookEndpoint` | No bank has told us it pushes callbacks; we poll. Modelling it now would guess at the shape |
 | `VendorAvailability` | The physical-services bridge (BACKEND_GAPS §6) |
 | `PrintOrder` | Same |
 | `ThankYou` | Post-event flow; the guest graph already holds who to thank |
 | Tax rates | Needed for corporate invoicing; `Invoice.taxMinor` holds the amount, nothing computes it |
-| Soft deletes | No retention policy decided yet (PRODUCT_SPEC §14) |
+| Retention sweep | `Invitation.expiresAt` exists but nothing sets or sweeps it, so pages live forever and storage is never reclaimed (PRODUCT_SPEC §14) |
+| Inbound message ingestion | `direction` and `threadKey` are modelled; no provider webhook receives a reply |
+| `AuditLog` | Belongs in MongoDB — append-only, never joined |
+
+## 7. Privacy
+
+Erasure **anonymises a guest rather than deleting them**. Deleting cascades to
+their RSVP, seat, ticket and check-in, which destroys the host's record of
+their own event — a record the host has a legitimate interest in keeping.
+Nulling the identifying fields removes the person while headcount, seating and
+catering totals stay correct.
+
+`Rsvp.dietary` and `dietaryNotes` are **special-category data** under GDPR:
+they can reveal health or religion. An erasure must clear them even though
+they read as operational.
+
+Most guest data is supplied by the host, not the guest, which is legitimate
+interest rather than consent. `consentSource` records which it was, because
+that distinction is what has to be defensible.
+
+`DataSubjectRequest` exists because the obligation has a clock — one month
+under Article 12 — and because being able to show when a request arrived and
+what was done is the point. An ad-hoc deletion leaves no evidence it happened.
+
+### Not built
+
+The models and columns exist; the behaviour does not. No endpoint accepts a
+request, nothing performs an anonymisation, and nothing assembles an export.
+`Session.ipAddress` is personal data with no retention limit.

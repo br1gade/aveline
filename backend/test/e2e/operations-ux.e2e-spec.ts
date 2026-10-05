@@ -28,7 +28,7 @@ describe('Operations UX (e2e)', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api');
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
@@ -48,7 +48,7 @@ describe('Operations UX (e2e)', () => {
       const { slug, primaryGuestToken, eventId } = await seedEvent(prisma, { seatsAllotted: 2 });
 
       await http()
-        .post(`/api/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
+        .post(`/api/v1/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
         .send({
           status: RsvpStatus.ATTENDING,
           dietary: ['vegan'],
@@ -59,7 +59,7 @@ describe('Operations UX (e2e)', () => {
 
       const { authorization } = await authenticateAs(app, prisma, { eventId });
       const { body } = await http()
-        .get(`/api/events/${eventId}/dashboard`)
+        .get(`/api/v1/events/${eventId}/dashboard`)
         .set('Authorization', authorization)
         .expect(200);
 
@@ -84,7 +84,7 @@ describe('Operations UX (e2e)', () => {
       await prisma.user.updateMany({ where: {}, data: { platformRole: 'ADMIN' } });
 
       await http()
-        .get('/api/events/does-not-exist/dashboard')
+        .get('/api/v1/events/does-not-exist/dashboard')
         .set('Authorization', authorization)
         .expect(404);
     });
@@ -94,8 +94,8 @@ describe('Operations UX (e2e)', () => {
     it('serves identical content on a repeat read', async () => {
       const { slug } = await seedEvent(prisma);
 
-      const first = await http().get(`/api/invitations/${slug}`).expect(200);
-      const second = await http().get(`/api/invitations/${slug}`).expect(200);
+      const first = await http().get(`/api/v1/invitations/${slug}`).expect(200);
+      const second = await http().get(`/api/v1/invitations/${slug}`).expect(200);
 
       expect(second.body).toEqual(first.body);
     });
@@ -107,17 +107,17 @@ describe('Operations UX (e2e)', () => {
         role: EventRole.DESIGNER,
       });
 
-      const before = await http().get(`/api/invitations/${slug}`).expect(200);
+      const before = await http().get(`/api/v1/invitations/${slug}`).expect(200);
       const beforeTypes = (before.body as { blocks: { type: string }[] }).blocks.map((b) => b.type);
       expect(beforeTypes).toEqual(['HERO', 'RSVP']);
 
       await http()
-        .patch(`/api/invitations/${slug}/arrangement`)
+        .patch(`/api/v1/invitations/${slug}/arrangement`)
         .set('Authorization', authorization)
         .send({ blocks: [{ type: 'RSVP' }, { type: 'HERO' }] })
         .expect(200);
 
-      const after = await http().get(`/api/invitations/${slug}`).expect(200);
+      const after = await http().get(`/api/v1/invitations/${slug}`).expect(200);
       const afterTypes = (after.body as { blocks: { type: string }[] }).blocks.map((b) => b.type);
       expect(afterTypes).toEqual(['RSVP', 'HERO']);
     });
@@ -126,7 +126,7 @@ describe('Operations UX (e2e)', () => {
   describe('skeleton contracts', () => {
     // Every list endpoint shares one envelope, so a client learns it once.
     it('returns a paged envelope', async () => {
-      const { body } = await http().get('/api/public/events').expect(200);
+      const { body } = await http().get('/api/v1/public/events').expect(200);
 
       expect(body).toMatchObject({ total: expect.any(Number), limit: 20, offset: 0 });
       expect(Array.isArray(body.items)).toBe(true);
@@ -134,7 +134,7 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('honours a limit within range', async () => {
-      const { body } = await http().get('/api/public/events').query({ limit: 5 }).expect(200);
+      const { body } = await http().get('/api/v1/public/events').query({ limit: 5 }).expect(200);
       expect(body.limit).toBe(5);
     });
 
@@ -143,7 +143,7 @@ describe('Operations UX (e2e)', () => {
     it.each([{ limit: 500 }, { limit: 0 }, { limit: -1 }, { limit: 'abc' }, { offset: -1 }])(
       'rejects $0 with 400',
       async (query) => {
-        await http().get('/api/public/events').query(query).expect(400);
+        await http().get('/api/v1/public/events').query(query).expect(400);
       },
     );
 
@@ -151,11 +151,11 @@ describe('Operations UX (e2e)', () => {
     it('serialises money as a string rather than throwing', async () => {
       const { slug, primaryGuestToken } = await seedEvent(prisma);
       await http()
-        .post(`/api/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
+        .post(`/api/v1/invitations/${slug}/g/${primaryGuestToken}/rsvp`)
         .send({ status: 'ATTENDING' })
         .expect(201);
 
-      const { body } = await http().get('/api/public/events').expect(200);
+      const { body } = await http().get('/api/v1/public/events').expect(200);
       const { items } = body as { items: { fromPriceMinor: unknown }[] };
       expect(
         items.every(
@@ -165,13 +165,13 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('stamps every response with a request id', async () => {
-      const response = await http().get('/api/health/live').expect(200);
+      const response = await http().get('/api/v1/health/live').expect(200);
       expect(response.headers['x-request-id']).toMatch(/[0-9a-f-]{36}/);
     });
 
     it('honours a request id supplied upstream, so a trace survives a proxy', async () => {
       const response = await http()
-        .get('/api/health/live')
+        .get('/api/v1/health/live')
         .set('x-request-id', 'trace-from-upstream')
         .expect(200);
 
@@ -179,11 +179,11 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('reports errors in one shape, carrying the request id', async () => {
-      const { body } = await http().get('/api/invitations/does-not-exist').expect(404);
+      const { body } = await http().get('/api/v1/invitations/does-not-exist').expect(404);
 
       expect(body).toMatchObject({
         statusCode: 404,
-        path: '/api/invitations/does-not-exist',
+        path: '/api/v1/invitations/does-not-exist',
       });
       expect(typeof body.requestId).toBe('string');
       expect(typeof body.at).toBe('string');
@@ -205,7 +205,7 @@ describe('Operations UX (e2e)', () => {
       });
 
       const { body } = await http()
-        .post(`/api/events/${eventId}/media`)
+        .post(`/api/v1/events/${eventId}/media`)
         .set('Authorization', authorization)
         .attach('file', pixel, { filename: 'pixel.png', contentType: 'image/png' })
         .expect(201);
@@ -225,7 +225,7 @@ describe('Operations UX (e2e)', () => {
       });
 
       await http()
-        .post(`/api/events/${eventId}/media`)
+        .post(`/api/v1/events/${eventId}/media`)
         .set('Authorization', authorization)
         .attach('file', Buffer.from('#!/bin/sh'), {
           filename: 'script.sh',
@@ -238,7 +238,7 @@ describe('Operations UX (e2e)', () => {
       const { eventId } = await seedEvent(prisma);
 
       await http()
-        .post(`/api/events/${eventId}/media`)
+        .post(`/api/v1/events/${eventId}/media`)
         .attach('file', pixel, { filename: 'pixel.png', contentType: 'image/png' })
         .expect(401);
     });
@@ -253,7 +253,7 @@ describe('Operations UX (e2e)', () => {
         const { slug } = await seedEvent(prisma);
 
         const { body } = await http()
-          .get(`/api/invitations/${slug}`)
+          .get(`/api/v1/invitations/${slug}`)
           .query({ locale: junk })
           .expect(200);
 
@@ -267,7 +267,7 @@ describe('Operations UX (e2e)', () => {
       const { slug } = await seedEvent(prisma);
 
       const { body } = await http()
-        .get(`/api/invitations/${slug}`)
+        .get(`/api/v1/invitations/${slug}`)
         .query({ locale: 'en' })
         .expect(200);
 
@@ -286,7 +286,7 @@ describe('Operations UX (e2e)', () => {
       });
 
       const { body } = await http()
-        .patch(`/api/invitations/${slug}/arrangement`)
+        .patch(`/api/v1/invitations/${slug}/arrangement`)
         .set('Authorization', authorization)
         .send({
           blocks: [
@@ -302,7 +302,7 @@ describe('Operations UX (e2e)', () => {
       ]);
 
       // A disabled block must disappear from the public page.
-      const page = await http().get(`/api/invitations/${slug}`).expect(200);
+      const page = await http().get(`/api/v1/invitations/${slug}`).expect(200);
       const types = (page.body as { blocks: { type: string }[] }).blocks.map((b) => b.type);
       expect(types).toEqual(['RSVP']);
     });
@@ -315,13 +315,13 @@ describe('Operations UX (e2e)', () => {
       });
 
       const response = await http()
-        .patch(`/api/invitations/${slug}/arrangement`)
+        .patch(`/api/v1/invitations/${slug}/arrangement`)
         .set('Authorization', authorization)
         .send({ blocks: [{ type: 'HERO' }, { type: 'TIMELINE' }] })
         .expect(400);
       expect(response.body.message).toContain('TIMELINE');
 
-      const page = await http().get(`/api/invitations/${slug}`).expect(200);
+      const page = await http().get(`/api/v1/invitations/${slug}`).expect(200);
       const types = (page.body as { blocks: { type: string }[] }).blocks.map((b) => b.type);
       expect(types).toEqual(['HERO', 'RSVP']);
     });
@@ -339,7 +339,7 @@ describe('Operations UX (e2e)', () => {
       });
 
       await http()
-        .patch(`/api/invitations/${slug}/arrangement`)
+        .patch(`/api/v1/invitations/${slug}/arrangement`)
         .set('Authorization', authorization)
         .send(payload)
         .expect(400);
@@ -350,7 +350,7 @@ describe('Operations UX (e2e)', () => {
       await prisma.user.updateMany({ where: {}, data: { platformRole: 'ADMIN' } });
 
       await http()
-        .patch('/api/invitations/nope/arrangement')
+        .patch('/api/v1/invitations/nope/arrangement')
         .set('Authorization', authorization)
         .send({ blocks: [{ type: 'HERO' }] })
         .expect(404);
