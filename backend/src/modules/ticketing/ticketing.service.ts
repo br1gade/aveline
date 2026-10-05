@@ -99,15 +99,29 @@ export class TicketingService {
     });
     if (order.status === TicketOrderStatus.PAID) return this.describe(order);
 
-    for (const item of order.items) {
-      await this.inventory.commit(item.ticketTypeId, item.quantity);
-    }
-
+    /**
+     * Claiming, committing inventory and issuing tickets happen in one
+     * transaction, with the claim first.
+     *
+     * The claim is a conditional update that only matches a RESERVED order,
+     * so a second settlement — a retried callback, a user refreshing the
+     * return page — matches nothing and issues no tickets. Ticket codes are
+     * random, so without this guard a duplicate run would mint a second valid
+     * set for one paid seat rather than failing on a constraint.
+     *
+     * Everything inside one transaction means a crash cannot leave inventory
+     * sold with no tickets against it.
+     */
     await this.prisma.$transaction(async (tx) => {
-      await tx.ticketOrder.update({
-        where: { id: orderId },
+      const claimed = await tx.ticketOrder.updateMany({
+        where: { id: orderId, status: TicketOrderStatus.RESERVED },
         data: { status: TicketOrderStatus.PAID, reservesUntil: null },
       });
+      if (claimed.count === 0) return;
+
+      for (const item of order.items) {
+        await this.inventory.commit(item.ticketTypeId, item.quantity, tx);
+      }
       await tx.ticket.createMany({ data: this.ticketsFor(order) });
     });
 

@@ -92,6 +92,37 @@ expires orders registered and never paid.
 Every transition writes a `PaymentEvent` with the verbatim provider payload.
 That table is append-only and is how a disagreement with the bank gets settled.
 
+### Order of operations, and why it is that way
+
+**The insert is the claim.** Registering a payment inserts the row first and
+uses the unique constraint on `idempotencyKey` to decide who owns the right to
+call the bank. A prior read cannot do this: two concurrent callers both read
+nothing. Whoever's insert wins registers; the losers wait briefly for the
+winner's result and return it, rather than registering a second order or
+failing a retry that should have succeeded.
+
+**A refund is claimed in the database before any money moves.** The obvious
+reading — call the bank, then record it — is wrong. Two concurrent refunds
+both read `refundedMinor` as zero, both pass the arithmetic check, and both
+tell the bank to pay out. The second database write then fails, leaving the
+books showing one refund and the statement showing two. Money that has left
+cannot be un-sent.
+
+Claiming first inverts which failure is possible: at worst we record a refund
+the bank then rejects, which this code compensates for immediately and
+reconciliation would catch regardless. The claim is a single conditional
+`UPDATE` whose `WHERE` carries the invariant, so a second claim matches
+nothing.
+
+**Ticket settlement is one transaction, claim first.** Committing inventory
+and issuing tickets happen together, behind a conditional update that only
+matches a `RESERVED` order. Ticket codes are random, so without that guard a
+retried callback would mint a second valid set for one paid seat rather than
+failing on a constraint.
+
+These are covered by `test/integration/transaction-safety.int-spec.ts`, which
+runs the concurrent cases rather than reasoning about them.
+
 ## 4. Sandboxes
 
 | Bank | Test endpoint | Notes |

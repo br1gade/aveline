@@ -24,7 +24,13 @@ const ALLOWED: Record<PaymentStatus, readonly PaymentStatus[]> = {
     PaymentStatus.EXPIRED,
   ],
   [PaymentStatus.CAPTURED]: [PaymentStatus.REFUNDED, PaymentStatus.PARTIALLY_REFUNDED],
-  [PaymentStatus.PARTIALLY_REFUNDED]: [PaymentStatus.REFUNDED],
+  // Refunding again is ordinary: a 100,000 capture may be refunded 30,000
+  // now and 20,000 later. Only the arithmetic in nextStatusForRefund bounds
+  // how much, not the state machine.
+  [PaymentStatus.PARTIALLY_REFUNDED]: [
+    PaymentStatus.PARTIALLY_REFUNDED,
+    PaymentStatus.REFUNDED,
+  ],
   [PaymentStatus.FAILED]: [],
   [PaymentStatus.CANCELLED]: [],
   [PaymentStatus.REFUNDED]: [],

@@ -1,5 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+
+/** Either the client or an open transaction — so a caller can make an
+ *  inventory change part of a larger atomic unit. */
+type Executor = Pick<PrismaService, '$executeRaw'> | Prisma.TransactionClient;
 
 /**
  * Ticket inventory.
@@ -38,11 +43,17 @@ export class TicketInventoryService {
     if (updated === 0) await this.explainFailure(ticketTypeId, quantity);
   }
 
-  /** Turns a hold into a sale once payment settles. */
-  async commit(ticketTypeId: string, quantity: number): Promise<void> {
+  /**
+   * Turns a hold into a sale once payment settles.
+   *
+   * Takes an optional transaction so ticket issuance can commit inventory and
+   * create the tickets atomically — a crash between the two would otherwise
+   * sell a seat that no ticket exists for.
+   */
+  async commit(ticketTypeId: string, quantity: number, tx?: Executor): Promise<void> {
     assertPositive(quantity);
 
-    const updated = await this.prisma.$executeRaw`
+    const updated = await (tx ?? this.prisma).$executeRaw`
       UPDATE "ticket_types"
          SET "quantityReserved" = "quantityReserved" - ${quantity},
              "quantitySold" = "quantitySold" + ${quantity},
