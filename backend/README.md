@@ -206,6 +206,10 @@ LOG_LEVEL=warn npm run start:dev    # trace|debug|info|warn|error|fatal
 
 Health checks are not logged. 4xx logs as `warn`, 5xx as `error`.
 
+Sentry also watches service health without tracing: each scheduled sweep
+reports a cron check-in, so one that stops running is noticed, and dependency
+outages alert once on failure and once on recovery rather than every minute.
+
 Errors go to Sentry when `SENTRY_DSN` is set, and nowhere when it is not.
 **Errors only** — tracing is off and profiling is not installed. Credential
 headers, capability tokens in URLs and request bodies are stripped before

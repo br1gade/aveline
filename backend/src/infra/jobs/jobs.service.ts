@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/cache.service';
+import { Sentry } from '../observability/sentry';
 import { CommunicationsService } from '../../modules/communications/communications.service';
 import { PaymentsService } from '../../modules/payments/payments.service';
 import { TicketingService } from '../../modules/ticketing/ticketing.service';
@@ -69,6 +70,22 @@ export class JobsService {
    * quietly wrong — running them unguarded would risk double-sending.
    */
   private async runExclusively(
+    name: string,
+    ttlSeconds: number,
+    work: () => Promise<void>,
+  ): Promise<void> {
+    // Wrapped in a Sentry check-in so that a sweep which stops running
+    // entirely is noticed. That is the failure mode worth catching: these
+    // three were implemented and inert for weeks, and nothing would have
+    // said so. A check-in is not tracing — no spans, no sampling.
+    return Sentry.withMonitor(name, () => this.runGuarded(name, ttlSeconds, work), {
+      schedule: { type: 'crontab', value: name.includes('messages') ? '* * * * *' : '*/5 * * * *' },
+      checkinMargin: 2,
+      maxRuntime: Math.ceil(ttlSeconds / 60),
+    });
+  }
+
+  private async runGuarded(
     name: string,
     ttlSeconds: number,
     work: () => Promise<void>,

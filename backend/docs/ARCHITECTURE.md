@@ -87,6 +87,32 @@ diagnose a stack trace and all of which is personal data.
 Only 5xx is reported. Without a `SENTRY_DSN` it stays off, which is how
 development is quiet without needing a flag.
 
+### Service health in Sentry — without tracing
+
+Two things watch the system, neither of which is tracing:
+
+**Cron check-ins.** Each sweep runs inside `Sentry.withMonitor`, so Sentry
+alerts when one stops running *at all*. That is the failure mode worth
+catching: these three sweeps were implemented and inert for weeks and nothing
+said so.
+
+**Dependency transitions.** `HealthWatchService` probes Postgres, Redis and
+Mongo every minute and reports only *changes* — edge-triggered, never
+level-triggered. A check that re-reported "Redis is down" on every probe would
+send one alert a minute for an entire outage, and the first thing anyone does
+with a repeating alert is mute it, which is also how the next one gets missed.
+
+Severity follows [DATA_STORES.md](DATA_STORES.md): losing Postgres is `fatal`
+because it holds the domain; Redis and Mongo are `warning` because they
+degrade the product rather than break it.
+
+Verified by stopping Redis against a running app: silent while healthy, one
+alert on failure, no repeat for the duration, one recovery message carrying
+the outage length — and the API served normally throughout.
+
+Tracing is still off. It would sample spans and cost a budget to answer what a
+four-line probe already answers.
+
 ### Authentication is default-on
 
 `AuthGuard` is registered as an `APP_GUARD`, so **every route requires a

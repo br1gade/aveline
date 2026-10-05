@@ -39,7 +39,32 @@ Authorization: Bearer <accessToken>
 `message` is a **string or an array of strings** — validation failures return
 an array, one entry per bad field. Handle both.
 
-Quote `requestId` in a bug report; it is on the response and in our logs.
+### Every response carries an id and a timestamp
+
+```
+x-request-id: f69941b8-35ae-428f-8b02-d2b7ebe7abaa
+Date: Mon, 05 Oct 2026 11:42:13 GMT
+```
+
+Both headers are present on **every** response — 200, 401, 404, all of them.
+The id also appears in an error body as `requestId`, alongside `at`; success
+bodies carry neither, because the header is already there and wrapping every
+successful response in an envelope to repeat it would buy nothing.
+
+```ts
+const requestId = response.headers.get('x-request-id');
+```
+
+**Keep it when you log a failure, and show it in any "report a problem"
+screen.** It is what maps a user's screenshot to the exact request in our
+logs. You may also send your own:
+
+```
+x-request-id: <your id>
+```
+
+and we will use it instead of generating one, so a trace survives from your
+client through to our logs.
 
 | Status | Means |
 |---|---|

@@ -73,7 +73,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 |---|---|---|
 | 20 | **Audit trail** | Mongo-shaped and documented; blocked on authentication, since there is no actor to record |
 | 21 | ~~Health and readiness endpoints~~ | **Done** |
-| 21b | **Metrics and tracing** | Deliberately deferred — Sentry runs with tracing off |
+| 21b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
 | 22 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
 | 23 | **Backups and retention policy** | Page lifetime after an event is still an open decision (§13.8) |
 | 24 | **GDPR behaviour** | The schema is in place — `DataSubjectRequest`, `anonymizedAt`, consent fields — but no endpoint accepts a request, nothing anonymises, and nothing assembles an export |
