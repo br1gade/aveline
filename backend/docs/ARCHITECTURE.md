@@ -23,6 +23,7 @@ src/
   modules/          the domain
     access/         permission policy — pure, table-driven
     events/ guests/ invitations/ rsvp/ operations/
+    seating/        tables, seats, the packing algorithm
     payments/       providers/ holds one adapter per bank
     ticketing/      inventory, checkout, admission
     public-events/  announcements and listings

@@ -123,9 +123,14 @@ not.
 
 ## 6. Not yet built
 
-1. **The assignment algorithm.** `Table` and `Seat` are modelled and the read
-   path works; nothing assigns seats automatically yet.
-2. **Capacity enforcement.** `Table.capacity` and `Venue.capacity` are stored
-   but not checked on assignment.
-3. **Floor plan editor** persistence beyond `posX` / `posY` / `shape`.
-4. **Printed outputs** — place cards and seating charts.
+1. **Zone and adjacency preferences.** The planner keeps households together
+   and prefers a table where their side of the family already sits; it does not
+   yet honour "these two households near each other" or "keep this table away
+   from the speakers".
+2. **Re-planning.** `auto-assign` is additive and never moves a seated guest,
+   so it cannot find a packing that requires rearranging. Unseating first is
+   the current answer.
+3. **Venue capacity.** `Table.capacity` is enforced on every assignment;
+   `Venue.capacity` is stored but not checked against the headcount.
+4. **Floor plan editor** persistence beyond `posX` / `posY` / `shape`.
+5. **Printed outputs** — place cards and seating charts.

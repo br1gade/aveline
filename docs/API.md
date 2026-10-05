@@ -454,6 +454,186 @@ PATCH /api/v1/invitations/:slug/arrangement
 their current value. A rejected arrangement changes nothing and names the bad
 block, so you can show the error without refetching.
 
+### Importing a guest list
+
+```http
+POST /api/v1/events/:eventId/guests/import
+Content-Type: multipart/form-data
+```
+
+One field, `file`: a CSV, up to 2 MB. Requires `guest:write`.
+
+Column headers are matched case-insensitively against a list of spellings, so
+you do not need to make the host rename anything. Recognised:
+
+| Field | Accepted headers |
+|---|---|
+| First name (**required**) | `firstname`, `first name`, `first`, `name`, `guest`, `անուն` |
+| Last name | `lastname`, `last name`, `surname`, `last`, `ազգանուն` |
+| Email | `email`, `e-mail`, `mail` |
+| Phone | `phone`, `mobile`, `telephone`, `tel` |
+| Household | `household`, `family`, `group`, `party` |
+| Seat allowance | `seats`, `seats allotted`, `allowance`, `plus ones` |
+| Side | `side`, `attribution`, `invited by` |
+| Locale | `locale`, `language`, `lang` |
+
+`side` accepts `a` / `b`, `side_a` / `side_b`, or free text that starts with
+either. `seats` must be a positive integer. A row with no first name is
+rejected; everything else is optional.
+
+```json
+{
+  "importId": "clz...",
+  "status": "PARTIAL",
+  "rowsImported": 412,
+  "rowsFailed": 3,
+  "errors": [
+    { "row": 7, "message": "A guest needs at least a first name" },
+    { "row": 19, "message": "seats must be a positive whole number" }
+  ]
+}
+```
+
+**Partial success is the normal case, and it is a `201`, not an error.** Good
+rows are saved; bad rows are reported. `status` is `COMPLETED` (nothing
+failed), `PARTIAL` (some failed) or `FAILED` (nothing imported). Show the error
+list inline against a re-upload button rather than discarding the upload.
+
+`row` is the spreadsheet row number the host sees — the header is row 1, so the
+first data row is 2. Do not renumber it.
+
+Guests sharing a `household` value become one household, which is the unit
+seating and catering work on. Rows with no household each get their own.
+
+**Re-importing is safe.** A household that already exists by name is reused and
+its guests are matched on name, so correcting a spreadsheet and uploading again
+updates rather than duplicating. It never deletes: a guest removed from the CSV
+stays on the event.
+
+```http
+GET /api/v1/events/:eventId/guests/imports
+```
+
+The last imports, newest first, each with `filename`, `rowsImported`,
+`rowsFailed`, `status` and `errors` — enough to show "412 of 415 imported" days
+later. Requires `guest:read`.
+
+### Tables and seating
+
+```http
+GET    /api/v1/events/:eventId/tables
+POST   /api/v1/events/:eventId/tables
+POST   /api/v1/events/:eventId/tables/bulk
+DELETE /api/v1/events/:eventId/tables/:tableId
+```
+
+`GET` returns each table with its occupancy and who is at it, which is the
+whole seating screen in one request:
+
+```json
+[
+  {
+    "id": "clz...", "name": "Table 1", "capacity": 10, "zone": "Main hall",
+    "seated": 7, "available": 3,
+    "guests": [{ "guestId": "clz...", "name": "Armen Petrosyan", "position": null }]
+  }
+]
+```
+
+`POST /tables` takes `{ name, capacity, zone?, venueId? }`. For a real room,
+use `/tables/bulk` with `{ namePrefix, count, capacity, zone?, venueId? }` —
+twenty tables of ten is one request, and names continue from the tables that
+already exist (`Table 1` … `Table 20`). It returns `{ "created": 20 }`.
+
+Deleting a table with guests at it returns `409` naming how many, because the
+cascade would silently unseat them. Unseat them first.
+
+```http
+POST   /api/v1/events/:eventId/seats          { guestId, tableId, position? }
+DELETE /api/v1/events/:eventId/seats/:guestId
+```
+
+`POST` seats a guest, or moves one who was already seated — there is no
+separate move call. A full table returns `409` with its name. Capacity is
+checked inside the transaction, so two coordinators filling the last chair at
+once cannot both succeed; handle the `409` as a routine outcome of drag-and-drop
+and re-fetch the table.
+
+```http
+POST /api/v1/events/:eventId/seats/auto-assign
+```
+
+Seats everyone who has accepted, then tells you who did not fit:
+
+```json
+{
+  "seated": 84,
+  "households": 31,
+  "unseated": [
+    { "householdId": "clz...", "size": 5, "reason": "No table has 5 free seats together" }
+  ]
+}
+```
+
+Three things to know before you wire the button:
+
+1. **It is additive, not a re-plan.** Guests already seated keep their seats,
+   and their tables count as partly occupied. Running it after a late RSVP
+   fills the gaps instead of rearranging a plan the host has adjusted by hand.
+   There is no "re-seat everything" call; unseat first if that is the intent.
+2. **It never splits a household and never exceeds a capacity.** Those are hard
+   constraints. Keeping each side of the family together is a preference it
+   satisfies when it can.
+3. **It is a good plan, not the optimal one.** It will not find a packing that
+   requires rearranging already-seated guests. `unseated` is normal when the
+   room is nearly full — present it as "these 2 households need a table",
+   not as a failure.
+
+Tables and seats require `seating:write`; reading requires `seating:read`.
+
+### Check-in on the day
+
+```http
+POST   /api/v1/events/:eventId/guests/:guestId/check-in
+DELETE /api/v1/events/:eventId/guests/:guestId/check-in
+```
+
+```json
+{
+  "guestId": "clz...", "name": "Armen Petrosyan",
+  "arrivedAt": "2026-10-05T18:02:11.000Z",
+  "table": "Table 4", "wasExpected": true
+}
+```
+
+The response is the door screen: the name to confirm, the table to point at,
+and `wasExpected` — `false` means this guest declined or never responded and
+has turned up anyway, which is worth showing the host rather than silently
+admitting.
+
+**A guest arrives once.** A second check-in returns `409`. Two people on the
+door cannot both record the same arrival, so treat the `409` as "already here"
+and show the first arrival time, not as an error. `DELETE` undoes a mis-scan
+and a guest can then be checked in again.
+
+```http
+GET /api/v1/events/:eventId/arrivals
+```
+
+```json
+{
+  "expected": 96, "arrived": 71, "stillToCome": 25,
+  "recent": [{ "name": "Armen Petrosyan", "arrivedAt": "2026-10-05T18:02:11.000Z" }]
+}
+```
+
+`expected` counts guests who accepted, so `arrived` can exceed it and
+`stillToCome` floors at zero. `recent` is the last 20. Poll this; there is no
+push yet.
+
+Check-in requires `guest:write`, so door staff need a real account rather than
+a link.
+
 ### Uploading a file
 
 ```http
@@ -583,12 +763,11 @@ It exists so you can complete the flow locally today.
 
 So you can plan around them rather than discover them:
 
-- **No password reset or email verification endpoint.** Both are modelled; no
-  route accepts them.
-- **No organization invite acceptance.** Memberships are created directly.
 - **Nothing actually sends messages.** The outbox works; every channel writes
-  to the server log instead of delivering.
-- **No seating assignment.** Reading a seat works; assigning is manual.
+  to the server log instead of delivering. Reset and invite links come back in
+  the response body in development — see §9.
+- **No promo codes, subscriptions or invoices.** All modelled; no routes.
+- **No vendor brief endpoints.** A vendor's scoped read is not built.
 - **No design write endpoints** beyond block arrangement. Content, themes and
   cover images have no write path.
 - **No GDPR endpoints.** The schema supports erasure and export; nothing

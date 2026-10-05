@@ -62,7 +62,7 @@ customer's trust.
 | CDN | Garage serves media directly |
 | Rate limits per actor | The throttle is global, not per account |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
-| Seating assignment | Reading a seat works; assigning is manual |
+| Seating chart export | Seating is assigned and readable; nothing prints it, and a venue still wants paper |
 | Structured log shipping | Logs are JSON in production and go nowhere |
 
 ---

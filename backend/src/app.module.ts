@@ -26,6 +26,7 @@ import { PublicEventsModule } from './modules/public-events/public-events.module
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { MediaModule } from './modules/media/media.module';
 import { DevicesModule } from './modules/devices/devices.module';
+import { SeatingModule } from './modules/seating/seating.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { DevicesModule } from './modules/devices/devices.module';
     CommunicationsModule,
     MediaModule,
     DevicesModule,
+    SeatingModule,
 
     // Last: its sweeps depend on the domain modules above.
     JobsModule,

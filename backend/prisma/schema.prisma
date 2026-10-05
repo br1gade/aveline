@@ -18,12 +18,15 @@ datasource db {
 // ─────────────────────────────── Tenancy ───────────────────────────────
 
 model Organization {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   /// Planners and agencies run many events; a couple runs one.
-  kind      OrgKind  @default(HOST)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  kind      OrgKind   @default(HOST)
+  /// Tenant closure. Soft, because the events and payments it owns are still
+  /// referenced by records that must survive.
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   memberships      OrganizationMembership[]
   events           Event[]
@@ -449,8 +452,21 @@ model Guest {
   isPrimary    Boolean          @default(false)
   /// A guest added by the primary respondent rather than by the host
   addedByGuest Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+
+  /// When and how this person's details were provided. Hosts supply most
+  /// guest data themselves, which is legitimate interest rather than
+  /// consent — recording the source is what makes that defensible.
+  consentAt     DateTime?
+  consentSource String?
+
+  /// Erasure anonymises rather than deletes. Deleting a Guest cascades to
+  /// their RSVP, seat and check-in, destroying the host's record of their own
+  /// event. Nulling the identifying fields removes the person while the
+  /// headcount, seating and catering totals stay correct.
+  anonymizedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)

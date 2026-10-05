@@ -67,9 +67,10 @@ src/
   prisma/            PrismaService (global module)
   modules/
     events/          event detail, venues, timeline
-    guests/          guest graph by household; find-your-seat lookup
+    guests/          guest graph by household; CSV import, check-in, find-your-seat
     invitations/     public invitation payload, data-bound + personalized
     rsvp/            the write side — guest responses
+    seating/         tables, seat assignment, the packing algorithm
     operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
     payments/        card acquiring; providers/ holds one adapter per bank
@@ -133,7 +134,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:eventId/find-seat` | Guest seat lookup by name (`?q=`) |
 | `PATCH` | `/api/v1/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
 
-### Organizer — **auth not yet implemented** (see Next)
+### Organizer
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -146,6 +147,33 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:id/bar-sheet` | Drink preferences as quantities |
 | `GET` | `/api/v1/events/:id/playlist` | Deduplicated song requests |
 | `GET` | `/api/v1/events/:id/guest-book` | Messages left by guests |
+
+#### Guest list
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/events/:eventId/guests/import` | Import a CSV guest list (multipart `file`) |
+| `GET` | `/api/v1/events/:eventId/guests/imports` | History of past imports |
+
+#### Tables and seating
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/events/:eventId/tables` | Tables with seated counts |
+| `POST` | `/api/v1/events/:eventId/tables` | Add one table |
+| `POST` | `/api/v1/events/:eventId/tables/bulk` | Add numbered tables in one call |
+| `DELETE` | `/api/v1/events/:eventId/tables/:tableId` | Remove an empty table |
+| `POST` | `/api/v1/events/:eventId/seats` | Seat one guest at a table |
+| `DELETE` | `/api/v1/events/:eventId/seats/:guestId` | Unseat one guest |
+| `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Seat everyone attending; reports who did not fit |
+
+#### Check-in on the day
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Record an arrival; a guest arrives once |
+| `DELETE` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Undo a mis-scan |
+| `GET` | `/api/v1/events/:eventId/arrivals` | Live arrivals against who was expected |
 | `POST` | `/api/v1/payments` | Register an order, get the bank form URL (idempotent) |
 | `GET` | `/api/v1/payments/:orderNumber` | Payment state |
 | `POST` | `/api/v1/payments/:orderNumber/confirm` | Server-to-server outcome check |
@@ -249,28 +277,25 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 ## Next
 
 1. **Real message transports.** The outbox and dispatcher work; every channel
-   currently resolves to the console transport. SMTP, SMS and chat providers
-   implement the same two-method port.
-2. **Seating assignment.** `Table` and `Seat` are modelled and the read path
-   (`find-seat`) works; the constrained assignment algorithm is not written.
-   See `../docs/VENUES_AND_SEATING.md` §5 for the intended approach.
-3. **Design endpoints.** Templates, blocks, media and themes are modelled;
-   nothing writes them over HTTP, and theme values are not yet validated
-   against the template's `allowedFonts` / `palettes`.
-4. **Upload pipeline** for `MediaAsset` — storage, resizing, `sizeBytes`.
-5. **Vendor brief endpoints.** `briefScopes` and `briefToken` are modelled; the
+   resolves to the console transport. SMTP, SMS and chat providers implement
+   the same two-method port. Nothing leaves the server until one is wired.
+2. **Design endpoints.** Templates, blocks, media and themes are modelled and
+   `PATCH /invitations/:slug/arrangement` rearranges a page, but there is no
+   endpoint to create a block, and theme values are not validated against the
+   template's `allowedFonts` / `palettes`.
+3. **Promo codes, subscriptions and invoices.** Modelled; no endpoints.
+4. **Vendor brief endpoints.** `briefScopes` and `briefToken` are modelled; the
    scoped reads are not built.
-6. **Check-in.** `CheckIn` is modelled; no endpoint yet.
-7. **Rate limiting** and **idempotency keys** on the public RSVP route —
+5. **Suppression lists and GDPR data-subject requests.** `Guest.consentAt` and
+   `anonymizedAt` exist and `Organization.deletedAt` supports soft deletion;
+   no endpoint exercises them.
+6. **Rate limiting** and **idempotency keys** on the public RSVP route —
    Redis is wired, the limiter is not.
-8. **Job queue** (BullMQ on Redis) for seating, exports and image processing.
-9. **Audit trail** in MongoDB — blocked on authentication, since there is no
-   actor to record yet.
-10. **Payments**: no bank credentials yet, so no adapter has run against a real
-    sandbox. See `../docs/PAYMENTS.md` §6–7.
-11. **Structured logging, metrics, tracing.** Request ids correlate log lines;
-    the format is still Nest's default and there is no tracing.
-12. **Transports are console-only.** The messaging pipeline is real; no SMTP,
-    SMS or chat provider is wired.
+7. **Job queue** (BullMQ on Redis) for exports and image processing. Seating
+   runs inline because it is milliseconds on realistic guest lists; exports
+   are not.
+8. **Audit trail** in MongoDB.
+9. **Payments**: no bank credentials yet, so no adapter has run against a real
+   sandbox. See `../docs/PAYMENTS.md` §6–7.
 
 `docs/GAPS.md` is the full list, prioritised.
