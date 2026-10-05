@@ -74,10 +74,15 @@ Leaving `SMTP_HOST` unset falls back to writing email to the log — acceptable
 locally, and a **startup failure** under `NODE_ENV=production`, because an
 invitation written to a log file looks exactly like one that was delivered.
 
-Production is Google Workspace SMTP (`smtp.gmail.com:587` with an app
-password). Its ~500/day limit will not survive a 400-guest wedding plus
-reminders, so expect to move to a transactional provider — which is a change
-of credentials, not of code, since the adapter speaks plain SMTP.
+Production starts on Google Workspace SMTP (`smtp.gmail.com:587` with an app
+password). Paid Workspace allows 2,000 messages/day there, and 10,000/day
+through `smtp-relay.gmail.com` — enough for a 400-guest wedding and its
+reminders.
+
+The reason to move to a transactional provider is not the cap: Workspace has
+no bounce or complaint webhooks, no suppression API and no delivery events, so
+a bounce arriving after the send is never recorded. Moving is a change of
+credentials, not of code, since the adapter speaks plain SMTP.
 
 ## Layout
 

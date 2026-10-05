@@ -27,7 +27,7 @@ customer's trust.
 | # | Blocker | Why |
 |---|---|---|
 | 6 | **A sending domain and its DNS** | Email is implemented over SMTP and refuses to boot in production without it, but no mail account, sending domain or SPF/DKIM/DMARC records exist. Without them mail is sent and then filed as spam, which looks like delivery and is not |
-| 7 | **Google Workspace limit is ~500/day** | A 400-guest wedding plus one reminder round approaches it. Fine for early events, not for several in a week |
+| 7 | **Google Workspace is not a transactional sender** | Paid Workspace allows 2,000 messages/day over `smtp.gmail.com` and 10,000/day over `smtp-relay.gmail.com`, so volume is not the blocker it was thought to be. What it lacks is bounce and complaint webhooks, a suppression API and delivery events — so a bounce arriving after the send is never recorded. That is the reason to use a transactional provider, not the cap |
 
 ### Security and data
 
@@ -61,7 +61,7 @@ customer's trust.
 | CDN | Garage serves media directly |
 | Rate limits per actor | The throttle is global, not per account. `POST /privacy/requests` is public and unthrottled |
 | Asynchronous bounce reports | A rejection at send time is classified and suppresses the address. A bounce that arrives minutes later, as a report to the sending mailbox, is not read by anything |
-| Reminder volume against the send limit | Three automatic reminders per event plus invitations will cross Google Workspace's ~500/day limit on a large wedding; nothing throttles or warns |
+| Provider send-rate throttling | The dispatcher sends up to 50/minute with no provider-side rate limit. Within Google Workspace's relay limits that is fine; a provider with a tighter per-second or daily quota would produce a run of failures the retry backoff then spreads over days |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
 | Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |
