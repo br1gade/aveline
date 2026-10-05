@@ -27,28 +27,27 @@ customer's trust.
 | # | Blocker | Why |
 |---|---|---|
 | 6 | **A sending domain and its DNS** | Email is implemented over SMTP and refuses to boot in production without it, but no mail account, sending domain or SPF/DKIM/DMARC records exist. Without them mail is sent and then filed as spam, which looks like delivery and is not |
-| 7 | **No sending domain or SPF/DKIM/DMARC** | Mail from a new domain with no authentication goes to spam, which for an invitation product is indistinguishable from being broken |
-| 8 | **Google Workspace limit is ~500/day** | A 400-guest wedding plus one reminder round approaches it. Fine for early events, not for several in a week |
+| 7 | **Google Workspace limit is ~500/day** | A 400-guest wedding plus one reminder round approaches it. Fine for early events, not for several in a week |
 
 ### Security and data
 
 | # | Blocker | Why |
 |---|---|---|
-| 9 | **`JWT_SECRET` must be real** | The app refuses to boot in production without it, which is the guard — but it must be generated, stored in a secret manager, and rotatable |
-| 10 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
-| 11 | **No backups** | Postgres holds the entire domain and Garage holds every photo. Both are single-node. Losing either disk loses everything permanently |
-| 12 | **No TLS** | Everything is plain HTTP on localhost today |
-| 13 | **GDPR behaviour unimplemented** | The schema supports erasure and export; no endpoint performs either. With EU diaspora guests this is a legal exposure, not a backlog item |
-| 14 | **No audit trail** | Modelled and unbuilt. Matters most for `SUPPORT` staff acting on a customer's behalf |
+| 8 | **`JWT_SECRET` must be real** | The app refuses to boot in production without it, which is the guard — but it must be generated, stored in a secret manager, and rotatable |
+| 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
+| 10 | **No backups** | Postgres holds the entire domain and Garage holds every photo. Both are single-node. Losing either disk loses everything permanently |
+| 11 | **No TLS** | Everything is plain HTTP on localhost today |
+| 12 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
+| 13 | **No audit trail** | Modelled and unbuilt. Matters most for `SUPPORT` staff acting on a customer's behalf |
 
 ### Operations
 
 | # | Blocker | Why |
 |---|---|---|
-| 15 | **No deployment** | No container build, no host, no process supervision, no restart policy |
-| 16 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
-| 17 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
-| 18 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
+| 14 | **No deployment** | No container build, no host, no process supervision, no restart policy |
+| 15 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
+| 16 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
+| 17 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
 
 ---
 
