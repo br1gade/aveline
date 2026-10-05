@@ -1113,6 +1113,90 @@ another event is a `400`. `VENUE`, `TIMELINE` and `COUNTDOWN` blocks ignore
 content you put here for the fields they bind from the event — see
 §Rendering blocks.
 
+### Sending the invitation
+
+```http
+POST /api/v1/invitations/:slug/send      { "guestIds": ["..."] }
+```
+
+The product's core loop. Requires `invitation:publish` — sending *is*
+publishing, so it is not a designer's to press.
+
+```json
+{
+  "queued": 128,
+  "alreadySent": 0,
+  "recipients": [{ "householdName": "Petrosyan family", "toAddress": "armen@example.am" }],
+  "suppressed": [{ "householdName": "Hakobyan", "toAddress": "ani@example.am" }],
+  "unreachable": [{ "householdId": "clz...", "householdName": "No Contact",
+                    "reason": "No email address for anyone in this household" }]
+}
+```
+
+**One email per household, not per guest.** A family of three shares one link
+and one seat allowance, so inviting each member would mean three emails about
+one invitation and three people answering for the same seats. The recipient is
+the household's primary guest, or whoever in it has an address if the primary
+has none — and the link carries *that* guest's token, so it personalises for
+whoever opens it.
+
+**Safe to press twice.** A guest is invited once per invitation; a second call
+returns `alreadySent` and queues nothing. Build the button so it can be
+clicked again without a confirmation dialog — a host who sees nothing happen
+for a second will click anyway.
+
+**Three outcome lists, because each needs a different action from the host:**
+
+| List | What it means | What the host does |
+|---|---|---|
+| `recipients` | Queued for delivery | Nothing |
+| `suppressed` | They opted out, or a previous send hard-bounced | Talk to the guest; do not retry |
+| `unreachable` | No usable address on the household | Fix the address, then send again |
+
+`reason` on an unreachable entry is written for a host to read, and quotes a
+malformed address back rather than reporting it as missing.
+
+`guestIds` sends only to those guests' households — naming any member invites
+the household. Omitted, it invites every household on the event that has not
+been invited yet. An id that is not on the event is a `400`, not a silent
+no-op.
+
+**A draft is refused** with a `400` saying to publish first: the link resolves
+to a page that 404s until then, and four hundred emails cannot be recalled.
+
+**Mail is queued, not sent during the request.** Four hundred SMTP
+conversations inside one request would hold it open for minutes and fail
+halfway with no record of where it stopped. `queued` means accepted into the
+outbox; delivery is the next call's business.
+
+```http
+GET /api/v1/invitations/:slug/delivery
+```
+
+```json
+{
+  "invited": 127, "notSent": 1,
+  "unreachable": [...],
+  "households": [{
+    "householdId": "clz...", "household": "Petrosyan family",
+    "guest": "Armen Petrosyan", "toAddress": "armen@example.am",
+    "status": "SENT", "attempts": 1, "failureReason": null,
+    "sentAt": "2026-10-05T18:02:11.000Z"
+  }]
+}
+```
+
+Grouped by household, because "have the Petrosyans been invited?" is the
+question a host asks — not "what is the status of message 4f2a".
+
+`status` is `NOT_SENT` (no email exists yet) or a `Message` status: `QUEUED`,
+`SENDING`, `SENT`, `DELIVERED`, `FAILED`, `BOUNCED`, `SUPPRESSED`.
+
+**`SENT` means the mail server accepted it, not that it arrived.** A bounce can
+follow minutes later, and when it does the status becomes `BOUNCED` with the
+server's own words in `failureReason`. `QUEUED` with `attempts` above zero is a
+message being retried after a temporary failure — not stuck.
+
 ### Custom RSVP questions
 
 ```http

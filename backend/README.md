@@ -180,6 +180,8 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 |---|---|---|
 | `GET` | `/api/v1/events/:eventId/design-templates` | The template catalogue and its constraints |
 | `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
+| `POST` | `/api/v1/invitations/:slug/send` | **Send it** — one email per household, safe to press twice |
+| `GET` | `/api/v1/invitations/:slug/delivery` | Who has been invited and what happened to each email |
 | `PATCH` | `/api/v1/invitations/:slug/theme` | Fonts and colours, validated against the template |
 | `PATCH` | `/api/v1/invitations/:slug/blocks/:type` | Edit one block's content |
 | `GET` | `/api/v1/invitations/:slug/questions` | Custom RSVP questions |

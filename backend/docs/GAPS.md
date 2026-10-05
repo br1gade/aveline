@@ -45,11 +45,10 @@ Each replaces a process the incumbent market performs by hand.
 
 | # | Gap | Replaces |
 |---|---|---|
-| 6 | **Invitation sending** | Pasting a link into 400 chats individually. The outbox exists; nothing calls it from the invitation flow |
-| 7 | **Reminders and follow-ups** | Chasing non-responders by phone. Scheduled messages are modelled, the triggers are not |
-| 8 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
-| 9 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
-| 10 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
+| 6 | **Reminders and follow-ups** | Chasing non-responders by phone. Scheduled messages are modelled, the triggers are not |
+| 7 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
+| 8 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
+| 9 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
 
 ## 4. Revenue — unbuilt business model lines
 
@@ -57,7 +56,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 
 | # | Gap | Stream |
 |---|---|---|
-| 11 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
+| 10 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
 | 12 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them |
 | 13 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
 | 14 | **Corporate contracts** | §9.5 — multi-event, branded |
