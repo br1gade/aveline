@@ -166,6 +166,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 |---|---|---|
 | `GET` | `/api/v1/events` | List events |
 | `GET` | `/api/v1/events/:id` | Detail with venues and timeline |
+| `PATCH` | `/api/v1/events/:id/settings` | Flip automatic RSVP reminders on or off |
 | `GET` | `/api/v1/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
 | `GET` | `/api/v1/events/:id/guests` | Guest graph grouped by household |
 | `GET` | `/api/v1/events/:id/headcount` | Live headcount by response and side |
@@ -181,6 +182,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:eventId/design-templates` | The template catalogue and its constraints |
 | `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
 | `POST` | `/api/v1/invitations/:slug/send` | **Send it** — one email per household, safe to press twice |
+| `POST` | `/api/v1/invitations/:slug/remind` | Chase the households that have not answered |
 | `GET` | `/api/v1/invitations/:slug/delivery` | Who has been invited and what happened to each email |
 | `PATCH` | `/api/v1/invitations/:slug/theme` | Fonts and colours, validated against the template |
 | `PATCH` | `/api/v1/invitations/:slug/blocks/:type` | Edit one block's content |
@@ -390,23 +392,26 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
    temporary failure and suppresses an address that hard-bounces. SMS,
    Telegram and WhatsApp still resolve to the console transport; each is one
    adapter behind the same two-method port.
-2. **Design endpoints.** Templates, blocks, media and themes are modelled and
+2. **Reminders on other channels.** RSVP reminders go out by email on a
+   three-week / one-week / two-day schedule, and by hand on request. SMS would
+   reach the guests who do not read email, and needs a transport first.
+10. **Design endpoints.** Templates, blocks, media and themes are modelled and
    `PATCH /invitations/:slug/arrangement` rearranges a page, but there is no
    endpoint to create a block, and theme values are not validated against the
    template's `allowedFonts` / `palettes`.
-3. **Promo codes, subscriptions and invoices.** Modelled; no endpoints.
-4. **Vendor brief endpoints.** `briefScopes` and `briefToken` are modelled; the
+10. **Promo codes, subscriptions and invoices.** Modelled; no endpoints.
+10. **Vendor brief endpoints.** `briefScopes` and `briefToken` are modelled; the
    scoped reads are not built.
-5. **Suppression lists and GDPR data-subject requests.** `Guest.consentAt` and
+10. **Suppression lists and GDPR data-subject requests.** `Guest.consentAt` and
    `anonymizedAt` exist and `Organization.deletedAt` supports soft deletion;
    no endpoint exercises them.
-6. **Rate limiting** and **idempotency keys** on the public RSVP route —
+10. **Rate limiting** and **idempotency keys** on the public RSVP route —
    Redis is wired, the limiter is not.
-7. **Job queue** (BullMQ on Redis) for exports and image processing. Seating
+10. **Job queue** (BullMQ on Redis) for exports and image processing. Seating
    runs inline because it is milliseconds on realistic guest lists; exports
    are not.
-8. **Audit trail** in MongoDB.
-9. **Payments**: no bank credentials yet, so no adapter has run against a real
+10. **Audit trail** in MongoDB.
+10. **Payments**: no bank credentials yet, so no adapter has run against a real
    sandbox. See `../docs/PAYMENTS.md` §6–7.
 
 `docs/GAPS.md` is the full list, prioritised.

@@ -5,6 +5,7 @@ import { ArrangeBlocksDto } from './dto/arrange-blocks.dto';
 import { SendInvitationDto } from './dto/send-invitation.dto';
 import { InvitationsService } from './invitations.service';
 import { InvitationSenderService } from './sending/invitation-sender.service';
+import { ReminderService } from './sending/reminder.service';
 import { EventScope, Public, RequirePermission } from '../../infra/auth/actor';
 
 @ApiTags('invitations')
@@ -14,6 +15,7 @@ export class InvitationsController {
     private readonly invitations: InvitationsService,
     private readonly arrangement: ArrangementService,
     private readonly sender: InvitationSenderService,
+    private readonly reminders: ReminderService,
   ) {}
 
   // The capability link IS the credential — see docs/ACCESS_CONTROL.md §1.
@@ -48,6 +50,19 @@ export class InvitationsController {
   })
   send(@Param('slug') slug: string, @Body() dto: SendInvitationDto) {
     return this.sender.send(slug, dto);
+  }
+
+  @RequirePermission('invitation:publish')
+  @EventScope('invitationSlug')
+  @Post(':slug/remind')
+  @ApiOperation({
+    summary: 'Chase the households that have not answered',
+    description:
+      'Only guests who were actually invited and have not replied. At most ' +
+      'one reminder per guest per day, so pressing twice is safe.',
+  })
+  remind(@Param('slug') slug: string) {
+    return this.reminders.remindNow(slug);
   }
 
   @RequirePermission('invitation:read')

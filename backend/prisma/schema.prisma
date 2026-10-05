@@ -183,9 +183,18 @@ model Event {
   /// surfaces. See docs/PUBLIC_EVENTS.md.
   visibility EventVisibility @default(PRIVATE)
 
-  status    EventStatus @default(DRAFT)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  status EventStatus @default(DRAFT)
+
+  /// Whether the scheduled RSVP reminders go out for this event.
+  ///
+  /// On by default, because chasing non-responders is the work hosts most want
+  /// taken off them — but it writes to guests without the host pressing
+  /// anything, so it has to be refusable. Some hosts chase by phone and would
+  /// rather we did not.
+  remindersEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberships    EventMembership[]

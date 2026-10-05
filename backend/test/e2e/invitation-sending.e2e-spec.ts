@@ -52,15 +52,19 @@ describe('Invitation sending (e2e)', () => {
       eventId: seeded.eventId,
       role: EventRole.OWNER,
     });
-    await prisma.messageTemplate.create({
-      data: {
-        organizationId: event.organizationId,
-        key: 'invitation.send',
-        channel: MessageChannel.EMAIL,
-        subject: { hy: 'Հրավեր {{hosts}}-ից' },
-        body: { hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ։ {{link}}' },
-      },
-    });
+    // Both templates: a real deployment has these seeded as Aveline defaults,
+    // but the test database starts empty.
+    for (const key of ['invitation.send', 'rsvp.reminder']) {
+      await prisma.messageTemplate.create({
+        data: {
+          organizationId: event.organizationId,
+          key,
+          channel: MessageChannel.EMAIL,
+          subject: { hy: 'Հրավեր {{hosts}}-ից' },
+          body: { hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ։ {{link}}' },
+        },
+      });
+    }
     // The fixture guest has no email, which would make its household
     // correctly unreachable and the counts below ambiguous.
     await prisma.guest.updateMany({
@@ -312,4 +316,73 @@ describe('Invitation sending (e2e)', () => {
       });
     });
   });
+
+  describe('reminders', () => {
+    it('chases the households that have not answered', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+
+      const { body } = await http()
+        .post(`/api/v1/invitations/${slug}/remind`)
+        .set('Authorization', authorization)
+        .expect(201);
+
+      expect(body.queued).toBe(3);
+    });
+
+    // Pressing twice must not write to a guest twice.
+    it('reminds at most once a day', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+      await http()
+        .post(`/api/v1/invitations/${slug}/remind`)
+        .set('Authorization', authorization)
+        .expect(201);
+
+      const { body } = await http()
+        .post(`/api/v1/invitations/${slug}/remind`)
+        .set('Authorization', authorization)
+        .expect(201);
+
+      expect(body).toMatchObject({ queued: 0, alreadyRemindedToday: 3 });
+    });
+
+    it('refuses a designer', async () => {
+      const { slug, eventId } = await host();
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId,
+        role: EventRole.DESIGNER,
+      });
+
+      await http()
+        .post(`/api/v1/invitations/${slug}/remind`)
+        .set('Authorization', authorization)
+        .expect(403);
+    });
+
+    it('lets a host turn the automatic ones off', async () => {
+      const { eventId, authorization } = await host();
+
+      const { body } = await http()
+        .patch(`/api/v1/events/${eventId}/settings`)
+        .set('Authorization', authorization)
+        .send({ remindersEnabled: false })
+        .expect(200);
+
+      expect(body.remindersEnabled).toBe(false);
+    });
+
+    it('rejects a settings payload it does not understand', async () => {
+      const { eventId, authorization } = await host();
+
+      await http()
+        .patch(`/api/v1/events/${eventId}/settings`)
+        .set('Authorization', authorization)
+        .send({ remindersEnabled: 'yes please' })
+        .expect(400);
+    });
+  });
+
 });

@@ -1,5 +1,6 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { UpdateEventSettingsDto } from './dto/event-settings.dto';
 import { EventsService } from './events.service';
 import {
   CurrentActor,
@@ -30,5 +31,17 @@ export class EventsController {
   @ApiOperation({ summary: 'Event detail with venues and timeline' })
   findOne(@Param('id') id: string) {
     return this.events.findOne(id);
+  }
+
+  @RequirePermission('event:write')
+  @Patch(':id/settings')
+  @ApiOperation({
+    summary: 'Change the settings a host flips themselves',
+    description:
+      'Currently whether automatic RSVP reminders go out. Not a general event ' +
+      'PATCH: a date or venue change affects invitations people already hold.',
+  })
+  updateSettings(@Param('id') id: string, @Body() dto: UpdateEventSettingsDto) {
+    return this.events.updateSettings(id, dto);
   }
 }

@@ -1169,6 +1169,60 @@ conversations inside one request would hold it open for minutes and fail
 halfway with no record of where it stopped. `queued` means accepted into the
 outbox; delivery is the next call's business.
 
+### Chasing non-responders
+
+```http
+POST /api/v1/invitations/:slug/remind
+```
+
+```json
+{
+  "queued": 42,
+  "alreadyRemindedToday": 0,
+  "recipients": [{ "householdName": "Petrosyan family", "toAddress": "armen@example.am" }],
+  "notInvited": [{ "householdId": "clz...", "householdName": "No Contact",
+                   "reason": "No email address for anyone in this household" }]
+}
+```
+
+Reminds the households that **were invited and have not answered**. A guest who
+replied — attending or declined — is never chased; that is what turns a
+reminder into a nuisance. Nor is a guest who never received the invitation:
+`notInvited` lists them, and the fix for those is to send, not to remind.
+
+**At most one reminder per guest per day.** Pressing twice is safe, and
+following up again tomorrow still works. `alreadyRemindedToday` is how many
+were skipped for that reason — not an error.
+
+Refused with a `400` once the event has started, and for an unpublished
+invitation.
+
+Requires `invitation:publish`, like sending.
+
+### Reminders go out on their own, too
+
+Three automatic reminders per event, at **21 days, 7 days and 2 days before**
+it starts, to whoever has not answered. Nothing is needed from the client —
+this happens on the server — but two things matter for the UI:
+
+1. **Exactly one reminder fires per window.** An invitation sent three days
+   before the event has already passed the 21- and 7-day marks; only the
+   milestone in force sends, so a guest never receives three emails at once.
+2. **A host can switch them off**, per event. They write to guests without
+   anyone pressing anything, so some hosts — the ones who chase by phone —
+   will want them off:
+
+   ```http
+   PATCH /api/v1/events/:eventId/settings   { "remindersEnabled": false }
+   ```
+
+   Needs `event:write`. Deliberately not a general event PATCH: a date or
+   venue change affects an invitation people already hold, so it belongs with
+   a flow that knows how to tell those guests.
+
+Automatic reminders show up in `GET /invitations/:slug/delivery` like any other
+message, and stop as soon as a guest answers.
+
 ```http
 GET /api/v1/invitations/:slug/delivery
 ```

@@ -93,12 +93,20 @@ describe('AnalyticsService', () => {
     });
     const service = new AnalyticsService(makeDb(collection) as never, true, 50);
 
-    const startedAt = Date.now();
-    await expect(service.invitationViewSummary('e')).resolves.toEqual({
-      totalViews: 0,
-      byLocale: [],
-    });
-    expect(Date.now() - startedAt).toBeLessThan(500);
+    // Fake timers rather than measured wall-clock. The assertion is that the
+    // service resolves when its own budget elapses and not when the driver
+    // answers — which it never does here. Timing it with Date.now() made this
+    // test fail whenever the full suite loaded the machine enough to delay the
+    // event loop, which is a property of the test runner and not of the code.
+    jest.useFakeTimers();
+    try {
+      const pending = service.invitationViewSummary('e');
+      await jest.advanceTimersByTimeAsync(50);
+
+      await expect(pending).resolves.toEqual({ totalViews: 0, byLocale: [] });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('exposes the collection name so indexes and the doc agree', () => {

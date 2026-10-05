@@ -62,6 +62,7 @@ customer's trust.
 | CDN | Garage serves media directly |
 | Rate limits per actor | The throttle is global, not per account. `POST /privacy/requests` is public and unthrottled |
 | Asynchronous bounce reports | A rejection at send time is classified and suppresses the address. A bounce that arrives minutes later, as a report to the sending mailbox, is not read by anything |
+| Reminder volume against the send limit | Three automatic reminders per event plus invitations will cross Google Workspace's ~500/day limit on a large wedding; nothing throttles or warns |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
 | Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |

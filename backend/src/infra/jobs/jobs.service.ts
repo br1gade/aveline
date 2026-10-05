@@ -1,11 +1,9 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import type Redis from 'ioredis';
-import { REDIS_CLIENT } from '../cache/cache.service';
-import { Sentry } from '../observability/sentry';
 import { CommunicationsService } from '../../modules/communications/communications.service';
 import { PaymentsService } from '../../modules/payments/payments.service';
 import { TicketingService } from '../../modules/ticketing/ticketing.service';
+import { JobLockService, SCHEDULES } from './job-lock.service';
 
 /**
  * Runs the sweeps that keep the system honest.
@@ -24,7 +22,7 @@ export class JobsService {
   private readonly logger = new Logger(JobsService.name);
 
   constructor(
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly lock: JobLockService,
     private readonly payments: PaymentsService,
     private readonly ticketing: TicketingService,
     private readonly communications: CommunicationsService,
@@ -32,86 +30,38 @@ export class JobsService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async dispatchMessages(): Promise<void> {
-    await this.runExclusively('messages.dispatch', 55, async () => {
-      const result = await this.communications.dispatchDue();
-      if (result.sent + result.failed > 0) {
-        this.logger.log(`messages: ${result.sent} sent, ${result.failed} failed`);
-      }
-    });
+    await this.lock.runExclusively(
+      { name: 'messages.dispatch', ttlSeconds: 55, crontab: SCHEDULES.everyMinute },
+      async () => {
+        const result = await this.communications.dispatchDue();
+        if (result.sent + result.failed > 0) {
+          this.logger.log(`messages: ${result.sent} sent, ${result.failed} failed`);
+        }
+      },
+    );
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async reconcilePayments(): Promise<void> {
-    await this.runExclusively('payments.reconcile', 280, async () => {
-      const result = await this.payments.reconcile();
-      if (result.changed > 0) {
-        this.logger.log(`payments: ${result.changed} of ${result.checked} changed`);
-      }
-    });
+    await this.lock.runExclusively(
+      { name: 'payments.reconcile', ttlSeconds: 280, crontab: SCHEDULES.everyFiveMinutes },
+      async () => {
+        const result = await this.payments.reconcile();
+        if (result.changed > 0) {
+          this.logger.log(`payments: ${result.changed} of ${result.checked} changed`);
+        }
+      },
+    );
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async releaseExpiredReservations(): Promise<void> {
-    await this.runExclusively('tickets.release', 280, async () => {
-      const result = await this.ticketing.releaseExpiredReservations();
-      if (result.released > 0) this.logger.log(`tickets: released ${result.released} holds`);
-    });
+    await this.lock.runExclusively(
+      { name: 'tickets.release', ttlSeconds: 280, crontab: SCHEDULES.everyFiveMinutes },
+      async () => {
+        const result = await this.ticketing.releaseExpiredReservations();
+        if (result.released > 0) this.logger.log(`tickets: released ${result.released} holds`);
+      },
+    );
   }
-
-  /**
-   * Runs `work` only if this instance wins the lock.
-   *
-   * SET NX EX is a single atomic operation, so exactly one instance acquires
-   * it. The TTL is shorter than the schedule interval and is never extended:
-   * if an instance dies holding the lock, the next run proceeds rather than
-   * the sweep stopping forever.
-   *
-   * A Redis outage means no sweeps run, which is visibly wrong rather than
-   * quietly wrong — running them unguarded would risk double-sending.
-   */
-  private async runExclusively(
-    name: string,
-    ttlSeconds: number,
-    work: () => Promise<void>,
-  ): Promise<void> {
-    // Wrapped in a Sentry check-in so that a sweep which stops running
-    // entirely is noticed. That is the failure mode worth catching: these
-    // three were implemented and inert for weeks, and nothing would have
-    // said so. A check-in is not tracing — no spans, no sampling.
-    return Sentry.withMonitor(name, () => this.runGuarded(name, ttlSeconds, work), {
-      schedule: { type: 'crontab', value: name.includes('messages') ? '* * * * *' : '*/5 * * * *' },
-      checkinMargin: 2,
-      maxRuntime: Math.ceil(ttlSeconds / 60),
-    });
-  }
-
-  private async runGuarded(
-    name: string,
-    ttlSeconds: number,
-    work: () => Promise<void>,
-  ): Promise<void> {
-    const key = `aveline:lock:${name}`;
-    let wasAcquired = false;
-
-    try {
-      wasAcquired = (await this.redis.set(key, process.pid.toString(), 'EX', ttlSeconds, 'NX')) === 'OK';
-    } catch (error) {
-      this.logger.warn(`skipping ${name}: lock unavailable (${describeError(error)})`);
-      return;
-    }
-
-    if (!wasAcquired) return;
-
-    try {
-      await work();
-    } catch (error) {
-      this.logger.error(`${name} failed: ${describeError(error)}`);
-    } finally {
-      await this.redis.del(key).catch(() => undefined);
-    }
-  }
-}
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

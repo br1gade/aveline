@@ -26,4 +26,23 @@ export class EventsService {
     if (!event) throw new NotFoundException(`No event ${id}`);
     return event;
   }
+  /**
+   * Changes the settings a host can reasonably flip themselves.
+   *
+   * Deliberately narrow: this is not a general event PATCH. Title, date and
+   * venue changes affect an invitation people already hold, so they belong
+   * with the flows that know how to tell those guests — not in a settings
+   * toggle.
+   */
+  async updateSettings(eventId: string, settings: { remindersEnabled?: boolean }) {
+    await this.findOne(eventId);
+
+    const updated = await this.prisma.event.update({
+      where: { id: eventId },
+      data: { remindersEnabled: settings.remindersEnabled ?? undefined },
+      select: { id: true, remindersEnabled: true },
+    });
+    return updated;
+  }
+
 }
