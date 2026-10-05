@@ -23,7 +23,8 @@ backend/         The API. Rules in backend/CLAUDE.md
   docs/                  backend-internal: architecture, schema, stores, gaps
   openapi.json           generated; feed it to a type generator
 
-<client>/        The web or mobile client. Rules in its own CLAUDE.md
+frontend/        The client. Rules in frontend/CLAUDE.md once a stack is
+                 chosen — copy docs/CLIENT_CLAUDE.template.md into it
 ```
 
 **The split that matters:** `docs/` is a contract between two teams.
@@ -88,7 +89,7 @@ because it is believed.
 | Working in | Read |
 |---|---|
 | `backend/` | [`backend/CLAUDE.md`](backend/CLAUDE.md) |
-| the client | its own `CLAUDE.md`; start from [`docs/API.md`](docs/API.md) |
+| `frontend/` | `frontend/CLAUDE.md`; start from [`docs/API.md`](docs/API.md) |
 
 Claude Code loads the nearest `CLAUDE.md` automatically, so an agent working
 in `backend/` gets the backend rules without being told.

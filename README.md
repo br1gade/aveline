@@ -13,7 +13,8 @@ Custom event invitations, organization and management.
 |---|---|
 | [`docs/API.md`](docs/API.md) | How to call the backend. Conventions first, then every endpoint |
 | [`backend/openapi.json`](backend/openapi.json) | Generated schema — feed it to a type generator |
-| [`docs/CLIENT_CLAUDE.template.md`](docs/CLIENT_CLAUDE.template.md) | Drop-in rules file for the client project |
+| [`docs/CLIENT_CLAUDE.template.md`](docs/CLIENT_CLAUDE.template.md) | Drop-in rules file — copy to `frontend/CLAUDE.md` |
+| [`frontend/`](frontend/) | Scaffolded and empty, waiting on a stack |
 
 ```bash
 cd backend && npm run openapi

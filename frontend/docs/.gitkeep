@@ -1,0 +1,8 @@
+# Client-internal documentation lives here.
+#
+# What belongs in this folder: component conventions, state management,
+# routing, build and deploy — one team's reasoning about its own code.
+#
+# What does NOT belong here: anything describing the API. That is
+# ../../docs/API.md, a contract shared with the backend team. Duplicating it
+# guarantees the copy goes stale.

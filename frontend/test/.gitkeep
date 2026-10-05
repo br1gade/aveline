@@ -1,0 +1,7 @@
+# Client tests live here.
+#
+# Worth testing against a real backend rather than a mocked one wherever it is
+# cheap: the conventions in ../../docs/API.md §1 — money as strings, locale
+# negotiation, the paged envelope, token rotation — are exactly what a mock
+# gets subtly wrong, and a mock that is wrong in the same way as the code
+# proves nothing.

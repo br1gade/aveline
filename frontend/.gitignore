@@ -1,0 +1,11 @@
+# Frontend-local ignores (see repo root .gitignore for the rest)
+node_modules/
+dist/
+build/
+coverage/
+.env
+*.tsbuildinfo
+
+# Generated from backend/openapi.json — regenerate rather than commit, so the
+# types cannot drift from the server they describe.
+src/api/schema.ts
