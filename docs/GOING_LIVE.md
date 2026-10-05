@@ -85,8 +85,11 @@ Worth stating, so the list above is read as scope rather than alarm.
 - Ticket inventory that cannot oversell, verified with concurrent buyers
 - Graceful degradation: Redis and MongoDB can both be down and the API still
   serves correct content
-- 300+ tests across unit, integration and end-to-end
+- 900+ tests across unit, integration and end-to-end
 - Documentation that fails the build when it contradicts the code
+- The core loop, end to end: create an event, design and publish the
+  invitation, import a guest list, send it, collect RSVPs, seat the room,
+  chase non-responders, run the door, thank whoever came
 
 ---
 
