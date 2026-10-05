@@ -1364,11 +1364,16 @@ model Plan {
   interval   BillingInterval
 
   // ── entitlements ──
-  maxEventsPerPeriod Int?
-  maxGuestsPerEvent  Int?
-  maxLocales         Int      @default(1)
+  maxEventsPerPeriod     Int?
+  maxGuestsPerEvent      Int?
+  maxLocales             Int      @default(1)
+  /// How long a published invitation stays reachable after its event.
+  /// Null means indefinitely, which is what a paid tier buys; free tiers
+  /// carry a number and the retention sweep uses it to set
+  /// Invitation.expiresAt. See PRODUCT_SPEC §14.8.
+  invitationLifetimeDays Int?
   /// Capability flags, e.g. ["seating", "vendor-briefs", "check-in"].
-  features           String[] @default([])
+  features               String[] @default([])
 
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)

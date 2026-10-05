@@ -68,7 +68,7 @@ lives outside Postgres.
 |---|---|
 | `Payment` · `PaymentEvent` | A charge, and every state transition with the provider's payload |
 | `Refund` | Individual refunds; `Payment.refundedMinor` is the running total |
-| `Plan` · `Subscription` · `Invoice` | Recurring billing (PRODUCT_SPEC §9.4) |
+| `Plan` · `Subscription` · `Invoice` | Recurring billing (PRODUCT_SPEC §9.4). `Plan.invitationLifetimeDays` is how long an invitation stays live — null means indefinitely |
 
 ### Vendors and output
 | Model | Purpose |
@@ -127,6 +127,7 @@ reject the bad row.
 | `plans` | price never negative |
 | `ticket_orders` | discount never negative |
 | `subscriptions` | period end after period start |
+| `plans` | an invitation lifetime, when set, is positive — zero would expire a page on publication |
 | `device_tokens` | exactly one subject — a user or a guest, never both or neither |
 | `data_subject_requests` | the response deadline cannot precede the request |
 | `message_templates` | one global template per key and channel (partial index — Postgres treats NULLs as distinct, so the compound unique alone does not bind) |

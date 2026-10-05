@@ -37,7 +37,7 @@ human retyping something another human already typed.
 
 | # | Gap | Why it blocks |
 |---|---|---|
-| 5 | **Real message transports** | The outbox renders, queues, claims and dispatches correctly — but every channel resolves to the console transport, so nothing actually reaches a guest. This is now the single thing standing between the product and its core loop |
+| 5 | **Real message transports** | The outbox renders, queues, claims and dispatches correctly — but every channel resolves to the console transport, so nothing actually reaches a guest. This is now the single thing standing between the product and its core loop. **Decided:** start with Google Workspace SMTP. Note its ~500/day send limit — fine for development and early events, but a 400-guest wedding plus reminders approaches it, so plan to move to a transactional provider before volume arrives. Writing the adapter against plain SMTP keeps that a configuration change |
 
 ## 3. High value — the actual digitalisation
 
@@ -75,7 +75,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 | 21 | ~~Health and readiness endpoints~~ | **Done** |
 | 21b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
 | 22 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
-| 23 | **Backups and retention policy** | Page lifetime after an event is still an open decision (§13.8) |
+| 23 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
 | 24 | **GDPR behaviour** | The schema is in place — `DataSubjectRequest`, `anonymizedAt`, consent fields — but no endpoint accepts a request, nothing anonymises, and nothing assembles an export |
 | 25 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 
