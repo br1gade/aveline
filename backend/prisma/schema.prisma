@@ -1493,6 +1493,22 @@ model Invoice {
   @@map("invoices")
 }
 
+/// Gap-free invoice numbering.
+///
+/// A sequence would be simpler but leaves gaps when a transaction rolls back,
+/// and an unexplained gap in a numbered series is exactly what a tax audit
+/// asks about. One row per series, incremented inside the same transaction
+/// that writes the invoice, so a rolled-back invoice returns its number.
+model InvoiceCounter {
+  /// The series this counter belongs to, e.g. "2026".
+  series String @id
+  next   Int    @default(1)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("invoice_counters")
+}
+
 enum InvoiceStatus {
   DRAFT
   ISSUED

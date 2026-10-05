@@ -634,6 +634,279 @@ push yet.
 Check-in requires `guest:write`, so door staff need a real account rather than
 a link.
 
+### Becoming a tenant — do this once, first
+
+```http
+POST /api/v1/organizations      { "name": "Petrosyan Wedding", "kind": "HOST" }
+```
+
+**A freshly registered account belongs to no organization, and every
+organization-scoped route answers `403` until it does.** Registering is not
+enough. Make this call immediately after `POST /auth/register` unless the
+account arrived through `POST /invites/accept`, which already placed it in one.
+
+```json
+{
+  "id": "clz...", "name": "Petrosyan Wedding", "kind": "HOST",
+  "events": 0, "members": 1, "plan": null, "subscriptionStatus": null
+}
+```
+
+The caller becomes `OWNER`. `kind` is `HOST` for a couple or `AGENCY` for a
+planner, and only affects presentation today.
+
+**One organization per account.** A second call returns `409` naming the one
+that exists. This is a current limitation, not a product decision: the server
+resolves "your organization" from your single membership, and allowing two
+would make every organization-scoped route act on whichever came back first.
+
+```http
+GET   /api/v1/organizations/current
+PATCH /api/v1/organizations/current   { "name": "..." }
+```
+
+`GET` needs `event:read`; renaming needs `member:manage`.
+
+### Plans and subscriptions
+
+```http
+GET /api/v1/plans
+```
+
+Public — this is the pricing page.
+
+```json
+[
+  {
+    "key": "managed-monthly", "name": "Managed", "tier": "MANAGED",
+    "priceMinor": "25000", "currency": "AMD", "interval": "MONTHLY",
+    "entitlements": {
+      "maxEventsPerPeriod": 3, "maxGuestsPerEvent": 400, "maxLocales": 3,
+      "invitationLifetimeDays": null, "features": ["seating", "check-in"]
+    }
+  }
+]
+```
+
+`invitationLifetimeDays: null` means the invitation stays up indefinitely;
+a number is how long after the event a free-tier page remains reachable.
+**Nothing enforces these entitlements yet** — they are published so you can
+build the pricing page and gate the UI, but the server will not refuse a
+fourth event today.
+
+```http
+GET /api/v1/subscription
+```
+
+```json
+{ "subscription": { "status": "ACTIVE", "plan": { ... }, "entitlements": { ... },
+  "currentPeriodEnd": "2026-11-05T...", "cancelAtPeriodEnd": false } }
+```
+
+Always an object. `{ "subscription": null }` means the organization has never
+subscribed, which is not an error — render an upgrade prompt, not a failure.
+Requires `billing:read`.
+
+```http
+POST /api/v1/subscription   { "planKey": "managed-monthly", "provider": "AMERIABANK" }
+```
+
+A free plan (`priceMinor: "0"`) activates immediately and returns
+`invoice: null`. A paid one needs `provider`, issues an invoice, and returns a
+bank URL:
+
+```json
+{
+  "subscription": { "status": "TRIALING", ... },
+  "invoice": { "number": "AV-2026-000001", "status": "ISSUED", "totalMinor": "25000" },
+  "payment": { "orderNumber": "...", "redirectUrl": "https://bank..." }
+}
+```
+
+**Access begins when the payment confirms, not when this call returns.** The
+subscription stays `TRIALING` until then — send the payer to `redirectUrl`, and
+on their return call:
+
+```http
+POST /api/v1/invoices/:number/confirm
+```
+
+which asks the bank server-to-server and activates the subscription. Safe to
+call twice; a second call never double-activates or double-counts.
+
+Changing plan is the same call with a different `planKey` — it replaces the
+subscription in place rather than opening a second.
+
+```http
+POST /api/v1/subscription/cancel
+POST /api/v1/subscription/resume
+```
+
+Cancelling sets `cancelAtPeriodEnd: true` and leaves the status `ACTIVE`:
+someone who paid for the month keeps the month. Show them
+`currentPeriodEnd`, not "cancelled". `resume` undoes it until that date passes,
+after which it returns `400` and the answer is to subscribe again. Both need
+`billing:write`.
+
+### Invoices
+
+```http
+GET /api/v1/invoices
+GET /api/v1/invoices/:number
+```
+
+```json
+{
+  "number": "AV-2026-000001", "status": "ISSUED",
+  "subtotalMinor": "25000", "taxMinor": "0", "totalMinor": "25000",
+  "currency": "AMD",
+  "lines": [{ "description": "Managed (monthly)", "quantity": 1, "totalMinor": "25000" }],
+  "issuedAt": "2026-10-05T...", "dueAt": "2026-10-12T...", "paidAt": null,
+  "paymentOrderNumber": "..."
+}
+```
+
+Numbers are gap-free within a year and sort as plain text in issue order.
+`lines` is captured at issue, so a later price change never rewrites a document
+a customer has filed. **`taxMinor` is always `"0"` — tax is not computed yet.**
+Do not present an invoice as a tax document.
+
+### Promo codes
+
+```http
+GET    /api/v1/promo-codes
+POST   /api/v1/promo-codes          { "code": "SPRING25", "kind": "PERCENT", "value": "25", ... }
+PATCH  /api/v1/promo-codes/:codeId  { "maxRedemptions": 200, "validUntil": "...", "isActive": false }
+DELETE /api/v1/promo-codes/:codeId
+```
+
+Creating takes `code`, `kind` (`PERCENT` or `FIXED`) and `value` — a percentage
+1–100, or an amount in minor units. Optional: `eventId` (omitted applies it to
+every event), `maxRedemptions`, `minOrderMinor`, `validFrom`, `validUntil`.
+
+Codes are **case-insensitive** and stored upper-cased, so `spring25` comes back
+as `SPRING25`. Letters, numbers and hyphens only.
+
+```json
+{ "id": "clz...", "code": "SPRING25", "kind": "PERCENT", "value": "25",
+  "redemptions": 12, "maxRedemptions": 100, "remaining": 88, "isActive": true }
+```
+
+`remaining` is what a host wants to see; it is `null` for an uncapped code.
+
+**`kind` and `value` cannot be changed.** A buyer holding a poster must get
+what it advertises, and orders record the discount they were given. `PATCH`
+changes only the limits, and lowering `maxRedemptions` below what has already
+been used returns `400`. `DELETE` deactivates — nothing is ever deleted,
+because a refund is calculated from what the order was charged.
+
+Requires `billing:write` to change and `billing:read` to list, which in
+practice means an organization `OWNER`: discounts are revenue.
+
+### Checking a promo code before checkout — public
+
+```http
+POST /api/v1/public/events/:slug/promo-check
+{ "code": "spring25", "items": [{ "ticketTypeId": "...", "quantity": 2 }] }
+```
+
+```json
+{ "code": "SPRING25", "isApplicable": true, "subtotalMinor": "20000",
+  "discountMinor": "5000", "totalMinor": "15000", "currency": "AMD" }
+```
+
+When it does not apply, `isApplicable` is `false` and `reason` is text written
+to be shown to the buyer ("This code has run out", "This code has expired",
+"We do not recognise that code"). The status is still `200` — a code that does
+not apply is an answer, not an error.
+
+Send `items`, not a subtotal: the price is computed from our own ticket prices.
+
+**This is a preview and can go stale.** Redeem by passing `promoCode` to
+`POST /public/events/:slug/orders`; the redemption is claimed there, atomically.
+A code with one use left can be taken by someone else in between, and that
+checkout returns `409 "This code has just run out"`. Treat it as a routine
+outcome: clear the code and let the buyer continue at full price.
+
+The order response carries `discountMinor` alongside `totalMinor`.
+
+### Vendors and scoped briefs
+
+```http
+GET  /api/v1/vendors?category=CATERING
+POST /api/v1/vendors                 { "name": "...", "category": "CATERING", ... }
+```
+
+The partner directory. `category` is one of `VENUE`, `CATERING`, `BAR`,
+`DECOR`, `PHOTOGRAPHY`, `VIDEOGRAPHY`, `MUSIC`, `PRINT`, `OTHER`.
+
+```http
+GET   /api/v1/events/:eventId/vendors
+POST  /api/v1/events/:eventId/vendors   { "vendorId": "...", "briefScopes": ["headcount"], "feeAmount": "150000.00" }
+PATCH /api/v1/events/:eventId/vendors/:bookingId
+DELETE /api/v1/events/:eventId/vendors/:bookingId
+```
+
+`briefScopes` is exactly what that vendor may read, from this list:
+
+| Scope | What it shows |
+|---|---|
+| `headcount` | Confirmed headcount by side |
+| `catering` | Covers and dietary requirements |
+| `bar` | Drink preferences as quantities |
+| `playlist` | Requested songs |
+| `timeline` | Running order and access times |
+| `seating` | Tables, capacities and who sits where |
+| `households` | Guests grouped by household, for formal photographs |
+| `contacts` | Guest emails and phone numbers |
+
+Omit `briefScopes` and the vendor's category decides: a caterer gets
+`headcount`, `catering`, `timeline`. Defaulting narrows rather than widens, so
+forgetting the field is safe. An unrecognised scope is a `400`.
+
+**`feeAmount` is absent from the response unless you hold `vendor:fee:read`.**
+It is not `null` — the field is not there at all. A `VIEWER` sees the vendor
+and not the commercial terms.
+
+Re-posting the same `vendorId` edits the existing engagement; there is never a
+second booking for one vendor on one event.
+
+```http
+GET /api/v1/briefs/:briefToken
+```
+
+Public, authenticated by the link alone — the same capability pattern as a
+guest invitation. Send the vendor
+`https://your-app/briefs/<briefToken>`.
+
+```json
+{
+  "vendor": { "name": "Tashir Catering", "category": "CATERING" },
+  "status": "CONFIRMED",
+  "event": { "title": "...", "startsAt": "...", "timezone": "Asia/Yerevan", "venues": [...] },
+  "granted": [
+    { "section": "headcount", "purpose": "Confirmed headcount by side" },
+    { "section": "catering", "purpose": "Covers and dietary requirements" }
+  ],
+  "headcount": { ... },
+  "catering": { ... }
+}
+```
+
+**A section the booking did not grant is absent, not empty.** Render from
+`granted` rather than probing for keys. `granted: []` is valid and means the
+vendor sees only the event and its venues.
+
+```http
+POST /api/v1/events/:eventId/vendors/:bookingId/rotate-brief
+```
+
+Issues a new token and **kills the old link immediately** — the only revocation
+a capability URL has, for when a brief is forwarded to the wrong supplier.
+Cancelling a booking rotates too, so a cancelled engagement's sent link stops
+working. An old link returns `404`; a cancelled booking's current link returns
+`403`.
+
 ### Uploading a file
 
 ```http
@@ -766,8 +1039,13 @@ So you can plan around them rather than discover them:
 - **Nothing actually sends messages.** The outbox works; every channel writes
   to the server log instead of delivering. Reset and invite links come back in
   the response body in development — see §9.
-- **No promo codes, subscriptions or invoices.** All modelled; no routes.
-- **No vendor brief endpoints.** A vendor's scoped read is not built.
+- **Nothing enforces plan entitlements.** They are published on `/plans` and on
+  the subscription, but the server will not refuse a fourth event on a
+  three-event plan.
+- **No tax on invoices.** `taxMinor` is always `"0"`.
+- **No renewal or dunning.** A subscription's period lapses and nothing
+  charges again or moves it to `PAST_DUE`.
+- **One organization per account.** See §6.
 - **No design write endpoints** beyond block arrangement. Content, themes and
   cover images have no write path.
 - **No GDPR endpoints.** The schema supports erasure and export; nothing

@@ -34,9 +34,20 @@ the mitigation is a short-lived token, not an account.
 ### Vendors see one brief and nothing else
 
 `VendorBooking.briefToken` grants access; `VendorBooking.briefScopes` lists
-exactly which views. A caterer holding `operations:read` sees headcount and
-dietary requirements. The same token gives no access to guest phone numbers or
-to what another vendor is being paid.
+exactly which sections. The scopes are their own vocabulary — `headcount`,
+`catering`, `bar`, `playlist`, `timeline`, `seating`, `households`,
+`contacts` — rather than the staff permission names above, because a caterer
+needs the headcount and the dietary requirements but has no business reading
+the playlist, and `operations:read` cannot express that difference.
+
+The brief is assembled by iterating the granted sections, so a section the
+booking did not list cannot appear in the response. Omitting the scopes falls
+back to the vendor category's usual set, which narrows rather than widens.
+No scope exposes what another vendor is being paid, and `contacts` — the only
+scope carrying phone numbers — is never granted by default.
+
+A brief link is a capability, so rotation is its only revocation:
+`POST /events/:eventId/vendors/:bookingId/rotate-brief` kills the old link.
 
 ---
 
@@ -103,12 +114,18 @@ numbers, nor see what the caterer is charging. The role grants
 | `vendor:read` / `vendor:write` | The vendor network for this event |
 | `vendor:fee:read` | What vendors are being paid — separated from `vendor:read` |
 | `member:manage` | Invite and remove members, change roles |
-| `billing:read` | Invoices and plan |
+| `billing:read` | Invoices, plan and promo codes |
+| `billing:write` | Change the plan, create and withdraw promo codes |
 
 Two permissions are split out from their obvious parents on purpose:
 `guest:contact:read` from `guest:read`, and `vendor:fee:read` from
 `vendor:read`. Both exist so a `DESIGNER` can be useful without being trusted
 with PII or commercial terms.
+
+`billing:read` and `billing:write` are granted by organization `OWNER` and
+platform `ADMIN` only — they are not part of `RUN_EVENT`. A planner running
+someone's event can do everything operational without being able to change the
+plan or issue a discount, because a discount is revenue.
 
 ---
 

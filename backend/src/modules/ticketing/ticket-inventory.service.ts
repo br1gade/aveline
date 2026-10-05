@@ -69,11 +69,17 @@ export class TicketInventoryService {
     }
   }
 
-  /** Returns a hold to the pool when a checkout is abandoned or expires. */
-  async release(ticketTypeId: string, quantity: number): Promise<void> {
+  /**
+   * Returns a hold to the pool when a checkout is abandoned or expires.
+   *
+   * Takes an optional transaction so the release can commit together with the
+   * order status that justifies it — releasing inventory for an order that is
+   * then not marked expired would return the same seats twice.
+   */
+  async release(ticketTypeId: string, quantity: number, tx?: Executor): Promise<void> {
     assertPositive(quantity);
 
-    const updated = await this.prisma.$executeRaw`
+    const updated = await (tx ?? this.prisma).$executeRaw`
       UPDATE "ticket_types"
          SET "quantityReserved" = "quantityReserved" - ${quantity},
              "updatedAt" = NOW()

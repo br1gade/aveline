@@ -7,7 +7,9 @@ import {
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PromoCodesService } from '../billing/promo-codes.service';
 import { PaymentsService } from '../payments/payments.service';
+import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
 import { CreateOrderDto, OrderLineDto } from './dto/create-order.dto';
 import { TicketInventoryService } from './ticket-inventory.service';
 
@@ -22,6 +24,7 @@ export class TicketingService {
     private readonly prisma: PrismaService,
     private readonly inventory: TicketInventoryService,
     private readonly payments: PaymentsService,
+    private readonly promoCodes: PromoCodesService,
   ) {}
 
   /**
@@ -48,13 +51,44 @@ export class TicketingService {
         await this.inventory.reserve(line.ticketTypeId, line.quantity);
         reserved.push(line);
       }
-      return await this.recordOrder(event.id, dto, types);
+      return await this.recordOrder(event, dto, types);
     } catch (error) {
       // Anything already held must go back, or a failed checkout silently
       // removes seats from sale until the sweep catches them.
       await this.releaseAll(reserved);
       throw error;
     }
+  }
+
+  /**
+   * What a promo code is worth on this basket, before committing to anything.
+   *
+   * The subtotal is computed from our own prices rather than taken from the
+   * request, so the quote cannot be inflated by claiming a larger order. The
+   * answer is a preview: a code with one redemption left can still be taken by
+   * someone else before checkout, which is why the redemption itself is
+   * claimed again, atomically, at that point.
+   */
+  async checkPromoCode(eventSlug: string, dto: CheckPromoCodeDto) {
+    const event = await this.loadSellableEvent(eventSlug);
+    const types = await this.loadTicketTypes(event.id, dto.items);
+    const subtotalMinor = subtotalFor(dto.items, types);
+
+    const evaluation = await this.promoCodes.evaluate(event.organizationId, dto.code, {
+      eventId: event.id,
+      subtotalMinor,
+    });
+
+    const discountMinor = evaluation.isApplicable ? evaluation.discountMinor : 0n;
+    return {
+      code: dto.code.trim().toUpperCase(),
+      isApplicable: evaluation.isApplicable,
+      reason: evaluation.isApplicable ? undefined : evaluation.reason,
+      subtotalMinor: subtotalMinor.toString(),
+      discountMinor: discountMinor.toString(),
+      totalMinor: (subtotalMinor - discountMinor).toString(),
+      currency: types[0]?.currency ?? 'AMD',
+    };
   }
 
   /**
@@ -150,18 +184,47 @@ export class TicketingService {
     let released = 0;
     for (const order of expired) {
       try {
-        await this.releaseAll(order.items);
-        await this.prisma.ticketOrder.update({
-          where: { id: order.id },
-          data: { status: TicketOrderStatus.EXPIRED },
-        });
-        released += 1;
+        if (await this.expireOrder(order)) released += 1;
       } catch (error) {
         this.logger.warn(`could not release order ${order.id}: ${describeError(error)}`);
       }
     }
 
     return { released };
+  }
+
+  /**
+   * Expires one abandoned checkout: marks it, returns its seats, and gives
+   * back the promo redemption it took.
+   *
+   * All three in one transaction, claim first. The claim — a conditional
+   * update matching only a RESERVED order — is what makes this safe to run
+   * twice: a second sweep, or this endpoint called directly while the cron is
+   * running, matches nothing and returns nothing. Without it, two passes would
+   * return the same seats twice and oversell them, which is the one outcome
+   * worse than holding inventory too long.
+   */
+  private async expireOrder(order: {
+    id: string;
+    promoCodeId: string | null;
+    items: { ticketTypeId: string; quantity: number }[];
+  }): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.ticketOrder.updateMany({
+        where: { id: order.id, status: TicketOrderStatus.RESERVED },
+        data: { status: TicketOrderStatus.EXPIRED, reservesUntil: null },
+      });
+      if (claimed.count === 0) return false;
+
+      for (const item of order.items) {
+        await this.inventory.release(item.ticketTypeId, item.quantity, tx);
+      }
+
+      // An abandoned checkout must not burn a limited code — the next buyer
+      // is entitled to it.
+      await this.promoCodes.releaseClaim(order.promoCodeId, tx);
+      return true;
+    });
   }
 
   /** Admits a ticket at the door. A code may only be used once. */
@@ -197,7 +260,9 @@ export class TicketingService {
   private async loadSellableEvent(slug: string) {
     const listing = await this.prisma.eventListing.findUnique({
       where: { slug },
-      include: { event: { select: { id: true, visibility: true, status: true } } },
+      include: {
+        event: { select: { id: true, organizationId: true, visibility: true, status: true } },
+      },
     });
 
     if (!listing || listing.publishedAt === null) {
@@ -229,54 +294,29 @@ export class TicketingService {
   }
 
   private async recordOrder(
-    eventId: string,
+    event: { id: string; organizationId: string },
     dto: CreateOrderDto,
     types: { id: string; priceMinor: bigint; currency: string }[],
   ) {
-    const totalMinor = dto.items.reduce((sum, line) => {
-      const type = types.find((candidate) => candidate.id === line.ticketTypeId)!;
-      return sum + type.priceMinor * BigInt(line.quantity);
-    }, 0n);
+    const subtotalMinor = subtotalFor(dto.items, types);
 
-    const order = await this.prisma.ticketOrder.create({
-      data: {
-        eventId,
-        buyerName: dto.buyerName,
-        buyerEmail: dto.buyerEmail,
-        buyerPhone: dto.buyerPhone ?? null,
-        locale: dto.locale ?? 'hy',
-        totalMinor,
-        currency: types[0]?.currency ?? 'AMD',
-        idempotencyKey: dto.idempotencyKey,
-        accessToken: randomBytes(16).toString('hex'),
-        reservesUntil: new Date(Date.now() + RESERVATION_WINDOW_MS),
-        items: {
-          create: dto.items.map((line) => ({
-            ticketTypeId: line.ticketTypeId,
-            quantity: line.quantity,
-            unitPriceMinor: types.find((t) => t.id === line.ticketTypeId)!.priceMinor,
-          })),
-        },
-      },
-      include: { items: true },
-    });
+    const order = await this.createOrderRow(event, dto, types, subtotalMinor);
 
-    // A free event skips payment entirely and issues immediately.
-    if (totalMinor === 0n) return this.markPaid(order.id);
+    // A free event — or one discounted to nothing — skips payment entirely.
+    if (order.totalMinor === 0n) return this.markPaid(order.id);
     if (!dto.provider) {
       throw new BadRequestException('This event requires payment; choose a provider');
     }
 
     const payment = await this.payments.start({
-      organizationId: (await this.prisma.event.findUniqueOrThrow({ where: { id: eventId } }))
-        .organizationId,
-      eventId,
+      organizationId: event.organizationId,
+      eventId: event.id,
       purpose: PaymentPurpose.TICKET,
       provider: dto.provider,
-      amountMinor: totalMinor.toString(),
+      amountMinor: order.totalMinor.toString(),
       currency: order.currency,
       returnUrl: dto.returnUrl ?? 'https://aveline.test/tickets/return',
-      description: `Tickets for ${eventId}`,
+      description: `Tickets for ${event.id}`,
       locale: order.locale,
       idempotencyKey: `order-${order.id}`,
     });
@@ -287,6 +327,59 @@ export class TicketingService {
     });
 
     return { ...this.describe(order), payment };
+  }
+
+  /**
+   * Takes the discount and records the order in one transaction.
+   *
+   * Both or neither: an order that failed to insert must not have consumed a
+   * redemption, and a redemption that was taken must be attached to an order.
+   * Rolling back is how the redemption is returned — a compensating write
+   * after the fact is a write that might not run.
+   */
+  private async createOrderRow(
+    event: { id: string; organizationId: string },
+    dto: CreateOrderDto,
+    types: { id: string; priceMinor: bigint; currency: string }[],
+    subtotalMinor: bigint,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const claim = dto.promoCode
+        ? await this.promoCodes.claim(
+            event.organizationId,
+            dto.promoCode,
+            { eventId: event.id, subtotalMinor },
+            tx,
+          )
+        : null;
+
+      const discountMinor = claim?.discountMinor ?? 0n;
+
+      return tx.ticketOrder.create({
+        data: {
+          eventId: event.id,
+          buyerName: dto.buyerName,
+          buyerEmail: dto.buyerEmail,
+          buyerPhone: dto.buyerPhone ?? null,
+          locale: dto.locale ?? 'hy',
+          totalMinor: subtotalMinor - discountMinor,
+          promoCodeId: claim?.promoCodeId ?? null,
+          discountMinor,
+          currency: types[0]?.currency ?? 'AMD',
+          idempotencyKey: dto.idempotencyKey,
+          accessToken: randomBytes(16).toString('hex'),
+          reservesUntil: new Date(Date.now() + RESERVATION_WINDOW_MS),
+          items: {
+            create: dto.items.map((line) => ({
+              ticketTypeId: line.ticketTypeId,
+              quantity: line.quantity,
+              unitPriceMinor: types.find((t) => t.id === line.ticketTypeId)!.priceMinor,
+            })),
+          },
+        },
+        include: { items: true },
+      });
+    });
   }
 
   private ticketsFor(order: {
@@ -321,6 +414,7 @@ export class TicketingService {
     accessToken: string;
     status: TicketOrderStatus;
     totalMinor: bigint;
+    discountMinor?: bigint;
     currency: string;
     reservesUntil: Date | null;
     items: { ticketTypeId: string; quantity: number; unitPriceMinor: bigint }[];
@@ -331,6 +425,7 @@ export class TicketingService {
       accessToken: order.accessToken,
       status: order.status,
       totalMinor: order.totalMinor.toString(),
+      discountMinor: (order.discountMinor ?? 0n).toString(),
       currency: order.currency,
       reservesUntil: order.reservesUntil,
       items: order.items.map((item) => ({
@@ -370,4 +465,14 @@ function assertWithinOrderLimits(
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function subtotalFor(
+  items: OrderLineDto[],
+  types: { id: string; priceMinor: bigint }[],
+): bigint {
+  return items.reduce((sum, line) => {
+    const type = types.find((candidate) => candidate.id === line.ticketTypeId)!;
+    return sum + type.priceMinor * BigInt(line.quantity);
+  }, 0n);
 }

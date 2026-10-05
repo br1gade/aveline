@@ -71,6 +71,9 @@ src/
     invitations/     public invitation payload, data-bound + personalized
     rsvp/            the write side — guest responses
     seating/         tables, seat assignment, the packing algorithm
+    organizations/   the tenant a new account creates for itself
+    billing/         plans, subscriptions, invoices, promo codes
+    vendors/         the partner network and scoped briefs
     operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
     payments/        card acquiring; providers/ holds one adapter per bank
@@ -167,6 +170,18 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `DELETE` | `/api/v1/events/:eventId/seats/:guestId` | Unseat one guest |
 | `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Seat everyone attending; reports who did not fit |
 
+#### Vendors and briefs
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/vendors` | The partner directory, optionally by category |
+| `POST` | `/api/v1/vendors` | Add a vendor to the directory |
+| `GET` | `/api/v1/events/:eventId/vendors` | This event's vendors; fees only with `vendor:fee:read` |
+| `POST` | `/api/v1/events/:eventId/vendors` | Engage a vendor and mint their brief link |
+| `PATCH` | `/api/v1/events/:eventId/vendors/:bookingId` | Change status, scopes or fee |
+| `POST` | `/api/v1/events/:eventId/vendors/:bookingId/rotate-brief` | Replace the brief link |
+| `DELETE` | `/api/v1/events/:eventId/vendors/:bookingId` | Cancel an engagement |
+
 #### Check-in on the day
 
 | Method | Path | Purpose |
@@ -179,6 +194,33 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/payments/:orderNumber/confirm` | Server-to-server outcome check |
 | `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |
 | `POST` | `/api/v1/payments/reconcile` | Sweep unresolved payments |
+
+### Organization and billing
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/organizations` | Create your organization; the caller becomes OWNER |
+| `GET` | `/api/v1/organizations/current` | Your organization, its plan and its counts |
+| `PATCH` | `/api/v1/organizations/current` | Rename it |
+| `GET` | `/api/v1/plans` | The price list with entitlements (**public**) |
+| `GET` | `/api/v1/subscription` | Your subscription, or `{ "subscription": null }` |
+| `POST` | `/api/v1/subscription` | Start or change a plan |
+| `POST` | `/api/v1/subscription/cancel` | Cancel at the end of the paid period |
+| `POST` | `/api/v1/subscription/resume` | Undo a cancellation |
+| `GET` | `/api/v1/invoices` | Your invoices, newest first |
+| `GET` | `/api/v1/invoices/:number` | One invoice with its captured line items |
+| `POST` | `/api/v1/invoices/:number/confirm` | Settle after the bank |
+| `GET` | `/api/v1/promo-codes` | Your promo codes and how much of each is left |
+| `POST` | `/api/v1/promo-codes` | Create one |
+| `PATCH` | `/api/v1/promo-codes/:codeId` | Change its limits |
+| `DELETE` | `/api/v1/promo-codes/:codeId` | Deactivate it |
+
+### Public — vendor briefs and discounts
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/briefs/:briefToken` | A vendor's brief — only the sections their booking lists |
+| `POST` | `/api/v1/public/events/:slug/promo-check` | What a promo code is worth on a basket |
 
 ### Public — announcements and ticketing
 

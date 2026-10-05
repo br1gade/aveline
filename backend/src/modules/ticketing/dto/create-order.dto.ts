@@ -30,6 +30,12 @@ export class OrderLineDto {
 }
 
 export class CreateOrderDto {
+  @ApiPropertyOptional({ description: 'A promo code to redeem, case-insensitive' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  promoCode?: string;
+
   @ApiProperty({ type: [OrderLineDto] })
   @IsArray()
   @ArrayMinSize(1)

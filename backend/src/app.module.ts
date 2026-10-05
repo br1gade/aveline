@@ -26,6 +26,9 @@ import { PublicEventsModule } from './modules/public-events/public-events.module
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { MediaModule } from './modules/media/media.module';
 import { DevicesModule } from './modules/devices/devices.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { VendorsModule } from './modules/vendors/vendors.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { SeatingModule } from './modules/seating/seating.module';
 
 @Module({
@@ -68,6 +71,9 @@ import { SeatingModule } from './modules/seating/seating.module';
     MediaModule,
     DevicesModule,
     SeatingModule,
+    BillingModule,
+    VendorsModule,
+    OrganizationsModule,
 
     // Last: its sweeps depend on the domain modules above.
     JobsModule,

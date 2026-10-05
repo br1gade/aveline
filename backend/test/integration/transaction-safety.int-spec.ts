@@ -1,9 +1,18 @@
-import { PaymentEventSource, PaymentProvider, PaymentPurpose, PaymentStatus, PrismaClient, TicketOrderStatus } from '@prisma/client';
+import {
+  DiscountKind,
+  PaymentEventSource,
+  PaymentProvider,
+  PaymentPurpose,
+  PaymentStatus,
+  PrismaClient,
+  TicketOrderStatus,
+} from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
 import { PaymentsService } from '../../src/modules/payments/payments.service';
 import { FakeGateway } from '../../src/modules/payments/providers/fake.gateway';
 import { TicketInventoryService } from '../../src/modules/ticketing/ticket-inventory.service';
+import { PromoCodesService } from '../../src/modules/billing/promo-codes.service';
 import { TicketingService } from '../../src/modules/ticketing/ticketing.service';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
@@ -31,7 +40,13 @@ describe('transaction safety (integration)', () => {
     const registry = new PaymentGatewayRegistry([fake]);
     payments = new PaymentsService(prisma as unknown as PrismaService, registry);
     inventory = new TicketInventoryService(prisma as unknown as PrismaService);
-    ticketing = new TicketingService(prisma as unknown as PrismaService, inventory, payments);
+    const promoCodes = new PromoCodesService(prisma as unknown as PrismaService);
+    ticketing = new TicketingService(
+      prisma as unknown as PrismaService,
+      inventory,
+      payments,
+      promoCodes,
+    );
   });
 
   beforeEach(async () => {
@@ -183,6 +198,147 @@ describe('transaction safety (integration)', () => {
       const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
       expect(order.status).toBe(TicketOrderStatus.PAID);
       expect(await prisma.ticket.count({ where: { orderId } })).toBe(2);
+    });
+  });
+  describe('promo code redemption', () => {
+    /** A paid tier, so a discount is visible in the total. */
+    const sellableEvent = async (priceMinor: bigint) => {
+      const type = await prisma.ticketType.create({
+        data: { eventId, name: { en: 'GA' }, priceMinor, quantityTotal: 50, maxPerOrder: 50 },
+      });
+      await prisma.event.update({ where: { id: eventId }, data: { visibility: 'PUBLIC' } });
+      const listing = await prisma.eventListing.create({
+        data: {
+          eventId,
+          slug: `p-${Math.random().toString(36).slice(2, 8)}`,
+          publishedAt: new Date(),
+        },
+      });
+      return { ticketTypeId: type.id, slug: listing.slug };
+    };
+
+    const promo = (code: string, maxRedemptions: number | null) =>
+      prisma.promoCode.create({
+        data: {
+          organizationId,
+          code,
+          kind: DiscountKind.PERCENT,
+          value: 50n,
+          maxRedemptions,
+        },
+      });
+
+    const order = (slug: string, ticketTypeId: string, promoCode?: string) =>
+      ticketing.createOrder(slug, {
+        items: [{ ticketTypeId, quantity: 1 }],
+        buyerName: 'Buyer',
+        buyerEmail: 'buyer@test.local',
+        idempotencyKey: `order-${Math.random()}`,
+        provider: PaymentProvider.FAKE,
+        promoCode,
+      });
+
+    it('takes the discount off the total and records what was given', async () => {
+      const { slug, ticketTypeId } = await sellableEvent(10_000n);
+      await promo('HALF', null);
+
+      const created = await order(slug, ticketTypeId, 'half');
+
+      expect(created.totalMinor).toBe('5000');
+      expect(created.discountMinor).toBe('5000');
+      const row = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: created.orderId } });
+      expect(row.discountMinor).toBe(5_000n);
+      expect(row.promoCodeId).not.toBeNull();
+    });
+
+    /**
+     * The failure this guards: two buyers with the last redemption of a code.
+     * Counting in Node after a read would let both through and hand out a
+     * discount the host never offered.
+     */
+    it('redeems a single-use code exactly once under concurrency', async () => {
+      const { slug, ticketTypeId } = await sellableEvent(10_000n);
+      const code = await promo('ONCE', 1);
+
+      const results = await Promise.allSettled([
+        order(slug, ticketTypeId, 'ONCE'),
+        order(slug, ticketTypeId, 'ONCE'),
+        order(slug, ticketTypeId, 'ONCE'),
+      ]);
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+
+      // The database CHECK constraint also protects the limit, so the count
+      // would stay correct even if the claim were wrong — but the loser would
+      // get a 500 instead of "this code has just run out". Asserting the
+      // error kind is what distinguishes a guarded claim from a lucky one.
+      for (const result of results.filter((r) => r.status === 'rejected')) {
+        const reason = (result).reason as { status?: number };
+        expect(reason.status).toBeGreaterThanOrEqual(400);
+        expect(reason.status).toBeLessThan(500);
+      }
+      const after = await prisma.promoCode.findUniqueOrThrow({ where: { id: code.id } });
+      expect(after.redemptions).toBe(1);
+      expect(await prisma.ticketOrder.count({ where: { promoCodeId: code.id } })).toBe(1);
+    });
+
+    // Inventory must not be left held by a checkout the discount rejected.
+    it('holds no inventory when the code is refused', async () => {
+      const { slug, ticketTypeId } = await sellableEvent(10_000n);
+      await promo('SPENT', 1);
+      await order(slug, ticketTypeId, 'SPENT');
+
+      await expect(order(slug, ticketTypeId, 'SPENT')).rejects.toThrow();
+
+      const type = await prisma.ticketType.findUniqueOrThrow({ where: { id: ticketTypeId } });
+      expect(type.quantityReserved).toBe(1);
+    });
+
+    it('gives the redemption back when the checkout is abandoned', async () => {
+      const { slug, ticketTypeId } = await sellableEvent(10_000n);
+      const code = await promo('ONCE', 1);
+      const created = await order(slug, ticketTypeId, 'ONCE');
+      await prisma.ticketOrder.update({
+        where: { id: created.orderId },
+        data: { reservesUntil: new Date(Date.now() - 1_000) },
+      });
+
+      await ticketing.releaseExpiredReservations();
+
+      const after = await prisma.promoCode.findUniqueOrThrow({ where: { id: code.id } });
+      expect(after.redemptions).toBe(0);
+      const type = await prisma.ticketType.findUniqueOrThrow({ where: { id: ticketTypeId } });
+      expect(type.quantityReserved).toBe(0);
+    });
+
+    /**
+     * Two sweeps running at once — the cron on one instance and the endpoint
+     * called by hand — must not return the same seats twice.
+     */
+    it('expires an abandoned order once, however many sweeps run', async () => {
+      const { slug, ticketTypeId } = await sellableEvent(10_000n);
+      const code = await promo('ONCE', 1);
+      const created = await order(slug, ticketTypeId, 'ONCE');
+      await prisma.ticketOrder.update({
+        where: { id: created.orderId },
+        data: { reservesUntil: new Date(Date.now() - 1_000) },
+      });
+
+      const sweeps = await Promise.allSettled([
+        ticketing.releaseExpiredReservations(),
+        ticketing.releaseExpiredReservations(),
+        ticketing.releaseExpiredReservations(),
+      ]);
+
+      const released = sweeps
+        .filter((r): r is PromiseFulfilledResult<{ released: number }> => r.status === 'fulfilled')
+        .reduce((sum, r) => sum + r.value.released, 0);
+      expect(released).toBe(1);
+
+      const type = await prisma.ticketType.findUniqueOrThrow({ where: { id: ticketTypeId } });
+      expect(type.quantityReserved).toBe(0);
+      const after = await prisma.promoCode.findUniqueOrThrow({ where: { id: code.id } });
+      expect(after.redemptions).toBe(0);
     });
   });
 });

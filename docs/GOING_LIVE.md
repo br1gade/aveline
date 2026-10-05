@@ -63,6 +63,10 @@ customer's trust.
 | Rate limits per actor | The throttle is global, not per account |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
 | Seating chart export | Seating is assigned and readable; nothing prints it, and a venue still wants paper |
+| Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
+| Invoice tax | `taxMinor` is always zero, so an invoice is not a tax document |
+| Entitlement enforcement | Plans publish limits that nothing refuses an action against |
+| Multiple organizations per account | One per account today; a planner with two agencies cannot be served |
 | Structured log shipping | Logs are JSON in production and go nowhere |
 
 ---

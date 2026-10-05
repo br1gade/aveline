@@ -47,10 +47,9 @@ Each replaces a process the incumbent market performs by hand.
 |---|---|---|
 | 6 | **Invitation sending** | Pasting a link into 400 chats individually. The outbox exists; nothing calls it from the invitation flow |
 | 7 | **Reminders and follow-ups** | Chasing non-responders by phone. Scheduled messages are modelled, the triggers are not |
-| 8 | **Vendor brief endpoints** | Forwarding a spreadsheet to the caterer. `briefScopes`/`briefToken` modelled, endpoints not built |
-| 9 | **Exports** (PDF/CSV: seating chart, place cards, catering sheet) | The one artefact a venue still genuinely needs on paper |
-| 10 | **Design endpoints + theme validation** | Design changes requested over chat and applied by staff |
-| 11 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
+| 8 | **Exports** (PDF/CSV: seating chart, place cards, catering sheet) | The one artefact a venue still genuinely needs on paper |
+| 9 | **Design endpoints + theme validation** | Design changes requested over chat and applied by staff |
+| 10 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
 
 ## 4. Revenue — unbuilt business model lines
 
@@ -58,11 +57,11 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 
 | # | Gap | Stream |
 |---|---|---|
-| 12 | **Subscription billing** (card binding) | §9.4 — `Plan`, `Subscription` and `Invoice` are **modelled**; nothing charges or renews yet |
-| 13 | **Plan and entitlement enforcement** | §8 — entitlements are columns on `Plan`; nothing reads them |
-| 14 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
-| 15 | **Corporate contracts** | §9.5 — multi-event, branded |
-| 16 | **Invoicing and tax** | `Invoice` is modelled; nothing issues one, and nothing computes tax |
+| 11 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
+| 12 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them |
+| 13 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
+| 14 | **Corporate contracts** | §9.5 — multi-event, branded |
+| 15 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
 
 ## 5. Operations and trust
 

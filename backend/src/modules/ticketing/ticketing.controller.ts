@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { TicketingService } from './ticketing.service';
 import { Public, RequirePermission } from '../../infra/auth/actor';
@@ -20,6 +21,18 @@ export class TicketingController {
   })
   createOrder(@Param('slug') slug: string, @Body() dto: CreateOrderDto) {
     return this.ticketing.createOrder(slug, dto);
+  }
+
+  @Public()
+  @Post('public/events/:slug/promo-check')
+  @ApiOperation({
+    summary: 'What a promo code is worth on this basket',
+    description:
+      'A preview, priced from our own ticket prices. The redemption itself is ' +
+      'claimed at checkout, so a code can still run out in between.',
+  })
+  checkPromoCode(@Param('slug') slug: string, @Body() dto: CheckPromoCodeDto) {
+    return this.ticketing.checkPromoCode(slug, dto);
   }
 
   @Public()
