@@ -216,6 +216,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:id/bar-sheet` | Drink preferences as quantities |
 | `GET` | `/api/v1/events/:id/playlist` | Deduplicated song requests |
 | `GET` | `/api/v1/events/:id/guest-book` | Messages left by guests |
+| `GET` | `/api/v1/events/:eventId/answers` | Answers to the host's own questions, counted and listed |
 
 #### Designing the invitation
 

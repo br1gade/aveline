@@ -1447,6 +1447,39 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/answers": {
+      "get": {
+        "description": "Per question: each option counted among those coming and among everyone, and every answer with who gave it. Labels in ?locale= if the event publishes it.",
+        "operationId": "OperationsController_answersSheet",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "What guests answered to the host's own questions",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/guest-book": {
       "get": {
         "operationId": "OperationsController_guestBook",
@@ -4281,6 +4314,22 @@
           }
         }
       },
+      "CustomAnswerDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string"
+          },
+          "value": {
+            "type": "object",
+            "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions."
+          }
+        },
+        "required": [
+          "questionId",
+          "value"
+        ]
+      },
       "MemberAnswerDto": {
         "type": "object",
         "properties": {
@@ -4304,6 +4353,13 @@
           },
           "dietaryNotes": {
             "type": "string"
+          },
+          "answers": {
+            "description": "This member's own answers to the host's questions, e.g. their meal",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomAnswerDto"
+            }
           }
         },
         "required": [
@@ -4323,22 +4379,6 @@
         },
         "required": [
           "firstName"
-        ]
-      },
-      "CustomAnswerDto": {
-        "type": "object",
-        "properties": {
-          "questionId": {
-            "type": "string"
-          },
-          "value": {
-            "type": "object",
-            "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions."
-          }
-        },
-        "required": [
-          "questionId",
-          "value"
         ]
       },
       "SubmitRsvpDto": {

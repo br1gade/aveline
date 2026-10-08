@@ -4,12 +4,15 @@ import {
   ExportKind,
   ExportStatus,
   MediaKind,
+  QuestionType,
   RsvpStatus,
   TicketOrderStatus,
 } from '@prisma/client';
 import { StorageService } from '../../infra/storage/storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveTranslation } from '../../common/locale';
 import { OperationsService } from '../operations/operations.service';
+import { formatAnswer, optionLabels } from '../rsvp/answer-display';
 import { CsvRow, toCsv } from './csv';
 import { CreateExportDto } from './dto/export.dto';
 
@@ -163,21 +166,33 @@ export class ExportsService {
   }
 
   private async guestList(eventId: string): Promise<Sheet> {
-    const guests = await this.prisma.guest.findMany({
-      where: { eventId },
-      include: {
-        household: { select: { name: true, seatsAllotted: true } },
-        rsvp: { select: { status: true, dietary: true, drinkPreference: true } },
-        seat: { include: { table: { select: { name: true } } } },
-        checkIn: { select: { arrivedAt: true } },
-      },
-      orderBy: [{ household: { name: 'asc' } }, { isPrimary: 'desc' }, { firstName: 'asc' }],
-    });
+    const [guests, questions] = await Promise.all([
+      this.prisma.guest.findMany({
+        where: { eventId },
+        include: {
+          household: { select: { name: true, seatsAllotted: true } },
+          rsvp: {
+            select: {
+              status: true,
+              dietary: true,
+              dietaryNotes: true,
+              drinkPreference: true,
+              answers: { select: { questionId: true, value: true } },
+            },
+          },
+          seat: { include: { table: { select: { name: true } } } },
+          checkIn: { select: { arrivedAt: true } },
+        },
+        orderBy: [{ household: { name: 'asc' } }, { isPrimary: 'desc' }, { firstName: 'asc' }],
+      }),
+      this.questionColumns(eventId),
+    ]);
 
     return {
       columns: [
         'Household', 'First name', 'Last name', 'Email', 'Phone', 'Side',
-        'Seats allotted', 'RSVP', 'Dietary', 'Drink', 'Table', 'Arrived',
+        'Seats allotted', 'RSVP', 'Dietary', 'Dietary notes', 'Drink', 'Table', 'Arrived',
+        ...questions.map((question) => question.heading),
       ],
       rows: guests.map((guest) => ({
         Household: guest.household.name,
@@ -189,11 +204,35 @@ export class ExportsService {
         'Seats allotted': guest.household.seatsAllotted,
         RSVP: guest.rsvp?.status ?? RsvpStatus.PENDING,
         Dietary: guest.rsvp?.dietary.join('; '),
+        // An allergy written in a note is the line a kitchen most needs.
+        'Dietary notes': guest.rsvp?.dietaryNotes,
         Drink: guest.rsvp?.drinkPreference,
         Table: guest.seat?.table.name,
         Arrived: guest.checkIn?.arrivedAt.toISOString(),
+        ...answerCells(questions, guest.rsvp?.answers ?? []),
       })),
     };
+  }
+
+  /** One column per host question, headed by its prompt in the event's language. */
+  private async questionColumns(eventId: string): Promise<QuestionColumn[]> {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        defaultLocale: true,
+        invitation: {
+          select: { questions: { orderBy: { sortOrder: 'asc' }, select: { id: true, type: true, prompt: true, options: true } } },
+        },
+      },
+    });
+    const locale = event?.defaultLocale ?? 'hy';
+
+    return (event?.invitation?.questions ?? []).map((question, index) => ({
+      ...question,
+      // Numbered so two questions with the same wording do not share a column.
+      heading: `Q${index + 1}: ${resolveTranslation<string>(question.prompt, locale, locale) ?? ''}`,
+      labels: optionLabels(question.options, locale, locale),
+    }));
   }
 
   private async seatingChart(eventId: string): Promise<Sheet> {
@@ -243,12 +282,18 @@ export class ExportsService {
     const sheet = await this.operations.cateringSheet(eventId);
 
     return {
-      columns: ['Requirement', 'Guests'],
+      columns: ['Requirement', 'Guests', 'Note'],
       rows: [
         { Requirement: 'Total covers', Guests: sheet.covers },
         ...sheet.requirements.map((item) => ({
           Requirement: item.requirement,
           Guests: item.count,
+        })),
+        // The on-screen sheet had these; the file handed to the venue did not.
+        ...sheet.notes.map((note) => ({
+          Requirement: 'Dietary note',
+          Guests: `${note.guest} (${note.household})`,
+          Note: note.note,
         })),
       ],
     };
@@ -304,4 +349,23 @@ export class ExportsService {
 
 function fullName(person: { firstName: string; lastName: string | null }): string {
   return [person.firstName, person.lastName].filter(Boolean).join(' ');
+}
+
+interface QuestionColumn {
+  id: string;
+  type: QuestionType;
+  options: unknown;
+  heading: string;
+  labels: string[];
+}
+
+/** A guest's answers as words, one cell per question column. */
+function answerCells(questions: QuestionColumn[], answers: { questionId: string; value: unknown }[]): CsvRow {
+  const byQuestion = new Map(answers.map((answer) => [answer.questionId, answer.value]));
+  return Object.fromEntries(
+    questions.map((question) => {
+      const value = byQuestion.get(question.id);
+      return [question.heading, value === undefined ? undefined : formatAnswer(question, value, question.labels)];
+    }),
+  );
 }

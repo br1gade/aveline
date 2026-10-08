@@ -299,6 +299,44 @@ describe('Household RSVP (integration)', () => {
       });
     });
 
+    // A meal is chosen per person, or the caterer counts households instead of plates.
+    it('records each member’s own answers to the host’s questions', async () => {
+      const { slug, primaryGuestToken, lusineId, meal } = await withQuestions();
+
+      await service.submit(slug, primaryGuestToken, {
+        status: RsvpStatus.ATTENDING,
+        answers: [{ questionId: meal.id, value: 1 }],
+        members: [{ guestId: lusineId, status: RsvpStatus.ATTENDING, answers: [{ questionId: meal.id, value: 0 }] }],
+      });
+
+      expect(await answersOf(primaryGuestToken)).toEqual({ [meal.id]: 1 });
+      const lusine = await prisma.guest.findUniqueOrThrow({ where: { id: lusineId } });
+      expect(await answersOf(lusine.token)).toEqual({ [meal.id]: 0 });
+    });
+
+    it('requires a required question from each member who is coming, naming members', async () => {
+      const { slug, primaryGuestToken, lusineId, meal } = await withQuestions();
+
+      await expect(
+        service.submit(slug, primaryGuestToken, {
+          status: RsvpStatus.ATTENDING,
+          answers: [{ questionId: meal.id, value: 1 }],
+          members: [{ guestId: lusineId, status: RsvpStatus.ATTENDING }],
+        }),
+      ).rejects.toThrow(/^members: /);
+    });
+
+    it('refuses a member’s answer that is not one of the options, naming members', async () => {
+      const { slug, primaryGuestToken, lusineId, meal } = await withQuestions();
+
+      await expect(
+        service.submit(slug, primaryGuestToken, {
+          status: RsvpStatus.DECLINED,
+          members: [{ guestId: lusineId, status: RsvpStatus.DECLINED, answers: [{ questionId: meal.id, value: 'Fish' }] }],
+        }),
+      ).rejects.toThrow(/^members: /);
+    });
+
     it('counts a required question answered in an earlier submission', async () => {
       const { slug, primaryGuestToken, meal } = await withQuestions();
       await service.submit(slug, primaryGuestToken, {

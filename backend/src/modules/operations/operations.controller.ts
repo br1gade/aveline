@@ -1,12 +1,16 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AnswersSheetService } from './answers-sheet.service';
 import { OperationsService } from './operations.service';
 import { RequirePermission } from '../../infra/auth/actor';
 
 @ApiTags('operations')
 @Controller('events/:eventId')
 export class OperationsController {
-  constructor(private readonly operations: OperationsService) {}
+  constructor(
+    private readonly operations: OperationsService,
+    private readonly answers: AnswersSheetService,
+  ) {}
 
   @RequirePermission('operations:read')
   @Get('dashboard')
@@ -46,6 +50,18 @@ export class OperationsController {
   @ApiOperation({ summary: 'Deduplicated song requests' })
   playlist(@Param('eventId') eventId: string) {
     return this.operations.playlist(eventId);
+  }
+
+  @RequirePermission('operations:read')
+  @Get('answers')
+  @ApiOperation({
+    summary: "What guests answered to the host's own questions",
+    description:
+      'Per question: each option counted among those coming and among everyone, and every ' +
+      'answer with who gave it. Labels in ?locale= if the event publishes it.',
+  })
+  answersSheet(@Param('eventId') eventId: string, @Query('locale') locale?: string) {
+    return this.answers.answersSheet(eventId, locale);
   }
 
   @RequirePermission('operations:read')

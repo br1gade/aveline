@@ -368,9 +368,12 @@ themselves at the top level and for everyone else named in the household in
 
 - **`members`** — answers for others already in the household: `guestId`
   (from `household.members`), `status` (`ATTENDING`, `DECLINED` or
-  `UNDECIDED` — not `PENDING`), and optionally their own `dietary` and
-  `dietaryNotes`. Someone left out keeps their answer. Naming yourself, or
-  someone outside the household, is a `400` starting `members:`.
+  `UNDECIDED` — not `PENDING`), and optionally their own `dietary`,
+  `dietaryNotes` and `answers` to the host's questions — so each person
+  chooses their own meal. A required question binds every member marked
+  `ATTENDING`, as it does the respondent. Someone left out keeps their
+  answer. Naming yourself, someone outside the household, or an invalid
+  member answer is a `400` starting `members:`.
 - **`party`** — people to add who are not in the household yet. Matched by
   name, ignoring capitals and spacing, against everyone already in it, so a
   name already there is not added again and does not count against the
@@ -617,6 +620,40 @@ exist for narrower uses, and five calls means five spinners.
 
 Individually: `/headcount`, `/catering-sheet`, `/bar-sheet`, `/playlist`,
 `/guest-book`, `/guests`.
+
+### Answers to the host's own questions
+
+```http
+GET /api/v1/events/:eventId/answers?locale=en
+```
+
+Needs `operations:read`. One entry per question on the invitation, in order:
+
+```json
+{
+  "locale": "en",
+  "questions": [{
+    "id": "clz...", "type": "SINGLE_CHOICE", "required": true,
+    "prompt": "Meat or fish?", "options": ["Meat", "Fish"], "answered": 96,
+    "tally": [{ "option": "Meat", "attending": 51, "total": 53 },
+              { "option": "Fish", "attending": 40, "total": 43 }],
+    "responses": [{ "guestId": "clz...", "name": "Lusine Petrosyan",
+                    "household": "Petrosyan family", "status": "ATTENDING",
+                    "value": 0, "display": "Meat" }]
+  }]
+}
+```
+
+- `tally` counts each option twice: among guests coming (`attending`, what a
+  caterer orders) and among everyone who answered (`total`). `BOOLEAN`
+  questions tally as `Yes` / `No`. Free-text questions have `tally: null`;
+  read their `responses`.
+- `display` is the answer in words; `value` is what was stored (a position,
+  for choices).
+- Prompt and options are in `?locale=` when the event publishes it, else the
+  event's default; `locale` says which you got.
+
+The same answers appear in the guest-list export, one column per question.
 
 ```http
 GET /api/v1/events
@@ -1275,6 +1312,11 @@ The files are UTF-8 with a BOM and CRLF endings, so Excel opens Armenian text
 correctly, and every cell is quoted — including a defensive tab in front of
 anything starting with `=`, `+`, `-` or `@`, so a guest's free text cannot
 become a formula in whoever's spreadsheet opens it.
+
+The guest list carries a `Dietary notes` column and one column per host
+question, headed `Q1: <prompt>` in the event's language, with each answer in
+words. The catering sheet lists every dietary note under its counts, with
+the guest it belongs to.
 
 Requires `operations:read`.
 

@@ -4,7 +4,7 @@ import { newGuestToken } from '../guests/guest-token';
 import { LockedHousehold, lockHousehold } from '../guests/household-lock';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
-import { AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
+import { Answer, AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
 import { MemberAnswerDto, PartyMemberDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
 import { membersProblem, newPartyMembers } from './household-answers';
 
@@ -47,6 +47,7 @@ export class RsvpService {
     const guest = await this.loadGuest(slug, token);
     const questions = await this.loadAcceptingQuestions(slug);
     assertNoProblem(answersProblem(questions, dto.answers ?? []));
+    assertNoProblem(memberAnswersProblem(questions, dto.members ?? []));
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Counted under the household's lock, not from the guest loaded above:
@@ -165,6 +166,33 @@ export class RsvpService {
 
     const missing = unansweredRequired(questions, answered, dto.status);
     if (missing) throw new BadRequestException(`answers: ${missing.id} is required for a guest who is coming`);
+
+    await this.assertMembersAnsweredRequired(tx, questions, dto.members ?? []);
+  }
+
+  /** The same rule for each member answered for: a required question binds everyone who is coming. */
+  private async assertMembersAnsweredRequired(
+    tx: Tx,
+    questions: AnswerableQuestion[],
+    members: MemberAnswerDto[],
+  ): Promise<void> {
+    if (!questions.some((question) => question.required) || members.length === 0) return;
+
+    const earlier = await tx.rsvpAnswer.findMany({
+      where: { rsvp: { guestId: { in: members.map((member) => member.guestId) } } },
+      select: { questionId: true, rsvp: { select: { guestId: true } } },
+    });
+
+    for (const member of members) {
+      const answered = new Set([
+        ...earlier.filter((answer) => answer.rsvp.guestId === member.guestId).map((answer) => answer.questionId),
+        ...(member.answers ?? []).map((answer) => answer.questionId),
+      ]);
+      const missing = unansweredRequired(questions, answered, member.status);
+      if (missing) {
+        throw new BadRequestException(`members: ${member.guestId} must answer ${missing.id}, as they are coming`);
+      }
+    }
   }
 
   // ── writes ───────────────────────────────────────────────────────────
@@ -220,7 +248,8 @@ export class RsvpService {
     const explicit = new Map((dto.members ?? []).map((answer) => [answer.guestId, answer]));
 
     for (const answer of explicit.values()) {
-      await recordAnswer(tx, answer.guestId, memberFields(answer));
+      const rsvp = await recordAnswer(tx, answer.guestId, memberFields(answer));
+      await saveAnswers(tx, rsvp.id, answer.answers ?? []);
     }
 
     const followers = members.filter(
@@ -232,15 +261,28 @@ export class RsvpService {
   }
 
   private async saveCustomAnswers(tx: Tx, rsvpId: string, dto: SubmitRsvpDto): Promise<void> {
-    for (const answer of dto.answers ?? []) {
-      const value = answer.value as Prisma.InputJsonValue;
-      await tx.rsvpAnswer.upsert({
-        where: { rsvpId_questionId: { rsvpId, questionId: answer.questionId } },
-        create: { rsvpId, questionId: answer.questionId, value },
-        update: { value },
-      });
-    }
+    await saveAnswers(tx, rsvpId, dto.answers ?? []);
   }
+}
+
+async function saveAnswers(tx: Tx, rsvpId: string, answers: Answer[]): Promise<void> {
+  for (const answer of answers) {
+    const value = answer.value as Prisma.InputJsonValue;
+    await tx.rsvpAnswer.upsert({
+      where: { rsvpId_questionId: { rsvpId, questionId: answer.questionId } },
+      create: { rsvpId, questionId: answer.questionId, value },
+      update: { value },
+    });
+  }
+}
+
+/** Each member's answers, checked as the respondent's are, naming the member. */
+function memberAnswersProblem(questions: AnswerableQuestion[], members: MemberAnswerDto[]): string | null {
+  for (const member of members) {
+    const problem = answersProblem(questions, member.answers ?? []);
+    if (problem) return `members: ${member.guestId} ${problem}`;
+  }
+  return null;
 }
 
 /**

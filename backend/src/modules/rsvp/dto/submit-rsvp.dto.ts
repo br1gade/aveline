@@ -68,6 +68,17 @@ export class MemberAnswerDto {
   @IsString()
   @MaxLength(500)
   dietaryNotes?: string;
+
+  @ApiPropertyOptional({
+    type: [CustomAnswerDto],
+    description: "This member's own answers to the host's questions, e.g. their meal",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => CustomAnswerDto)
+  answers?: CustomAnswerDto[];
 }
 
 export class SubmitRsvpDto {
