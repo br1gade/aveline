@@ -2966,6 +2966,31 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/design": {
+      "get": {
+        "description": "Drafts included; every block, switched on or not; every language of every block and question; settings, media, and what still blocks publishing. What an editor loads.",
+        "operationId": "DesignController_readDesign",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The invitation as the host is editing it",
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/design-templates": {
       "get": {
         "description": "Each entry declares the fonts, palettes and blocks it supports.",

@@ -231,6 +231,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/invitations/:slug/notify-changes` | Tell every invited household the details changed |
 | `POST` | `/api/v1/invitations/:slug/thank-you` | Thank the guests who actually came |
 | `GET` | `/api/v1/invitations/:slug/delivery` | Who has been invited and what happened to each email |
+| `GET` | `/api/v1/invitations/:slug/design` | **Load the editor**: drafts, every language, switched-off blocks, publish blockers |
 | `PATCH` | `/api/v1/invitations/:slug/theme` | Fonts and colours, validated against the template |
 | `PATCH` | `/api/v1/invitations/:slug/blocks/:type` | Edit one block's content |
 | `GET` | `/api/v1/invitations/:slug/questions` | Custom RSVP questions |

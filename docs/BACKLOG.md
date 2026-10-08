@@ -26,12 +26,12 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 23 open | 25 open, of which 8 money | — |
-| Features | 2 open (F1, F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Features | 1 open (F1, the client) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
-All ten P0 bugs were fixed on 8 October 2026 — the data exposures, the RSVP
-loop, stuck messages and per-language editing. What still blocks the pilot
-is the three P0 features, and above all F1, the client. Fixed items are removed, so a gap in the
+All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
+features — editing an event, and loading the invitation into the editor —
+were built the same day. What still blocks the pilot is F1, the client. Fixed items are removed, so a gap in the
 numbering is something that has been done.
 
 Infrastructure and accounts (bank, domain, mail DNS, server) are not here;
@@ -137,7 +137,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | # | Feature | Why | Size |
 |---|---|---|---|
 | F1 | **The client** | `frontend/` is a scaffold. No host or guest can use anything until it exists. Built against [API.md](API.md) and `backend/openapi.json` | L |
-| F3 | **Read back the invitation being designed** · Client | The only reads of block content are the public pages, which 404 on a draft and return one language and enabled blocks only. An editor cannot load what the host wrote | S–M |
 
 ### P1
 

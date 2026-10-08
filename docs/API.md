@@ -625,6 +625,51 @@ GET /api/v1/events
 Scoped to your own organization — **do not pass an organizationId**, it is
 ignored. Platform staff see everything.
 
+### Loading the invitation into the editor
+
+```http
+GET /api/v1/invitations/:slug/design
+```
+
+Needs `invitation:read` — a `DESIGNER` has it. **Load the editor from this,
+never from the public page.** The public page is for guests: it 404s on a
+draft, resolves every text to one language, and leaves out switched-off
+blocks and settings. Built on it, an editor would lose the host's other
+languages the first time it saved.
+
+```json
+{
+  "slug": "anna-davit-3f8a1c20", "status": "DRAFT",
+  "event": { "id": "clz...", "title": "Anna & Davit", "locales": ["hy", "en"],
+             "defaultLocale": "hy", "startsAt": "...", "timezone": "Asia/Yerevan" },
+  "template": { "key": "classic", "name": "Classic", "allowedFonts": [...],
+                "palettes": [...], "supportedBlocks": ["HERO", "RSVP", ...] },
+  "theme": { "palette": "sage" },
+  "effectiveTheme": { "bodyFont": "Noto Serif Armenian", "palette": "sage" },
+  "coverUrl": "https://media.../3f2c.jpg", "musicUrl": null,
+  "blocks": [{ "type": "HERO", "sortOrder": 0, "enabled": true, "variant": "split",
+               "content": { "hy": { "title": "..." }, "en": { "title": "..." } },
+               "settings": {}, "assetIds": ["..."], "media": [{ "id": "...", "url": "...",
+               "kind": "PHOTO", "altText": {} }] }],
+  "questions": [{ "id": "...", "type": "SINGLE_CHOICE", "required": true,
+                  "prompt": { "hy": "...", "en": "..." }, "options": { "hy": [...], "en": [...] },
+                  "answerCount": 12 }],
+  "publishBlockers": ["Add a venue with an address, so guests know where to go"]
+}
+```
+
+- `blocks` is in page order and **includes switched-off blocks** (`enabled:
+  false`), so the editor can offer to turn them back on.
+- `content`, `prompt` and `options` carry **every language**. Edit one
+  language at a time with `PATCH /blocks/:type` (see "Designing the invitation").
+- `theme` is what the host chose; `effectiveTheme` is what renders, with the
+  template's defaults underneath.
+- `publishBlockers` is what still stands between the host and publishing —
+  show it while they work, not only when they press publish. Empty means
+  ready.
+- `answerCount` tells the editor a question has answers; deleting it is
+  refused once it does.
+
 ### One intent, one request
 
 ```http

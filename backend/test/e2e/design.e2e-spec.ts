@@ -371,6 +371,95 @@ describe('Invitation design (e2e)', () => {
     });
   });
 
+  /**
+   * The editor has to load what the host wrote. The only reads of block
+   * content were the public pages, which 404 on a draft and return one
+   * language and only the enabled blocks — so reopening the editor lost every
+   * other language, every switched-off block and every setting.
+   */
+  describe('reading the invitation back to edit it', () => {
+    const readDesign = (slug: string, authorization: string) =>
+      http().get(`/api/v1/invitations/${slug}/design`).set('Authorization', authorization);
+
+    const draftDesigner = async () => {
+      const seeded = await seedEvent(prisma, { isPublished: false });
+      const { authorization } = await authenticateAs(app, prisma, {
+        eventId: seeded.eventId,
+        role: EventRole.DESIGNER,
+      });
+      return { ...seeded, authorization };
+    };
+
+    it('returns a draft, every language, and blocks that are switched off', async () => {
+      const { slug, authorization } = await draftDesigner();
+      await http()
+        .patch(`/api/v1/invitations/${slug}/arrangement`)
+        .set('Authorization', authorization)
+        .send({ blocks: [{ type: 'HERO', variant: 'split' }, { type: 'RSVP', enabled: false }] })
+        .expect(200);
+      await http()
+        .patch(`/api/v1/invitations/${slug}/blocks/HERO`)
+        .set('Authorization', authorization)
+        .send({ settings: { overlay: 0.4 } })
+        .expect(200);
+
+      const { body } = await readDesign(slug, authorization).expect(200);
+
+      expect(body).toMatchObject({
+        slug,
+        status: 'DRAFT',
+        event: { locales: ['hy', 'en'], defaultLocale: 'hy' },
+        template: { key: 'test-template', supportedBlocks: ['HERO', 'RSVP'] },
+      });
+      expect(body.blocks).toEqual([
+        expect.objectContaining({
+          type: 'HERO',
+          enabled: true,
+          variant: 'split',
+          settings: { overlay: 0.4 },
+          content: { hy: { title: 'Բարև' }, en: { title: 'Hello' } },
+          media: [],
+        }),
+        expect.objectContaining({ type: 'RSVP', enabled: false }),
+      ]);
+      // A switched-off RSVP block is the first thing between the host and publishing.
+      expect(body.publishBlockers).toEqual(expect.arrayContaining([expect.stringMatching(/RSVP/)]));
+    });
+
+    it('returns questions in every language, with how many guests have answered', async () => {
+      const { slug, authorization } = await draftDesigner();
+      await http()
+        .post(`/api/v1/invitations/${slug}/questions`)
+        .set('Authorization', authorization)
+        .send({ type: 'SINGLE_CHOICE', prompt: { hy: 'Միս թե ձուկ', en: 'Meat or fish' }, options: { hy: ['Միս', 'Ձուկ'], en: ['Meat', 'Fish'] } })
+        .expect(201);
+
+      const { body } = await readDesign(slug, authorization).expect(200);
+
+      expect(body.questions).toEqual([
+        expect.objectContaining({
+          type: 'SINGLE_CHOICE',
+          prompt: { hy: 'Միս թե ձուկ', en: 'Meat or fish' },
+          options: { hy: ['Միս', 'Ձուկ'], en: ['Meat', 'Fish'] },
+          answerCount: 0,
+        }),
+      ]);
+    });
+
+    it('is not readable without an account', async () => {
+      const { slug } = await draftDesigner();
+
+      await http().get(`/api/v1/invitations/${slug}/design`).expect(401);
+    });
+
+    it('is not readable by an account on another event', async () => {
+      const { slug } = await draftDesigner();
+      const other = await draftDesigner();
+
+      await readDesign(slug, other.authorization).expect(403);
+    });
+  });
+
   describe('custom RSVP questions', () => {
     const add = (slug: string, authorization: string, body: Record<string, unknown>) =>
       http().post(`/api/v1/invitations/${slug}/questions`).set('Authorization', authorization).send(body);

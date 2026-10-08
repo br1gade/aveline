@@ -4,6 +4,7 @@ import { BlockType } from '@prisma/client';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { EventScope, RequirePermission } from '../../infra/auth/actor';
 import { DesignService } from './design.service';
+import { DraftReaderService } from './draft-reader.service';
 import {
   ChooseTemplateDto,
   CreateVenueDto,
@@ -30,7 +31,21 @@ export class DesignController {
     private readonly design: DesignService,
     private readonly venues: VenuesService,
     private readonly timeline: TimelineService,
+    private readonly drafts: DraftReaderService,
   ) {}
+
+  @RequirePermission('invitation:read')
+  @EventScope('invitationSlug')
+  @Get('invitations/:slug/design')
+  @ApiOperation({
+    summary: 'The invitation as the host is editing it',
+    description:
+      'Drafts included; every block, switched on or not; every language of every block and ' +
+      'question; settings, media, and what still blocks publishing. What an editor loads.',
+  })
+  readDesign(@Param('slug') slug: string) {
+    return this.drafts.read(slug);
+  }
 
   // Keyed by event rather than platform-wide, so an event-level designer can
   // read it — and so a future plan entitlement can narrow the catalogue per
