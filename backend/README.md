@@ -261,6 +261,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/guests/import` | Import a CSV guest list (multipart `file`) |
 | `GET` | `/api/v1/events/:eventId/guests/imports` | History of past imports |
 | `GET` | `/api/v1/events/:eventId/guests/:guestId` | One guest with their answers, for an edit form |
+| `PATCH` | `/api/v1/events/:eventId/guests/:guestId/rsvp` | Record an answer phoned in; the guest is not messaged unless asked |
 | `POST` | `/api/v1/events/:eventId/guests` | Add one guest, to an existing household or a new one |
 | `PATCH` | `/api/v1/events/:eventId/guests/:guestId` | Correct details, or move to another household |
 | `DELETE` | `/api/v1/events/:eventId/guests/:guestId` | Remove a guest; refused once checked in |

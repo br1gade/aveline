@@ -1326,6 +1326,49 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/guests/{guestId}/rsvp": {
+      "patch": {
+        "description": "For answers phoned in or given in person. Omitted fields are unchanged; required questions are not enforced; the guest is not messaged unless notifyGuest is true.",
+        "operationId": "HostRsvpController_record",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostRsvpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Record a guest's answer for them",
+        "tags": [
+          "rsvp"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/dashboard": {
       "get": {
         "description": "Headcount, catering, bar, playlist and invitation engagement together. Prefer this over the individual endpoints when rendering a screen.",
@@ -4443,6 +4486,51 @@
             "items": {
               "$ref": "#/components/schemas/CustomAnswerDto"
             }
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "HostRsvpDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ]
+          },
+          "dietary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dietaryNotes": {
+            "type": "string"
+          },
+          "drinkPreference": {
+            "type": "string"
+          },
+          "songRequest": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomAnswerDto"
+            }
+          },
+          "notifyGuest": {
+            "type": "boolean",
+            "default": false,
+            "description": "Send the guest the usual confirmation. Off by default: they told you themselves."
           }
         },
         "required": [

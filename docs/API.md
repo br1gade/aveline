@@ -819,6 +819,28 @@ The single-guest read returns the same fields plus `householdId` and
 format described under "Submit an RSVP". Use it to fill the edit form for
 `PATCH /guests/:guestId`. A guest on another event is a `404`.
 
+### Recording an answer for a guest
+
+```http
+PATCH /api/v1/events/:eventId/guests/:guestId/rsvp
+{ "status": "ATTENDING", "dietary": ["vegetarian"], "answers": [{ "questionId": "clz...", "value": 1 }] }
+```
+
+Needs `guest:write`. For answers that arrive by phone or in person. Takes
+`status` (`ATTENDING`, `DECLINED` or `UNDECIDED`), and optionally `dietary`,
+`dietaryNotes`, `drinkPreference`, `songRequest`, `message`, `answers` and
+`notifyGuest`. The same rules as the guest's own form — omitted fields keep
+their value, answers are checked against their questions (`400` starting
+`answers:`) — with two differences:
+
+- **Required questions are not enforced.** The host may not know the meal yet.
+- **The guest is not messaged** unless `notifyGuest` is `true`; they gave the
+  answer themselves, so a confirmation would be a surprise.
+
+Returns the guest's answer as stored. A guest whose data was erased is a
+`400`; one on another event is a `404`. Who recorded it is in the audit
+trail.
+
 ### Editing the guest list
 
 ```http

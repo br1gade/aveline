@@ -1,19 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Guest, Prisma, RsvpStatus } from '@prisma/client';
+import { Guest, RsvpStatus } from '@prisma/client';
 import { newGuestToken } from '../guests/guest-token';
 import { LockedHousehold, lockHousehold } from '../guests/household-lock';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
-import { Answer, AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
+import { RsvpFields, Tx, recordAnswer, saveAnswers, withoutUndefined } from './answer-writes';
+import { AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
 import { MemberAnswerDto, PartyMemberDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
 import { membersProblem, newPartyMembers } from './household-answers';
 
-type Tx = Prisma.TransactionClient;
-
-/** What one RSVP row may be told. Omitted fields keep their value. */
-type RsvpFields = Partial<
-  Pick<Prisma.RsvpUncheckedCreateInput, 'dietary' | 'dietaryNotes' | 'drinkPreference' | 'songRequest' | 'message'>
-> & { status: RsvpStatus };
 
 interface HouseholdMember {
   id: string;
@@ -265,17 +260,6 @@ export class RsvpService {
   }
 }
 
-async function saveAnswers(tx: Tx, rsvpId: string, answers: Answer[]): Promise<void> {
-  for (const answer of answers) {
-    const value = answer.value as Prisma.InputJsonValue;
-    await tx.rsvpAnswer.upsert({
-      where: { rsvpId_questionId: { rsvpId, questionId: answer.questionId } },
-      create: { rsvpId, questionId: answer.questionId, value },
-      update: { value },
-    });
-  }
-}
-
 /** Each member's answers, checked as the respondent's are, naming the member. */
 function memberAnswersProblem(questions: AnswerableQuestion[], members: MemberAnswerDto[]): string | null {
   for (const member of members) {
@@ -283,22 +267,6 @@ function memberAnswersProblem(questions: AnswerableQuestion[], members: MemberAn
     if (problem) return `members: ${member.guestId} ${problem}`;
   }
   return null;
-}
-
-/**
- * Writes one person's answer. Omitted fields keep their value, and the time
- * of the first answer is kept: an edit is not a new response, and the
- * response-rate trend reads when people first answered.
- */
-async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields) {
-  const existing = await tx.rsvp.findUnique({ where: { guestId }, select: { respondedAt: true } });
-  const respondedAt = existing?.respondedAt ?? new Date();
-
-  return tx.rsvp.upsert({
-    where: { guestId },
-    create: { guestId, ...fields, respondedAt },
-    update: { ...fields, respondedAt },
-  });
 }
 
 function respondentFields(dto: SubmitRsvpDto): RsvpFields {
@@ -314,10 +282,6 @@ function respondentFields(dto: SubmitRsvpDto): RsvpFields {
 
 function memberFields(answer: MemberAnswerDto): RsvpFields {
   return withoutUndefined({ status: answer.status, dietary: answer.dietary, dietaryNotes: answer.dietaryNotes });
-}
-
-function withoutUndefined<T extends object>(fields: T): T {
-  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as T;
 }
 
 function memberIds(dto: SubmitRsvpDto): string[] {

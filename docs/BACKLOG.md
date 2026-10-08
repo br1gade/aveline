@@ -142,7 +142,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | # | Feature | Why | Size |
 |---|---|---|---|
 | F5 | **Team management** | Nothing assigns COORDINATOR, DESIGNER or event VIEWER, lists members, removes one or changes a role. Door staff today need organization MANAGER, which also shows vendor fees | M |
-| F6 | **Record an answer on a guest's behalf** · Client | A grandmother phones in her answer; the host has nowhere to enter it | S |
 | F8 | **Edit a table** · Client | Name, capacity, zone and venue cannot change; position and shape for a drag-and-drop plan are never stored | S–M |
 | F9 | **Venue coordinates and capacity** | Latitude, longitude and capacity are returned but only ever copied from the venue directory, which nothing can fill. The Map block has only a pasted link | S |
 | F10 | **Configure the built-in RSVP questions** | A host cannot switch off drink or song questions or define the choices. Drinks are free text, so "Wine", "Вино" and "Գինի" are three rows on the bar sheet | M |
