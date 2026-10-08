@@ -326,28 +326,26 @@ model TimelineEntry {
 // ───────────────────────────── Invitation ──────────────────────────────
 
 model Invitation {
-  id           String           @id @default(cuid())
-  eventId      String           @unique
+  id         String           @id @default(cuid())
+  eventId    String           @unique
   /// Public URL segment
-  slug         String           @unique
-  templateId   String
+  slug       String           @unique
+  templateId String
   /// Resolved design tokens: palette, font choices, spacing. Validated against
   /// the template's allowed sets before write (see DesignTemplate).
-  theme        Json             @default("{}")
-  musicUrl     String?
-  coverUrl     String?
-  coverAssetId String?
-  status       InvitationStatus @default(DRAFT)
+  theme      Json             @default("{}")
+  /// No cover or music columns: the cover is the HERO block's first photo
+  /// and the music is the MUSIC block's audio, so each is set in one place.
+  status     InvitationStatus @default(DRAFT)
   /// Invitation stays reachable until this moment; null = indefinitely
-  expiresAt    DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  expiresAt  DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
-  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  template   DesignTemplate    @relation(fields: [templateId], references: [id])
-  coverAsset MediaAsset?       @relation("InvitationCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
-  blocks     InvitationBlock[]
-  questions  RsvpQuestion[]
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template  DesignTemplate    @relation(fields: [templateId], references: [id])
+  blocks    InvitationBlock[]
+  questions RsvpQuestion[]
 
   @@index([templateId])
   @@map("invitations")
@@ -597,11 +595,10 @@ model MediaAsset {
   uploadedBy String?
   createdAt  DateTime  @default(now())
 
-  event            Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  invitationCovers Invitation[]   @relation("InvitationCover")
-  listingHeroes    EventListing[] @relation("ListingHero")
-  exports          Export[]       @relation("ExportFile")
-  rsvpSignatures   Rsvp[]         @relation("RsvpSignature")
+  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  listingHeroes  EventListing[] @relation("ListingHero")
+  exports        Export[]       @relation("ExportFile")
+  rsvpSignatures Rsvp[]         @relation("RsvpSignature")
 
   @@index([eventId])
   @@map("media_assets")

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { BlockType, Prisma, QuestionType } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
+import { blockMediaProblem } from './block-media';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   ChooseTemplateDto,
@@ -129,7 +130,7 @@ export class DesignService {
       );
     }
 
-    if (dto.assetIds) await this.assertAssetsBelongToEvent(invitation.eventId, dto.assetIds);
+    if (dto.assetIds) await this.assertAttachable(invitation.eventId, type, dto.assetIds);
 
     const updated = await this.prisma.invitationBlock.update({
       where: { id: block.id },
@@ -257,14 +258,22 @@ export class DesignService {
     return question;
   }
 
-  /** An asset from another event would leak one couple's photos onto another's page. */
-  private async assertAssetsBelongToEvent(eventId: string, assetIds: string[]): Promise<void> {
-    const owned = await this.prisma.mediaAsset.count({
+  /**
+   * The assets must be this event's, and of a kind the block can show.
+   *
+   * Another event's asset would put one couple's photos on another's page.
+   */
+  private async assertAttachable(eventId: string, type: BlockType, assetIds: string[]): Promise<void> {
+    const assets = await this.prisma.mediaAsset.findMany({
       where: { id: { in: assetIds }, eventId },
+      select: { id: true, kind: true },
     });
-    if (owned !== new Set(assetIds).size) {
-      throw new BadRequestException('One or more assets do not belong to this event');
+    if (assets.length !== new Set(assetIds).size) {
+      throw new BadRequestException('assetIds: one or more assets do not belong to this event');
     }
+
+    const problem = blockMediaProblem(type, assets);
+    if (problem) throw new BadRequestException(problem);
   }
 
   private async describe(slug: string) {

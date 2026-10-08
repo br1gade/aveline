@@ -262,6 +262,8 @@ GET /api/v1/invitations/:slug/g/:guestToken        # personalised
   "template": "classic",
   "theme": { "font": "Noto Serif Armenian", "palette": "ivory-gold" },
   "allowedFonts": ["Noto Serif Armenian", "Cormorant Garamond", "Inter"],
+  "coverUrl": "https://media.../3f2c....jpg",
+  "musicUrl": null,
   "locale": "hy",
   "availableLocales": ["hy", "ru", "en"],
   "event": {
@@ -274,7 +276,10 @@ GET /api/v1/invitations/:slug/g/:guestToken        # personalised
     "household": { "name": "Petrosyan family", "seatsAllotted": 3, "members": [...] },
     "rsvp": { "status": "ATTENDING", "respondedAt": "..." }
   },
-  "blocks": [ { "type": "HERO", "sortOrder": 0, "content": {...}, "data": null }, ... ],
+  "blocks": [ { "type": "HERO", "sortOrder": 0, "variant": "full-bleed", "content": {...},
+                "media": [ { "id": "...", "url": "https://media.../3f2c....jpg",
+                             "kind": "PHOTO", "altText": null } ],
+                "data": null }, ... ],
   "rsvpQuestions": [ { "id": "...", "type": "SINGLE_CHOICE", "prompt": "...", "options": [...] } ]
 }
 ```
@@ -295,6 +300,19 @@ Each block has `content` (copy, already resolved to one locale) and `data`
 | `TIMELINE` | Array of `{ label, occursAt, venueId }` |
 | `COUNTDOWN` | `{ target, timezone }` |
 | everything else | `null` — use `content` |
+
+**`variant`** is the layout the host chose for the block (`split`,
+`full-bleed`, …) or `null` for the template's default.
+
+**`media`** is the block's photos or audio, in the host's order, each with
+`url`, `kind` (`PHOTO`, `AUDIO`, …) and `altText` already resolved to the
+page's locale (`null` when the host gave none). Empty when the block has none.
+
+**`coverUrl` and `musicUrl` are derived from the blocks**, not set
+separately: the cover is the first photo on the `HERO` block, and the music is
+the `MUSIC` block's audio. A disabled `MUSIC` block means `musicUrl` is
+`null`. Use them for things outside the block flow — a share-preview image,
+a single audio player with an on/off control — and `media` inside blocks.
 
 Block types you may receive: `HERO`, `STORY`, `COUNTDOWN`, `MUSIC`, `VENUE`,
 `MAP`, `TIMELINE`, `DRESS_CODE`, `NOTES`, `GALLERY`, `RSVP`, `SIGNATURE`,
@@ -1351,8 +1369,13 @@ blocks exist, and in what order, is `PATCH /invitations/:slug/arrangement` —
 one place decides that. Patching a block the invitation does not have returns
 `404` saying so.
 
-`content` is keyed by locale. `assetIds` must belong to this event; one from
-another event is a `400`. `VENUE`, `TIMELINE` and `COUNTDOWN` blocks ignore
+`content` is keyed by locale. `assetIds` are uploads from
+`POST /events/:eventId/media`, in display order; sending `[]` clears them. They
+must belong to this event, and be a kind the block can show — **audio on the
+`MUSIC` block, images on every other block**. Either mistake is a `400` whose
+message starts with `assetIds:`. To set the invitation's cover, attach a photo
+to `HERO`; to set its music, attach audio to `MUSIC` (add the block through the
+arrangement call first). `VENUE`, `TIMELINE` and `COUNTDOWN` blocks ignore
 content you put here for the fields they bind from the event — see
 §Rendering blocks.
 
@@ -1838,8 +1861,6 @@ So you can plan around them rather than discover them:
 - **No renewal or dunning.** A subscription's period lapses and nothing
   charges again or moves it to `PAST_DUE`.
 - **One organization per account.** See §6.
-- **No cover-image write path.** `Invitation.coverAssetId` is modelled; upload
-  works, but nothing attaches an asset as the cover.
 - **No block creation outside the arrangement call**, and no way to reorder
   custom RSVP questions once added.
 - **No image resizing.**

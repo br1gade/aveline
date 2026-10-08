@@ -19,8 +19,15 @@ const invitationInclude = {
   },
 } satisfies Prisma.InvitationInclude;
 
-type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitationInclude }>;
+type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitationInclude }> & {
+  /** The uploads its enabled blocks show, by id. */
+  media: Map<string, BlockMedia>;
+};
 type LoadedEvent = LoadedInvitation['event'];
+type LoadedBlock = LoadedInvitation['blocks'][number];
+
+const blockMediaSelect = { id: true, url: true, kind: true, altText: true } satisfies Prisma.MediaAssetSelect;
+type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
 type LoadedGuest = Prisma.GuestGetPayload<{
   include: { rsvp: true; household: { include: { guests: true } } };
 }>;
@@ -121,8 +128,11 @@ export class InvitationsService {
       // configured invitation still renders with a complete token set.
       theme: { ...asRecord(invitation.template.defaultTheme), ...asRecord(invitation.theme) },
       allowedFonts: invitation.template.allowedFonts,
-      musicUrl: invitation.musicUrl,
-      coverUrl: invitation.coverUrl,
+      // Derived from the blocks rather than stored beside them, so there is
+      // one place a host sets each: the hero's first photo is the cover, and
+      // switching the music block off silences the page.
+      musicUrl: firstMediaUrl(invitation, BlockType.MUSIC),
+      coverUrl: firstMediaUrl(invitation, BlockType.HERO),
       locale,
       availableLocales: event.locales,
       event: this.buildEventView(event),
@@ -130,8 +140,10 @@ export class InvitationsService {
       blocks: invitation.blocks.map((block) => ({
         type: block.type,
         sortOrder: block.sortOrder,
+        variant: block.variant,
         settings: block.settings,
         content: translate(block.content) ?? {},
+        media: mediaFor(block, invitation.media, translate),
         data: this.hydrateBlock(block.type, event, translate),
       })),
       rsvpQuestions: invitation.questions.map((question) => ({
@@ -156,7 +168,27 @@ export class InvitationsService {
     if (invitation.expiresAt && invitation.expiresAt < new Date()) {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
-    return invitation;
+    return { ...invitation, media: await this.loadBlockMedia(invitation) };
+  }
+
+  /**
+   * Every upload the page shows, in one query rather than one per block.
+   *
+   * Scoped to the event as well as by id: attaching already refuses another
+   * event's asset, and this keeps a row that slipped past it off the page.
+   */
+  private async loadBlockMedia(invitation: {
+    eventId: string;
+    blocks: { assetIds: string[] }[];
+  }): Promise<Map<string, BlockMedia>> {
+    const ids = [...new Set(invitation.blocks.flatMap((block) => block.assetIds))];
+    if (ids.length === 0) return new Map();
+
+    const assets = await this.prisma.mediaAsset.findMany({
+      where: { id: { in: ids }, eventId: invitation.eventId },
+      select: blockMediaSelect,
+    });
+    return new Map(assets.map((asset) => [asset.id, asset]));
   }
 
   private buildEventView(event: LoadedEvent) {
@@ -224,6 +256,22 @@ export class InvitationsService {
       },
     });
   }
+}
+
+/** A block's uploads in the host's order, skipping any since removed. */
+function mediaFor(block: LoadedBlock, media: Map<string, BlockMedia>, translate: Translate) {
+  return block.assetIds.flatMap((id) => {
+    const asset = media.get(id);
+    if (!asset) return [];
+    return [{ id: asset.id, url: asset.url, kind: asset.kind, altText: translate<string>(asset.altText) }];
+  });
+}
+
+/** The first upload on an enabled block of this type, or null. */
+function firstMediaUrl(invitation: LoadedInvitation, type: BlockType): string | null {
+  const block = invitation.blocks.find((candidate) => candidate.type === type);
+  const firstId = block?.assetIds.find((id) => invitation.media.has(id));
+  return firstId ? (invitation.media.get(firstId)?.url ?? null) : null;
 }
 
 function fullName(person: { firstName: string; lastName: string | null }): string {

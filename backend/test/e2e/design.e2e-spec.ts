@@ -238,6 +238,116 @@ describe('Invitation design (e2e)', () => {
     });
   });
 
+  /**
+   * Photos and music are what make an invitation feel like one. They used to
+   * be stored and attached and then never sent to the guest's page — a host
+   * would upload a cover photo, see it accepted, and guests would see none.
+   * Walked over HTTP from upload to the public page.
+   */
+  describe('photos and music on the guest page', () => {
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+
+    /** A designer whose template can render music, with an event to upload into. */
+    const designerWithMusic = async () => {
+      const seeded = await designer();
+      // Templates are platform data; the fixture's renders only HERO and RSVP.
+      await prisma.designTemplate.update({
+        where: { key: 'test-template' },
+        data: { supportedBlocks: [BlockType.HERO, BlockType.RSVP, BlockType.MUSIC, BlockType.GALLERY] },
+      });
+      return seeded;
+    };
+
+    const upload = async (eventId: string, authorization: string, kind: 'image' | 'audio') => {
+      const file =
+        kind === 'image'
+          ? { buffer: pixel, filename: 'cover.png', contentType: 'image/png' }
+          : { buffer: Buffer.from('ID3fake-mp3'), filename: 'song.mp3', contentType: 'audio/mpeg' };
+      const { body } = await http()
+        .post(`/api/v1/events/${eventId}/media`)
+        .set('Authorization', authorization)
+        .attach('file', file.buffer, { filename: file.filename, contentType: file.contentType })
+        .expect(201);
+      return body as { id: string; url: string; kind: string };
+    };
+
+    const attach = (slug: string, authorization: string, type: BlockType, assetIds: string[]) =>
+      http()
+        .patch(`/api/v1/invitations/${slug}/blocks/${type}`)
+        .set('Authorization', authorization)
+        .send({ assetIds });
+
+    const arrange = (slug: string, authorization: string, blocks: Record<string, unknown>[]) =>
+      http()
+        .patch(`/api/v1/invitations/${slug}/arrangement`)
+        .set('Authorization', authorization)
+        .send({ blocks })
+        .expect(200);
+
+    const guestPage = async (slug: string) =>
+      (await http().get(`/api/v1/invitations/${slug}`).expect(200)).body as {
+        coverUrl: string | null;
+        musicUrl: string | null;
+        blocks: { type: string; variant: string | null; media: { id: string; url: string; kind: string }[] }[];
+      };
+
+    it('shows the hero photo as the cover, and in the hero block, in order', async () => {
+      const { slug, eventId, authorization } = await designerWithMusic();
+      // Read once first, so a cached page has to be invalidated by the attach.
+      expect((await guestPage(slug)).coverUrl).toBeNull();
+      const first = await upload(eventId, authorization, 'image');
+      const second = await upload(eventId, authorization, 'image');
+
+      await attach(slug, authorization, BlockType.HERO, [second.id, first.id]).expect(200);
+
+      const page = await guestPage(slug);
+      expect(page.coverUrl).toBe(second.url);
+      const hero = page.blocks.find((block) => block.type === 'HERO');
+      expect(hero?.media).toEqual([
+        { id: second.id, url: second.url, kind: 'PHOTO', altText: null },
+        { id: first.id, url: first.url, kind: 'PHOTO', altText: null },
+      ]);
+    });
+
+    it('plays the music block’s audio, and stops when the host switches it off', async () => {
+      const { slug, eventId, authorization } = await designerWithMusic();
+      await arrange(slug, authorization, [{ type: 'HERO' }, { type: 'MUSIC' }, { type: 'RSVP' }]);
+      const song = await upload(eventId, authorization, 'audio');
+      await attach(slug, authorization, BlockType.MUSIC, [song.id]).expect(200);
+
+      expect((await guestPage(slug)).musicUrl).toBe(song.url);
+
+      await arrange(slug, authorization, [{ type: 'HERO' }, { type: 'MUSIC', enabled: false }, { type: 'RSVP' }]);
+      expect((await guestPage(slug)).musicUrl).toBeNull();
+    });
+
+    it('sends each block’s chosen layout to the page', async () => {
+      const { slug, authorization } = await designerWithMusic();
+
+      await arrange(slug, authorization, [{ type: 'HERO', variant: 'full-bleed' }, { type: 'RSVP' }]);
+
+      const hero = (await guestPage(slug)).blocks.find((block) => block.type === 'HERO');
+      expect(hero?.variant).toBe('full-bleed');
+    });
+
+    it.each([
+      { type: BlockType.MUSIC, kind: 'image' as const },
+      { type: BlockType.HERO, kind: 'audio' as const },
+      { type: BlockType.GALLERY, kind: 'audio' as const },
+    ])('refuses $kind on a $type block with a 400 naming assetIds', async ({ type, kind }) => {
+      const { slug, eventId, authorization } = await designerWithMusic();
+      await arrange(slug, authorization, [{ type: 'HERO' }, { type: 'MUSIC' }, { type: 'GALLERY' }, { type: 'RSVP' }]);
+      const asset = await upload(eventId, authorization, kind);
+
+      const { body } = await attach(slug, authorization, type, [asset.id]).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('assetIds');
+    });
+  });
+
   describe('custom RSVP questions', () => {
     const add = (slug: string, authorization: string, body: Record<string, unknown>) =>
       http().post(`/api/v1/invitations/${slug}/questions`).set('Authorization', authorization).send(body);

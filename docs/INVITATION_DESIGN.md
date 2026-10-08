@@ -76,11 +76,22 @@ invitation.
 
 | Kind | Used for |
 |---|---|
-| `PHOTO` | Gallery and story images |
-| `COVER` | The hero image |
+| `PHOTO` | Every uploaded image — hero, gallery, story |
+| `COVER` | Reserved; uploads are recorded as `PHOTO` |
 | `SIGNATURE` | A captured signature |
 | `LOGO` | Corporate events |
 | `AUDIO` | Background music |
+
+**A block shows media through its `assetIds`, in order**, and the public
+invitation returns each block's media with its URL. The `MUSIC` block accepts
+audio only; every other block accepts images only, checked when media is
+attached so the mistake is reported to the host rather than rendered to the
+guests.
+
+**The cover and the music are not stored separately.** The cover is the
+`HERO` block's first photo; the music is the `MUSIC` block's audio, and
+disabling that block silences the page. One place to set each means the two
+cannot disagree.
 
 `altText` is translated per locale, the same as block content — accessibility
 text in the wrong language is not accessible.
@@ -157,8 +168,8 @@ filename.
 
 1. **Image processing** — resizing, format conversion, thumbnails. One
    original is stored as uploaded.
-2. **Cover images.** `Invitation.coverAssetId` is modelled and upload works,
-   but nothing attaches an asset as the cover.
+2. **Alt text.** `MediaAsset.altText` is returned per locale, but no endpoint
+   writes it, so it is always empty.
 3. **Block creation outside the arrangement call.** Which blocks exist is
    decided there; there is no way to add one while editing its content.
 4. **Reordering custom RSVP questions.** They can be added, changed and
