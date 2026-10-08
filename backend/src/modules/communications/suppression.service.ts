@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
+import { normalizeEmailAddress } from '../../common/address';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -154,8 +155,9 @@ export class SuppressionService {
  * suppress the wrong person.
  */
 function normalizeAddress(channel: MessageChannel, address: string): string {
-  const trimmed = address.trim();
-  return channel === MessageChannel.EMAIL ? trimmed.toLowerCase() : trimmed;
+  return channel === MessageChannel.EMAIL
+    ? normalizeEmailAddress(address)
+    : address.trim();
 }
 
 export type SuppressionRow = Prisma.SuppressionGetPayload<object>;

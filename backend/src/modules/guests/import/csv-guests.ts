@@ -1,4 +1,5 @@
 import { GuestAttribution } from '@prisma/client';
+import { isUsableEmailAddress } from '../../../common/address';
 import { parse } from 'csv-parse/sync';
 
 export interface ParsedGuest {
@@ -99,7 +100,7 @@ function rejectionFor(field: FieldReader): Omit<RowError, 'row'> | null {
   }
 
   const email = field('email');
-  if (email && !email.includes('@')) {
+  if (email && !isUsableEmailAddress(email)) {
     return { message: 'That does not look like an email address', value: email };
   }
 

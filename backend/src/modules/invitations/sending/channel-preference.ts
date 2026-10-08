@@ -1,4 +1,5 @@
 import { MessageChannel } from '@prisma/client';
+import { isSafeAddress } from '../../../common/address';
 
 /**
  * Which channel to reach a guest on.
@@ -75,7 +76,11 @@ export function chooseChannel(
 }
 
 function isUsable(address: GuestAddress): boolean {
-  if (address.address.trim().length === 0) return false;
+  // Checked here as well as at every boundary that records an address. This is
+  // the last point before a transport receives it, and an address carrying a
+  // CRLF is an injected protocol command on every channel in use — so the
+  // check belongs where it cannot be bypassed by a new way of storing one.
+  if (!isSafeAddress(address.address)) return false;
   if (REQUIRES_OPT_IN.includes(address.channel) && address.optedInAt === null) return false;
   return true;
 }

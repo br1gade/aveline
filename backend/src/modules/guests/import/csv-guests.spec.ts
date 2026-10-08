@@ -118,4 +118,27 @@ describe('parseGuestCsv', () => {
       expect(parseGuestCsv('').errors).toHaveLength(1);
     });
   });
+
+  /**
+   * SMTP ends a command with CRLF, so an address carrying one is two
+   * commands: mail sent as us, from an address we never approved. This exact
+   * value was imported successfully and would have been handed to the mail
+   * transport before the address validator existed.
+   *
+   * A lone trailing CR is deliberately not tested here: the CSV parser's own
+   * `trim` removes it, so what reaches the validator is already a safe
+   * address. It is rejected at the validator itself — see
+   * `common/address.spec.ts` — which is where the rule belongs, since not
+   * every address arrives through a CSV.
+   */
+  it.each([
+    'armen@test.local\r\nMAIL FROM:<attacker@evil.test>',
+    'armen@test.local\nRCPT TO:<attacker@evil.test>',
+  ])('rejects an address carrying a protocol command', (email) => {
+    const { guests, errors } = parseGuestCsv(`name,email\nArmen,"${email}"\n`);
+
+    expect(guests).toHaveLength(0);
+    expect(errors[0].message).toContain('does not look like an email address');
+  });
+
 });

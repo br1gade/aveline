@@ -11,6 +11,7 @@
  * inspectable and testable without a database or a mail server.
  */
 import { MessageChannel } from '@prisma/client';
+import { isUsableEmailAddress } from '../../../common/address';
 import { ChannelChoice, GuestAddress, chooseChannel, unreachableReason } from './channel-preference';
 
 export interface SendableGuest {
@@ -131,20 +132,9 @@ function chooseForHousehold(
 function addressesOf(guest: SendableGuest): GuestAddress[] {
   if (guest.addresses) return guest.addresses;
 
-  return guest.email && isUsableEmail(guest.email)
+  return guest.email && isUsableEmailAddress(guest.email)
     ? [{ channel: MessageChannel.EMAIL, address: guest.email, optedInAt: null }]
     : [];
-}
-
-/**
- * Shape only, and deliberately loose: the mail server is the authority on
- * whether an address exists, and this check exists to catch the blank and the
- * obviously-not-an-address, not to adjudicate the RFC.
- */
-function isUsableEmail(email: string | null): boolean {
-  if (email === null) return false;
-  const trimmed = email.trim();
-  return trimmed.length > 2 && trimmed.includes('@') && !trimmed.includes(' ');
 }
 
 /**
@@ -162,7 +152,7 @@ function reasonFor(
 
   // A typo quoted back is fixable; "no address" when one is present sends the
   // host looking in the wrong place.
-  const malformed = guests.find((guest) => guest.email !== null && !isUsableEmail(guest.email));
+  const malformed = guests.find((guest) => guest.email !== null && !isUsableEmailAddress(guest.email));
   if (malformed) return `"${malformed.email ?? ''}" does not look like an email address`;
 
   const addresses = guests.filter((guest) => guest.anonymizedAt === null).flatMap(addressesOf);

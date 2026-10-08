@@ -46,8 +46,9 @@ customer's trust.
 |---|---|---|
 | 14 | **Zero-downtime deploys** | One API container, so a deploy is a restart and requests in flight fail. Acceptable at a few hundred guests; two replicas is the real answer |
 | 15 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
-| 16 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
-| 17 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
+| 16 | **Two dependency advisories accepted, not fixed** | `prisma` → `@prisma/config` → `deepmerge-ts` (high, stack exhaustion) is reached only when parsing a Prisma config file, which is ours and not user input; the fix needs Prisma 7, a major upgrade across 45 models and 17 migrations, and belongs in its own piece of work. `@nestjs/swagger` → `js-yaml` (moderate) is unreachable because Swagger is disabled in production. Both should be re-checked whenever Prisma 7 is taken on |
+| 17 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
+| 18 | **Migrations never run against production data** | Every migration is written to be backfill-safe, and none has been tested against a database with real volume |
 
 ---
 
