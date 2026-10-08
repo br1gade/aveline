@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { PaymentEventSource } from '@prisma/client';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { StartPaymentDto } from './dto/start-payment.dto';
+import { RefundPaymentDto } from '../ticketing/dto/ticket-setup.dto';
 import { PaymentsService } from './payments.service';
 import { Public, RequirePermission } from '../../infra/auth/actor';
 
@@ -44,11 +45,28 @@ export class PaymentsController {
     );
   }
 
-  @RequirePermission('billing:read')
+  /**
+   * Refunds a payment that is not for tickets.
+   *
+   * `billing:write`, not `billing:read`: this moves money out of the business,
+   * and was guarded by the read permission until it was noticed. The body is
+   * validated, because `BigInt` on a missing or non-numeric value threw a raw
+   * 500 on the one endpoint where a malformed request most needs a clear
+   * answer.
+   *
+   * Ticket payments are refused here and refunded by cancelling the order,
+   * which voids the tickets in the same act — refunding the money alone left a
+   * buyer refunded and still able to get in.
+   */
+  @RequirePermission('billing:write')
   @Post(':orderNumber/refund')
-  @ApiOperation({ summary: 'Refund all or part of a captured payment' })
-  refund(@Param('orderNumber') orderNumber: string, @Body('amountMinor') amountMinor: string) {
-    return this.payments.refund(orderNumber, BigInt(amountMinor));
+  @ApiOperation({
+    summary: 'Refund all or part of a captured payment',
+    description:
+      'Not for ticket payments: cancel the order instead, which refunds it and voids its tickets together.',
+  })
+  refund(@Param('orderNumber') orderNumber: string, @Body() dto: RefundPaymentDto) {
+    return this.payments.refundNonTicket(orderNumber, BigInt(dto.amountMinor), dto.reason);
   }
 
   @RequirePermission('billing:read')

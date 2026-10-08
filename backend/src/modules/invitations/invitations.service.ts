@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BlockType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
@@ -111,6 +112,10 @@ export class InvitationsService {
 
     return {
       slug: invitation.slug,
+      // Whether to show the RSVP form at all. A closed invitation is still
+      // readable — the venue and time still matter to people who are coming —
+      // so the page needs to know not to offer a form that will be refused.
+      isAcceptingResponses: isAcceptingResponses(invitation, new Date()),
       template: invitation.template.key,
       // The host's choices layered over the template's defaults, so a partially
       // configured invitation still renders with a complete token set.
@@ -145,7 +150,7 @@ export class InvitationsService {
       include: invitationInclude,
     });
 
-    if (!invitation || invitation.status !== 'PUBLISHED') {
+    if (!invitation || !isReadableByGuests(invitation.status)) {
       throw new NotFoundException(`No published invitation at "${slug}"`);
     }
     if (invitation.expiresAt && invitation.expiresAt < new Date()) {
@@ -229,4 +234,20 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+/**
+ * Open for new answers: published, and not past its expiry.
+ *
+ * Computed into a cached payload, so an expiry passing mid-cache can briefly
+ * show the form after it has closed. The RSVP endpoint enforces the same rule
+ * independently, so the worst case is a form that says "this invitation has
+ * closed" when submitted — never an answer accepted after the deadline.
+ */
+function isAcceptingResponses(
+  invitation: { status: string; expiresAt: Date | null },
+  now: Date,
+): boolean {
+  if (invitation.status !== 'PUBLISHED') return false;
+  return invitation.expiresAt === null || invitation.expiresAt > now;
 }

@@ -386,6 +386,98 @@ robots directive. A private or unlisted event returns `noindex,nofollow` — do
 not override it. Link previews in chat apps matter far more here than search
 ranking.
 
+### Setting up ticket sales
+
+Until recently none of this could be done through the API, so if you built
+against seeded data, this is new.
+
+**1. Make the event public.** A private event is reachable only by invitation
+link and is never listed.
+
+```http
+PATCH /api/v1/events/:eventId/settings   { "visibility": "PUBLIC" }
+```
+
+`UNLISTED` also allows a listing and sales, but keeps the event out of public
+browse. **Setting it back to `PRIVATE` takes the listing down in the same
+act.**
+
+**2. Put tickets on sale.**
+
+```http
+POST   /api/v1/events/:eventId/ticket-types
+       { "name": { "hy": "Ընդհանուր", "en": "General" }, "priceMinor": "15000",
+         "quantityTotal": 200, "minPerOrder": 1, "maxPerOrder": 10,
+         "salesStartAt": "...", "salesEndAt": "..." }
+GET    /api/v1/events/:eventId/ticket-types
+PATCH  /api/v1/events/:eventId/ticket-types/:typeId
+DELETE /api/v1/events/:eventId/ticket-types/:typeId
+```
+
+`priceMinor` is a string, and `"0"` is a free ticket. The list returns `sold`,
+`held` (seats in someone's checkout right now) and `available`.
+
+**The price can change at any time, and only affects future buyers** — every
+order captures its unit price when it is placed, so early-bird pricing on one
+ticket type works. Two buyers of the same type can therefore have paid
+different amounts; if that matters for an event, use two ticket types.
+
+Capacity cannot go below what is sold or held; the error names the number.
+`DELETE` works only on a type nothing has been sold or held against — after
+that, `PATCH { "isActive": false }` stops selling it.
+
+**3. Write the announcement and publish it.**
+
+```http
+PUT  /api/v1/events/:eventId/listing
+     { "headline": { "en": "Autumn Jazz Night" }, "summary": {...}, "body": {...},
+       "categories": ["concert"], "ogTitle": {...}, "ogDescription": {...},
+       "isIndexable": false, "slug": "autumn-jazz-night" }
+POST /api/v1/events/:eventId/listing/publish
+POST /api/v1/events/:eventId/listing/unpublish
+```
+
+`PUT` creates or edits; omitted fields are left alone. `slug` is optional and
+generated from the title when omitted — an Armenian title becomes
+`event-<random>`, because it contains nothing URL-safe. A taken slug is `409`.
+
+Publishing is refused for a private event, without a headline in any
+language, or once the event has started. Unpublishing does not affect tickets
+already sold.
+
+All of this needs `event:write` (reading, `event:read`).
+
+### Cancelling an order
+
+```http
+GET  /api/v1/events/:eventId/ticket-orders?status=PAID
+POST /api/v1/events/:eventId/ticket-orders/:orderId/cancel
+```
+
+**Cancelling is how a ticket order is refunded.** It voids every ticket on the
+order, puts the seats back on sale, returns any promo-code use, refunds the
+payment, and emails the buyer — as one action, exactly once. Free orders end
+`CANCELLED`, paid ones `REFUNDED`.
+
+```json
+{ "orderId": "clz...", "status": "REFUNDED", "refundedMinor": "30000", "currency": "AMD",
+  "tickets": [{ "code": "...", "status": "VOID" }] }
+```
+
+- **Whole orders only.** A buyer who can bring three of four is refunded the
+  order and buys again.
+- **Refused if any ticket was already admitted** (`409`): refunding after
+  attendance is a dispute with the buyer, not a cancellation.
+- **Safe to retry and safe to double-click.** A second call returns the
+  cancelled order rather than an error, and never refunds twice.
+- **Requires `billing:write`** — money leaves the business, so in practice the
+  organization owner.
+
+`POST /payments/:orderNumber/refund` now **refuses ticket payments** and
+points here, because refunding the money alone left a buyer refunded and still
+able to get in. It remains for other payments, is staff-only, and takes a
+validated `{ "amountMinor": "15000", "reason": "..." }`.
+
 ### Buying tickets
 
 ```http
@@ -1189,6 +1281,42 @@ one place decides that. Patching a block the invitation does not have returns
 another event is a `400`. `VENUE`, `TIMELINE` and `COUNTDOWN` blocks ignore
 content you put here for the fields they bind from the event — see
 §Rendering blocks.
+
+### Publishing the invitation
+
+```http
+POST /api/v1/invitations/:slug/publish
+POST /api/v1/invitations/:slug/close
+POST /api/v1/invitations/:slug/reopen
+```
+
+A new invitation is a **draft**: guests get a `404` and `send` refuses it.
+Publishing makes it live. Requires `invitation:publish`.
+
+**Publishing is refused until three things are true**, and every one that is
+missing is named at once so a form can mark them all in one round trip:
+
+```json
+{ "message": [
+  "Turn on the RSVP block, or guests will have no way to answer",
+  "Add a venue with an address, so guests know where to go",
+  "This event has already started; an invitation now would arrive late"
+] }
+```
+
+**Closing stops new responses but keeps the page readable** — the venue, the
+time and the dress code still matter to everyone who is coming. `reopen`
+undoes it. There is **no way back to draft**: once links have gone out,
+un-publishing would turn every one of them into a `404` in a guest's chat
+history.
+
+The public payload carries `isAcceptingResponses`. **Read it to decide whether
+to show the RSVP form** — it is `false` for a closed invitation, which is
+still served. The RSVP endpoint enforces the same rule independently, so an
+answer can never be accepted after closing even if a cached page briefly says
+otherwise.
+
+Publishing the invitation also marks the event itself published.
 
 ### Sending the invitation
 

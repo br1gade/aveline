@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { EventVisibility } from '@prisma/client';
+import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
 
 /** Omitted means "leave as is". */
 export class UpdateEventSettingsDto {
@@ -11,4 +12,14 @@ export class UpdateEventSettingsDto {
   @IsOptional()
   @IsBoolean()
   remindersEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    enum: EventVisibility,
+    description:
+      'PRIVATE is reachable only by invitation link. PUBLIC and UNLISTED allow a ' +
+      'public listing and ticket sales. Making an event PRIVATE takes its listing down.',
+  })
+  @IsOptional()
+  @IsEnum(EventVisibility)
+  visibility?: EventVisibility;
 }

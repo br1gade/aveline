@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, TicketOrderStatus } from '@prisma/client';
+import { Prisma, TicketOrderStatus, TicketStatus } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { PromoCodesService } from '../billing/promo-codes.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -20,6 +20,18 @@ import { TicketNotifierService } from './ticket-notifier.service';
  * failure mode is selling a seat twice or issuing a second valid ticket for
  * one paid seat.
  */
+/**
+ * What settlement returns: the order with its tickets.
+ *
+ * The tickets are included because for a free event the checkout response is
+ * the moment the buyer sees them — it used to carry none, leaving them a
+ * second request away from the thing they had just been given.
+ */
+const SETTLED_ORDER = {
+  items: true,
+  tickets: { select: { code: true, status: true } },
+} as const;
+
 @Injectable()
 export class TicketFulfilmentService {
   private readonly logger = new Logger(TicketFulfilmentService.name);
@@ -41,7 +53,7 @@ export class TicketFulfilmentService {
   async markPaid(orderId: string) {
     const order = await this.prisma.ticketOrder.findUniqueOrThrow({
       where: { id: orderId },
-      include: { items: true },
+      include: SETTLED_ORDER,
     });
     // Already settled: a retried callback or a refreshed return page. The
     // order is returned unchanged and nothing is issued or sent again.
@@ -84,7 +96,7 @@ export class TicketFulfilmentService {
 
     return this.prisma.ticketOrder.findUniqueOrThrow({
       where: { id: orderId },
-      include: { items: true },
+      include: SETTLED_ORDER,
     });
   }
 
@@ -166,6 +178,54 @@ export class TicketFulfilmentService {
         holderEmail: order.buyerEmail,
       })),
     );
+  }
+
+  /**
+   * Voids a paid order's tickets and puts its seats back on sale.
+   *
+   * The mirror of `markPaid`, and claim-first for the same reason: the update
+   * only matches a PAID order, so a second cancellation — a double click, a
+   * retry after a timeout — matches nothing and returns nothing to inventory
+   * twice. Voiding, returning seats and giving back the promo redemption are
+   * one transaction, so none can happen without the others.
+   *
+   * Returns whether this call was the one that voided, so the caller tells
+   * the buyer exactly once.
+   */
+  async voidPaidOrder(
+    orderId: string,
+    finalStatus: 'CANCELLED' | 'REFUNDED',
+  ): Promise<boolean> {
+    const order = await this.prisma.ticketOrder.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { items: true },
+    });
+
+    const wasVoided = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.ticketOrder.updateMany({
+        where: { id: orderId, status: TicketOrderStatus.PAID },
+        data: { status: finalStatus },
+      });
+      if (claimed.count === 0) return false;
+
+      // Only VALID ones. A ticket already admitted is refused before this is
+      // ever called, and the condition keeps a concurrent admission at the
+      // door from being silently overwritten.
+      await tx.ticket.updateMany({
+        where: { orderId, status: TicketStatus.VALID },
+        data: { status: TicketStatus.VOID },
+      });
+
+      for (const item of order.items) {
+        await this.inventory.returnSold(item.ticketTypeId, item.quantity, tx);
+      }
+
+      await this.promoCodes.releaseClaim(order.promoCodeId, tx);
+      return true;
+    });
+
+    if (wasVoided) await this.notifier.sendCancellation(orderId);
+    return wasVoided;
   }
 
   /** Gives holds back when a checkout fails or is abandoned. */

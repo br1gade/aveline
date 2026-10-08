@@ -153,10 +153,15 @@ describe('Onboarding (e2e)', () => {
         .set('Authorization', authorization)
         .send(anEvent)
         .expect(201);
-      await prisma.invitation.update({
-        where: { slug: created.invitation.slug as string },
-        data: { status: 'PUBLISHED' },
-      });
+      await http()
+        .post(`/api/v1/events/${created.id}/venues`)
+        .set('Authorization', authorization)
+        .send({ role: 'RECEPTION', name: 'Ararat Hall', address: 'Yerevan' })
+        .expect(201);
+      await http()
+        .post(`/api/v1/invitations/${created.invitation.slug}/publish`)
+        .set('Authorization', authorization)
+        .expect(201);
 
       const { body } = await http()
         .get(`/api/v1/invitations/${created.invitation.slug}`)
@@ -443,4 +448,147 @@ describe('Onboarding (e2e)', () => {
         .expect(404);
     });
   });
+
+  /**
+   * Nothing used to set an invitation to PUBLISHED. A host could design it,
+   * and `send` then refused with "publish it before sending" — with no way to
+   * publish. Every test passed because fixtures seeded PUBLISHED directly.
+   */
+  describe('publishing', () => {
+    const designedEvent = async (options: { withVenue?: boolean } = {}) => {
+      const { authorization } = await newCustomer();
+      await withTemplate();
+      const { body } = await http()
+        .post('/api/v1/events')
+        .set('Authorization', authorization)
+        .send(anEvent)
+        .expect(201);
+      if (options.withVenue ?? true) {
+        await http()
+          .post(`/api/v1/events/${body.id}/venues`)
+          .set('Authorization', authorization)
+          .send({ role: 'RECEPTION', name: 'Ararat Hall', address: 'Yerevan' })
+          .expect(201);
+      }
+      return { authorization, eventId: body.id as string, slug: body.invitation.slug as string };
+    };
+
+    const act = (slug: string, action: string, authorization: string) =>
+      http().post(`/api/v1/invitations/${slug}/${action}`).set('Authorization', authorization);
+
+    it('publishes a ready invitation and makes it readable', async () => {
+      const { slug, authorization } = await designedEvent();
+
+      await http().get(`/api/v1/invitations/${slug}`).expect(404);
+      const { body } = await act(slug, 'publish', authorization).expect(201);
+
+      expect(body).toEqual({ slug, status: 'PUBLISHED' });
+      const page = await http().get(`/api/v1/invitations/${slug}`).expect(200);
+      expect(page.body.isAcceptingResponses).toBe(true);
+    });
+
+    // Publishing also marks the event live, which is what public listings
+    // filter on.
+    it('marks the event published too', async () => {
+      const { slug, eventId, authorization } = await designedEvent();
+
+      await act(slug, 'publish', authorization).expect(201);
+
+      const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+      expect(event.status).toBe('PUBLISHED');
+    });
+
+    it('refuses an invitation with no venue, naming what is missing', async () => {
+      const { slug, authorization } = await designedEvent({ withVenue: false });
+
+      const { body } = await act(slug, 'publish', authorization).expect(400);
+
+      expect(body.message).toEqual([
+        'Add a venue with an address, so guests know where to go',
+      ]);
+    });
+
+    it('refuses an invitation whose RSVP block is switched off', async () => {
+      const { slug, authorization } = await designedEvent();
+      await prisma.invitationBlock.updateMany({
+        where: { invitation: { slug }, type: BlockType.RSVP },
+        data: { enabled: false },
+      });
+
+      const { body } = await act(slug, 'publish', authorization).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('RSVP');
+    });
+
+    it('refuses to publish twice', async () => {
+      const { slug, authorization } = await designedEvent();
+      await act(slug, 'publish', authorization).expect(201);
+
+      await act(slug, 'publish', authorization).expect(400);
+    });
+
+    /**
+     * Closing stops responses but keeps the page readable: the venue and time
+     * still matter to everyone who is coming.
+     */
+    it('closes to new responses while staying readable', async () => {
+      const { slug, authorization } = await designedEvent();
+      await act(slug, 'publish', authorization).expect(201);
+
+      await act(slug, 'close', authorization).expect(201);
+
+      const page = await http().get(`/api/v1/invitations/${slug}`).expect(200);
+      expect(page.body.isAcceptingResponses).toBe(false);
+    });
+
+    it('reopens after closing', async () => {
+      const { slug, authorization } = await designedEvent();
+      await act(slug, 'publish', authorization).expect(201);
+      await act(slug, 'close', authorization).expect(201);
+
+      const { body } = await act(slug, 'reopen', authorization).expect(201);
+
+      expect(body.status).toBe('PUBLISHED');
+    });
+
+    it('cannot close a draft', async () => {
+      const { slug, authorization } = await designedEvent();
+
+      await act(slug, 'close', authorization).expect(400);
+    });
+
+    // The flow that was impossible: create, publish, send, all over HTTP.
+    it('can be sent once published, with no database writes in between', async () => {
+      const { slug, eventId, authorization } = await designedEvent();
+      const household = await prisma.household.create({
+        data: { eventId, name: 'Petrosyan', seatsAllotted: 2 },
+      });
+      await prisma.guest.create({
+        data: {
+          eventId,
+          householdId: household.id,
+          firstName: 'Armen',
+          email: 'armen@test.local',
+          isPrimary: true,
+          token: 'tok-onboarding-armen',
+        },
+      });
+      await prisma.messageTemplate.create({
+        data: {
+          organizationId: null,
+          key: 'invitation.send',
+          channel: 'EMAIL',
+          subject: { hy: '{{hosts}}' },
+          body: { hy: '{{guestName}} {{link}}' },
+        },
+      });
+
+      await act(slug, 'send', authorization).expect(400);
+      await act(slug, 'publish', authorization).expect(201);
+      const { body } = await act(slug, 'send', authorization).send({}).expect(201);
+
+      expect(body.queued).toBe(1);
+    });
+  });
+
 });

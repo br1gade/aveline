@@ -48,8 +48,10 @@ Each replaces a process the incumbent market performs by hand.
 | 6 | **WhatsApp delivery receipts** | Meta reports delivery and read status by webhook; nothing consumes it, so a WhatsApp message stays SENT and a failure after acceptance is never recorded. The same webhook is how a WhatsApp block would reach us |
 | 7 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
 | 8 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — the guest book and the thank-you flow are built; a gallery guests can add to needs capability-token uploads and a moderation answer |
-| 9 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
-| 10 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
+| 9 | **Disputed refunds** | A ticket order with any admitted ticket cannot be cancelled — refunding after attendance is a dispute with the buyer, not a cancellation, and voiding a used ticket would erase the record that they came. There is no flow for that dispute; it is handled outside the system |
+| 10 | **Partial ticket cancellation** | **Decided (8 October 2026): whole orders only.** A buyer who can bring three of four is refunded and buys again. Revisit if hosts ask |
+| 11 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
+| 12 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
 
 ## 4. Revenue — unbuilt business model lines
 
@@ -57,22 +59,22 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 
 | # | Gap | Stream |
 |---|---|---|
-| 11 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
-| 12 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them. **Decided (8 October 2026): deferred until after the pilot** — paid plans stay inactive and limits stay unenforced until real events show which limits matter and what to charge |
-| 13 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
-| 14 | **Corporate contracts** | §9.5 — multi-event, branded |
-| 15 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
+| 13 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
+| 14 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them. **Decided (8 October 2026): deferred until after the pilot** — paid plans stay inactive and limits stay unenforced until real events show which limits matter and what to charge |
+| 15 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
+| 16 | **Corporate contracts** | §9.5 — multi-event, branded |
+| 17 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
 
 ## 5. Operations and trust
 
 | # | Gap | Why |
 |---|---|---|
-| 16 | ~~Health and readiness endpoints~~ | **Done** |
+| 18 | ~~Health and readiness endpoints~~ | **Done** |
 | 18b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
-| 17 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
-| 18 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
-| 19 | **GDPR identity verification** | Requests are accepted, tracked, carried out, and the one-month clock is now swept daily and raised in Sentry when it is missed. What stays manual is establishing who is asking — a human step by design, since acting on an unverified request is itself a breach |
-| 20 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
+| 19 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
+| 20 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
+| 21 | **GDPR identity verification** | Requests are accepted, tracked, carried out, and the one-month clock is now swept daily and raised in Sentry when it is missed. What stays manual is establishing who is asking — a human step by design, since acting on an unverified request is itself a breach |
+| 22 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 
 ## 6. Physical-service bridge
 
@@ -81,11 +83,11 @@ rather than a phone call.
 
 | # | Gap |
 |---|---|
-| 21 | **Vendor availability calendar** — booking a caterer currently means asking them |
-| 22 | **Delivery and logistics tracking** for decor and printed stationery |
-| 23 | **Printed companion orders** — print-on-demand from the same design |
-| 24 | **On-site staff assignment** for the day-of coordinator in Production tier |
-| 25 | **Physical ticket fallback** — QR on paper for guests without smartphones |
+| 23 | **Vendor availability calendar** — booking a caterer currently means asking them |
+| 24 | **Delivery and logistics tracking** for decor and printed stationery |
+| 25 | **Printed companion orders** — print-on-demand from the same design |
+| 26 | **On-site staff assignment** for the day-of coordinator in Production tier |
+| 27 | **Physical ticket fallback** — QR on paper for guests without smartphones |
 
 ---
 

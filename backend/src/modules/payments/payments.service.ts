@@ -1,5 +1,17 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PaymentEventSource, PaymentStatus, Prisma, RefundStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  PaymentEventSource,
+  PaymentPurpose,
+  PaymentStatus,
+  Prisma,
+  RefundStatus,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { assertTransition, isSettled, nextStatusForRefund } from './payment-status';
@@ -166,6 +178,28 @@ export class PaymentsService {
    * refund the bank then rejects, which reconciliation can see and this
    * method compensates for immediately.
    */
+  /**
+   * The public refund, for everything except tickets.
+   *
+   * Ticket payments are refunded only by cancelling their order, which voids
+   * the tickets in the same act. Refunding the money alone here would leave a
+   * refunded buyer holding valid tickets — money and access disagreeing.
+   */
+  async refundNonTicket(orderNumber: string, amountMinor: bigint, reason?: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { orderNumber },
+      select: { purpose: true },
+    });
+    if (!payment) throw new NotFoundException(`No payment ${orderNumber}`);
+
+    if (payment.purpose === PaymentPurpose.TICKET) {
+      throw new BadRequestException(
+        'This payment is for tickets. Cancel the ticket order instead, which refunds it and voids its tickets together.',
+      );
+    }
+    return this.refund(orderNumber, amountMinor, reason);
+  }
+
   async refund(orderNumber: string, amountMinor: bigint, reason?: string) {
     const payment = await this.prisma.payment.findUnique({ where: { orderNumber } });
     if (!payment) throw new NotFoundException(`No payment ${orderNumber}`);

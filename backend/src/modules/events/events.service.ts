@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventRole, EventStatus, Prisma } from '@prisma/client';
+import { EventRole, EventStatus, EventVisibility, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuditService } from '../../infra/audit/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -199,15 +199,34 @@ export class EventsService {
    * with the flows that know how to tell those guests — not in a settings
    * toggle.
    */
-  async updateSettings(eventId: string, settings: { remindersEnabled?: boolean }) {
+  async updateSettings(
+    eventId: string,
+    settings: { remindersEnabled?: boolean; visibility?: EventVisibility },
+  ) {
     await this.findOne(eventId);
 
-    const updated = await this.prisma.event.update({
-      where: { id: eventId },
-      data: { remindersEnabled: settings.remindersEnabled ?? undefined },
-      select: { id: true, remindersEnabled: true },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.event.update({
+        where: { id: eventId },
+        data: {
+          remindersEnabled: settings.remindersEnabled ?? undefined,
+          visibility: settings.visibility ?? undefined,
+        },
+        select: { id: true, remindersEnabled: true, visibility: true },
+      });
+
+      // A private event must never be listed. Taking the listing down in the
+      // same transaction means there is no moment where the event is private
+      // and its announcement is still public.
+      if (settings.visibility === EventVisibility.PRIVATE) {
+        await tx.eventListing.updateMany({
+          where: { eventId, publishedAt: { not: null } },
+          data: { publishedAt: null },
+        });
+      }
+
+      return updated;
     });
-    return updated;
   }
 
 }

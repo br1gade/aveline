@@ -72,6 +72,46 @@ export class TicketNotifierService {
       this.logger.error(`could not queue tickets for order ${orderId}: ${describeError(error)}`);
     }
   }
+
+  /**
+   * Tells the buyer their order was cancelled and refunded.
+   *
+   * Without it a buyer finds out from their bank statement, or at the door —
+   * which is the worse of the two. Same failure rule as `sendTickets`: logged,
+   * never raised, because the money has already gone back.
+   */
+  async sendCancellation(orderId: string): Promise<void> {
+    try {
+      const order = await this.prisma.ticketOrder.findUniqueOrThrow({
+        where: { id: orderId },
+        select: {
+          buyerName: true,
+          buyerEmail: true,
+          locale: true,
+          totalMinor: true,
+          currency: true,
+          event: { select: { organizationId: true, id: true, title: true } },
+        },
+      });
+
+      await this.communications.enqueue({
+        organizationId: order.event.organizationId,
+        eventId: order.event.id,
+        channel: MessageChannel.EMAIL,
+        templateKey: 'ticket.cancelled',
+        toAddress: order.buyerEmail,
+        locale: order.locale,
+        variables: {
+          buyerName: order.buyerName,
+          eventTitle: order.event.title,
+          amount: `${order.totalMinor.toString()} ${order.currency}`,
+        },
+        dedupeKey: `ticket-cancelled:${orderId}`,
+      });
+    } catch (error) {
+      this.logger.error(`could not queue cancellation for order ${orderId}: ${describeError(error)}`);
+    }
+  }
 }
 
 function describeError(error: unknown): string {

@@ -94,6 +94,30 @@ export class TicketInventoryService {
     }
   }
 
+  /**
+   * Puts sold seats back on sale, when an order is cancelled.
+   *
+   * Conditioned on there being that many sold, for the same reason every
+   * mutation here carries its invariant in the WHERE clause: a double
+   * cancellation must not drive `quantitySold` below zero and quietly sell
+   * seats that were never there.
+   */
+  async returnSold(ticketTypeId: string, quantity: number, tx?: Executor): Promise<void> {
+    assertPositive(quantity);
+
+    const updated = await (tx ?? this.prisma).$executeRaw`
+      UPDATE "ticket_types"
+         SET "quantitySold" = "quantitySold" - ${quantity},
+             "updatedAt" = NOW()
+       WHERE "id" = ${ticketTypeId}
+         AND "quantitySold" >= ${quantity}
+    `;
+
+    if (updated === 0) {
+      throw new ConflictException(`Cannot return ${quantity} ticket(s): fewer were sold`);
+    }
+  }
+
   async availableFor(ticketTypeId: string): Promise<number> {
     const type = await this.prisma.ticketType.findUnique({
       where: { id: ticketTypeId },

@@ -222,6 +222,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 |---|---|---|
 | `GET` | `/api/v1/events/:eventId/design-templates` | The template catalogue and its constraints |
 | `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
+| `POST` | `/api/v1/invitations/:slug/publish` | Make it live — needs an RSVP block, a venue and a future date |
+| `POST` | `/api/v1/invitations/:slug/close` | Stop accepting responses; the page stays readable |
+| `POST` | `/api/v1/invitations/:slug/reopen` | Accept responses again |
 | `POST` | `/api/v1/invitations/:slug/send` | **Send it** — one email per household, safe to press twice |
 | `POST` | `/api/v1/invitations/:slug/remind` | Chase the households that have not answered |
 | `POST` | `/api/v1/invitations/:slug/thank-you` | Thank the guests who actually came |
@@ -330,6 +333,21 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/suppressions` | Addresses that will not be contacted |
 | `POST` | `/api/v1/suppressions` | Stop contacting an address |
 | `DELETE` | `/api/v1/suppressions/:suppressionId` | Resume; global entries cannot be lifted |
+
+### Selling tickets
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/events/:eventId/ticket-types` | What is for sale, with sold, held and available |
+| `POST` | `/api/v1/events/:eventId/ticket-types` | Put a kind of ticket on sale |
+| `PATCH` | `/api/v1/events/:eventId/ticket-types/:typeId` | Change it; price changes apply to future buyers |
+| `DELETE` | `/api/v1/events/:eventId/ticket-types/:typeId` | Remove one nothing has been sold against |
+| `GET` | `/api/v1/events/:eventId/listing` | The public announcement page |
+| `PUT` | `/api/v1/events/:eventId/listing` | Create or edit it |
+| `POST` | `/api/v1/events/:eventId/listing/publish` | Make it public |
+| `POST` | `/api/v1/events/:eventId/listing/unpublish` | Take it down |
+| `GET` | `/api/v1/events/:eventId/ticket-orders` | Orders on the event, newest first |
+| `POST` | `/api/v1/events/:eventId/ticket-orders/:orderId/cancel` | Cancel and refund an order, exactly once |
 
 ### Public — vendor briefs and discounts
 

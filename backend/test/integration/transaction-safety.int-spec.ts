@@ -18,6 +18,7 @@ import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gatew
 import { PaymentsService } from '../../src/modules/payments/payments.service';
 import { FakeGateway } from '../../src/modules/payments/providers/fake.gateway';
 import { TicketInventoryService } from '../../src/modules/ticketing/ticket-inventory.service';
+import { TicketCancellationService } from '../../src/modules/ticketing/ticket-cancellation.service';
 import { TicketFulfilmentService } from '../../src/modules/ticketing/ticket-fulfilment.service';
 import { TicketNotifierService } from '../../src/modules/ticketing/ticket-notifier.service';
 import { PromoCodesService } from '../../src/modules/billing/promo-codes.service';
@@ -37,6 +38,7 @@ describe('transaction safety (integration)', () => {
   let prisma: PrismaClient;
   let payments: PaymentsService;
   let ticketing: TicketingService;
+  let cancellation: TicketCancellationService;
   let inventory: TicketInventoryService;
   let fake: FakeGateway;
   let organizationId: string;
@@ -73,6 +75,11 @@ describe('transaction safety (integration)', () => {
       prisma as unknown as PrismaService,
       payments,
       promoCodes,
+      fulfilment,
+    );
+    cancellation = new TicketCancellationService(
+      prisma as unknown as PrismaService,
+      payments,
       fulfilment,
     );
   });
@@ -466,6 +473,202 @@ describe('transaction safety (integration)', () => {
       expect(order.status).toBe(TicketOrderStatus.PAID);
       expect(await prisma.ticket.count({ where: { orderId: order.orderId } })).toBe(2);
       expect(await ticketMail()).toHaveLength(0);
+    });
+  });
+
+
+  /**
+   * Cancelling refunds, and refunding cancels — decided with the product
+   * owner, because refunding the money alone left a buyer refunded and still
+   * able to get in. These are the cases that cannot be apologised away: a
+   * double payout, or a refunded ticket that still opens the door.
+   */
+  describe('cancelling a paid order', () => {
+    /** A paid, settled order for `quantity` tickets at `priceMinor` each. */
+    const paidTicketOrder = async (quantity: number, priceMinor = 10_000n) => {
+      const type = await prisma.ticketType.create({
+        data: { eventId, name: { en: 'GA' }, priceMinor, quantityTotal: 50, maxPerOrder: 50 },
+      });
+      await prisma.event.update({ where: { id: eventId }, data: { visibility: 'PUBLIC' } });
+      const listing = await prisma.eventListing.create({
+        data: { eventId, slug: `c-${Math.random().toString(36).slice(2, 8)}`, publishedAt: new Date() },
+      });
+
+      const created = await ticketing.createOrder(listing.slug, {
+        items: [{ ticketTypeId: type.id, quantity }],
+        buyerName: 'Ani',
+        buyerEmail: 'buyer@test.local',
+        idempotencyKey: `order-${Math.random()}`,
+        provider: PaymentProvider.FAKE,
+      });
+
+      if (priceMinor > 0n) {
+        const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: created.orderId } });
+        const payment = await prisma.payment.findUniqueOrThrow({
+          where: { orderNumber: order.paymentOrderNumber! },
+        });
+        fake.simulateSuccess(payment.providerRef!);
+        await ticketing.confirmOrder(order.accessToken);
+      }
+
+      return { orderId: created.orderId, ticketTypeId: type.id };
+    };
+
+    it('refunds the payment and voids every ticket', async () => {
+      const { orderId } = await paidTicketOrder(3);
+
+      const result = await cancellation.cancel(eventId, orderId);
+
+      expect(result.status).toBe(TicketOrderStatus.REFUNDED);
+      expect(result.tickets.every((ticket) => ticket.status === 'VOID')).toBe(true);
+      const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
+      const payment = await prisma.payment.findUniqueOrThrow({
+        where: { orderNumber: order.paymentOrderNumber! },
+      });
+      expect(payment.refundedMinor).toBe(30_000n);
+    });
+
+    // The seats exist again and someone else can buy them.
+    it('puts the seats back on sale', async () => {
+      const { orderId, ticketTypeId } = await paidTicketOrder(3);
+
+      await cancellation.cancel(eventId, orderId);
+
+      const type = await prisma.ticketType.findUniqueOrThrow({ where: { id: ticketTypeId } });
+      expect(type.quantitySold).toBe(0);
+    });
+
+    /**
+     * The failure this exists to prevent: two hosts, or one host clicking
+     * twice, paying the buyer back twice.
+     */
+    it('refunds exactly once under concurrent cancellations', async () => {
+      const { orderId, ticketTypeId } = await paidTicketOrder(2);
+
+      await Promise.allSettled([
+        cancellation.cancel(eventId, orderId),
+        cancellation.cancel(eventId, orderId),
+        cancellation.cancel(eventId, orderId),
+      ]);
+
+      const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
+      const payment = await prisma.payment.findUniqueOrThrow({
+        where: { orderNumber: order.paymentOrderNumber! },
+      });
+      expect(payment.refundedMinor).toBe(20_000n);
+      expect(await prisma.refund.count({ where: { paymentId: payment.id } })).toBe(1);
+      // Seats returned once, not three times.
+      const type = await prisma.ticketType.findUniqueOrThrow({ where: { id: ticketTypeId } });
+      expect(type.quantitySold).toBe(0);
+    });
+
+    /**
+     * The process dies after the bank refunded and before the tickets were
+     * voided: money back, tickets still valid. Running the cancellation again
+     * must finish the job — not refund a second time, and not refuse.
+     */
+    it('finishes a cancellation that died after refunding', async () => {
+      const { orderId } = await paidTicketOrder(2);
+      const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
+      await payments.refund(order.paymentOrderNumber!, 20_000n);
+
+      const result = await cancellation.cancel(eventId, orderId);
+
+      expect(result.status).toBe(TicketOrderStatus.REFUNDED);
+      expect(result.tickets.every((ticket) => ticket.status === 'VOID')).toBe(true);
+      const payment = await prisma.payment.findUniqueOrThrow({
+        where: { orderNumber: order.paymentOrderNumber! },
+      });
+      expect(payment.refundedMinor).toBe(20_000n);
+    });
+
+    it('answers a second cancellation rather than refusing it', async () => {
+      const { orderId } = await paidTicketOrder(1);
+      await cancellation.cancel(eventId, orderId);
+
+      await expect(cancellation.cancel(eventId, orderId)).resolves.toMatchObject({
+        status: TicketOrderStatus.REFUNDED,
+      });
+    });
+
+    /**
+     * Someone with one of these tickets was already let in. Refunding after
+     * attendance is a dispute, and voiding a used ticket would erase the
+     * record that they came.
+     */
+    it('refuses an order with a ticket already admitted, and changes nothing', async () => {
+      const { orderId } = await paidTicketOrder(2);
+      const ticket = await prisma.ticket.findFirstOrThrow({ where: { orderId } });
+      await ticketing.admit(ticket.code);
+
+      await expect(cancellation.cancel(eventId, orderId)).rejects.toThrow(/already admitted/);
+
+      const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
+      const payment = await prisma.payment.findUniqueOrThrow({
+        where: { orderNumber: order.paymentOrderNumber! },
+      });
+      expect(order.status).toBe(TicketOrderStatus.PAID);
+      expect(payment.refundedMinor).toBe(0n);
+    });
+
+    it('cancels a free order without touching any payment', async () => {
+      const { orderId } = await paidTicketOrder(2, 0n);
+
+      const result = await cancellation.cancel(eventId, orderId);
+
+      expect(result.status).toBe(TicketOrderStatus.CANCELLED);
+      expect(result.tickets.every((ticket) => ticket.status === 'VOID')).toBe(true);
+    });
+
+    // A ticket voided by cancellation must not open the door.
+    it('makes a cancelled ticket unusable at the door', async () => {
+      const { orderId } = await paidTicketOrder(1);
+      const ticket = await prisma.ticket.findFirstOrThrow({ where: { orderId } });
+
+      await cancellation.cancel(eventId, orderId);
+
+      await expect(ticketing.admit(ticket.code)).rejects.toThrow();
+    });
+
+    it('refuses an order from a different event', async () => {
+      const { orderId } = await paidTicketOrder(1);
+
+      await expect(cancellation.cancel('some-other-event', orderId)).rejects.toThrow(/No such order/);
+    });
+  });
+
+  describe('refunding a ticket payment directly', () => {
+    /**
+     * The other half of the rule: the raw refund endpoint refuses ticket
+     * payments, so the only way to refund one is the cancellation that also
+     * voids its tickets.
+     */
+    it('is refused, pointing at cancellation instead', async () => {
+      const type = await prisma.ticketType.create({
+        data: { eventId, name: { en: 'GA' }, priceMinor: 10_000n, quantityTotal: 10, maxPerOrder: 10 },
+      });
+      await prisma.event.update({ where: { id: eventId }, data: { visibility: 'PUBLIC' } });
+      const listing = await prisma.eventListing.create({
+        data: { eventId, slug: `r-${Math.random().toString(36).slice(2, 8)}`, publishedAt: new Date() },
+      });
+      const created = await ticketing.createOrder(listing.slug, {
+        items: [{ ticketTypeId: type.id, quantity: 1 }],
+        buyerName: 'Ani',
+        buyerEmail: 'buyer@test.local',
+        idempotencyKey: `order-${Math.random()}`,
+        provider: PaymentProvider.FAKE,
+      });
+      const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: created.orderId } });
+
+      await expect(
+        payments.refundNonTicket(order.paymentOrderNumber!, 10_000n),
+      ).rejects.toThrow(/Cancel the ticket order instead/);
+    });
+
+    it('still refunds a payment that is not for tickets', async () => {
+      const orderNumber = await capturedPayment();
+
+      await expect(payments.refundNonTicket(orderNumber, 10_000n)).resolves.toBeDefined();
     });
   });
 
