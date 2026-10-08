@@ -372,6 +372,15 @@ array order so the client never computes an index. Both exist because bad
 operational UX is usually an API shape problem — see `../docs/PRODUCT_SPEC.md`
 §12.
 
+## Dependencies
+
+Node 26 LTS. [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) records what is
+current, what is pinned, and what blocks each pin — NestJS 12 and `nanoid` 6
+are ESM-only and need a module-system migration; Prisma 7 needs a driver
+adapter; TypeScript 7 waits on `ts-jest`.
+
+Read it before running `npm outdated` and reaching for `--force`.
+
 ## Testing
 
 Three layers, each with a distinct job. See `../CLAUDE.md` §6.

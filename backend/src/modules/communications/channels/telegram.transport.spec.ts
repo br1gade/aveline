@@ -2,12 +2,24 @@ import { TelegramSettings, TelegramTransport } from './telegram.transport';
 
 const settings: TelegramSettings = { botToken: 'test-token', apiBaseUrl: 'https://api.test' };
 
+/** What our transports actually send: a string URL and a JSON string body. */
+function readRequest(input: RequestInfo | URL, init?: RequestInit) {
+  if (typeof input !== 'string') throw new TypeError('the fake expects a string URL');
+  if (init?.body !== undefined && typeof init.body !== 'string') {
+    throw new TypeError('the fake expects a string body');
+  }
+  return { url: input, body: JSON.parse(init?.body ?? '{}') as Record<string, unknown> };
+}
+
 /** A fetch that answers with one Bot API reply and records the request. */
 function fakeFetch(reply: Record<string, unknown>, status = 200) {
   const calls: { url: string; body: Record<string, unknown> }[] = [];
 
-  const impl = (url: string, init?: { body?: string }) => {
-    calls.push({ url, body: JSON.parse(init?.body ?? '{}') as Record<string, unknown> });
+  // Takes what fetch takes, rather than the narrower shape this test happens
+  // to pass: @types/node checks the whole signature, and a fake that only
+  // accepts a string stops standing in for the real thing.
+  const impl: typeof fetch = (input, init) => {
+    calls.push(readRequest(input, init));
     return Promise.resolve({
       status,
       json: () => Promise.resolve(reply),

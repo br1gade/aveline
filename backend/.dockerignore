@@ -2,6 +2,11 @@
 # means a faster build and less chance of a secret reaching the image.
 node_modules
 dist
+# Incremental build state. Copying it in makes tsc believe files it has not
+# seen are already up to date, so the image's dist comes out almost empty —
+# which is how this image shipped with no dist/main.js in it. The build must
+# not depend on anything the host happens to be carrying.
+*.tsbuildinfo
 coverage
 .git
 .env

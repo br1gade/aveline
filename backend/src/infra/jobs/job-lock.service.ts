@@ -48,7 +48,7 @@ export class JobLockService {
     work: () => Promise<void>,
   ): Promise<void> {
     const key = `aveline:lock:${job.name}`;
-    let wasAcquired = false;
+    let wasAcquired: boolean;
 
     try {
       wasAcquired =

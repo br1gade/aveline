@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/home/user/Projects/aveline/.codex/hooks/lint-changed.sh'",
+            "timeout": 60,
+            "statusMessage": "Linting changed file"
+          },
+          {
+            "type": "command",
+            "command": "'/home/user/Projects/aveline/.codex/hooks/schema-changed.sh'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/home/user/Projects/aveline/.codex/hooks/docs-sync.sh'",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

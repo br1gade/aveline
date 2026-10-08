@@ -9,7 +9,6 @@
     "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
@@ -18,9 +17,12 @@
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    // Named explicitly. TypeScript 6 no longer pulls every @types package in
+    // automatically, and relying on that implicit behaviour is how a stray
+    // transitive @types package starts changing the build. `multer` is here
+    // for the `Express.Multer.File` global it augments onto Express, which
+    // the upload endpoints are typed against.
+    "types": ["node", "jest", "express", "multer"]
   },
   "exclude": ["node_modules", "dist"]
 }
