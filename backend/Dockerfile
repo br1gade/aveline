@@ -8,7 +8,7 @@
 # that can be vulnerable.
 # ─────────────────────────────────────────────────────────────────────────
 
-ARG NODE_VERSION=22-alpine
+ARG NODE_VERSION=26-alpine
 
 # ── deps: every dependency, needed to build ──────────────────────────────
 FROM node:${NODE_VERSION} AS deps
@@ -27,6 +27,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
+
+# Fails the build rather than shipping an image that cannot start. The entry
+# point went missing once already, when stale incremental build state was
+# copied in from the host and tsc emitted almost nothing — and the image
+# looked fine until something tried to run it.
+RUN test -f dist/main.js || (echo 'build produced no dist/main.js' && ls -R dist | head -40 && exit 1)
 
 # ── runtime: production dependencies and the compiled output ─────────────
 FROM node:${NODE_VERSION} AS runtime

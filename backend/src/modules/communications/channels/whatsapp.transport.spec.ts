@@ -7,14 +7,22 @@ const settings: WhatsAppSettings = {
   apiVersion: 'v21.0',
 };
 
+/** What our transports actually send: a string URL and a JSON string body. */
+function readRequest(input: RequestInfo | URL, init?: RequestInit) {
+  if (typeof input !== 'string') throw new TypeError('the fake expects a string URL');
+  if (init?.body !== undefined && typeof init.body !== 'string') {
+    throw new TypeError('the fake expects a string body');
+  }
+  return { url: input, body: JSON.parse(init?.body ?? '{}') as Record<string, unknown> };
+}
+
 function fakeFetch(reply: Record<string, unknown>, ok = true, status = 200) {
   const calls: { url: string; body: Record<string, unknown>; headers: Record<string, string> }[] = [];
 
-  const impl = (url: string, init?: { body?: string; headers?: Record<string, string> }) => {
+  const impl: typeof fetch = (input, init) => {
     calls.push({
-      url,
-      body: JSON.parse(init?.body ?? '{}') as Record<string, unknown>,
-      headers: init?.headers ?? {},
+      ...readRequest(input, init),
+      headers: (init?.headers ?? {}) as Record<string, string>,
     });
     return Promise.resolve({ ok, status, json: () => Promise.resolve(reply) } as Response);
   };

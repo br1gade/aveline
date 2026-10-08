@@ -33,9 +33,16 @@ export function loggingConfig(env: NodeJS.ProcessEnv): Params {
 
       // JSON in production so a log shipper can parse it; readable locally,
       // because a human is the consumer there.
-      transport: isProduction
-        ? undefined
-        : { target: 'pino-pretty', options: { singleLine: true, translateTime: 'HH:MM:ss' } },
+      //
+      // Checked for rather than assumed: pino-pretty is a dev dependency, so
+      // it is absent from the production image — and pino treats a missing
+      // transport target as a fatal error. The app died at boot with
+      // "unable to determine transport target" on any image started without
+      // NODE_ENV=production, which is a configuration slip that deserves ugly
+      // logs, not an outage.
+      transport: isPrettyPrintAvailable(isProduction)
+        ? { target: 'pino-pretty', options: { singleLine: true, translateTime: 'HH:MM:ss' } }
+        : undefined,
 
       // The whole point: every line carries the id that is also on the
       // response, so a user's screenshot maps to the exact request.
@@ -61,4 +68,22 @@ export function loggingConfig(env: NodeJS.ProcessEnv): Params {
       },
     },
   };
+}
+
+/**
+ * Whether the human-readable log transport can actually be loaded.
+ *
+ * Never in production, where JSON is wanted anyway, and only elsewhere if the
+ * package is installed — which it is in development and is not in the
+ * production image.
+ */
+function isPrettyPrintAvailable(isProduction: boolean): boolean {
+  if (isProduction) return false;
+
+  try {
+    require.resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
 }

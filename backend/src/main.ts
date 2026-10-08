@@ -10,6 +10,7 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SerializeInterceptor } from './common/interceptors/serialize';
+import { proxyHopsFrom } from './common/proxy-trust';
 
 async function bootstrap() {
   // bufferLogs holds startup messages until pino is attached, so nothing is
@@ -34,20 +35,9 @@ async function bootstrap() {
   // run: a deploy leaves connections open until the server times them out.
   app.enableShutdownHooks();
 
-  /**
-   * How many reverse proxies sit in front of us.
-   *
-   * This matters more than it looks. Behind a proxy every request arrives from
-   * the proxy's address, so without this the rate limiter sees one client and
-   * its per-client limit becomes a global one — a hundred requests a minute
-   * for the entire internet.
-   *
-   * It is a count rather than `true` on purpose: trusting the whole
-   * `X-Forwarded-For` chain lets a caller prepend any address they like and
-   * evade the limiter entirely. The default of 0 trusts nothing, so running
-   * without a proxy is safe and the deployment that has one declares it.
-   */
-  const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+  // Decides whether the rate limiter is per-client or global; see
+  // proxy-trust.ts for why it is a hop count and not a boolean.
+  const proxyHops = proxyHopsFrom(process.env);
   if (proxyHops > 0) app.set('trust proxy', proxyHops);
 
   // An open CORS policy lets any site call the API with a user's credentials.
