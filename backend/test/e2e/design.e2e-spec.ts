@@ -207,7 +207,30 @@ describe('Invitation design (e2e)', () => {
         .expect(200);
 
       expect(body).toMatchObject({ type: 'HERO', variant: 'split' });
-      expect(body.content).toEqual({ hy: { title: 'Արմեն և Լուսինե' } });
+      // The fixture's English copy is untouched by an Armenian edit.
+      expect(body.content).toEqual({ hy: { title: 'Արմեն և Լուսինե' }, en: { title: 'Hello' } });
+    });
+
+    /**
+     * Editing one language used to replace the whole content map, so a host
+     * who corrected the English wording deleted the Armenian invitation.
+     */
+    it('edits one language without touching the others, and removes one sent as null', async () => {
+      const { slug, authorization } = await designer();
+      const edit = (content: Record<string, unknown>) =>
+        http()
+          .patch(`/api/v1/invitations/${slug}/blocks/HERO`)
+          .set('Authorization', authorization)
+          .send({ content })
+          .expect(200);
+
+      await edit({ en: { title: 'Anna & Davit' } });
+      const armenianPage = await http().get(`/api/v1/invitations/${slug}`).query({ locale: 'hy' }).expect(200);
+      const hero = (armenianPage.body.blocks as { type: string; content: unknown }[]).find((b) => b.type === 'HERO');
+      expect(hero?.content).toEqual({ title: 'Բարև' });
+
+      const { body } = await edit({ en: null });
+      expect(body.content).toEqual({ hy: { title: 'Բարև' } });
     });
 
     it('says to add a missing block through the arrangement call', async () => {

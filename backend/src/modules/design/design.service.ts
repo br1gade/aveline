@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { BlockType, Prisma, QuestionType } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
 import { blockMediaProblem } from './block-media';
+import { mergeTranslations } from './translated-content';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   ChooseTemplateDto,
@@ -135,7 +136,9 @@ export class DesignService {
     const updated = await this.prisma.invitationBlock.update({
       where: { id: block.id },
       data: {
-        content: dto.content as Prisma.InputJsonValue | undefined,
+        content: dto.content
+          ? (mergeTranslations(block.content, dto.content) as Prisma.InputJsonValue)
+          : undefined,
         settings: dto.settings as Prisma.InputJsonValue | undefined,
         variant: dto.variant ?? undefined,
         assetIds: dto.assetIds ?? undefined,

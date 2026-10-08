@@ -25,13 +25,13 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 1 open | 25 open | 26 open, of which 8 money | — |
+| Bugfixes | 0 open | 25 open | 26 open, of which 8 money | — |
 | Features | 3 (F1–F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
-The P0 bugs are small — most are under half a day — but several expose
-people's data and three break the core RSVP loop. The feature that gates
-everything is F1, the client. Fixed items are removed, so a gap in the
+All ten P0 bugs were fixed on 8 October 2026 — the data exposures, the RSVP
+loop, stuck messages and per-language editing. What still blocks the pilot
+is the three P0 features, and above all F1, the client. Fixed items are removed, so a gap in the
 numbering is something that has been done.
 
 Infrastructure and accounts (bank, domain, mail DNS, server) are not here;
@@ -44,9 +44,7 @@ backend is [GAPS.md](../backend/docs/GAPS.md).
 
 ### P0 — before the first real event
 
-| # | Bug | What goes wrong | Where | Size |
-|---|---|---|---|---|
-| B10 | **Editing one language of a block erases the others** | `PATCH /invitations/:slug/blocks/:type` replaces the whole `content` map; sending Russian deletes the Armenian | `design/design.service.ts` `updateBlock` | S |
+None open. B1–B10 were fixed on 8 October 2026.
 
 ### P1 — a pilot host will hit it
 

@@ -1435,7 +1435,12 @@ blocks exist, and in what order, is `PATCH /invitations/:slug/arrangement` —
 one place decides that. Patching a block the invitation does not have returns
 `404` saying so.
 
-`content` is keyed by locale. `assetIds` are uploads from
+`content` is keyed by locale, and **each language is edited on its own**: a
+language you send replaces that language's copy, a language you leave out is
+kept, and a language sent as `null` is removed. So
+`{ "content": { "en": { "title": "Welcome" } } }` changes the English and
+leaves the Armenian alone. `settings` is not translated and is replaced
+whole. `assetIds` are uploads from
 `POST /events/:eventId/media`, in display order; sending `[]` clears them. They
 must belong to this event, and be a kind the block can show — **audio on the
 `MUSIC` block, images on every other block**. Either mistake is a `400` whose
