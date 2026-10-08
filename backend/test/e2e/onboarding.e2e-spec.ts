@@ -117,6 +117,54 @@ describe('Onboarding (e2e)', () => {
       expect(list).toHaveLength(1);
     });
 
+    /**
+     * A new invitation used to have no blocks at all, so a host opened a blank
+     * page and could publish it in that state.
+     */
+    it('starts with the template’s blocks, the useful ones switched on', async () => {
+      const { authorization } = await newCustomer();
+      await withTemplate();
+
+      const { body } = await http()
+        .post('/api/v1/events')
+        .set('Authorization', authorization)
+        .send(anEvent)
+        .expect(201);
+
+      const blocks = await prisma.invitationBlock.findMany({
+        where: { invitation: { slug: body.invitation.slug as string } },
+        orderBy: { sortOrder: 'asc' },
+        select: { type: true, enabled: true },
+      });
+
+      // The fixture template supports HERO, TIMELINE and RSVP, in that order.
+      expect(blocks).toEqual([
+        { type: BlockType.HERO, enabled: true },
+        { type: BlockType.TIMELINE, enabled: true },
+        { type: BlockType.RSVP, enabled: true },
+      ]);
+    });
+
+    it('renders those blocks on the published page', async () => {
+      const { authorization } = await newCustomer();
+      await withTemplate();
+      const { body: created } = await http()
+        .post('/api/v1/events')
+        .set('Authorization', authorization)
+        .send(anEvent)
+        .expect(201);
+      await prisma.invitation.update({
+        where: { slug: created.invitation.slug as string },
+        data: { status: 'PUBLISHED' },
+      });
+
+      const { body } = await http()
+        .get(`/api/v1/invitations/${created.invitation.slug}`)
+        .expect(200);
+
+      expect(body.blocks.length).toBeGreaterThan(0);
+    });
+
     it('applies the theme of the template it chose', async () => {
       const { authorization } = await newCustomer();
       await withTemplate();

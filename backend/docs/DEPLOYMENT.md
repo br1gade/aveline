@@ -33,6 +33,12 @@ worse than a simple one whose limits are written down. The limits are in
 
 ## 2. First deployment
 
+> This stack has been run end to end locally — all seven services healthy,
+> migrations applied, TLS served by Caddy, the API answering through it, a
+> backup taken and verified, and a full customer journey from `register` to a
+> published invitation page. What it has **not** had is a real host, a real
+> domain, or a real certificate from Let's Encrypt.
+
 Requires a host with Docker, and DNS for `API_DOMAIN` already pointing at it —
 Caddy asks Let's Encrypt for a certificate on first start and that fails if
 the name does not resolve to this machine yet.
@@ -63,15 +69,29 @@ is correct. The API will not start until it has succeeded — a failed migration
 stops the deploy instead of leaving an API restarting against a schema it
 cannot use.
 
-### Seeding the first account
+### Seeding the platform
 
-The platform needs at least one design template before an event can be created
-with an invitation. `npm run seed` does that along with demo data, which is
-**not** what you want on a real deployment. For now, insert a template
-directly, or run the seed and delete the demo organization afterwards.
+A fresh database has no design templates, no default message copy and no
+plans — verified by running this stack from empty. Without them `POST /events`
+returns an event with `invitation: null`, `GET /plans` is empty, and sending an
+invitation fails partway through a guest list with "template not found".
 
-> Not yet built: a production-safe seed that inserts only the design templates
-> and default message copy. Worth doing before the first customer.
+```bash
+docker compose -f docker-compose.prod.yml run --rm --entrypoint node api \
+  dist/seed-production.js
+```
+
+It creates **no organization, user, event or guest**, deletes nothing, and is
+idempotent — safe on every deploy. A template or price adjusted in production
+is not reverted by a redeploy.
+
+**Only the free plan is active.** The paid tiers are seeded with their
+entitlements from PRODUCT_SPEC §8 but `priceMinor: 0` and `isActive: false`,
+because the price points are still an open decision and `GET /plans` is the
+pricing page. Setting a price and activating a plan is a deliberate act.
+
+It runs with plain `node`, not `ts-node`, which is why the script lives under
+`src/` and ships compiled: the production image has no dev dependencies.
 
 ## 3. Configuration
 

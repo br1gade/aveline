@@ -9,6 +9,7 @@ import { EventRole, EventStatus, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuditService } from '../../infra/audit/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { defaultBlocksFor } from './default-blocks';
 import { CreateEventDto } from './dto/create-event.dto';
 import { invitationSlug } from './invitation-slug';
 
@@ -97,6 +98,8 @@ export class EventsService {
             slug: invitationSlug(hostsLabel, randomBytes(4).toString('hex')),
             templateId: template.id,
             theme: template.defaultTheme as Prisma.InputJsonValue,
+            // Without these the host opens a blank page and can publish it.
+            blocks: { create: defaultBlocksFor(template.supportedBlocks) },
           },
         });
       }
@@ -139,6 +142,7 @@ export class EventsService {
         slug: invitationSlug(event.hostsLabel, randomBytes(4).toString('hex')),
         templateId: template.id,
         theme: template.defaultTheme as Prisma.InputJsonValue,
+        blocks: { create: defaultBlocksFor(template.supportedBlocks) },
       },
       select: { slug: true, status: true, template: { select: { key: true } } },
     });
