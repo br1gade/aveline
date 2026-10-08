@@ -26,10 +26,11 @@
     "test:int": "jest --config ./test/jest-integration.json --runInBand",
     "test:all": "npm run test:unit && npm run test:int && npm run test:e2e",
     "lint:fix": "eslint . --fix",
-    "verify": "npm run lint && npm run docs:check && npm run build && npm run test:all",
+    "verify": "npm run lint && npm run docs:check && npm run openapi:check && npm run build && npm run test:all",
     "docs:check": "node scripts/check-docs.mjs",
     "storage:up": "docker compose up -d garage && ./scripts/garage-bootstrap.sh",
     "openapi": "ts-node scripts/export-openapi.ts",
+    "openapi:check": "ts-node scripts/export-openapi.ts --check",
     "seed:production": "ts-node src/seed-production.ts"
   },
   "prisma": {

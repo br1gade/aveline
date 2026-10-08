@@ -129,6 +129,98 @@
         ]
       }
     },
+    "/api/v1/auth/password-reset": {
+      "post": {
+        "description": "Always reports success, whether or not the address has an account — answering otherwise is an account-enumeration oracle.",
+        "operationId": "AuthController_requestPasswordReset",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPasswordResetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Request a password reset link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset/confirm": {
+      "post": {
+        "description": "Revokes every existing session, since a reset is what someone does when they believe an account is compromised.",
+        "operationId": "AuthController_confirmPasswordReset",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmPasswordResetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Set a new password using a reset link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "operationId": "AuthController_requestEmailVerification",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Send a verification link to the signed-in account",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify-email/confirm": {
+      "post": {
+        "operationId": "AuthController_verifyEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Confirm an email address",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/logout-everywhere": {
       "post": {
         "operationId": "AuthController_logoutEverywhere",
@@ -141,6 +233,95 @@
         "summary": "Revoke every session for the signed-in account",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/organization/invites": {
+      "get": {
+        "operationId": "InvitesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Pending invitations for your organization",
+        "tags": [
+          "invites"
+        ]
+      },
+      "post": {
+        "description": "Re-inviting replaces the previous link rather than adding a second.",
+        "operationId": "InvitesController_invite",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Invite someone to your organization",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/organization/invites/{email}": {
+      "delete": {
+        "operationId": "InvitesController_revoke",
+        "parameters": [
+          {
+            "name": "email",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke a pending invitation",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/api/v1/invites/accept": {
+      "post": {
+        "description": "Creates the account when the invitee has none, in the same transaction as the membership.",
+        "operationId": "InvitesController_accept",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInviteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Accept an invitation",
+        "tags": [
+          "invites"
         ]
       }
     },
@@ -188,6 +369,65 @@
         "tags": [
           "events"
         ]
+      },
+      "post": {
+        "description": "The caller becomes its OWNER. An invitation is created alongside, so there is something to design immediately.",
+        "operationId": "EventsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create an event, with its draft invitation",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{id}/invitation": {
+      "post": {
+        "description": "Only needed when no design template existed when the event was created.",
+        "operationId": "EventsController_createInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add an invitation to an event that has none",
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/v1/events/{id}": {
@@ -214,6 +454,66 @@
         ]
       }
     },
+    "/api/v1/events/{id}/audit-trail": {
+      "get": {
+        "description": "Successful writes only, newest first. Records that something changed, never the content that changed — a guest list does not belong in a second store.",
+        "operationId": "EventsController_auditTrail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Who changed what on this event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{id}/settings": {
+      "patch": {
+        "description": "Currently whether automatic RSVP reminders go out. Not a general event PATCH: a date or venue change affects invitations people already hold.",
+        "operationId": "EventsController_updateSettings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change the settings a host flips themselves",
+        "tags": [
+          "events"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/guests": {
       "get": {
         "operationId": "GuestsController_list",
@@ -233,6 +533,191 @@
           }
         },
         "summary": "Guest graph grouped by household",
+        "tags": [
+          "guests"
+        ]
+      },
+      "post": {
+        "description": "Into an existing household with a free seat, or — without householdId — into a new household of their own.",
+        "operationId": "GuestManagementController_add",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddGuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add one guest",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guests/import": {
+      "post": {
+        "description": "Partial success is intended: good rows are saved and bad ones are reported by their spreadsheet row number. Re-importing reuses existing households rather than duplicating them.",
+        "operationId": "GuestsController_importGuests",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Import a guest list from CSV",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guests/imports": {
+      "get": {
+        "operationId": "GuestsController_listImports",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Recent imports, with their per-row errors",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guests/{guestId}/check-in": {
+      "post": {
+        "description": "A guest can only be checked in once, so two people on the door cannot both record the same arrival. Returns their table and whether they were expected.",
+        "operationId": "GuestsController_checkIn",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Record a guest arriving",
+        "tags": [
+          "guests"
+        ]
+      },
+      "delete": {
+        "operationId": "GuestsController_undoCheckIn",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Undo a check-in after a mis-scan",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/arrivals": {
+      "get": {
+        "operationId": "GuestsController_arrivals",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Live arrivals: expected, arrived, still to come",
         "tags": [
           "guests"
         ]
@@ -265,6 +750,123 @@
           }
         },
         "summary": "Guest-facing seat lookup by name",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guests/{guestId}": {
+      "patch": {
+        "description": "Omitted fields are left alone; an empty email or phone clears it.",
+        "operationId": "GuestManagementController_update",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Correct a guest's details, or move them to another household",
+        "tags": [
+          "guests"
+        ]
+      },
+      "delete": {
+        "description": "Their answer and seat go with them. Refused once they have been checked in. A household left empty is removed too.",
+        "operationId": "GuestManagementController_remove",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a guest",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/households/{householdId}": {
+      "patch": {
+        "description": "Seats cannot go below the number of guests already named in it.",
+        "operationId": "GuestManagementController_updateHousehold",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "householdId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHouseholdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Rename a household or change its seats",
         "tags": [
           "guests"
         ]
@@ -364,6 +966,190 @@
           }
         },
         "summary": "Invitation personalized for one guest",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/publish": {
+      "post": {
+        "description": "Refused until it has an enabled RSVP block, a venue with an address, and a start date in the future. Every missing item is named at once.",
+        "operationId": "InvitationLifecycleController_publish",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Make the invitation live",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/close": {
+      "post": {
+        "description": "The page stays readable to guests; only new RSVPs are refused.",
+        "operationId": "InvitationLifecycleController_close",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Stop accepting responses",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/reopen": {
+      "post": {
+        "operationId": "InvitationLifecycleController_reopen",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Accept responses again after closing",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/send": {
+      "post": {
+        "description": "Safe to press twice: a guest is only invited once per invitation. Refused while the invitation is a draft, because the link would 404.",
+        "operationId": "InvitationLifecycleController_send",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Send the invitation — one email per household",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/remind": {
+      "post": {
+        "description": "Only guests who were actually invited and have not replied. At most one reminder per guest per day, so pressing twice is safe.",
+        "operationId": "InvitationLifecycleController_remind",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Chase the households that have not answered",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/thank-you": {
+      "post": {
+        "description": "Only those who actually checked in, and only once ever. Refused before the event, because a thank-you that arrives first cannot be unsent.",
+        "operationId": "InvitationLifecycleController_thankAttendees",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Thank the guests who came",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/delivery": {
+      "get": {
+        "description": "Grouped by household, because that is the unit a host thinks in.",
+        "operationId": "InvitationLifecycleController_deliveryStatus",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Who has been invited, and what happened to each email",
         "tags": [
           "invitations"
         ]
@@ -671,6 +1457,7 @@
     },
     "/api/v1/payments/{orderNumber}/refund": {
       "post": {
+        "description": "Not for ticket payments: cancel the order instead, which refunds it and voids its tickets together.",
         "operationId": "PaymentsController_refund",
         "parameters": [
           {
@@ -682,6 +1469,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundPaymentDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -739,6 +1536,41 @@
           }
         },
         "summary": "Reserve tickets and start payment",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/public/events/{slug}/promo-check": {
+      "post": {
+        "description": "A preview, priced from our own ticket prices. The redemption itself is claimed at checkout, so a code can still run out in between.",
+        "operationId": "TicketingController_checkPromoCode",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckPromoCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "What a promo code is worth on this basket",
         "tags": [
           "ticketing"
         ]
@@ -831,6 +1663,545 @@
         "summary": "Return inventory held by abandoned checkouts",
         "tags": [
           "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/ticket-types": {
+      "get": {
+        "operationId": "TicketSetupController_listTicketTypes",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "What is for sale, with sold, held and available counts",
+        "tags": [
+          "ticketing"
+        ]
+      },
+      "post": {
+        "operationId": "TicketSetupController_createTicketType",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicketTypeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Put a kind of ticket on sale",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/ticket-types/{typeId}": {
+      "patch": {
+        "description": "Price may change at any time; orders already placed keep what they paid. Capacity cannot go below what is already sold or held.",
+        "operationId": "TicketSetupController_updateTicketType",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "typeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTicketTypeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change a ticket type",
+        "tags": [
+          "ticketing"
+        ]
+      },
+      "delete": {
+        "description": "Refused once anything is sold or held; deactivate it instead.",
+        "operationId": "TicketSetupController_deleteTicketType",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "typeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a ticket type nothing has been sold against",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/listing": {
+      "get": {
+        "operationId": "TicketSetupController_getListing",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The public announcement page",
+        "tags": [
+          "ticketing"
+        ]
+      },
+      "put": {
+        "operationId": "TicketSetupController_upsertListing",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertListingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Create or edit the announcement page",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/listing/publish": {
+      "post": {
+        "description": "Refused for a private event, without a headline, or once the event has started.",
+        "operationId": "TicketSetupController_publishListing",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Make the announcement public",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/listing/unpublish": {
+      "post": {
+        "operationId": "TicketSetupController_unpublishListing",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Take the announcement down; tickets already sold are unaffected",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/ticket-orders": {
+      "get": {
+        "operationId": "TicketSetupController_listOrders",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Orders on this event, newest first",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/ticket-orders/{orderId}/cancel": {
+      "post": {
+        "description": "Voids every ticket and refunds the payment, exactly once. Refused if any ticket was already admitted at the door. Safe to retry.",
+        "operationId": "TicketSetupController_cancelOrder",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Cancel an order and refund it",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/promo-codes": {
+      "get": {
+        "operationId": "PromoCodesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Your promo codes, with how much of each is left",
+        "tags": [
+          "billing"
+        ]
+      },
+      "post": {
+        "description": "Codes are case-insensitive and stored upper-cased.",
+        "operationId": "PromoCodesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromoCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create a promo code",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/promo-codes/{codeId}": {
+      "patch": {
+        "description": "The discount itself is immutable; withdraw a code by deactivating it.",
+        "operationId": "PromoCodesController_update",
+        "parameters": [
+          {
+            "name": "codeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePromoCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change a code’s limits",
+        "tags": [
+          "billing"
+        ]
+      },
+      "delete": {
+        "description": "Never deleted: orders record the discount they were given.",
+        "operationId": "PromoCodesController_deactivate",
+        "parameters": [
+          {
+            "name": "codeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Deactivate a code",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/plans": {
+      "get": {
+        "operationId": "SubscriptionsController_listPlans",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The price list, with each plan’s entitlements",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/subscription": {
+      "get": {
+        "description": "Null when the organization has never subscribed — not an error.",
+        "operationId": "SubscriptionsController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Your current subscription",
+        "tags": [
+          "billing"
+        ]
+      },
+      "post": {
+        "description": "A free plan takes effect at once. A paid one issues an invoice and returns a bank form URL; access begins when that payment confirms.",
+        "operationId": "SubscriptionsController_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Start or change a subscription",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/subscription/cancel": {
+      "post": {
+        "description": "Access continues until currentPeriodEnd. Reversible until then.",
+        "operationId": "SubscriptionsController_cancel",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Cancel at the end of the paid period",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/subscription/resume": {
+      "post": {
+        "operationId": "SubscriptionsController_resume",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Undo a cancellation before the period ends",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/invoices": {
+      "get": {
+        "operationId": "SubscriptionsController_listInvoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Your invoices, newest first",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/invoices/{number}": {
+      "get": {
+        "operationId": "SubscriptionsController_findInvoice",
+        "parameters": [
+          {
+            "name": "number",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One invoice, with the line items captured at issue",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/invoices/{number}/confirm": {
+      "post": {
+        "description": "Server-to-server check. A retried call never activates twice.",
+        "operationId": "SubscriptionsController_confirm",
+        "parameters": [
+          {
+            "name": "number",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Settle an invoice after the payer returns from the bank",
+        "tags": [
+          "billing"
         ]
       }
     },
@@ -1020,6 +2391,1297 @@
           "devices"
         ]
       }
+    },
+    "/api/v1/events/{eventId}/tables": {
+      "get": {
+        "operationId": "SeatingController_listTables",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Tables with who is seated at each",
+        "tags": [
+          "seating"
+        ]
+      },
+      "post": {
+        "operationId": "SeatingController_createTable",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add one table",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/tables/bulk": {
+      "post": {
+        "description": "Twenty tables of ten is one request, not twenty.",
+        "operationId": "SeatingController_createTables",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTablesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add several identical tables",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/tables/{tableId}": {
+      "delete": {
+        "description": "Refuses while anyone is seated, rather than silently unseating them.",
+        "operationId": "SeatingController_deleteTable",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove an empty table",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seats": {
+      "post": {
+        "operationId": "SeatingController_assign",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignSeatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Seat a guest, or move one already seated",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seats/{guestId}": {
+      "delete": {
+        "operationId": "SeatingController_unassign",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Unseat a guest",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seats/auto-assign": {
+      "post": {
+        "description": "Additive: guests already seated keep their places, so running it after a late RSVP fills gaps rather than rearranging a plan already adjusted by hand. Anything it cannot place is returned with a reason.",
+        "operationId": "SeatingController_autoAssign",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Seat everyone who has accepted, keeping households together",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/vendors": {
+      "get": {
+        "operationId": "VendorsController_listVendors",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The partner directory, optionally by category",
+        "tags": [
+          "vendors"
+        ]
+      },
+      "post": {
+        "operationId": "VendorsController_createVendor",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVendorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add a vendor to the directory",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/vendors": {
+      "get": {
+        "description": "Fees are included only for callers holding vendor:fee:read.",
+        "operationId": "VendorsController_listBookings",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "This event's vendors",
+        "tags": [
+          "vendors"
+        ]
+      },
+      "post": {
+        "description": "Scopes default to the category’s usual set, so forgetting them narrows what the vendor sees rather than widening it.",
+        "operationId": "VendorsController_book",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookVendorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Engage a vendor and mint their brief link",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/vendors/{bookingId}": {
+      "patch": {
+        "operationId": "VendorsController_updateBooking",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBookingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change a booking’s status, scopes or fee",
+        "tags": [
+          "vendors"
+        ]
+      },
+      "delete": {
+        "description": "Kept as a record, with the brief link rotated so it stops working.",
+        "operationId": "VendorsController_cancelBooking",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Cancel an engagement",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/vendors/{bookingId}/rotate-brief": {
+      "post": {
+        "description": "The only revocation a capability URL has. The old link stops working.",
+        "operationId": "VendorsController_rotate",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Replace the brief link",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/api/v1/briefs/{briefToken}": {
+      "get": {
+        "description": "Contains only the sections the booking lists, and says which those are.",
+        "operationId": "VendorsController_findBrief",
+        "parameters": [
+          {
+            "name": "briefToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "A vendor’s brief",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/api/v1/organizations": {
+      "post": {
+        "description": "One per account. The caller becomes its OWNER.",
+        "operationId": "OrganizationsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create your organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current": {
+      "get": {
+        "operationId": "OrganizationsController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Your organization, its plan and its counts",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "patch": {
+        "operationId": "OrganizationsController_rename",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Rename your organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/design-templates": {
+      "get": {
+        "description": "Each entry declares the fonts, palettes and blocks it supports.",
+        "operationId": "DesignController_listTemplates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The template catalogue",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/template": {
+      "post": {
+        "description": "Unsupported blocks are disabled rather than deleted, so switching back does not lose the host’s copy. The theme resets to the new default.",
+        "operationId": "DesignController_chooseTemplate",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Switch template",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/theme": {
+      "patch": {
+        "description": "Validated against the template that has to render it; a rejected theme changes nothing and names every problem.",
+        "operationId": "DesignController_updateTheme",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateThemeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change fonts and colours",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/blocks/{type}": {
+      "patch": {
+        "description": "Which blocks exist, and their order, is the arrangement call.",
+        "operationId": "DesignController_updateBlock",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBlockDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Edit one block’s content",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/questions": {
+      "get": {
+        "operationId": "DesignController_listQuestions",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Custom RSVP questions, in order",
+        "tags": [
+          "design"
+        ]
+      },
+      "post": {
+        "operationId": "DesignController_addQuestion",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add a custom RSVP question",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/questions/{questionId}": {
+      "patch": {
+        "operationId": "DesignController_updateQuestion",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change a question",
+        "tags": [
+          "design"
+        ]
+      },
+      "delete": {
+        "description": "Refused once guests have answered it; make it optional instead.",
+        "operationId": "DesignController_removeQuestion",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a question",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/timeline": {
+      "get": {
+        "description": "Read by the TIMELINE block, the vendor brief and the operations view.",
+        "operationId": "DesignController_listTimeline",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The running order, soonest first",
+        "tags": [
+          "design"
+        ]
+      },
+      "post": {
+        "operationId": "DesignController_createTimelineEntry",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertTimelineEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add something to the running order",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/timeline/{entryId}": {
+      "patch": {
+        "operationId": "DesignController_updateTimelineEntry",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertTimelineEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change an entry",
+        "tags": [
+          "design"
+        ]
+      },
+      "delete": {
+        "operationId": "DesignController_removeTimelineEntry",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove an entry",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/venue-profiles": {
+      "get": {
+        "operationId": "DesignController_listProfiles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The reusable venue directory",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/venues": {
+      "get": {
+        "operationId": "DesignController_listVenues",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "This event’s venues, in order",
+        "tags": [
+          "design"
+        ]
+      },
+      "post": {
+        "description": "Typed once and reused by the invitation, the map, the timeline and the vendor brief. A directory entry’s details are copied, not referenced.",
+        "operationId": "DesignController_createVenue",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVenueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add a venue",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/venues/{venueId}": {
+      "patch": {
+        "operationId": "DesignController_updateVenue",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVenueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change a venue",
+        "tags": [
+          "design"
+        ]
+      },
+      "delete": {
+        "description": "Refused while timeline entries or tables still point at it.",
+        "operationId": "DesignController_removeVenue",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a venue",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/exports": {
+      "get": {
+        "operationId": "ExportsController_list",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Past exports, newest first",
+        "tags": [
+          "exports"
+        ]
+      },
+      "post": {
+        "description": "CSV is generated inline and the response carries its URL. The status field exists for the formats that will be queued.",
+        "operationId": "ExportsController_create",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Generate an export",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/exports/{exportId}": {
+      "get": {
+        "operationId": "ExportsController_findOne",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exportId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One export and its file",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/privacy/requests": {
+      "post": {
+        "description": "Always answers the same way, whether or not anything is held — saying \"we hold nothing about you\" is itself information about that address.",
+        "operationId": "PrivacyController_submit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataSubjectRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Ask what is held about you, or ask for it to go",
+        "tags": [
+          "privacy"
+        ]
+      },
+      "get": {
+        "operationId": "PrivacyController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Open requests, soonest due first",
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/privacy/requests/{requestId}": {
+      "patch": {
+        "description": "Set IN_PROGRESS only once the requester’s identity is established.",
+        "operationId": "PrivacyController_update",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDataSubjectRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Move a request through verification",
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/privacy/requests/{requestId}/fulfil": {
+      "post": {
+        "description": "Exports assemble a JSON copy; erasures anonymise in place. Refused unless the request is IN_PROGRESS, because acting on an unverified request is itself a breach.",
+        "operationId": "PrivacyController_fulfil",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Carry out a verified request",
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/suppressions": {
+      "get": {
+        "description": "Includes platform-wide entries, marked with scope GLOBAL.",
+        "operationId": "SuppressionsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Addresses that will not be contacted",
+        "tags": [
+          "privacy"
+        ]
+      },
+      "post": {
+        "description": "Scoped to your organization. Idempotent.",
+        "operationId": "SuppressionsController_suppress",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuppressDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Stop contacting an address",
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/suppressions/{suppressionId}": {
+      "delete": {
+        "description": "Only your own entries. A platform-wide suppression after a bounce or a complaint cannot be lifted here.",
+        "operationId": "SuppressionsController_unsuppress",
+        "parameters": [
+          {
+            "name": "suppressionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Resume contacting an address",
+        "tags": [
+          "privacy"
+        ]
+      }
     }
   },
   "info": {
@@ -1089,6 +3751,281 @@
           "refreshToken"
         ]
       },
+      "RequestPasswordResetDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ConfirmPasswordResetDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ]
+      },
+      "VerifyEmailDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "InviteMemberDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "MANAGER",
+              "MEMBER",
+              "VIEWER"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ]
+      },
+      "AcceptInviteDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "Required when the invitee has no account yet"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "password"
+        ]
+      },
+      "CreateEventDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "WEDDING",
+              "ENGAGEMENT",
+              "BAPTISM",
+              "BIRTHDAY",
+              "ANNIVERSARY",
+              "CORPORATE",
+              "OTHER"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "example": "Anna & Davit"
+          },
+          "hostsLabel": {
+            "type": "string",
+            "description": "Shown on the invitation. Defaults to the title.",
+            "example": "Anna & Davit"
+          },
+          "startsAt": {
+            "type": "string",
+            "description": "When it starts, ISO 8601"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string",
+            "default": "Asia/Yerevan",
+            "description": "IANA zone"
+          },
+          "locales": {
+            "example": [
+              "hy",
+              "en"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultLocale": {
+            "type": "string",
+            "example": "hy"
+          },
+          "sideALabel": {
+            "type": "string",
+            "description": "Label for one side, e.g. \"Bride\""
+          },
+          "sideBLabel": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "UNLISTED",
+              "PUBLIC"
+            ],
+            "default": "PRIVATE"
+          },
+          "templateKey": {
+            "type": "string",
+            "description": "A template key from GET /events/:id/design-templates. Omitted picks the first active template, so an event always comes with a draft invitation."
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "startsAt"
+        ]
+      },
+      "CreateInvitationDto": {
+        "type": "object",
+        "properties": {
+          "templateKey": {
+            "type": "string",
+            "description": "Omitted picks the first active template"
+          }
+        }
+      },
+      "UpdateEventSettingsDto": {
+        "type": "object",
+        "properties": {
+          "remindersEnabled": {
+            "type": "boolean",
+            "description": "Whether the automatic RSVP reminders go out. On by default; some hosts chase by phone and would rather we did not write to their guests."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "UNLISTED",
+              "PUBLIC"
+            ],
+            "description": "PRIVATE is reachable only by invitation link. PUBLIC and UNLISTED allow a public listing and ticket sales. Making an event PRIVATE takes its listing down."
+          }
+        }
+      },
+      "AddGuestDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string",
+            "example": "hy"
+          },
+          "attribution": {
+            "type": "string",
+            "enum": [
+              "SIDE_A",
+              "SIDE_B",
+              "SHARED",
+              "UNKNOWN"
+            ]
+          },
+          "householdId": {
+            "type": "string",
+            "description": "Join an existing household. Omitted creates a new one for this guest."
+          },
+          "seatsAllotted": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20,
+            "description": "Seats for a new household. Ignored when joining an existing one."
+          }
+        },
+        "required": [
+          "firstName"
+        ]
+      },
+      "UpdateGuestDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "description": "An empty string removes it"
+          },
+          "phone": {
+            "type": "string",
+            "description": "An empty string removes it"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "attribution": {
+            "type": "string",
+            "enum": [
+              "SIDE_A",
+              "SIDE_B",
+              "SHARED",
+              "UNKNOWN"
+            ]
+          },
+          "householdId": {
+            "type": "string",
+            "description": "Move the guest to another household on this event"
+          }
+        }
+      },
+      "UpdateHouseholdDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "seatsAllotted": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          }
+        }
+      },
       "BlockPlacementDto": {
         "type": "object",
         "properties": {
@@ -1138,6 +4075,18 @@
         "required": [
           "blocks"
         ]
+      },
+      "SendInvitationDto": {
+        "type": "object",
+        "properties": {
+          "guestIds": {
+            "description": "Send only to these guests’ households. Omitted invites every household on the event that has not been invited yet.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "PartyMemberDto": {
         "type": "object",
@@ -1294,6 +4243,22 @@
           "idempotencyKey"
         ]
       },
+      "RefundPaymentDto": {
+        "type": "object",
+        "properties": {
+          "amountMinor": {
+            "type": "string",
+            "description": "Amount in minor units, as a string",
+            "example": "15000"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "amountMinor"
+        ]
+      },
       "OrderLineDto": {
         "type": "object",
         "properties": {
@@ -1314,6 +4279,10 @@
       "CreateOrderDto": {
         "type": "object",
         "properties": {
+          "promoCode": {
+            "type": "string",
+            "description": "A promo code to redeem, case-insensitive"
+          },
           "items": {
             "type": "array",
             "items": {
@@ -1357,6 +4326,233 @@
           "idempotencyKey"
         ]
       },
+      "CheckPromoCodeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineDto"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "items"
+        ]
+      },
+      "CreateTicketTypeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "object",
+            "description": "Translated name",
+            "example": {
+              "hy": "Ընդհանուր",
+              "en": "General"
+            }
+          },
+          "description": {
+            "type": "object",
+            "description": "Translated description"
+          },
+          "priceMinor": {
+            "type": "string",
+            "description": "Price in minor units, as a string. \"0\" is a free ticket.",
+            "example": "15000"
+          },
+          "quantityTotal": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "minPerOrder": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 1
+          },
+          "maxPerOrder": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "salesStartAt": {
+            "type": "string"
+          },
+          "salesEndAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "priceMinor",
+          "quantityTotal"
+        ]
+      },
+      "UpdateTicketTypeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "object"
+          },
+          "description": {
+            "type": "object"
+          },
+          "priceMinor": {
+            "type": "string",
+            "description": "Applies to future buyers; placed orders keep their price"
+          },
+          "quantityTotal": {
+            "type": "number"
+          },
+          "minPerOrder": {
+            "type": "number"
+          },
+          "maxPerOrder": {
+            "type": "number"
+          },
+          "salesStartAt": {
+            "type": "string"
+          },
+          "salesEndAt": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false stops sales without deleting anything"
+          }
+        }
+      },
+      "UpsertListingDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "Public URL segment. Generated from the headline if omitted."
+          },
+          "headline": {
+            "type": "object",
+            "description": "Translated headline"
+          },
+          "summary": {
+            "type": "object"
+          },
+          "body": {
+            "type": "object"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ogTitle": {
+            "type": "object",
+            "description": "Translated link-preview title"
+          },
+          "ogDescription": {
+            "type": "object",
+            "description": "Translated link-preview description"
+          },
+          "isIndexable": {
+            "type": "boolean",
+            "description": "Allow search engines to index it. Off by default."
+          }
+        }
+      },
+      "CreatePromoCodeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SPRING25"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PERCENT",
+              "FIXED"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "description": "Percent 1–100, or an amount in minor units",
+            "example": "15"
+          },
+          "eventId": {
+            "type": "string",
+            "description": "Null applies the code to every event"
+          },
+          "maxRedemptions": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "minOrderMinor": {
+            "type": "string",
+            "description": "Minimum order in minor units"
+          },
+          "validFrom": {
+            "type": "string"
+          },
+          "validUntil": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "kind",
+          "value"
+        ]
+      },
+      "UpdatePromoCodeDto": {
+        "type": "object",
+        "properties": {
+          "maxRedemptions": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "validUntil": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SubscribeDto": {
+        "type": "object",
+        "properties": {
+          "planKey": {
+            "type": "string",
+            "description": "A plan's key, as returned by GET /plans",
+            "example": "managed-monthly"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "AMERIABANK",
+              "INECOBANK",
+              "IDBANK",
+              "FAKE"
+            ],
+            "description": "Required for a paid plan"
+          },
+          "returnUrl": {
+            "type": "string",
+            "description": "Where the bank returns the payer"
+          }
+        },
+        "required": [
+          "planKey"
+        ]
+      },
       "RegisterDeviceDto": {
         "type": "object",
         "properties": {
@@ -1383,6 +4579,448 @@
           "platform",
           "token"
         ]
+      },
+      "CreateTableDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "zone": {
+            "type": "string",
+            "description": "Grouping inside a venue, e.g. \"terrace\""
+          },
+          "venueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "capacity"
+        ]
+      },
+      "CreateTablesDto": {
+        "type": "object",
+        "properties": {
+          "namePrefix": {
+            "type": "string",
+            "description": "Prefix for generated names, e.g. \"Table\""
+          },
+          "count": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "zone": {
+            "type": "string"
+          },
+          "venueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namePrefix",
+          "count",
+          "capacity"
+        ]
+      },
+      "AssignSeatDto": {
+        "type": "object",
+        "properties": {
+          "guestId": {
+            "type": "string"
+          },
+          "tableId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number",
+            "description": "Place at the table, for printed cards"
+          }
+        },
+        "required": [
+          "guestId",
+          "tableId"
+        ]
+      },
+      "CreateVendorDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "VENUE",
+              "CATERING",
+              "BAR",
+              "DECOR",
+              "PHOTOGRAPHY",
+              "VIDEOGRAPHY",
+              "MUSIC",
+              "PRINT",
+              "OTHER"
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "category"
+        ]
+      },
+      "BookVendorDto": {
+        "type": "object",
+        "properties": {
+          "vendorId": {
+            "type": "string"
+          },
+          "briefScopes": {
+            "type": "array",
+            "description": "Exactly what this vendor may read. Omitted uses the category default.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "headcount",
+                "catering",
+                "bar",
+                "playlist",
+                "timeline",
+                "seating",
+                "households",
+                "contacts"
+              ]
+            }
+          },
+          "feeAmount": {
+            "type": "string",
+            "description": "Agreed fee, as a decimal string",
+            "example": "150000.00"
+          }
+        },
+        "required": [
+          "vendorId"
+        ]
+      },
+      "UpdateBookingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ENQUIRED",
+              "QUOTED",
+              "CONFIRMED",
+              "CANCELLED",
+              "COMPLETED"
+            ]
+          },
+          "briefScopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "headcount",
+                "catering",
+                "bar",
+                "playlist",
+                "timeline",
+                "seating",
+                "households",
+                "contacts"
+              ]
+            }
+          },
+          "feeAmount": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Petrosyan Wedding"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "PLANNER",
+              "CORPORATE"
+            ],
+            "description": "HOST for a couple, AGENCY for a planner"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "RenameOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ChooseTemplateDto": {
+        "type": "object",
+        "properties": {
+          "templateKey": {
+            "type": "string",
+            "description": "A template's key, from GET /design-templates"
+          }
+        },
+        "required": [
+          "templateKey"
+        ]
+      },
+      "UpdateThemeDto": {
+        "type": "object",
+        "properties": {
+          "headingFont": {
+            "type": "string"
+          },
+          "bodyFont": {
+            "type": "string"
+          },
+          "palette": {
+            "type": "string",
+            "description": "One of the template's palette names"
+          },
+          "colors": {
+            "description": "Hex colours, e.g. #1a2b3c",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateBlockDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "object",
+            "description": "Translated content keyed by locale"
+          },
+          "settings": {
+            "type": "object",
+            "description": "Block-specific, non-translated settings"
+          },
+          "variant": {
+            "type": "string",
+            "description": "Template layout variant, e.g. \"split\""
+          },
+          "assetIds": {
+            "description": "MediaAsset ids, in order",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpsertQuestionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "LONG_TEXT",
+              "SINGLE_CHOICE",
+              "MULTI_CHOICE",
+              "BOOLEAN",
+              "SIGNATURE"
+            ]
+          },
+          "prompt": {
+            "type": "object",
+            "description": "Translated prompt keyed by locale"
+          },
+          "options": {
+            "type": "object",
+            "description": "Translated choices, for the choice types"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "prompt"
+        ]
+      },
+      "UpsertTimelineEntryDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "object",
+            "description": "Translated name keyed by locale",
+            "example": {
+              "hy": "Պսակադրություն"
+            }
+          },
+          "occursAt": {
+            "type": "string",
+            "description": "When it happens, ISO 8601"
+          },
+          "venueId": {
+            "type": "string",
+            "description": "Which of this event’s venues it happens at"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Breaks ties between entries at the same minute",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "label",
+          "occursAt"
+        ]
+      },
+      "CreateVenueDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "CEREMONY",
+              "RECEPTION",
+              "AFTER_PARTY",
+              "PREPARATION",
+              "OTHER"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "profileId": {
+            "type": "string",
+            "description": "Reusable directory entry this came from"
+          },
+          "mapUrl": {
+            "type": "string"
+          },
+          "arriveAt": {
+            "type": "string",
+            "description": "When guests should arrive, ISO 8601"
+          }
+        },
+        "required": [
+          "role",
+          "name",
+          "address"
+        ]
+      },
+      "CreateExportDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "GUEST_LIST",
+              "SEATING_CHART",
+              "PLACE_CARDS",
+              "CATERING_SHEET",
+              "BAR_SHEET",
+              "PLAYLIST",
+              "TICKET_MANIFEST"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "CSV",
+              "XLSX"
+            ],
+            "default": "CSV"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "CreateDataSubjectRequestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "EXPORT",
+              "ERASURE",
+              "RECTIFICATION"
+            ]
+          },
+          "subjectEmail": {
+            "type": "string",
+            "description": "The address the data is held against"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Anything the requester wants to add"
+          }
+        },
+        "required": [
+          "kind",
+          "subjectEmail"
+        ]
+      },
+      "UpdateDataSubjectRequestDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "RECEIVED",
+              "VERIFYING",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "REJECTED"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "SuppressDto": {
+        "type": "object",
+        "properties": {}
       }
     }
   }
