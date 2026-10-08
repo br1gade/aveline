@@ -324,33 +324,87 @@ without a client release.
 ### Submit an RSVP
 
 ```http
-GET  /api/v1/invitations/:slug/g/:guestToken/rsvp     # current answer
+GET  /api/v1/invitations/:slug/g/:guestToken/rsvp     # current answer, and the household
 POST /api/v1/invitations/:slug/g/:guestToken/rsvp
+```
+
+**One link answers for the whole household** (decided 8 October 2026). The
+invitation goes to one person per household; that person answers for
+themselves at the top level and for everyone else named in the household in
+`members`. Build the form from `GET`, which lists them:
+
+```json
+{
+  "guest": { "id": "clz...", "firstName": "Armen", "lastName": "Petrosyan" },
+  "household": {
+    "name": "Petrosyan family", "seatsAllotted": 3,
+    "members": [{ "id": "clz...", "firstName": "Lusine", "lastName": "Petrosyan",
+                  "addedByGuest": false, "status": "PENDING",
+                  "dietary": [], "dietaryNotes": null }]
+  },
+  "rsvp": { "status": "ATTENDING", "respondedAt": "...", "dietary": ["vegetarian"],
+            "answers": [{ "questionId": "clz...", "value": 1 }], ... }
+}
 ```
 
 ```json
 {
   "status": "ATTENDING",
   "attribution": "SIDE_A",
-  "party": [{ "firstName": "Lusine", "lastName": "Petrosyan" }],
+  "members": [{ "guestId": "clz...", "status": "DECLINED", "dietary": ["vegan"] }],
+  "party": [{ "firstName": "Narek", "lastName": "Petrosyan" }],
   "dietary": ["vegetarian"],
   "dietaryNotes": "severe nut allergy",
   "drinkPreference": "wine",
   "songRequest": "Sirun Yar",
   "message": "Congratulations!",
-  "locale": "hy"
+  "locale": "hy",
+  "answers": [{ "questionId": "clz...", "value": 1 }]
 }
 ```
 
-`status`: `ATTENDING` | `DECLINED` | `UNDECIDED` | `PENDING`.
+`status`: `ATTENDING` | `DECLINED` | `UNDECIDED`.
 `attribution`: `SIDE_A` | `SIDE_B` | `SHARED` | `UNKNOWN`.
 
+- **`members`** — answers for others already in the household: `guestId`
+  (from `household.members`), `status` (`ATTENDING`, `DECLINED` or
+  `UNDECIDED` — not `PENDING`), and optionally their own `dietary` and
+  `dietaryNotes`. Someone left out keeps their answer. Naming yourself, or
+  someone outside the household, is a `400` starting `members:`.
+- **`party`** — people to add who are not in the household yet. Matched by
+  name, ignoring capitals and spacing, against everyone already in it, so a
+  name already there is not added again and does not count against the
+  seats twice. Plus-ones the guest added follow the respondent's `status`
+  unless answered for in `members` — switching to `DECLINED` takes them with
+  you.
+- **`answers`** — the host's own questions (`rsvpQuestions` on the
+  invitation). The value depends on the question's `type`:
+
+  | `type` | `value` |
+  |---|---|
+  | `TEXT` | a string, up to 500 characters |
+  | `LONG_TEXT` | a string, up to 4,000 characters |
+  | `BOOLEAN` | `true` or `false` |
+  | `SINGLE_CHOICE` | the **position** of the chosen option in `options`, from 0 |
+  | `MULTI_CHOICE` | a list of positions, each at most once |
+
+  **Send the position, not the text.** Options are translated, and the page
+  receives them in the guest's language; position is the same in every
+  language, so the host's count of who chose fish does not split across
+  "Fish", "Рыба" and "Ձուկ". A question marked `required` must be answered by
+  a guest who is `ATTENDING` — not by one who declines — and an answer given
+  in an earlier submission counts. Any problem is a `400` whose message starts
+  `answers:`. `SIGNATURE` questions cannot be answered yet.
+
 ```json
-{ "status": "ATTENDING", "respondedAt": "...", "partyAdded": 1, "seatsRemaining": 1 }
+{ "status": "ATTENDING", "respondedAt": "...", "partyAdded": 1, "membersAnswered": 1,
+  "seatsRemaining": 1 }
 ```
 
 **Submitting again updates rather than duplicating** — safe to retry, and the
-right way to implement an "edit my answer" button.
+right way to implement an "edit my answer" button. **Omitted fields keep their
+value**: send only what changed. `respondedAt` is when they first answered and
+does not move on an edit.
 
 Household capacity is enforced: more names than `seatsAllotted` returns `400`
 with a message naming the numbers. Show `seatsRemaining` so the guest sees the

@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 5 open | 25 open | 26 open, of which 8 money | — |
+| Bugfixes | 2 open | 25 open | 26 open, of which 8 money | — |
 | Features | 3 (F1–F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -46,9 +46,6 @@ backend is [GAPS.md](../backend/docs/GAPS.md).
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B6 | **Any RSVP that answers a custom question is rejected** ✔ | `CustomAnswerDto.value` has no validator, so the global pipe refuses it: "Meat or fish?" makes the whole RSVP fail. Once fixed, also: `questionId` is not checked against this invitation, `required` is not enforced, values are not checked against the question's type or options, and `answers` is unbounded | `rsvp/dto/submit-rsvp.dto.ts`, `rsvp/rsvp.service.ts` | S |
-| B7 | **Only the person who opened the link is recorded; the rest of the household stays PENDING** | Invitations go one per household. Armen answers ATTENDING; Lusine, imported in the same household, stays PENDING forever. Headcount, catering, auto-seating and the door list undercount every family, and naming her in `party` fails the capacity check. **Decision** D1 | `rsvp/rsvp.service.ts` `submit` | M |
-| B8 | **Answering again duplicates the party and leaves plus-ones behind** ✔ | API.md says resubmitting is safe; every submit inserts `party` again, so a retry creates a second Lusine and a third submit fails on capacity. Plus-ones never follow a later status change — switch to DECLINED and they stay ATTENDING. Omitted fields are wiped, and `respondedAt` is overwritten | `rsvp/rsvp.service.ts` | S–M |
 | B9 | **A message that fails mid-send is stuck forever, and its guest is never invited** ✔ | Nothing returns a SENDING message to the queue. A crash or error after the claim strands it, aborts the rest of the batch, and because SENDING counts as "on its way", pressing send never tries that guest again | `communications/communications.service.ts`, `invitations/sending/previous-attempts.ts` | S |
 | B10 | **Editing one language of a block erases the others** | `PATCH /invitations/:slug/blocks/:type` replaces the whole `content` map; sending Russian deletes the Armenian | `design/design.service.ts` `updateBlock` | S |
 
@@ -212,7 +209,7 @@ All four were decided on 8 October 2026.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
-| D1 | How does a household answer? | B7 | **Per member, in one submission.** Whoever opens the link marks each named member of the household attending or not. Families split, and catering and seating count people |
+| D1 | How does a household answer? | B7 (fixed) | **Per member, in one submission.** Whoever opens the link marks each named member of the household attending or not. Families split, and catering and seating count people |
 | D2 | Who carries out data-protection requests? | B1 (fixed) | **Aveline staff only.** A request matches an email across every customer, so hosts neither see the queue nor act on it |
 | D3 | When a host changes the date or venue after sending, are guests told? | F2 | **The host is offered it.** After the edit, they choose whether to send an "updated details" message to everyone already invited |
 | D4 | Is find-your-seat public? | B16 | **Only through a guest's own link, and only once the host publishes the seating** |
@@ -223,7 +220,7 @@ All four were decided on 8 October 2026.
 
 All small; each is a doc that would be believed.
 
-- [API.md](API.md) — "submitting again … safe to retry" (false while B8 stands); refunds need `billing:write`, not `billing:read`; the 2 MB import limit is not enforced (B27); reminders "skip guests never invited" (B22).
+- [API.md](API.md) — refunds need `billing:write`, not `billing:read`; the 2 MB import limit is not enforced (B27); reminders "skip guests never invited" (B22).
 - [ACCESS_CONTROL.md](ACCESS_CONTROL.md) §6 lists as unbuilt the audit trail, brief rotation, invite acceptance and password reset — all built.
 - [VENUES_AND_SEATING.md](VENUES_AND_SEATING.md) — implies table positions are stored (F8); lists place cards and seating CSV as unbuilt (built); says auto-seating runs as a job (it runs in the request).
 - [PAYMENTS.md](PAYMENTS.md) — says nothing schedules reconciliation (it is scheduled), that there is no auth (there is), that nothing charges (the first period is charged); paths lack `/v1`.

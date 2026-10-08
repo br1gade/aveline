@@ -120,18 +120,25 @@ options:
 | `BOOLEAN` | Yes/no |
 | `SIGNATURE` | A drawn signature, stored as a `MediaAsset` |
 
+**A choice is stored by its position in the option list**, not its text. The
+options are translated and each guest sees them in their own language, so
+position is what lets every language count as one answer. Answers are
+checked against their question's type and options when submitted, and a
+`required` question binds only a guest who is attending.
+
 The design rule: **a question with no downstream consumer does not get asked.**
 Collecting data nobody reads is how the rest of the category ends up with an
 inbox full of unusable form notifications.
 
 ### Signatures
 
-Two distinct uses, both supported:
+Two distinct uses, both modelled; only the first can be used today:
 
 - **`BlockType.SIGNATURE`** — the hosts' own signature or monogram rendered on
   the invitation. Decorative.
 - **`QuestionType.SIGNATURE`** — the guest signs something. Stored on
-  `Rsvp.signatureAssetId`. Real uses: photo-and-video consent, a corporate
+  `Rsvp.signatureAssetId`; nothing writes it yet, and an answer to a
+  signature question is refused (see §7). Real uses: photo-and-video consent, a corporate
   event waiver, acknowledging a venue's conditions.
 
 The second is why signatures are modelled at all. It is not needed for a

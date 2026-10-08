@@ -144,6 +144,81 @@ describe('RSVP flow (e2e)', () => {
     expect(response.body.message).toContain('allows 1 guest(s)');
   });
 
+  /**
+   * The bug this pins: `value` had no validation decorator, so the global
+   * whitelist rejected every answer to a host's own question — any RSVP that
+   * answered "Meat or fish?" failed with a 400 the guest could do nothing
+   * about. Only reachable over HTTP, which is why it went unnoticed.
+   */
+  describe('a household answering together', () => {
+    const household = async () => {
+      const seeded = await seedEvent(prisma, { seatsAllotted: 3 });
+      const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: seeded.slug } });
+      const meal = await prisma.rsvpQuestion.create({
+        data: {
+          invitationId: invitation.id,
+          type: 'SINGLE_CHOICE',
+          required: true,
+          prompt: { en: 'Meat or fish?' },
+          options: { en: ['Meat', 'Fish'] },
+        },
+      });
+      const lusine = await prisma.guest.create({
+        data: {
+          eventId: seeded.eventId,
+          householdId: seeded.householdId,
+          firstName: 'Lusine',
+          token: `lusine-${seeded.slug}`,
+          rsvp: { create: {} },
+        },
+      });
+      const rsvpUrl = `/api/v1/invitations/${seeded.slug}/g/${seeded.primaryGuestToken}/rsvp`;
+      return { ...seeded, mealId: meal.id, lusineId: lusine.id, rsvpUrl };
+    };
+
+    it('answers a custom question and the rest of the household in one request', async () => {
+      const { rsvpUrl, mealId, lusineId } = await household();
+
+      const { body } = await http()
+        .post(rsvpUrl)
+        .send({
+          status: RsvpStatus.ATTENDING,
+          answers: [{ questionId: mealId, value: 1 }],
+          members: [{ guestId: lusineId, status: RsvpStatus.DECLINED }],
+        })
+        .expect(201);
+
+      expect(body).toMatchObject({ status: 'ATTENDING', membersAnswered: 1, partyAdded: 0 });
+      const current = await http().get(rsvpUrl).expect(200);
+      expect(current.body.rsvp.answers).toEqual([{ questionId: mealId, value: 1 }]);
+      expect(current.body.household.members).toEqual([
+        expect.objectContaining({ id: lusineId, firstName: 'Lusine', status: 'DECLINED' }),
+      ]);
+    });
+
+    it.each([
+      { label: 'a choice by its text', body: (q: string) => ({ status: 'ATTENDING', answers: [{ questionId: q, value: 'Fish' }] }) },
+      { label: 'a required question left out', body: () => ({ status: 'ATTENDING' }) },
+    ])('refuses $label with a 400 naming answers', async ({ body }) => {
+      const { rsvpUrl, mealId } = await household();
+
+      const response = await http().post(rsvpUrl).send(body(mealId)).expect(400);
+
+      expect(response.body.message).toMatch(/^answers: /);
+    });
+
+    it('refuses PENDING as an answer for a household member', async () => {
+      const { rsvpUrl, lusineId } = await household();
+
+      const response = await http()
+        .post(rsvpUrl)
+        .send({ status: 'DECLINED', members: [{ guestId: lusineId, status: 'PENDING' }] })
+        .expect(400);
+
+      expect(JSON.stringify(response.body.message)).toContain('members');
+    });
+  });
+
   it('404s a response sent with an unknown guest token', async () => {
     const { slug } = await seedEvent(prisma);
 

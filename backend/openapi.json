@@ -4088,6 +4088,36 @@
           }
         }
       },
+      "MemberAnswerDto": {
+        "type": "object",
+        "properties": {
+          "guestId": {
+            "type": "string",
+            "description": "A guest in the same household"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ]
+          },
+          "dietary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dietaryNotes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "guestId",
+          "status"
+        ]
+      },
       "PartyMemberDto": {
         "type": "object",
         "properties": {
@@ -4110,7 +4140,7 @@
           },
           "value": {
             "type": "object",
-            "description": "Scalar or array, shape depends on question type"
+            "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions."
           }
         },
         "required": [
@@ -4140,8 +4170,15 @@
             ],
             "description": "Which host invited the guest"
           },
+          "members": {
+            "description": "Answers for others already named in the household. Those left out keep their answer.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberAnswerDto"
+            }
+          },
           "party": {
-            "description": "Additional household members",
+            "description": "People to add to the household. A name already in it is not added again.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PartyMemberDto"

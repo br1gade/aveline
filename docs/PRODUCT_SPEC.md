@@ -158,6 +158,11 @@ The RSVP is a configurable questionnaire, not a fixed form. Every question has a
 | Preferred language | single choice | per-guest invitation language |
 | Free message to the hosts | text | guest book |
 
+**One link answers for the household.** Whoever opens it answers for every
+named member, each attending or not, in one submission — decided 8 October
+2026, because families split ("we're coming, grandma can't travel") and
+catering and seating count people, not households.
+
 ### 5.4 Per-guest personalization
 
 Each guest receives their own invitation link. The page addresses them by name, renders in their language, and shows the plus-one allowance their household actually has. The same event therefore produces many personalized pages from one definition.
