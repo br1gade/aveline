@@ -4,6 +4,7 @@ import { MessageChannel, MessageStatus, Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
+  MAX_DELIVERY_ATTEMPTS,
   classifyDeliveryFailure,
   isWorthRetrying,
   nextAttemptAt,
@@ -40,6 +41,27 @@ export interface EnqueueParams {
  */
 /** What one dispatch attempt resolved to. */
 type DeliveryOutcome = 'SENT' | 'RETRYING' | 'FAILED';
+
+const TALLY_KEY: Record<Exclude<DispatchOutcome, 'TAKEN'>, 'sent' | 'failed' | 'suppressed' | 'retrying'> = {
+  SENT: 'sent',
+  FAILED: 'failed',
+  SUPPRESSED: 'suppressed',
+  RETRYING: 'retrying',
+};
+
+/** What happened to one due message, including not getting it. */
+type DispatchOutcome = DeliveryOutcome | 'SUPPRESSED' | 'TAKEN';
+
+/**
+ * How long a message may sit in SENDING before it is presumed interrupted.
+ *
+ * Longer than any transport's own timeouts — a mail server can legitimately
+ * hold a connection for minutes — so a send in progress is never taken from
+ * under itself.
+ */
+const STRANDED_AFTER_MS = 15 * 60 * 1000;
+
+type DueMessage = Prisma.MessageGetPayload<object>;
 
 @Injectable()
 export class CommunicationsService {
@@ -109,45 +131,94 @@ export class CommunicationsService {
    * Sends everything due. Claims each message by moving it to SENDING first,
    * conditioned on it still being QUEUED, so two dispatchers running at once
    * cannot both send the same message.
+   *
+   * Each message is on its own: one that throws is put back in the queue and
+   * the rest of the batch goes on. It used to abort the batch and leave that
+   * message in SENDING for good.
    */
   async dispatchDue(
     limit = 50,
   ): Promise<{ sent: number; failed: number; suppressed: number; retrying: number }> {
+    await this.recoverStranded();
+
     const due = await this.prisma.message.findMany({
       where: { status: MessageStatus.QUEUED, scheduledFor: { lte: new Date() } },
       orderBy: { scheduledFor: 'asc' },
       take: limit,
     });
 
-    let sent = 0;
-    let failed = 0;
-    let suppressed = 0;
-    let retrying = 0;
+    const tally = { sent: 0, failed: 0, suppressed: 0, retrying: 0 };
     for (const message of due) {
-      const attempt = await this.claim(message.id);
-      if (attempt === null) continue;
-
-      // Checked again here, not only at enqueue: a bounce or an unsubscribe
-      // between queueing and sending must stop the send, and a scheduled
-      // reminder can sit in the outbox for weeks.
-      const isSuppressed = await this.suppressions.isSuppressed(
-        message.channel,
-        message.toAddress,
-        message.organizationId,
+      const outcome = await this.dispatchOne(message).catch((error: unknown) =>
+        this.requeueAfterError(message.id, error),
       );
-      if (isSuppressed) {
-        await this.markSuppressed(message.id);
-        suppressed += 1;
-        continue;
-      }
+      if (outcome !== 'TAKEN') tally[TALLY_KEY[outcome]] += 1;
+    }
+    return tally;
+  }
 
-      const outcome = await this.deliver({ ...message, attempts: attempt });
-      if (outcome === 'SENT') sent += 1;
-      else if (outcome === 'RETRYING') retrying += 1;
-      else failed += 1;
+  private async dispatchOne(message: DueMessage): Promise<DispatchOutcome> {
+    const attempt = await this.claim(message.id);
+    if (attempt === null) return 'TAKEN';
+
+    // Checked again here, not only at enqueue: a bounce or an unsubscribe
+    // between queueing and sending must stop the send, and a scheduled
+    // reminder can sit in the outbox for weeks.
+    const isSuppressed = await this.suppressions.isSuppressed(
+      message.channel,
+      message.toAddress,
+      message.organizationId,
+    );
+    if (isSuppressed) {
+      await this.markSuppressed(message.id);
+      return 'SUPPRESSED';
     }
 
-    return { sent, failed, suppressed, retrying };
+    return this.deliver({ ...message, attempts: attempt });
+  }
+
+  /**
+   * Returns messages a crash or a deploy left in SENDING.
+   *
+   * At-least-once: if the process died after the provider accepted a message
+   * and before it was recorded, that message goes out twice. A duplicate is
+   * the better failure — the alternative was a guest who was never invited
+   * and never retried, because SENDING counts as "on its way".
+   */
+  private async recoverStranded(now = new Date()): Promise<void> {
+    const stranded = {
+      status: MessageStatus.SENDING,
+      updatedAt: { lt: new Date(now.getTime() - STRANDED_AFTER_MS) },
+    };
+
+    await this.prisma.message.updateMany({
+      where: { ...stranded, attempts: { gte: MAX_DELIVERY_ATTEMPTS } },
+      data: { status: MessageStatus.FAILED, failureReason: 'Interrupted while sending, with no attempts left' },
+    });
+    const recovered = await this.prisma.message.updateMany({
+      where: stranded,
+      data: { status: MessageStatus.QUEUED, scheduledFor: now, failureReason: 'Interrupted while sending' },
+    });
+    if (recovered.count > 0) {
+      this.logger.warn(`returned ${recovered.count} message(s) interrupted while sending to the queue`);
+    }
+  }
+
+  /** One message failed in a way nobody classified; it waits and tries again. */
+  private async requeueAfterError(messageId: string, error: unknown): Promise<DispatchOutcome> {
+    const message = error instanceof Error ? error.message : String(error);
+    this.logger.error(`dispatching message ${messageId} failed: ${message}`);
+
+    const row = await this.prisma.message.findUnique({ where: { id: messageId }, select: { attempts: true } });
+    await this.prisma.message.updateMany({
+      where: { id: messageId, status: MessageStatus.SENDING },
+      data: {
+        status: MessageStatus.QUEUED,
+        failureReason: message,
+        scheduledFor: nextAttemptAt(row?.attempts ?? 1, new Date()),
+      },
+    });
+    return 'RETRYING';
   }
 
   private async markSuppressed(messageId: string): Promise<void> {

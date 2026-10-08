@@ -1692,7 +1692,10 @@ longer the household's status.
 **`SENT` means the mail server accepted it, not that it arrived.** A bounce can
 follow minutes later, and when it does the status becomes `BOUNCED` with the
 server's own words in `failureReason`. `QUEUED` with `attempts` above zero is a
-message being retried after a temporary failure — not stuck.
+message being retried after a temporary failure — not stuck. `SENDING` is
+momentary; a message interrupted mid-send (a crash, a deploy) is returned to
+the queue within about fifteen minutes and tried again, so in rare cases a
+guest can receive the same message twice rather than not at all.
 
 ### Custom RSVP questions
 

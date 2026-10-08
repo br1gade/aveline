@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 2 open | 25 open | 26 open, of which 8 money | — |
+| Bugfixes | 1 open | 25 open | 26 open, of which 8 money | — |
 | Features | 3 (F1–F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -46,7 +46,6 @@ backend is [GAPS.md](../backend/docs/GAPS.md).
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B9 | **A message that fails mid-send is stuck forever, and its guest is never invited** ✔ | Nothing returns a SENDING message to the queue. A crash or error after the claim strands it, aborts the rest of the batch, and because SENDING counts as "on its way", pressing send never tries that guest again | `communications/communications.service.ts`, `invitations/sending/previous-attempts.ts` | S |
 | B10 | **Editing one language of a block erases the others** | `PATCH /invitations/:slug/blocks/:type` replaces the whole `content` map; sending Russian deletes the Armenian | `design/design.service.ts` `updateBlock` | S |
 
 ### P1 — a pilot host will hit it
