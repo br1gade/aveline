@@ -1,5 +1,11 @@
 {
   "extends": "./tsconfig.json",
+  // Not incremental. `nest build` deletes dist/ first, but the build-info
+  // file lived outside it, so tsc believed unchanged files were already
+  // emitted and skipped them — a "successful" build left dist/ without
+  // dist/prisma, and `node dist/main` failed to start. A full emit costs a
+  // few seconds; a build that lies costs a deploy.
+  "compilerOptions": { "incremental": false },
   "include": [
     "src/**/*"
   ],
