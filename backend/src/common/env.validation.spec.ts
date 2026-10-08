@@ -5,14 +5,14 @@ import { validateEnv } from './env.validation';
  * needs them. These pin what is required where.
  */
 describe('validateEnv', () => {
-  const base = { DATABASE_URL: 'postgresql://localhost/db' };
+  const base = { DATABASE_URL: 'postgresql://localhost/db', NODE_ENV: 'development' };
 
   it('accepts a minimal development environment', () => {
     expect(() => validateEnv(base)).not.toThrow();
   });
 
   it('refuses to start without a database URL, naming it', () => {
-    expect(() => validateEnv({})).toThrow(/DATABASE_URL/);
+    expect(() => validateEnv({ NODE_ENV: 'development' })).toThrow(/DATABASE_URL/);
   });
 
   // A development default secret in production means anyone can mint a token.
@@ -31,9 +31,23 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, PORT: port })).toThrow(/PORT/);
   });
 
-  it('defaults PORT and NODE_ENV when unset', () => {
-    const env = validateEnv(base);
-    expect(env.PORT).toBe('3000');
-    expect(env.NODE_ENV).toBe('development');
+  it('defaults PORT when unset', () => {
+    expect(validateEnv(base).PORT).toBe('3000');
   });
+
+  /**
+   * NODE_ENV used to default to development, and every development shortcut
+   * — password-reset links returned over HTTP, a default JWT secret, the fake
+   * payment gateway, the open API schema — switched on for anything that was
+   * not exactly "production". One missing variable on a server handed out
+   * account-takeover links. Now there is no default to fall into.
+   */
+  it.each([undefined, '', 'prod', 'Production', 'staging'])(
+    'refuses to start with NODE_ENV %p, naming the accepted values',
+    (nodeEnv) => {
+      expect(() => validateEnv({ DATABASE_URL: base.DATABASE_URL, NODE_ENV: nodeEnv })).toThrow(
+        /NODE_ENV.*development, test or production/,
+      );
+    },
+  );
 });

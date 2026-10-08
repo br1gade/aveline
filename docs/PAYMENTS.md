@@ -144,7 +144,7 @@ simply do not appear rather than failing when a customer tries to pay.
 
 The `FAKE` provider runs the entire flow in process, so registration, redirect,
 confirmation, refunds and reconciliation are all exercisable before any bank
-responds. `PaymentsModule` refuses to register it when `NODE_ENV=production`,
+responds. `PaymentsModule` registers it only when `NODE_ENV` is `development` or `test`,
 because it would otherwise let anyone mint a paid order.
 
 ## 5. Apple Pay and Google Pay

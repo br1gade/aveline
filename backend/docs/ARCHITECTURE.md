@@ -225,12 +225,17 @@ stopped, the invitation endpoint serves correct content in ~20 ms.
 
 ## 7. Production posture
 
-Three things behave differently when `NODE_ENV=production`, each because the
-development default is dangerous:
+`NODE_ENV` must be `development`, `test` or `production`; **boot refuses
+anything else, including unset**. The development behaviours below switch on
+only for an explicit `development` or `test` (`common/environment.ts`), so a
+missing or misspelled variable on a server gets production behaviour, never
+the shortcuts. They used to be keyed on `NODE_ENV !== 'production'`, which
+failed open.
 
-| Setting | Development | Production |
+| Setting | Development and test | Production |
 |---|---|---|
 | `JWT_SECRET` | a known default | **required**, boot fails without it |
+| Password-reset, verification and invite links | returned in the response as `devLink` | only emailed |
 | CORS | any origin | **only** `CORS_ORIGINS`, else none |
 | `/docs` | served | not served |
 | `FAKE` payment gateway | registered | refused |
@@ -239,9 +244,6 @@ development default is dangerous:
 
 - **BullMQ** for queued work with retries and backoff. Cron plus a lock covers
   periodic sweeps; per-item retryable work needs a queue
-- **Audit trail** — Mongo-shaped, and unblocked now that auth exists
-- **Structured JSON logging** — request ids correlate, but the format is still
-  Nest's human-readable default
 - **Metrics and tracing**
 - **Per-actor rate limits** — the throttle is global, not per account
 - **Outbound webhook signature verification**

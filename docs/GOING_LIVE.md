@@ -15,9 +15,7 @@ customer's trust.
 ### Code
 
 Every open **P0 bugfix** and **P0 feature** in [BACKLOG.md](BACKLOG.md).
-Several of the bugs expose people's data, and one — a development shortcut
-that fails open when `NODE_ENV` is not exactly `production` — turns a missing
-server variable into account takeover.
+Several of the bugs expose people's data.
 
 ### Money
 

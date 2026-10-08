@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { InvitesController } from './invites.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { allowsDevelopmentShortcuts } from '../../common/environment';
 
 @Global()
 @Module({
@@ -14,10 +15,10 @@ import { AuthService } from './auth.service';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const secret = config.get<string>('JWT_SECRET');
-        if (!secret && config.get<string>('NODE_ENV') === 'production') {
+        if (!secret && !allowsDevelopmentShortcuts(config.get<string>('NODE_ENV'))) {
           // Refusing to boot is the only safe response: a default secret in
           // production means anyone can mint a staff token.
-          throw new Error('JWT_SECRET must be set in production');
+          throw new Error('JWT_SECRET must be set outside development and test');
         }
         return { secret: secret ?? 'development-only-secret-do-not-use-in-production' };
       },

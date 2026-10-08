@@ -11,6 +11,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SerializeInterceptor } from './common/interceptors/serialize';
 import { proxyHopsFrom } from './common/proxy-trust';
+import { allowsDevelopmentShortcuts } from './common/environment';
 
 async function bootstrap() {
   // bufferLogs holds startup messages until pino is attached, so nothing is
@@ -19,7 +20,9 @@ async function bootstrap() {
   app.useLogger(app.get(PinoLogger));
 
   const logger = app.get(PinoLogger);
-  const isProduction = process.env.NODE_ENV === 'production';
+  // Development conveniences — open CORS, the schema page — only when
+  // NODE_ENV says development or test outright; see common/environment.ts.
+  const canUseShortcuts = allowsDevelopmentShortcuts(process.env.NODE_ENV);
 
   // Versioned from the start. Adding a version once clients exist means
   // supporting both forever; carrying one from day one costs nothing.
@@ -43,11 +46,11 @@ async function bootstrap() {
   // An open CORS policy lets any site call the API with a user's credentials.
   // Development stays permissive; production must name its origins.
   const origins = process.env.CORS_ORIGINS?.split(',').map((origin) => origin.trim());
-  app.enableCors({ origin: isProduction ? (origins ?? false) : true, credentials: true });
+  app.enableCors({ origin: canUseShortcuts ? true : (origins ?? false), credentials: true });
 
   // The schema describes the whole surface, including which routes are
   // public — useful to read, and not something to publish in production.
-  if (!isProduction) {
+  if (canUseShortcuts) {
     const config = new DocumentBuilder()
       .setTitle('Aveline API')
       .setDescription('Event invitations, guest graph, ticketing and operations')
@@ -61,7 +64,7 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(
     `Aveline API on http://localhost:${port}/api/v1` +
-      `${isProduction ? '' : '  ·  docs at /docs'}` +
+      `${canUseShortcuts ? '  ·  docs at /docs' : ''}` +
       `  ·  errors ${isSentryEnabled ? 'reported to Sentry' : 'logged locally only'}`,
   );
 }

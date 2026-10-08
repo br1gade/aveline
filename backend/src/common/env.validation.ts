@@ -6,6 +6,8 @@
  * production surfaces as "anyone can mint a staff token". Failing at startup
  * turns both into a deployment that visibly does not come up.
  */
+import { ENVIRONMENTS } from './environment';
+
 export interface ValidatedEnv extends Record<string, unknown> {
   NODE_ENV: string;
   DATABASE_URL: string;
@@ -27,11 +29,12 @@ function asText(value: unknown): string | undefined {
 }
 
 export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
+  const nodeEnv = recognisedNodeEnv(raw.NODE_ENV);
   assertRequiredPresent(raw);
 
   return {
     ...raw,
-    NODE_ENV: asText(raw.NODE_ENV) ?? 'development',
+    NODE_ENV: nodeEnv,
     DATABASE_URL: asText(raw.DATABASE_URL) ?? '',
     PORT: String(parsePort(raw.PORT)),
   };
@@ -54,6 +57,19 @@ function assertRequiredPresent(raw: Record<string, unknown>): void {
   throw new Error(
     `Missing required configuration: ${missing.join(', ')}` +
       (isProduction ? ' (required because NODE_ENV=production)' : ''),
+  );
+}
+
+/**
+ * No default. A default of "development" is what let one missing variable on
+ * a server switch on every development shortcut — see `environment.ts`.
+ */
+function recognisedNodeEnv(value: unknown): string {
+  const nodeEnv = asText(value);
+  if (nodeEnv && (ENVIRONMENTS as readonly string[]).includes(nodeEnv)) return nodeEnv;
+  throw new Error(
+    `NODE_ENV must be set to development, test or production; got "${nodeEnv ?? ''}". ` +
+      'There is no default, so a server cannot run development shortcuts by omission.',
   );
 }
 

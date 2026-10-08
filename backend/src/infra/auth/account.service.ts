@@ -1,9 +1,16 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { VerificationPurpose } from '@prisma/client';
-import { hash } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { MessageChannel } from '@prisma/client';
 import { CommunicationsService } from '../../modules/communications/communications.service';
+import { allowsDevelopmentShortcuts } from '../../common/environment';
 import { PrismaService } from '../../prisma/prisma.service';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 import { AcceptInviteDto, InviteMemberDto } from './dto/account.dto';
@@ -26,7 +33,7 @@ export class AccountService {
   private readonly logger = new Logger(AccountService.name);
   private readonly appUrl: string;
   private readonly defaultLocale: string;
-  private readonly isProduction: boolean;
+  private readonly isDevelopmentLinkAllowed: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -37,7 +44,7 @@ export class AccountService {
     // Account mail has no event to take a locale from and no stored
     // preference to read at reset time, so it uses the platform default.
     this.defaultLocale = config.get<string>('DEFAULT_LOCALE') ?? 'hy';
-    this.isProduction = config.get<string>('NODE_ENV') === 'production';
+    this.isDevelopmentLinkAllowed = allowsDevelopmentShortcuts(config.get<string>('NODE_ENV'));
   }
 
   /**
@@ -46,7 +53,8 @@ export class AccountService {
    * No transport delivers mail yet, so without this a developer cannot
    * complete a password reset or accept an invitation at all. Guarded on
    * NODE_ENV rather than a feature flag, because a flag left on in production
-   * would hand out account-takeover links over HTTP.
+   * would hand out account-takeover links over HTTP — and only on an explicit
+   * development value, so an unset NODE_ENV cannot turn it on.
    */
   /**
    * Sends an account email through the outbox.
@@ -93,7 +101,7 @@ export class AccountService {
   }
 
   private devLink(path: string, token: string): { devLink?: string } {
-    return this.isProduction ? {} : { devLink: this.linkFor(path, token) };
+    return this.isDevelopmentLinkAllowed ? { devLink: this.linkFor(path, token) } : {};
   }
 
   /**
@@ -231,6 +239,13 @@ export class AccountService {
    *
    * The membership and the account are created together: a half-accepted
    * invitation would leave someone with a login and no reason to have one.
+   *
+   * An account that already exists must be proven with its own password.
+   * Nothing verifies who registered an address, so without this anyone could
+   * register the invitee's email first and the real invitee's acceptance
+   * would attach the membership to the squatter's login. The real owner of
+   * the inbox resets the password — the link reaches only them, and it signs
+   * every other session out — and then accepts.
    */
   async acceptInvite(dto: AcceptInviteDto) {
     const invite = await this.prisma.organizationInvite.findUnique({
@@ -241,7 +256,10 @@ export class AccountService {
       throw new BadRequestException('This invitation is no longer valid');
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { email: invite.email } });
+    const existing = await this.prisma.user.findFirst({
+      where: { email: { equals: invite.email, mode: 'insensitive' } },
+    });
+    if (existing) await assertOwnPassword(existing, dto.password);
     const passwordHash = await hash(dto.password, BCRYPT_ROUNDS);
 
     const membership = await this.prisma.$transaction(async (tx) => {
@@ -328,6 +346,20 @@ export class AccountService {
     if (consumed.count === 0) throw new BadRequestException('This link has already been used');
 
     return record;
+  }
+}
+
+/** The account's own password, or a 409 saying how to get it back. */
+async function assertOwnPassword(
+  user: { passwordHash: string | null; isActive: boolean },
+  password: string,
+): Promise<void> {
+  const isOwnPassword = user.isActive && user.passwordHash !== null && (await compare(password, user.passwordHash));
+  if (!isOwnPassword) {
+    throw new ConflictException(
+      'An account already exists for this address. Sign in with its password to accept, ' +
+        'or reset the password first if it is not yours to know.',
+    );
   }
 }
 

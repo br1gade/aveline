@@ -256,6 +256,77 @@ describe('Account lifecycle (e2e)', () => {
       expect(membership.role).toBe('MANAGER');
     });
 
+    /**
+     * Account squatting. With no proof of who owns an address, someone could
+     * register the invitee's email first; the real invitee's acceptance then
+     * attached the membership to the squatter's login and threw their own
+     * password away.
+     */
+    describe('when an account already exists for the invited address', () => {
+      const inviteAlice = async () => {
+        const { authorization, organization } = await asOwner();
+        const invited = await http()
+          .post('/api/v1/organization/invites')
+          .set('Authorization', authorization)
+          .send({ email: 'alice@test.local', role: 'MANAGER' })
+          .expect(201);
+        return { organization, token: tokenFrom(invited.body) };
+      };
+      const membershipsOf = async (email: string) =>
+        prisma.organizationMembership.count({ where: { user: { email } } });
+
+      it('refuses to attach the membership without that account’s password', async () => {
+        await register({ email: 'alice@test.local', password: 'the-squatters-password', name: 'Not Alice' });
+        const { token } = await inviteAlice();
+
+        const { body } = await http()
+          .post('/api/v1/invites/accept')
+          .send({ token, name: 'Alice', password: 'alices-own-password' })
+          .expect(409);
+
+        expect(body.message).toMatch(/sign in|reset/i);
+        expect(await membershipsOf('alice@test.local')).toBe(0);
+        // Still usable: the real invitee can come back once they hold the account.
+        const invite = await prisma.organizationInvite.findFirstOrThrow({ where: { email: 'alice@test.local' } });
+        expect(invite.acceptedAt).toBeNull();
+      });
+
+      it('accepts for an existing account given its password', async () => {
+        await register({ email: 'alice@test.local', password: 'alices-own-password', name: 'Alice' });
+        const { token, organization } = await inviteAlice();
+
+        const { body } = await http()
+          .post('/api/v1/invites/accept')
+          .send({ token, name: 'Alice', password: 'alices-own-password' })
+          .expect(201);
+
+        expect(body).toMatchObject({ organizationId: organization.id, accountCreated: false });
+        expect(await membershipsOf('alice@test.local')).toBe(1);
+      });
+
+      // The way back for the real owner of the inbox: a reset reaches only them,
+      // replaces the squatter's password and signs the squatter out everywhere.
+      it('lets the inbox’s owner take the account back with a reset, then accept', async () => {
+        const squatter = await register({ email: 'alice@test.local', password: 'the-squatters-password', name: 'Not Alice' });
+        const { token } = await inviteAlice();
+        const reset = await http().post('/api/v1/auth/password-reset').send({ email: 'alice@test.local' }).expect(201);
+        await http()
+          .post('/api/v1/auth/password-reset/confirm')
+          .send({ token: tokenFrom(reset.body), password: 'alices-own-password' })
+          .expect(201);
+
+        await http()
+          .post('/api/v1/invites/accept')
+          .send({ token, name: 'Alice', password: 'alices-own-password' })
+          .expect(201);
+
+        // Their session is revoked; an access token already issued lapses within its 15 minutes.
+        const { refreshToken } = squatter.tokens as unknown as { refreshToken: string };
+        await http().post('/api/v1/auth/refresh').send({ refreshToken }).expect(401);
+        expect(await membershipsOf('alice@test.local')).toBe(1);
+      });
+    });
+
     it('refuses the same invitation twice', async () => {
       const { authorization } = await asOwner();
       const invited = await http()

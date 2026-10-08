@@ -8,6 +8,7 @@ import { AmeriabankGateway } from './providers/ameriabank.gateway';
 import { ArcaGateway } from './providers/arca.gateway';
 import { FakeGateway } from './providers/fake.gateway';
 import { PaymentGateway } from './providers/payment-provider';
+import { allowsDevelopmentShortcuts } from '../../common/environment';
 
 /**
  * Each bank declares how to build itself from configuration. A table rather
@@ -64,7 +65,7 @@ function buildGateways(config: ConfigService): PaymentGateway[] {
 
   // The fake gateway would let anyone mint a "paid" order, so production
   // refuses it outright rather than trusting configuration to be right.
-  if (config.get<string>('NODE_ENV') !== 'production') {
+  if (allowsDevelopmentShortcuts(config.get<string>('NODE_ENV'))) {
     gateways.push(new FakeGateway());
   }
 

@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 7 open | 25 open | 26 open, of which 8 money | — |
+| Bugfixes | 5 open | 25 open | 26 open, of which 8 money | — |
 | Features | 3 (F1–F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -46,8 +46,6 @@ backend is [GAPS.md](../backend/docs/GAPS.md).
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B4 | **Registering someone's email first steals their invitation to a team** ✔ | No email verification is enforced. An attacker registers `alice@…`; the owner invites Alice as MANAGER; Alice accepts with her own password, which is discarded, and the attacker's login now holds the membership | `organizations/account.service.ts` | S–M |
-| B5 | **Development shortcuts fail open in production** | The password-reset link returned in the response, and the default JWT secret, are disabled only when `NODE_ENV` is exactly `production` — and it defaults to development. One missing variable on the server returns reset links to anyone. The project rule is "impossible to reach in production, not merely discouraged" | `organizations/account.service.ts`, `common/env.validation.ts` | S |
 | B6 | **Any RSVP that answers a custom question is rejected** ✔ | `CustomAnswerDto.value` has no validator, so the global pipe refuses it: "Meat or fish?" makes the whole RSVP fail. Once fixed, also: `questionId` is not checked against this invitation, `required` is not enforced, values are not checked against the question's type or options, and `answers` is unbounded | `rsvp/dto/submit-rsvp.dto.ts`, `rsvp/rsvp.service.ts` | S |
 | B7 | **Only the person who opened the link is recorded; the rest of the household stays PENDING** | Invitations go one per household. Armen answers ATTENDING; Lusine, imported in the same household, stays PENDING forever. Headcount, catering, auto-seating and the door list undercount every family, and naming her in `party` fails the capacity check. **Decision** D1 | `rsvp/rsvp.service.ts` `submit` | M |
 | B8 | **Answering again duplicates the party and leaves plus-ones behind** ✔ | API.md says resubmitting is safe; every submit inserts `party` again, so a retry creates a second Lusine and a third submit fails on capacity. Plus-ones never follow a later status change — switch to DECLINED and they stay ATTENDING. Omitted fields are wiped, and `respondedAt` is overwritten | `rsvp/rsvp.service.ts` | S–M |
