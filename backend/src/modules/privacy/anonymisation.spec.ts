@@ -52,6 +52,12 @@ describe('ERASED_RSVP_FIELDS', () => {
   // catering sheet stay, because "vegan" against an anonymous row identifies
   // nobody.
   it('clears the free text and nothing else', () => {
-    expect(ERASED_RSVP_FIELDS).toEqual({ message: null, dietaryNotes: null, songRequest: null });
+    expect(ERASED_RSVP_FIELDS).toEqual({
+      message: null,
+      dietaryNotes: null,
+      songRequest: null,
+      // Free text too: a drink preference can name a person or a place.
+      drinkPreference: null,
+    });
   });
 });

@@ -40,6 +40,14 @@ describe('access policy', () => {
       expect(can(member(OrganizationRole.OWNER), 'member:manage')).toBe(true);
     });
 
+    // Requests are matched across every customer, so no customer may act on one.
+    it('never gives an owner the power to handle data-subject requests', () => {
+      expect(can(member(OrganizationRole.OWNER), 'privacy:manage')).toBe(false);
+      expect(can(member(OrganizationRole.OWNER, EventRole.OWNER), 'privacy:manage')).toBe(false);
+      expect(can(staff(PlatformRole.ADMIN), 'privacy:manage')).toBe(true);
+      expect(can(staff(PlatformRole.SUPPORT), 'privacy:manage')).toBe(false);
+    });
+
     it('lets a manager run events but not delete them', () => {
       expect(can(member(OrganizationRole.MANAGER), 'event:write')).toBe(true);
       expect(can(member(OrganizationRole.MANAGER), 'seating:write')).toBe(true);

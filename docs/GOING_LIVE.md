@@ -14,13 +14,10 @@ customer's trust.
 
 ### Code
 
-The ten **P0 bugfixes** and three **P0 features** in [BACKLOG.md](BACKLOG.md).
-Four of the bugs expose people's data — any host can export or erase any
-guest's data across customers, erasure leaves data behind, capability links are
-logged, and registering someone's email first steals their team invitation —
-and one, a development shortcut that fails open when `NODE_ENV` is not exactly
-`production`, turns a missing server variable into account takeover.
-
+Every open **P0 bugfix** and **P0 feature** in [BACKLOG.md](BACKLOG.md).
+Several of the bugs expose people's data, and one — a development shortcut
+that fails open when `NODE_ENV` is not exactly `production` — turns a missing
+server variable into account takeover.
 
 ### Money
 
@@ -113,6 +110,5 @@ Worth stating, so the list above is read as scope rather than alarm.
 3. **Deploy somewhere**, with TLS, secrets and backups. Until this exists,
    nothing else can be verified under real conditions.
 4. **The P0 items in [BACKLOG.md](BACKLOG.md)**, before the first real
-   guest's data is held. The data-protection endpoints are built; two of the
-   P0 bugs are in them (B1, B2).
+   guest's data is held.
 5. Everything in §2, as usage reveals which matters.

@@ -25,13 +25,14 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 10 (B1–B10) | 25 (B11–B35) | 26 (B36–B61), of which 8 money | — |
+| Bugfixes | 8 open | 25 open | 26 open, of which 8 money | — |
 | Features | 3 (F1–F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
-The P0 bugs are small — most are under half a day — but four expose people's
-data (B1–B4) and three break the core RSVP loop (B6–B8). The feature that
-gates everything is F1, the client.
+The P0 bugs are small — most are under half a day — but several expose
+people's data and three break the core RSVP loop. The feature that gates
+everything is F1, the client. Fixed items are removed, so a gap in the
+numbering is something that has been done.
 
 Infrastructure and accounts (bank, domain, mail DNS, server) are not here;
 they are in [GOING_LIVE.md](GOING_LIVE.md). The long-range view of the
@@ -45,8 +46,6 @@ backend is [GAPS.md](../backend/docs/GAPS.md).
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B1 | **Any host can export or erase any guest's data, across every customer** ✔ | Every organization owner holds `privacy:manage`, and the data-subject request list, update and fulfil are not scoped. A self-registered host lists every request on the platform, or files one for a stranger's email, marks it in progress and fulfils it — receiving that person's guest records, phones and answers from every other customer's events, or erasing them. **Decision** D2 | `access/access-policy.ts`, `privacy/privacy.service.ts` | S |
-| B2 | **Erasure leaves personal data behind** ✔ | After an erasure the person's account still logs in, and their custom answers, drink preference, Telegram/phone channel links, message addresses and SMS bodies remain. Matching is case-sensitive, so `Ani@x.am` survives an erasure of `ani@x.am`. A request can also be moved back from COMPLETED, or marked COMPLETED without erasing | `privacy/privacy.service.ts`, `privacy/anonymisation.ts` | M |
 | B3 | **Capability links are written to the logs** ✔ | Every request logs its full URL, so guest links, ticket links, vendor brief links and device tokens sit in the logs and in Sentry on errors — the root CLAUDE.md §3 rule. Anyone with log access can answer as any guest | `infra/logging/logging.config.ts`, `common/all-exceptions.filter.ts` | S |
 | B4 | **Registering someone's email first steals their invitation to a team** ✔ | No email verification is enforced. An attacker registers `alice@…`; the owner invites Alice as MANAGER; Alice accepts with her own password, which is discarded, and the attacker's login now holds the membership | `organizations/account.service.ts` | S–M |
 | B5 | **Development shortcuts fail open in production** | The password-reset link returned in the response, and the default JWT secret, are disabled only when `NODE_ENV` is exactly `production` — and it defaults to development. One missing variable on the server returns reset links to anyone. The project rule is "impossible to reach in production, not merely discouraged" | `organizations/account.service.ts`, `common/env.validation.ts` | S |
@@ -217,7 +216,7 @@ All four were decided on 8 October 2026.
 | # | Question | Blocks | Decided |
 |---|---|---|---|
 | D1 | How does a household answer? | B7 | **Per member, in one submission.** Whoever opens the link marks each named member of the household attending or not. Families split, and catering and seating count people |
-| D2 | Who carries out data-protection requests? | B1 | **Aveline staff only.** A request matches an email across every customer, so hosts neither see the queue nor act on it |
+| D2 | Who carries out data-protection requests? | B1 (fixed) | **Aveline staff only.** A request matches an email across every customer, so hosts neither see the queue nor act on it |
 | D3 | When a host changes the date or venue after sending, are guests told? | F2 | **The host is offered it.** After the edit, they choose whether to send an "updated details" message to everyone already invited |
 | D4 | Is find-your-seat public? | B16 | **Only through a guest's own link, and only once the host publishes the seating** |
 

@@ -7,6 +7,7 @@ import {
   EventRole,
   MessageChannel,
   OrganizationRole,
+  PlatformRole,
   PrismaClient,
 } from '@prisma/client';
 import request from 'supertest';
@@ -43,9 +44,9 @@ describe('Privacy and exports (e2e)', () => {
     await disconnectTestDatabase();
   });
 
-  /** An account that owns the seeded event's organization, so it holds
-   *  privacy:manage as well as the operational permissions. */
-  const dataProtectionOfficer = async () => {
+  /** An account that owns the seeded event's organization: every
+   *  operational permission, and — deliberately — not privacy:manage. */
+  const organizationOwner = async () => {
     const { eventId } = await seedEvent(prisma);
     const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
     const { authorization, userId } = await authenticateAs(app, prisma, {
@@ -124,9 +125,21 @@ describe('Privacy and exports (e2e)', () => {
     });
   });
 
+  /**
+   * Aveline's own data-protection staff. A request is matched by email across
+   * every customer, so no single customer may act on one (decided 8 October
+   * 2026).
+   */
+  const privacyAdmin = async () => {
+    const seeded = await organizationOwner();
+    const { authorization, userId } = await authenticateAs(app, prisma);
+    await prisma.user.update({ where: { id: userId }, data: { platformRole: PlatformRole.ADMIN } });
+    return { ...seeded, authorization };
+  };
+
   describe('handling a request', () => {
     const verifiedRequest = async (kind: DataSubjectRequestKind, subjectEmail: string) => {
-      const officer = await dataProtectionOfficer();
+      const officer = await privacyAdmin();
       const { body } = await http()
         .post('/api/v1/privacy/requests')
         .send({ kind, subjectEmail })
@@ -144,7 +157,7 @@ describe('Privacy and exports (e2e)', () => {
      * by typing their address into a public form.
      */
     it('refuses to act before the requester is verified', async () => {
-      const officer = await dataProtectionOfficer();
+      const officer = await privacyAdmin();
       const { body } = await http()
         .post('/api/v1/privacy/requests')
         .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'primary@test.local' })
@@ -261,6 +274,35 @@ describe('Privacy and exports (e2e)', () => {
       });
     });
 
+    /**
+     * The breach this closes: any self-registered host could list every
+     * request on the platform, or file one for a stranger's address, mark it
+     * verified and fulfil it — receiving that person's data from every other
+     * customer's events, or erasing it.
+     */
+    it('refuses an organization owner at every step, because a request reaches every customer', async () => {
+      const owner = await organizationOwner();
+      const { body } = await http()
+        .post('/api/v1/privacy/requests')
+        .send({ kind: DataSubjectRequestKind.EXPORT, subjectEmail: 'primary@test.local' })
+        .expect(201);
+      await prisma.dataSubjectRequest.update({
+        where: { id: body.reference },
+        data: { status: DataSubjectRequestStatus.IN_PROGRESS },
+      });
+
+      await http().get('/api/v1/privacy/requests').set('Authorization', owner.authorization).expect(403);
+      await http()
+        .patch(`/api/v1/privacy/requests/${body.reference}`)
+        .set('Authorization', owner.authorization)
+        .send({ status: DataSubjectRequestStatus.IN_PROGRESS })
+        .expect(403);
+      await http()
+        .post(`/api/v1/privacy/requests/${body.reference}/fulfil`)
+        .set('Authorization', owner.authorization)
+        .expect(403);
+    });
+
     it('refuses a coordinator who has no privacy permission', async () => {
       const { eventId } = await seedEvent(prisma);
       const { authorization } = await authenticateAs(app, prisma, {
@@ -274,7 +316,7 @@ describe('Privacy and exports (e2e)', () => {
 
   describe('suppressions', () => {
     it('stops contacting an address, idempotently', async () => {
-      const { authorization } = await dataProtectionOfficer();
+      const { authorization } = await organizationOwner();
       const body = { channel: MessageChannel.EMAIL, address: 'Ani@Test.local' };
 
       await http().post('/api/v1/suppressions').set('Authorization', authorization).send(body).expect(201);
@@ -289,7 +331,7 @@ describe('Privacy and exports (e2e)', () => {
     });
 
     it('resumes contacting one of its own', async () => {
-      const { authorization } = await dataProtectionOfficer();
+      const { authorization } = await organizationOwner();
       const { body: created } = await http()
         .post('/api/v1/suppressions')
         .set('Authorization', authorization)
@@ -309,7 +351,7 @@ describe('Privacy and exports (e2e)', () => {
     });
 
     it('cannot lift a platform-wide suppression', async () => {
-      const { authorization } = await dataProtectionOfficer();
+      const { authorization } = await organizationOwner();
       const global = await prisma.suppression.create({
         data: {
           organizationId: null,
@@ -330,7 +372,7 @@ describe('Privacy and exports (e2e)', () => {
 
   describe('exports', () => {
     it('generates a guest list as CSV and returns its URL', async () => {
-      const { eventId, authorization } = await dataProtectionOfficer();
+      const { eventId, authorization } = await organizationOwner();
 
       const { body } = await http()
         .post(`/api/v1/events/${eventId}/exports`)
@@ -351,7 +393,7 @@ describe('Privacy and exports (e2e)', () => {
       'PLAYLIST',
       'TICKET_MANIFEST',
     ])('generates a %s', async (kind) => {
-      const { eventId, authorization } = await dataProtectionOfficer();
+      const { eventId, authorization } = await organizationOwner();
 
       const { body } = await http()
         .post(`/api/v1/events/${eventId}/exports`)
@@ -364,7 +406,7 @@ describe('Privacy and exports (e2e)', () => {
 
     // Honest refusal beats a queued job that never runs.
     it.each(['PDF', 'XLSX'])('refuses %s with a 400 saying CSV works', async (format) => {
-      const { eventId, authorization } = await dataProtectionOfficer();
+      const { eventId, authorization } = await organizationOwner();
 
       const { body } = await http()
         .post(`/api/v1/events/${eventId}/exports`)
@@ -376,7 +418,7 @@ describe('Privacy and exports (e2e)', () => {
     });
 
     it('lists what has been generated', async () => {
-      const { eventId, authorization } = await dataProtectionOfficer();
+      const { eventId, authorization } = await organizationOwner();
       await http()
         .post(`/api/v1/events/${eventId}/exports`)
         .set('Authorization', authorization)

@@ -2,13 +2,12 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import {
   DataSubjectRequestKind,
   DataSubjectRequestStatus,
-  MessageChannel,
   Prisma,
 } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
 import { Sentry } from '../../infra/observability/sentry';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ERASED_RSVP_FIELDS, anonymisedGuestFields } from './anonymisation';
+import { eraseSubject, sameAddress } from './erasure';
+import { statusChangeProblem } from './request-status';
 import {
   CreateDataSubjectRequestDto,
   UpdateDataSubjectRequestDto,
@@ -88,7 +87,11 @@ export class PrivacyService {
   }
 
   async update(requestId: string, userId: string, dto: UpdateDataSubjectRequestDto) {
-    await this.require(requestId);
+    const request = await this.require(requestId);
+    if (dto.status) {
+      const problem = statusChangeProblem(request.kind, request.status, dto.status);
+      if (problem) throw new BadRequestException(problem);
+    }
 
     return this.prisma.dataSubjectRequest.update({
       where: { id: requestId },
@@ -158,12 +161,12 @@ export class PrivacyService {
    */
   private async assembleExport(subjectEmail: string) {
     const [user, guests, ticketOrders, messages, suppressions] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { email: subjectEmail },
+      this.prisma.user.findFirst({
+        where: { email: sameAddress(subjectEmail) },
         select: { email: true, name: true, createdAt: true, lastLoginAt: true },
       }),
       this.prisma.guest.findMany({
-        where: { email: subjectEmail },
+        where: { email: sameAddress(subjectEmail) },
         select: {
           firstName: true,
           lastName: true,
@@ -175,12 +178,13 @@ export class PrivacyService {
           consentSource: true,
           event: { select: { title: true, startsAt: true } },
           household: { select: { name: true } },
-          rsvp: true,
+          rsvp: { include: { answers: { select: { value: true, question: { select: { prompt: true } } } } } },
+          channels: { select: { channel: true, address: true, optedInAt: true } },
           checkIn: { select: { arrivedAt: true } },
         },
       }),
       this.prisma.ticketOrder.findMany({
-        where: { buyerEmail: subjectEmail },
+        where: { buyerEmail: sameAddress(subjectEmail) },
         select: {
           buyerName: true,
           buyerEmail: true,
@@ -193,12 +197,12 @@ export class PrivacyService {
         },
       }),
       this.prisma.message.findMany({
-        where: { toAddress: subjectEmail },
+        where: { toAddress: sameAddress(subjectEmail) },
         select: { channel: true, templateKey: true, status: true, sentAt: true, subject: true },
         take: 500,
       }),
       this.prisma.suppression.findMany({
-        where: { address: subjectEmail },
+        where: { address: sameAddress(subjectEmail) },
         select: { channel: true, reason: true, createdAt: true },
       }),
     ]);
@@ -217,61 +221,9 @@ export class PrivacyService {
     };
   }
 
-  /**
-   * Erases the personal data held against an address.
-   *
-   * What survives is deliberate: the household, the seat and the response
-   * status stay, so a headcount the caterer was already paid for does not
-   * change. A paid ticket order keeps its amount — a financial record has its
-   * own retention obligation that Article 17 does not override — but loses the
-   * buyer's name and contact details.
-   */
-  private async erase(subjectEmail: string) {
-    const now = new Date();
-
-    return this.prisma.$transaction(async (tx) => {
-      const guests = await tx.guest.findMany({
-        where: { email: subjectEmail, anonymizedAt: null },
-        select: { id: true },
-      });
-
-      for (const guest of guests) {
-        await tx.guest.update({
-          where: { id: guest.id },
-          data: anonymisedGuestFields(randomBytes(16).toString('hex'), now),
-        });
-        await tx.rsvp.updateMany({ where: { guestId: guest.id }, data: ERASED_RSVP_FIELDS });
-      }
-
-      const orders = await tx.ticketOrder.updateMany({
-        where: { buyerEmail: subjectEmail },
-        data: {
-          buyerName: 'Removed',
-          buyerEmail: `erased-${randomBytes(8).toString('hex')}@erased.invalid`,
-          buyerPhone: null,
-        },
-      });
-
-      // The content of past messages is personal data; that one was sent is a
-      // record of processing we are obliged to be able to show.
-      const messages = await tx.message.updateMany({
-        where: { toAddress: subjectEmail },
-        data: { subject: null, body: '[erased]' },
-      });
-
-      // Suppression rows hold the address itself, so they go too. The address
-      // is no longer ours to keep, not even to remember not to write to it.
-      const removedSuppressions = await tx.suppression.deleteMany({
-        where: { address: subjectEmail, channel: MessageChannel.EMAIL },
-      });
-
-      return {
-        guestsAnonymised: guests.length,
-        ticketOrdersAnonymised: orders.count,
-        messagesRedacted: messages.count,
-        suppressionsRemoved: removedSuppressions.count,
-      };
-    });
+  /** Erases the personal data held against an address — see `erasure.ts` for what goes and what stays. */
+  private erase(subjectEmail: string) {
+    return this.prisma.$transaction((tx) => eraseSubject(tx, subjectEmail, new Date()));
   }
 
   /**

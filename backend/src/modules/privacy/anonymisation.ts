@@ -43,7 +43,8 @@ export function anonymisedGuestFields(newToken: string, now: Date): AnonymisedGu
  *
  * A guest-book message signed with a name, a dietary note naming a medical
  * condition and a song dedication are all personal data the guest supplied,
- * so erasure clears them. The RSVP's status and dietary tags stay: a tag like
+ * so erasure clears them, as does the drink preference, which is free text.
+ * The RSVP's status and dietary tags stay: a tag like
  * "vegan" against an anonymous row feeds the catering sheet and identifies
  * nobody.
  */
@@ -51,4 +52,6 @@ export const ERASED_RSVP_FIELDS = {
   message: null,
   dietaryNotes: null,
   songRequest: null,
+  // Free text, so it can say anything: "the Areni my uncle makes".
+  drinkPreference: null,
 } as const;

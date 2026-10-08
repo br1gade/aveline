@@ -4,7 +4,6 @@ import { DataSubjectRequestStatus } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
 import {
   CurrentActor,
-  OrganizationScope,
   Public,
   RequestActor,
   RequirePermission,
@@ -41,7 +40,6 @@ export class PrivacyController {
   }
 
   @RequirePermission('privacy:manage')
-  @OrganizationScope()
   @Get()
   @ApiOperation({ summary: 'Open requests, soonest due first' })
   list(@Query() query: ListRequestsQuery) {
@@ -49,7 +47,6 @@ export class PrivacyController {
   }
 
   @RequirePermission('privacy:manage')
-  @OrganizationScope()
   @Patch(':requestId')
   @ApiOperation({
     summary: 'Move a request through verification',
@@ -64,7 +61,6 @@ export class PrivacyController {
   }
 
   @RequirePermission('privacy:manage')
-  @OrganizationScope()
   @Post(':requestId/fulfil')
   @ApiOperation({
     summary: 'Carry out a verified request',

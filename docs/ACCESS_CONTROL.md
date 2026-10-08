@@ -124,8 +124,12 @@ Two permissions are split out from their obvious parents on purpose:
 with PII or commercial terms.
 
 `privacy:manage` carries the power to erase a person's data and to assemble a
-copy of it, so it is held by organization `OWNER` and platform `ADMIN` only and
-is deliberately absent from `RUN_EVENT` and from `SUPPORT`.
+copy of it, so it is held by **platform `ADMIN` only** — never by a customer,
+and not by `SUPPORT`. A request is matched by email across every customer's
+events, so whoever fulfils one reads or erases other tenants' data. An
+organization `OWNER` held it until 8 October 2026, which let any
+self-registered account export or erase a stranger's guest records
+platform-wide; it is now the one permission an owner does not have.
 
 `billing:read` and `billing:write` are granted by organization `OWNER` and
 platform `ADMIN` only — they are not part of `RUN_EVENT`. A planner running

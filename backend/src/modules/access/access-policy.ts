@@ -75,8 +75,21 @@ const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
   [PlatformRole.ADMIN]: [...ALL_PERMISSIONS],
 };
 
+/**
+ * Held by Aveline's own staff and never by a customer.
+ *
+ * A data-subject request is matched by email across every customer's events,
+ * so whoever fulfils one reads or erases data that belongs to other tenants.
+ * An organization owner held this once; any self-registered account could
+ * then export or erase a stranger's guest records platform-wide (decided
+ * 8 October 2026: Aveline staff only).
+ */
+const PLATFORM_ONLY: readonly Permission[] = ['privacy:manage'];
+
+const CUSTOMER_OWNED = ALL_PERMISSIONS.filter((permission) => !PLATFORM_ONLY.includes(permission));
+
 const ORGANIZATION_ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> = {
-  [OrganizationRole.OWNER]: [...ALL_PERMISSIONS],
+  [OrganizationRole.OWNER]: [...CUSTOMER_OWNED],
   [OrganizationRole.MANAGER]: [...RUN_EVENT],
   [OrganizationRole.MEMBER]: [...READ_ONLY],
   [OrganizationRole.VIEWER]: [...READ_ONLY],

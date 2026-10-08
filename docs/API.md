@@ -1204,9 +1204,16 @@ PATCH /api/v1/privacy/requests/:requestId   { "status": "IN_PROGRESS", "notes": 
 POST  /api/v1/privacy/requests/:requestId/fulfil
 ```
 
-Staff-facing, and they need `privacy:manage` — an organization `OWNER` or
-Aveline `ADMIN`, never a coordinator. The list is a deadline queue, soonest
-`dueAt` first.
+Aveline staff only: they need `privacy:manage`, which only a platform `ADMIN`
+holds. **No customer account can call these**, an organization owner included
+— a request is matched across every customer, so acting on one reaches other
+tenants' data. Do not build a host-facing screen for them. The list is a
+deadline queue, soonest `dueAt` first.
+
+Status moves forward only: `RECEIVED` → `VERIFYING` → `IN_PROGRESS` →
+`COMPLETED`, or `REJECTED` from any open state. An `EXPORT` or `ERASURE` is
+completed only by `fulfil`; `PATCH` to `COMPLETED` is refused for them, so an
+erasure cannot be reported that never happened.
 
 `fulfil` is refused with `400` unless the request is `IN_PROGRESS`, which a
 human sets after establishing who the requester is. **Acting on an unverified
@@ -1222,16 +1229,21 @@ An `ERASURE` anonymises in place and reports what it touched:
 
 ```json
 { "reference": "clz...", "kind": "ERASURE", "guestsAnonymised": 1,
-  "ticketOrdersAnonymised": 1, "messagesRedacted": 4, "suppressionsRemoved": 1 }
+  "ticketOrdersAnonymised": 1, "messagesRedacted": 4, "suppressionsRemoved": 1,
+  "accountsClosed": 1 }
 ```
 
-What goes: names, emails, phone numbers, the guest's own free text (their
-guest-book message, dietary note and song request), message bodies, and the
-invitation token — which is itself identifying and would otherwise still open
-their RSVP from a group chat.
+Addresses are matched regardless of capitals. What goes: names, emails, phone
+numbers, the guest's own free text (guest-book message, dietary note, song
+request, drink preference, and answers to free-text questions), their
+Telegram and push connections, every message sent to them on any channel —
+body and address — with anything still queued stopped, and the invitation
+token, which is itself identifying and would otherwise still open their RSVP
+from a group chat. An account with that address is closed: it can no longer
+sign in, its sessions are revoked, and its name and email are replaced.
 
-What stays, on purpose: the household, the seat, the RSVP status and dietary
-tags, and a paid order's amount. A wedding that had 96 covers still had 96
+What stays, on purpose: the household, the seat, the RSVP status, dietary
+tags, menu-style choice answers, and a paid order's amount. A wedding that had 96 covers still had 96
 covers, the caterer was already paid for them, and a financial record has its
 own retention obligation. So an erased guest appears in sheets as **`Removed`**
 with their structural data intact — expect that string in a guest list and do
