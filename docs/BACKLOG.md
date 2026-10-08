@@ -25,8 +25,8 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 25 open | 26 open, of which 8 money | — |
-| Features | 3 (F1–F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Bugfixes | 0 open | 23 open | 25 open, of which 8 money | — |
+| Features | 2 open (F1, F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026 — the data exposures, the RSVP
@@ -68,16 +68,14 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B19 | A database error after a successful send sends it again ✔ | The provider call and the "sent" update share one error path; a failed update is treated as temporary and the message goes out up to five times | `communications/communications.service.ts` | S |
 | B20 | Our own errors suppress a guest's address for good ✔ | WhatsApp template errors and every Telegram 400 (including "message too long") are treated as the recipient's hard bounce: a platform-wide suppression no host can lift | `channels/whatsapp.transport.ts`, `telegram.transport.ts` | S |
 | B21 | A guest who blocks and re-starts the Telegram bot stays unsubscribed ✔ | The suppression is never cleared, and reminders resolve to a suppressed Telegram with no email fallback | `communications/telegram-webhook.controller.ts` | S |
-| B22 | Reminders go to guests who never received the invitation ✔ | Failed, bounced, suppressed and still-queued invitations count as "invited". API.md says the opposite | `invitations/sending/reminder.service.ts` | S |
 
 **Guests, design and seating**
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B23 | Venue edits do not reach the cached invitation | A corrected address stays wrong on the generic link for up to five minutes | `design/venues.service.ts` | S |
 | B24 | Rearranging some blocks leaves the page order ambiguous | Blocks not sent keep their old positions, producing ties; the documented `[RSVP, HERO]` example does it | `invitations/arrangement.service.ts` | S |
-| B25 | Partial updates wipe what was omitted | PATCH on a venue or timeline entry uses the create DTO; PATCH on a question resets `required` to false when it is left out. The contract is "omitted means leave as is" | `design/` | S |
-| B26 | Bad input returns 500 instead of 400 ✔ | An unknown block type in the path; a venue `arriveAt` that is not a date; a venue role of `"constructor"` | `design/design.controller.ts`, `venues.service.ts` | S |
+| B25 | Partial updates wipe what was omitted | PATCH on a timeline entry uses the create DTO; PATCH on a question resets `required` to false when it is left out. The contract is "omitted means leave as is". (Venues fixed 8 October 2026.) | `design/` | S |
+| B26 | Bad input returns 500 instead of 400 ✔ | An unknown block type in the path; a venue role of `"constructor"`. (A venue `arriveAt` that is not a date is now a 400.) | `design/design.controller.ts`, `venues.service.ts` | S |
 | B27 | CSV import has no size limit ✔ | API.md says 2 MB; nothing enforces it, and the file is parsed synchronously before the row cap. Media upload has no limit either. A re-import without a side column resets sides the guests chose; household seats are not enforced on import | `guests/guests.controller.ts`, `guests/import/` | S |
 | B28 | Two planners seating at once can overfill a table ✔ | Six simultaneous assignments to a one-seat table seat six. Auto-seating plans outside a transaction too | `seating/seating.service.ts` | S |
 | B29 | A guest who declines keeps their seat | Their seat still counts against the table | `seating/seating.service.ts` | S |
@@ -120,7 +118,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B49 | A PRIVATE invitation is readable by anyone with its generic URL (§13.1 says capability link only) | `invitations/invitations.controller.ts` | S |
 | B50 | Platform staff lose their own memberships' permissions, and never see vendor fees | `infra/auth/auth.guard.ts`, `vendors/` | S |
 | B51 | Vendor fees are a decimal string, not integer minor units — breaking for the client to change | `vendors/` | S |
-| B52 | An event can be created whose default language is not one of its languages | `events/events.service.ts` | S |
 | B53 | Two refreshes with one token make two live sessions ✔ | `infra/auth/auth.service.ts` | S |
 | B54 | Login timing and registration reveal which emails have accounts ✔ | `infra/auth/auth.service.ts` | S |
 | B55 | Any user can revoke or take over another's push device token (nothing sends push yet) ✔ | `devices/devices.service.ts` | S |
@@ -140,7 +137,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | # | Feature | Why | Size |
 |---|---|---|---|
 | F1 | **The client** | `frontend/` is a scaffold. No host or guest can use anything until it exists. Built against [API.md](API.md) and `backend/openapi.json` | L |
-| F2 | **Edit an event after creating it** | Title, hosts, dates, timezone, languages and side labels are fixed at creation. A typo in the date is permanent, and a diaspora family cannot add Russian later. Needs cache invalidation and an answer to D3 | M |
 | F3 | **Read back the invitation being designed** · Client | The only reads of block content are the public pages, which 404 on a draft and return one language and enabled blocks only. An editor cannot load what the host wrote | S–M |
 
 ### P1
@@ -208,7 +204,7 @@ All four were decided on 8 October 2026.
 |---|---|---|---|
 | D1 | How does a household answer? | B7 (fixed) | **Per member, in one submission.** Whoever opens the link marks each named member of the household attending or not. Families split, and catering and seating count people |
 | D2 | Who carries out data-protection requests? | B1 (fixed) | **Aveline staff only.** A request matches an email across every customer, so hosts neither see the queue nor act on it |
-| D3 | When a host changes the date or venue after sending, are guests told? | F2 | **The host is offered it.** After the edit, they choose whether to send an "updated details" message to everyone already invited |
+| D3 | When a host changes the date or venue after sending, are guests told? | F2 (built) | **The host is offered it.** After the edit, they choose whether to send an "updated details" message to everyone already invited |
 | D4 | Is find-your-seat public? | B16 | **Only through a guest's own link, and only once the host publishes the seating** |
 
 ---

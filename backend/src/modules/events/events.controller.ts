@@ -3,6 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { UpdateEventSettingsDto } from './dto/event-settings.dto';
+import { UpdateEventDto } from './dto/update-event.dto';
 import { EventsService } from './events.service';
 import {
   CurrentActor,
@@ -57,6 +58,19 @@ export class EventsController {
   @ApiOperation({ summary: 'Event detail with venues and timeline' })
   findOne(@Param('id') id: string) {
     return this.events.findOne(id);
+  }
+
+  @RequirePermission('event:write')
+  @Patch(':id')
+  @ApiOperation({
+    summary: "Correct the event's details",
+    description:
+      'Title, hosts, type, dates, time zone, languages and side labels. Omitted fields are ' +
+      'unchanged. When the date or time moves and guests hold the invitation, `notice` says ' +
+      'so; telling them is a separate, deliberate call to /invitations/:slug/notify-changes.',
+  })
+  updateDetails(@Param('id') id: string, @Body() dto: UpdateEventDto) {
+    return this.events.updateDetails(id, dto);
   }
 
   @RequirePermission('member:manage')

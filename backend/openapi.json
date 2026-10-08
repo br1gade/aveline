@@ -452,6 +452,39 @@
         "tags": [
           "events"
         ]
+      },
+      "patch": {
+        "description": "Title, hosts, type, dates, time zone, languages and side labels. Omitted fields are unchanged. When the date or time moves and guests hold the invitation, `notice` says so; telling them is a separate, deliberate call to /invitations/:slug/notify-changes.",
+        "operationId": "EventsController_updateDetails",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Correct the event's details",
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/v1/events/{id}/audit-trail": {
@@ -1100,6 +1133,41 @@
           }
         },
         "summary": "Chase the households that have not answered",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/notify-changes": {
+      "post": {
+        "description": "Offered after the date, time or a venue changes; never sent automatically. Only households the invitation reached. Pressing twice in a minute sends once.",
+        "operationId": "InvitationLifecycleController_notifyChanges",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyChangesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Tell everyone who holds the invitation that its details changed",
         "tags": [
           "invitations"
         ]
@@ -3383,7 +3451,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateVenueDto"
+                "$ref": "#/components/schemas/UpdateVenueDto"
               }
             }
           }
@@ -3917,6 +3985,66 @@
           }
         }
       },
+      "UpdateEventDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "WEDDING",
+              "ENGAGEMENT",
+              "BAPTISM",
+              "BIRTHDAY",
+              "ANNIVERSARY",
+              "CORPORATE",
+              "OTHER"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "hostsLabel": {
+            "type": "string",
+            "description": "Shown on the invitation"
+          },
+          "startsAt": {
+            "type": "string",
+            "description": "ISO 8601"
+          },
+          "endsAt": {
+            "type": "object",
+            "description": "ISO 8601, or null to clear",
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone, e.g. Asia/Yerevan"
+          },
+          "locales": {
+            "example": [
+              "hy",
+              "ru",
+              "en"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultLocale": {
+            "type": "string",
+            "example": "hy"
+          },
+          "sideALabel": {
+            "type": "object",
+            "nullable": true
+          },
+          "sideBLabel": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
       "UpdateEventSettingsDto": {
         "type": "object",
         "properties": {
@@ -4085,6 +4213,15 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "NotifyChangesDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "A line from the host, added to the message, e.g. \"We have moved to the garden.\""
           }
         }
       },
@@ -4982,6 +5119,34 @@
           "name",
           "address"
         ]
+      },
+      "UpdateVenueDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "CEREMONY",
+              "RECEPTION",
+              "AFTER_PARTY",
+              "PREPARATION",
+              "OTHER"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "mapUrl": {
+            "type": "string"
+          },
+          "arriveAt": {
+            "type": "string",
+            "description": "When guests should arrive, ISO 8601"
+          }
+        }
       },
       "CreateExportDto": {
         "type": "object",

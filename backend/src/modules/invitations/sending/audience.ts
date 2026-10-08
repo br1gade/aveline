@@ -1,5 +1,6 @@
 import { MessageChannel, Prisma, PrismaClient } from '@prisma/client';
 import { GuestChannelsService } from '../../communications/guest-channels.service';
+import { REACHED_STATUSES } from './previous-attempts';
 import { SendableHousehold } from './send-plan';
 
 /**
@@ -87,4 +88,22 @@ export async function loadSendableHouseholds(
       addresses: guestChannels.addressesFor(guest),
     })),
   }));
+}
+
+/**
+ * "This guest was invited": an invitation reached them or is on its way.
+ *
+ * The same rule `hasReachedGuest` applies before resending. Reminders used to
+ * count any invitation message at all — failed, bounced, suppressed — so a
+ * guest whose invitation never arrived was chased about it.
+ */
+export const INVITATION_REACHED: Prisma.MessageListRelationFilter = {
+  some: { templateKey: 'invitation.send', status: { in: REACHED_STATUSES } },
+};
+
+/** How many households hold the invitation — the audience for a change notice. */
+export function countInvitedHouseholds(prisma: Reader, eventId: string): Promise<number> {
+  return prisma.household.count({
+    where: { eventId, guests: { some: { messages: INVITATION_REACHED } } },
+  });
 }

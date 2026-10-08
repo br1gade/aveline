@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EventScope, RequirePermission } from '../../infra/auth/actor';
+import { NotifyChangesDto } from './dto/notify-changes.dto';
 import { SendInvitationDto } from './dto/send-invitation.dto';
 import { PublishingService } from './publishing.service';
 import { InvitationSenderService } from './sending/invitation-sender.service';
@@ -80,6 +81,19 @@ export class InvitationLifecycleController {
   })
   remind(@Param('slug') slug: string) {
     return this.reminders.remindNow(slug);
+  }
+
+  @RequirePermission('invitation:publish')
+  @EventScope('invitationSlug')
+  @Post(':slug/notify-changes')
+  @ApiOperation({
+    summary: 'Tell everyone who holds the invitation that its details changed',
+    description:
+      'Offered after the date, time or a venue changes; never sent automatically. ' +
+      'Only households the invitation reached. Pressing twice in a minute sends once.',
+  })
+  notifyChanges(@Param('slug') slug: string, @Body() dto: NotifyChangesDto) {
+    return this.reminders.notifyDetailsChanged(slug, dto.note);
   }
 
   @RequirePermission('invitation:publish')

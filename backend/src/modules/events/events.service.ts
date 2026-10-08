@@ -8,9 +8,13 @@ import {
 import { EventRole, EventStatus, EventVisibility, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuditService } from '../../infra/audit/audit.service';
+import { CacheService } from '../../infra/cache/cache.service';
+import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { PrismaService } from '../../prisma/prisma.service';
 import { defaultBlocksFor } from './default-blocks';
 import { CreateEventDto } from './dto/create-event.dto';
+import { UpdateEventDto } from './dto/update-event.dto';
+import { EventDetails, NOTICE_WORTHY, changedFields, detailsProblem } from './event-details';
 import { invitationSlug } from './invitation-slug';
 
 @Injectable()
@@ -20,6 +24,7 @@ export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   /**
@@ -58,10 +63,12 @@ export class EventsService {
 
     const startsAt = new Date(dto.startsAt);
     const endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
+    const locales = dto.locales ?? ['hy'];
+    const timezone = dto.timezone ?? 'Asia/Yerevan';
+    const defaultLocale = dto.defaultLocale ?? locales[0];
 
-    if (endsAt && endsAt <= startsAt) {
-      throw new BadRequestException('endsAt must be after startsAt');
-    }
+    const problem = detailsProblem({ startsAt, endsAt, timezone, locales, defaultLocale });
+    if (problem) throw new BadRequestException(problem);
 
     const template = await this.pickTemplate(dto.templateKey);
     const hostsLabel = dto.hostsLabel ?? dto.title;
@@ -75,9 +82,9 @@ export class EventsService {
           hostsLabel,
           startsAt,
           endsAt,
-          timezone: dto.timezone ?? 'Asia/Yerevan',
-          locales: dto.locales ?? ['hy'],
-          defaultLocale: dto.defaultLocale ?? dto.locales?.[0] ?? 'hy',
+          timezone,
+          locales,
+          defaultLocale,
           sideALabel: dto.sideALabel ?? null,
           sideBLabel: dto.sideBLabel ?? null,
           visibility: dto.visibility ?? undefined,
@@ -192,12 +199,63 @@ export class EventsService {
     return event;
   }
   /**
+   * Corrects an event's core details after it was created.
+   *
+   * These were fixed at creation, so a typo in the date or the names was
+   * permanent and a diaspora family could not add Russian later. Validated as
+   * a whole before anything is written, and the cached invitation is dropped
+   * so guests see the change at once.
+   *
+   * Guests who already hold the invitation are not messaged from here. When
+   * the date or time moves and someone was invited, the response says so in
+   * `notice`, and the host chooses whether to tell them with
+   * `POST /invitations/:slug/notify-changes` (decided 8 October 2026).
+   */
+  async updateDetails(eventId: string, dto: UpdateEventDto) {
+    const current = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        startsAt: true,
+        endsAt: true,
+        timezone: true,
+        locales: true,
+        defaultLocale: true,
+        invitation: { select: { slug: true } },
+      },
+    });
+    if (!current) throw new NotFoundException(`No event ${eventId}`);
+
+    assertRequiredNotCleared(dto);
+    const next = nextDetails(current, dto);
+    const problem = detailsProblem(next);
+    if (problem) throw new BadRequestException(problem);
+
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        ...next,
+        type: dto.type,
+        title: dto.title,
+        hostsLabel: dto.hostsLabel,
+        sideALabel: dto.sideALabel,
+        sideBLabel: dto.sideBLabel,
+      },
+    });
+    if (current.invitation) await this.cache.invalidateInvitation(current.invitation.slug);
+
+    const changed = changedFields(current, next, NOTICE_WORTHY);
+    const householdsInvited = changed.length > 0 ? await countInvitedHouseholds(this.prisma, eventId) : 0;
+    return {
+      ...(await this.findOne(eventId)),
+      notice: { isSuggested: householdsInvited > 0, changed, householdsInvited },
+    };
+  }
+
+  /**
    * Changes the settings a host can reasonably flip themselves.
    *
-   * Deliberately narrow: this is not a general event PATCH. Title, date and
-   * venue changes affect an invitation people already hold, so they belong
-   * with the flows that know how to tell those guests — not in a settings
-   * toggle.
+   * Kept apart from the details: these change how Aveline behaves, not what
+   * the invitation says, so nobody needs telling.
    */
   async updateSettings(
     eventId: string,
@@ -229,4 +287,28 @@ export class EventsService {
     });
   }
 
+}
+
+/** The details after the edit: what was sent, else what was there. */
+function nextDetails(current: EventDetails, dto: UpdateEventDto): EventDetails {
+  return {
+    startsAt: dto.startsAt ? new Date(dto.startsAt) : current.startsAt,
+    endsAt: dto.endsAt === undefined ? current.endsAt : optionalDate(dto.endsAt),
+    timezone: dto.timezone ?? current.timezone,
+    locales: dto.locales ?? current.locales,
+    defaultLocale: dto.defaultLocale ?? current.defaultLocale,
+  };
+}
+
+/** Fields an event cannot be without. `null` on one is a mistake to name, not to ignore. */
+const REQUIRED_DETAILS = ['type', 'title', 'hostsLabel', 'startsAt', 'timezone', 'locales', 'defaultLocale'] as const;
+
+function assertRequiredNotCleared(dto: UpdateEventDto): void {
+  const cleared = REQUIRED_DETAILS.find((field) => dto[field] === null);
+  if (cleared) throw new BadRequestException(`${cleared}: cannot be cleared`);
+}
+
+/** A date sent as a string, or null when the field was cleared. */
+function optionalDate(value: string | null): Date | null {
+  return value === null ? null : new Date(value);
 }

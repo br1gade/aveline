@@ -9,6 +9,7 @@ import {
   CreateVenueDto,
   UpdateBlockDto,
   UpdateThemeDto,
+  UpdateVenueDto,
   UpsertQuestionDto,
   UpsertTimelineEntryDto,
 } from './dto/design.dto';
@@ -191,7 +192,7 @@ export class DesignController {
   updateVenue(
     @Param('eventId') eventId: string,
     @Param('venueId') venueId: string,
-    @Body() dto: CreateVenueDto,
+    @Body() dto: UpdateVenueDto,
   ) {
     return this.venues.update(eventId, venueId, dto);
   }

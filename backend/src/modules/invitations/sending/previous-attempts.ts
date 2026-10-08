@@ -27,6 +27,11 @@ const FAILED_STATUSES: ReadonlySet<MessageStatus> = new Set([
   MessageStatus.SUPPRESSED,
 ]);
 
+/** Statuses meaning the message reached them, or is on its way. */
+export const REACHED_STATUSES: MessageStatus[] = Object.values(MessageStatus).filter(
+  (status) => !FAILED_STATUSES.has(status),
+);
+
 export function hasReachedGuest(previous: PreviousAttempt[]): boolean {
   return previous.some((attempt) => !FAILED_STATUSES.has(attempt.status));
 }

@@ -29,6 +29,16 @@ export const MESSAGE_COPY = [
     },
   },
   {
+    // Sent only when the host chooses to, after moving the date or a venue.
+    key: 'event.details-changed',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Փոփոխություն՝ {{eventTitle}}', en: 'An update to {{eventTitle}}' },
+    body: {
+      hy: '{{guestName}}, {{hosts}}-ի միջոցառման մանրամասները փոխվել են։ {{note}}\n\nԹարմ տեղեկությունը՝ Ձեր հրավերում․\n{{link}}',
+      en: '{{guestName}}, the details of {{hosts}}’s event have changed. {{note}}\n\nThe latest is always on your invitation:\n{{link}}',
+    },
+  },
+  {
     key: 'thankyou.send',
     channel: MessageChannel.EMAIL,
     subject: { hy: 'Շնորհակալություն', en: 'Thank you' },

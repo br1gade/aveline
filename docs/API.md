@@ -1340,7 +1340,35 @@ events with the same hosts get different slugs. There is no endpoint to choose
 a custom slug yet.
 
 **`403` means the account has no organization.** Create one first; the message
-says so.
+says so. `defaultLocale` must be one of `locales` — a `400` naming it otherwise.
+
+### Correcting an event
+
+```http
+PATCH /api/v1/events/:id
+{ "startsAt": "2027-07-03T15:00:00.000Z", "locales": ["hy", "en", "ru"] }
+```
+
+Needs `event:write`. Takes `type`, `title`, `hostsLabel`, `startsAt`,
+`endsAt`, `timezone`, `locales`, `defaultLocale`, `sideALabel` and
+`sideBLabel`. **Omitted means unchanged**; `null` clears `endsAt` and the side
+labels, and is refused for the rest. The edit is validated as a whole before
+anything is written — the end after the start, a real IANA time zone, each
+language once, the default among them — and any problem is a `400` whose
+message starts with the field. Guests see the change at once.
+
+The response is the event, as from `GET /events/:id`, plus a `notice`:
+
+```json
+{ "notice": { "isSuggested": true, "changed": ["startsAt"], "householdsInvited": 128 } }
+```
+
+**Guests who already hold the invitation are not told automatically**
+(decided 8 October 2026). When `isSuggested` is true — the date, end or time
+zone changed, and the invitation reached someone — offer the host a "let your
+guests know" action, which calls `POST /invitations/:slug/notify-changes`.
+A change of wording alone never suggests it. Venue writes return the same
+`notice`, with `changed: ["venues"]`.
 
 If no design template existed when the event was created, `invitation` comes
 back `null` and `POST /events/:id/invitation` adds one later.
@@ -1616,6 +1644,27 @@ invitation.
 
 Requires `invitation:publish`, like sending.
 
+### Telling guests the details changed
+
+```http
+POST /api/v1/invitations/:slug/notify-changes   { "note": "We have moved to the garden." }
+```
+
+Needs `invitation:publish`. Sends an "updated details" message to every
+household the invitation **reached** — someone who never received it has
+nothing to update — on the channel each was invited on, carrying their own
+link, which always shows the current details. `note` is optional, up to 500
+characters, and is added to the message.
+
+```json
+{ "queued": 128, "alreadyNotified": 0, "recipients": [...], "unreachable": [...] }
+```
+
+Only ever sent when the host asks — offer it after an edit whose `notice`
+says `isSuggested`. Pressing it twice within a minute sends once
+(`alreadyNotified`); a later change can be announced again. Refused for a
+draft invitation.
+
 ### Thanking the guests afterwards
 
 ```http
@@ -1739,7 +1788,13 @@ venue block, the map block, the day-of timeline and the vendor brief — nothing
 re-enters it.
 
 `POST` takes `{ role, name, address, profileId?, mapUrl?, arriveAt? }` where
-`role` is `CEREMONY`, `RECEPTION`, `AFTER_PARTY`, `PREPARATION` or `OTHER`.
+`role` is `CEREMONY`, `RECEPTION`, `AFTER_PARTY`, `PREPARATION` or `OTHER`, and
+`arriveAt` is ISO 8601. `PATCH` takes any of the same fields except
+`profileId`; omitted ones are unchanged.
+
+`POST`, `PATCH` and `DELETE` return a `notice` — see "Correcting an event" —
+so the client can offer to tell guests who already hold the invitation. The
+guest page reflects the change immediately.
 
 Naming a `profileId` from the directory **copies** its coordinates and capacity
 rather than referencing them, so a hall that moves next year does not rewrite

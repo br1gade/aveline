@@ -206,6 +206,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:id/invitation` | Add an invitation to an event that has none |
 | `GET` | `/api/v1/events` | List events |
 | `GET` | `/api/v1/events/:id` | Detail with venues and timeline |
+| `PATCH` | `/api/v1/events/:id` | Correct title, dates, time zone, languages; says whether to tell guests |
 | `PATCH` | `/api/v1/events/:id/settings` | Flip automatic RSVP reminders on or off |
 | `GET` | `/api/v1/events/:id/audit-trail` | Who changed what on this event |
 | `GET` | `/api/v1/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
@@ -227,6 +228,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/invitations/:slug/reopen` | Accept responses again |
 | `POST` | `/api/v1/invitations/:slug/send` | **Send it** — one email per household, safe to press twice |
 | `POST` | `/api/v1/invitations/:slug/remind` | Chase the households that have not answered |
+| `POST` | `/api/v1/invitations/:slug/notify-changes` | Tell every invited household the details changed |
 | `POST` | `/api/v1/invitations/:slug/thank-you` | Thank the guests who actually came |
 | `GET` | `/api/v1/invitations/:slug/delivery` | Who has been invited and what happened to each email |
 | `PATCH` | `/api/v1/invitations/:slug/theme` | Fonts and colours, validated against the template |

@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { VenueRole } from '@prisma/client';
+import { CacheService } from '../../infra/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { CreateVenueDto } from './dto/design.dto';
 
 /**
@@ -14,7 +16,10 @@ import { CreateVenueDto } from './dto/design.dto';
  */
 @Injectable()
 export class VenuesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   /** The reusable directory, so a popular hall is typed once per platform. */
   listProfiles(city?: string) {
@@ -60,7 +65,7 @@ export class VenuesService {
       select: { sortOrder: true },
     });
 
-    return this.prisma.venue.create({
+    const venue = await this.prisma.venue.create({
       data: {
         eventId,
         role,
@@ -72,12 +77,13 @@ export class VenuesService {
         ...fromProfile(profile),
       },
     });
+    return { ...venue, notice: await this.afterChange(eventId) };
   }
 
   async update(eventId: string, venueId: string, dto: Partial<CreateVenueDto>) {
     await this.require(eventId, venueId);
 
-    return this.prisma.venue.update({
+    const venue = await this.prisma.venue.update({
       where: { id: venueId },
       data: {
         role: dto.role === undefined ? undefined : asVenueRole(dto.role),
@@ -87,6 +93,7 @@ export class VenuesService {
         arriveAt: dto.arriveAt === undefined ? undefined : new Date(dto.arriveAt),
       },
     });
+    return { ...venue, notice: await this.afterChange(eventId) };
   }
 
   /**
@@ -111,7 +118,23 @@ export class VenuesService {
     }
 
     await this.prisma.venue.delete({ where: { id: venueId } });
-    return { ok: true as const };
+    return { ok: true as const, notice: await this.afterChange(eventId) };
+  }
+
+  /**
+   * What every venue change owes the people holding the invitation.
+   *
+   * The cached page is dropped — it used not to be, so a corrected address
+   * stayed wrong for guests on the generic link for minutes. And when
+   * someone was invited, the host is offered to tell them (decided 8 October
+   * 2026); sending is their separate, deliberate call.
+   */
+  private async afterChange(eventId: string) {
+    const invitation = await this.prisma.invitation.findUnique({ where: { eventId }, select: { slug: true } });
+    if (invitation) await this.cache.invalidateInvitation(invitation.slug);
+
+    const householdsInvited = await countInvitedHouseholds(this.prisma, eventId);
+    return { isSuggested: householdsInvited > 0, changed: ['venues'], householdsInvited };
   }
 
   private async require(eventId: string, venueId: string) {

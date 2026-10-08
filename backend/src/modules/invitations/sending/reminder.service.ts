@@ -16,7 +16,7 @@ import {
   manualDedupeKey,
   milestoneDedupeKey,
 } from './reminder-schedule';
-import { channelsWithCopy, loadSendableHouseholds } from './audience';
+import { INVITATION_REACHED, channelsWithCopy, loadSendableHouseholds } from './audience';
 import { SendableHousehold, displayName, planInvitationSend } from './send-plan';
 
 /** Whether a thank-you went to guests who arrived or guests who accepted. */
@@ -49,6 +49,7 @@ interface Remindable {
 
 const TEMPLATE_KEY = 'rsvp.reminder';
 const THANK_YOU_TEMPLATE_KEY = 'thankyou.send';
+const DETAILS_CHANGED_TEMPLATE_KEY = 'event.details-changed';
 
 /** How far ahead the sweep looks. Beyond the widest milestone there is nothing
  *  to do, and scanning every future event every hour is wasted work. */
@@ -100,6 +101,53 @@ export class ReminderService {
       templateKey: TEMPLATE_KEY,
       dedupeKeyFor: (guestId) => manualDedupeKey(invitation.id, guestId, now),
     });
+  }
+
+  /**
+   * Tells every household holding the invitation that its details changed.
+   *
+   * Offered to the host after they move the date or a venue (decided 8
+   * October 2026), never sent on its own: a host fixing a typo in a venue's
+   * name should not message four hundred people. Only households the
+   * invitation reached — someone who never received it has nothing to update.
+   * The message carries their own link, which always shows the current
+   * details, and the host's note if they wrote one.
+   *
+   * Pressing it twice in one minute sends once; a later change can be
+   * announced again.
+   */
+  async notifyDetailsChanged(slug: string, note?: string) {
+    const invitation = await this.loadInvitation(slug);
+    if (invitation.status === InvitationStatus.DRAFT) {
+      throw new BadRequestException('This invitation has not been published, so nobody has it yet');
+    }
+
+    const households = await loadSendableHouseholds(this.prisma, this.guestChannels, {
+      eventId: invitation.eventId,
+      guests: { some: { messages: INVITATION_REACHED } },
+    });
+    const available = await channelsWithCopy(
+      this.prisma,
+      invitation.organizationId,
+      DETAILS_CHANGED_TEMPLATE_KEY,
+      this.configuredChannels,
+    );
+    const minute = new Date().toISOString().slice(0, 16);
+
+    const result = await this.remind({
+      invitation,
+      households,
+      available,
+      templateKey: DETAILS_CHANGED_TEMPLATE_KEY,
+      dedupeKeyFor: (guestId) => `details-changed:${invitation.id}:${guestId}:${minute}`,
+      variables: { note: note?.trim() ?? '' },
+    });
+    return {
+      queued: result.queued,
+      alreadyNotified: result.alreadyRemindedToday,
+      recipients: result.recipients,
+      unreachable: result.notInvited,
+    };
   }
 
   /**
@@ -191,6 +239,8 @@ export class ReminderService {
       available: MessageChannel[];
       templateKey: string;
       dedupeKeyFor: (guestId: string) => string;
+      /** Extra copy variables, beyond the ones every household message has. */
+      variables?: Record<string, string>;
     },
   ) {
     const { invitation, households, available, templateKey, dedupeKeyFor } = send;
@@ -220,6 +270,7 @@ export class ReminderService {
           hosts: invitation.hosts,
           eventTitle: invitation.title,
           link: `${this.appUrl}/invitations/${invitation.slug}/g/${recipient.guest.token}`,
+          ...send.variables,
         },
         dedupeKey,
       });
@@ -341,8 +392,8 @@ export class ReminderService {
           // anyone created by a path that has not written one yet, and never
           // chasing someone is a failure nobody notices.
           OR: [{ rsvp: null }, { rsvp: { status: RsvpStatus.PENDING } }],
-          // Invited means an invitation message exists for them.
-          messages: { some: { templateKey: 'invitation.send' } },
+          // Invited means the invitation reached them, not that one was tried.
+          messages: INVITATION_REACHED,
         },
       },
     });

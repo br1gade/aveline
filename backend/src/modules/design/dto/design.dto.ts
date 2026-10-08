@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { BlockType, QuestionType } from '@prisma/client';
 import {
   ArrayMaxSize,
@@ -130,9 +130,15 @@ export class CreateVenueDto {
 
   @ApiPropertyOptional({ description: 'When guests should arrive, ISO 8601' })
   @IsOptional()
-  @IsString()
+  @IsISO8601()
   arriveAt?: string;
 }
+
+/**
+ * Editing a venue: any of its fields, the rest unchanged. It used to take the
+ * create shape, so correcting an address meant resending the name and role.
+ */
+export class UpdateVenueDto extends PartialType(OmitType(CreateVenueDto, ['profileId'] as const)) {}
 
 
 export class UpsertTimelineEntryDto {
