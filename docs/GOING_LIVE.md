@@ -12,6 +12,16 @@ customer's trust.
 
 ## 1. Blocking — cannot go live without these
 
+### Code
+
+The ten **P0 bugfixes** and three **P0 features** in [BACKLOG.md](BACKLOG.md).
+Four of the bugs expose people's data — any host can export or erase any
+guest's data across customers, erasure leaves data behind, capability links are
+logged, and registering someone's email first steals their team invitation —
+and one, a development shortcut that fails open when `NODE_ENV` is not exactly
+`production`, turns a missing server variable into account takeover.
+
+
 ### Money
 
 | # | Blocker | Why |
@@ -86,7 +96,7 @@ Worth stating, so the list above is read as scope rather than alarm.
 - Ticket inventory that cannot oversell, verified with concurrent buyers
 - Graceful degradation: Redis and MongoDB can both be down and the API still
   serves correct content
-- 900+ tests across unit, integration and end-to-end
+- 1,170+ tests across unit, integration and end-to-end
 - Documentation that fails the build when it contradicts the code
 - The core loop, end to end: create an event, design and publish the
   invitation, import a guest list, send it, collect RSVPs, seat the room,
@@ -102,6 +112,7 @@ Worth stating, so the list above is read as scope rather than alarm.
    Without it the product cannot do its main job.
 3. **Deploy somewhere**, with TLS, secrets and backups. Until this exists,
    nothing else can be verified under real conditions.
-4. **GDPR endpoints**, before the first EU guest's data is held in production
-   rather than after.
+4. **The P0 items in [BACKLOG.md](BACKLOG.md)**, before the first real
+   guest's data is held. The data-protection endpoints are built; two of the
+   P0 bugs are in them (B1, B2).
 5. Everything in §2, as usage reveals which matters.

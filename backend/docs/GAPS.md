@@ -3,6 +3,9 @@
 What the backend must still do to deliver [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md),
 and which manual, paper-based or chat-based process each piece replaces.
 
+This is the long-range view. The verified, prioritised list of what to fix
+and build next — bugs included — is [BACKLOG.md](../../docs/BACKLOG.md).
+
 The category we are entering runs on messaging apps, spreadsheets and phone
 calls. Every gap below is a process that exists today and is performed by a
 human retyping something another human already typed.
