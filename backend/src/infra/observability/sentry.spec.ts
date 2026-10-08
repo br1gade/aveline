@@ -38,10 +38,17 @@ describe('Sentry', () => {
         leaked: '2e022606ee7226ee',
       },
       { url: 'https://api.test/api/v1/devices/fcm-token-abc123', leaked: 'fcm-token-abc123' },
+      { url: 'https://api.test/api/v1/briefs/brief-token-xyz', leaked: 'brief-token-xyz' },
+      { url: 'https://api.test/api/v1/tickets/DOORCODE123/admit', leaked: 'DOORCODE123' },
     ])('redacts the capability token in $url', ({ url, leaked }) => {
       const scrubbed = eventWith({ url });
       expect(scrubbed?.request?.url).not.toContain(leaked);
       expect(scrubbed?.request?.url).toContain('[token]');
+    });
+
+    it('drops the query string, which can carry a searched name', () => {
+      const event = { request: { url: 'https://api.test/x', query_string: 'q=Armen' } } as ErrorEvent;
+      expect(scrubEvent(event)?.request?.query_string).toBeUndefined();
     });
 
     it('leaves a URL with no token alone', () => {

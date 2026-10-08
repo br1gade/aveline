@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { Sentry } from '../../infra/observability/sentry';
 import type { Request, Response } from 'express';
+import { redactUrl } from '../redact-url';
 
 /**
  * One error shape for every failure, and one place that decides what a client
@@ -32,7 +33,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (status >= 500) {
       this.logger.error(
-        `${request.method} ${request.url} → ${status} [${request.requestId ?? '-'}]`,
+        `${request.method} ${redactUrl(request.url)} → ${status} [${request.requestId ?? '-'}]`,
         exception instanceof Error ? exception.stack : String(exception),
       );
 

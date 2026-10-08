@@ -16,6 +16,7 @@ describe('loggingConfig', () => {
     customLogLevel: (req: IncomingMessage, res: ServerResponse, error?: Error) => string;
     genReqId: (req: IncomingMessage) => string;
     autoLogging: { ignore: (req: IncomingMessage) => boolean };
+    serializers: { req: (req: Record<string, unknown>) => Record<string, unknown> };
   }
 
   const config = (env: Record<string, string> = {}) =>
@@ -48,8 +49,31 @@ describe('loggingConfig', () => {
       'req.body.password',
       'req.body.refreshToken',
       'req.body.email',
+      'req.headers["x-telegram-bot-api-secret-token"]',
     ])('never logs %s', (path) => {
       expect(config().redact.paths).toContain(path);
+    });
+
+    /**
+     * Every request line used to carry the full URL and its path parameters,
+     * so the logs were a list of working guest, ticket and brief links.
+     */
+    it('never writes a capability link or a searched name into a request line', () => {
+      const serialize = config().serializers.req;
+      const line = serialize({
+        method: 'POST',
+        url: '/api/v1/invitations/anna-davit/g/k7m2abcd9xyz/rsvp?q=Armen',
+        params: { splat: ['invitations', 'anna-davit', 'g', 'k7m2abcd9xyz', 'rsvp'] },
+        query: { q: 'Armen', locale: 'hy' },
+      });
+
+      expect(JSON.stringify(line)).not.toContain('k7m2abcd9xyz');
+      expect(JSON.stringify(line)).not.toContain('Armen');
+      expect(line).toMatchObject({
+        method: 'POST',
+        url: '/api/v1/invitations/anna-davit/g/[token]/rsvp?q=[redacted]',
+        query: { q: '[redacted]', locale: 'hy' },
+      });
     });
   });
 

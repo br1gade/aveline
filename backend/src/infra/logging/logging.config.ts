@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Params } from 'nestjs-pino';
+import { redactQueryObject, redactUrl } from '../../common/redact-url';
 
 /**
  * Paths whose values never reach a log line.
@@ -13,6 +14,7 @@ import type { Params } from 'nestjs-pino';
 const REDACTED = [
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.headers["x-telegram-bot-api-secret-token"]',
   'req.body.password',
   'req.body.refreshToken',
   'req.body.token',
@@ -53,6 +55,11 @@ export function loggingConfig(env: NodeJS.ProcessEnv): Params {
 
       redact: { paths: REDACTED, censor: '[redacted]' },
 
+      // Capability links carry their credential in the path, so the URL is
+      // rewritten rather than redacted as a field, and the route parameters —
+      // the same segments again — are not logged at all.
+      serializers: { req: serializeRequest },
+
       customProps: (req: IncomingMessage & { actor?: { userId: string } }) =>
         req.actor ? { userId: req.actor.userId } : {},
 
@@ -86,4 +93,14 @@ function isPrettyPrintAvailable(isProduction: boolean): boolean {
   } catch {
     return false;
   }
+}
+
+/** pino-http's request summary, without the credentials in its URL. */
+function serializeRequest(req: Record<string, unknown>): Record<string, unknown> {
+  const { params: _params, url, query, ...rest } = req;
+  return {
+    ...rest,
+    url: typeof url === 'string' ? redactUrl(url) : url,
+    query: query && typeof query === 'object' ? redactQueryObject(query as Record<string, unknown>) : query,
+  };
 }

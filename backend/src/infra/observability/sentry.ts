@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nestjs';
+import { redactUrl } from '../../common/redact-url';
 
 /**
  * Error reporting. Deliberately not profiling, metrics or tracing — those are
@@ -44,15 +45,18 @@ export function initialiseSentry(env: NodeJS.ProcessEnv): boolean {
  */
 export function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
   if (event.request?.headers) {
-    for (const header of ['authorization', 'cookie', 'x-api-key']) {
+    for (const header of ['authorization', 'cookie', 'x-api-key', 'x-telegram-bot-api-secret-token']) {
       delete event.request.headers[header];
     }
   }
 
   // A capability token in a URL would hand over a guest's invitation.
   if (event.request?.url) {
-    event.request.url = redactTokens(event.request.url);
+    event.request.url = redactUrl(event.request.url);
   }
+  // Carried separately from the URL: a searched guest name, a bank's callback
+  // parameters. Nothing in it explains a stack trace.
+  delete event.request?.query_string;
 
   // Bodies on this API carry guest names, emails, dietary notes and
   // passwords. None of it helps diagnose a stack trace.
@@ -61,10 +65,5 @@ export function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
   return event;
 }
 
-const TOKEN_PATH = /\/(g|ticket-orders|devices)\/[^/?]+/g;
-
-function redactTokens(url: string): string {
-  return url.replace(TOKEN_PATH, (match) => `${match.split('/').slice(0, 2).join('/')}/[token]`);
-}
 
 export { Sentry };

@@ -78,7 +78,7 @@ them changing.
 | **Level** | `LOG_LEVEL`, defaulting to `info` in production and `debug` elsewhere |
 | **Correlation** | Every line carries the same `x-request-id` the response does, so a user's screenshot maps to the exact request |
 | **Severity** | 4xx is `warn`, 5xx is `error`. A 404 is the caller's mistake; logging it as an error buries real incidents |
-| **Redaction** | Authorization and cookie headers, passwords, refresh tokens and email addresses never reach a line |
+| **Redaction** | Authorization and cookie headers, the Telegram webhook secret, passwords, refresh tokens and email addresses never reach a line. Capability links in the URL path — guest, ticket order, ticket code, vendor brief, device — are rewritten to `[token]`, query values other than a short harmless list are dropped, and route parameters are not logged. One function, `common/redact-url.ts`, serves the logger, the exception filter and Sentry; a new capability route is added there in the same change |
 | **Noise** | Health checks are not logged. Every few seconds they would drown everything else |
 
 ### Error reporting
