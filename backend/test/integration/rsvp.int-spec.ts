@@ -1,5 +1,12 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { PrismaClient, RsvpStatus } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { MessageChannel, MessageStatus, PrismaClient, RsvpStatus } from '@prisma/client';
+import { ConsoleTransport } from '../../src/modules/communications/channels/console.transport';
+import { MessageTransport } from '../../src/modules/communications/channels/message-channel';
+import { CommunicationsService } from '../../src/modules/communications/communications.service';
+import { GuestChannelsService } from '../../src/modules/communications/guest-channels.service';
+import { SuppressionService } from '../../src/modules/communications/suppression.service';
+import { RsvpConfirmerService } from '../../src/modules/invitations/sending/rsvp-confirmer.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { RsvpService } from '../../src/modules/rsvp/rsvp.service';
 import { seedEvent } from '../fixtures/event.fixture';
@@ -20,7 +27,22 @@ describe('RsvpService (integration)', () => {
 
   beforeAll(() => {
     prisma = testPrisma();
-    service = new RsvpService(prisma as unknown as PrismaService);
+    const prismaService = prisma as unknown as PrismaService;
+    const transports = new Map<MessageChannel, MessageTransport>(
+      Object.values(MessageChannel).map((channel) => [channel, new ConsoleTransport(channel)]),
+    );
+    const communications = new CommunicationsService(
+      prismaService,
+      transports,
+      new SuppressionService(prismaService),
+    );
+    const confirmer = new RsvpConfirmerService(
+      prismaService,
+      communications,
+      new GuestChannelsService(prismaService),
+      ({ get: (key: string) => ({ PUBLIC_APP_URL: 'https://aveline.test' })[key] }) as unknown as ConfigService,
+    );
+    service = new RsvpService(prismaService, confirmer);
   });
 
   beforeEach(() => resetTestDatabase());
@@ -129,4 +151,119 @@ describe('RsvpService (integration)', () => {
       service.submit(slug, 'not-a-real-token', { status: RsvpStatus.ATTENDING }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe('confirming the answer to the guest', () => {
+    /** The fixture guest, given an address and Aveline's confirmation copy. */
+    const withCopy = async () => {
+      const seeded = await seedEvent(prisma);
+      await prisma.guest.updateMany({
+        where: { eventId: seeded.eventId },
+        data: { email: 'guest@test.local' },
+      });
+      for (const key of [
+        'rsvp.confirmation.attending',
+        'rsvp.confirmation.declined',
+        'rsvp.confirmation.undecided',
+      ]) {
+        await prisma.messageTemplate.create({
+          data: {
+            organizationId: null,
+            key,
+            channel: MessageChannel.EMAIL,
+            subject: { hy: '{{eventTitle}}' },
+            body: { hy: '{{guestName}} — {{link}}' },
+          },
+        });
+      }
+      return seeded;
+    };
+
+    const confirmations = () =>
+      prisma.message.findMany({
+        where: { templateKey: { startsWith: 'rsvp.confirmation' } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+    it('confirms an answer to the guest who gave it', async () => {
+      const { slug, primaryGuestToken } = await withCopy();
+
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING });
+
+      const sent = await confirmations();
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toMatchObject({
+        templateKey: 'rsvp.confirmation.attending',
+        toAddress: 'guest@test.local',
+        status: MessageStatus.QUEUED,
+      });
+      // The link lets them change their answer.
+      expect(sent[0].body).toContain(`/invitations/${slug}/g/${primaryGuestToken}`);
+    });
+
+    it.each([
+      { status: RsvpStatus.DECLINED, key: 'rsvp.confirmation.declined' },
+      { status: RsvpStatus.UNDECIDED, key: 'rsvp.confirmation.undecided' },
+    ])('uses the $status copy for that answer', async ({ status, key }) => {
+      const { slug, primaryGuestToken } = await withCopy();
+
+      await service.submit(slug, primaryGuestToken, { status });
+
+      expect((await confirmations())[0].templateKey).toBe(key);
+    });
+
+    /**
+     * Every response, as decided — and a guest who switches from attending to
+     * declined is exactly the one who most needs to know the host saw it.
+     */
+    it('confirms a changed answer again', async () => {
+      const { slug, primaryGuestToken } = await withCopy();
+
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING });
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.DECLINED });
+
+      expect((await confirmations()).map((message) => message.templateKey)).toEqual([
+        'rsvp.confirmation.attending',
+        'rsvp.confirmation.declined',
+      ]);
+    });
+
+    // A double-submitted form is one answer.
+    it('sends one confirmation for the same answer submitted twice at once', async () => {
+      const { slug, primaryGuestToken } = await withCopy();
+
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING });
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING });
+
+      expect(await confirmations()).toHaveLength(1);
+    });
+
+    /**
+     * The answer is saved before the confirmation is queued, and a failure to
+     * queue must not tell the guest their reply was lost.
+     */
+    it('still saves the answer when there is no copy to confirm with', async () => {
+      const { slug, primaryGuestToken } = await withCopy();
+      await prisma.messageTemplate.deleteMany();
+
+      const result = await service.submit(slug, primaryGuestToken, {
+        status: RsvpStatus.ATTENDING,
+      });
+
+      expect(result.status).toBe(RsvpStatus.ATTENDING);
+      expect(await confirmations()).toHaveLength(0);
+    });
+
+    // Answered from a forwarded link with no address anywhere in the
+    // household: there is nobody to write to, and that is not an error.
+    it('sends nothing, quietly, when nobody in the household can be reached', async () => {
+      const { slug, primaryGuestToken, eventId } = await withCopy();
+      await prisma.guest.updateMany({ where: { eventId }, data: { email: null } });
+
+      await expect(
+        service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING }),
+      ).resolves.toMatchObject({ status: RsvpStatus.ATTENDING });
+      expect(await confirmations()).toHaveLength(0);
+    });
+  });
+
 });

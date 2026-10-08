@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma, RsvpStatus } from '@prisma/client';
 import { customAlphabet } from 'nanoid';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
 import { PartyMemberDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
 
 const newGuestToken = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 12);
@@ -12,7 +13,10 @@ type RespondingGuest = Prisma.GuestGetPayload<{
 
 @Injectable()
 export class RsvpService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly confirmer: RsvpConfirmerService,
+  ) {}
 
   /**
    * A guest responds. Every field here has a declared downstream consumer
@@ -26,7 +30,7 @@ export class RsvpService {
     const newMembers = dto.party ?? [];
     this.assertHouseholdCapacity(guest, newMembers.length);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await this.applyGuestChanges(tx, guest, dto);
       await this.addPartyMembers(tx, guest, dto, newMembers);
       const rsvp = await this.upsertRsvp(tx, guest.id, dto);
@@ -40,6 +44,11 @@ export class RsvpService {
         seatsRemaining: guest.household.seatsAllotted - namedTotal,
       };
     });
+
+    // After the commit, never inside it: a confirmation for an answer that
+    // then rolled back would tell the guest something untrue.
+    await this.confirmer.confirm(guest.id, result.status);
+    return result;
   }
 
   async getForGuest(slug: string, token: string) {

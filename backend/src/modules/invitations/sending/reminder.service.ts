@@ -4,7 +4,6 @@ import {
   InvitationStatus,
   MessageChannel,
   MessageStatus,
-  Prisma,
   RsvpStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -17,7 +16,11 @@ import {
   manualDedupeKey,
   milestoneDedupeKey,
 } from './reminder-schedule';
+import { channelsWithCopy, loadSendableHouseholds } from './audience';
 import { SendableHousehold, displayName, planInvitationSend } from './send-plan';
+
+/** Whether a thank-you went to guests who arrived or guests who accepted. */
+type ThankYouBasis = 'ARRIVED' | 'ACCEPTED';
 
 /** One row from the sweep's own query. */
 interface DueInvitation {
@@ -69,30 +72,6 @@ export class ReminderService {
   }
 
   /**
-   * Channels we can send a reminder on and have copy for.
-   *
-   * A reminder is the message most likely to go over Telegram — the guest
-   * opted in after receiving the invitation by email, which is exactly the
-   * sequence the opt-in deep link creates.
-   */
-  private async usableChannels(
-    organizationId: string,
-    templateKey: string,
-  ): Promise<MessageChannel[]> {
-    const templates = await this.prisma.messageTemplate.findMany({
-      where: {
-        key: templateKey,
-        isActive: true,
-        OR: [{ organizationId }, { organizationId: null }],
-      },
-      select: { channel: true },
-    });
-
-    const withCopy = new Set(templates.map((template) => template.channel));
-    return this.configuredChannels.filter((channel) => withCopy.has(channel));
-  }
-
-  /**
    * Reminds the households that have not answered yet.
    *
    * Only the ones who were actually invited: reminding someone about an
@@ -112,7 +91,7 @@ export class ReminderService {
     }
 
     const now = new Date();
-    const available = await this.usableChannels(invitation.organizationId, TEMPLATE_KEY);
+    const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
 
     return this.remind({
       invitation,
@@ -180,10 +159,7 @@ export class ReminderService {
     const pending = await this.pendingHouseholds(invitation.eventId);
     if (pending.length === 0) return 0;
 
-      const available = await this.usableChannels(
-        invitation.event.organizationId,
-        TEMPLATE_KEY,
-      );
+      const available = await channelsWithCopy(this.prisma, invitation.event.organizationId, TEMPLATE_KEY, this.configuredChannels);
       const result = await this.remind({
         invitation: {
           id: invitation.id,
@@ -287,12 +263,12 @@ export class ReminderService {
       );
     }
 
-    const households = await this.attendedHouseholds(invitation.eventId);
+    const { households, basis } = await this.thankableHouseholds(invitation.eventId);
     if (households.length === 0) {
-      return { queued: 0, alreadyThanked: 0, recipients: [], notInvited: [] };
+      return { queued: 0, alreadyThanked: 0, basis, recipients: [], notInvited: [] };
     }
 
-    const available = await this.usableChannels(invitation.organizationId, THANK_YOU_TEMPLATE_KEY);
+    const available = await channelsWithCopy(this.prisma, invitation.organizationId, THANK_YOU_TEMPLATE_KEY, this.configuredChannels);
     const result = await this.remind({
       invitation,
       households,
@@ -305,19 +281,47 @@ export class ReminderService {
       queued: result.queued,
       // Once, ever — not once a day. A second thank-you is not a follow-up.
       alreadyThanked: result.alreadyRemindedToday,
+      // Said in the response so the host knows who was thanked and why: an
+      // event with check-ins thanks arrivals, one without thanks acceptances.
+      basis,
       recipients: result.recipients,
       notInvited: result.notInvited,
     };
   }
 
   /**
-   * Households where someone actually arrived.
+   * Who to thank: the people who arrived, or — when nobody ran the door — the
+   * people who said they would come.
    *
-   * Arrival, not an RSVP: a guest who accepted and did not come should not be
-   * thanked for coming.
+   * Arrival is preferred because it is true: a guest who accepted and did not
+   * come should not be thanked for coming. But many hosts never use check-in,
+   * and for them "arrivals only" meant the thank-you silently went to nobody.
+   * So the fallback applies only when the event has **no check-ins at all** —
+   * a door that recorded even one arrival is taken as a door that recorded
+   * them all, and a partial list is not padded out with acceptances.
    */
-  private async attendedHouseholds(eventId: string): Promise<SendableHousehold[]> {
-    return this.loadHouseholds({ eventId, guests: { some: { checkIn: { isNot: null } } } });
+  private async thankableHouseholds(
+    eventId: string,
+  ): Promise<{ households: SendableHousehold[]; basis: ThankYouBasis }> {
+    const checkIns = await this.prisma.checkIn.count({ where: { guest: { eventId } } });
+
+    if (checkIns > 0) {
+      return {
+        basis: 'ARRIVED',
+        households: await loadSendableHouseholds(this.prisma, this.guestChannels, {
+          eventId,
+          guests: { some: { checkIn: { isNot: null } } },
+        }),
+      };
+    }
+
+    return {
+      basis: 'ACCEPTED',
+      households: await loadSendableHouseholds(this.prisma, this.guestChannels, {
+        eventId,
+        guests: { some: { rsvp: { status: RsvpStatus.ATTENDING } } },
+      }),
+    };
   }
 
   /**
@@ -328,7 +332,7 @@ export class ReminderService {
    * both answered.
    */
   private async pendingHouseholds(eventId: string): Promise<SendableHousehold[]> {
-    return this.loadHouseholds({
+    return loadSendableHouseholds(this.prisma, this.guestChannels, {
       eventId,
       guests: {
         some: {
@@ -342,41 +346,6 @@ export class ReminderService {
         },
       },
     });
-  }
-
-  /** One shape of household query, so every sender reads the same fields. */
-  private async loadHouseholds(where: Prisma.HouseholdWhereInput): Promise<SendableHousehold[]> {
-    const households = await this.prisma.household.findMany({
-      where,
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        guests: {
-          orderBy: [{ isPrimary: 'desc' }, { firstName: 'asc' }],
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            isPrimary: true,
-            locale: true,
-            token: true,
-            anonymizedAt: true,
-            channels: { select: { channel: true, address: true, optedInAt: true } },
-          },
-        },
-      },
-    });
-
-    return households.map((household) => ({
-      ...household,
-      guests: household.guests.map((guest) => ({
-        ...guest,
-        addresses: this.guestChannels.addressesFor(guest),
-      })),
-    }));
   }
 
   private async loadRemindable(slug: string) {

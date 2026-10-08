@@ -356,20 +356,67 @@ describe('reminders (integration)', () => {
 
       const result = await reminders.thankAttendees(slug);
 
+      expect(result.basis).toBe('ARRIVED');
       expect(result.queued).toBe(1);
       expect(await thankYousFor(eventId)).toBe(1);
     });
 
     /**
-     * Arrival, not an RSVP. Thanking someone who said yes and then did not
-     * come is worse than saying nothing.
+     * Arrival, not an RSVP, whenever the door recorded anyone. A guest who
+     * accepted and did not come should not be thanked for coming — and a door
+     * that recorded one arrival is taken as a door that recorded them all.
      */
-    it('does not thank a guest who accepted but never arrived', async () => {
+    it('does not thank an accepted guest who did not arrive, when check-in was used', async () => {
+      const { slug, eventId } = await attendedEvent();
+      const household = await prisma.household.create({
+        data: { eventId, name: 'No Show', seatsAllotted: 1 },
+      });
+      await prisma.guest.create({
+        data: {
+          eventId,
+          householdId: household.id,
+          firstName: 'Tigran',
+          email: 'noshow@test.local',
+          isPrimary: true,
+          token: 'tok-noshow',
+          rsvp: { create: { status: RsvpStatus.ATTENDING } },
+        },
+      });
+
+      const result = await reminders.thankAttendees(slug);
+
+      expect(result.basis).toBe('ARRIVED');
+      expect(result.recipients.map((entry) => entry.toAddress)).not.toContain('noshow@test.local');
+    });
+
+    /**
+     * Many hosts never run the door. For them "arrivals only" meant the
+     * thank-you silently went to nobody, so with no check-ins at all the
+     * people who said they would come are thanked instead.
+     */
+    it('thanks accepted guests when nobody was checked in', async () => {
       const seeded = await invitedEvent(10);
       await sender.send(seeded.slug);
       await prisma.rsvp.updateMany({
         where: { guest: { eventId: seeded.eventId } },
         data: { status: RsvpStatus.ATTENDING },
+      });
+      await prisma.event.update({
+        where: { id: seeded.eventId },
+        data: { startsAt: new Date(Date.now() - DAY_MS) },
+      });
+
+      const result = await reminders.thankAttendees(seeded.slug);
+
+      expect(result).toMatchObject({ basis: 'ACCEPTED', queued: 1 });
+    });
+
+    it('does not thank a guest who declined, even with no check-ins', async () => {
+      const seeded = await invitedEvent(10);
+      await sender.send(seeded.slug);
+      await prisma.rsvp.updateMany({
+        where: { guest: { eventId: seeded.eventId } },
+        data: { status: RsvpStatus.DECLINED },
       });
       await prisma.event.update({
         where: { id: seeded.eventId },

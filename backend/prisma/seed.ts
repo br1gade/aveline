@@ -356,6 +356,33 @@ const MESSAGE_COPY = [
     },
   },
   {
+    key: 'rsvp.confirmation.attending',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Սպասում ենք Ձեզ', en: 'We look forward to seeing you' },
+    body: {
+      hy: '{{guestName}}, շնորհակալություն պատասխանի համար։ Սպասում ենք Ձեզ {{eventTitle}}-ին։\n\nՊատասխանը փոխելու համար՝ {{link}}',
+      en: '{{guestName}}, thank you for your reply. We look forward to seeing you at {{eventTitle}}.\n\nTo change your answer: {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.declined',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Ստացանք Ձեր պատասխանը', en: 'We received your reply' },
+    body: {
+      hy: '{{guestName}}, շնորհակալություն տեղեկացնելու համար։ Կկարոտենք Ձեզ։\n\nԵթե պլանները փոխվեն՝ {{link}}',
+      en: '{{guestName}}, thank you for letting us know. You will be missed.\n\nIf your plans change: {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.undecided',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Ստացանք Ձեր պատասխանը', en: 'We received your reply' },
+    body: {
+      hy: '{{guestName}}, շնորհակալություն։ Երբ որոշեք, խնդրում ենք թարմացնել պատասխանը՝\n\n{{link}}',
+      en: '{{guestName}}, thank you. When you know, please update your answer:\n\n{{link}}',
+    },
+  },
+  {
     key: 'ticket.issued',
     channel: 'EMAIL' as const,
     subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },

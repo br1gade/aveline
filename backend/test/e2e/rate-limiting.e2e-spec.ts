@@ -51,7 +51,12 @@ describe('Rate limiting behind a proxy (e2e)', () => {
     );
     // Exactly what docker-compose.prod.yml sets: one proxy, Caddy.
     app.set('trust proxy', 1);
-    await app.init();
+    // Listening on an ephemeral port rather than only initialising. Given an
+    // unlistened server, supertest opens a listener per request — and this
+    // suite fires a dozen at once, which is how it raised Node's
+    // MaxListenersExceeded warning on every run. A warning that is always
+    // there is a warning nobody reads, so it is fixed at the source.
+    await app.listen(0);
     await resetTestDatabase();
   });
 

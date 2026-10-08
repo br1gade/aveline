@@ -337,6 +337,23 @@ Household capacity is enforced: more names than `seatsAllotted` returns `400`
 with a message naming the numbers. Show `seatsRemaining` so the guest sees the
 limit before hitting it.
 
+### The guest is sent a confirmation
+
+Every RSVP submission queues a confirmation to the household — including a
+changed answer, so a guest who switches from attending to declined sees it
+acknowledged. There is different copy for each answer: attending, declined and
+undecided.
+
+It goes to the household's own recipient on the channel they were invited on,
+and carries their personal link so they can change their answer later. Two
+identical submissions within a minute produce one confirmation.
+
+Nothing changes in the response, and **a failure to send never fails the
+RSVP** — the answer is saved first. A household with no address on file, who
+answered from a forwarded link, simply receives nothing. So the on-screen
+success state is still the client's to show; the email is reassurance on top
+of it, not a replacement for it.
+
 ### Find your seat
 
 ```http
@@ -1303,11 +1320,19 @@ POST /api/v1/invitations/:slug/thank-you
 
 Goes to the households where **someone actually checked in** — arrival, not an
 RSVP, because thanking a guest who accepted and then did not come is worse
-than saying nothing. Refused with a `400` before the event has happened.
+than saying nothing. **If the event has no check-ins at all**, because nobody
+ran the door, it goes to everyone who said they would attend instead. A door
+that recorded even one arrival is taken as having recorded them all, so a
+partial check-in list is never padded out with acceptances. Refused with a
+`400` before the event has happened.
 
 ```json
-{ "queued": 88, "alreadyThanked": 0, "recipients": [...], "notInvited": [] }
+{ "queued": 88, "alreadyThanked": 0, "basis": "ARRIVED", "recipients": [...], "notInvited": [] }
 ```
+
+`basis` is `ARRIVED` or `ACCEPTED` and says which rule chose the recipients —
+show it, so a host who never ran check-in is not surprised to find that
+everyone who accepted was thanked.
 
 **Once ever, not once a day** — unlike `remind`. A second thank-you is not a
 follow-up, so `alreadyThanked` counts the households skipped. Requires
@@ -1588,8 +1613,6 @@ So you can plan around them rather than discover them:
 
 - **SMS is not delivered.** Email, Telegram and WhatsApp are. SMS still writes
   to the server log.
-- **No RSVP confirmation to the guest.** A guest submits a response and the
-  host sees it; the guest receives nothing back.
 - **No WhatsApp delivery receipts.** Meta reports delivery and read status by
   webhook; we do not consume it, so a WhatsApp message stays `SENT`. Email over SMTP is real, retries a temporary
   failure and suppresses an address that hard-bounces.

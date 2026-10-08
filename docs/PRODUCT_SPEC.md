@@ -277,7 +277,7 @@ Tiers gate **capability**, never artificial scarcity. Revisions, languages and s
 | Post-event gallery & thank-yous | — | ✓ | ✓ |
 | Invitation stays live | 3 months | indefinitely | indefinitely |
 
-Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12).
+Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and entitlements are published but not enforced until real events show what to charge and which limits matter.
 
 ---
 

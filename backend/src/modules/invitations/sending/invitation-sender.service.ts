@@ -5,6 +5,7 @@ import { deliverableChannels } from '../../communications/channels/transport-reg
 import { CommunicationsService } from '../../communications/communications.service';
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { channelsWithCopy, loadSendableHouseholds } from './audience';
 import {
   Recipient,
   SendableHousehold,
@@ -35,33 +36,6 @@ export class InvitationSenderService {
   }
 
   /**
-   * Channels we can both send on and have copy for.
-   *
-   * Both halves are required. A configured transport with no template for this
-   * message would fail mid-send with "template not found" after some
-   * households had already been written to; copy with no transport would queue
-   * messages that can only fail. Intersecting them means an organization that
-   * has not written Telegram copy simply keeps getting email, with no
-   * configuration to remember.
-   */
-  private async usableChannels(
-    organizationId: string,
-    templateKey: string,
-  ): Promise<MessageChannel[]> {
-    const templates = await this.prisma.messageTemplate.findMany({
-      where: {
-        key: templateKey,
-        isActive: true,
-        OR: [{ organizationId }, { organizationId: null }],
-      },
-      select: { channel: true },
-    });
-
-    const withCopy = new Set(templates.map((template) => template.channel));
-    return this.configuredChannels.filter((channel) => withCopy.has(channel));
-  }
-
-  /**
    * Sends the invitation, one email per household.
    *
    * This is the product's core loop and the step the market still does by
@@ -76,7 +50,7 @@ export class InvitationSenderService {
    */
   async send(slug: string, options: { guestIds?: string[] } = {}) {
     const invitation = await this.loadSendable(slug);
-    const households = await this.loadHouseholds(invitation.eventId, options.guestIds);
+    const households = await this.householdsFor(invitation.eventId, options.guestIds);
 
     if (households.length === 0) {
       throw new BadRequestException(
@@ -86,7 +60,7 @@ export class InvitationSenderService {
       );
     }
 
-    const available = await this.usableChannels(invitation.organizationId, TEMPLATE_KEY);
+    const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
     const queued: { householdName: string; toAddress: string; channel: MessageChannel }[] = [];
     const alreadySent: string[] = [];
@@ -137,7 +111,7 @@ export class InvitationSenderService {
     const invitation = await this.loadInvitation(slug);
 
     const [households, messages] = await Promise.all([
-      this.loadHouseholds(invitation.eventId),
+      this.householdsFor(invitation.eventId),
       this.prisma.message.findMany({
         where: { eventId: invitation.eventId, templateKey: TEMPLATE_KEY },
         orderBy: { createdAt: 'desc' },
@@ -159,7 +133,7 @@ export class InvitationSenderService {
       }
     }
 
-    const available = await this.usableChannels(invitation.organizationId, TEMPLATE_KEY);
+    const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
     const rows = plan.recipients.map((recipient) => {
       const message = latestByGuest.get(recipient.guest.id);
@@ -213,6 +187,14 @@ export class InvitationSenderService {
     });
 
     return message.status === MessageStatus.SUPPRESSED ? 'SUPPRESSED' : 'QUEUED';
+  }
+
+  /** Every household on the event, or only those containing the named guests. */
+  private householdsFor(eventId: string, guestIds?: string[]): Promise<SendableHousehold[]> {
+    return loadSendableHouseholds(this.prisma, this.guestChannels, {
+      eventId,
+      ...(guestIds ? { guests: { some: { id: { in: guestIds } } } } : {}),
+    });
   }
 
   /** The guest's own capability URL — the thing the whole email exists to carry. */
@@ -284,43 +266,4 @@ export class InvitationSenderService {
     return invitation;
   }
 
-  private async loadHouseholds(
-    eventId: string,
-    guestIds?: string[],
-  ): Promise<SendableHousehold[]> {
-    const households = await this.prisma.household.findMany({
-      where: {
-        eventId,
-        ...(guestIds ? { guests: { some: { id: { in: guestIds } } } } : {}),
-      },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        guests: {
-          orderBy: [{ isPrimary: 'desc' }, { firstName: 'asc' }],
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            isPrimary: true,
-            locale: true,
-            token: true,
-            anonymizedAt: true,
-            channels: { select: { channel: true, address: true, optedInAt: true } },
-          },
-        },
-      },
-    });
-
-    return households.map((household) => ({
-      ...household,
-      guests: household.guests.map((guest) => ({
-        ...guest,
-        addresses: this.guestChannels.addressesFor(guest),
-      })),
-    }));
-  }
 }

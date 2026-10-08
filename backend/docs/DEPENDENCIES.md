@@ -23,6 +23,12 @@ below says what blocks it and what would unblock it.
 
 ## 2. Held back, with reasons
 
+> **Decided (8 October 2026): both migrations below wait until after the
+> pilot.** They are large rewrites of the module system and the data layer
+> with no user-visible benefit, the current versions are supported, and doing
+> them against a codebase real usage has not yet settled would mean doing parts
+> of them twice. Revisit once the first real events have run.
+
 ### NestJS 12 — needs an ESM migration
 
 `@nestjs/core`, `@nestjs/common`, `@nestjs/platform-express` and
