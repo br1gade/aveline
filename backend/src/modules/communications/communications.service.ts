@@ -15,7 +15,8 @@ import { MessageTransport } from './channels/message-channel';
 import { renderTemplate } from './message-renderer';
 
 export interface EnqueueParams {
-  organizationId: string;
+  /** Null for platform mail — a reset link, a verification, an org invite. */
+  organizationId: string | null;
   eventId?: string;
   guestId?: string;
   channel: MessageChannel;
@@ -198,7 +199,7 @@ export class CommunicationsService {
 
   private async deliver(message: {
     id: string;
-    organizationId: string;
+    organizationId: string | null;
     channel: MessageChannel;
     toAddress: string;
     subject: string | null;
@@ -258,7 +259,13 @@ export class CommunicationsService {
    *                                     never held against the recipient
    */
   private async handleFailure(
-    message: { id: string; organizationId: string; channel: MessageChannel; toAddress: string; attempts: number },
+    message: {
+      id: string;
+      organizationId: string | null;
+      channel: MessageChannel;
+      toAddress: string;
+      attempts: number;
+    },
     error: unknown,
   ): Promise<DeliveryOutcome> {
     const failure = classifyDeliveryFailure(error);
@@ -320,14 +327,24 @@ export class CommunicationsService {
    * organizationId descending puts the override first, because NULLs sort
    * last in Postgres under DESC.
    */
-  private async loadTemplate(organizationId: string, key: string, channel: MessageChannel) {
+  private async loadTemplate(
+    organizationId: string | null,
+    key: string,
+    channel: MessageChannel,
+  ) {
     const found = await this.prisma.messageTemplate.findFirst({
       where: {
         key,
         channel,
         isActive: true,
-        OR: [{ organizationId }, { organizationId: null }],
+        // Platform mail has no tenant, so only Aveline's own copy applies to
+        // it; an organization's override must not reach a message that is not
+        // theirs.
+        OR: organizationId === null
+          ? [{ organizationId: null }]
+          : [{ organizationId }, { organizationId: null }],
       },
+      // An organization's own copy wins over Aveline's default.
       orderBy: { organizationId: Prisma.SortOrder.desc },
     });
 

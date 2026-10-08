@@ -25,13 +25,18 @@ export class SuppressionService {
   async isSuppressed(
     channel: MessageChannel,
     address: string,
-    organizationId: string,
+    organizationId: string | null,
   ): Promise<boolean> {
     const found = await this.prisma.suppression.findFirst({
       where: {
         channel,
         address: normalizeAddress(channel, address),
-        OR: [{ organizationId: null }, { organizationId }],
+        // Platform mail is only ever stopped by a global suppression: a
+        // password reset must not be blocked because one organization
+        // unsubscribed that address from their own events.
+        OR: organizationId === null
+          ? [{ organizationId: null }]
+          : [{ organizationId: null }, { organizationId }],
       },
       select: { id: true },
     });

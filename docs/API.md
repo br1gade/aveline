@@ -1562,16 +1562,18 @@ and analytics, not correctness.
 
 ## 9. Development-only behaviour
 
-While the backend is pre-production, endpoints that would normally email a
-link also return it in the response, so a flow can be completed locally
-without opening a mailbox:
+Endpoints that email a link **also** return it in the response while the
+backend is pre-production, so a flow can be completed locally without opening
+a mailbox. The email is really sent either way:
 
 ```json
 { "sent": true, "devLink": "http://localhost:5173/reset-password?token=..." }
 ```
 
 Affects `POST /auth/password-reset`, `POST /auth/verify-email` and
-`POST /organization/invites`.
+`POST /organization/invites`. All three queue a real email through the outbox
+as well — `{ "sent": true }` means the message was accepted into it, and until
+recently that was not true of these three at all.
 
 **`devLink` is absent in production.** Build the flow as though it were never
 there — read the token from the URL the user arrives on, not from this field.
@@ -1586,6 +1588,8 @@ So you can plan around them rather than discover them:
 
 - **SMS is not delivered.** Email, Telegram and WhatsApp are. SMS still writes
   to the server log.
+- **No RSVP confirmation to the guest.** A guest submits a response and the
+  host sees it; the guest receives nothing back.
 - **No WhatsApp delivery receipts.** Meta reports delivery and read status by
   webhook; we do not consume it, so a WhatsApp message stays `SENT`. Email over SMTP is real, retries a temporary
   failure and suppresses an address that hard-bounces.

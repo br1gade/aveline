@@ -47,9 +47,10 @@ Each replaces a process the incumbent market performs by hand.
 |---|---|---|
 | 6 | **WhatsApp delivery receipts** | Meta reports delivery and read status by webhook; nothing consumes it, so a WhatsApp message stays SENT and a failure after acceptance is never recorded. The same webhook is how a WhatsApp block would reach us |
 | 7 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
-| 8 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — the guest book and the thank-you flow are built; a gallery guests can add to needs capability-token uploads and a moderation answer |
-| 9 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
-| 10 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
+| 8 | **RSVP confirmation to the guest** | A guest answers and receives nothing back. The outbox, the copy pattern and the per-household rule all exist; nothing calls them from the RSVP flow |
+| 9 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — the guest book and the thank-you flow are built; a gallery guests can add to needs capability-token uploads and a moderation answer |
+| 10 | **Image processing and cover images** | Design endpoints and theme validation are built; what remains is resizing, thumbnails, and attaching an asset as the invitation cover |
+| 11 | **Deposit → confirmed booking** | Reconciling a transfer against a calendar by hand |
 
 ## 4. Revenue — unbuilt business model lines
 
@@ -57,22 +58,22 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 
 | # | Gap | Stream |
 |---|---|---|
-| 11 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
-| 12 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them |
-| 13 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
-| 14 | **Corporate contracts** | §9.5 — multi-event, branded |
-| 15 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
+| 12 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
+| 13 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them |
+| 14 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
+| 15 | **Corporate contracts** | §9.5 — multi-event, branded |
+| 16 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
 
 ## 5. Operations and trust
 
 | # | Gap | Why |
 |---|---|---|
-| 16 | ~~Health and readiness endpoints~~ | **Done** |
+| 17 | ~~Health and readiness endpoints~~ | **Done** |
 | 18b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
-| 17 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
-| 18 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
-| 19 | **GDPR identity verification** | Requests are accepted, tracked, carried out, and the one-month clock is now swept daily and raised in Sentry when it is missed. What stays manual is establishing who is asking — a human step by design, since acting on an unverified request is itself a breach |
-| 20 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
+| 18 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
+| 19 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
+| 20 | **GDPR identity verification** | Requests are accepted, tracked, carried out, and the one-month clock is now swept daily and raised in Sentry when it is missed. What stays manual is establishing who is asking — a human step by design, since acting on an unverified request is itself a breach |
+| 21 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 
 ## 6. Physical-service bridge
 
@@ -81,11 +82,11 @@ rather than a phone call.
 
 | # | Gap |
 |---|---|
-| 21 | **Vendor availability calendar** — booking a caterer currently means asking them |
-| 22 | **Delivery and logistics tracking** for decor and printed stationery |
-| 23 | **Printed companion orders** — print-on-demand from the same design |
-| 24 | **On-site staff assignment** for the day-of coordinator in Production tier |
-| 25 | **Physical ticket fallback** — QR on paper for guests without smartphones |
+| 22 | **Vendor availability calendar** — booking a caterer currently means asking them |
+| 23 | **Delivery and logistics tracking** for decor and printed stationery |
+| 24 | **Printed companion orders** — print-on-demand from the same design |
+| 25 | **On-site staff assignment** for the day-of coordinator in Production tier |
+| 26 | **Physical ticket fallback** — QR on paper for guests without smartphones |
 
 ---
 

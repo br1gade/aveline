@@ -1,5 +1,6 @@
 import {
   DiscountKind,
+  MessageChannel,
   PaymentEventSource,
   PaymentProvider,
   PaymentPurpose,
@@ -7,11 +8,18 @@ import {
   PrismaClient,
   TicketOrderStatus,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { ConsoleTransport } from '../../src/modules/communications/channels/console.transport';
+import { MessageTransport } from '../../src/modules/communications/channels/message-channel';
+import { CommunicationsService } from '../../src/modules/communications/communications.service';
+import { SuppressionService } from '../../src/modules/communications/suppression.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
 import { PaymentsService } from '../../src/modules/payments/payments.service';
 import { FakeGateway } from '../../src/modules/payments/providers/fake.gateway';
 import { TicketInventoryService } from '../../src/modules/ticketing/ticket-inventory.service';
+import { TicketFulfilmentService } from '../../src/modules/ticketing/ticket-fulfilment.service';
+import { TicketNotifierService } from '../../src/modules/ticketing/ticket-notifier.service';
 import { PromoCodesService } from '../../src/modules/billing/promo-codes.service';
 import { TicketingService } from '../../src/modules/ticketing/ticketing.service';
 import { seedEvent } from '../fixtures/event.fixture';
@@ -41,11 +49,31 @@ describe('transaction safety (integration)', () => {
     payments = new PaymentsService(prisma as unknown as PrismaService, registry);
     inventory = new TicketInventoryService(prisma as unknown as PrismaService);
     const promoCodes = new PromoCodesService(prisma as unknown as PrismaService);
-    ticketing = new TicketingService(
+    const suppressions = new SuppressionService(prisma as unknown as PrismaService);
+    const transports = new Map<MessageChannel, MessageTransport>(
+      Object.values(MessageChannel).map((channel) => [channel, new ConsoleTransport(channel)]),
+    );
+    const communications = new CommunicationsService(
+      prisma as unknown as PrismaService,
+      transports,
+      suppressions,
+    );
+    const notifier = new TicketNotifierService(
+      prisma as unknown as PrismaService,
+      communications,
+      { get: () => 'https://aveline.test' } as unknown as ConfigService,
+    );
+    const fulfilment = new TicketFulfilmentService(
       prisma as unknown as PrismaService,
       inventory,
+      promoCodes,
+      notifier,
+    );
+    ticketing = new TicketingService(
+      prisma as unknown as PrismaService,
       payments,
       promoCodes,
+      fulfilment,
     );
   });
 
@@ -341,4 +369,104 @@ describe('transaction safety (integration)', () => {
       expect(after.redemptions).toBe(0);
     });
   });
+
+  describe('telling the buyer', () => {
+    /**
+     * A buyer paid, tickets were issued, and they received nothing. The only
+     * way to reach them was the access token in the checkout response, which
+     * a browser that navigated away had already lost — and the
+     * `ticket.issued` copy had been seeded since the outbox was built with
+     * nothing ever sending it.
+     */
+    const paidOrderWithCopy = async (quantity: number) => {
+      await prisma.messageTemplate.create({
+        data: {
+          organizationId,
+          key: 'ticket.issued',
+          channel: MessageChannel.EMAIL,
+          subject: { hy: 'Ձեր տոմսերը' },
+          body: { hy: '{{buyerName}} — {{link}}' },
+        },
+      });
+
+      const type = await prisma.ticketType.create({
+        data: { eventId, name: { en: 'GA' }, priceMinor: 0n, quantityTotal: 50, maxPerOrder: 50 },
+      });
+      await prisma.event.update({ where: { id: eventId }, data: { visibility: 'PUBLIC' } });
+      const listing = await prisma.eventListing.create({
+        data: {
+          eventId,
+          slug: `n-${Math.random().toString(36).slice(2, 8)}`,
+          publishedAt: new Date(),
+        },
+      });
+
+      return ticketing.createOrder(listing.slug, {
+        items: [{ ticketTypeId: type.id, quantity }],
+        buyerName: 'Ani Grigoryan',
+        buyerEmail: 'buyer@test.local',
+        idempotencyKey: `order-${Math.random()}`,
+      });
+    };
+
+    const ticketMail = () =>
+      prisma.message.findMany({ where: { templateKey: 'ticket.issued' } });
+
+    it('queues the tickets to the buyer when they are issued', async () => {
+      await paidOrderWithCopy(2);
+
+      const mail = await ticketMail();
+      expect(mail).toHaveLength(1);
+      expect(mail[0].toAddress).toBe('buyer@test.local');
+      expect(mail[0].body).toContain('Ani Grigoryan');
+      expect(mail[0].body).toContain('/tickets/');
+    });
+
+    /**
+     * Settlement is deliberately idempotent, so it runs again on a retried
+     * callback and a refreshed return page. The confirmation must not.
+     */
+    it('sends one confirmation however many times settlement runs', async () => {
+      const order = await paidOrderWithCopy(1);
+
+      await Promise.allSettled([
+        ticketing.markPaid(order.orderId),
+        ticketing.markPaid(order.orderId),
+        ticketing.markPaid(order.orderId),
+      ]);
+
+      expect(await ticketMail()).toHaveLength(1);
+    });
+
+    /**
+     * The money has moved and the tickets exist. Failing settlement because
+     * an email could not be queued would leave a paid order unsettled, which
+     * is far worse than a buyer who has to be sent their link by hand.
+     */
+    it('still issues the tickets when the copy is missing', async () => {
+      const type = await prisma.ticketType.create({
+        data: { eventId, name: { en: 'GA' }, priceMinor: 0n, quantityTotal: 10, maxPerOrder: 10 },
+      });
+      await prisma.event.update({ where: { id: eventId }, data: { visibility: 'PUBLIC' } });
+      const listing = await prisma.eventListing.create({
+        data: {
+          eventId,
+          slug: `m-${Math.random().toString(36).slice(2, 8)}`,
+          publishedAt: new Date(),
+        },
+      });
+
+      const order = await ticketing.createOrder(listing.slug, {
+        items: [{ ticketTypeId: type.id, quantity: 2 }],
+        buyerName: 'Ani',
+        buyerEmail: 'buyer@test.local',
+        idempotencyKey: `order-${Math.random()}`,
+      });
+
+      expect(order.status).toBe(TicketOrderStatus.PAID);
+      expect(await prisma.ticket.count({ where: { orderId: order.orderId } })).toBe(2);
+      expect(await ticketMail()).toHaveLength(0);
+    });
+  });
+
 });

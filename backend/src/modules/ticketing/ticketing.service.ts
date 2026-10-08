@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   PaymentPurpose,
-  Prisma,
   TicketOrderStatus,
   TicketStatus,
 } from '@prisma/client';
@@ -11,7 +10,7 @@ import { PromoCodesService } from '../billing/promo-codes.service';
 import { PaymentsService } from '../payments/payments.service';
 import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
 import { CreateOrderDto, OrderLineDto } from './dto/create-order.dto';
-import { TicketInventoryService } from './ticket-inventory.service';
+import { TicketFulfilmentService } from './ticket-fulfilment.service';
 
 /** How long a checkout holds inventory before the sweep returns it. */
 const RESERVATION_WINDOW_MS = 15 * 60 * 1000;
@@ -22,9 +21,9 @@ export class TicketingService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly inventory: TicketInventoryService,
     private readonly payments: PaymentsService,
     private readonly promoCodes: PromoCodesService,
+    private readonly fulfilment: TicketFulfilmentService,
   ) {}
 
   /**
@@ -48,14 +47,14 @@ export class TicketingService {
     const reserved: OrderLineDto[] = [];
     try {
       for (const line of dto.items) {
-        await this.inventory.reserve(line.ticketTypeId, line.quantity);
+        await this.fulfilment.hold([line]);
         reserved.push(line);
       }
       return await this.recordOrder(event, dto, types);
     } catch (error) {
       // Anything already held must go back, or a failed checkout silently
       // removes seats from sale until the sweep catches them.
-      await this.releaseAll(reserved);
+      await this.fulfilment.releaseHolds(reserved);
       throw error;
     }
   }
@@ -126,108 +125,21 @@ export class TicketingService {
    * Converts holds into sales and issues the tickets. Idempotent: a repeated
    * callback must not issue a second set.
    */
+  /**
+   * Turns a settled payment into tickets.
+   *
+   * Delegated: committing inventory, issuing codes and telling the buyer are
+   * fulfilment, not the sale. This keeps the shape the callers already expect.
+   */
   async markPaid(orderId: string) {
-    const order = await this.prisma.ticketOrder.findUniqueOrThrow({
-      where: { id: orderId },
-      include: { items: true },
-    });
-    if (order.status === TicketOrderStatus.PAID) return this.describe(order);
-
-    /**
-     * Claiming, committing inventory and issuing tickets happen in one
-     * transaction, with the claim first.
-     *
-     * The claim is a conditional update that only matches a RESERVED order,
-     * so a second settlement — a retried callback, a user refreshing the
-     * return page — matches nothing and issues no tickets. Ticket codes are
-     * random, so without this guard a duplicate run would mint a second valid
-     * set for one paid seat rather than failing on a constraint.
-     *
-     * Everything inside one transaction means a crash cannot leave inventory
-     * sold with no tickets against it.
-     */
-    await this.prisma.$transaction(async (tx) => {
-      const claimed = await tx.ticketOrder.updateMany({
-        where: { id: orderId, status: TicketOrderStatus.RESERVED },
-        data: { status: TicketOrderStatus.PAID, reservesUntil: null },
-      });
-      if (claimed.count === 0) return;
-
-      for (const item of order.items) {
-        await this.inventory.commit(item.ticketTypeId, item.quantity, tx);
-      }
-      await tx.ticket.createMany({ data: this.ticketsFor(order) });
-    });
-
-    return this.describe(
-      await this.prisma.ticketOrder.findUniqueOrThrow({
-        where: { id: orderId },
-        include: { items: true },
-      }),
-    );
+    return this.describe(await this.fulfilment.markPaid(orderId));
   }
 
-  /**
-   * Returns inventory held by checkouts that were never completed.
-   *
-   * Without this, every abandoned basket permanently removes seats from sale
-   * and a popular event sells out to nobody.
-   */
-  async releaseExpiredReservations(limit = 100): Promise<{ released: number }> {
-    const expired = await this.prisma.ticketOrder.findMany({
-      where: { status: TicketOrderStatus.RESERVED, reservesUntil: { lt: new Date() } },
-      include: { items: true },
-      orderBy: { reservesUntil: 'asc' },
-      take: limit,
-    });
-
-    let released = 0;
-    for (const order of expired) {
-      try {
-        if (await this.expireOrder(order)) released += 1;
-      } catch (error) {
-        this.logger.warn(`could not release order ${order.id}: ${describeError(error)}`);
-      }
-    }
-
-    return { released };
+  /** Delegated: the sweep is an inventory movement, not a sale. */
+  releaseExpiredReservations(limit = 100): Promise<{ released: number }> {
+    return this.fulfilment.releaseExpiredReservations(limit);
   }
 
-  /**
-   * Expires one abandoned checkout: marks it, returns its seats, and gives
-   * back the promo redemption it took.
-   *
-   * All three in one transaction, claim first. The claim — a conditional
-   * update matching only a RESERVED order — is what makes this safe to run
-   * twice: a second sweep, or this endpoint called directly while the cron is
-   * running, matches nothing and returns nothing. Without it, two passes would
-   * return the same seats twice and oversell them, which is the one outcome
-   * worse than holding inventory too long.
-   */
-  private async expireOrder(order: {
-    id: string;
-    promoCodeId: string | null;
-    items: { ticketTypeId: string; quantity: number }[];
-  }): Promise<boolean> {
-    return this.prisma.$transaction(async (tx) => {
-      const claimed = await tx.ticketOrder.updateMany({
-        where: { id: order.id, status: TicketOrderStatus.RESERVED },
-        data: { status: TicketOrderStatus.EXPIRED, reservesUntil: null },
-      });
-      if (claimed.count === 0) return false;
-
-      for (const item of order.items) {
-        await this.inventory.release(item.ticketTypeId, item.quantity, tx);
-      }
-
-      // An abandoned checkout must not burn a limited code — the next buyer
-      // is entitled to it.
-      await this.promoCodes.releaseClaim(order.promoCodeId, tx);
-      return true;
-    });
-  }
-
-  /** Admits a ticket at the door. A code may only be used once. */
   async admit(code: string) {
     const ticket = await this.prisma.ticket.findUnique({ where: { code } });
     if (!ticket) throw new NotFoundException('Ticket not recognised');
@@ -382,33 +294,6 @@ export class TicketingService {
     });
   }
 
-  private ticketsFor(order: {
-    id: string;
-    eventId: string;
-    buyerName: string;
-    buyerEmail: string;
-    items: { ticketTypeId: string; quantity: number }[];
-  }): Prisma.TicketCreateManyInput[] {
-    return order.items.flatMap((item) =>
-      Array.from({ length: item.quantity }, () => ({
-        eventId: order.eventId,
-        orderId: order.id,
-        ticketTypeId: item.ticketTypeId,
-        code: randomBytes(12).toString('base64url').toUpperCase(),
-        holderName: order.buyerName,
-        holderEmail: order.buyerEmail,
-      })),
-    );
-  }
-
-  private async releaseAll(items: { ticketTypeId: string; quantity: number }[]): Promise<void> {
-    for (const item of items) {
-      await this.inventory.release(item.ticketTypeId, item.quantity).catch((error: unknown) => {
-        this.logger.error(`failed to release inventory: ${describeError(error)}`);
-      });
-    }
-  }
-
   private describe(order: {
     id: string;
     accessToken: string;
@@ -463,9 +348,7 @@ function assertWithinOrderLimits(
   }
 }
 
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+
 
 function subtotalFor(
   items: OrderLineDto[],

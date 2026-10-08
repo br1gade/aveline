@@ -49,39 +49,40 @@ const FULL_BLOCK_SET: BlockType[] = [
   BlockType.CONTACT,
 ];
 
-async function seedDesignTemplates() {
-  const templates = [
-    {
-      key: 'classic',
-      name: 'Classic',
-      allowedFonts: ['Noto Serif Armenian', 'Cormorant Garamond', 'Inter'],
-      palettes: [
-        { name: 'ivory-gold', colors: ['#F3E9DD', '#C9A227', '#2E2A26'] },
-        { name: 'sage', colors: ['#EDF1EA', '#7A8B74', '#2E2A26'] },
-      ],
-      supportedBlocks: FULL_BLOCK_SET,
-      defaultTheme: { bodyFont: 'Noto Serif Armenian', palette: 'ivory-gold' },
-    },
-    {
-      key: 'minimal',
-      name: 'Minimal',
-      allowedFonts: ['Inter', 'Mardoto'],
-      palettes: [
-        { name: 'paper', colors: ['#FFFFFF', '#111111', '#8A8A8A'] },
-        { name: 'ink', colors: ['#14161A', '#F5F5F5', '#9AA0A6'] },
-      ],
-      supportedBlocks: [
-        BlockType.HERO,
-        BlockType.VENUE,
-        BlockType.TIMELINE,
-        BlockType.RSVP,
-        BlockType.CONTACT,
-      ],
-      defaultTheme: { bodyFont: 'Inter', palette: 'paper' },
-    },
-  ];
+/** What each template can render, so customization stays safe. */
+const DESIGN_TEMPLATES = [
+  {
+    key: 'classic',
+    name: 'Classic',
+    allowedFonts: ['Noto Serif Armenian', 'Cormorant Garamond', 'Inter'],
+    palettes: [
+      { name: 'ivory-gold', colors: ['#F3E9DD', '#C9A227', '#2E2A26'] },
+      { name: 'sage', colors: ['#EDF1EA', '#7A8B74', '#2E2A26'] },
+    ],
+    supportedBlocks: FULL_BLOCK_SET,
+    defaultTheme: { bodyFont: 'Noto Serif Armenian', palette: 'ivory-gold' },
+  },
+  {
+    key: 'minimal',
+    name: 'Minimal',
+    allowedFonts: ['Inter', 'Mardoto'],
+    palettes: [
+      { name: 'paper', colors: ['#FFFFFF', '#111111', '#8A8A8A'] },
+      { name: 'ink', colors: ['#14161A', '#F5F5F5', '#9AA0A6'] },
+    ],
+    supportedBlocks: [
+      BlockType.HERO,
+      BlockType.VENUE,
+      BlockType.TIMELINE,
+      BlockType.RSVP,
+      BlockType.CONTACT,
+    ],
+    defaultTheme: { bodyFont: 'Inter', palette: 'paper' },
+  },
+];
 
-  for (const template of templates) {
+async function seedDesignTemplates() {
+  for (const template of DESIGN_TEMPLATES) {
     await prisma.designTemplate.upsert({
       where: { key: template.key },
       // Left alone on purpose: a palette someone adjusted in production must
@@ -91,7 +92,7 @@ async function seedDesignTemplates() {
     });
   }
 
-  return templates.length;
+  return DESIGN_TEMPLATES.length;
 }
 
 /**
@@ -101,48 +102,79 @@ async function seedDesignTemplates() {
  * component is null — the partial index from migration 20261004170000 is what
  * makes it unique. So this checks before inserting rather than upserting.
  */
-async function seedMessageTemplates() {
-  const templates = [
-    {
-      key: 'invitation.send',
-      channel: MessageChannel.EMAIL,
-      subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}' },
-      body: {
-        hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\n{{link}}',
-        en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\n{{link}}',
-      },
+/** Aveline's own copy, which every organization falls back to. */
+const MESSAGE_COPY = [
+  {
+    key: 'invitation.send',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}' },
+    body: {
+      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\n{{link}}',
+      en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\n{{link}}',
     },
-    {
-      key: 'rsvp.reminder',
-      channel: MessageChannel.EMAIL,
-      subject: { hy: 'Հիշեցում՝ {{eventTitle}}', en: 'A gentle reminder: {{eventTitle}}' },
-      body: {
-        hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։\n\n{{link}}',
-        en: '{{guestName}}, we are still hoping to hear from you.\n\n{{link}}',
-      },
+  },
+  {
+    key: 'rsvp.reminder',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Հիշեցում՝ {{eventTitle}}', en: 'A gentle reminder: {{eventTitle}}' },
+    body: {
+      hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։\n\n{{link}}',
+      en: '{{guestName}}, we are still hoping to hear from you.\n\n{{link}}',
     },
-    {
-      key: 'thankyou.send',
-      channel: MessageChannel.EMAIL,
-      subject: { hy: 'Շնորհակալություն', en: 'Thank you' },
-      body: {
-        hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։\n\n{{link}}',
-        en: '{{guestName}}, thank you for being with us.\n\n{{link}}',
-      },
+  },
+  {
+    key: 'thankyou.send',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Շնորհակալություն', en: 'Thank you' },
+    body: {
+      hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։\n\n{{link}}',
+      en: '{{guestName}}, thank you for being with us.\n\n{{link}}',
     },
-    {
-      key: 'ticket.issued',
-      channel: MessageChannel.EMAIL,
-      subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },
-      body: {
-        hy: 'Շնորհակալություն, {{buyerName}}։ Ձեր տոմսերը՝\n\n{{link}}',
-        en: 'Thank you, {{buyerName}}. Your tickets:\n\n{{link}}',
-      },
+  },
+  {
+    key: 'account.password-reset',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Գաղտնաբառի վերականգնում', en: 'Reset your password' },
+    body: {
+      hy: '{{name}}, սեղմեք հղումը գաղտնաբառը փոխելու համար։ Հղումը գործում է մեկ ժամ։\n\n{{link}}\n\nԵթե Դուք չեք խնդրել, անտեսեք այս նամակը։',
+      en: '{{name}}, use this link to set a new password. It is valid for one hour.\n\n{{link}}\n\nIf you did not ask for this, ignore this email.',
     },
-  ];
+  },
+  {
+    key: 'account.verify-email',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Հաստատեք Ձեր էլ. հասցեն', en: 'Confirm your email address' },
+    body: {
+      hy: '{{name}}, հաստատեք Ձեր էլ. հասցեն՝\n\n{{link}}',
+      en: '{{name}}, please confirm your email address:\n\n{{link}}',
+    },
+  },
+  {
+    key: 'organization.invite',
+    channel: MessageChannel.EMAIL,
+    subject: {
+      hy: '{{organizationName}}-ը հրավիրում է Ձեզ',
+      en: 'You have been invited to {{organizationName}}',
+    },
+    body: {
+      hy: 'Ձեզ հրավիրել են միանալ {{organizationName}}-ին որպես {{role}}։\n\n{{link}}',
+      en: 'You have been invited to join {{organizationName}} as {{role}}.\n\n{{link}}',
+    },
+  },
+  {
+    key: 'ticket.issued',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },
+    body: {
+      hy: 'Շնորհակալություն, {{buyerName}}։ Ձեր տոմսերը՝\n\n{{link}}',
+      en: 'Thank you, {{buyerName}}. Your tickets:\n\n{{link}}',
+    },
+  },
+];
 
+async function seedMessageTemplates() {
   let created = 0;
-  for (const template of templates) {
+  for (const template of MESSAGE_COPY) {
     const existing = await prisma.messageTemplate.findFirst({
       where: { organizationId: null, key: template.key, channel: template.channel },
     });

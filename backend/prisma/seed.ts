@@ -302,50 +302,76 @@ async function seedPublicEvent(organizationId: string) {
 }
 
 /** Default message copy, so the outbox has something to render. */
+/** Aveline's own copy, which every organization falls back to. */
+const MESSAGE_COPY = [
+  {
+    key: 'invitation.send',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}' },
+    body: {
+      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ։ {{link}}',
+      en: 'Dear {{guestName}}, you are warmly invited. {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.reminder',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Հիշեցում', en: 'A gentle reminder' },
+    body: {
+      hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։ {{link}}',
+      en: '{{guestName}}, we are still hoping to hear from you. {{link}}',
+    },
+  },
+  {
+    key: 'thankyou.send',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Շնորհակալություն', en: 'Thank you' },
+    body: {
+      hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։ {{link}}',
+      en: '{{guestName}}, thank you for being with us. {{link}}',
+    },
+  },
+  {
+    key: 'account.password-reset',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Գաղտնաբառի վերականգնում', en: 'Reset your password' },
+    body: {
+      hy: '{{name}}, սեղմեք հղումը՝ {{link}}',
+      en: '{{name}}, use this link to set a new password: {{link}}',
+    },
+  },
+  {
+    key: 'account.verify-email',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Հաստատեք Ձեր էլ. հասցեն', en: 'Confirm your email address' },
+    body: { hy: '{{name}}՝ {{link}}', en: '{{name}}: {{link}}' },
+  },
+  {
+    key: 'organization.invite',
+    channel: 'EMAIL' as const,
+    subject: { hy: '{{organizationName}}-ը հրավիրում է Ձեզ', en: 'Invitation to {{organizationName}}' },
+    body: {
+      hy: '{{organizationName}} — {{role}}՝ {{link}}',
+      en: 'Join {{organizationName}} as {{role}}: {{link}}',
+    },
+  },
+  {
+    key: 'ticket.issued',
+    channel: 'EMAIL' as const,
+    subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },
+    body: {
+      hy: 'Շնորհակալություն, {{buyerName}}։ Ձեր տոմսերը՝ {{link}}',
+      en: 'Thank you, {{buyerName}}. Your tickets: {{link}}',
+    },
+  },
+];
+
 async function seedMessageTemplates() {
-  const templates = [
-    {
-      key: 'invitation.send',
-      channel: 'EMAIL' as const,
-      subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}' },
-      body: {
-        hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ։ {{link}}',
-        en: 'Dear {{guestName}}, you are warmly invited. {{link}}',
-      },
-    },
-    {
-      key: 'rsvp.reminder',
-      channel: 'EMAIL' as const,
-      subject: { hy: 'Հիշեցում', en: 'A gentle reminder' },
-      body: {
-        hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։ {{link}}',
-        en: '{{guestName}}, we are still hoping to hear from you. {{link}}',
-      },
-    },
-    {
-      key: 'thankyou.send',
-      channel: 'EMAIL' as const,
-      subject: { hy: 'Շնորհակալություն', en: 'Thank you' },
-      body: {
-        hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։ {{link}}',
-        en: '{{guestName}}, thank you for being with us. {{link}}',
-      },
-    },
-    {
-      key: 'ticket.issued',
-      channel: 'EMAIL' as const,
-      subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },
-      body: {
-        hy: 'Շնորհակալություն, {{buyerName}}։ Ձեր տոմսերը՝ {{link}}',
-        en: 'Thank you, {{buyerName}}. Your tickets: {{link}}',
-      },
-    },
-  ];
 
   // Not an upsert: Prisma cannot address a compound unique whose component is
   // null. The partial index added in 20261004170000 is what guarantees
   // uniqueness here; this only avoids re-inserting on a repeat seed.
-  for (const template of templates) {
+  for (const template of MESSAGE_COPY) {
     const existing = await prisma.messageTemplate.findFirst({
       where: { organizationId: null, key: template.key, channel: template.channel },
     });

@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { VerificationPurpose } from '@prisma/client';
 import { hash } from 'bcryptjs';
+import { MessageChannel } from '@prisma/client';
+import { CommunicationsService } from '../../modules/communications/communications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 import { AcceptInviteDto, InviteMemberDto } from './dto/account.dto';
@@ -23,13 +25,18 @@ const INVITE_LIFETIME_MS = 14 * 24 * 60 * 60 * 1000;
 export class AccountService {
   private readonly logger = new Logger(AccountService.name);
   private readonly appUrl: string;
+  private readonly defaultLocale: string;
   private readonly isProduction: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly communications: CommunicationsService,
     config: ConfigService,
   ) {
     this.appUrl = config.get<string>('PUBLIC_APP_URL') ?? 'http://localhost:5173';
+    // Account mail has no event to take a locale from and no stored
+    // preference to read at reset time, so it uses the platform default.
+    this.defaultLocale = config.get<string>('DEFAULT_LOCALE') ?? 'hy';
     this.isProduction = config.get<string>('NODE_ENV') === 'production';
   }
 
@@ -41,8 +48,52 @@ export class AccountService {
    * NODE_ENV rather than a feature flag, because a flag left on in production
    * would hand out account-takeover links over HTTP.
    */
+  /**
+   * Sends an account email through the outbox.
+   *
+   * Through the outbox rather than straight to a transport, so these get the
+   * same retry on a temporary failure, the same suppression check and the same
+   * bounce handling as every other message — and so a host asking "did the
+   * invite go out?" has a `Message` row to point at.
+   *
+   * `organizationId` is null for a reset and a verification, which belong to
+   * no tenant. An invite carries one, because the organization is the thing
+   * being joined.
+   *
+   * A failure here is logged and swallowed. The caller has already issued the
+   * token, and a 500 would tell the user their reset failed when the next
+   * dispatch sweep will still deliver it. The response is deliberately the
+   * same either way, because it is also the same for an address that has no
+   * account — see `requestPasswordReset`.
+   */
+  private async mail(params: {
+    templateKey: string;
+    toAddress: string;
+    variables: Record<string, string>;
+    organizationId?: string;
+  }): Promise<void> {
+    try {
+      await this.communications.enqueue({
+        organizationId: params.organizationId ?? null,
+        channel: MessageChannel.EMAIL,
+        templateKey: params.templateKey,
+        toAddress: params.toAddress,
+        locale: this.defaultLocale,
+        variables: params.variables,
+      });
+    } catch (error) {
+      this.logger.error(
+        `could not queue ${params.templateKey} to ${params.toAddress}: ${describeError(error)}`,
+      );
+    }
+  }
+
+  private linkFor(path: string, token: string): string {
+    return `${this.appUrl}${path}?token=${token}`;
+  }
+
   private devLink(path: string, token: string): { devLink?: string } {
-    return this.isProduction ? {} : { devLink: `${this.appUrl}${path}?token=${token}` };
+    return this.isProduction ? {} : { devLink: this.linkFor(path, token) };
   }
 
   /**
@@ -62,10 +113,13 @@ export class AccountService {
       VerificationPurpose.PASSWORD_RESET,
       RESET_LIFETIME_MS,
     );
-    this.logger.log(`password reset issued for ${user.id}`);
+    await this.mail({
+      templateKey: 'account.password-reset',
+      toAddress: user.email,
+      variables: { name: user.name ?? user.email, link: this.linkFor('/reset-password', token) },
+    });
 
-    // TODO(transport): enqueue through CommunicationsService once a real
-    // transport exists.
+    this.logger.log(`password reset issued for ${user.id}`);
     return { sent: true as const, ...this.devLink('/reset-password', token) };
   }
 
@@ -89,11 +143,22 @@ export class AccountService {
   }
 
   async requestEmailVerification(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true, name: true },
+    });
     const token = await this.issueToken(
       userId,
       VerificationPurpose.EMAIL_VERIFICATION,
       VERIFICATION_LIFETIME_MS,
     );
+
+    await this.mail({
+      templateKey: 'account.verify-email',
+      toAddress: user.email,
+      variables: { name: user.name ?? user.email, link: this.linkFor('/verify-email', token) },
+    });
+
     return { sent: true as const, ...this.devLink('/verify-email', token) };
   }
 
@@ -112,6 +177,10 @@ export class AccountService {
    * person expects after asking for the email again.
    */
   async inviteMember(organizationId: string, invitedByUserId: string, dto: InviteMemberDto) {
+    const organization = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+      select: { name: true },
+    });
     const alreadyMember = await this.prisma.organizationMembership.findFirst({
       where: { organizationId, user: { email: dto.email } },
     });
@@ -135,6 +204,17 @@ export class AccountService {
         expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS),
         acceptedAt: null,
         revokedAt: null,
+      },
+    });
+
+    await this.mail({
+      templateKey: 'organization.invite',
+      toAddress: dto.email,
+      organizationId,
+      variables: {
+        organizationName: organization.name,
+        role: dto.role,
+        link: this.linkFor('/accept-invite', token),
       },
     });
 
@@ -249,4 +329,8 @@ export class AccountService {
 
     return record;
   }
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

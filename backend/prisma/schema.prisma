@@ -1076,8 +1076,14 @@ model MessageTemplate {
 /// causes it and dispatched afterwards — an outbox — so a send can never be
 /// lost because the process died between committing and calling the provider.
 model Message {
-  id             String  @id @default(cuid())
-  organizationId String
+  id String @id @default(cuid())
+
+  /// Null for platform mail that belongs to no tenant: a password reset, an
+  /// email verification, an invitation to join an organization the recipient
+  /// is not yet in. Those go through the same outbox as everything else, so
+  /// they get the same retry, suppression and bounce handling — which is why
+  /// this is nullable rather than them bypassing it.
+  organizationId String?
   eventId        String?
   /// Set when the recipient is a known guest, which is what lets delivery
   /// failures surface against a name rather than an address.
@@ -1123,9 +1129,9 @@ model Message {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  event        Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  guest        Guest?       @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event        Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  guest        Guest?        @relation(fields: [guestId], references: [id], onDelete: SetNull)
 
   /// The dispatcher claims due work oldest-first.
   @@index([status, scheduledFor])

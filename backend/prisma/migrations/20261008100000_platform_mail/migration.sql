@@ -1,0 +1,12 @@
+-- Platform mail belongs to no tenant.
+--
+-- A password reset, an email verification and an invitation to join an
+-- organization the recipient is not yet in all have no organization to
+-- attribute them to. Until now `messages.organizationId` was NOT NULL, which
+-- is why those three flows never used the outbox at all: they returned
+-- `{ sent: true }` and sent nothing, so in production a user who forgot their
+-- password could never reset it.
+--
+-- Dropping a NOT NULL is safe against a populated table — every existing row
+-- keeps its value and nothing needs backfilling.
+ALTER TABLE "messages" ALTER COLUMN "organizationId" DROP NOT NULL;
