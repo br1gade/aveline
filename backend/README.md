@@ -256,6 +256,10 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 |---|---|---|
 | `POST` | `/api/v1/events/:eventId/guests/import` | Import a CSV guest list (multipart `file`) |
 | `GET` | `/api/v1/events/:eventId/guests/imports` | History of past imports |
+| `POST` | `/api/v1/events/:eventId/guests` | Add one guest, to an existing household or a new one |
+| `PATCH` | `/api/v1/events/:eventId/guests/:guestId` | Correct details, or move to another household |
+| `DELETE` | `/api/v1/events/:eventId/guests/:guestId` | Remove a guest; refused once checked in |
+| `PATCH` | `/api/v1/events/:eventId/households/:householdId` | Rename, or change seats (not below those named) |
 
 #### Tables and seating
 
@@ -448,11 +452,14 @@ npm run lint         # must be clean, zero warnings
 npm run lint:fix
 npm run docs:check   # fails when the docs contradict the code
 npm run openapi      # regenerate openapi.json for the client team
+npm run openapi:check  # fails when the committed openapi.json is stale
 ```
 
 `docs:check` compares documented endpoints against the controllers, verifies
 every link in every doc resolves, and checks that each permission the policy
-grants is described. `npm run verify` runs it.
+grants is described. `openapi:check` regenerates the schema in memory and
+fails if the committed `openapi.json` differs — so a route change must be
+committed with its regenerated schema. `npm run verify` runs both.
 
 The config enforces the house rules: complexity ≤ 10, depth ≤ 3, 60 lines per
 function, boolean names as assertions (`isPublished`, `hasSeats`), and

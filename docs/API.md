@@ -5,8 +5,9 @@ is building the web or mobile client — human or agent.
 
 **Base URL:** `http://localhost:3000/api/v1` in development.
 **Interactive schema:** `http://localhost:3000/docs` (not served in production).
-**Machine-readable:** `npm run openapi` in `backend/` writes `openapi.json`,
-which most type generators consume directly.
+**Machine-readable:** [`backend/openapi.json`](../backend/openapi.json), which
+most type generators consume directly. The build fails if it is out of date
+with the code, so the committed file is current.
 
 ---
 
@@ -626,6 +627,79 @@ GET /api/v1/events/:eventId/guests/imports
 The last imports, newest first, each with `filename`, `rowsImported`,
 `rowsFailed`, `status` and `errors` — enough to show "412 of 415 imported" days
 later. Requires `guest:read`.
+
+### Editing the guest list
+
+```http
+POST   /api/v1/events/:eventId/guests
+PATCH  /api/v1/events/:eventId/guests/:guestId
+DELETE /api/v1/events/:eventId/guests/:guestId
+PATCH  /api/v1/events/:eventId/households/:householdId
+```
+
+All four require `guest:write`. Import is how a list arrives; these are how a
+host keeps it right afterwards — the forgotten cousin, the address that
+bounced, the plus-one who is no longer coming.
+
+**Adding** takes `firstName` (required), and optionally `lastName`, `email`,
+`phone`, `locale`, `attribution` (`SIDE_A` / `SIDE_B` / `SHARED` / `UNKNOWN`).
+With `householdId` the guest joins that household, which must have a free
+seat. Without it they get a new household of their own, named after them,
+with `seatsAllotted` seats (1–20, default 1). Either way it returns the guest:
+
+```json
+{
+  "id": "clz...", "householdId": "clz...",
+  "firstName": "Ani", "lastName": "Hakobyan",
+  "email": "ani@example.am", "phone": null, "locale": null,
+  "attribution": "SIDE_A", "isPrimary": true, "token": "k7m2..."
+}
+```
+
+`token` is the guest's capability link segment — treat it as a credential
+(see [§3](#3-capability-links--the-pattern-to-understand)). `isPrimary` is the household member whose
+link the invitation is sent to; the first person in a household is primary.
+
+**Editing** takes the same fields, all optional. **Omitted means unchanged; an
+empty string clears `email` or `phone`.** Addresses are validated the same way
+as on import, and an email is stored lower-cased — show what comes back, not
+what was typed. A guest whose data was erased at their request cannot be
+edited (`400`).
+
+Sending `householdId` **moves** the guest. The destination needs a free seat.
+If the guest was the primary of the household they left, the next person in
+it becomes primary; if nobody is left, that household is removed — an empty
+household is an invitation addressed to no one. Refetch `GET /guests` after a
+move rather than patching your local copy: two households changed.
+
+**Removing** deletes the guest with their answer and seat, so the headcount,
+catering sheet and seating plan stop counting them. The same primary hand-off
+and empty-household removal apply:
+
+```json
+{ "removed": "clz...", "isHouseholdRemoved": false }
+```
+
+**A guest who has been checked in cannot be removed** (`400`). The check-in is
+the record that they came. Undo the check-in first if it was a mistake. (A
+product decision, 8 October 2026.)
+
+**A household's seats** can be changed, and it can be renamed, but
+`seatsAllotted` cannot go below the number of guests already named in it:
+
+```json
+{ "id": "clz...", "name": "Petrosyan family", "seatsAllotted": 4, "seatsNamed": 3 }
+```
+
+Every refusal is a `400` whose `message` starts with the field it is about —
+`householdId: ...` for a full household, `email: ...` for a bad address,
+`seatsAllotted: ...` for seats below the named count — so you can put the
+error next to the right input. A guest or household id that is not on this
+event is a `404`.
+
+**Capacity holds under concurrency.** A host adding someone to a household at
+the same moment its guest submits a plus-one cannot together overfill it: one
+of the two is refused. Show the refusal; do not retry it.
 
 ### Tables and seating
 
@@ -1345,17 +1419,25 @@ the household's primary guest, or whoever in it has an address if the primary
 has none — and the link carries *that* guest's token, so it personalises for
 whoever opens it.
 
-**Safe to press twice.** A guest is invited once per invitation; a second call
-returns `alreadySent` and queues nothing. Build the button so it can be
-clicked again without a confirmation dialog — a host who sees nothing happen
-for a second will click anyway.
+**Safe to press twice.** A guest whose invitation reached them, or is on its
+way, is counted in `alreadySent` and not sent another. Build the button so it
+can be clicked again without a confirmation dialog — a host who sees nothing
+happen for a second will click anyway.
+
+**Pressing it again also retries what failed.** A guest whose every earlier
+attempt failed, bounced or was suppressed is tried again. That is how a
+bounce is fixed: correct the address with `PATCH /events/:eventId/guests/:guestId`,
+then send — the new address is queued. Until the address is corrected, a
+bounced one stays suppressed and comes back in `suppressed`, not `recipients`.
+A guest who was reached on one channel and has since linked another (say,
+Telegram) is *not* invited again.
 
 **Three outcome lists, because each needs a different action from the host:**
 
 | List | What it means | What the host does |
 |---|---|---|
 | `recipients` | Queued for delivery | Nothing |
-| `suppressed` | They opted out, or a previous send hard-bounced | Talk to the guest; do not retry |
+| `suppressed` | They opted out, or a previous send hard-bounced | A bounce: correct the address. An opt-out: talk to the guest |
 | `unreachable` | No usable address on the household | Fix the address, then send again |
 
 `reason` on an unreachable entry is written for a host to read, and quotes a
@@ -1510,8 +1592,13 @@ GET /api/v1/invitations/:slug/delivery
 Grouped by household, because "have the Petrosyans been invited?" is the
 question a host asks — not "what is the status of message 4f2a".
 
-`status` is `NOT_SENT` (no email exists yet) or a `Message` status: `QUEUED`,
-`SENDING`, `SENT`, `DELIVERED`, `FAILED`, `BOUNCED`, `SUPPRESSED`.
+`status` is `NOT_SENT` (nothing has been sent to this address yet) or a
+`Message` status: `QUEUED`, `SENDING`, `SENT`, `DELIVERED`, `FAILED`,
+`BOUNCED`, `SUPPRESSED`.
+
+After a host corrects a bounced address, the row shows the new `toAddress` as
+`NOT_SENT` until it is sent — the bounce was at the old address and is no
+longer the household's status.
 
 **`SENT` means the mail server accepted it, not that it arrived.** A bounce can
 follow minutes later, and when it does the status becomes `BOUNCED` with the

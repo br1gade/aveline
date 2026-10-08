@@ -6,6 +6,7 @@ import { CommunicationsService } from '../../communications/communications.servi
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { channelsWithCopy, loadSendableHouseholds } from './audience';
+import { PreviousAttempt, hasReachedGuest, isSupersededFailure } from './previous-attempts';
 import {
   Recipient,
   SendableHousehold,
@@ -39,10 +40,11 @@ export class InvitationSenderService {
    * Sends the invitation, one email per household.
    *
    * This is the product's core loop and the step the market still does by
-   * hand: pasting a link into four hundred chats individually. What makes it
-   * safe to press twice is the dedupe key — one per guest per invitation — so
-   * a host who clicks send, sees nothing happen for a second, and clicks
-   * again does not invite everyone twice.
+   * hand: pasting a link into four hundred chats individually. It is safe to
+   * press twice: a guest who was reached, or whose invitation is on its way,
+   * is not sent another (see `hasReachedGuest`). A guest whose invitation
+   * bounced is tried again on the next press — reaching them at a corrected
+   * address, or reported as suppressed while the old one is still on file.
    *
    * Queued rather than sent inline. Four hundred SMTP conversations inside one
    * request would hold it open for minutes and fail halfway with no record of
@@ -62,42 +64,49 @@ export class InvitationSenderService {
 
     const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
-    const queued: { householdName: string; toAddress: string; channel: MessageChannel }[] = [];
-    const alreadySent: string[] = [];
-    const suppressed: { householdName: string; toAddress: string }[] = [];
+    const previous = await this.previousAttempts(invitation.eventId, plan.recipients.map((r) => r.guest.id));
+    const outcome = new SendOutcome();
 
     for (const recipient of plan.recipients) {
-      const outcome = await this.enqueueFor(invitation, recipient);
-
-      if (outcome === 'ALREADY_SENT') alreadySent.push(recipient.householdName);
-      else if (outcome === 'SUPPRESSED') {
-        suppressed.push({
-          householdName: recipient.householdName,
-          toAddress: recipient.via.address,
-        });
-      } else {
-        queued.push({
-          householdName: recipient.householdName,
-          toAddress: recipient.via.address,
-          channel: recipient.via.channel,
-        });
-      }
+      const attempts = previous.get(recipient.guest.id) ?? [];
+      const result = hasReachedGuest(attempts)
+        ? 'ALREADY_SENT'
+        : await this.enqueueFor(invitation, recipient, attempts.length + 1);
+      outcome.record(result, recipient);
     }
 
     this.logger.log(
-      `invitation ${slug}: queued ${queued.length}, already sent ${alreadySent.length}, ` +
-        `suppressed ${suppressed.length}, unreachable ${plan.skipped.length}`,
+      `invitation ${slug}: queued ${outcome.queued.length}, already sent ${outcome.alreadySent}, ` +
+        `suppressed ${outcome.suppressed.length}, unreachable ${plan.skipped.length}`,
     );
 
     return {
-      queued: queued.length,
-      alreadySent: alreadySent.length,
-      recipients: queued,
+      queued: outcome.queued.length,
+      alreadySent: outcome.alreadySent,
+      recipients: outcome.queued,
       // Three separate lists because they need three different actions from a
       // host: nothing, a conversation with the guest, or an address to fix.
-      suppressed,
+      suppressed: outcome.suppressed,
       unreachable: plan.skipped,
     };
+  }
+
+  /** Every earlier invitation attempt for these guests, in one query. */
+  private async previousAttempts(
+    eventId: string,
+    guestIds: string[],
+  ): Promise<Map<string, PreviousAttempt[]>> {
+    const messages = await this.prisma.message.findMany({
+      where: { eventId, templateKey: TEMPLATE_KEY, guestId: { in: guestIds } },
+      select: { guestId: true, toAddress: true, status: true },
+    });
+
+    const byGuest = new Map<string, PreviousAttempt[]>();
+    for (const { guestId, ...attempt } of messages) {
+      if (!guestId) continue;
+      byGuest.set(guestId, [...(byGuest.get(guestId) ?? []), attempt]);
+    }
+    return byGuest;
   }
 
   /**
@@ -126,29 +135,18 @@ export class InvitationSenderService {
       }),
     ]);
 
-    const latestByGuest = new Map<string, (typeof messages)[number]>();
+    // Newest first, so the first message seen for a guest is their latest.
+    const attemptsByGuest = new Map<string, (typeof messages)[number][]>();
     for (const message of messages) {
-      if (message.guestId && !latestByGuest.has(message.guestId)) {
-        latestByGuest.set(message.guestId, message);
-      }
+      if (!message.guestId) continue;
+      attemptsByGuest.set(message.guestId, [...(attemptsByGuest.get(message.guestId) ?? []), message]);
     }
 
     const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
-    const rows = plan.recipients.map((recipient) => {
-      const message = latestByGuest.get(recipient.guest.id);
-      return {
-        householdId: recipient.householdId,
-        household: recipient.householdName,
-        guest: displayName(recipient.guest),
-        channel: recipient.via.channel,
-        toAddress: recipient.via.address,
-        status: message?.status ?? 'NOT_SENT',
-        attempts: message?.attempts ?? 0,
-        failureReason: message?.failureReason ?? null,
-        sentAt: message?.sentAt ?? null,
-      };
-    });
+    const rows = plan.recipients.map((recipient) =>
+      deliveryRow(recipient, attemptsByGuest.get(recipient.guest.id) ?? []),
+    );
 
     return {
       invited: rows.filter((row) => row.status !== 'NOT_SENT').length,
@@ -161,12 +159,13 @@ export class InvitationSenderService {
   private async enqueueFor(
     invitation: { id: string; slug: string; eventId: string; organizationId: string; hosts: string; title: string; defaultLocale: string },
     recipient: Recipient,
-  ): Promise<'QUEUED' | 'ALREADY_SENT' | 'SUPPRESSED'> {
+    attemptNumber: number,
+  ): Promise<'QUEUED' | 'SUPPRESSED'> {
     const { guest } = recipient;
-    const dedupeKey = `invitation:${invitation.id}:${guest.id}`;
-
-    const existing = await this.prisma.message.findUnique({ where: { dedupeKey } });
-    if (existing) return 'ALREADY_SENT';
+    // Whether to send at all was decided by `hasReachedGuest`. The key, per
+    // attempt, is what keeps two simultaneous presses of "send" — which both
+    // count the same earlier attempts — from both queueing.
+    const dedupeKey = `invitation:${invitation.id}:${guest.id}:${attemptNumber}`;
 
     const message = await this.communications.enqueue({
       organizationId: invitation.organizationId,
@@ -266,4 +265,44 @@ export class InvitationSenderService {
     return invitation;
   }
 
+}
+
+/** What one press of "send" did, grouped by what the host should do next. */
+class SendOutcome {
+  readonly queued: { householdName: string; toAddress: string; channel: MessageChannel }[] = [];
+  readonly suppressed: { householdName: string; toAddress: string }[] = [];
+  alreadySent = 0;
+
+  record(result: 'ALREADY_SENT' | 'QUEUED' | 'SUPPRESSED', recipient: Recipient) {
+    const who = { householdName: recipient.householdName, toAddress: recipient.via.address };
+
+    if (result === 'ALREADY_SENT') this.alreadySent += 1;
+    else if (result === 'SUPPRESSED') this.suppressed.push(who);
+    else this.queued.push({ ...who, channel: recipient.via.channel });
+  }
+}
+
+interface RecordedAttempt extends PreviousAttempt {
+  attempts: number;
+  failureReason: string | null;
+  sentAt: Date | null;
+}
+
+/** One household's line in the delivery report, from its attempts newest first. */
+function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[]) {
+  // A failure at an address the host has since corrected is history, not
+  // status: what matters now is that the new address has not been sent to.
+  const latest = isSupersededFailure(attempts[0], recipient.via.address) ? undefined : attempts[0];
+
+  return {
+    householdId: recipient.householdId,
+    household: recipient.householdName,
+    guest: displayName(recipient.guest),
+    channel: recipient.via.channel,
+    toAddress: recipient.via.address,
+    status: latest?.status ?? 'NOT_SENT',
+    attempts: latest?.attempts ?? 0,
+    failureReason: latest?.failureReason ?? null,
+    sentAt: latest?.sentAt ?? null,
+  };
 }

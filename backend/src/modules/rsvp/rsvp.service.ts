@@ -1,15 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, RsvpStatus } from '@prisma/client';
-import { customAlphabet } from 'nanoid';
+import { Guest, Prisma, RsvpStatus } from '@prisma/client';
+import { newGuestToken } from '../guests/guest-token';
+import { LockedHousehold, lockHousehold } from '../guests/household-lock';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
 import { PartyMemberDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
-
-const newGuestToken = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 12);
-
-type RespondingGuest = Prisma.GuestGetPayload<{
-  include: { household: { include: { guests: true } }; event: true };
-}>;
 
 @Injectable()
 export class RsvpService {
@@ -28,20 +23,24 @@ export class RsvpService {
     await this.assertInvitationAccepting(slug);
 
     const newMembers = dto.party ?? [];
-    this.assertHouseholdCapacity(guest, newMembers.length);
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Counted under the household's lock, not from the guest loaded above:
+      // the host may be adding someone to this household at the same moment.
+      const household = await lockHousehold(tx, guest.eventId, guest.householdId);
+      assertHouseholdCapacity(household, newMembers.length);
+
       await this.applyGuestChanges(tx, guest, dto);
       await this.addPartyMembers(tx, guest, dto, newMembers);
       const rsvp = await this.upsertRsvp(tx, guest.id, dto);
       await this.saveCustomAnswers(tx, rsvp.id, dto);
 
-      const namedTotal = guest.household.guests.length + newMembers.length;
+      const namedTotal = household.namedGuests + newMembers.length;
       return {
         status: rsvp.status,
         respondedAt: rsvp.respondedAt,
         partyAdded: newMembers.length,
-        seatsRemaining: guest.household.seatsAllotted - namedTotal,
+        seatsRemaining: household.seatsAllotted - namedTotal,
       };
     });
 
@@ -67,10 +66,9 @@ export class RsvpService {
 
   // ── guards ───────────────────────────────────────────────────────────
 
-  private async loadGuest(slug: string, token: string): Promise<RespondingGuest> {
+  private async loadGuest(slug: string, token: string): Promise<Guest> {
     const guest = await this.prisma.guest.findFirst({
       where: { token, event: { invitation: { slug } } },
-      include: { household: { include: { guests: true } }, event: true },
     });
     if (!guest) throw new NotFoundException('Invitation link not recognised');
     return guest;
@@ -90,23 +88,11 @@ export class RsvpService {
     }
   }
 
-  private assertHouseholdCapacity(guest: RespondingGuest, incoming: number): void {
-    const alreadyNamed = guest.household.guests.length;
-    const allotted = guest.household.seatsAllotted;
-
-    if (alreadyNamed + incoming > allotted) {
-      throw new BadRequestException(
-        `This invitation allows ${allotted} guest(s); ` +
-          `${alreadyNamed} already named and ${incoming} more were submitted`,
-      );
-    }
-  }
-
   // ── writes ───────────────────────────────────────────────────────────
 
   private async applyGuestChanges(
     tx: Prisma.TransactionClient,
-    guest: RespondingGuest,
+    guest: Guest,
     dto: SubmitRsvpDto,
   ): Promise<void> {
     if (!dto.attribution && !dto.locale) return;
@@ -123,7 +109,7 @@ export class RsvpService {
   /** Named plus-ones become real household members, inheriting attribution. */
   private async addPartyMembers(
     tx: Prisma.TransactionClient,
-    guest: RespondingGuest,
+    guest: Guest,
     dto: SubmitRsvpDto,
     members: PartyMemberDto[],
   ): Promise<void> {
@@ -175,5 +161,17 @@ export class RsvpService {
         update: { value },
       });
     }
+  }
+}
+
+function assertHouseholdCapacity(household: LockedHousehold, incoming: number): void {
+  const allotted = household.seatsAllotted;
+  const alreadyNamed = household.namedGuests;
+
+  if (alreadyNamed + incoming > allotted) {
+    throw new BadRequestException(
+      `This invitation allows ${allotted} guest(s); ` +
+        `${alreadyNamed} already named and ${incoming} more were submitted`,
+    );
   }
 }

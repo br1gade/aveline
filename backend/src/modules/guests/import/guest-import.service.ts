@@ -1,10 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ImportStatus, Prisma } from '@prisma/client';
-import { customAlphabet } from 'nanoid';
+import { newGuestToken } from '../guest-token';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ParsedGuest, RowError, parseGuestCsv } from './csv-guests';
 
-const newGuestToken = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 12);
 const MAX_ROWS = 2000;
 
 @Injectable()

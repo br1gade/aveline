@@ -18,6 +18,7 @@ human retyping something another human already typed.
 | RSVP intake into a guest graph | Answers landing in an inbox |
 | Headcount, catering, bar, playlist sheets | Counting a spreadsheet by hand |
 | Guest graph with households and attribution | A flat list of names |
+| Host edits to the guest list: add, correct, move, remove | Re-uploading the whole spreadsheet to fix one name |
 | One-call dashboard, atomic block arrangement | Multi-step editing workflows |
 | Access policy (roles, scoped vendor briefs) | "Who do I forward this to?" |
 | Payments core + three bank gateways | Bank transfer screenshots over chat |

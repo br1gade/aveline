@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventRole, MessageChannel, MessageStatus, PrismaClient } from '@prisma/client';
+import { EventRole, MessageChannel, MessageStatus, OrganizationRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -48,7 +48,7 @@ describe('Invitation sending (e2e)', () => {
   const host = async (options: { isPublished?: boolean } = {}) => {
     const seeded = await seedEvent(prisma, options);
     const event = await prisma.event.findUniqueOrThrow({ where: { id: seeded.eventId } });
-    const { authorization } = await authenticateAs(app, prisma, {
+    const { authorization, userId } = await authenticateAs(app, prisma, {
       eventId: seeded.eventId,
       role: EventRole.OWNER,
     });
@@ -71,7 +71,7 @@ describe('Invitation sending (e2e)', () => {
       where: { eventId: seeded.eventId },
       data: { email: 'primary@test.local' },
     });
-    return { ...seeded, organizationId: event.organizationId, authorization };
+    return { ...seeded, organizationId: event.organizationId, authorization, userId };
   };
 
   /** A household of three sharing one invitation, plus a single guest. */
@@ -314,6 +314,102 @@ describe('Invitation sending (e2e)', () => {
         status: 'BOUNCED',
         failureReason: '550 no such user',
       });
+    });
+  });
+
+  /**
+   * A bounced invitation used to be final: the dedupe key was one per guest,
+   * so correcting the address changed nothing and the household was never
+   * invited. Walked over HTTP the way a host would do it, with only the bounce
+   * itself simulated.
+   */
+  describe('after a bounce', () => {
+    const armenId = async (eventId: string) =>
+      (await prisma.guest.findFirstOrThrow({ where: { eventId, token: 'tok-armen' } })).id;
+
+    // A bounce suppresses the address platform-wide, which is what the outbox
+    // checks — the same thing that happens in production, not a test shortcut.
+    const bounceArmen = async (eventId: string) => {
+      await prisma.message.updateMany({
+        where: { eventId, toAddress: 'armen@test.local' },
+        data: { status: MessageStatus.BOUNCED, failureReason: '550 no such user' },
+      });
+      await prisma.suppression.create({
+        data: { channel: MessageChannel.EMAIL, address: 'armen@test.local', reason: 'HARD_BOUNCE' },
+      });
+    };
+
+    it('reports an uncorrected bounced address as suppressed rather than queueing it', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+      await bounceArmen(eventId);
+
+      const { body } = await send(slug, authorization).expect(201);
+
+      expect(body.queued).toBe(0);
+      expect(body.suppressed).toEqual([
+        { householdName: 'Petrosyan family', toAddress: 'armen@test.local' },
+      ]);
+    });
+
+    it('sends again once a host lifts their own opt-out for the address', async () => {
+      const { slug, eventId, organizationId, authorization, userId } = await host();
+      await guestList(eventId);
+      // Suppressions are the organization's, so lifting one is an organization owner's act.
+      await prisma.organizationMembership.create({
+        data: { userId, organizationId, role: OrganizationRole.OWNER },
+      });
+      const optOut = await prisma.suppression.create({
+        data: { organizationId, channel: MessageChannel.EMAIL, address: 'armen@test.local', reason: 'UNSUBSCRIBED' },
+      });
+      const first = await send(slug, authorization).expect(201);
+      expect(first.body.suppressed).toHaveLength(1);
+
+      await http()
+        .delete(`/api/v1/suppressions/${optOut.id}`)
+        .set('Authorization', authorization)
+        .expect(200);
+      const { body } = await send(slug, authorization).expect(201);
+
+      expect(body.recipients).toEqual([
+        { householdName: 'Petrosyan family', toAddress: 'armen@test.local', channel: 'EMAIL' },
+      ]);
+    });
+
+    it('sends to the corrected address, and only to that household', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+      await bounceArmen(eventId);
+
+      await http()
+        .patch(`/api/v1/events/${eventId}/guests/${await armenId(eventId)}`)
+        .set('Authorization', authorization)
+        .send({ email: 'armen@example.am' })
+        .expect(200);
+
+      const delivery = await http()
+        .get(`/api/v1/invitations/${slug}/delivery`)
+        .set('Authorization', authorization)
+        .expect(200);
+      // The bounce was at the old address; the new one has simply not been sent to.
+      const before = (delivery.body.households as { household: string }[]).find(
+        (row) => row.household === 'Petrosyan family',
+      );
+      expect(before).toMatchObject({ toAddress: 'armen@example.am', status: 'NOT_SENT' });
+
+      const { body } = await send(slug, authorization).expect(201);
+
+      expect(body.queued).toBe(1);
+      expect(body.recipients).toEqual([
+        { householdName: 'Petrosyan family', toAddress: 'armen@example.am', channel: 'EMAIL' },
+      ]);
+      expect(body.suppressed).toEqual([]);
+
+      // And pressing it again does not send the corrected one twice.
+      const again = await send(slug, authorization).expect(201);
+      expect(again.body.queued).toBe(0);
     });
   });
 
