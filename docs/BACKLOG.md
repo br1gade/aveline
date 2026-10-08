@@ -18,8 +18,8 @@ bugs marked ✔ were also reproduced by running them.
 
 Sizes: **S** under half a day · **M** one to two days · **L** more.
 **Client** marks items the frontend needs before it can build a screen.
-**Decision** marks items that need a product answer before they can be built
-— listed together in [§3](#3-decisions-needed).
+**Decision** marks items whose product answer is recorded in
+[§3](#3-decisions-needed).
 
 **At a glance**
 
@@ -27,7 +27,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 |---|---|---|---|---|
 | Bugfixes | 10 (B1–B10) | 25 (B11–B35) | 26 (B36–B61), of which 8 money | — |
 | Features | 3 (F1–F3) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
-| Decisions | 4 (D1–D4) | | | |
+| Decisions | 4 (D1–D4), all decided | | | |
 
 The P0 bugs are small — most are under half a day — but four expose people's
 data (B1–B4) and three break the core RSVP loop (B6–B8). The feature that
@@ -212,12 +212,14 @@ backend is [GAPS.md](../backend/docs/GAPS.md).
 
 ## 3. Decisions needed
 
-| # | Question | Blocks | Recommendation |
+All four were decided on 8 October 2026.
+
+| # | Question | Blocks | Decided |
 |---|---|---|---|
-| D1 | **How does a household answer?** One answer for everyone on the link, or each named member marked attending or not in the same submission? | B7 | Per member, in one submission: families split ("we're coming, grandma can't travel"), and catering and seating count people |
-| D2 | **Who carries out data-protection requests?** | B1 | Aveline staff only. A request matches an email across every customer, so no single host should act on it |
-| D3 | **When a host changes the date or venue after sending, are guests told?** | F2 | Yes, with an "updated details" message to everyone already invited, sent only when the host confirms |
-| D4 | **Is find-your-seat public?** | B16 | Only through a guest's own link, and only once the host publishes the seating |
+| D1 | How does a household answer? | B7 | **Per member, in one submission.** Whoever opens the link marks each named member of the household attending or not. Families split, and catering and seating count people |
+| D2 | Who carries out data-protection requests? | B1 | **Aveline staff only.** A request matches an email across every customer, so hosts neither see the queue nor act on it |
+| D3 | When a host changes the date or venue after sending, are guests told? | F2 | **The host is offered it.** After the edit, they choose whether to send an "updated details" message to everyone already invited |
+| D4 | Is find-your-seat public? | B16 | **Only through a guest's own link, and only once the host publishes the seating** |
 
 ---
 
