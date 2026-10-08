@@ -1,103 +1,35 @@
-# Aveline
+# Aveline — agent rules
 
-Custom event invitations, organization and management.
+The rules live in [`CLAUDE.md`](CLAUDE.md). **Read that file.**
 
-Two teams work in this repository: **backend** and **client**. This file is
-what both share. Each area has its own rules file, which takes precedence
-inside that area.
+This one exists only because Codex looks for `AGENTS.md` where Claude Code
+looks for `CLAUDE.md`. It is a pointer rather than a copy on purpose: two
+files carrying the same rules drift, and the one that drifts is the one nobody
+is reading at the time.
 
-**The project is under local development.** Nothing is deployed, there are no
-real users and no real money has moved. Development-only affordances are
-acceptable where they are guarded — the password-reset endpoint returning its
-own link outside production is one — but each must be impossible to reach in
-production, not merely discouraged. [`docs/GOING_LIVE.md`](docs/GOING_LIVE.md)
-is the list of what must be true before that status changes; add to it when
-you find something rather than assuming it is known.
-
----
-
-## 1. Where things live
-
-```
-docs/            SHARED — the product and the contract. Both teams.
-  PRODUCT_SPEC.md        what Aveline is, how it makes money
-  API.md                 how to call the backend ← start here for the client
-  ACCESS_CONTROL.md      who may do what
-  INVITATION_DESIGN.md   templates, blocks, media, RSVP questions
-  VENUES_AND_SEATING.md  venues, tables, seats
-  PAYMENTS.md            card acquiring and the redirect flow
-
-backend/         The API. Rules in backend/AGENTS.md
-  docs/                  backend-internal: architecture, schema, stores, gaps
-  openapi.json           generated; feed it to a type generator
-
-frontend/        The client. Rules in frontend/AGENTS.md once a stack is
-                 chosen — copy docs/CLIENT_CLAUDE.template.md into it
-```
-
-**The split that matters:** `docs/` is a contract between two teams.
-`backend/docs/` is one team's internal reasoning. Changing something in
-`docs/` affects someone who is not in the room — say so in the commit.
-
-## 2. Working across the boundary
-
-**The API is the contract, and `docs/API.md` is its description.** It is not
-generated — it carries the conventions, the gotchas and the reasoning that an
-OpenAPI schema cannot express. `backend/openapi.json` is generated and is what
-a type generator should consume.
-
-- **Backend:** changing a response shape means updating `docs/API.md` in the
-  same commit. Adding a field is safe. Renaming, removing or retyping one is
-  breaking — say so plainly in the commit message.
-- **Client:** if the API does not do what you need, say so rather than working
-  around it. A workaround in the client becomes permanent; a backend change
-  takes an afternoon.
-- **Neither:** do not invent an endpoint in a doc that does not exist in code.
-  `backend/npm run docs:check` fails the build on exactly that.
-
-## 3. Shared conventions
-
-**Money** is integer minor units as a string: `"25000"`. Never a float. AMD
-has no subunit, so that is twenty-five thousand dram.
-
-**Translated content** is keyed by locale and resolved with a fallback. A
-requested locale is negotiated against what an event publishes — render what
-the response says, not what you asked for.
-
-**Times** are ISO 8601 UTC. Events carry an IANA timezone; format in that
-zone, not the viewer's.
-
-**Capability links** — the long tokens in guest, ticket and vendor URLs — are
-credentials. Keep them out of logs, analytics and screenshots.
-
-## 4. Documentation
-
-A doc that describes something that no longer exists is worse than no doc,
-because it is believed.
-
-- Update the governing doc **in the same commit** as the behaviour.
-- Every doc carries a "not yet built" section. When you build something,
-  delete its entry. Those sections rot fastest and are the first thing a new
-  reader trusts.
-- `cd backend && npm run docs:check` catches broken links, undocumented
-  endpoints and endpoints documented but absent. It cannot read prose — a
-  stale "not yet built" list is still on you.
-
-## 5. Commits
-
-- Explain **why**, not what the diff already shows.
-- Say when a change is breaking for the other team.
-- **Never commit competitor material.** Research sources stay on local disk;
-  the gitignore blocks the usual shapes. The repository is currently public.
-- Never commit secrets. `.env`, `garage/garage.toml` and credentials of any
-  kind are ignored; templates are committed in their place.
-
-## 6. Area rules
+Working inside an area? The nearest rules file still wins:
 
 | Working in | Read |
 |---|---|
-| `backend/` | [`backend/AGENTS.md`](backend/AGENTS.md) |
-| `frontend/` | `frontend/AGENTS.md`; start from [`docs/API.md`](docs/API.md) |
+| `backend/` | [`backend/CLAUDE.md`](backend/CLAUDE.md) |
+| `frontend/` | `frontend/CLAUDE.md` once a stack is chosen — start from [`docs/API.md`](docs/API.md) |
 
-Codex loads the nearest `AGENTS.md` automatically, so an agent working
-in `backend/` gets the backend rules without being told.
+Everything else an agent needs is shared, not tool-specific:
+
+- [`docs/`](docs/) — the product and the API contract, written for both teams
+- [`backend/docs/`](backend/docs/) — architecture, data model, stores, gaps
+- `.claude/skills/feature/SKILL.md` — the order to apply the backend rules in.
+  `.agents/skills/feature/SKILL.md` is a symlink to it.
+- `.claude/hooks/` — lint, schema and docs-sync checks. `.codex/hooks/` holds
+  symlinks to the same scripts, so there is one copy of each to maintain.
+
+The Codex hook commands are written as `"${CODEX_PROJECT_DIR:-.}/.codex/..."`.
+That variable name is inferred from Claude Code's `CLAUDE_PROJECT_DIR` and has
+not been verified against Codex; the `:-.` fallback is what actually makes it
+work, so the hooks run whenever the working directory is the repository root.
+If Codex runs them from somewhere else, that one file is where to fix it.
+
+None of this is load-bearing. The checks that matter are in the repository:
+`cd backend && npm run verify` runs lint, the docs check, the build and all
+three test layers, and it is what CI should run regardless of which agent
+wrote the code.

@@ -6,13 +6,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "'/home/user/Projects/aveline/.codex/hooks/lint-changed.sh'",
+            "command": "\"${CODEX_PROJECT_DIR:-.}/.codex/hooks/lint-changed.sh\"",
             "timeout": 60,
             "statusMessage": "Linting changed file"
           },
           {
             "type": "command",
-            "command": "'/home/user/Projects/aveline/.codex/hooks/schema-changed.sh'",
+            "command": "\"${CODEX_PROJECT_DIR:-.}/.codex/hooks/schema-changed.sh\"",
             "timeout": 10
           }
         ]
@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "'/home/user/Projects/aveline/.codex/hooks/docs-sync.sh'",
+            "command": "\"${CODEX_PROJECT_DIR:-.}/.codex/hooks/docs-sync.sh\"",
             "timeout": 15
           }
         ]
