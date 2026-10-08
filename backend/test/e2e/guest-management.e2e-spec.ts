@@ -170,6 +170,86 @@ describe('Guest management (e2e)', () => {
       .expect(404);
   });
 
+  /**
+   * The list used to give one combined name, a status and a table — nothing
+   * an edit form could be filled from — and handed every guest's personal
+   * link to read-only viewers, who could then answer as that guest.
+   */
+  describe('reading the list to edit it', () => {
+    const withAni = async (role: EventRole = EventRole.COORDINATOR) => {
+      const seeded = await signedIn(role);
+      const ani = await prisma.guest.create({
+        data: {
+          eventId: seeded.eventId,
+          householdId: seeded.householdId,
+          firstName: 'Ani',
+          lastName: 'Hakobyan',
+          email: 'ani@example.am',
+          phone: '+374 91 000000',
+          locale: 'en',
+          token: `ani-${seeded.slug}`,
+          rsvp: { create: { status: 'ATTENDING', dietary: ['vegan'], dietaryNotes: 'nut allergy' } },
+        },
+      });
+      return { ...seeded, aniId: ani.id };
+    };
+
+    const list = (eventId: string, authorization: string) =>
+      http().get(`/api/v1/events/${eventId}/guests`).set('Authorization', authorization).expect(200);
+
+    it('gives each guest’s own fields, answers and arrival', async () => {
+      const { eventId, authorization, aniId } = await withAni();
+
+      const { body } = await list(eventId, authorization);
+
+      const ani = (body as { guests: { id: string }[] }[]).flatMap((h) => h.guests).find((g) => g.id === aniId);
+      expect(ani).toMatchObject({
+        firstName: 'Ani',
+        lastName: 'Hakobyan',
+        name: 'Ani Hakobyan',
+        email: 'ani@example.am',
+        phone: '+374 91 000000',
+        locale: 'en',
+        token: expect.any(String),
+        isCheckedIn: false,
+        rsvp: { status: 'ATTENDING', dietary: ['vegan'], dietaryNotes: 'nut allergy' },
+      });
+    });
+
+    it('leaves out contact details and personal links for a viewer', async () => {
+      const { eventId, authorization, aniId } = await withAni(EventRole.VIEWER);
+
+      const { body } = await list(eventId, authorization);
+
+      const ani = (body as { guests: Record<string, unknown>[] }[]).flatMap((h) => h.guests).find((g) => g.id === aniId);
+      expect(ani).toMatchObject({ firstName: 'Ani', rsvp: { status: 'ATTENDING' } });
+      expect(ani).not.toHaveProperty('email');
+      expect(ani).not.toHaveProperty('phone');
+      expect(ani).not.toHaveProperty('token');
+    });
+
+    it('reads one guest, with their household and custom answers', async () => {
+      const { eventId, householdId, authorization, aniId } = await withAni();
+
+      const { body } = await http()
+        .get(`/api/v1/events/${eventId}/guests/${aniId}`)
+        .set('Authorization', authorization)
+        .expect(200);
+
+      expect(body).toMatchObject({ id: aniId, householdId, firstName: 'Ani', email: 'ani@example.am', answers: [] });
+    });
+
+    it('404s a guest from another event', async () => {
+      const { eventId, authorization } = await withAni();
+      const other = await withAni();
+
+      await http()
+        .get(`/api/v1/events/${eventId}/guests/${other.aniId}`)
+        .set('Authorization', authorization)
+        .expect(404);
+    });
+  });
+
   // A designer builds the page; the guest list is not theirs to change.
   it.each([
     ['post', 'guests'],

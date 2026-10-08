@@ -669,6 +669,111 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/guests/{guestId}": {
+      "get": {
+        "description": "Contact details and the personal link only with guest:contact:read.",
+        "operationId": "GuestsController_findOne",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One guest, for an edit form",
+        "tags": [
+          "guests"
+        ]
+      },
+      "patch": {
+        "description": "Omitted fields are left alone; an empty email or phone clears it.",
+        "operationId": "GuestManagementController_update",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Correct a guest's details, or move them to another household",
+        "tags": [
+          "guests"
+        ]
+      },
+      "delete": {
+        "description": "Their answer and seat go with them. Refused once they have been checked in. A household left empty is removed too.",
+        "operationId": "GuestManagementController_remove",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a guest",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/guests/{guestId}/check-in": {
       "post": {
         "description": "A guest can only be checked in once, so two people on the door cannot both record the same arrival. Returns their table and whether they were expected.",
@@ -783,80 +888,6 @@
           }
         },
         "summary": "Guest-facing seat lookup by name",
-        "tags": [
-          "guests"
-        ]
-      }
-    },
-    "/api/v1/events/{eventId}/guests/{guestId}": {
-      "patch": {
-        "description": "Omitted fields are left alone; an empty email or phone clears it.",
-        "operationId": "GuestManagementController_update",
-        "parameters": [
-          {
-            "name": "eventId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "guestId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateGuestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Correct a guest's details, or move them to another household",
-        "tags": [
-          "guests"
-        ]
-      },
-      "delete": {
-        "description": "Their answer and seat go with them. Refused once they have been checked in. A household left empty is removed too.",
-        "operationId": "GuestManagementController_remove",
-        "parameters": [
-          {
-            "name": "eventId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "guestId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Remove a guest",
         "tags": [
           "guests"
         ]

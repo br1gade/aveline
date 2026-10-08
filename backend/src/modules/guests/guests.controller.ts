@@ -14,7 +14,7 @@ import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GuestsService } from './guests.service';
 import { CheckInService } from './check-in.service';
 import { GuestImportService } from './import/guest-import.service';
-import { CurrentActor, Public, RequestActor, RequirePermission } from '../../infra/auth/actor';
+import { CurrentActor, Public, RequestActor, RequirePermission, actorCan } from '../../infra/auth/actor';
 
 @ApiTags('guests')
 @Controller('events/:eventId')
@@ -28,8 +28,8 @@ export class GuestsController {
   @RequirePermission('guest:read')
   @Get('guests')
   @ApiOperation({ summary: 'Guest graph grouped by household' })
-  list(@Param('eventId') eventId: string) {
-    return this.guests.listByHousehold(eventId);
+  list(@Param('eventId') eventId: string, @CurrentActor() actor: RequestActor) {
+    return this.guests.listByHousehold(eventId, actorCan(actor, 'guest:contact:read'));
   }
 
   @RequirePermission('guest:write')
@@ -60,6 +60,20 @@ export class GuestsController {
   @ApiOperation({ summary: 'Recent imports, with their per-row errors' })
   listImports(@Param('eventId') eventId: string) {
     return this.imports.listImports(eventId);
+  }
+
+  @RequirePermission('guest:read')
+  @Get('guests/:guestId')
+  @ApiOperation({
+    summary: 'One guest, for an edit form',
+    description: 'Contact details and the personal link only with guest:contact:read.',
+  })
+  findOne(
+    @Param('eventId') eventId: string,
+    @Param('guestId') guestId: string,
+    @CurrentActor() actor: RequestActor,
+  ) {
+    return this.guests.findOne(eventId, guestId, actorCan(actor, 'guest:contact:read'));
   }
 
   @RequirePermission('guest:write')

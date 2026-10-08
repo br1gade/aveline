@@ -52,7 +52,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B11 | Read-only roles get guest contact details ✔ | The guest-list export needs only `operations:read`, bypassing `guest:contact:read`, and export files sit at public, non-expiring URLs (the ticket manifest exposes door codes the same way). `GET /invitations/:slug/delivery` gives a DESIGNER or VIEWER every address. `GET /vendors` hands brief tokens, which can carry the `contacts` scope, to any VIEWER. `GET /guests` gives VIEWERs every guest's capability token, letting them answer as the guest | `exports/`, `invitations/invitation-lifecycle.controller.ts`, `vendors/`, `guests/guests.service.ts` | M |
+| B11 | Read-only roles get guest contact details ✔ | The guest-list export needs only `operations:read`, bypassing `guest:contact:read`, and export files sit at public, non-expiring URLs (the ticket manifest exposes door codes the same way). `GET /invitations/:slug/delivery` gives a DESIGNER or VIEWER every address. `GET /vendors` hands brief tokens, which can carry the `contacts` scope, to any VIEWER. | `exports/`, `invitations/invitation-lifecycle.controller.ts`, `vendors/` | M |
 | B12 | The vendor directory is shared by every customer, and any customer can write to it | `Vendor` has no organization: host B sees the phone number host A entered for their cousin the photographer | `vendors/` | S |
 | B13 | Read-only members can create events and become their owner ✔ | `POST /events` requires no permission | `events/events.controller.ts` | S |
 | B14 | "One organization per account" is not held ✔ | Concurrent creates make three; accepting an invite adds a second. The guard then picks a membership arbitrarily, so events, billing and invites act on a random organization | `organizations/organizations.service.ts`, `account.service.ts`, `infra/auth/auth.guard.ts` | S |
@@ -116,7 +116,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B47 | RSVP accepts `PENDING` as an answer, an unpublished language, and overwrites the host's side for a guest | `rsvp/` | S |
 | B48 | Booking a cancelled vendor again returns a cancelled booking and a dead brief link ✔ | `vendors/vendors.service.ts` | S |
 | B49 | A PRIVATE invitation is readable by anyone with its generic URL (§13.1 says capability link only) | `invitations/invitations.controller.ts` | S |
-| B50 | Platform staff lose their own memberships' permissions, and never see vendor fees | `infra/auth/auth.guard.ts`, `vendors/` | S |
+| B50 | Platform staff lose their own memberships' permissions (they now see vendor fees) | `infra/auth/auth.guard.ts`, `vendors/` | S |
 | B51 | Vendor fees are a decimal string, not integer minor units — breaking for the client to change | `vendors/` | S |
 | B53 | Two refreshes with one token make two live sessions ✔ | `infra/auth/auth.service.ts` | S |
 | B54 | Login timing and registration reveal which emails have accounts ✔ | `infra/auth/auth.service.ts` | S |
@@ -145,7 +145,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | F4 | **See the answers to custom questions** | Answers are stored and returned only to the guest who gave them. No host view, sheet or export includes them — the question has no consumer, which the spec forbids | M |
 | F5 | **Team management** | Nothing assigns COORDINATOR, DESIGNER or event VIEWER, lists members, removes one or changes a role. Door staff today need organization MANAGER, which also shows vendor fees | M |
 | F6 | **Record an answer on a guest's behalf** · Client | A grandmother phones in her answer; the host has nowhere to enter it | S |
-| F7 | **A guest list an edit form can use** · Client | `GET /guests` returns a combined name, status and table — no separate first and last name, email, phone, language, household or answers, and there is no single-guest read | S |
 | F8 | **Edit a table** · Client | Name, capacity, zone and venue cannot change; position and shape for a drag-and-drop plan are never stored | S–M |
 | F9 | **Venue coordinates and capacity** | Latitude, longitude and capacity are returned but only ever copied from the venue directory, which nothing can fill. The Map block has only a pasted link | S |
 | F10 | **Configure the built-in RSVP questions** | A host cannot switch off drink or song questions or define the choices. Drinks are free text, so "Wine", "Вино" and "Գինի" are three rows on the bar sheet | M |

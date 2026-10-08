@@ -745,6 +745,43 @@ The last imports, newest first, each with `filename`, `rowsImported`,
 `rowsFailed`, `status` and `errors` — enough to show "412 of 415 imported" days
 later. Requires `guest:read`.
 
+### Reading the guest list
+
+```http
+GET /api/v1/events/:eventId/guests              # every household and guest
+GET /api/v1/events/:eventId/guests/:guestId     # one guest, for an edit form
+```
+
+Needs `guest:read`. The list is grouped by household, households by name,
+the primary first within each:
+
+```json
+[{
+  "id": "clz...", "name": "Petrosyan family", "seatsAllotted": 3, "seatsNamed": 2, "notes": null,
+  "guests": [{
+    "id": "clz...", "firstName": "Armen", "lastName": "Petrosyan", "name": "Armen Petrosyan",
+    "email": "armen@example.am", "phone": "+374 91 000000", "token": "k7m2...",
+    "locale": "hy", "attribution": "SIDE_A", "isPrimary": true, "addedByGuest": false,
+    "isAnonymized": false, "rsvpStatus": "ATTENDING",
+    "rsvp": { "status": "ATTENDING", "respondedAt": "...", "dietary": ["vegan"],
+              "dietaryNotes": null, "drinkPreference": "wine", "songRequest": null, "message": null },
+    "table": "Table 4", "isCheckedIn": false, "arrivedAt": null
+  }]
+}]
+```
+
+**`email`, `phone` and `token` are present only for callers holding
+`guest:contact:read`** — owners and coordinators, not viewers or designers.
+Absent means "not yours to see", not "empty"; build the screen so it works
+without them. `token` is the guest's personal link segment and lets whoever
+holds it answer as the guest, which is why it travels with the contact
+details.
+
+The single-guest read returns the same fields plus `householdId` and
+`answers` — `[{ "questionId", "value" }]` for the host's own questions, in the
+format described under "Submit an RSVP". Use it to fill the edit form for
+`PATCH /guests/:guestId`. A guest on another event is a `404`.
+
 ### Editing the guest list
 
 ```http

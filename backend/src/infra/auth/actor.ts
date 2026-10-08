@@ -1,6 +1,6 @@
 import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
 import { EventRole, OrganizationRole, PlatformRole } from '@prisma/client';
-import { Permission } from '../../modules/access/access-policy';
+import { Actor, Permission, can } from '../../modules/access/access-policy';
 
 /**
  * Who is making this request, resolved once by the guard and carried on the
@@ -59,3 +59,27 @@ export const CurrentActor = createParamDecorator(
   (_data: unknown, context: ExecutionContext): RequestActor | undefined =>
     context.switchToHttp().getRequest<AuthenticatedRequest>().actor,
 );
+
+/**
+ * Whether this caller holds a permission, judged exactly as the guard judges
+ * it: platform staff by platform role, everyone else by membership.
+ *
+ * For responses that show more to some callers than others — fees, guest
+ * contact details — where the route itself is open to both. One function, so
+ * a copy cannot drift from the guard: the vendors module's own copy forgot
+ * platform staff, who then never saw fees.
+ */
+export function actorCan(actor: RequestActor, permission: Permission): boolean {
+  return can(policyActorOf(actor), permission);
+}
+
+export function policyActorOf(actor: RequestActor): Actor {
+  if (actor.platformRole !== PlatformRole.NONE) {
+    return { kind: 'staff', role: actor.platformRole };
+  }
+  return {
+    kind: 'member',
+    organizationRole: actor.organizationRole ?? null,
+    eventRole: actor.eventRole ?? null,
+  };
+}

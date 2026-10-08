@@ -7,9 +7,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { PlatformRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Permission, can } from '../../modules/access/access-policy';
+import { Permission } from '../../modules/access/access-policy';
 import {
   AuthenticatedRequest,
   EVENT_SCOPE,
@@ -18,6 +17,7 @@ import {
   ORGANIZATION_SCOPE,
   REQUIRED_PERMISSION,
   RequestActor,
+  actorCan,
 } from './actor';
 import { AccessTokenClaims } from './auth.service';
 
@@ -76,7 +76,7 @@ export class AuthGuard implements CanActivate {
     );
     if (!required) return true;
 
-    if (!can(toPolicyActor(actor), required)) {
+    if (!actorCan(actor, required)) {
       throw new ForbiddenException(`This account may not ${required}`);
     }
     return true;
@@ -220,14 +220,4 @@ export class AuthGuard implements CanActivate {
   }
 }
 
-/** Platform staff are judged by platform role; everyone else by membership. */
-function toPolicyActor(actor: RequestActor): Parameters<typeof can>[0] {
-  if (actor.platformRole !== PlatformRole.NONE) {
-    return { kind: 'staff', role: actor.platformRole };
-  }
-  return {
-    kind: 'member',
-    organizationRole: actor.organizationRole ?? null,
-    eventRole: actor.eventRole ?? null,
-  };
-}
+

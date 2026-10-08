@@ -8,8 +8,8 @@ import {
   Public,
   RequestActor,
   RequirePermission,
+  actorCan,
 } from '../../infra/auth/actor';
-import { can } from '../access/access-policy';
 import { BookVendorDto, CreateVendorDto, UpdateBookingDto } from './dto/vendor.dto';
 import { VendorBriefsService } from './vendor-briefs.service';
 import { VendorsService } from './vendors.service';
@@ -115,12 +115,5 @@ export class VendorsController {
  * coordinator can work with the vendor list without seeing commercial terms.
  */
 function maySeeFees(actor: RequestActor): boolean {
-  return can(
-    {
-      kind: 'member',
-      organizationRole: actor.organizationRole ?? null,
-      eventRole: actor.eventRole ?? null,
-    },
-    'vendor:fee:read',
-  );
+  return actorCan(actor, 'vendor:fee:read');
 }
