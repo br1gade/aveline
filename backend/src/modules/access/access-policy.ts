@@ -96,7 +96,9 @@ const ORGANIZATION_ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permissio
 };
 
 const EVENT_ROLE_PERMISSIONS: Record<EventRole, readonly Permission[]> = {
-  [EventRole.OWNER]: [...RUN_EVENT, 'event:delete'],
+  // Owners decide who else works on the event. Event-scoped like every event
+  // role, so it reaches this event's team and nothing in the organization.
+  [EventRole.OWNER]: [...RUN_EVENT, 'event:delete', 'member:manage'],
   [EventRole.COORDINATOR]: [...RUN_EVENT],
   // A designer shapes the invitation and nothing else. Guest contact details,
   // operational sheets and vendor fees are deliberately out of reach.

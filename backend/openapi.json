@@ -325,6 +325,32 @@
         ]
       }
     },
+    "/api/v1/event-invites/accept": {
+      "post": {
+        "description": "Grants the event role and nothing in the organization. An existing account must give its own password; otherwise one is created with the membership.",
+        "operationId": "InvitesController_acceptEventInvite",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInviteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Accept an invitation to work on one event",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
     "/api/v1/health/live": {
       "get": {
         "operationId": "HealthController_live",
@@ -357,7 +383,7 @@
     },
     "/api/v1/events": {
       "get": {
-        "description": "Scoped to the actor's own organization. Platform staff see every event.",
+        "description": "Their organization's events, if their role there can read them, plus any event they were invited onto directly. Platform staff see every event.",
         "operationId": "EventsController_findAll",
         "parameters": [],
         "responses": {
@@ -542,6 +568,171 @@
           }
         },
         "summary": "Change the settings a host flips themselves",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/team": {
+      "get": {
+        "operationId": "TeamController_list",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "This event's team, and the invitations still open",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/team/invites": {
+      "post": {
+        "description": "They get this event and nothing else in the organization. Re-inviting replaces the link.",
+        "operationId": "TeamController_invite",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteToEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Invite someone to work on this event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/team/invites/{email}": {
+      "delete": {
+        "operationId": "TeamController_revokeInvite",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "email",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Withdraw an invitation that has not been accepted",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/team/{userId}": {
+      "patch": {
+        "description": "Takes effect on their next request.",
+        "operationId": "TeamController_changeRole",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change someone's role",
+        "tags": [
+          "events"
+        ]
+      },
+      "delete": {
+        "description": "They lose access at once.",
+        "operationId": "TeamController_remove",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Take someone off the team",
         "tags": [
           "events"
         ]
@@ -4194,6 +4385,44 @@
             "description": "PRIVATE is reachable only by invitation link. PUBLIC and UNLISTED allow a public listing and ticket sales. Making an event PRIVATE takes its listing down."
           }
         }
+      },
+      "InviteToEventDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "COORDINATOR",
+              "DESIGNER",
+              "VIEWER"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ]
+      },
+      "ChangeRoleDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "COORDINATOR",
+              "DESIGNER",
+              "VIEWER"
+            ]
+          }
+        },
+        "required": [
+          "role"
+        ]
       },
       "AddGuestDto": {
         "type": "object",

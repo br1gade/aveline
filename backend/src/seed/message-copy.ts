@@ -66,6 +66,18 @@ export const MESSAGE_COPY = [
     },
   },
   {
+    key: 'event.invite',
+    channel: MessageChannel.EMAIL,
+    subject: {
+      hy: 'Հրավեր՝ աշխատելու «{{eventTitle}}»-ի վրա',
+      en: 'You have been invited to work on {{eventTitle}}',
+    },
+    body: {
+      hy: 'Ձեզ հրավիրել են միանալ «{{eventTitle}}»-ի թիմին որպես {{role}}։\n\n{{link}}',
+      en: 'You have been invited to join the team for {{eventTitle}} as {{role}}.\n\n{{link}}',
+    },
+  },
+  {
     key: 'organization.invite',
     channel: MessageChannel.EMAIL,
     subject: {

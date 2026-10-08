@@ -25,8 +25,8 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 22 open | 25 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 15 (F4–F18) | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Bugfixes | 0 open | 23 open | 25 open, of which 8 money | — |
+| Features | 1 open (F1, the client) | 11 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -52,6 +52,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
+| B62 | An erased guest can be re-identified through their household | Erasure keeps the household's name and the dietary tags, which are special-category data — "halal, Petrosyan family" points at a person. Either clear the tags, or rename a household whose every member is erased. **Decision** | `privacy/erasure.ts`, `privacy/anonymisation.ts` | S |
 | B11 | Read-only roles get guest contact details ✔ | The guest-list export needs only `operations:read`, bypassing `guest:contact:read`, and export files sit at public, non-expiring URLs (the ticket manifest exposes door codes the same way). `GET /invitations/:slug/delivery` gives a DESIGNER or VIEWER every address. `GET /vendors` hands brief tokens, which can carry the `contacts` scope, to any VIEWER. | `exports/`, `invitations/invitation-lifecycle.controller.ts`, `vendors/` | M |
 | B12 | The vendor directory is shared by every customer, and any customer can write to it | `Vendor` has no organization: host B sees the phone number host A entered for their cousin the photographer | `vendors/` | S |
 | B13 | Read-only members can create events and become their owner ✔ | `POST /events` requires no permission | `events/events.controller.ts` | S |
@@ -141,7 +142,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Feature | Why | Size |
 |---|---|---|---|
-| F5 | **Team management** | Nothing assigns COORDINATOR, DESIGNER or event VIEWER, lists members, removes one or changes a role. Door staff today need organization MANAGER, which also shows vendor fees | M |
 | F8 | **Edit a table** · Client | Name, capacity, zone and venue cannot change; position and shape for a drag-and-drop plan are never stored | S–M |
 | F9 | **Venue coordinates and capacity** | Latitude, longitude and capacity are returned but only ever copied from the venue directory, which nothing can fill. The Map block has only a pasted link | S |
 | F10 | **Configure the built-in RSVP questions** | A host cannot switch off drink or song questions or define the choices. Drinks are free text, so "Wine", "Вино" and "Գինի" are three rows on the bar sheet | M |
@@ -209,10 +209,8 @@ All four were decided on 8 October 2026.
 All small; each is a doc that would be believed.
 
 - [API.md](API.md) — refunds need `billing:write`, not `billing:read`; the 2 MB import limit is not enforced (B27); reminders "skip guests never invited" (B22).
-- [ACCESS_CONTROL.md](ACCESS_CONTROL.md) §6 lists as unbuilt the audit trail, brief rotation, invite acceptance and password reset — all built.
 - [VENUES_AND_SEATING.md](VENUES_AND_SEATING.md) — implies table positions are stored (F8); lists place cards and seating CSV as unbuilt (built); says auto-seating runs as a job (it runs in the request).
 - [PAYMENTS.md](PAYMENTS.md) — says nothing schedules reconciliation (it is scheduled), that there is no auth (there is), that nothing charges (the first period is charged); paths lack `/v1`.
-- [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §4 and `backend/docs/DATA_MODEL.md` count 42 models; there are 46. DATA_MODEL says the privacy endpoints are unbuilt.
 - [GAPS.md](../backend/docs/GAPS.md) §7 cites item numbers that no longer match its tables.
 - `backend/prisma/schema.prisma` refers to `docs/PUBLIC_EVENTS.md`, which does not exist.
 - [GOING_LIVE.md](GOING_LIVE.md) — lists GDPR endpoints as still to build; the test count is out of date.

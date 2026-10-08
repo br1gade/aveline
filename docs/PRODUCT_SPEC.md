@@ -81,7 +81,7 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 ## 4. Domain model
 
 The entities below are the ones the product argument rests on. The complete
-inventory — 42 models, what each is for, and the invariants the database
+inventory — 47 models, what each is for, and the invariants the database
 enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 
 | Entity | Purpose |

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OrganizationRole } from '@prisma/client';
+import { EventRole, OrganizationRole } from '@prisma/client';
 import { IsEmail, IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class RequestPasswordResetDto {
@@ -40,6 +40,17 @@ export class InviteMemberDto {
   @ApiProperty({ enum: OrganizationRole })
   @IsEnum(OrganizationRole)
   role!: OrganizationRole;
+}
+
+export class InviteToEventDto {
+  @ApiProperty()
+  @IsEmail()
+  @MaxLength(200)
+  email!: string;
+
+  @ApiProperty({ enum: EventRole })
+  @IsEnum(EventRole)
+  role!: EventRole;
 }
 
 export class AcceptInviteDto {

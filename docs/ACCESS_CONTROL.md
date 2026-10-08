@@ -85,7 +85,7 @@ membership is how that is expressed.
 
 | Role | Purpose |
 |---|---|
-| `OWNER` | Full control of this event, including deletion |
+| `OWNER` | Full control of this event, including deletion and who else works on it |
 | `COORDINATOR` | Runs the event: guests, seating, operations, vendors |
 | `DESIGNER` | Changes how the invitation looks — and nothing else |
 | `VIEWER` | Read-only on this event |
@@ -95,6 +95,15 @@ style an invitation should not be able to read four hundred guests' phone
 numbers, nor see what the caterer is charging. The role grants
 `invitation:design`, `invitation:read` and `event:read`, and explicitly denies
 `guest:contact:read`, `operations:read` and `vendor:fee:read`.
+
+**Event roles are granted by invitation.** An event `OWNER` holds
+`member:manage` for that event: they invite someone by email with a role,
+change it, or take them off — `/events/:eventId/team`. Accepting grants the
+event role and **nothing in the organization**, so a venue's door staff see
+that event and no other, and `GET /events` lists exactly the events a person
+was brought onto. Changes apply on the next request, because the guard reads
+roles from the database every time. An event always keeps at least one
+owner.
 
 ---
 
@@ -183,10 +192,10 @@ separate, because an invitee may not have an account yet.
 
 ## 6. Not yet built
 
-1. **Rotation for guest links and vendor briefs.** Account sessions rotate;
-   capability tokens are still issued once and never replaced.
-2. **Audit trail** — who changed what, which matters most for `SUPPORT` acting
-   on a customer's behalf. Unblocked now that there is an actor to record.
-3. **Per-actor rate limits.** The throttle is global rather than per account.
-4. **Accepting an invite / resetting a password.** Both are modelled; neither
-   has an endpoint.
+1. **Rotating guest links.** Vendor brief links can be rotated
+   (`/vendors/:bookingId/rotate-brief`); a guest's invitation link is issued
+   once and replaced only by erasure.
+2. **Per-actor rate limits.** The throttle is global rather than per account.
+3. **Email verification is not enforced.** Anyone can register any address.
+   Invitations guard against it — accepting for an existing account needs
+   that account's password — but nothing else does.

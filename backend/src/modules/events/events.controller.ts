@@ -17,16 +17,18 @@ import {
 export class EventsController {
   constructor(private readonly events: EventsService) {}
 
-  @RequirePermission('event:read')
+  // No permission check of its own: everyone signed in may ask, and the
+  // answer is scoped to what they can reach.
   @OrganizationScope()
   @Get()
   @ApiOperation({
     summary: "List the signed-in account's events",
     description:
-      'Scoped to the actor\'s own organization. Platform staff see every event.',
+      "Their organization's events, if their role there can read them, plus any event they " +
+      'were invited onto directly. Platform staff see every event.',
   })
   findAll(@CurrentActor() actor: RequestActor) {
-    return this.events.findAll(actor.organizationId ?? undefined);
+    return this.events.findAll(actor);
   }
 
   // No permission beyond a session and an organization: a host creating their

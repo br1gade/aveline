@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 42 models across three
+The authoritative map of what is stored and where. 47 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -27,6 +27,7 @@ lives outside Postgres.
 | `Session` | A refresh token, stored hashed so it can be revoked |
 | `VerificationToken` | Password reset and email verification |
 | `OrganizationInvite` | Adding a teammate, addressed to an email |
+| `EventInvite` | Bringing someone onto one event with a role; grants nothing in the organization |
 | `OrganizationMembership` · `EventMembership` | Standing on an organization / one event |
 
 ### The event
@@ -103,7 +104,7 @@ cost more than it buys, and the content belongs to its aggregate.
 
 **Capability tokens, not accounts**, for guests, ticket buyers and vendors —
 and only ever stored hashed where they grant account access (`Session`,
-`VerificationToken`, `OrganizationInvite`).
+`VerificationToken`, `OrganizationInvite`, `EventInvite`).
 
 **Counters are mutated by conditional `UPDATE`**, never read-then-write.
 `TicketType` and `PromoCode` both work this way.
@@ -166,8 +167,11 @@ Nulling the identifying fields removes the person while headcount, seating and
 catering totals stay correct.
 
 `Rsvp.dietary` and `dietaryNotes` are **special-category data** under GDPR:
-they can reveal health or religion. An erasure must clear them even though
-they read as operational.
+they can reveal health or religion. Erasure clears `dietaryNotes`, the free
+text, and keeps the `dietary` tags on the anonymised row so catering totals
+stay true (`privacy/anonymisation.ts`). That rests on the row identifying
+nobody — and the household's name survives erasure, so "vegan, Petrosyan
+family" can point at a person. An open question; see BACKLOG.md.
 
 Most guest data is supplied by the host, not the guest, which is legitimate
 interest rather than consent. `consentSource` records which it was, because
@@ -179,6 +183,7 @@ what was done is the point. An ad-hoc deletion leaves no evidence it happened.
 
 ### Not built
 
-The models and columns exist; the behaviour does not. No endpoint accepts a
-request, nothing performs an anonymisation, and nothing assembles an export.
-`Session.ipAddress` is personal data with no retention limit.
+Requests are accepted publicly and handled by Aveline staff — export,
+erasure, and a manual close for rectification (`privacy/`). What is missing:
+`Session.ipAddress` is personal data with no retention limit, and nothing
+verifies who is asking before a human marks a request in progress.

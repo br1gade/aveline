@@ -659,8 +659,41 @@ The same answers appear in the guest-list export, one column per question.
 GET /api/v1/events
 ```
 
-Scoped to your own organization — **do not pass an organizationId**, it is
-ignored. Platform staff see everything.
+Every event the caller can reach: their organization's, if their role there
+can read events, plus any event they were brought onto directly through a
+team invitation. An account with neither gets `[]`. **Do not pass an
+organizationId** — it is ignored. Platform staff see everything.
+
+### The event's team
+
+```http
+GET    /api/v1/events/:eventId/team
+POST   /api/v1/events/:eventId/team/invites           { "email": "door@example.am", "role": "COORDINATOR" }
+DELETE /api/v1/events/:eventId/team/invites/:email
+PATCH  /api/v1/events/:eventId/team/:userId           { "role": "VIEWER" }
+DELETE /api/v1/events/:eventId/team/:userId
+POST   /api/v1/event-invites/accept                   { "token": "...", "name": "...", "password": "..." }
+```
+
+All but the last need `member:manage`, which an event `OWNER` holds for their
+event. Roles are `OWNER`, `COORDINATOR`, `DESIGNER` and `VIEWER` — see
+[ACCESS_CONTROL.md](ACCESS_CONTROL.md) for what each may do.
+
+`GET` returns `{ members: [{ userId, name, email, role, since }], invites:
+[{ email, role, expiresAt }] }` — the invitations still open.
+
+**Inviting emails a link** to `/accept-event-invite?token=…` on the client.
+Build that page to post the token, a name and a password to
+`/event-invites/accept`. Accepting grants the event role and **nothing in the
+organization**: the person sees this event and no other. An address that
+already has an account must give that account's own password — `409`
+otherwise, saying to sign in or reset it first — the same rule as
+organization invitations. Inviting someone already on the team is a `400`;
+re-inviting an address replaces its earlier link.
+
+**Changes apply on the person's next request** — a removed coordinator is
+locked out at once. **An event always keeps an owner**: demoting or removing
+the last one is a `400` saying to make someone else an owner first.
 
 ### Loading the invitation into the editor
 
@@ -1037,9 +1070,12 @@ POST /api/v1/organizations      { "name": "Petrosyan Wedding", "kind": "HOST" }
 ```
 
 **A freshly registered account belongs to no organization, and every
-organization-scoped route answers `403` until it does.** Registering is not
-enough. Make this call immediately after `POST /auth/register` unless the
-account arrived through `POST /invites/accept`, which already placed it in one.
+organization-scoped route answers `403` until it does** (`GET /events` answers
+`[]`). Registering is not enough. Make this call immediately after
+`POST /auth/register` unless the account arrived through
+`POST /invites/accept`, which already placed it in one — or through
+`POST /event-invites/accept`, which places it on one event and needs no
+organization.
 
 ```json
 {

@@ -6,14 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { VerificationPurpose } from '@prisma/client';
+import { Prisma, VerificationPurpose } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { MessageChannel } from '@prisma/client';
 import { CommunicationsService } from '../../modules/communications/communications.service';
 import { allowsDevelopmentShortcuts } from '../../common/environment';
 import { PrismaService } from '../../prisma/prisma.service';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
-import { AcceptInviteDto, InviteMemberDto } from './dto/account.dto';
+import { AcceptInviteDto, InviteMemberDto, InviteToEventDto } from './dto/account.dto';
 
 const BCRYPT_ROUNDS = 12;
 const RESET_LIFETIME_MS = 60 * 60 * 1000;
@@ -256,16 +256,10 @@ export class AccountService {
       throw new BadRequestException('This invitation is no longer valid');
     }
 
-    const existing = await this.prisma.user.findFirst({
-      where: { email: { equals: invite.email, mode: 'insensitive' } },
-    });
-    if (existing) await assertOwnPassword(existing, dto.password);
-    const passwordHash = await hash(dto.password, BCRYPT_ROUNDS);
+    const admit = await this.prepareInvitee(invite.email, dto);
 
     const membership = await this.prisma.$transaction(async (tx) => {
-      const user =
-        existing ??
-        (await tx.user.create({ data: { email: invite.email, name: dto.name, passwordHash } }));
+      const user = await admit(tx);
 
       await tx.organizationInvite.update({
         where: { id: invite.id },
@@ -283,8 +277,100 @@ export class AccountService {
       ok: true as const,
       organizationId: membership.organizationId,
       role: membership.role,
-      accountCreated: existing === null,
+      accountCreated: admit.isNewAccount,
     };
+  }
+
+  /**
+   * Invites someone to work on one event — a coordinator, a designer, door
+   * staff. Accepting grants an event role and nothing in the organization, so
+   * they see this event and no other. Re-inviting replaces the earlier link.
+   */
+  async inviteToEvent(eventId: string, invitedByUserId: string, dto: InviteToEventDto) {
+    const email = dto.email.trim().toLowerCase();
+    const event = await this.prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { title: true, organizationId: true },
+    });
+    const alreadyOnTeam = await this.prisma.eventMembership.findFirst({
+      where: { eventId, user: { email: { equals: email, mode: 'insensitive' } } },
+    });
+    if (alreadyOnTeam) throw new BadRequestException("That person is already on this event's team");
+
+    const token = newRefreshToken();
+    const fresh = {
+      role: dto.role,
+      invitedByUserId,
+      tokenHash: hashRefreshToken(token),
+      expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS),
+    };
+    await this.prisma.eventInvite.upsert({
+      where: { eventId_email: { eventId, email } },
+      create: { eventId, email, ...fresh },
+      update: { ...fresh, acceptedAt: null, revokedAt: null },
+    });
+
+    await this.mail({
+      templateKey: 'event.invite',
+      toAddress: email,
+      organizationId: event.organizationId,
+      variables: { eventTitle: event.title, role: dto.role, link: this.linkFor('/accept-event-invite', token) },
+    });
+
+    return { sent: true as const, email, role: dto.role, ...this.devLink('/accept-event-invite', token) };
+  }
+
+  /** Accepts an event invitation, creating the account if needed — the same rules as joining an organization. */
+  async acceptEventInvite(dto: AcceptInviteDto) {
+    const invite = await this.prisma.eventInvite.findUnique({
+      where: { tokenHash: hashRefreshToken(dto.token) },
+    });
+    if (!invite || invite.revokedAt || invite.acceptedAt || isExpired(invite.expiresAt)) {
+      throw new BadRequestException('This invitation is no longer valid');
+    }
+
+    const admit = await this.prepareInvitee(invite.email, dto);
+
+    const membership = await this.prisma.$transaction(async (tx) => {
+      const user = await admit(tx);
+      await tx.eventInvite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });
+      return tx.eventMembership.upsert({
+        where: { userId_eventId: { userId: user.id, eventId: invite.eventId } },
+        create: { userId: user.id, eventId: invite.eventId, role: invite.role },
+        update: { role: invite.role },
+      });
+    });
+
+    return { ok: true as const, eventId: membership.eventId, role: membership.role, accountCreated: admit.isNewAccount };
+  }
+
+  async revokeEventInvite(eventId: string, email: string) {
+    const revoked = await this.prisma.eventInvite.updateMany({
+      where: { eventId, email: email.trim().toLowerCase(), acceptedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (revoked.count === 0) throw new NotFoundException('No pending invitation for that address');
+    return { ok: true as const };
+  }
+
+  /**
+   * The account an invitation will be attached to — checked before any write.
+   *
+   * An account that already exists must be proven with its own password (see
+   * `acceptInvite`). Returns a step to run inside the accepting transaction,
+   * which creates the account when there is none, so the account and the
+   * membership exist together or not at all.
+   */
+  private async prepareInvitee(email: string, dto: AcceptInviteDto) {
+    const existing = await this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
+    if (existing) await assertOwnPassword(existing, dto.password);
+    const passwordHash = existing ? null : await hash(dto.password, BCRYPT_ROUNDS);
+
+    const admit = async (tx: Prisma.TransactionClient) =>
+      existing ?? tx.user.create({ data: { email, name: dto.name, passwordHash } });
+    return Object.assign(admit, { isNewAccount: existing === null });
   }
 
   async revokeInvite(organizationId: string, email: string) {

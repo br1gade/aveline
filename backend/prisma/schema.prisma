@@ -198,6 +198,7 @@ model Event {
 
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberships    EventMembership[]
+  invites        EventInvite[]
   listing        EventListing?
   ticketTypes    TicketType[]
   ticketOrders   TicketOrder[]
@@ -1365,6 +1366,32 @@ enum VerificationPurpose {
 /// Separate from VerificationToken because the invitee may have no account
 /// yet — the invitation is addressed to an email, and accepting it is what
 /// creates the membership.
+/// An invitation to work on one event — a coordinator, a designer, door staff.
+/// The event-level counterpart of OrganizationInvite: accepting it grants an
+/// EventMembership and nothing in the organization, so a florist's designer or
+/// a venue's door staff see this event and no other.
+model EventInvite {
+  id              String    @id @default(cuid())
+  eventId         String
+  email           String
+  role            EventRole
+  invitedByUserId String?
+
+  tokenHash String @unique
+
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  /// One live invitation per address per event; re-inviting replaces.
+  @@unique([eventId, email])
+  @@index([email])
+  @@map("event_invites")
+}
+
 model OrganizationInvite {
   id              String           @id @default(cuid())
   organizationId  String

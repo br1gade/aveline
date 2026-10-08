@@ -176,6 +176,7 @@ test/
 | `POST` | `/api/v1/organization/invites` | Invite someone; re-inviting replaces the link |
 | `DELETE` | `/api/v1/organization/invites/:email` | Revoke a pending invitation |
 | `POST` | `/api/v1/invites/accept` | Accept an invitation, creating the account if needed |
+| `POST` | `/api/v1/event-invites/accept` | Accept an invitation to one event; grants nothing in the organization |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `POST` | `/api/v1/devices` | Register this device for push (idempotent by token) |
 | `DELETE` | `/api/v1/devices/:token` | Stop sending to this device |
@@ -208,6 +209,11 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:id` | Detail with venues and timeline |
 | `PATCH` | `/api/v1/events/:id` | Correct title, dates, time zone, languages; says whether to tell guests |
 | `PATCH` | `/api/v1/events/:id/settings` | Flip automatic RSVP reminders on or off |
+| `GET` | `/api/v1/events/:eventId/team` | Who works on this event, and invitations still open |
+| `POST` | `/api/v1/events/:eventId/team/invites` | Invite someone to this event with a role |
+| `DELETE` | `/api/v1/events/:eventId/team/invites/:email` | Withdraw an open invitation |
+| `PATCH` | `/api/v1/events/:eventId/team/:userId` | Change someone's role; never the last owner |
+| `DELETE` | `/api/v1/events/:eventId/team/:userId` | Take someone off; they lose access at once |
 | `GET` | `/api/v1/events/:id/audit-trail` | Who changed what on this event |
 | `GET` | `/api/v1/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
 | `GET` | `/api/v1/events/:id/guests` | Guest graph grouped by household |

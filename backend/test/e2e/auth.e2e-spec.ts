@@ -195,10 +195,13 @@ describe('Authentication (e2e)', () => {
       const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
       await seedEvent(prisma);
 
-      await http()
+      // An empty list rather than a 403: an account brought onto one event
+      // directly, with no organization, lists its events through this route.
+      const response = await http()
         .get('/api/v1/events')
         .set('Authorization', `Bearer ${body.accessToken}`)
-        .expect(403);
+        .expect(200);
+      expect(response.body).toEqual([]);
     });
 
     // The organization can no longer be named by the caller, so there is no

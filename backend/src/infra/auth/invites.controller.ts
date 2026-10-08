@@ -51,4 +51,16 @@ export class InvitesController {
   accept(@Body() dto: AcceptInviteDto) {
     return this.accounts.acceptInvite(dto);
   }
+
+  @Public()
+  @Post('event-invites/accept')
+  @ApiOperation({
+    summary: 'Accept an invitation to work on one event',
+    description:
+      'Grants the event role and nothing in the organization. An existing account must ' +
+      'give its own password; otherwise one is created with the membership.',
+  })
+  acceptEventInvite(@Body() dto: AcceptInviteDto) {
+    return this.accounts.acceptEventInvite(dto);
+  }
 }

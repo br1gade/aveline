@@ -5,9 +5,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventRole, EventStatus, EventVisibility, Prisma } from '@prisma/client';
+import { EventRole, EventStatus, EventVisibility, PlatformRole, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuditService } from '../../infra/audit/audit.service';
+import { RequestActor, actorCan } from '../../infra/auth/actor';
 import { CacheService } from '../../infra/cache/cache.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -177,9 +178,19 @@ export class EventsService {
     });
   }
 
-  findAll(organizationId?: string) {
+  /**
+   * The events this caller can reach: their organization's, if their role
+   * there lets them read events, and any they were brought onto directly.
+   * Someone invited to one event only — a venue's door staff — sees that event
+   * and nothing else. Platform staff see everything.
+   */
+  findAll(actor: RequestActor) {
+    const reach: Prisma.EventWhereInput[] = [{ memberships: { some: { userId: actor.userId } } }];
+    if (actor.organizationId && actorCan(actor, 'event:read')) reach.push({ organizationId: actor.organizationId });
+    const isStaff = actor.platformRole !== PlatformRole.NONE;
+
     return this.prisma.event.findMany({
-      where: organizationId ? { organizationId } : undefined,
+      where: isStaff ? undefined : { OR: reach },
       include: { invitation: { select: { slug: true, status: true } }, _count: { select: { guests: true } } },
       orderBy: { startsAt: 'asc' },
     });
