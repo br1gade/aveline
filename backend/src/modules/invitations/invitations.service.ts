@@ -14,7 +14,8 @@ const invitationInclude = {
   event: {
     include: {
       venues: { orderBy: { sortOrder: 'asc' } },
-      timeline: { orderBy: { occursAt: 'asc' } },
+      // Entries marked internal are for the people running the day, not guests.
+      timeline: { where: { isInternal: false }, orderBy: { occursAt: 'asc' } },
     },
   },
 } satisfies Prisma.InvitationInclude;

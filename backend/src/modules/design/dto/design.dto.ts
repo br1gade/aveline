@@ -150,10 +150,18 @@ export class UpsertTimelineEntryDto {
   @IsISO8601()
   occursAt!: string;
 
-  @ApiPropertyOptional({ description: 'Which of this event’s venues it happens at' })
+  @ApiPropertyOptional({ description: 'Which of this event’s venues it happens at; null detaches it', nullable: true })
   @IsOptional()
   @IsString()
-  venueId?: string;
+  venueId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'For the people running the day, not guests: vendors see it, the invitation does not',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isInternal?: boolean;
 
   @ApiPropertyOptional({
     description: 'Breaks ties between entries at the same minute',
@@ -166,5 +174,8 @@ export class UpsertTimelineEntryDto {
   @Max(1_000)
   sortOrder?: number;
 }
+
+/** Editing an entry: any of its fields, the rest unchanged. */
+export class UpdateTimelineEntryDto extends PartialType(UpsertTimelineEntryDto) {}
 
 export { BlockType };

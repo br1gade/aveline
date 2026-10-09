@@ -1591,6 +1591,14 @@ the guests looking at it. `venueId` must be one of this event's venues.
 `sortOrder` breaks ties between two things at the same minute; entries come
 back ordered by `occursAt` first, so you do not have to maintain it.
 
+**`isInternal: true` marks an entry for the people running the day** —
+"caterer arrives 10:00", "speeches cue". It is left off the invitation's
+`TIMELINE` block and stays in the vendor brief and the host's own list, where
+every entry carries `isInternal`. Default `false`.
+
+`PATCH` takes any of the same fields; omitted ones are unchanged, and
+`venueId: null` detaches the entry from its venue.
+
 Reading needs `event:read`, writing `event:write`.
 
 ### Designing the invitation

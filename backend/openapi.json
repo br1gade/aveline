@@ -3767,7 +3767,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTimelineEntryDto"
+                "$ref": "#/components/schemas/UpdateTimelineEntryDto"
               }
             }
           }
@@ -5675,8 +5675,14 @@
             "description": "When it happens, ISO 8601"
           },
           "venueId": {
-            "type": "string",
-            "description": "Which of this event’s venues it happens at"
+            "type": "object",
+            "description": "Which of this event’s venues it happens at; null detaches it",
+            "nullable": true
+          },
+          "isInternal": {
+            "type": "boolean",
+            "description": "For the people running the day, not guests: vendors see it, the invitation does not",
+            "default": false
           },
           "sortOrder": {
             "type": "number",
@@ -5689,6 +5695,38 @@
           "label",
           "occursAt"
         ]
+      },
+      "UpdateTimelineEntryDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "object",
+            "description": "Translated name keyed by locale",
+            "example": {
+              "hy": "Պսակադրություն"
+            }
+          },
+          "occursAt": {
+            "type": "string",
+            "description": "When it happens, ISO 8601"
+          },
+          "venueId": {
+            "type": "object",
+            "description": "Which of this event’s venues it happens at; null detaches it",
+            "nullable": true
+          },
+          "isInternal": {
+            "type": "boolean",
+            "description": "For the people running the day, not guests: vendors see it, the invitation does not",
+            "default": false
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Breaks ties between entries at the same minute",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        }
       },
       "CreateVenueDto": {
         "type": "object",

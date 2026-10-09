@@ -10,6 +10,7 @@ import {
   CreateVenueDto,
   UpdateBlockDto,
   UpdateThemeDto,
+  UpdateTimelineEntryDto,
   UpdateVenueDto,
   UpsertQuestionDto,
   UpsertTimelineEntryDto,
@@ -163,7 +164,7 @@ export class DesignController {
   updateTimelineEntry(
     @Param('eventId') eventId: string,
     @Param('entryId') entryId: string,
-    @Body() dto: UpsertTimelineEntryDto,
+    @Body() dto: UpdateTimelineEntryDto,
   ) {
     return this.timeline.update(eventId, entryId, dto);
   }

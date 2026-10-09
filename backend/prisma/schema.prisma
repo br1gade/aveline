@@ -309,13 +309,16 @@ enum VenueRole {
 }
 
 model TimelineEntry {
-  id        String   @id @default(cuid())
-  eventId   String
-  venueId   String?
+  id         String   @id @default(cuid())
+  eventId    String
+  venueId    String?
   /// Translated label keyed by locale: { "hy": "...", "en": "..." }
-  label     Json
-  occursAt  DateTime
-  sortOrder Int      @default(0)
+  label      Json
+  occursAt   DateTime
+  sortOrder  Int      @default(0)
+  /// For the people running the day — "caterer arrives", "speeches cue" —
+  /// not for guests. Vendors and the coordinator see it; the invitation does not.
+  isInternal Boolean  @default(false)
 
   event Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   venue Venue? @relation(fields: [venueId], references: [id], onDelete: SetNull)

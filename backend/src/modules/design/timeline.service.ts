@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { UpsertTimelineEntryDto } from './dto/design.dto';
+import { UpdateTimelineEntryDto, UpsertTimelineEntryDto } from './dto/design.dto';
 
 /**
  * The running order: ceremony, reception, first dance, cake, close.
@@ -32,6 +32,7 @@ export class TimelineService {
         label: true,
         occursAt: true,
         sortOrder: true,
+        isInternal: true,
         venue: { select: { id: true, name: true } },
       },
     });
@@ -49,6 +50,7 @@ export class TimelineService {
         occursAt: new Date(dto.occursAt),
         venueId: dto.venueId ?? null,
         sortOrder: dto.sortOrder ?? 0,
+        isInternal: dto.isInternal ?? false,
       },
     });
 
@@ -59,7 +61,7 @@ export class TimelineService {
   }
 
   /** Omitted means "leave as is". */
-  async update(eventId: string, entryId: string, dto: Partial<UpsertTimelineEntryDto>) {
+  async update(eventId: string, entryId: string, dto: UpdateTimelineEntryDto) {
     await this.requireEntry(eventId, entryId);
     if (dto.venueId) await this.assertVenueBelongsToEvent(eventId, dto.venueId);
     if (dto.label) assertHasLabel({ label: dto.label });
@@ -69,8 +71,10 @@ export class TimelineService {
       data: {
         label: dto.label as Prisma.InputJsonValue | undefined,
         occursAt: dto.occursAt === undefined ? undefined : new Date(dto.occursAt),
-        venueId: dto.venueId ?? undefined,
+        // null detaches it from its venue; omitted leaves it where it is.
+        venueId: dto.venueId,
         sortOrder: dto.sortOrder ?? undefined,
+        isInternal: dto.isInternal,
       },
     });
 

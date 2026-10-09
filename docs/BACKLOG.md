@@ -26,7 +26,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 22 open | 24 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 9 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Features | 1 open (F1, the client) | 8 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -74,7 +74,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
 | B24 | Rearranging some blocks leaves the page order ambiguous | Blocks not sent keep their old positions, producing ties; the documented `[RSVP, HERO]` example does it | `invitations/arrangement.service.ts` | S |
-| B25 | Partial updates wipe what was omitted | PATCH on a timeline entry uses the create DTO; PATCH on a question resets `required` to false when it is left out. The contract is "omitted means leave as is". (Venues fixed 8 October 2026.) | `design/` | S |
+| B25 | Partial updates wipe what was omitted | PATCH on a question resets `required` to false when it is left out. The contract is "omitted means leave as is". (Venues and timeline entries fixed.) | `design/` | S |
 | B26 | Bad input returns 500 instead of 400 ✔ | An unknown block type in the path; a venue role of `"constructor"`. (A venue `arriveAt` that is not a date is now a 400.) | `design/design.controller.ts`, `venues.service.ts` | S |
 | B27 | CSV import has no size limit ✔ | API.md says 2 MB; nothing enforces it, and the file is parsed synchronously before the row cap. Media upload has no limit either. A re-import without a side column resets sides the guests chose; household seats are not enforced on import | `guests/guests.controller.ts`, `guests/import/` | S |
 | B28 | Auto-seating can overfill a table under concurrency | It plans outside a transaction and writes without re-checking capacity. (Seating one guest by hand now locks the table — fixed 9 October 2026.) | `seating/seating.service.ts` | S |
@@ -144,7 +144,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | F10 | **Configure the built-in RSVP questions** | A host cannot switch off drink or song questions or define the choices. Drinks are free text, so "Wine", "Вино" and "Գինի" are three rows on the bar sheet | M |
 | F12 | **Delete or archive an event** | `event:delete` exists in the policy and nothing uses it | M |
 | F13 | **Concierge setup** | Staff cannot create an organization or event for a customer and hand it over, which §11 relies on. Workaround: the host registers and creates the event first | M |
-| F14 | **Internal running-order entries** | The day-of timeline and the guest-facing one are the same rows, so "caterer load-in 10:00" would appear on the invitation | S |
 | F15 | **Headcount by household, with a trend** | Promised in §6; only totals and a point-in-time rate exist | S–M |
 | F16 | **Switch language on a personalised page** | The personalised link ignores `?locale`; event title, hosts and venue names are not translatable | S |
 | F17 | **SMS** | The channel for guests who use neither email nor chat apps — the older half of an Armenian guest list. A host can share a guest's link by hand meanwhile | M |
