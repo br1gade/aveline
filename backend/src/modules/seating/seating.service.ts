@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { GuestAttribution, RsvpStatus } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
+import { isUniqueViolation } from '../../common/prisma-errors';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AssignSeatDto, CreateTableDto, CreateTablesDto } from './dto/seating.dto';
+import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto } from './dto/seating.dto';
 import { SeatableHousehold, SeatableTable, buildSeatingPlan } from './seating-plan';
 
 @Injectable()
@@ -24,6 +25,10 @@ export class SeatingService {
       name: table.name,
       capacity: table.capacity,
       zone: table.zone,
+      venueId: table.venueId,
+      posX: table.posX,
+      posY: table.posY,
+      shape: table.shape,
       seated: table.seats.length,
       available: table.capacity - table.seats.length,
       guests: table.seats.map((seat) => ({
@@ -34,7 +39,8 @@ export class SeatingService {
     }));
   }
 
-  createTable(eventId: string, dto: CreateTableDto) {
+  async createTable(eventId: string, dto: CreateTableDto) {
+    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
     return this.prisma.table.create({
       data: {
         eventId,
@@ -48,6 +54,7 @@ export class SeatingService {
 
   /** Twenty tables of ten is one request, not twenty. */
   async createTables(eventId: string, dto: CreateTablesDto) {
+    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
     const existing = await this.prisma.table.count({ where: { eventId } });
 
     const created = await this.prisma.table.createMany({
@@ -62,6 +69,42 @@ export class SeatingService {
     });
 
     return { created: created.count };
+  }
+
+  /**
+   * Changes a table: name, size, venue, and where it sits on the plan.
+   *
+   * Never below the guests already seated — shrinking would leave people in
+   * chairs that no longer exist. The table is locked while it is checked, so
+   * a guest seated at the same moment is counted.
+   */
+  async updateTable(eventId: string, tableId: string, dto: UpdateTableDto) {
+    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
+
+    return this.prisma
+      .$transaction(async (tx) => {
+        const { seated } = await lockTable(tx, eventId, tableId);
+        if (dto.capacity !== undefined && dto.capacity < seated) {
+          throw new BadRequestException(`capacity: ${seated} guest(s) are seated here; move some first`);
+        }
+
+        return tx.table.update({
+          where: { id: tableId },
+          data: {
+            name: dto.name?.trim(),
+            capacity: dto.capacity,
+            zone: dto.zone,
+            venueId: dto.venueId,
+            posX: dto.posX,
+            posY: dto.posY,
+            shape: dto.shape,
+          },
+        });
+      })
+      .catch((error: unknown) => {
+        if (isUniqueViolation(error)) throw new BadRequestException(`name: there is already a table called "${dto.name}"`);
+        throw error;
+      });
   }
 
   async deleteTable(eventId: string, tableId: string) {
@@ -92,21 +135,16 @@ export class SeatingService {
    */
   async assign(eventId: string, dto: AssignSeatDto) {
     return this.prisma.$transaction(async (tx) => {
-      const [guest, table] = await Promise.all([
-        tx.guest.findFirst({ where: { id: dto.guestId, eventId } }),
-        tx.table.findFirst({
-          where: { id: dto.tableId, eventId },
-          include: { _count: { select: { seats: true } } },
-        }),
-      ]);
-
+      const guest = await tx.guest.findFirst({ where: { id: dto.guestId, eventId } });
       if (!guest) throw new NotFoundException('That guest is not on this event');
-      if (!table) throw new NotFoundException('That table is not on this event');
+      // Locked, not just read: two planners seating the last chair at once
+      // both counted one free seat and both sat someone down.
+      const table = await lockTable(tx, eventId, dto.tableId);
 
       const alreadyHere = await tx.seat.findUnique({ where: { guestId: dto.guestId } });
       const isMoveWithinTable = alreadyHere?.tableId === dto.tableId;
 
-      if (!isMoveWithinTable && table._count.seats >= table.capacity) {
+      if (!isMoveWithinTable && table.seated >= table.capacity) {
         throw new ConflictException(`${table.name} is full`);
       }
 
@@ -213,4 +251,28 @@ function dominantSide(attributions: GuestAttribution[]): GuestAttribution | null
   const a = sides.filter((side) => side === GuestAttribution.SIDE_A).length;
   if (a === sides.length - a) return null;
   return a > sides.length - a ? GuestAttribution.SIDE_A : GuestAttribution.SIDE_B;
+}
+
+/** One table, locked for the rest of the transaction, with how many sit at it. */
+async function lockTable(tx: Prisma.TransactionClient, eventId: string, tableId: string) {
+  const rows = await tx.$queryRaw<{ id: string; name: string; capacity: number }[]>`
+    SELECT id, name, capacity FROM tables WHERE id = ${tableId} AND "eventId" = ${eventId} FOR UPDATE`;
+  if (rows.length === 0) throw new NotFoundException('That table is not on this event');
+
+  const seated = await tx.seat.count({ where: { tableId } });
+  return { ...rows[0], seated };
+}
+
+/**
+ * A table may only stand in this event's own venue. One pointing at another
+ * event's venue also stopped that event deleting its venue.
+ */
+async function assertVenueOnEvent(
+  prisma: Pick<Prisma.TransactionClient, 'venue'>,
+  eventId: string,
+  venueId: string | null | undefined,
+): Promise<void> {
+  if (!venueId) return;
+  const venue = await prisma.venue.findFirst({ where: { id: venueId, eventId }, select: { id: true } });
+  if (!venue) throw new BadRequestException(`venueId: ${venueId} is not one of this event's venues`);
 }

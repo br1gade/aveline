@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateTableDto {
   @ApiProperty()
@@ -24,6 +24,59 @@ export class CreateTableDto {
   @IsOptional()
   @IsString()
   venueId?: string;
+}
+
+/** What the seating editor can draw. */
+export const TABLE_SHAPES = ['round', 'rectangle', 'square', 'oval'] as const;
+
+/**
+ * Editing a table: any of its fields, the rest unchanged. `null` clears
+ * `zone`, `venueId` and the canvas position.
+ */
+export class UpdateTableDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  name?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100, description: 'Never below the guests already seated' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  capacity?: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  zone?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: "One of this event's venues" })
+  @IsOptional()
+  @IsString()
+  venueId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Canvas position, in the editor’s own units' })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-100000)
+  @Max(100000)
+  posX?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-100000)
+  @Max(100000)
+  posY?: number | null;
+
+  @ApiPropertyOptional({ enum: TABLE_SHAPES })
+  @IsOptional()
+  @IsIn(TABLE_SHAPES)
+  shape?: (typeof TABLE_SHAPES)[number];
 }
 
 export class CreateTablesDto {

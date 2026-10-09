@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RequirePermission } from '../../infra/auth/actor';
-import { AssignSeatDto, CreateTableDto, CreateTablesDto } from './dto/seating.dto';
+import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto } from './dto/seating.dto';
 import { SeatingService } from './seating.service';
 
 @ApiTags('seating')
@@ -31,6 +31,16 @@ export class SeatingController {
   })
   createTables(@Param('eventId') eventId: string, @Body() dto: CreateTablesDto) {
     return this.seating.createTables(eventId, dto);
+  }
+
+  @RequirePermission('seating:write')
+  @Patch('tables/:tableId')
+  @ApiOperation({
+    summary: 'Change a table — name, seats, zone, venue, position on the plan',
+    description: 'Omitted fields are unchanged; null clears zone, venue and position. Never below those seated.',
+  })
+  updateTable(@Param('eventId') eventId: string, @Param('tableId') tableId: string, @Body() dto: UpdateTableDto) {
+    return this.seating.updateTable(eventId, tableId, dto);
   }
 
   @RequirePermission('seating:write')

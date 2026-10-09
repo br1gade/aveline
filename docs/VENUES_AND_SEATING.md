@@ -111,9 +111,10 @@ The intended approach when it is built:
    preferring tables already holding the same side. O(n log n).
 2. **Local improvement** — bounded pairwise swaps to reduce split households
    and side imbalance. Capped by iteration count, not run to convergence.
-3. **Never block the request.** Auto-seating runs as a job and writes the
-   result; the editor stays interactive. Manual drag-and-drop is a direct
-   write and must stay O(1).
+3. **Keep the request short.** Auto-seating runs inside the request today —
+   bounded, and fast at wedding scale — and should move to a job before
+   events of thousands (see §6). Manual drag-and-drop is a direct write and
+   must stay O(1): one seat, with the table locked while it is counted.
 
 Exact optimization is explicitly rejected. A good-enough plan a human then
 adjusts is the product; a provably optimal plan computed in ninety seconds is
@@ -133,5 +134,10 @@ not.
 3. **Venue capacity.** `Table.capacity` is enforced on every assignment;
    `Venue.capacity` is copied from the directory entry and stored, but not
    checked against the headcount.
-4. **Floor plan editor** persistence beyond `posX` / `posY` / `shape`.
-5. **Printed outputs** — place cards and seating charts.
+4. **Floor plan editor** persistence beyond a table's `posX` / `posY` /
+   `shape`, which `PATCH /tables/:tableId` stores — rotation, room outlines,
+   non-table objects.
+5. **Printed outputs as PDF** — place cards and the seating chart export as
+   CSV today.
+6. **Auto-seating as a job.** It runs in the request; fine at hundreds of
+   guests, not at thousands.

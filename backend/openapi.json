@@ -2850,6 +2850,47 @@
       }
     },
     "/api/v1/events/{eventId}/tables/{tableId}": {
+      "patch": {
+        "description": "Omitted fields are unchanged; null clears zone, venue and position. Never below those seated.",
+        "operationId": "SeatingController_updateTable",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change a table — name, seats, zone, venue, position on the plan",
+        "tags": [
+          "seating"
+        ]
+      },
       "delete": {
         "description": "Refuses while anyone is seated, rather than silently unseating them.",
         "operationId": "SeatingController_deleteTable",
@@ -5220,6 +5261,47 @@
           "count",
           "capacity"
         ]
+      },
+      "UpdateTableDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Never below the guests already seated"
+          },
+          "zone": {
+            "type": "object",
+            "nullable": true
+          },
+          "venueId": {
+            "type": "object",
+            "nullable": true,
+            "description": "One of this event's venues"
+          },
+          "posX": {
+            "type": "object",
+            "nullable": true,
+            "description": "Canvas position, in the editor’s own units"
+          },
+          "posY": {
+            "type": "object",
+            "nullable": true
+          },
+          "shape": {
+            "type": "string",
+            "enum": [
+              "round",
+              "rectangle",
+              "square",
+              "oval"
+            ]
+          }
+        }
       },
       "AssignSeatDto": {
         "type": "object",

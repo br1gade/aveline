@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePromoCodeDto, UpdatePromoCodeDto } from './dto/promo-code.dto';
 import { PromoEvaluation, evaluatePromoCode } from './promo-code';
+import { isUniqueViolation } from '../../common/prisma-errors';
 
 /** Either the client or an open transaction, so a redemption can be part of
  *  the same atomic unit as the order it belongs to. */
@@ -194,10 +195,6 @@ function assertSensibleValue(dto: CreatePromoCodeDto): void {
   if (dto.validFrom && dto.validUntil && new Date(dto.validFrom) >= new Date(dto.validUntil)) {
     throw new BadRequestException('validUntil must be after validFrom');
   }
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 interface PromoCodeRow {

@@ -953,16 +953,18 @@ of the two is refused. Show the refusal; do not retry it.
 GET    /api/v1/events/:eventId/tables
 POST   /api/v1/events/:eventId/tables
 POST   /api/v1/events/:eventId/tables/bulk
+PATCH  /api/v1/events/:eventId/tables/:tableId
 DELETE /api/v1/events/:eventId/tables/:tableId
 ```
 
-`GET` returns each table with its occupancy and who is at it, which is the
-whole seating screen in one request:
+`GET` returns each table with its occupancy, who is at it and where it sits
+on the plan, which is the whole seating screen in one request:
 
 ```json
 [
   {
     "id": "clz...", "name": "Table 1", "capacity": 10, "zone": "Main hall",
+    "venueId": "clz...", "posX": 120.5, "posY": 40, "shape": "round",
     "seated": 7, "available": 3,
     "guests": [{ "guestId": "clz...", "name": "Armen Petrosyan", "position": null }]
   }
@@ -973,6 +975,15 @@ whole seating screen in one request:
 use `/tables/bulk` with `{ namePrefix, count, capacity, zone?, venueId? }` —
 twenty tables of ten is one request, and names continue from the tables that
 already exist (`Table 1` … `Table 20`). It returns `{ "created": 20 }`.
+
+`PATCH /tables/:tableId` changes any of `name`, `capacity`, `zone`,
+`venueId`, `posX`, `posY` and `shape` (`round`, `rectangle`, `square`,
+`oval`); omitted fields are unchanged and `null` clears `zone`, `venueId` and
+the position. Use it to save a table's place when it is dragged on the plan.
+`capacity` cannot go below the guests already seated, a name another table
+has is refused, and `venueId` must be one of this event's venues — each a
+`400` whose message starts with the field. The position is in the editor's
+own units; the server stores it and does not interpret it.
 
 Deleting a table with guests at it returns `409` naming how many, because the
 cascade would silently unseat them. Unseat them first.

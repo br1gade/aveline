@@ -17,6 +17,7 @@ import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { assertTransition, isSettled, nextStatusForRefund } from './payment-status';
 import { ProviderOutcome, ProviderStatus } from './providers/payment-provider';
 import { StartPaymentDto } from './dto/start-payment.dto';
+import { isUniqueViolation } from '../../common/prisma-errors';
 
 /** How long a registered-but-unpaid order stays payable before expiry. */
 const ORDER_LIFETIME_MS = 60 * 60 * 1000;
@@ -419,10 +420,6 @@ export class PaymentsService {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 function statusFor(outcome: ProviderOutcome): PaymentStatus {

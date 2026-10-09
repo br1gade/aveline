@@ -25,8 +25,8 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 22 open | 25 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 11 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Bugfixes | 0 open | 22 open | 24 open, of which 8 money | — |
+| Features | 1 open (F1, the client) | 10 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -77,7 +77,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B25 | Partial updates wipe what was omitted | PATCH on a timeline entry uses the create DTO; PATCH on a question resets `required` to false when it is left out. The contract is "omitted means leave as is". (Venues fixed 8 October 2026.) | `design/` | S |
 | B26 | Bad input returns 500 instead of 400 ✔ | An unknown block type in the path; a venue role of `"constructor"`. (A venue `arriveAt` that is not a date is now a 400.) | `design/design.controller.ts`, `venues.service.ts` | S |
 | B27 | CSV import has no size limit ✔ | API.md says 2 MB; nothing enforces it, and the file is parsed synchronously before the row cap. Media upload has no limit either. A re-import without a side column resets sides the guests chose; household seats are not enforced on import | `guests/guests.controller.ts`, `guests/import/` | S |
-| B28 | Two planners seating at once can overfill a table ✔ | Six simultaneous assignments to a one-seat table seat six. Auto-seating plans outside a transaction too | `seating/seating.service.ts` | S |
+| B28 | Auto-seating can overfill a table under concurrency | It plans outside a transaction and writes without re-checking capacity. (Seating one guest by hand now locks the table — fixed 9 October 2026.) | `seating/seating.service.ts` | S |
 | B29 | A guest who declines keeps their seat | Their seat still counts against the table | `seating/seating.service.ts` | S |
 | B31 | "Still to come" undercounts on the day | Walk-ins and declined guests who turn up are subtracted from those expected | `guests/check-in.service.ts` | S |
 | B32 | The playlist includes guests who are not coming | No status filter; capitalisation makes duplicates | `operations/operations.service.ts` | S |
@@ -110,7 +110,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | # | Bug | Where | Size |
 |---|---|---|---|
 | B44 | Bulk table creation silently creates fewer tables after a deletion ✔ | `seating/seating.service.ts` | S |
-| B45 | A table can be attached to another event's venue, which then cannot delete its own venue ✔ | `seating/seating.service.ts` | S |
 | B46 | A block the template cannot render can be re-enabled through the block edit; `variant` is free text | `design/design.service.ts` | S |
 | B47 | RSVP accepts `PENDING` as an answer, an unpublished language, and overwrites the host's side for a guest | `rsvp/` | S |
 | B48 | Booking a cancelled vendor again returns a cancelled booking and a dead brief link ✔ | `vendors/vendors.service.ts` | S |
@@ -141,7 +140,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Feature | Why | Size |
 |---|---|---|---|
-| F8 | **Edit a table** · Client | Name, capacity, zone and venue cannot change; position and shape for a drag-and-drop plan are never stored | S–M |
 | F9 | **Venue coordinates and capacity** | Latitude, longitude and capacity are returned but only ever copied from the venue directory, which nothing can fill. The Map block has only a pasted link | S |
 | F10 | **Configure the built-in RSVP questions** | A host cannot switch off drink or song questions or define the choices. Drinks are free text, so "Wine", "Вино" and "Գինի" are three rows on the bar sheet | M |
 | F11 | **Manage uploads** · Client | No list or delete of an event's media, and no way to set alt text | S–M |
@@ -208,7 +206,6 @@ All four were decided on 8 October 2026.
 All small; each is a doc that would be believed.
 
 - [API.md](API.md) — refunds need `billing:write`, not `billing:read`; the 2 MB import limit is not enforced (B27); reminders "skip guests never invited" (B22).
-- [VENUES_AND_SEATING.md](VENUES_AND_SEATING.md) — implies table positions are stored (F8); lists place cards and seating CSV as unbuilt (built); says auto-seating runs as a job (it runs in the request).
 - [PAYMENTS.md](PAYMENTS.md) — says nothing schedules reconciliation (it is scheduled), that there is no auth (there is), that nothing charges (the first period is charged); paths lack `/v1`.
 - [GAPS.md](../backend/docs/GAPS.md) §7 cites item numbers that no longer match its tables.
 - `backend/prisma/schema.prisma` refers to `docs/PUBLIC_EVENTS.md`, which does not exist.

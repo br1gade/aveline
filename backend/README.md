@@ -280,6 +280,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:eventId/tables` | Tables with seated counts |
 | `POST` | `/api/v1/events/:eventId/tables` | Add one table |
 | `POST` | `/api/v1/events/:eventId/tables/bulk` | Add numbered tables in one call |
+| `PATCH` | `/api/v1/events/:eventId/tables/:tableId` | Rename, resize, move to a venue, or place on the plan |
 | `DELETE` | `/api/v1/events/:eventId/tables/:tableId` | Remove an empty table |
 | `POST` | `/api/v1/events/:eventId/seats` | Seat one guest at a table |
 | `DELETE` | `/api/v1/events/:eventId/seats/:guestId` | Unseat one guest |

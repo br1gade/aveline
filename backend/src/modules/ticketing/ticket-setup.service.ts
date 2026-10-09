@@ -14,6 +14,7 @@ import {
   UpsertListingDto,
 } from './dto/ticket-setup.dto';
 import { canDeleteTicketType, ticketTypeChangeProblems } from './ticket-type-rules';
+import { isUniqueViolation } from '../../common/prisma-errors';
 
 /**
  * Setting up a public event: what is for sale, and the page that sells it.
@@ -328,10 +329,6 @@ function describeType(type: {
     isActive: type.isActive,
     sortOrder: type.sortOrder,
   };
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 /** A CHECK constraint refusing the write — here, capacity below what is taken. */
