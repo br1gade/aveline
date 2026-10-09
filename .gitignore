@@ -131,6 +131,9 @@ $RECYCLE.BIN/
 .env
 .env.*
 !.env.example
+# The production template holds no secrets — every value is blank or CHANGE_ME —
+# and docs/DEPLOYMENT.md starts by copying it.
+!.env.production.example
 !.env.template
 !.env.sample
 *.pem
