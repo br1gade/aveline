@@ -26,7 +26,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 0 open | 0 open | — |
-| Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 15 revenue and services (F31–F45) |
 | Decisions | 7 (D1–D7), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -103,6 +103,9 @@ None open. All 22 were fixed on 9 October 2026, the eight money bugs
 | F40 | Design components and quotes (event type × component) | §7.1 | L |
 | F41 | Vendor availability calendar | GAPS #23 | M |
 | F42 | Logistics, print orders, on-site staff, paper ticket fallback | GAPS #24–27 | L |
+| F43 | Vendor listing fees — §9.3 names "margin or listing fee"; F36 covers only the margin | §7.3, §9.3 | M |
+| F44 | Template authoring for the Production tier's custom design — templates exist only as seed data, with no way to make one | §8 | M–L |
+| F45 | Measure the §12 latency targets under load — nothing has measured them | §12 | S–M |
 | — | **Deferred:** enforcing plan limits — decided 8 October 2026, until after the pilot | §8 | — |
 
 ---
@@ -127,7 +130,7 @@ D1–D4 were decided on 8 October 2026, D5–D7 on 9 October.
 
 All small; each is a doc that would be believed.
 
-- [API.md](API.md) — refunds need `billing:write`, not `billing:read`; the 2 MB import limit is not enforced (B27); reminders "skip guests never invited" (B22).
+- [API.md](API.md) — reminders "skip guests never invited" (B22): re-check against the code.
 - [PAYMENTS.md](PAYMENTS.md) — says nothing schedules reconciliation (it is scheduled), that there is no auth (there is), that nothing charges (the first period is charged); paths lack `/v1`.
 - [GAPS.md](../backend/docs/GAPS.md) §7 cites item numbers that no longer match its tables.
 - `backend/prisma/schema.prisma` refers to `docs/PUBLIC_EVENTS.md`, which does not exist.
