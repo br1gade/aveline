@@ -6,6 +6,7 @@ import {
 } from '../../src/modules/communications/channels/message-channel';
 import { CommunicationsService } from '../../src/modules/communications/communications.service';
 import { MAX_DELIVERY_ATTEMPTS } from '../../src/modules/communications/delivery-outcome';
+import { priorityFor } from '../../src/modules/communications/message-priority';
 import { SuppressionService } from '../../src/modules/communications/suppression.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { seedEvent } from '../fixtures/event.fixture';
@@ -182,6 +183,32 @@ describe('outbox recovery (integration)', () => {
 
       expect(transport.sent).toEqual(['guest@test.local']);
       expect(await statusOf(row.id)).not.toBe(MessageStatus.QUEUED);
+    });
+  });
+
+  // B80: 50 a run, one at a time, in one queue — a large send held password
+  // resets and tickets back by minutes.
+  describe('throughput and priority', () => {
+    const queued = (toAddress: string, templateKey: string) =>
+      prisma.message.create({
+        data: { organizationId, channel: MessageChannel.EMAIL, templateKey, toAddress, body: 'Hi', locale: 'hy', priority: priorityFor(templateKey) },
+      });
+
+    it('sends everything due in one run, not fifty', async () => {
+      for (let index = 0; index < 120; index += 1) await queued(`guest${index}@test.local`, 'invitation.send');
+
+      await communications.dispatchDue();
+
+      expect(transport.sent).toHaveLength(120);
+    });
+
+    it('sends account and ticket mail ahead of a bulk send queued first', async () => {
+      for (let index = 0; index < 60; index += 1) await queued(`guest${index}@test.local`, 'invitation.send');
+      await queued('owner@test.local', 'account.password-reset');
+
+      await communications.dispatchDue();
+
+      expect(transport.sent.indexOf('owner@test.local')).toBeLessThan(5);
     });
   });
 });

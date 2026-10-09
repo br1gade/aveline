@@ -67,7 +67,7 @@ Several of the bugs expose people's data.
 | CDN | Garage serves media directly |
 | Rate limits per actor | The throttle is global, not per account. `POST /privacy/requests` is public and unthrottled |
 | Asynchronous bounce reports | A rejection at send time is classified and suppresses the address. A bounce that arrives minutes later, as a report to the sending mailbox, is not read by anything |
-| Provider send-rate throttling | The dispatcher sends up to 50/minute with no provider-side rate limit. Within Google Workspace's relay limits that is fine; a provider with a tighter per-second or daily quota would produce a run of failures the retry backoff then spreads over days |
+| Provider send-rate throttling | The dispatcher now sends for up to 40 seconds a minute, five at a time, account and ticket mail first — hundreds a minute — with no provider-side rate limit. A provider's quota rejection is retried and never suppresses the guest, but a quota hit mid-send still spreads that send over the retry backoff. Set the provider's limit before a large pilot event |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
 | Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |

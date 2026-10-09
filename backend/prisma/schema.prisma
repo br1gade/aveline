@@ -1167,6 +1167,9 @@ model Message {
   providerParams   String[] @default([])
 
   status        MessageStatus @default(QUEUED)
+  /// Higher goes first. Account, ticket and confirmation mail is waited on by
+  /// someone at a screen; a bulk send is not. See message-priority.ts.
+  priority      Int           @default(0)
   attempts      Int           @default(0)
   providerRef   String?
   failureReason String?
@@ -1186,10 +1189,12 @@ model Message {
   event        Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   guest        Guest?        @relation(fields: [guestId], references: [id], onDelete: SetNull)
 
-  /// The dispatcher claims due work oldest-first.
-  @@index([status, scheduledFor])
+  /// The dispatcher claims due work highest priority first, then oldest.
+  @@index([status, priority, scheduledFor])
   @@index([threadKey])
   @@index([eventId])
+  /// Who was invited, reminded, confirmed — per guest and kind of message.
+  @@index([guestId, templateKey])
   @@map("messages")
 }
 

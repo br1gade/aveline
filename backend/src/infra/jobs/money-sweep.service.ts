@@ -25,7 +25,7 @@ export class MoneySweepService {
     private readonly subscriptions: SubscriptionsService,
   ) {}
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES, { waitForCompletion: true })
   async reconcilePayments(): Promise<void> {
     await this.lock.runExclusively(
       { name: 'payments.reconcile', ttlSeconds: 280, crontab: SCHEDULES.everyFiveMinutes },
@@ -44,7 +44,7 @@ export class MoneySweepService {
     );
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES, { waitForCompletion: true })
   async releaseExpiredReservations(): Promise<void> {
     await this.lock.runExclusively(
       { name: 'tickets.release', ttlSeconds: 280, crontab: SCHEDULES.everyFiveMinutes },

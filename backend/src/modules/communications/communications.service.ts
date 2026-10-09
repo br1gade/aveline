@@ -13,6 +13,7 @@ import {
 import { SuppressionService } from './suppression.service';
 import { resolveTranslation } from '../../common/locale';
 import { DeliveryResult, MessageTransport } from './channels/message-channel';
+import { priorityFor } from './message-priority';
 import { renderTemplate } from './message-renderer';
 
 export interface EnqueueParams {
@@ -112,6 +113,7 @@ export class CommunicationsService {
         subject: subject === null ? null : renderTemplate(subject, params.variables),
         body: renderTemplate(body, params.variables),
         scheduledFor: params.scheduledFor ?? new Date(),
+        priority: priorityFor(params.templateKey),
         dedupeKey: params.dedupeKey ?? null,
         // Resolved here, not at dispatch, for the same reason the body is:
         // what was sent must stay knowable after the template changes.
@@ -141,20 +143,37 @@ export class CommunicationsService {
   ): Promise<{ sent: number; failed: number; suppressed: number; retrying: number }> {
     await this.recoverStranded();
 
-    const due = await this.prisma.message.findMany({
-      where: { status: MessageStatus.QUEUED, scheduledFor: { lte: new Date() } },
-      orderBy: { scheduledFor: 'asc' },
-      take: limit,
-    });
-
+    // Batches until the run's budget is spent, a few sends at a time. One
+    // batch of fifty, one by one, capped the outbox at 3,000 an hour however
+    // fast the mail server was, and a large send delayed everything behind it.
     const tally = { sent: 0, failed: 0, suppressed: 0, retrying: 0 };
-    for (const message of due) {
-      const outcome = await this.dispatchOne(message).catch((error: unknown) =>
-        error instanceof SentButUnrecordedError ? this.leaveSent(error) : this.requeueAfterError(message.id, error),
-      );
-      if (outcome !== 'TAKEN') tally[TALLY_KEY[outcome]] += 1;
+    const deadline = Date.now() + DISPATCH_BUDGET_MS;
+    for (let batch = 0; batch < MAX_BATCHES_PER_RUN && Date.now() < deadline; batch += 1) {
+      const due = await this.prisma.message.findMany({
+        where: { status: MessageStatus.QUEUED, scheduledFor: { lte: new Date() } },
+        orderBy: [{ priority: 'desc' }, { scheduledFor: 'asc' }],
+        take: limit,
+      });
+      if (due.length === 0) break;
+      await this.dispatchBatch(due, tally);
     }
     return tally;
+  }
+
+  private async dispatchBatch(
+    due: DueMessage[],
+    tally: { sent: number; failed: number; suppressed: number; retrying: number },
+  ): Promise<void> {
+    for (let start = 0; start < due.length; start += SENDS_AT_ONCE) {
+      const outcomes = await Promise.all(
+        due.slice(start, start + SENDS_AT_ONCE).map((message) =>
+          this.dispatchOne(message).catch((error: unknown) =>
+            error instanceof SentButUnrecordedError ? this.leaveSent(error) : this.requeueAfterError(message.id, error),
+          ),
+        ),
+      );
+      for (const outcome of outcomes) if (outcome !== 'TAKEN') tally[TALLY_KEY[outcome]] += 1;
+    }
   }
 
   private async dispatchOne(message: DueMessage): Promise<DispatchOutcome> {
@@ -473,6 +492,13 @@ function queueState(isSuppressed: boolean): { status: MessageStatus; failureReas
 function positionalParams(names: string[], variables: Record<string, string>): string[] {
   return names.map((name) => variables[name] ?? '');
 }
+
+/** How long one dispatch run keeps sending, inside its one-minute schedule. */
+const DISPATCH_BUDGET_MS = 40_000;
+/** A ceiling regardless of speed, so a run always ends. */
+const MAX_BATCHES_PER_RUN = 40;
+/** Sends in flight at once: enough to overlap mail-server round trips, few enough to stay polite. */
+const SENDS_AT_ONCE = 5;
 
 /** How many times to try recording a send the provider has accepted. */
 const RECORD_SENT_ATTEMPTS = 3;

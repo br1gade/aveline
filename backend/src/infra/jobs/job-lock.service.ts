@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/cache.service';
@@ -48,11 +49,13 @@ export class JobLockService {
     work: () => Promise<void>,
   ): Promise<void> {
     const key = `aveline:lock:${job.name}`;
+    // Unique per run, not the pid — every container is pid 1 — so a release
+    // can tell its own lock from the next run's.
+    const owner = randomUUID();
     let wasAcquired: boolean;
 
     try {
-      wasAcquired =
-        (await this.redis.set(key, process.pid.toString(), 'EX', job.ttlSeconds, 'NX')) === 'OK';
+      wasAcquired = (await this.redis.set(key, owner, 'EX', job.ttlSeconds, 'NX')) === 'OK';
     } catch (error) {
       this.logger.warn(`skipping ${job.name}: lock unavailable (${describeError(error)})`);
       return;
@@ -65,10 +68,15 @@ export class JobLockService {
     } catch (error) {
       this.logger.error(`${job.name} failed: ${describeError(error)}`);
     } finally {
-      await this.redis.del(key).catch(() => undefined);
+      // Only if still ours. A run that outlived its TTL deleted the lock the
+      // next run had taken, and a third run could start beside it.
+      await this.redis.eval(RELEASE_IF_OWNER, 1, key, owner).catch(() => undefined);
     }
   }
 }
+
+/** Delete the key only if it still holds this run's token — atomically, in Redis. */
+const RELEASE_IF_OWNER = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

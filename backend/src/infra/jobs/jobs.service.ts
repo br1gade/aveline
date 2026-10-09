@@ -20,7 +20,7 @@ export class JobsService {
     private readonly communications: CommunicationsService,
   ) {}
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_MINUTE, { waitForCompletion: true })
   async dispatchMessages(): Promise<void> {
     await this.lock.runExclusively(
       { name: 'messages.dispatch', ttlSeconds: 55, crontab: SCHEDULES.everyMinute },

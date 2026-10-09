@@ -17,7 +17,7 @@ export class ImageSweepService {
     private readonly images: ImageVariantsService,
   ) {}
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_MINUTE, { waitForCompletion: true })
   async resizeNewPhotos(): Promise<void> {
     await this.lock.runExclusively(
       { name: 'media.resize', ttlSeconds: 55, crontab: SCHEDULES.everyMinute },

@@ -24,7 +24,7 @@ export class ReminderSweepService {
     private readonly reminders: ReminderService,
   ) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_HOUR, { waitForCompletion: true })
   async sendDueReminders(): Promise<void> {
     await this.lock.runExclusively(
       { name: 'reminders.send', ttlSeconds: 3_300, crontab: SCHEDULES.hourly },

@@ -19,7 +19,7 @@ export class PrivacySweepService {
     private readonly privacy: PrivacyService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  @Cron(CronExpression.EVERY_DAY_AT_9AM, { waitForCompletion: true })
   async reportDueRequests(): Promise<void> {
     await this.lock.runExclusively(
       { name: 'privacy.due-requests', ttlSeconds: 3_300, crontab: SCHEDULES.dailyAt9 },
