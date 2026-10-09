@@ -132,6 +132,14 @@ export class CreateVenueDto {
   @IsOptional()
   @IsISO8601()
   arriveAt?: string;
+
+  @ApiPropertyOptional({
+    description: 'Per-language name and address, edited one language at a time; null removes one',
+    example: { en: { name: 'Garden Hall', address: '12 Garden Lane, Yerevan' } },
+  })
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, unknown>;
 }
 
 /**

@@ -25,8 +25,8 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 22 open | 24 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 8 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Bugfixes | 0 open | 21 open | 24 open, of which 8 money | — |
+| Features | 1 open (F1, the client) | 7 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -81,7 +81,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B29 | A guest who declines keeps their seat | Their seat still counts against the table | `seating/seating.service.ts` | S |
 | B31 | "Still to come" undercounts on the day | Walk-ins and declined guests who turn up are subtracted from those expected | `guests/check-in.service.ts` | S |
 | B32 | The playlist includes guests who are not coming | No status filter; capitalisation makes duplicates | `operations/operations.service.ts` | S |
-| B33 | The page cannot match a timeline entry to its venue | Timeline entries carry `venueId`; venues on the page carry no `id` | `invitations/invitations.service.ts` | S |
 
 **Public events and tickets**
 
@@ -145,7 +144,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | F12 | **Delete or archive an event** | `event:delete` exists in the policy and nothing uses it | M |
 | F13 | **Concierge setup** | Staff cannot create an organization or event for a customer and hand it over, which §11 relies on. Workaround: the host registers and creates the event first | M |
 | F15 | **Headcount by household, with a trend** | Promised in §6; only totals and a point-in-time rate exist | S–M |
-| F16 | **Switch language on a personalised page** | The personalised link ignores `?locale`; event title, hosts and venue names are not translatable | S |
 | F17 | **SMS** | The channel for guests who use neither email nor chat apps — the older half of an Armenian guest list. A host can share a guest's link by hand meanwhile | M |
 | F18 | **Image resizing** | Originals are served as uploaded; a 6 MB photo costs every guest 6 MB | M |
 

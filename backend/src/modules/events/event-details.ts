@@ -1,3 +1,5 @@
+import { LOCALE } from '../../common/locale';
+
 /**
  * The rules an event's core details must satisfy, at creation and after.
  *
@@ -16,7 +18,6 @@ export interface EventDetails {
 /** What a host may be offered to tell guests about: when it is. Venues say so separately. */
 export const NOTICE_WORTHY = ['startsAt', 'endsAt', 'timezone'] as const;
 
-const LOCALE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
 
 /** The first problem, naming its field — or null. */
 export function detailsProblem(details: EventDetails): string | null {

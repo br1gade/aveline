@@ -286,6 +286,17 @@ GET /api/v1/invitations/:slug/g/:guestToken        # personalised
 
 **`guest` is `null` on the generic URL.** Only the personalised one fills it.
 
+**Both take `?locale=`** to show the page in another language the event
+publishes (`availableLocales`). The personalised page otherwise uses the
+guest's own language; asking for one the event does not publish falls back to
+it, and `locale` in the response says which you got. Switching does not change
+the guest's stored language — an RSVP with `locale` does that. Build a
+language switcher from `availableLocales`.
+
+The event's `title` and `hosts`, and each venue's `name` and `address`, come
+back in the page's language when the host has translated them, and in the
+original otherwise.
+
 ### Rendering blocks
 
 `blocks` is **already in display order** — render the array as given. Never
@@ -296,7 +307,7 @@ Each block has `content` (copy, already resolved to one locale) and `data`
 
 | `type` | `data` contains |
 |---|---|
-| `VENUE`, `MAP` | Array of venues: name, address, latitude, longitude, arriveAt |
+| `VENUE`, `MAP` | Array of venues: id, role, name, address, latitude, longitude, mapUrl, arriveAt — `id` is what a timeline entry's `venueId` points at |
 | `TIMELINE` | Array of `{ label, occursAt, venueId }` |
 | `COUNTDOWN` | `{ target, timezone }` |
 | everything else | `null` — use `content` |
@@ -1549,8 +1560,12 @@ PATCH /api/v1/events/:id
 ```
 
 Needs `event:write`. Takes `type`, `title`, `hostsLabel`, `startsAt`,
-`endsAt`, `timezone`, `locales`, `defaultLocale`, `sideALabel` and
-`sideBLabel`. **Omitted means unchanged**; `null` clears `endsAt` and the side
+`endsAt`, `timezone`, `locales`, `defaultLocale`, `sideALabel`, `sideBLabel`
+and `translations` — per-language versions of the title and hosts,
+`{ "en": { "title": "...", "hostsLabel": "..." } }`, edited one language at a
+time (`null` removes one; a problem is a `400` starting `translations:`). The
+plain `title` and `hostsLabel` are what shows in a language with no
+translation. **Omitted means unchanged**; `null` clears `endsAt` and the side
 labels, and is refused for the rest. The edit is validated as a whole before
 anything is written — the end after the start, a real IANA time zone, each
 language once, the default among them — and any problem is a `400` whose
@@ -1997,7 +2012,9 @@ re-enters it.
 `POST` takes `{ role, name, address, profileId?, mapUrl?, arriveAt? }` where
 `role` is `CEREMONY`, `RECEPTION`, `AFTER_PARTY`, `PREPARATION` or `OTHER`, and
 `arriveAt` is ISO 8601. `PATCH` takes any of the same fields except
-`profileId`; omitted ones are unchanged.
+`profileId`; omitted ones are unchanged. Both take `translations` —
+`{ "en": { "name": "...", "address": "..." } }`, one language at a time, the
+same rules as an event's — and guests see the venue in their page's language.
 
 `POST`, `PATCH` and `DELETE` return a `notice` — see "Correcting an event" —
 so the client can offer to tell guests who already hold the invitation. The

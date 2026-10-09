@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { VenueRole } from '@prisma/client';
+import { Prisma, VenueRole } from '@prisma/client';
+import { VENUE_TRANSLATABLE, translationsProblem } from '../../common/field-translations';
 import { CacheService } from '../../infra/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { CreateVenueDto } from './dto/design.dto';
+import { mergeTranslations } from './translated-content';
 
 /**
  * Venues on an event.
@@ -45,6 +47,7 @@ export class VenuesService {
         arriveAt: true,
         capacity: true,
         profileId: true,
+        translations: true,
       },
     });
   }
@@ -56,6 +59,7 @@ export class VenuesService {
    * must not silently rewrite the address on an invitation already sent.
    */
   async create(eventId: string, dto: CreateVenueDto) {
+    assertTranslations(dto.translations);
     const role = asVenueRole(dto.role);
     const profile = dto.profileId ? await this.requireProfile(dto.profileId) : null;
 
@@ -73,6 +77,7 @@ export class VenuesService {
         address: dto.address,
         mapUrl: dto.mapUrl ?? null,
         arriveAt: dto.arriveAt ? new Date(dto.arriveAt) : null,
+        translations: mergeTranslations({}, dto.translations ?? {}) as Prisma.InputJsonValue,
         sortOrder: (last?.sortOrder ?? 0) + 1,
         ...fromProfile(profile),
       },
@@ -81,7 +86,8 @@ export class VenuesService {
   }
 
   async update(eventId: string, venueId: string, dto: Partial<CreateVenueDto>) {
-    await this.require(eventId, venueId);
+    assertTranslations(dto.translations);
+    const current = await this.require(eventId, venueId);
 
     const venue = await this.prisma.venue.update({
       where: { id: venueId },
@@ -91,6 +97,9 @@ export class VenuesService {
         address: dto.address ?? undefined,
         mapUrl: dto.mapUrl ?? undefined,
         arriveAt: dto.arriveAt === undefined ? undefined : new Date(dto.arriveAt),
+        translations: dto.translations
+          ? (mergeTranslations(current.translations, dto.translations) as Prisma.InputJsonValue)
+          : undefined,
       },
     });
     return { ...venue, notice: await this.afterChange(eventId) };
@@ -173,4 +182,9 @@ function fromProfile(
     longitude: profile?.longitude ?? null,
     capacity: profile?.capacity ?? null,
   };
+}
+
+function assertTranslations(translations: Record<string, unknown> | undefined): void {
+  const problem = translations ? translationsProblem(translations, VENUE_TRANSLATABLE) : null;
+  if (problem) throw new BadRequestException(problem);
 }

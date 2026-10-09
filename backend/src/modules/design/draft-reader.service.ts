@@ -20,6 +20,7 @@ const draftSelect = {
       timezone: true,
       locales: true,
       defaultLocale: true,
+      translations: true,
       venues: { select: { address: true } },
     },
   },

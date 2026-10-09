@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
+import { translatedField } from '../../common/field-translations';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
 
 const invitationInclude = {
@@ -93,9 +94,13 @@ export class InvitationsService {
    * the guest's language, showing their household's real seat allowance
    * (spec §5.4).
    */
-  async getPublicInvitation(slug: string, guestToken?: string) {
+  async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string) {
     const invitation = await this.loadPublished(slug);
     const guest = guestToken ? await this.findGuest(guestToken, invitation.event.id) : null;
+    // A language the guest picks on the page wins, if the event publishes it;
+    // otherwise their own. Picking one does not change their stored language.
+    const isPublished = requestedLocale !== undefined && invitation.event.locales.includes(requestedLocale);
+    const locale = isPublished ? requestedLocale : (guest?.locale ?? undefined);
 
     if (guest) {
       void this.analytics.recordInvitationView({
@@ -106,7 +111,7 @@ export class InvitationsService {
       });
     }
 
-    return this.buildPayload(invitation, guest, guest?.locale ?? undefined);
+    return this.buildPayload(invitation, guest, locale);
   }
 
   private buildPayload(
@@ -136,7 +141,7 @@ export class InvitationsService {
       coverUrl: firstMediaUrl(invitation, BlockType.HERO),
       locale,
       availableLocales: event.locales,
-      event: this.buildEventView(event),
+      event: this.buildEventView(event, locale),
       guest: guest ? this.buildGuestView(guest) : null,
       blocks: invitation.blocks.map((block) => ({
         type: block.type,
@@ -145,7 +150,7 @@ export class InvitationsService {
         settings: block.settings,
         content: translate(block.content) ?? {},
         media: mediaFor(block, invitation.media, translate),
-        data: this.hydrateBlock(block.type, event, translate),
+        data: this.hydrateBlock(block.type, event, translate, locale),
       })),
       rsvpQuestions: invitation.questions.map((question) => ({
         id: question.id,
@@ -192,11 +197,11 @@ export class InvitationsService {
     return new Map(assets.map((asset) => [asset.id, asset]));
   }
 
-  private buildEventView(event: LoadedEvent) {
+  private buildEventView(event: LoadedEvent, locale: string) {
     return {
       type: event.type,
-      title: event.title,
-      hosts: event.hostsLabel,
+      title: translatedField(event.translations, locale, 'title') ?? event.title,
+      hosts: translatedField(event.translations, locale, 'hostsLabel') ?? event.hostsLabel,
       startsAt: event.startsAt,
       endsAt: event.endsAt,
       timezone: event.timezone,
@@ -222,14 +227,16 @@ export class InvitationsService {
   }
 
   /** Pulls live Event data for the block types that must never duplicate it. */
-  private hydrateBlock(type: BlockType, event: LoadedEvent, translate: Translate): unknown {
+  private hydrateBlock(type: BlockType, event: LoadedEvent, translate: Translate, locale: string): unknown {
     switch (type) {
       case BlockType.VENUE:
       case BlockType.MAP:
         return event.venues.map((venue) => ({
+          // Timeline entries carry venueId; this is what they point at.
+          id: venue.id,
           role: venue.role,
-          name: venue.name,
-          address: venue.address,
+          name: translatedField(venue.translations, locale, 'name') ?? venue.name,
+          address: translatedField(venue.translations, locale, 'address') ?? venue.address,
           latitude: venue.latitude,
           longitude: venue.longitude,
           mapUrl: venue.mapUrl,

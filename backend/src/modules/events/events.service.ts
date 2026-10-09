@@ -16,6 +16,8 @@ import { defaultBlocksFor } from './default-blocks';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventDetails, NOTICE_WORTHY, changedFields, detailsProblem } from './event-details';
+import { EVENT_TRANSLATABLE, translationsProblem } from '../../common/field-translations';
+import { mergeTranslations } from '../design/translated-content';
 import { invitationSlug } from './invitation-slug';
 
 @Injectable()
@@ -231,6 +233,7 @@ export class EventsService {
         timezone: true,
         locales: true,
         defaultLocale: true,
+        translations: true,
         invitation: { select: { slug: true } },
       },
     });
@@ -238,7 +241,7 @@ export class EventsService {
 
     assertRequiredNotCleared(dto);
     const next = nextDetails(current, dto);
-    const problem = detailsProblem(next);
+    const problem = detailsProblem(next) ?? (dto.translations ? translationsProblem(dto.translations, EVENT_TRANSLATABLE) : null);
     if (problem) throw new BadRequestException(problem);
 
     await this.prisma.event.update({
@@ -250,6 +253,9 @@ export class EventsService {
         hostsLabel: dto.hostsLabel,
         sideALabel: dto.sideALabel,
         sideBLabel: dto.sideBLabel,
+        translations: dto.translations
+          ? (mergeTranslations(current.translations, dto.translations) as Prisma.InputJsonValue)
+          : undefined,
       },
     });
     if (current.invitation) await this.cache.invalidateInvitation(current.invitation.slug);

@@ -37,7 +37,11 @@ export class InvitationsController {
   @Public()
   @Get(':slug/g/:guestToken')
   @ApiOperation({ summary: 'Invitation personalized for one guest' })
-  getForGuest(@Param('slug') slug: string, @Param('guestToken') guestToken: string) {
-    return this.invitations.getPublicInvitation(slug, guestToken);
+  getForGuest(
+    @Param('slug') slug: string,
+    @Param('guestToken') guestToken: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.invitations.getPublicInvitation(slug, guestToken, locale);
   }
 }

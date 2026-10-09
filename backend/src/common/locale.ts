@@ -46,3 +46,6 @@ export function negotiateLocale(
 
   return match ?? defaultLocale;
 }
+
+/** A language code as events declare them: hy, en, ru, or a regional form like en-GB. */
+export const LOCALE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;

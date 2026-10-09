@@ -6,6 +6,7 @@ import {
   IsArray,
   IsEnum,
   IsISO8601,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -77,4 +78,12 @@ export class UpdateEventDto {
   @IsString()
   @MaxLength(60)
   sideBLabel?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Per-language title and hosts, edited one language at a time; null removes one',
+    example: { en: { title: 'The wedding of Anna and Davit', hostsLabel: 'Anna & Davit' } },
+  })
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, unknown>;
 }

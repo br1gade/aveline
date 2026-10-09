@@ -175,8 +175,11 @@ model Event {
 
   /// Labels for the two invitation sides, e.g. "Bride" / "Groom".
   /// Drives the "which host invited you?" question and seating balance.
-  sideALabel String?
-  sideBLabel String?
+  sideALabel   String?
+  sideBLabel   String?
+  /// Per-language versions of the title and hosts: { "en": { "title": "...", "hostsLabel": "..." } }.
+  /// The plain columns are the fallback when a language has none.
+  translations Json    @default("{}")
 
   /// Who may see this event at all. PRIVATE is the default and the model the
   /// invitation flow assumes; PUBLIC opens the announcement and ticketing
@@ -250,22 +253,24 @@ enum EventStatus {
 }
 
 model Venue {
-  id        String    @id @default(cuid())
-  eventId   String
+  id           String    @id @default(cuid())
+  eventId      String
   /// Set when this venue came from the reusable directory rather than being
   /// typed ad hoc. Keeps a one-off address possible without a directory entry.
-  profileId String?
-  role      VenueRole
-  name      String
-  address   String
+  profileId    String?
+  role         VenueRole
+  name         String
+  address      String
+  /// Per-language name and address: { "en": { "name": "...", "address": "..." } }; the plain columns are the fallback.
+  translations Json      @default("{}")
   /// Coordinates for the map block
-  latitude  Float?
-  longitude Float?
-  mapUrl    String?
-  arriveAt  DateTime?
+  latitude     Float?
+  longitude    Float?
+  mapUrl       String?
+  arriveAt     DateTime?
   /// Seats this venue can hold for this event. Seating validates against it.
-  capacity  Int?
-  sortOrder Int       @default(0)
+  capacity     Int?
+  sortOrder    Int       @default(0)
 
   event    Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   profile  VenueProfile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)

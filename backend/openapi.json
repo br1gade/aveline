@@ -1213,6 +1213,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "locale",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4502,6 +4510,16 @@
           "sideBLabel": {
             "type": "object",
             "nullable": true
+          },
+          "translations": {
+            "type": "object",
+            "description": "Per-language title and hosts, edited one language at a time; null removes one",
+            "example": {
+              "en": {
+                "title": "The wedding of Anna and Davit",
+                "hostsLabel": "Anna & Davit"
+              }
+            }
           }
         }
       },
@@ -5757,6 +5775,16 @@
           "arriveAt": {
             "type": "string",
             "description": "When guests should arrive, ISO 8601"
+          },
+          "translations": {
+            "type": "object",
+            "description": "Per-language name and address, edited one language at a time; null removes one",
+            "example": {
+              "en": {
+                "name": "Garden Hall",
+                "address": "12 Garden Lane, Yerevan"
+              }
+            }
           }
         },
         "required": [
@@ -5790,6 +5818,16 @@
           "arriveAt": {
             "type": "string",
             "description": "When guests should arrive, ISO 8601"
+          },
+          "translations": {
+            "type": "object",
+            "description": "Per-language name and address, edited one language at a time; null removes one",
+            "example": {
+              "en": {
+                "name": "Garden Hall",
+                "address": "12 Garden Lane, Yerevan"
+              }
+            }
           }
         }
       },
