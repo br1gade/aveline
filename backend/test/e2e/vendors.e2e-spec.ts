@@ -229,6 +229,18 @@ describe('Vendor briefs (e2e)', () => {
       await http().get(`/api/v1/briefs/${rotated.briefToken}`).expect(200);
     });
 
+    // B83: cancelling by PATCH kept the link, and PATCHing back revived it.
+    it('kills the link when a booking is cancelled by edit, and does not revive it', async () => {
+      const { eventId, authorization, bookingId, token } = await briefFor(['headcount']);
+      const edit = (status: string) =>
+        http().patch(`/api/v1/events/${eventId}/vendors/${bookingId}`).set('Authorization', authorization).send({ status }).expect(200);
+
+      await edit('CANCELLED');
+      await edit('CONFIRMED');
+
+      await http().get(`/api/v1/briefs/${token}`).expect(404);
+    });
+
     it('refuses a cancelled engagement', async () => {
       const { eventId, authorization, bookingId, token } = await briefFor(['headcount']);
 

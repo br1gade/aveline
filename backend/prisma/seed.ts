@@ -22,38 +22,38 @@ const DEMO_ORG = 'Demo Hosts';
 const EVENT_START = new Date(Date.now() + 1000 * 60 * 60 * 24 * 90);
 
 async function seedTemplate() {
-  return prisma.designTemplate.upsert({
-    where: { key: 'classic' },
-    update: {},
-    create: {
-      key: 'classic',
-      name: 'Classic',
-      allowedFonts: ['Noto Serif Armenian', 'Cormorant Garamond', 'Inter'],
-      palettes: [
-        { key: 'ivory-gold', colors: ['#F3E9DD', '#C9A227', '#2E2A26'] },
-        { key: 'sage', colors: ['#EDF1EA', '#7A8B74', '#2E2A26'] },
-      ],
-      supportedBlocks: [
-        BlockType.HERO,
-        BlockType.STORY,
-        BlockType.COUNTDOWN,
-        BlockType.VENUE,
-        BlockType.MAP,
-        BlockType.TIMELINE,
-        BlockType.DRESS_CODE,
-        BlockType.RSVP,
-        BlockType.CONTACT,
-      ],
-      // Every block offers the three layouts the design docs name.
-      blockVariants: Object.fromEntries(
-        ['HERO', 'STORY', 'COUNTDOWN', 'VENUE', 'MAP', 'TIMELINE', 'DRESS_CODE', 'RSVP', 'CONTACT'].map((type) => [
-          type,
-          ['full-bleed', 'split', 'stacked'],
-        ]),
-      ),
-      defaultTheme: { font: 'Noto Serif Armenian', palette: 'ivory-gold' },
-    },
-  });
+  const classic = {
+    key: 'classic',
+    name: 'Classic',
+    allowedFonts: ['Noto Serif Armenian', 'Cormorant Garamond', 'Inter'],
+    palettes: [
+      { name: 'ivory-gold', colors: ['#F3E9DD', '#C9A227', '#2E2A26'] },
+      { name: 'sage', colors: ['#EDF1EA', '#7A8B74', '#2E2A26'] },
+    ],
+    supportedBlocks: [
+      BlockType.HERO,
+      BlockType.STORY,
+      BlockType.COUNTDOWN,
+      BlockType.VENUE,
+      BlockType.MAP,
+      BlockType.TIMELINE,
+      BlockType.DRESS_CODE,
+      BlockType.RSVP,
+      BlockType.CONTACT,
+    ],
+    // Every block offers the three layouts the design docs name.
+    blockVariants: Object.fromEntries(
+      ['HERO', 'STORY', 'COUNTDOWN', 'VENUE', 'MAP', 'TIMELINE', 'DRESS_CODE', 'RSVP', 'CONTACT'].map((type) => [
+        type,
+        ['full-bleed', 'split', 'stacked'],
+      ]),
+    ),
+    defaultTheme: { headingFont: 'Noto Serif Armenian', bodyFont: 'Noto Serif Armenian', palette: 'ivory-gold' },
+  };
+  // Refreshed on every run in development: a template seeded with palettes
+  // the code cannot read (`key` for `name`) made every theme edit a 400 until
+  // the database was wiped.
+  return prisma.designTemplate.upsert({ where: { key: 'classic' }, update: classic, create: classic });
 }
 
 /**

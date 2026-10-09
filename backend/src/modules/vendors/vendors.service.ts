@@ -142,11 +142,17 @@ export class VendorsService {
   }
 
   async updateBooking(eventId: string, bookingId: string, dto: UpdateBookingDto) {
-    await this.requireBooking(eventId, bookingId);
+    const booking = await this.requireBooking(eventId, bookingId);
+    // Into or out of CANCELLED, the link changes — as DELETE does. Cancelling
+    // by edit kept the old link, and editing it back revived a link that may
+    // have been forwarded.
+    const isCancelling = dto.status !== undefined && dto.status !== booking.status &&
+      (dto.status === BookingStatus.CANCELLED || booking.status === BookingStatus.CANCELLED);
 
     const updated = await this.prisma.vendorBooking.update({
       where: { id: bookingId },
       data: {
+        ...(isCancelling ? { briefToken: newBriefToken() } : {}),
         status: dto.status ?? undefined,
         briefScopes: dto.briefScopes ? sectionsFor(dto.briefScopes) : undefined,
         feeMinor: dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor),
