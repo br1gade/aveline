@@ -28,6 +28,8 @@ export interface GuestAddress {
   address: string;
   /** Null when the host supplied the address rather than the guest opting in. */
   optedInAt: Date | null;
+  /** On a suppression list this sender honours: used only when nothing else is. */
+  isSuppressed?: boolean;
 }
 
 export interface ChannelChoice {
@@ -67,6 +69,16 @@ export function chooseChannel(
   addresses: readonly GuestAddress[],
   available: readonly MessageChannel[],
 ): ChannelChoice | null {
+  // A suppressed address loses to any other: a guest who blocked the bot is
+  // still reachable by email. Chosen only when it is all there is, so the
+  // sender can report it as suppressed rather than as no address at all.
+  return (
+    preferred(addresses.filter((address) => !address.isSuppressed), available) ??
+    preferred(addresses, available)
+  );
+}
+
+function preferred(addresses: readonly GuestAddress[], available: readonly MessageChannel[]): ChannelChoice | null {
   for (const channel of CHANNEL_PREFERENCE) {
     if (!available.includes(channel)) continue;
 

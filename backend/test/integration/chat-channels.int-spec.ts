@@ -204,6 +204,31 @@ describe('chat channels (integration)', () => {
       expect(await prisma.guestChannel.count({ where: { guestId: guest.id } })).toBe(0);
     });
 
+    // B21: blocking suppressed the chat for good; starting the bot again
+    // changed nothing, and a guest who came back heard nothing there.
+    it('lifts the suppression when the guest starts the bot again from their link', async () => {
+      const { slug, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
+      await sender.send(slug);
+      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
+      await webhook.receive({ my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'kicked' } } });
+
+      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
+
+      expect(await suppressions.isSuppressed(MessageChannel.TELEGRAM, '555', guest.eventId)).toBe(false);
+      const reminder = await reminders.remindNow(slug);
+      expect(reminder.recipients[0]).toMatchObject({ channel: MessageChannel.TELEGRAM });
+    });
+
+    it('lifts the suppression when the guest unblocks the bot', async () => {
+      const { guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
+      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
+      await webhook.receive({ my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'kicked' } } });
+
+      await webhook.receive({ my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'member' } } });
+
+      expect(await suppressions.isSuppressed(MessageChannel.TELEGRAM, '555', guest.eventId)).toBe(false);
+    });
+
     it('leaves the guest reachable by email afterwards', async () => {
       const { slug, guest } = await eventWithCopy([
         MessageChannel.EMAIL,
@@ -289,8 +314,9 @@ describe('chat channels (integration)', () => {
     });
 
     // Suppression is per channel, so opting out of Telegram must not stop
-    // email.
-    it('suppresses one channel without touching the other', async () => {
+    // email. B21: the reminder used to choose the suppressed chat anyway, and
+    // the guest received nothing.
+    it('reaches the guest by email when their Telegram is suppressed', async () => {
       const { slug, guest, event } = await eventWithCopy([
         MessageChannel.EMAIL,
         MessageChannel.TELEGRAM,
@@ -306,13 +332,22 @@ describe('chat channels (integration)', () => {
 
       const reminder = await reminders.remindNow(slug);
 
-      // Chosen but refused at enqueue, and recorded as such rather than
-      // silently dropped.
-      expect(reminder.queued).toBe(0);
-      const message = await prisma.message.findFirstOrThrow({
-        where: { eventId: event.id, templateKey: 'rsvp.reminder' },
+      expect(reminder.queued).toBe(1);
+      expect(reminder.recipients[0]).toMatchObject({ channel: MessageChannel.EMAIL, toAddress: 'primary@test.local' });
+    });
+
+    it('still reports a suppressed address when it is the only one', async () => {
+      const { slug, event } = await eventWithCopy([MessageChannel.EMAIL]);
+      await suppressions.suppress({
+        organizationId: event.organizationId,
+        channel: MessageChannel.EMAIL,
+        address: 'primary@test.local',
+        reason: 'UNSUBSCRIBED',
       });
-      expect(message.status).toBe(MessageStatus.SUPPRESSED);
+
+      const result = await sender.send(slug);
+
+      expect(result.suppressed).toEqual([expect.objectContaining({ toAddress: 'primary@test.local' })]);
     });
   });
 

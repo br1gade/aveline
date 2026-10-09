@@ -84,6 +84,10 @@ function telegramError(reply: TelegramReply, httpStatus: number): Error {
   const code = reply.error_code ?? httpStatus;
   const description = reply.description ?? 'Telegram rejected the message';
 
+  if (isOurBadRequest(code, description)) {
+    return Object.assign(new Error(description), { code: 'ECONFIG', response: `${code} ${description}` });
+  }
+
   return Object.assign(new Error(description), {
     // Mapped onto the SMTP-shaped range the classifier already understands, so
     // one classifier serves every channel: 5xx is permanent, 4xx is not.
@@ -96,8 +100,21 @@ function telegramError(reply: TelegramReply, httpStatus: number): Error {
 /**
  * 400 is included deliberately: the Bot API returns it for "chat not found",
  * which is what a deleted account or a wrong chat id looks like, and retrying
- * that forever is pointless.
+ * that forever is pointless. Every other 400 has already been set aside as
+ * ours by `isOurBadRequest`.
  */
 function isPermanent(code: number): boolean {
   return code === 400 || code === 403;
+}
+
+/** The 400s that are about the recipient; anything else is our request. */
+const RECIPIENT_GONE = /chat not found|user not found|peer_id_invalid|chat_id is empty/i;
+
+/**
+ * A 400 that is not about the recipient — a message too long, text Telegram
+ * cannot parse — is our mistake. It used to count as the guest's hard bounce
+ * and suppress them platform-wide.
+ */
+function isOurBadRequest(code: number, description: string): boolean {
+  return code === 400 && !RECIPIENT_GONE.test(description);
 }

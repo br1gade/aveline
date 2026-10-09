@@ -123,6 +123,12 @@ function whatsAppError(reply: WhatsAppReply, httpStatus: number): Error {
   if (AUTHENTICATION_CODES.has(code)) {
     return Object.assign(new Error(description), { code: 'EAUTH', response: `${code} ${description}` });
   }
+  // A template problem is ours to fix. Read as the guest's bounce, it put
+  // their number on the platform-wide suppression list, where no host can
+  // lift it.
+  if (TEMPLATE_CODES.has(code)) {
+    return Object.assign(new Error(description), { code: 'ECONFIG', response: `${code} ${description}` });
+  }
 
   return Object.assign(new Error(description), {
     responseCode: UNDELIVERABLE_CODES.has(code) ? 550 : 451,
@@ -145,7 +151,15 @@ const UNDELIVERABLE_CODES = new Set([
   131026, // message undeliverable — not a WhatsApp user
   131049, // blocked by the user's privacy settings
   131051, // unsupported message type for this recipient
-  132000, // template parameter count mismatch — our template is wrong for this send
+]);
+
+/** Our message template is wrong or unavailable: nothing about the recipient. */
+const TEMPLATE_CODES = new Set([
+  132000, // template parameter count mismatch
   132001, // template does not exist
+  132005, // translated text too long
+  132007, // template format policy violated
+  132012, // template parameter format mismatch
   132015, // template is paused for quality reasons
+  132016, // template is disabled
 ]);

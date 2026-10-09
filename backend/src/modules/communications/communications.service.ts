@@ -12,7 +12,7 @@ import {
 } from './delivery-outcome';
 import { SuppressionService } from './suppression.service';
 import { resolveTranslation } from '../../common/locale';
-import { MessageTransport } from './channels/message-channel';
+import { DeliveryResult, MessageTransport } from './channels/message-channel';
 import { renderTemplate } from './message-renderer';
 
 export interface EnqueueParams {
@@ -150,7 +150,7 @@ export class CommunicationsService {
     const tally = { sent: 0, failed: 0, suppressed: 0, retrying: 0 };
     for (const message of due) {
       const outcome = await this.dispatchOne(message).catch((error: unknown) =>
-        this.requeueAfterError(message.id, error),
+        error instanceof SentButUnrecordedError ? this.leaveSent(error) : this.requeueAfterError(message.id, error),
       );
       if (outcome !== 'TAKEN') tally[TALLY_KEY[outcome]] += 1;
     }
@@ -202,6 +202,12 @@ export class CommunicationsService {
     if (recovered.count > 0) {
       this.logger.warn(`returned ${recovered.count} message(s) interrupted while sending to the queue`);
     }
+  }
+
+  /** Out, but the record says otherwise. Loud, and never re-queued. */
+  private leaveSent(error: SentButUnrecordedError): DispatchOutcome {
+    this.logger.error(error.message);
+    return 'SENT';
   }
 
   /** One message failed in a way nobody classified; it waits and tries again. */
@@ -286,8 +292,9 @@ export class CommunicationsService {
       return 'FAILED';
     }
 
+    let result: DeliveryResult;
     try {
-      const result = await transport.send({
+      result = await transport.send({
         toAddress: message.toAddress,
         subject: message.subject ?? undefined,
         body: message.body,
@@ -299,20 +306,42 @@ export class CommunicationsService {
             }
           : undefined,
       });
-
-      await this.prisma.message.update({
-        where: { id: message.id },
-        data: {
-          status: result.isDelivered ? MessageStatus.DELIVERED : MessageStatus.SENT,
-          providerRef: result.providerRef ?? null,
-          failureReason: null,
-          sentAt: new Date(),
-          deliveredAt: result.isDelivered ? new Date() : null,
-        },
-      });
-      return 'SENT';
     } catch (error) {
       return this.handleFailure(message, error);
+    }
+
+    // Outside the try above: once the provider has it, nothing that goes
+    // wrong here is a delivery failure, and retrying would send it again.
+    await this.recordSent(message.id, result);
+    return 'SENT';
+  }
+
+  /**
+   * Records that the provider accepted a message.
+   *
+   * Tried a few times, because the message is already out and a database blip
+   * should not leave it looking unsent. If it still cannot be written, the
+   * row stays SENDING rather than going back to the queue: the stranded-send
+   * sweep will pick it up much later, at worst once — not up to five times on
+   * the retry schedule.
+   */
+  private async recordSent(messageId: string, result: DeliveryResult): Promise<void> {
+    const data = {
+      status: result.isDelivered ? MessageStatus.DELIVERED : MessageStatus.SENT,
+      providerRef: result.providerRef ?? null,
+      failureReason: null,
+      sentAt: new Date(),
+      deliveredAt: result.isDelivered ? new Date() : null,
+    };
+
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        await this.prisma.message.update({ where: { id: messageId }, data });
+        return;
+      } catch (error) {
+        if (attempt >= RECORD_SENT_ATTEMPTS) throw new SentButUnrecordedError(messageId, error);
+        await pause(RECORD_SENT_BACKOFF_MS * attempt);
+      }
     }
   }
 
@@ -443,4 +472,20 @@ function queueState(isSuppressed: boolean): { status: MessageStatus; failureReas
  */
 function positionalParams(names: string[], variables: Record<string, string>): string[] {
   return names.map((name) => variables[name] ?? '');
+}
+
+/** How many times to try recording a send the provider has accepted. */
+const RECORD_SENT_ATTEMPTS = 3;
+const RECORD_SENT_BACKOFF_MS = 200;
+
+/** The provider accepted the message; writing that down failed. */
+class SentButUnrecordedError extends Error {
+  constructor(messageId: string, cause: unknown) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    super(`message ${messageId} was sent, but recording it failed: ${reason}. Left as SENDING, not re-queued`);
+  }
+}
+
+function pause(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }

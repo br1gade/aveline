@@ -64,11 +64,11 @@ export class InvitationSenderService {
 
     const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
-    const previous = await this.previousAttempts(invitation.eventId, plan.recipients.map((r) => r.guest.id));
+    const previous = await this.previousAttempts(invitation.eventId, households);
     const outcome = new SendOutcome();
 
     for (const recipient of plan.recipients) {
-      const attempts = previous.get(recipient.guest.id) ?? [];
+      const attempts = previous.get(recipient.householdId) ?? [];
       const result = hasReachedGuest(attempts)
         ? 'ALREADY_SENT'
         : await this.enqueueFor(invitation, recipient, attempts.length + 1);
@@ -91,22 +91,23 @@ export class InvitationSenderService {
     };
   }
 
-  /** Every earlier invitation attempt for these guests, in one query. */
+  /**
+   * Every earlier invitation attempt for these households, in one query.
+   *
+   * Keyed by household, not by guest: the recipient is chosen per household
+   * and can change between presses — the primary had no email, the bride was
+   * invited, the host then adds the primary's. Asked per guest, the primary
+   * looked uninvited and the household was invited twice.
+   */
   private async previousAttempts(
     eventId: string,
-    guestIds: string[],
+    households: SendableHousehold[],
   ): Promise<Map<string, PreviousAttempt[]>> {
     const messages = await this.prisma.message.findMany({
-      where: { eventId, templateKey: TEMPLATE_KEY, guestId: { in: guestIds } },
+      where: { eventId, templateKey: TEMPLATE_KEY, guestId: { in: households.flatMap((household) => household.guests.map((guest) => guest.id)) } },
       select: { guestId: true, toAddress: true, status: true },
     });
-
-    const byGuest = new Map<string, PreviousAttempt[]>();
-    for (const { guestId, ...attempt } of messages) {
-      if (!guestId) continue;
-      byGuest.set(guestId, [...(byGuest.get(guestId) ?? []), attempt]);
-    }
-    return byGuest;
+    return groupByHousehold(households, messages);
   }
 
   /**
@@ -138,17 +139,13 @@ export class InvitationSenderService {
       }),
     ]);
 
-    // Newest first, so the first message seen for a guest is their latest.
-    const attemptsByGuest = new Map<string, (typeof messages)[number][]>();
-    for (const message of messages) {
-      if (!message.guestId) continue;
-      attemptsByGuest.set(message.guestId, [...(attemptsByGuest.get(message.guestId) ?? []), message]);
-    }
+    // Newest first, so the first message seen for a household is its latest.
+    const attemptsByHousehold = groupByHousehold(households, messages);
 
     const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
     const rows = plan.recipients.map((recipient) =>
-      deliveryRow(recipient, attemptsByGuest.get(recipient.guest.id) ?? [], canSeeContacts),
+      deliveryRow(recipient, attemptsByHousehold.get(recipient.householdId) ?? [], canSeeContacts),
     );
 
     return {
@@ -313,4 +310,21 @@ function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[], canSeeCo
 /** Where it went, for a caller who may see guests' addresses; nothing otherwise. */
 function contactOf(recipient: Recipient, canSeeContacts: boolean): { toAddress?: string } {
   return canSeeContacts ? { toAddress: recipient.via.address } : {};
+}
+
+/**
+ * Messages by the household their guest belongs to, order kept. The household
+ * is the unit invited, and its recipient can change between sends.
+ */
+function groupByHousehold<T extends { guestId: string | null }>(
+  households: SendableHousehold[],
+  messages: T[],
+): Map<string, Omit<T, 'guestId'>[]> {
+  const householdOf = new Map(households.flatMap((household) => household.guests.map((guest) => [guest.id, household.id])));
+  const grouped = new Map<string, Omit<T, 'guestId'>[]>();
+  for (const { guestId, ...message } of messages) {
+    const householdId = guestId ? householdOf.get(guestId) : undefined;
+    if (householdId) grouped.set(householdId, [...(grouped.get(householdId) ?? []), message]);
+  }
+  return grouped;
 }

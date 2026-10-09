@@ -70,6 +70,8 @@ export class TelegramWebhookController {
       await this.handleBlocked(update.chatId);
       return;
     }
+    // Unblocking is the guest's own act, so it ends the opt-out it began.
+    if (update.hasReturned) await this.suppressions.liftAfterOptIn(MessageChannel.TELEGRAM, update.chatId);
     if (update.startToken) await this.handleStart(update.startToken, update.chatId);
   }
 
@@ -93,6 +95,9 @@ export class TelegramWebhookController {
     }
 
     await this.guestChannels.recordOptIn(guest.id, MessageChannel.TELEGRAM, chatId);
+    // A guest who blocked the bot and starts it again has opted back in; the
+    // suppression from the block would otherwise outlive their own decision.
+    await this.suppressions.liftAfterOptIn(MessageChannel.TELEGRAM, chatId);
   }
 
   /**
@@ -142,6 +147,7 @@ interface ReadUpdate {
   chatId: string | null;
   startToken: string | null;
   hasLeft: boolean;
+  hasReturned: boolean;
 }
 
 /** Telegram reports both of these when a user removes a bot. */
@@ -155,6 +161,7 @@ function readUpdate(update: TelegramUpdate): ReadUpdate {
     chatId,
     startToken: startTokenFrom(update.message?.text),
     hasLeft: LEFT_STATUSES.has(status),
+    hasReturned: status === 'member',
   };
 }
 

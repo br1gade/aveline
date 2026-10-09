@@ -157,6 +157,35 @@ describe('Invitation sending (e2e)', () => {
       expect(await prisma.message.count({ where: { eventId } })).toBe(3);
     });
 
+    // B18: the recipient is chosen per household, so a new address on the
+    // primary used to make the household look uninvited — and invited again.
+    it('does not invite a household twice when its recipient changes', async () => {
+      const { slug, eventId, authorization } = await host();
+      const { petrosyans } = await guestList(eventId);
+      await prisma.guest.updateMany({ where: { householdId: petrosyans.id, firstName: 'Armen' }, data: { email: null } });
+      await send(slug, authorization).expect(201);
+      await prisma.guest.updateMany({ where: { householdId: petrosyans.id, firstName: 'Armen' }, data: { email: 'armen@test.local' } });
+
+      const { body } = await send(slug, authorization).expect(201);
+
+      expect(body).toMatchObject({ queued: 0, alreadySent: 3 });
+      expect(await prisma.message.count({ where: { eventId, guest: { householdId: petrosyans.id } } })).toBe(1);
+    });
+
+    it('reminds a household once a day even when its recipient changes', async () => {
+      const { slug, eventId, authorization } = await host();
+      const { petrosyans } = await guestList(eventId);
+      await prisma.guest.updateMany({ where: { householdId: petrosyans.id, firstName: 'Armen' }, data: { email: null } });
+      await send(slug, authorization).expect(201);
+      const remind = () => http().post(`/api/v1/invitations/${slug}/remind`).set('Authorization', authorization).expect(201);
+      await remind();
+      await prisma.guest.updateMany({ where: { householdId: petrosyans.id, firstName: 'Armen' }, data: { email: 'armen@test.local' } });
+
+      const { body } = await remind();
+
+      expect(body).toMatchObject({ queued: 0, alreadyRemindedToday: 3 });
+    });
+
     it('invites only the households named when guestIds is given', async () => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);

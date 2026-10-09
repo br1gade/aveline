@@ -99,7 +99,7 @@ export class ReminderService {
       households: pending,
       available,
       templateKey: TEMPLATE_KEY,
-      dedupeKeyFor: (guestId) => manualDedupeKey(invitation.id, guestId, now),
+      dedupeKeyFor: (householdId) => manualDedupeKey(invitation.id, householdId, now),
     });
   }
 
@@ -139,7 +139,7 @@ export class ReminderService {
       households,
       available,
       templateKey: DETAILS_CHANGED_TEMPLATE_KEY,
-      dedupeKeyFor: (guestId) => `details-changed:${invitation.id}:${guestId}:${minute}`,
+      dedupeKeyFor: (householdId) => `details-changed:${invitation.id}:${householdId}:${minute}`,
       variables: { note: note?.trim() ?? '' },
     });
     return {
@@ -221,7 +221,7 @@ export class ReminderService {
         households: pending,
         available,
         templateKey: TEMPLATE_KEY,
-        dedupeKeyFor: (guestId) => milestoneDedupeKey(invitation.id, guestId, milestone),
+        dedupeKeyFor: (householdId) => milestoneDedupeKey(invitation.id, householdId, milestone),
       });
 
     if (result.queued > 0) {
@@ -238,7 +238,11 @@ export class ReminderService {
       households: SendableHousehold[];
       available: MessageChannel[];
       templateKey: string;
-      dedupeKeyFor: (guestId: string) => string;
+      /**
+       * Keyed by household, which is the unit written to: its recipient can
+       * change between runs, and a key per guest then wrote to it twice.
+       */
+      dedupeKeyFor: (householdId: string) => string;
       /** Extra copy variables, beyond the ones every household message has. */
       variables?: Record<string, string>;
     },
@@ -249,10 +253,12 @@ export class ReminderService {
     const queued: { householdName: string; toAddress: string; channel: MessageChannel }[] = [];
     let alreadyRemindedToday = 0;
 
+    // One query for every key, rather than one per household.
+    const alreadySent = await this.existingKeys(plan.recipients.map((recipient) => dedupeKeyFor(recipient.householdId)));
+
     for (const recipient of plan.recipients) {
-      const dedupeKey = dedupeKeyFor(recipient.guest.id);
-      const existing = await this.prisma.message.findUnique({ where: { dedupeKey } });
-      if (existing) {
+      const dedupeKey = dedupeKeyFor(recipient.householdId);
+      if (alreadySent.has(dedupeKey)) {
         alreadyRemindedToday += 1;
         continue;
       }
@@ -294,6 +300,14 @@ export class ReminderService {
     };
   }
 
+  private async existingKeys(dedupeKeys: string[]): Promise<Set<string>> {
+    const existing = await this.prisma.message.findMany({
+      where: { dedupeKey: { in: dedupeKeys } },
+      select: { dedupeKey: true },
+    });
+    return new Set(existing.map((message) => message.dedupeKey).filter((key): key is string => key !== null));
+  }
+
   /**
    * Thanks the people who came.
    *
@@ -325,7 +339,7 @@ export class ReminderService {
       households,
       available,
       templateKey: THANK_YOU_TEMPLATE_KEY,
-      dedupeKeyFor: (guestId) => `thankyou:${invitation.id}:${guestId}`,
+      dedupeKeyFor: (householdId) => `thankyou:${invitation.id}:${householdId}`,
     });
 
     return {

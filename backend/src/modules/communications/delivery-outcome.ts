@@ -59,8 +59,12 @@ const TEMPORARY_ERROR_CODES = new Set([
   'EPIPE',
 ]);
 
-/** Codes that mean the server will not take our mail until we fix something. */
-const MISCONFIGURATION_ERROR_CODES = new Set(['EAUTH', 'ESECURITY', 'ETLS']);
+/**
+ * Codes that mean the server will not take our mail until we fix something.
+ * ECONFIG is our own: a chat transport saying the request itself was wrong — a
+ * missing template, a message too long — which is never the recipient's fault.
+ */
+const MISCONFIGURATION_ERROR_CODES = new Set(['EAUTH', 'ESECURITY', 'ETLS', 'ECONFIG']);
 
 /**
  * SMTP replies in the 5xx range are permanent by the RFC — with one exception

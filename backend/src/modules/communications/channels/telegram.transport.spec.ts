@@ -81,6 +81,20 @@ describe('TelegramTransport', () => {
       });
     });
 
+    // B20: every 400 used to suppress the guest — including our own mistakes.
+    it.each([
+      'Bad Request: message is too long',
+      'Bad Request: can\'t parse entities',
+      'Bad Request: message text is empty',
+    ])('maps "%s" to our misconfiguration, never the guest’s', async (description) => {
+      const { impl } = fakeFetch({ ok: false, error_code: 400, description });
+
+      const failure = new TelegramTransport(settings, impl).send(message);
+
+      await expect(failure).rejects.toMatchObject({ code: 'ECONFIG' });
+      await expect(failure).rejects.not.toHaveProperty('responseCode', 550);
+    });
+
     // Rate limiting is temporary however emphatic it sounds.
     it.each([429, 500, 502])('maps %s to a temporary failure', async (code) => {
       const { impl } = fakeFetch({ ok: false, error_code: code, description: 'Too Many Requests' });

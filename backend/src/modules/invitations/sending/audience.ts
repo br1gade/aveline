@@ -1,5 +1,7 @@
 import { MessageChannel, Prisma, PrismaClient } from '@prisma/client';
 import { GuestChannelsService } from '../../communications/guest-channels.service';
+import { normalizeAddress } from '../../communications/suppression.service';
+import { GuestAddress } from './channel-preference';
 import { REACHED_STATUSES } from './previous-attempts';
 import { SendableHousehold } from './send-plan';
 
@@ -15,7 +17,7 @@ import { SendableHousehold } from './send-plan';
  */
 
 /** A Prisma client or an open transaction, whichever the caller has. */
-type Reader = Pick<PrismaClient, 'messageTemplate' | 'household'>;
+type Reader = Pick<PrismaClient, 'messageTemplate' | 'household' | 'suppression'>;
 
 /**
  * Channels we can both send on and have copy for.
@@ -78,16 +80,59 @@ export async function loadSendableHouseholds(
           channels: { select: { channel: true, address: true, optedInAt: true } },
         },
       },
+      event: { select: { organizationId: true } },
     },
   });
 
-  return households.map((household) => ({
+  const withAddresses = households.map(({ event, ...household }) => ({
+    ...household,
+    organizationId: event.organizationId,
+    guests: household.guests.map((guest) => ({ ...guest, addresses: guestChannels.addressesFor(guest) })),
+  }));
+  const suppressed = await suppressedAmong(prisma, withAddresses);
+
+  return withAddresses.map(({ organizationId, ...household }) => ({
     ...household,
     guests: household.guests.map((guest) => ({
       ...guest,
-      addresses: guestChannels.addressesFor(guest),
+      addresses: guest.addresses.map((address) => ({
+        ...address,
+        isSuppressed: suppressed.has(suppressionKey(organizationId, address.channel, address.address)),
+      })),
     })),
   }));
+}
+
+/**
+ * Which of these households' addresses are suppressed for their organization,
+ * in one query — so a sender can prefer the guest's other channels.
+ */
+async function suppressedAmong(
+  prisma: Reader,
+  households: { organizationId: string; guests: { addresses?: GuestAddress[] }[] }[],
+): Promise<Set<string>> {
+  const addresses = households.flatMap((household) =>
+    household.guests.flatMap((guest) => (guest.addresses ?? []).map((address) => normalizeAddress(address.channel, address.address))),
+  );
+  if (addresses.length === 0) return new Set();
+
+  const organizationIds = [...new Set(households.map((household) => household.organizationId))];
+  const rows = await prisma.suppression.findMany({
+    where: { address: { in: [...new Set(addresses)] }, OR: [{ organizationId: null }, { organizationId: { in: organizationIds } }] },
+    select: { organizationId: true, channel: true, address: true },
+  });
+  // A platform-wide row applies to every organization these households are in.
+  return new Set(
+    rows.flatMap((row) =>
+      (row.organizationId === null ? organizationIds : [row.organizationId]).map((organizationId) =>
+        suppressionKey(organizationId, row.channel, row.address),
+      ),
+    ),
+  );
+}
+
+function suppressionKey(organizationId: string, channel: MessageChannel, address: string): string {
+  return `${organizationId}|${channel}|${normalizeAddress(channel, address)}`;
 }
 
 /**

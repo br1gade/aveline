@@ -1563,6 +1563,14 @@ answer. Nothing is silently dropped. Suppression is checked both when a message
 is queued and again when it is sent, because a reminder can wait in the outbox
 for weeks.
 
+**A suppressed address loses to the guest's others.** A guest who blocked the
+Telegram bot is reached by email; only a guest with nothing else is reported
+as `SUPPRESSED`. A `GLOBAL` suppression comes only from the recipient — a
+bounce, a complaint, blocking the bot. A rejection caused by our own message
+(a WhatsApp template problem, a Telegram message too long) is retried and
+reported as `FAILED`, never held against the guest. A guest who starts or
+unblocks the bot again lifts their own Telegram suppression.
+
 Listing needs `guest:contact:read`; changing needs `guest:write`.
 
 ### Data-subject requests — GDPR
@@ -1905,12 +1913,14 @@ the household's primary guest, or whoever in it has an address if the primary
 has none — and the link carries *that* guest's token, so it personalises for
 whoever opens it.
 
-**Safe to press twice.** A guest whose invitation reached them, or is on its
-way, is counted in `alreadySent` and not sent another. Build the button so it
+**Safe to press twice.** A household whose invitation reached any of its
+members, or is on its way, is counted in `alreadySent` and not sent another —
+even if a different member would be chosen now, say because the primary has
+since been given an email. Build the button so it
 can be clicked again without a confirmation dialog — a host who sees nothing
 happen for a second will click anyway.
 
-**Pressing it again also retries what failed.** A guest whose every earlier
+**Pressing it again also retries what failed.** A household whose every earlier
 attempt failed, bounced or was suppressed is tried again. That is how a
 bounce is fixed: correct the address with `PATCH /events/:eventId/guests/:guestId`,
 then send — the new address is queued. Until the address is corrected, a
@@ -2001,7 +2011,7 @@ replied — attending or declined — is never chased; that is what turns a
 reminder into a nuisance. Nor is a guest who never received the invitation:
 `notInvited` lists them, and the fix for those is to send, not to remind.
 
-**At most one reminder per guest per day.** Pressing twice is safe, and
+**At most one reminder per household per day.** Pressing twice is safe, and
 following up again tomorrow still works. `alreadyRemindedToday` is how many
 were skipped for that reason — not an error.
 
@@ -2330,7 +2340,8 @@ POST /api/v1/webhooks/telegram
 
 Telegram calls this; no client should. It is listed only so it is not mistaken
 for something to integrate with. It records a guest's opt-in when they tap the
-deep link, and treats blocking the bot as an unsubscribe.
+deep link, treats blocking the bot as an unsubscribe, and lifts that
+unsubscribe when the guest starts or unblocks the bot again.
 
 ### The audit trail
 

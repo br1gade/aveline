@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 13 open | 22 open, of which 8 money | — |
+| Bugfixes | 0 open | 9 open | 22 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -57,10 +57,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B18 | A household is invited twice when its recipient changes ✔ | Resend is decided per guest, but the recipient is re-chosen per household. The invitation went to the bride because the primary had no email; the host adds the primary's email and presses send — a second invitation. Thank-yous repeat the same way | `invitations/sending/invitation-sender.service.ts`, `send-plan.ts` | S |
-| B19 | A database error after a successful send sends it again ✔ | The provider call and the "sent" update share one error path; a failed update is treated as temporary and the message goes out up to five times | `communications/communications.service.ts` | S |
-| B20 | Our own errors suppress a guest's address for good ✔ | WhatsApp template errors and every Telegram 400 (including "message too long") are treated as the recipient's hard bounce: a platform-wide suppression no host can lift | `channels/whatsapp.transport.ts`, `telegram.transport.ts` | S |
-| B21 | A guest who blocks and re-starts the Telegram bot stays unsubscribed ✔ | The suppression is never cleared, and reminders resolve to a suppressed Telegram with no email fallback | `communications/telegram-webhook.controller.ts` | S |
 
 **Guests, design and seating**
 

@@ -107,14 +107,27 @@ describe('WhatsAppTransport', () => {
     it.each([
       { code: 131026, label: 'not a WhatsApp user' },
       { code: 131049, label: 'blocked by privacy settings' },
-      { code: 132001, label: 'template does not exist' },
-      { code: 132015, label: 'template paused for quality' },
     ])('maps $code ($label) to a permanent failure', async ({ code }) => {
       const { impl } = fakeFetch({ error: { code, message: 'rejected' } }, false, 400);
 
       await expect(new WhatsAppTransport(settings, impl).send(templated)).rejects.toMatchObject({
         responseCode: 550,
       });
+    });
+
+    // B20: a template problem is ours. Read as the guest's hard bounce, it
+    // suppressed their number platform-wide, where no host could lift it.
+    it.each([
+      { code: 132000, label: 'template parameter count mismatch' },
+      { code: 132001, label: 'template does not exist' },
+      { code: 132015, label: 'template paused for quality' },
+    ])('maps $code ($label) to our misconfiguration, never the guest’s', async ({ code }) => {
+      const { impl } = fakeFetch({ error: { code, message: 'rejected' } }, false, 400);
+
+      const failure = new WhatsAppTransport(settings, impl).send(templated);
+
+      await expect(failure).rejects.toMatchObject({ code: 'ECONFIG' });
+      await expect(failure).rejects.not.toHaveProperty('responseCode', 550);
     });
 
     // Our own rate limit must not cost a guest their invitation.

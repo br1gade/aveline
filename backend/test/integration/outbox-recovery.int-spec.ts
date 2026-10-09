@@ -131,4 +131,57 @@ describe('outbox recovery (integration)', () => {
     expect(row.status).toBe(MessageStatus.QUEUED);
     expect(row.scheduledFor.getTime()).toBeGreaterThan(Date.now());
   });
+
+  /**
+   * B19: the provider call and the "sent" update shared one error path, so a
+   * database error after a successful send was read as a delivery failure and
+   * the message went out again — up to five times.
+   */
+  describe('when recording a successful send fails', () => {
+    /** The same database, except the "it was sent" write fails `times` times. */
+    const withFailingSentRecord = (times: number) => {
+      let remaining = times;
+      const messages = new Proxy(prisma.message, {
+        get(target, property, receiver) {
+          if (property !== 'update') return Reflect.get(target, property, receiver) as unknown;
+          return (args: { data: { sentAt?: unknown } }) => {
+            if (args.data.sentAt !== undefined && remaining > 0) {
+              remaining -= 1;
+              return Promise.reject(new Error('connection reset'));
+            }
+            return target.update(args as Parameters<typeof target.update>[0]);
+          };
+        },
+      });
+      const database = new Proxy(prisma, {
+        get: (target, property, receiver) => (property === 'message' ? messages : Reflect.get(target, property, receiver)) as unknown,
+      });
+      return new CommunicationsService(
+        database as unknown as PrismaService,
+        new Map<MessageChannel, MessageTransport>([[MessageChannel.EMAIL, transport]]),
+        suppressions,
+      );
+    };
+
+    it('records it on a second try, and does not send again', async () => {
+      const row = await message('guest@test.local');
+
+      await withFailingSentRecord(1).dispatchDue();
+
+      expect(transport.sent).toEqual(['guest@test.local']);
+      expect(await statusOf(row.id)).toBe(MessageStatus.SENT);
+    });
+
+    it('never puts a sent message back in the queue, even when the record cannot be written', async () => {
+      const row = await message('guest@test.local');
+      const outbox = withFailingSentRecord(Number.POSITIVE_INFINITY);
+
+      await outbox.dispatchDue();
+      await prisma.message.updateMany({ where: { id: row.id }, data: { scheduledFor: new Date(0) } });
+      await outbox.dispatchDue();
+
+      expect(transport.sent).toEqual(['guest@test.local']);
+      expect(await statusOf(row.id)).not.toBe(MessageStatus.QUEUED);
+    });
+  });
 });

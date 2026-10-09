@@ -54,18 +54,18 @@ export function dueMilestone(
 }
 
 /**
- * A stable key for one milestone's reminder to one guest.
+ * A stable key for one milestone's reminder to one household.
  *
  * This is what makes the sweep safe to run every hour: the key is the same
- * every time the same milestone is due for the same guest, so the outbox's
+ * every time the same milestone is due for the same household, so the outbox's
  * unique constraint turns a hundred runs into one message.
  */
 export function milestoneDedupeKey(
   invitationId: string,
-  guestId: string,
+  householdId: string,
   milestoneDays: number,
 ): string {
-  return `reminder:${invitationId}:${guestId}:T-${milestoneDays}`;
+  return `reminder:${invitationId}:${householdId}:T-${milestoneDays}`;
 }
 
 /**
@@ -75,6 +75,6 @@ export function milestoneDedupeKey(
  * correctly to both parties: a host may follow up again tomorrow, and a guest
  * cannot be written to twice in one day by someone clicking a button twice.
  */
-export function manualDedupeKey(invitationId: string, guestId: string, now: Date): string {
-  return `reminder:${invitationId}:${guestId}:${now.toISOString().slice(0, 10)}`;
+export function manualDedupeKey(invitationId: string, householdId: string, now: Date): string {
+  return `reminder:${invitationId}:${householdId}:${now.toISOString().slice(0, 10)}`;
 }

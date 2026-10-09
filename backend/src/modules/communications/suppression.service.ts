@@ -153,6 +153,17 @@ export class SuppressionService {
   }
 
   /**
+   * Lifts every suppression of a chat the guest has just opened again.
+   *
+   * Only for a channel where the recipient's own action proves consent:
+   * starting or unblocking a Telegram bot is something only the chat's owner
+   * can do. A host can never reach this; an email bounce is never lifted by it.
+   */
+  async liftAfterOptIn(channel: typeof MessageChannel.TELEGRAM, address: string): Promise<void> {
+    await this.prisma.suppression.deleteMany({ where: { channel, address: normalizeAddress(channel, address) } });
+  }
+
+  /**
    * Removes a suppression this organization owns.
    *
    * A global suppression cannot be lifted here. A hard bounce or a complaint
@@ -182,7 +193,7 @@ export class SuppressionService {
  * because normalising them correctly needs a region and guessing wrong would
  * suppress the wrong person.
  */
-function normalizeAddress(channel: MessageChannel, address: string): string {
+export function normalizeAddress(channel: MessageChannel, address: string): string {
   return channel === MessageChannel.EMAIL
     ? normalizeEmailAddress(address)
     : address.trim();

@@ -70,7 +70,7 @@ describe('classifyDeliveryFailure', () => {
 
   describe('what is our fault', () => {
     // Our bad password must never suppress a guest's address.
-    it.each(['EAUTH', 'ESECURITY', 'ETLS'])('treats %s as misconfiguration', (code) => {
+    it.each(['EAUTH', 'ESECURITY', 'ETLS', 'ECONFIG'])('treats %s as misconfiguration', (code) => {
       expect(classifyDeliveryFailure(socketError(code)).kind).toBe('MISCONFIGURED');
     });
 
