@@ -108,11 +108,12 @@ on; doing so on one node buys nothing.
 
 ## 6. Not yet built
 
-- **Image processing.** Originals are stored as uploaded — a 6 MB phone photo
-  stays 6 MB. Resizing to roughly 200 KB is a thirtyfold difference and is the
-  single biggest lever on storage cost
-- **Orphan reclamation.** Nothing deletes objects when an event is archived,
-  so usage only grows. `StorageService.remove` exists and nothing calls it
+- **Cropping.** Photos gain smaller WebP copies at 480, 960 and 1600 px
+  (`media/image-variants.service.ts`, run by a sweep); the original is kept
+  too, so resizing lowers what guests download, not what is stored
+- **Orphan reclamation.** Removing an upload or deleting an event removes its
+  files and their copies; archiving keeps them, and nothing reclaims files no
+  row points at
 - **CDN** in front of the public URL
 - **Virus scanning** for host-uploaded files
 - **Backups.** Described above; not automated here

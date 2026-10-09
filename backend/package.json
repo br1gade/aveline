@@ -1,7 +1,7 @@
 {
   "name": "@aveline/backend",
   "version": "0.1.0",
-  "description": "Aveline backend \u2014 event invitations, guest graph and operations",
+  "description": "Aveline backend — event invitations, guest graph and operations",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -61,7 +61,8 @@
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

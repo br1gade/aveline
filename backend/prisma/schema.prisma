@@ -595,19 +595,26 @@ model RsvpAnswer {
 /// Every uploaded image belongs to an event, so deleting an event reclaims its
 /// storage and no asset is reachable from an unrelated invitation.
 model MediaAsset {
-  id         String    @id @default(cuid())
-  eventId    String
-  kind       MediaKind
-  url        String
+  id                  String    @id @default(cuid())
+  eventId             String
+  kind                MediaKind
+  url                 String
   /// Bytes; used to enforce upload limits and report storage per event.
-  sizeBytes  Int?
-  width      Int?
-  height     Int?
-  mimeType   String?
+  sizeBytes           Int?
+  width               Int?
+  height              Int?
+  mimeType            String?
   /// Accessibility text, translated per locale.
-  altText    Json      @default("{}")
-  uploadedBy String?
-  createdAt  DateTime  @default(now())
+  altText             Json      @default("{}")
+  /// Smaller copies a photo is served as: [{ width, height, url, sizeBytes }].
+  /// Made by a background job — resizing is not done inside a request.
+  variants            Json      @default("[]")
+  /// When the job made them, or found the file could not be resized; null
+  /// until then, which is how the job finds its work.
+  variantsProcessedAt DateTime?
+  variantsError       String?
+  uploadedBy          String?
+  createdAt           DateTime  @default(now())
 
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   listingHeroes  EventListing[] @relation("ListingHero")
@@ -615,6 +622,8 @@ model MediaAsset {
   rsvpSignatures Rsvp[]         @relation("RsvpSignature")
 
   @@index([eventId])
+  /// The resizing job's queue: oldest unprocessed first.
+  @@index([variantsProcessedAt, createdAt])
   @@map("media_assets")
 }
 

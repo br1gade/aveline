@@ -19,6 +19,7 @@ below says what blocks it and what would unblock it.
 | ESLint | 10.12.0 | Needed `@eslint/js` as a direct dependency; 10 no longer provides it transitively |
 | Jest | 30.5.2 | |
 | nodemailer | 10.0.16 | Upgraded for two high-severity advisories, one of them SMTP command injection |
+| sharp | 0.35.5 | Photo resizing. Ships prebuilt binaries for the Alpine image (`@img/sharp-linuxmusl-*`), so no build tools are needed in Docker |
 | everything else | latest | |
 
 ## 2. Held back, with reasons

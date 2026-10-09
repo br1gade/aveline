@@ -2183,8 +2183,14 @@ Guests receive it already resolved to their language, as `media[].altText`.
 refused with `409` while a block shows it, naming the block — take it off
 there first, with `PATCH /invitations/:slug/blocks/:type`.
 
-> **We do not resize.** A 6 MB photo is stored as 6 MB and served as 6 MB.
-> Downscale client-side before upload until the backend does it.
+**Photos are resized after upload, in the background.** Within about a minute
+each JPEG, PNG, WebP or AVIF photo gains smaller WebP copies at 480, 960 and
+1600 pixels wide — only those narrower than the original — turned upright from
+the phone's orientation tag. Media on the guest page, in the editor and in the
+library then carry `width`, `height` and `variants`
+(`[{ width, height, url, sizeBytes }]`). **Build `srcset` from `variants` and
+fall back to `url`**: until the copies exist, and for SVG, `variants` is `[]`.
+The original is kept and stays at `url`.
 
 ### Admitting a ticket at the door
 
@@ -2354,7 +2360,6 @@ So you can plan around them rather than discover them:
 - **One organization per account.** See §6.
 - **No block creation outside the arrangement call**, and no way to reorder
   custom RSVP questions once added.
-- **No image resizing.**
 - **PDF and XLSX exports.** CSV works; the other two formats return `400`.
 - **Asynchronous bounce reports.** A rejection at send time suppresses the
   address automatically. A bounce that arrives later, as a report to the

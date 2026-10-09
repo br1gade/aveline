@@ -62,7 +62,6 @@ Several of the bugs expose people's data.
 
 | Item | Note |
 |---|---|
-| Image resizing | Originals are stored as uploaded. A 6 MB photo costs 6 MB and serves 6 MB |
 | Orphan reclamation | Nothing deletes assets when an event is archived; usage only grows |
 | Invitation expiry | Decided (indefinite paid, 3 months free) and modelled; nothing sets `expiresAt` or sweeps |
 | CDN | Garage serves media directly |

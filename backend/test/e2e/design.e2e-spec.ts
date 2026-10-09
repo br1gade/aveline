@@ -3,7 +3,9 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { BlockType, EventRole, PrismaClient, QuestionType } from '@prisma/client';
 import request from 'supertest';
+import sharp from 'sharp';
 import { AppModule } from '../../src/app.module';
+import { ImageVariantsService } from '../../src/modules/media/image-variants.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
@@ -330,9 +332,30 @@ describe('Invitation design (e2e)', () => {
       expect(page.coverUrl).toBe(second.url);
       const hero = page.blocks.find((block) => block.type === 'HERO');
       expect(hero?.media).toEqual([
-        { id: second.id, url: second.url, kind: 'PHOTO', altText: null },
-        { id: first.id, url: first.url, kind: 'PHOTO', altText: null },
+        { id: second.id, url: second.url, kind: 'PHOTO', altText: null, width: null, height: null, variants: [] },
+        { id: first.id, url: first.url, kind: 'PHOTO', altText: null, width: null, height: null, variants: [] },
       ]);
+    });
+
+    // A guest's phone used to download every photo as uploaded.
+    it('serves smaller copies of a photo once the resizing job has run', async () => {
+      const { slug, eventId, authorization } = await designerWithMusic();
+      const large = await sharp({ create: { width: 2400, height: 1600, channels: 3, background: '#f5e1e0' } })
+        .jpeg()
+        .toBuffer();
+      const { body: upload } = await http()
+        .post(`/api/v1/events/${eventId}/media`)
+        .set('Authorization', authorization)
+        .attach('file', large, { filename: 'couple.jpg', contentType: 'image/jpeg' })
+        .expect(201);
+      await attach(slug, authorization, BlockType.HERO, [upload.id as string]).expect(200);
+
+      await app.get(ImageVariantsService).processPending();
+
+      const page = await http().get(`/api/v1/invitations/${slug}`).expect(200);
+      const hero = (page.body.blocks as { type: string; media: Record<string, unknown>[] }[]).find((b) => b.type === 'HERO');
+      expect(hero?.media[0]).toMatchObject({ width: 2400, height: 1600 });
+      expect((hero?.media[0].variants as { width: number }[]).map((variant) => variant.width)).toEqual([480, 960, 1600]);
     });
 
     it('plays the music block’s audio, and stops when the host switches it off', async () => {

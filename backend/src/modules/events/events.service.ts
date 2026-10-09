@@ -12,6 +12,7 @@ import { AuditService } from '../../infra/audit/audit.service';
 import { RequestActor, actorCan } from '../../infra/auth/actor';
 import { CacheService } from '../../infra/cache/cache.service';
 import { StorageService } from '../../infra/storage/storage.service';
+import { urlsOf } from '../media/media.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { PrismaService } from '../../prisma/prisma.service';
 import { defaultBlocksFor } from './default-blocks';
@@ -328,7 +329,7 @@ export class EventsService {
       select: {
         status: true,
         statusBeforeArchive: true,
-        mediaAssets: { select: { url: true } },
+        mediaAssets: { select: { url: true, variants: true } },
         _count: { select: { payments: true, ticketOrders: true } },
       },
     });
@@ -336,13 +337,7 @@ export class EventsService {
     assertDeletable(event);
 
     await this.prisma.event.delete({ where: { id: eventId } });
-    await Promise.all(
-      event.mediaAssets.map((asset) =>
-        this.storage.remove(storageKeyOf(asset.url)).catch((error: unknown) => {
-          this.logger.warn(`event ${eventId} deleted; a file was not: ${String(error)}`);
-        }),
-      ),
-    );
+    await Promise.all(event.mediaAssets.flatMap(urlsOf).map((url) => this.storage.removeByUrl(url)));
     return { deleted: eventId };
   }
 
@@ -423,9 +418,4 @@ function assertDeletable(event: {
   if (event._count.payments > 0 || event._count.ticketOrders > 0) {
     throw new ConflictException('Money has moved through this event, and those records are kept; archive it instead');
   }
-}
-
-/** Stored names are generated, so the key is the URL's last segment. */
-function storageKeyOf(url: string): string {
-  return decodeURIComponent(new URL(url, 'http://local').pathname.split('/').pop() ?? '');
 }

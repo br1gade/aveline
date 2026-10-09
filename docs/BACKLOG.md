@@ -26,7 +26,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 20 open | 23 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 1 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -137,7 +137,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Feature | Why | Size |
 |---|---|---|---|
-| F18 | **Image resizing** | Originals are served as uploaded; a 6 MB photo costs every guest 6 MB | M |
 
 ### P2
 

@@ -29,7 +29,15 @@ type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitation
 type LoadedEvent = LoadedInvitation['event'];
 type LoadedBlock = LoadedInvitation['blocks'][number];
 
-const blockMediaSelect = { id: true, url: true, kind: true, altText: true } satisfies Prisma.MediaAssetSelect;
+const blockMediaSelect = {
+  id: true,
+  url: true,
+  kind: true,
+  altText: true,
+  width: true,
+  height: true,
+  variants: true,
+} satisfies Prisma.MediaAssetSelect;
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
 type LoadedGuest = Prisma.GuestGetPayload<{
   include: { rsvp: true; household: { include: { guests: true } } };
@@ -274,7 +282,18 @@ function mediaFor(block: LoadedBlock, media: Map<string, BlockMedia>, translate:
   return block.assetIds.flatMap((id) => {
     const asset = media.get(id);
     if (!asset) return [];
-    return [{ id: asset.id, url: asset.url, kind: asset.kind, altText: translate<string>(asset.altText) }];
+    return [
+      {
+        id: asset.id,
+        url: asset.url,
+        kind: asset.kind,
+        altText: translate<string>(asset.altText),
+        width: asset.width,
+        height: asset.height,
+        // Smaller copies, once the resizing job has made them; pick by width.
+        variants: asset.variants,
+      },
+    ];
   });
 }
 

@@ -162,6 +162,7 @@ until `JobsService` existed:
 | `communications.dispatchDue` | 1 min | Invitations are never sent |
 | `payments.reconcile` | 5 min | A paid order stays pending |
 | `ticketing.releaseExpiredReservations` | 5 min | Abandoned baskets hold seats forever |
+| `media.resize` (`ImageVariantsService`) | 1 min | Guests download every photo at its uploaded size |
 
 Each takes a Redis lock with `SET NX EX` — one atomic operation, so exactly
 one instance runs it. The TTL is shorter than the interval and never extended:
@@ -170,7 +171,8 @@ sweep forever. If Redis is unreachable, sweeps are skipped rather than run
 unguarded, because double-dispatching messages is worse than delaying them.
 
 **BullMQ is still the right answer for queued, retryable, per-item work** —
-image processing, exports, seating computation. Cron plus a lock is correct
+exports, seating computation. Photo resizing runs as a sweep for now: it
+finds its work by a column being empty, a few photos a minute. Cron plus a lock is correct
 for periodic sweeps and is far less machinery.
 
 ## 4. Degradation

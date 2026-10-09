@@ -181,8 +181,8 @@ filename.
 
 ## 7. Not yet built
 
-1. **Image processing** — resizing, format conversion, thumbnails. One
-   original is stored as uploaded.
+1. **Cropping and focal points.** Photos get smaller WebP copies by width;
+   nothing crops them to a shape or records where the subject is.
 2. **Block creation outside the arrangement call.** Which blocks exist is
    decided there; there is no way to add one while editing its content.
 3. **Reordering custom RSVP questions.** They can be added, changed and

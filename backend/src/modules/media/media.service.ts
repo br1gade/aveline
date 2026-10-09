@@ -60,7 +60,19 @@ export class MediaService {
       this.prisma.mediaAsset.findMany({
         where: { eventId, kind: { in: UPLOAD_KINDS } },
         orderBy: { createdAt: 'desc' },
-        select: { id: true, url: true, kind: true, mimeType: true, sizeBytes: true, altText: true, createdAt: true },
+        select: {
+          id: true,
+          url: true,
+          kind: true,
+          mimeType: true,
+          sizeBytes: true,
+          altText: true,
+          width: true,
+          height: true,
+          variants: true,
+          variantsProcessedAt: true,
+          createdAt: true,
+        },
       }),
       this.blocksShowingMedia(eventId),
     ]);
@@ -105,9 +117,7 @@ export class MediaService {
     }
 
     await this.prisma.mediaAsset.delete({ where: { id: asset.id } });
-    await this.storage.remove(storageKeyOf(asset.url)).catch((error: unknown) => {
-      this.logger.warn(`media ${asset.id} removed; its file was not: ${String(error)}`);
-    });
+    await Promise.all(urlsOf(asset).map((url) => this.storage.removeByUrl(url)));
     return { removed: asset.id };
   }
 
@@ -133,9 +143,10 @@ export class MediaService {
   }
 }
 
-/** Stored names are generated (`newStorageKey`), so the key is the URL's last segment. */
-function storageKeyOf(url: string): string {
-  return decodeURIComponent(new URL(url, 'http://local').pathname.split('/').pop() ?? '');
+/** The original and every smaller copy made of it. */
+export function urlsOf(asset: { url: string; variants: unknown }): string[] {
+  const variants = Array.isArray(asset.variants) ? (asset.variants as { url?: unknown }[]) : [];
+  return [asset.url, ...variants.map((variant) => variant.url).filter((url): url is string => typeof url === 'string')];
 }
 
 /** A lookup rather than a branch, so a new accepted type is a new row. */

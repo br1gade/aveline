@@ -3,7 +3,9 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { EventRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
+import sharp from 'sharp';
 import { AppModule } from '../../src/app.module';
+import { ImageVariantsService } from '../../src/modules/media/image-variants.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
@@ -130,6 +132,24 @@ describe('An event’s uploads (e2e)', () => {
 
     expect(await library(eventId, authorization)).toEqual([]);
     expect((await fetch(photo.url)).status).toBe(404);
+  });
+
+  it('removes the smaller copies with the photo', async () => {
+    const { eventId, authorization } = await designer();
+    const large = await sharp({ create: { width: 1200, height: 800, channels: 3, background: '#7a8b74' } }).jpeg().toBuffer();
+    const { body: photo } = await http()
+      .post(`/api/v1/events/${eventId}/media`)
+      .set('Authorization', authorization)
+      .attach('file', large, { filename: 'garden.jpg', contentType: 'image/jpeg' })
+      .expect(201);
+    await app.get(ImageVariantsService).processPending();
+    const [listed] = (await http().get(`/api/v1/events/${eventId}/media`).set('Authorization', authorization).expect(200))
+      .body as { variants: { url: string }[] }[];
+    expect(listed.variants).toHaveLength(2);
+
+    await http().delete(`/api/v1/events/${eventId}/media/${photo.id as string}`).set('Authorization', authorization).expect(200);
+
+    for (const variant of listed.variants) expect((await fetch(variant.url)).status).toBe(404);
   });
 
   // Deleting it would leave a broken image on the page guests already have.

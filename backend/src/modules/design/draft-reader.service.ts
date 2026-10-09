@@ -50,6 +50,9 @@ export interface DraftMedia {
   url: string;
   kind: string;
   altText: Prisma.JsonValue;
+  width: number | null;
+  height: number | null;
+  variants: Prisma.JsonValue;
 }
 
 /**
@@ -105,7 +108,7 @@ export class DraftReaderService {
 
     const assets = await this.prisma.mediaAsset.findMany({
       where: { id: { in: ids }, eventId: draft.eventId },
-      select: { id: true, url: true, kind: true, altText: true },
+      select: { id: true, url: true, kind: true, altText: true, width: true, height: true, variants: true },
     });
     return new Map(assets.map((asset) => [asset.id, asset]));
   }
