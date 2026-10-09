@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 19 open (B66–B84) | 9 open (B85–B92, B94) | — |
+| Bugfixes | 0 open | 9 open (B75–B79, B81–B84) | 9 open (B85–B92, B94) | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
 | Decisions | 14 (D1–D14), all decided | | | |
 
@@ -71,21 +71,11 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 
 | # | Bug | Where | Size |
 |---|---|---|---|
-| B66 | Auto-assign splits a household that is partly seated: a late acceptor goes to an empty table, not beside their family | `seating/seating.service.ts`, `seating-plan.ts` | S–M |
-| B67 | Editing a choice question after guests answered silently changes their answers (stored by position); changing its type misreads them | `design/design.service.ts` | S |
-| B68 | Plus-ones skip required questions and per-member answers (D1); a plus-one declined by `members` flips back to the respondent's answer on any later submission | `rsvp/rsvp.service.ts` | S |
-| B69 | A host can add a *required* SIGNATURE question, after which every attending RSVP is a 400; choice options may differ in length per language, and the shorter list wins | `design/design.service.ts`, `rsvp/answers.ts` | S |
-| B70 | Ended events stay listed (oldest first) and keep selling when `salesEndAt` is empty; nothing sets `COMPLETED`; an archived event's listing can be republished | `public-events/`, `ticketing/` | S |
-| B71 | Any SMTP 5xx — including our own quota (`550 5.4.5`), size or policy rejections — suppresses the guest's address platform-wide for good | `communications/delivery-outcome.ts` | S |
-| B72 | Telegram and WhatsApp are never chosen: no copy exists for them and nothing can write it, so opted-in guests still get email | `sending/audience.ts`, `seed/message-copy.ts` | M |
-| B73 | A household invited inside a reminder window is reminded within the hour — possibly before the invitation itself arrives | `sending/reminder.service.ts` | S |
-| B74 | Concierge hand-over dead-ends when the customer already has an organization: accepting is a 409, every time, and the staff-built one is orphaned. **Decision** D8 | `organizations/concierge.service.ts` | S–M |
 | B75 | A refresh racing a password reset or "sign out everywhere" creates a session nothing revoked; a reused refresh token is not detected | `infra/auth/auth.service.ts` | S |
 | B76 | A double-clicked Subscribe issues two open invoices, both payable — a double charge | `billing/subscriptions.service.ts` | S |
 | B77 | A double-uploaded or retried CSV duplicates households and guests; each duplicate is invited | `guests/import/guest-import.service.ts` | S |
 | B78 | A refund the bank processed but we failed to record is marked failed and asked again; a crash between claim and Refund row voids tickets with nothing paid back | `payments/payments.service.ts` | M |
 | B79 | No timeout on bank or S3 calls: a hanging bank holds checkout open and stalls every money sweep | `payments/providers/*`, `storage/adapters/s3.adapter.ts` | S |
-| B80 | The outbox sends 50 a minute, one at a time, in one queue: a large send delays password resets and tickets by minutes; the job lock is deleted without an owner check | `communications/communications.service.ts`, `infra/jobs/job-lock.service.ts` | M |
 | B81 | The throttle is per IP and covers guest pages and check-in: guests and tablets on venue Wi-Fi get 429s | `app.module.ts` | S |
 | B82 | Hot paths are heavier than §12 assumes: the cached page still runs ~8 queries, a personal link ~14 uncached; every RSVP scans `messages`; sending and import run several queries per row | `invitations/`, `sending/rsvp-confirmer.service.ts`, `import/` | M |
 | B83 | PATCHing a booking to CANCELLED keeps its brief link, and PATCHing it back revives the old, possibly forwarded, link | `vendors/vendors.service.ts` | S |
