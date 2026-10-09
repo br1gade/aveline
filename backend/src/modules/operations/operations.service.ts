@@ -59,15 +59,24 @@ export class OperationsService {
     const tally = (s: RsvpStatus) =>
       guests.filter((g) => (g.rsvp?.status ?? RsvpStatus.PENDING) === s).length;
 
-    const bySide = Object.values(GuestAttribution).map((side) => ({
-      side,
-      invited: guests.filter((g) => g.attribution === side).length,
-      attending: guests.filter(
-        (g) => g.attribution === side && g.rsvp?.status === RsvpStatus.ATTENDING,
-      ).length,
-    }));
+    const bySide = Object.values(GuestAttribution).map((side) => {
+      const onSide = guests.filter((g) => g.attribution === side);
+      const count = (status: RsvpStatus) => onSide.filter((g) => (g.rsvp?.status ?? RsvpStatus.PENDING) === status).length;
+      return {
+        side,
+        invited: onSide.length,
+        attending: count(RsvpStatus.ATTENDING),
+        declined: count(RsvpStatus.DECLINED),
+        undecided: count(RsvpStatus.UNDECIDED),
+        pending: count(RsvpStatus.PENDING),
+      };
+    });
 
-    const households = await this.prisma.household.count({ where: { eventId } });
+    const [households, byHousehold, trend] = await Promise.all([
+      this.prisma.household.count({ where: { eventId } }),
+      this.householdAnswers(eventId),
+      this.responseTrend(eventId, guests.length),
+    ]);
     const responded = guests.filter((g) => g.rsvp?.respondedAt).length;
 
     return {
@@ -79,7 +88,48 @@ export class OperationsService {
       pending: tally(RsvpStatus.PENDING),
       responseRate: guests.length === 0 ? 0 : Math.round((responded / guests.length) * 100),
       bySide,
+      byHousehold,
+      trend,
     };
+  }
+
+  /** Each household's answers — "have the Petrosyans answered?" — counted in Postgres. */
+  private householdAnswers(eventId: string) {
+    return this.prisma.$queryRaw<HouseholdAnswers[]>`
+      SELECT h.id, h.name, h."seatsAllotted",
+        count(*) FILTER (WHERE r.status = 'ATTENDING')::int AS attending,
+        count(*) FILTER (WHERE r.status = 'DECLINED')::int AS declined,
+        count(*) FILTER (WHERE r.status = 'UNDECIDED')::int AS undecided,
+        count(*) FILTER (WHERE r.status IS NULL OR r.status = 'PENDING')::int AS pending
+      FROM households h
+      JOIN guests g ON g."householdId" = h.id
+      LEFT JOIN rsvps r ON r."guestId" = g.id
+      WHERE h."eventId" = ${eventId}
+      GROUP BY h.id
+      ORDER BY h.name`;
+  }
+
+  /**
+   * Answers arriving day by day, with the running response rate — what tells
+   * a host whether to chase. Days are the event's, not the server's: an
+   * answer at 02:30 in Yerevan belongs to that morning.
+   */
+  private async responseTrend(eventId: string, invited: number) {
+    const days = await this.prisma.$queryRaw<{ date: string; responses: number }[]>`
+      SELECT to_char(r."respondedAt" AT TIME ZONE 'UTC' AT TIME ZONE e.timezone, 'YYYY-MM-DD') AS date,
+        count(*)::int AS responses
+      FROM rsvps r
+      JOIN guests g ON g.id = r."guestId"
+      JOIN events e ON e.id = g."eventId"
+      WHERE g."eventId" = ${eventId} AND r."respondedAt" IS NOT NULL AND r.status <> 'PENDING'
+      GROUP BY 1
+      ORDER BY 1`;
+
+    let cumulative = 0;
+    return days.map(({ date, responses }) => {
+      cumulative += responses;
+      return { date, responses, cumulative, responseRate: invited === 0 ? 0 : Math.round((cumulative / invited) * 100) };
+    });
   }
 
   /** Confirmed headcount plus every dietary requirement — hand to the venue. */
@@ -199,4 +249,14 @@ export class OperationsService {
     const exists = await this.prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
     if (!exists) throw new NotFoundException(`No event ${eventId}`);
   }
+}
+
+export interface HouseholdAnswers {
+  id: string;
+  name: string;
+  seatsAllotted: number;
+  attending: number;
+  declined: number;
+  undecided: number;
+  pending: number;
 }

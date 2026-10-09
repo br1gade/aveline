@@ -645,6 +645,25 @@ exist for narrower uses, and five calls means five spinners.
 Individually: `/headcount`, `/catering-sheet`, `/bar-sheet`, `/playlist`,
 `/guest-book`, `/guests`.
 
+`headcount` is the screen a host watches as answers come in:
+
+```json
+{
+  "invited": 412, "households": 160, "attending": 230, "declined": 41,
+  "undecided": 12, "pending": 129, "responseRate": 69,
+  "bySide": [{ "side": "SIDE_A", "invited": 210, "attending": 120, "declined": 20,
+               "undecided": 5, "pending": 65 }],
+  "byHousehold": [{ "id": "clz...", "name": "Petrosyan family", "seatsAllotted": 3,
+                    "attending": 2, "declined": 1, "undecided": 0, "pending": 0 }],
+  "trend": [{ "date": "2027-05-01", "responses": 18, "cumulative": 18, "responseRate": 4 }]
+}
+```
+
+`byHousehold` is in name order — "have the Petrosyans answered?". `trend` has
+one entry per day that brought answers, in the **event's** time zone, with the
+running total and response rate: plot it to see whether answers are still
+arriving or a reminder is due. A day with no answers is absent, not zero.
+
 Bar-sheet `preferences` and catering-sheet `requirements` each carry `key` —
 what guests sent — beside the label (`drink`, `requirement`) in the event's
 language. For free text the two are the same.

@@ -16,6 +16,7 @@ describe('OperationsService', () => {
     guest: { findMany: jest.Mock };
     household: { count: jest.Mock };
     rsvp: { findMany: jest.Mock; groupBy: jest.Mock };
+    $queryRaw: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -24,6 +25,9 @@ describe('OperationsService', () => {
       guest: { findMany: jest.fn() },
       household: { count: jest.fn().mockResolvedValue(2) },
       rsvp: { findMany: jest.fn(), groupBy: jest.fn() },
+      // Household counts and the trend are SQL; their numbers are checked in
+      // the integration suite against a real Postgres.
+      $queryRaw: jest.fn().mockResolvedValue([]),
     };
 
     analytics = {
@@ -59,8 +63,10 @@ describe('OperationsService', () => {
       expect(result.declined).toBe(1);
       expect(result.pending).toBe(1);
       expect(result.responseRate).toBe(80);
-      expect(result.bySide).toContainEqual({ side: 'SIDE_A', invited: 2, attending: 2 });
-      expect(result.bySide).toContainEqual({ side: 'SIDE_B', invited: 3, attending: 1 });
+      expect(result.bySide).toContainEqual(expect.objectContaining({ side: 'SIDE_A', invited: 2, attending: 2 }));
+      expect(result.bySide).toContainEqual(
+        expect.objectContaining({ side: 'SIDE_B', invited: 3, attending: 1, declined: 1, pending: 1 }),
+      );
     });
 
     it('reports a zero response rate for an event with no guests', async () => {
