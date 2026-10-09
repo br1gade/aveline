@@ -92,8 +92,8 @@ describe('OperationsService', () => {
       const sheet = await service.cateringSheet('e1');
 
       expect(sheet.covers).toBe(2);
-      expect(sheet.requirements[0]).toEqual({ requirement: 'vegetarian', count: 2 });
-      expect(sheet.requirements).toContainEqual({ requirement: 'nut-free', count: 1 });
+      expect(sheet.requirements[0]).toEqual({ requirement: 'vegetarian', key: 'vegetarian', count: 2 });
+      expect(sheet.requirements).toContainEqual({ requirement: 'nut-free', key: 'nut-free', count: 1 });
       expect(sheet.notes).toEqual([{ guest: 'B Y', household: 'H2', note: 'severe' }]);
     });
   });
@@ -124,7 +124,21 @@ describe('OperationsService', () => {
       const sheet = await service.barSheet('e1');
 
       expect(sheet.totalResponses).toBe(4);
-      expect(sheet.preferences[0]).toEqual({ drink: 'wine', guests: 3, share: 75 });
+      expect(sheet.preferences[0]).toEqual({ drink: 'wine', key: 'wine', guests: 3, share: 75 });
+    });
+
+    // With fixed choices, guests send a key; the bar reads the label.
+    it('shows a configured choice by its label in the event’s language', async () => {
+      prisma.event.findUnique.mockResolvedValue({
+        id: 'e1',
+        defaultLocale: 'en',
+        invitation: { rsvpFields: { drinkPreference: { isEnabled: true, options: [{ key: 'wine', label: { en: 'Wine' } }] } } },
+      });
+      prisma.rsvp.groupBy.mockResolvedValue([{ drinkPreference: 'wine', _count: { drinkPreference: 2 } }]);
+
+      const sheet = await service.barSheet('e1');
+
+      expect(sheet.preferences[0]).toEqual({ drink: 'Wine', key: 'wine', guests: 2, share: 100 });
     });
   });
 

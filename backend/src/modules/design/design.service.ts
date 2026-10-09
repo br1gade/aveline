@@ -3,10 +3,12 @@ import { BlockType, Prisma, QuestionType } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
 import { blockMediaProblem } from './block-media';
 import { mergeTranslations } from './translated-content';
+import { BUILT_IN_FIELDS, configProblem, fieldOf, mergeConfig } from '../rsvp/rsvp-fields';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   ChooseTemplateDto,
   UpdateBlockDto,
+  UpdateRsvpFieldsDto,
   UpdateThemeDto,
   UpsertQuestionDto,
 } from './dto/design.dto';
@@ -155,6 +157,28 @@ export class DesignService {
       content: updated.content,
       settings: updated.settings,
     };
+  }
+
+  /**
+   * How the built-in RSVP questions are asked — which are on, and fixed
+   * choices for dietary and drink. Each question sent replaces its settings;
+   * the rest are kept. See `rsvp/rsvp-fields.ts` for why.
+   */
+  async updateRsvpFields(slug: string, dto: UpdateRsvpFieldsDto) {
+    const edit = Object.fromEntries(Object.entries(dto).filter(([, value]) => value !== undefined));
+    const problem = configProblem(edit);
+    if (problem) throw new BadRequestException(problem);
+
+    const invitation = await this.prisma.invitation.findUnique({ where: { slug }, select: { id: true, rsvpFields: true } });
+    if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
+
+    const merged = mergeConfig(invitation.rsvpFields, edit);
+    await this.prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { rsvpFields: merged as Prisma.InputJsonValue },
+    });
+    await this.cache.invalidateInvitation(slug);
+    return Object.fromEntries(BUILT_IN_FIELDS.map((field) => [field, fieldOf(merged, field)]));
   }
 
   // ── RSVP questions ───────────────────────────────────────────────────

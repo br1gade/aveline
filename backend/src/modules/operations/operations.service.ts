@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { GuestAttribution, RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
+import { BuiltInField, optionLabel } from '../rsvp/rsvp-fields';
 
 /**
  * Every surface here is a *derived view* over the guest graph (spec §6).
@@ -97,11 +98,12 @@ export class OperationsService {
         requirements.set(item, (requirements.get(item) ?? 0) + 1);
       }
     }
+    const labels = await this.choiceLabels(eventId);
 
     return {
       covers: attending.length,
       requirements: [...requirements.entries()]
-        .map(([requirement, count]) => ({ requirement, count }))
+        .map(([key, count]) => ({ requirement: labels('dietary', key), key, count }))
         .sort((a, b) => b.count - a.count),
       notes: attending
         .filter((g) => g.rsvp?.dietaryNotes)
@@ -125,11 +127,14 @@ export class OperationsService {
     });
 
     const total = rows.reduce((sum, r) => sum + r._count.drinkPreference, 0);
+    const labels = await this.choiceLabels(eventId);
 
     return {
       totalResponses: total,
       preferences: rows.map((r) => ({
-        drink: r.drinkPreference,
+        // Counted by key, shown by label: with fixed choices every language is one row.
+        drink: labels('drinkPreference', r.drinkPreference ?? ''),
+        key: r.drinkPreference,
         guests: r._count.drinkPreference,
         share: total === 0 ? 0 : Math.round((r._count.drinkPreference / total) * 100),
       })),
@@ -174,6 +179,20 @@ export class OperationsService {
       message: r.message,
       at: r.respondedAt,
     }));
+  }
+
+  /**
+   * Turns a stored choice key into its label in the event's language, using
+   * the invitation's configured choices. Free text comes back as typed.
+   */
+  private async choiceLabels(eventId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { defaultLocale: true, invitation: { select: { rsvpFields: true } } },
+    });
+    const config = event?.invitation?.rsvpFields ?? {};
+    const locale = event?.defaultLocale ?? 'hy';
+    return (field: BuiltInField, key: string) => optionLabel(config, field, key, locale);
   }
 
   private async assertEvent(eventId: string) {

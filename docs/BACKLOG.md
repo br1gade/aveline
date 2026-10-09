@@ -26,7 +26,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 21 open | 24 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 7 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Features | 1 open (F1, the client) | 6 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -140,7 +140,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | # | Feature | Why | Size |
 |---|---|---|---|
 | F9 | **Venue coordinates and capacity** | Latitude, longitude and capacity are returned but only ever copied from the venue directory, which nothing can fill. The Map block has only a pasted link | S |
-| F10 | **Configure the built-in RSVP questions** | A host cannot switch off drink or song questions or define the choices. Drinks are free text, so "Wine", "Вино" and "Գինի" are three rows on the bar sheet | M |
 | F12 | **Delete or archive an event** | `event:delete` exists in the policy and nothing uses it | M |
 | F13 | **Concierge setup** | Staff cannot create an organization or event for a customer and hand it over, which §11 relies on. Workaround: the host registers and creates the event first | M |
 | F15 | **Headcount by household, with a trend** | Promised in §6; only totals and a point-in-time rate exist | S–M |

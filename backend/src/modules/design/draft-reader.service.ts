@@ -2,11 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { BlockType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { publishBlockers } from '../invitations/publishing';
+import { BUILT_IN_FIELDS, fieldOf } from '../rsvp/rsvp-fields';
 
 const draftSelect = {
   slug: true,
   status: true,
   theme: true,
+  rsvpFields: true,
   eventId: true,
   template: {
     select: { key: true, name: true, allowedFonts: true, palettes: true, supportedBlocks: true, defaultTheme: true },
@@ -82,6 +84,7 @@ export class DraftReaderService {
       event: { ...draft.event, venues: undefined },
       template: { ...draft.template, defaultTheme: undefined },
       theme: draft.theme,
+      rsvpFields: Object.fromEntries(BUILT_IN_FIELDS.map((field) => [field, fieldOf(draft.rsvpFields, field)])),
       // What the page actually renders with: the template's defaults under the host's choices.
       effectiveTheme: { ...asRecord(draft.template.defaultTheme), ...asRecord(draft.theme) },
       coverUrl: firstMediaUrl(blocks, BlockType.HERO),

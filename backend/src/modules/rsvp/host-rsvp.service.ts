@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
 import { recordAnswer, saveAnswers, withoutUndefined } from './answer-writes';
 import { answersProblem } from './answers';
+import { builtInAnswerProblem } from './rsvp-fields';
 import { HostRsvpDto } from './dto/host-rsvp.dto';
 
 /**
@@ -30,13 +31,25 @@ export class HostRsvpService {
       where: { id: guestId, eventId },
       select: {
         anonymizedAt: true,
-        event: { select: { invitation: { select: { questions: { select: { id: true, type: true, required: true, options: true } } } } } },
+        event: {
+          select: {
+            invitation: {
+              select: {
+                rsvpFields: true,
+                questions: { select: { id: true, type: true, required: true, options: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (!guest) throw new NotFoundException(`No guest ${guestId} on this event`);
     if (guest.anonymizedAt) throw new BadRequestException("This guest's details were erased at their request");
 
-    const problem = answersProblem(guest.event.invitation?.questions ?? [], dto.answers ?? []);
+    const invitation = guest.event.invitation;
+    const problem =
+      answersProblem(invitation?.questions ?? [], dto.answers ?? []) ??
+      builtInAnswerProblem(invitation?.rsvpFields, dto);
     if (problem) throw new BadRequestException(problem);
 
     const rsvp = await this.prisma.$transaction(async (tx) => {

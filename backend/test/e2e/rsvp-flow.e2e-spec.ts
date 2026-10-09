@@ -94,13 +94,13 @@ describe('RSVP flow (e2e)', () => {
       .set('Authorization', authorization)
       .expect(200);
     expect(catering.body.covers).toBe(2);
-    expect(catering.body.requirements).toContainEqual({ requirement: 'vegan', count: 1 });
+    expect(catering.body.requirements).toContainEqual({ requirement: 'vegan', key: 'vegan', count: 1 });
 
     const bar = await http()
       .get(`/api/v1/events/${eventId}/bar-sheet`)
       .set('Authorization', authorization)
       .expect(200);
-    expect(bar.body.preferences).toContainEqual({ drink: 'wine', guests: 1, share: 100 });
+    expect(bar.body.preferences).toContainEqual({ drink: 'wine', key: 'wine', guests: 1, share: 100 });
 
     const playlist = await http()
       .get(`/api/v1/events/${eventId}/playlist`)

@@ -243,6 +243,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/invitations/:slug/delivery` | Who has been invited and what happened to each email |
 | `GET` | `/api/v1/invitations/:slug/design` | **Load the editor**: drafts, every language, switched-off blocks, publish blockers |
 | `PATCH` | `/api/v1/invitations/:slug/theme` | Fonts and colours, validated against the template |
+| `PATCH` | `/api/v1/invitations/:slug/rsvp-fields` | Switch built-in RSVP questions off, or give dietary and drink fixed choices |
 | `PATCH` | `/api/v1/invitations/:slug/blocks/:type` | Edit one block's content |
 | `GET` | `/api/v1/invitations/:slug/questions` | Custom RSVP questions |
 | `POST` | `/api/v1/invitations/:slug/questions` | Add one |

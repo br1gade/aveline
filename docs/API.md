@@ -280,11 +280,24 @@ GET /api/v1/invitations/:slug/g/:guestToken        # personalised
                 "media": [ { "id": "...", "url": "https://media.../3f2c....jpg",
                              "kind": "PHOTO", "altText": null } ],
                 "data": null }, ... ],
+  "rsvpFields": {
+    "dietary": { "isEnabled": true, "options": null },
+    "drinkPreference": { "isEnabled": true, "options": [{ "key": "wine", "label": "Wine" }] },
+    "songRequest": { "isEnabled": false, "options": null },
+    "message": { "isEnabled": true, "options": null },
+    "attribution": { "isEnabled": true, "options": null }
+  },
   "rsvpQuestions": [ { "id": "...", "type": "SINGLE_CHOICE", "prompt": "...", "options": [...] } ]
 }
 ```
 
 **`guest` is `null` on the generic URL.** Only the personalised one fills it.
+
+**`rsvpFields` says how to build the RSVP form's built-in questions.** A
+question with `isEnabled: false` is not asked — leave it off the form; sending
+it is a `400`. One with `options` is a choice: show the labels, send the
+`key` (for `dietary`, a list of keys). One with `options: null` is free text,
+as before.
 
 **Both take `?locale=`** to show the page in another language the event
 publishes (`availableLocales`). The personalised page otherwise uses the
@@ -631,6 +644,10 @@ exist for narrower uses, and five calls means five spinners.
 
 Individually: `/headcount`, `/catering-sheet`, `/bar-sheet`, `/playlist`,
 `/guest-book`, `/guests`.
+
+Bar-sheet `preferences` and catering-sheet `requirements` each carry `key` —
+what guests sent — beside the label (`drink`, `requirement`) in the event's
+language. For free text the two are the same.
 
 ### Answers to the host's own questions
 
@@ -1972,6 +1989,35 @@ message being retried after a temporary failure — not stuck. `SENDING` is
 momentary; a message interrupted mid-send (a crash, a deploy) is returned to
 the queue within about fifteen minutes and tried again, so in rare cases a
 guest can receive the same message twice rather than not at all.
+
+### How the built-in RSVP questions are asked
+
+```http
+PATCH /api/v1/invitations/:slug/rsvp-fields
+{ "drinkPreference": { "options": [{ "key": "wine", "label": { "hy": "Գինի", "en": "Wine" } },
+                                   { "key": "soft", "label": { "en": "Soft drinks" } }] },
+  "songRequest": { "isEnabled": false } }
+```
+
+Needs `invitation:design`. The built-in questions — `dietary`,
+`drinkPreference`, `songRequest`, `message`, `attribution` — are all asked, as
+free text, until configured. For each one sent:
+
+- `isEnabled: false` stops asking it. A host with no bar should not ask about
+  drinks.
+- `options` gives `dietary` or `drinkPreference` fixed choices: a `key`
+  (lowercase letters, digits, dashes) and a translated `label`, up to 30.
+  Guests send the key; the bar and catering sheets count keys and show labels,
+  so "Wine", "Вино" and "Գինի" are one row. `options: null` returns it to free
+  text.
+
+Each question sent replaces that question's settings; the rest are kept. The
+response is all five, resolved. A problem is a `400` whose message starts with
+the question's name. The editor reads the current settings from
+`GET /invitations/:slug/design` (`rsvpFields`).
+
+Answers recorded before a choice list existed keep their free text and show
+as typed. A key removed from the list later shows as the key.
 
 ### Custom RSVP questions
 

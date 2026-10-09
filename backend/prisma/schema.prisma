@@ -343,6 +343,9 @@ model Invitation {
   /// Resolved design tokens: palette, font choices, spacing. Validated against
   /// the template's allowed sets before write (see DesignTemplate).
   theme      Json             @default("{}")
+  /// How the built-in RSVP questions are asked: which are on, and the fixed
+  /// choices for dietary and drink. Empty means every one on, as free text.
+  rsvpFields Json             @default("{}")
   /// No cover or music columns: the cover is the HERO block's first photo
   /// and the music is the MUSIC block's audio, so each is set in one place.
   status     InvitationStatus @default(DRAFT)

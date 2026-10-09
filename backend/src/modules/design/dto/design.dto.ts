@@ -183,6 +183,38 @@ export class UpsertTimelineEntryDto {
   sortOrder?: number;
 }
 
+/**
+ * How the built-in RSVP questions are asked. Each field sent replaces that
+ * question's settings — `{ isEnabled?, options? }` — and the rest are kept.
+ * The shape inside is checked by `rsvp-fields.ts`, which names the problem.
+ */
+export class UpdateRsvpFieldsDto {
+  @ApiPropertyOptional({ example: { options: [{ key: 'vegan', label: { en: 'Vegan', hy: 'Վեգան' } }] } })
+  @IsOptional()
+  @IsObject()
+  dietary?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: { options: [{ key: 'wine', label: { en: 'Wine' } }] } })
+  @IsOptional()
+  @IsObject()
+  drinkPreference?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: { isEnabled: false } })
+  @IsOptional()
+  @IsObject()
+  songRequest?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: { isEnabled: true } })
+  @IsOptional()
+  @IsObject()
+  message?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: { isEnabled: true } })
+  @IsOptional()
+  @IsObject()
+  attribution?: Record<string, unknown>;
+}
+
 /** Editing an entry: any of its fields, the rest unchanged. */
 export class UpdateTimelineEntryDto extends PartialType(UpsertTimelineEntryDto) {}
 

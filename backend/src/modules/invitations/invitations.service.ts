@@ -6,6 +6,7 @@ import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
 import { translatedField } from '../../common/field-translations';
+import { fieldsForPage } from '../rsvp/rsvp-fields';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
 
 const invitationInclude = {
@@ -152,6 +153,8 @@ export class InvitationsService {
         media: mediaFor(block, invitation.media, translate),
         data: this.hydrateBlock(block.type, event, translate, locale),
       })),
+      // How the built-in questions are asked: which to show, and fixed choices in this language.
+      rsvpFields: fieldsForPage(invitation.rsvpFields, locale, event.defaultLocale),
       rsvpQuestions: invitation.questions.map((question) => ({
         id: question.id,
         type: question.type,

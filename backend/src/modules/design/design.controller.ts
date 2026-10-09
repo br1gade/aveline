@@ -9,6 +9,7 @@ import {
   ChooseTemplateDto,
   CreateVenueDto,
   UpdateBlockDto,
+  UpdateRsvpFieldsDto,
   UpdateThemeDto,
   UpdateTimelineEntryDto,
   UpdateVenueDto,
@@ -100,6 +101,19 @@ export class DesignController {
     @Body() dto: UpdateBlockDto,
   ) {
     return this.design.updateBlock(slug, type, dto);
+  }
+
+  @RequirePermission('invitation:design')
+  @EventScope('invitationSlug')
+  @Patch('invitations/:slug/rsvp-fields')
+  @ApiOperation({
+    summary: 'Choose how the built-in RSVP questions are asked',
+    description:
+      'Switch dietary, drink, song, message or side off, or give dietary and drink fixed choices ' +
+      'so every language counts as one answer. Each question sent replaces its settings.',
+  })
+  updateRsvpFields(@Param('slug') slug: string, @Body() dto: UpdateRsvpFieldsDto) {
+    return this.design.updateRsvpFields(slug, dto);
   }
 
   @RequirePermission('invitation:read')

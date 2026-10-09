@@ -73,7 +73,7 @@ describe('Operations UX (e2e)', () => {
       ]);
       expect(body.headcount).toMatchObject({ invited: 1, attending: 1, responseRate: 100 });
       expect(body.catering.covers).toBe(1);
-      expect(body.bar.preferences).toContainEqual({ drink: 'wine', guests: 1, share: 100 });
+      expect(body.bar.preferences).toContainEqual({ drink: 'wine', key: 'wine', guests: 1, share: 100 });
       expect(body.playlist.tracks).toContainEqual({ track: 'Sirun Yar', requests: 1 });
     });
 

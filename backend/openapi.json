@@ -3563,6 +3563,41 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/rsvp-fields": {
+      "patch": {
+        "description": "Switch dietary, drink, song, message or side off, or give dietary and drink fixed choices so every language counts as one answer. Each question sent replaces its settings.",
+        "operationId": "DesignController_updateRsvpFields",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRsvpFieldsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Choose how the built-in RSVP questions are asked",
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/v1/invitations/{slug}/questions": {
       "get": {
         "operationId": "DesignController_listQuestions",
@@ -5644,6 +5679,56 @@
           },
           "enabled": {
             "type": "boolean"
+          }
+        }
+      },
+      "UpdateRsvpFieldsDto": {
+        "type": "object",
+        "properties": {
+          "dietary": {
+            "type": "object",
+            "example": {
+              "options": [
+                {
+                  "key": "vegan",
+                  "label": {
+                    "en": "Vegan",
+                    "hy": "Վեգան"
+                  }
+                }
+              ]
+            }
+          },
+          "drinkPreference": {
+            "type": "object",
+            "example": {
+              "options": [
+                {
+                  "key": "wine",
+                  "label": {
+                    "en": "Wine"
+                  }
+                }
+              ]
+            }
+          },
+          "songRequest": {
+            "type": "object",
+            "example": {
+              "isEnabled": false
+            }
+          },
+          "message": {
+            "type": "object",
+            "example": {
+              "isEnabled": true
+            }
+          },
+          "attribution": {
+            "type": "object",
+            "example": {
+              "isEnabled": true
+            }
           }
         }
       },

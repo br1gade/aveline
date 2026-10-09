@@ -8,6 +8,7 @@ import { RsvpFields, Tx, recordAnswer, saveAnswers, withoutUndefined } from './a
 import { AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
 import { MemberAnswerDto, PartyMemberDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
 import { membersProblem, newPartyMembers } from './household-answers';
+import { builtInAnswerProblem } from './rsvp-fields';
 
 
 interface HouseholdMember {
@@ -40,9 +41,11 @@ export class RsvpService {
    */
   async submit(slug: string, token: string, dto: SubmitRsvpDto) {
     const guest = await this.loadGuest(slug, token);
-    const questions = await this.loadAcceptingQuestions(slug);
+    const { questions, rsvpFields } = await this.loadAcceptingInvitation(slug);
     assertNoProblem(answersProblem(questions, dto.answers ?? []));
     assertNoProblem(memberAnswersProblem(questions, dto.members ?? []));
+    assertNoProblem(builtInAnswerProblem(rsvpFields, dto));
+    assertNoProblem(memberBuiltInProblem(rsvpFields, dto.members ?? []));
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Counted under the household's lock, not from the guest loaded above:
@@ -127,13 +130,14 @@ export class RsvpService {
     return guest;
   }
 
-  /** The invitation's questions, if it is taking answers. */
-  private async loadAcceptingQuestions(slug: string): Promise<AnswerableQuestion[]> {
+  /** The invitation's questions and how it asks the built-in ones, if it is taking answers. */
+  private async loadAcceptingInvitation(slug: string): Promise<{ questions: AnswerableQuestion[]; rsvpFields: unknown }> {
     const invitation = await this.prisma.invitation.findUnique({
       where: { slug },
       select: {
         status: true,
         expiresAt: true,
+        rsvpFields: true,
         questions: { select: { id: true, type: true, required: true, options: true } },
       },
     });
@@ -144,7 +148,7 @@ export class RsvpService {
     if (invitation.expiresAt && invitation.expiresAt < new Date()) {
       throw new BadRequestException('This invitation has closed');
     }
-    return invitation.questions;
+    return { questions: invitation.questions, rsvpFields: invitation.rsvpFields };
   }
 
   private async assertRequiredAnswered(
@@ -258,6 +262,15 @@ export class RsvpService {
   private async saveCustomAnswers(tx: Tx, rsvpId: string, dto: SubmitRsvpDto): Promise<void> {
     await saveAnswers(tx, rsvpId, dto.answers ?? []);
   }
+}
+
+/** A member's dietary choices, held to the invitation's list as the respondent's are. */
+function memberBuiltInProblem(rsvpFields: unknown, members: MemberAnswerDto[]): string | null {
+  for (const member of members) {
+    const problem = builtInAnswerProblem(rsvpFields, { dietary: member.dietary });
+    if (problem) return `members: ${member.guestId} ${problem}`;
+  }
+  return null;
 }
 
 /** Each member's answers, checked as the respondent's are, naming the member. */
