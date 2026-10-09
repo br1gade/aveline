@@ -3,14 +3,18 @@ import { isUsableEmailAddress } from '../../../common/address';
 import { parse } from 'csv-parse/sync';
 
 export interface ParsedGuest {
+  /** The spreadsheet row, so a failure to save can name it. */
+  row: number;
   firstName: string;
   lastName?: string;
   email?: string;
   phone?: string;
   /** Guests sharing a household name are invited and seated together. */
   household: string;
-  seatsAllotted: number;
-  attribution: GuestAttribution;
+  /** Absent when the file has no seats for this row. */
+  seatsAllotted?: number;
+  /** Absent when the file names no side, so a re-import keeps the one set. */
+  attribution?: GuestAttribution;
   locale?: string;
 }
 
@@ -61,8 +65,11 @@ const SIDES: Record<string, GuestAttribution> = {
  * Only `firstName` is required. Everything else has a sensible default,
  * because a list of names is the minimum a host actually has.
  */
-export function parseGuestCsv(content: string): ParsedGuestList {
-  const rows = readRows(content);
+/** One import at most; a guest list longer than this is several events. */
+export const MAX_GUEST_ROWS = 2000;
+
+export function parseGuestCsv(content: string, maxRows = MAX_GUEST_ROWS): ParsedGuestList {
+  const rows = readRows(content, maxRows);
   if ('error' in rows) return { guests: [], errors: [{ row: 0, message: rows.error }] };
 
   const guests: ParsedGuest[] = [];
@@ -87,7 +94,7 @@ function parseRow(record: Record<string, string>, row: number): ParsedGuest | Ro
   const field: FieldReader = (key) => findValue(record, COLUMNS[key]);
 
   const rejection = rejectionFor(field);
-  return rejection ? { row, ...rejection } : toGuest(field);
+  return rejection ? { row, ...rejection } : toGuest(field, row);
 }
 
 /** The first reason this row cannot become a guest, or null if it can. */
@@ -112,12 +119,14 @@ function isValidSeatCount(seats: string): boolean {
   return Number.isInteger(count) && count >= 1 && count <= MAX_SEATS;
 }
 
-function toGuest(field: FieldReader): ParsedGuest {
+function toGuest(field: FieldReader, row: number): ParsedGuest {
   const firstName = field('firstName');
   const lastName = field('lastName');
   const seats = field('seats');
+  const side = field('side').toLowerCase();
 
   return {
+    row,
     firstName,
     lastName: lastName || undefined,
     email: field('email') || undefined,
@@ -125,27 +134,40 @@ function toGuest(field: FieldReader): ParsedGuest {
     // A guest with no household named is their own household, so they are
     // never silently grouped with a stranger.
     household: field('household') || [firstName, lastName].filter(Boolean).join(' '),
-    seatsAllotted: seats ? Number(seats) : 1,
-    attribution: SIDES[field('side').toLowerCase()] ?? GuestAttribution.UNKNOWN,
+    seatsAllotted: seats ? Number(seats) : undefined,
+    attribution: side ? (SIDES[side] ?? GuestAttribution.UNKNOWN) : undefined,
     locale: field('locale') || undefined,
   };
 }
 
-function readRows(content: string): { records: Record<string, string>[] } | { error: string } {
+/**
+ * Thrown rather than reported against a row: a file over the limit is refused
+ * whole, and parsing stops one record past it instead of reading the rest.
+ */
+export class TooManyRowsError extends Error {
+  constructor(readonly maxRows: number) {
+    super(`At most ${maxRows} guests per import; this file has more`);
+  }
+}
+
+function readRows(content: string, maxRows: number): { records: Record<string, string>[] } | { error: string } {
+  let records: Record<string, string>[];
   try {
-    const records = parse<Record<string, string>>(content, {
+    records = parse<Record<string, string>>(content, {
       columns: (header: string[]) => header.map((name) => name.trim().toLowerCase()),
       skip_empty_lines: true,
       trim: true,
       relax_column_count: true,
       bom: true,
+      to: maxRows + 1,
     });
-
-    if (records.length === 0) return { error: 'The file has a header but no rows' };
-    return { records };
   } catch (error) {
     return { error: `Could not read the file: ${error instanceof Error ? error.message : 'unknown'}` };
   }
+
+  if (records.length > maxRows) throw new TooManyRowsError(maxRows);
+  if (records.length === 0) return { error: 'The file has a header but no rows' };
+  return { records };
 }
 
 function findValue(record: Record<string, string>, names: string[]): string {

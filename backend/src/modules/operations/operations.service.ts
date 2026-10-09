@@ -192,25 +192,29 @@ export class OperationsService {
   }
 
   /** Song requests, deduplicated — hand to the musician. */
+  /**
+   * Song requests from the guests who are coming, grouped however they were
+   * typed: "Sirun Yar" and " sirun  yar " are one track, shown in the
+   * spelling most guests used. Aggregated in Postgres, as the bar sheet is.
+   */
   async playlist(eventId: string) {
     await this.assertEvent(eventId);
 
-    const rsvps = await this.prisma.rsvp.findMany({
-      where: { guest: { eventId }, songRequest: { not: null } },
-      select: { songRequest: true },
-    });
-
-    const counts = new Map<string, number>();
-    for (const { songRequest } of rsvps) {
-      const key = songRequest!.trim();
-      if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
+    const rows = await this.prisma.$queryRaw<{ track: string; requests: bigint }[]>`
+      WITH requested AS (
+        SELECT regexp_replace(btrim(r."songRequest"), '[[:space:]]+', ' ', 'g') AS spelling
+          FROM rsvps r JOIN guests g ON g.id = r."guestId"
+         WHERE g."eventId" = ${eventId} AND r.status = 'ATTENDING' AND r."songRequest" IS NOT NULL
+      )
+      SELECT mode() WITHIN GROUP (ORDER BY spelling) AS track, count(*) AS requests
+        FROM requested
+       WHERE spelling <> ''
+       GROUP BY lower(spelling)
+       ORDER BY requests DESC, track ASC`;
 
     return {
-      uniqueTracks: counts.size,
-      tracks: [...counts.entries()]
-        .map(([track, requests]) => ({ track, requests }))
-        .sort((a, b) => b.requests - a.requests || a.track.localeCompare(b.track)),
+      uniqueTracks: rows.length,
+      tracks: rows.map((row) => ({ track: row.track, requests: Number(row.requests) })),
     };
   }
 

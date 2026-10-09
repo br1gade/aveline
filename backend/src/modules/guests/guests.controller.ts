@@ -13,6 +13,9 @@ import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GuestsService } from './guests.service';
 import { CheckInService } from './check-in.service';
 import { GuestImportService } from './import/guest-import.service';
+
+/** What docs/API.md promises: a guest list is a few hundred kilobytes at most. */
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 import { CurrentActor, RequestActor, RequirePermission, actorCan } from '../../infra/auth/actor';
 
 @ApiTags('guests')
@@ -33,7 +36,8 @@ export class GuestsController {
 
   @RequirePermission('guest:write')
   @Post('guests/import')
-  @UseInterceptors(FileInterceptor('file'))
+  // Refused while it streams in, before it is buffered or parsed.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMPORT_BYTES, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Import a guest list from CSV',

@@ -52,9 +52,12 @@ export class CheckInService {
 
   /** Live arrivals, which is what a host watches on the day. */
   async arrivals(eventId: string) {
-    const [expected, arrived, recent] = await Promise.all([
+    const [expected, arrived, arrivedExpected, recent] = await Promise.all([
       this.prisma.guest.count({ where: { eventId, rsvp: { status: RsvpStatus.ATTENDING } } }),
       this.prisma.checkIn.count({ where: { guest: { eventId } } }),
+      // Only arrivals who were expected come off "still to come": a walk-in,
+      // or someone who declined and came anyway, was never in that number.
+      this.prisma.checkIn.count({ where: { guest: { eventId, rsvp: { status: RsvpStatus.ATTENDING } } } }),
       this.prisma.checkIn.findMany({
         where: { guest: { eventId } },
         include: { guest: { select: { firstName: true, lastName: true } } },
@@ -66,7 +69,8 @@ export class CheckInService {
     return {
       expected,
       arrived,
-      stillToCome: Math.max(0, expected - arrived),
+      stillToCome: expected - arrivedExpected,
+      unexpected: arrived - arrivedExpected,
       recent: recent.map((entry) => ({
         name: [entry.guest.firstName, entry.guest.lastName].filter(Boolean).join(' '),
         arrivedAt: entry.arrivedAt,

@@ -10,6 +10,7 @@ import {
   UpdateBlockDto,
   UpdateRsvpFieldsDto,
   UpdateThemeDto,
+  UpdateQuestionDto,
   UpsertQuestionDto,
 } from './dto/design.dto';
 import { Palette, mergeTheme, validateTheme } from './theme';
@@ -96,7 +97,7 @@ export class DesignService {
     });
     if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
 
-    const merged = mergeTheme(asTheme(invitation.theme), { ...dto });
+    const merged = mergeTheme(asObject(invitation.theme), { ...dto });
     const result = validateTheme(merged, {
       allowedFonts: invitation.template.allowedFonts,
       palettes: asPalettes(invitation.template.palettes),
@@ -226,18 +227,21 @@ export class DesignService {
     return question;
   }
 
-  async updateQuestion(slug: string, questionId: string, dto: UpsertQuestionDto) {
+  /**
+   * Changes what is sent and leaves the rest. A PATCH that left `required`
+   * out used to make the question optional, and one that left `options` out
+   * emptied a choice question. The merged question must still be answerable.
+   */
+  async updateQuestion(slug: string, questionId: string, dto: UpdateQuestionDto) {
     const question = await this.requireQuestion(slug, questionId);
-    assertQuestionIsAnswerable(dto);
+    const prompt = dto.prompt ?? asObject(question.prompt);
+    const options = (dto.options ?? question.options ?? []) as Prisma.InputJsonValue;
+    const type = dto.type ?? question.type;
+    assertQuestionIsAnswerable({ type, prompt, options: dto.options ?? asObject(question.options) });
 
     const updated = await this.prisma.rsvpQuestion.update({
       where: { id: question.id },
-      data: {
-        type: dto.type,
-        prompt: dto.prompt as Prisma.InputJsonValue,
-        options: (dto.options ?? []) as Prisma.InputJsonValue,
-        required: dto.required ?? false,
-      },
+      data: { type, prompt: prompt as Prisma.InputJsonValue, options, required: dto.required ?? question.required },
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -337,7 +341,8 @@ function assertQuestionIsAnswerable(dto: UpsertQuestionDto): void {
   }
 }
 
-function asTheme(value: Prisma.JsonValue): Record<string, unknown> {
+/** A JSON object column as a record; anything else as empty. */
+function asObject(value: Prisma.JsonValue): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 

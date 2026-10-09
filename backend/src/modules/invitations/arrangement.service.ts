@@ -57,9 +57,11 @@ export class ArrangementService {
 
     assertArrangementIsValid(dto.blocks, invitation.template.supportedBlocks);
 
-    const blocks = await this.prisma.$transaction((tx) =>
-      Promise.all(dto.blocks.map((block, index) => this.upsertBlock(tx, invitation.id, block, index))),
-    );
+    const blocks = await this.prisma.$transaction(async (tx) => {
+      const placed = await Promise.all(dto.blocks.map((block, index) => this.upsertBlock(tx, invitation.id, block, index)));
+      const following = await this.placeUnsentAfter(tx, invitation.id, dto.blocks);
+      return [...placed, ...following];
+    });
 
     await this.cache.invalidateInvitation(slug);
 
@@ -72,6 +74,25 @@ export class ArrangementService {
         variant: block.variant,
       })),
     };
+  }
+
+  /**
+   * The blocks not in the request follow the ones that were, in the order
+   * they already had. Left where they were, they tied with the blocks just
+   * placed — the documented `[RSVP, HERO]` example did it — and the page
+   * order became whatever the database returned.
+   */
+  private async placeUnsentAfter(tx: Prisma.TransactionClient, invitationId: string, sent: Placement[]) {
+    const unsent = await tx.invitationBlock.findMany({
+      where: { invitationId, type: { notIn: sent.map((block) => block.type) } },
+      orderBy: [{ sortOrder: 'asc' }, { type: 'asc' }],
+      select: { id: true },
+    });
+    return Promise.all(
+      unsent.map((block, index) =>
+        tx.invitationBlock.update({ where: { id: block.id }, data: { sortOrder: sent.length + index } }),
+      ),
+    );
   }
 
   private upsertBlock(

@@ -104,22 +104,6 @@ describe('OperationsService', () => {
     });
   });
 
-  describe('playlist', () => {
-    it('deduplicates song requests and ranks by popularity', async () => {
-      prisma.rsvp.findMany.mockResolvedValue([
-        { songRequest: 'Sirun Yar' },
-        { songRequest: '  Sirun Yar  ' },
-        { songRequest: 'Another' },
-        { songRequest: '   ' },
-      ]);
-
-      const result = await service.playlist('e1');
-
-      expect(result.uniqueTracks).toBe(2);
-      expect(result.tracks[0]).toEqual({ track: 'Sirun Yar', requests: 2 });
-    });
-  });
-
   describe('barSheet', () => {
     it('converts preferences into quantities and shares', async () => {
       prisma.rsvp.groupBy.mockResolvedValue([

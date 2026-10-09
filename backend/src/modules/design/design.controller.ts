@@ -13,6 +13,7 @@ import {
   UpdateThemeDto,
   UpdateTimelineEntryDto,
   UpdateVenueDto,
+  UpdateQuestionDto,
   UpsertQuestionDto,
   UpsertTimelineEntryDto,
 } from './dto/design.dto';
@@ -135,11 +136,11 @@ export class DesignController {
   @RequirePermission('invitation:design')
   @EventScope('invitationSlug')
   @Patch('invitations/:slug/questions/:questionId')
-  @ApiOperation({ summary: 'Change a question' })
+  @ApiOperation({ summary: 'Change a question', description: 'Omitted fields are unchanged.' })
   updateQuestion(
     @Param('slug') slug: string,
     @Param('questionId') questionId: string,
-    @Body() dto: UpsertQuestionDto,
+    @Body() dto: UpdateQuestionDto,
   ) {
     return this.design.updateQuestion(slug, questionId, dto);
   }

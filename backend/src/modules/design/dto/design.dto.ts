@@ -103,6 +103,9 @@ export class UpsertQuestionDto {
   required?: boolean;
 }
 
+/** Omitted fields keep their current value; the result must still be answerable. */
+export class UpdateQuestionDto extends PartialType(UpsertQuestionDto) {}
+
 export class CreateVenueDto {
   @ApiProperty({ enum: ['CEREMONY', 'RECEPTION', 'AFTER_PARTY', 'PREPARATION', 'OTHER'] })
   @IsString()

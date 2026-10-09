@@ -1,4 +1,5 @@
 import { Prisma, RsvpStatus } from '@prisma/client';
+import { releaseSeat } from '../seating/released-seat';
 import { Answer } from './answers';
 
 /**
@@ -22,11 +23,14 @@ export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields) 
   const existing = await tx.rsvp.findUnique({ where: { guestId }, select: { respondedAt: true } });
   const respondedAt = existing?.respondedAt ?? new Date();
 
-  return tx.rsvp.upsert({
+  const rsvp = await tx.rsvp.upsert({
     where: { guestId },
     create: { guestId, ...fields, respondedAt },
     update: { ...fields, respondedAt },
   });
+  // A guest who is not coming should not hold a chair someone else could use.
+  if (fields.status === RsvpStatus.DECLINED) await releaseSeat(tx, guestId);
+  return rsvp;
 }
 
 export async function saveAnswers(tx: Tx, rsvpId: string, answers: Answer[]): Promise<void> {

@@ -664,6 +664,11 @@ exist for narrower uses, and five calls means five spinners.
 Individually: `/headcount`, `/catering-sheet`, `/bar-sheet`, `/playlist`,
 `/guest-book`, `/guests`.
 
+`playlist` is `{ "uniqueTracks": 12, "tracks": [{ "track": "Sirun Yar",
+"requests": 3 }] }`, most requested first. Only guests who are coming count,
+and requests that differ only in capitals or spacing are one track, shown in
+the spelling most guests used.
+
 `headcount` is the screen a host watches as answers come in:
 
 ```json
@@ -854,7 +859,9 @@ PATCH /api/v1/invitations/:slug/arrangement
 ```
 
 **Array order is display order.** Never compute indices. Omitted fields keep
-their current value. A rejected arrangement changes nothing and names the bad
+their current value. Blocks you leave out follow the ones you send, in the
+order they already had, and the response lists every block — so sending just
+`[RSVP]` moves RSVP to the top. A rejected arrangement changes nothing and names the bad
 block, so you can show the error without refetching.
 
 ### Importing a guest list
@@ -864,7 +871,9 @@ POST /api/v1/events/:eventId/guests/import
 Content-Type: multipart/form-data
 ```
 
-One field, `file`: a CSV, up to 2 MB. Requires `guest:write`.
+One field, `file`: a CSV, up to 2 MB and 2000 guests. Requires `guest:write`.
+A larger file is refused with `413` as it arrives; more rows than 2000 is a
+`400` — neither creates an import record.
 
 Column headers are matched case-insensitively against a list of spellings, so
 you do not need to make the host rename anything. Recognised:
@@ -880,9 +889,10 @@ you do not need to make the host rename anything. Recognised:
 | Side | `side`, `attribution`, `invited by` |
 | Locale | `locale`, `language`, `lang` |
 
-`side` accepts `a` / `b`, `side_a` / `side_b`, or free text that starts with
-either. `seats` must be a positive integer. A row with no first name is
-rejected; everything else is optional.
+`side` accepts `a`, `side a`, `b`, `side b`, `both` or `shared`, in any
+case; anything else is recorded as unknown. `seats` must be a whole number
+from 1 to 20. A row with no first name is rejected; everything else is
+optional.
 
 ```json
 {
@@ -908,10 +918,18 @@ first data row is 2. Do not renumber it.
 Guests sharing a `household` value become one household, which is the unit
 seating and catering work on. Rows with no household each get their own.
 
+**Named guests never outnumber a household's seats**, the same rule as adding
+a guest by hand. If the file gives `seats` for a household, a row past that
+number is reported against its row and not saved. If it does not, the
+household is given a seat for everyone the file names — including, on a
+re-import, the ones already there.
+
 **Re-importing is safe.** A household that already exists by name is reused and
 its guests are matched on name, so correcting a spreadsheet and uploading again
 updates rather than duplicating. It never deletes: a guest removed from the CSV
-stays on the event.
+stays on the event. A blank cell — or a column the file does not have —
+leaves what is stored, so a re-import without a `side` column keeps the sides
+already set.
 
 ```http
 GET /api/v1/events/:eventId/guests/imports
@@ -941,10 +959,14 @@ the primary first within each:
     "isAnonymized": false, "rsvpStatus": "ATTENDING",
     "rsvp": { "status": "ATTENDING", "respondedAt": "...", "dietary": ["vegan"],
               "dietaryNotes": null, "drinkPreference": "wine", "songRequest": null, "message": null },
-    "table": "Table 4", "isCheckedIn": false, "arrivedAt": null
+    "table": "Table 4", "seatReleased": null, "isCheckedIn": false, "arrivedAt": null
   }]
 }]
 ```
+
+`seatReleased` is `{ "table": "Table 4", "releasedAt": "..." }` for a guest
+whose decline freed their seat — see *A decline frees the seat* below — and
+`null` otherwise.
 
 **`email`, `phone` and `token` are present only for callers holding
 `guest:contact:read`** — owners and coordinators, not viewers or designers.
@@ -1072,10 +1094,18 @@ on the plan, which is the whole seating screen in one request:
     "id": "clz...", "name": "Table 1", "capacity": 10, "zone": "Main hall",
     "venueId": "clz...", "posX": 120.5, "posY": 40, "shape": "round",
     "seated": 7, "available": 3,
-    "guests": [{ "guestId": "clz...", "name": "Armen Petrosyan", "position": null }]
+    "guests": [{ "guestId": "clz...", "name": "Armen Petrosyan", "position": null }],
+    "released": [{ "guestId": "clz...", "name": "Ani Sargsyan", "releasedAt": "..." }]
   }
 ]
 ```
+
+**A decline frees the seat.** When a guest declines — on their own link or
+recorded by the host — their seat is given back, so `seated` and `available`
+are true. The table lists them in `released` so the plan can show the gap and
+why. The flag clears when they are seated again, or when the host dismisses it
+with `DELETE /seats/:guestId`. Answering `ATTENDING` or `UNDECIDED` keeps the
+seat. Decided 9 October 2026.
 
 `POST /tables` takes `{ name, capacity, zone?, venueId? }`. For a real room,
 use `/tables/bulk` with `{ namePrefix, count, capacity, zone?, venueId? }` —
@@ -1100,7 +1130,8 @@ DELETE /api/v1/events/:eventId/seats/:guestId
 ```
 
 `POST` seats a guest, or moves one who was already seated — there is no
-separate move call. A full table returns `409` with its name. Capacity is
+separate move call. `DELETE` unseats a guest, or dismisses the `released` flag
+of one whose decline already freed their seat. A full table returns `409` with its name. Capacity is
 checked inside the transaction, so two coordinators filling the last chair at
 once cannot both succeed; handle the `409` as a routine outcome of drag-and-drop
 and re-fetch the table.
@@ -1127,8 +1158,9 @@ Three things to know before you wire the button:
    and their tables count as partly occupied. Running it after a late RSVP
    fills the gaps instead of rearranging a plan the host has adjusted by hand.
    There is no "re-seat everything" call; unseat first if that is the intent.
-2. **It never splits a household and never exceeds a capacity.** Those are hard
-   constraints. Keeping each side of the family together is a preference it
+2. **It never splits a household and never exceeds a capacity** — not even
+   when a planner is seating someone by hand at the same moment, or the button
+   is pressed twice. Those are hard constraints. Keeping each side of the family together is a preference it
    satisfies when it can.
 3. **It is a good plan, not the optimal one.** It will not find a packing that
    requires rearranging already-seated guests. `unseated` is normal when the
@@ -1179,13 +1211,16 @@ GET /api/v1/events/:eventId/arrivals
 
 ```json
 {
-  "expected": 96, "arrived": 71, "stillToCome": 25,
+  "expected": 96, "arrived": 73, "stillToCome": 25, "unexpected": 2,
   "recent": [{ "name": "Armen Petrosyan", "arrivedAt": "2026-10-05T18:02:11.000Z" }]
 }
 ```
 
 `expected` counts guests who accepted, so `arrived` can exceed it and
-`stillToCome` floors at zero. `recent` is the last 20. Poll this; there is no
+`stillToCome` is the expected guests — those who said they are coming — who
+have not arrived yet. Anyone else who arrives, a walk-in or someone who
+declined and came anyway, counts in `arrived` and in `unexpected`, never
+against `stillToCome`. `recent` is the last 20. Poll this; there is no
 push yet.
 
 Check-in requires `guest:write`, so door staff need a real account rather than
@@ -2175,6 +2210,11 @@ carry at least one language. `options` is translated too
 choice question with no choices cannot be answered, so it is a `400`.
 
 New questions go last; `sortOrder` comes back on each.
+
+`PATCH` changes only the fields sent — `{ "required": false }` makes a question
+optional and leaves its wording and choices alone. The result must still be
+answerable: emptying a choice question's `options` is a `400` naming
+`options`.
 
 **Deleting is refused once any guest has answered**, with a `400` saying how
 many and suggesting you make it optional instead — deleting would discard what

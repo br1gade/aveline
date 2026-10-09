@@ -17,7 +17,8 @@ const ALLOWED_MIME_TYPES = new Set([
   'audio/mp4',
 ]);
 
-const MAX_BYTES = 10 * 1024 * 1024;
+/** The largest file accepted. Also the upload limit, so a bigger one is refused before it is buffered. */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 const EXTENSIONS: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -71,8 +72,8 @@ export class StorageService {
     if (!ALLOWED_MIME_TYPES.has(file.mimeType)) {
       throw new UnsupportedMediaTypeException(`${file.mimeType} is not an accepted file type`);
     }
-    if (file.buffer.byteLength > MAX_BYTES) {
-      throw new PayloadTooLargeException(`Files must be ${MAX_BYTES / 1024 / 1024}MB or smaller`);
+    if (file.buffer.byteLength > MAX_UPLOAD_BYTES) {
+      throw new PayloadTooLargeException(`Files must be ${MAX_UPLOAD_BYTES / 1024 / 1024}MB or smaller`);
     }
   }
 }

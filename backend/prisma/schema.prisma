@@ -498,21 +498,29 @@ model Guest {
   /// headcount, seating and catering totals stay correct.
   anonymizedAt DateTime?
 
+  /// Set when declining freed this guest's seat, so the plan can show the
+  /// gap and why until the host seats someone — or them — again (decided
+  /// 9 October 2026: free the seat, and flag it).
+  seatReleasedAt          DateTime?
+  seatReleasedFromTableId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  event        Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  household    Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  channels     GuestChannel[]
-  rsvp         Rsvp?
-  seat         Seat?
-  checkIn      CheckIn?
-  ticket       Ticket?
-  messages     Message[]
-  deviceTokens DeviceToken[]
+  event                 Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  household             Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  seatReleasedFromTable Table?         @relation("ReleasedSeats", fields: [seatReleasedFromTableId], references: [id], onDelete: SetNull)
+  channels              GuestChannel[]
+  rsvp                  Rsvp?
+  seat                  Seat?
+  checkIn               CheckIn?
+  ticket                Ticket?
+  messages              Message[]
+  deviceTokens          DeviceToken[]
 
   @@index([eventId])
   @@index([householdId])
+  @@index([seatReleasedFromTableId])
   @@map("guests")
 }
 
@@ -665,9 +673,11 @@ model Table {
   posY     Float?
   shape    String  @default("round")
 
-  event Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  venue Venue? @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  seats Seat[]
+  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue         Venue?  @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  seats         Seat[]
+  /// Guests whose decline freed a seat here, until they or the seat are dealt with.
+  releasedSeats Guest[] @relation("ReleasedSeats")
 
   @@unique([eventId, name])
   @@index([eventId])

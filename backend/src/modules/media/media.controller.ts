@@ -14,6 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MediaKind } from '@prisma/client';
 import { EventScope, RequirePermission } from '../../infra/auth/actor';
+import { MAX_UPLOAD_BYTES } from '../../infra/storage/storage.service';
 import { UpdateMediaDto } from './dto/update-media.dto';
 import { MediaService } from './media.service';
 
@@ -25,7 +26,8 @@ export class MediaController {
   @RequirePermission('invitation:design')
   @EventScope('eventId')
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  // Refused while it streams in: unbounded, a stranger's upload sat whole in memory first.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload an image or audio file for an event',

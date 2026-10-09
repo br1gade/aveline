@@ -70,6 +70,17 @@ join for no query we need.
 `position` is nullable: a host may assign a guest to a table without caring
 which chair. It becomes meaningful when printing place cards.
 
+**A guest who declines gives up their seat.** Every RSVP write goes through
+one function, which deletes the seat on `DECLINED` and records
+`Guest.seatReleasedAt` and `seatReleasedFromTableId`. The table's count is then
+true, and the plan shows the gap and who left it until the guest is seated
+again or the host dismisses it (decided 9 October 2026: free it, and flag it).
+
+**Auto-seating locks the room.** It locks every table of the event before it
+reads occupancy, plans and writes in the same transaction. Seating one guest
+by hand locks that guest's table, so the two serialise instead of both
+planning from the same empty chair.
+
 ### Find-your-seat
 
 A guest sees their table on their own invitation link, and only once the host

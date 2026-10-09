@@ -70,6 +70,18 @@ describe('An event’s uploads (e2e)', () => {
       altText: Record<string, string>;
     }[];
 
+  // B27: no upload limit, so any file was buffered whole before being refused.
+  it('refuses a file over 10 MB as it arrives', async () => {
+    const { eventId, authorization } = await designer();
+
+    await http()
+      .post(`/api/v1/events/${eventId}/media`)
+      .set('Authorization', authorization)
+      .attach('file', Buffer.alloc(10 * 1024 * 1024 + 1), { filename: 'huge.png', contentType: 'image/png' })
+      .expect(413);
+    expect(await prisma.mediaAsset.count({ where: { eventId } })).toBe(0);
+  });
+
   it('lists every upload, and says which blocks show it', async () => {
     const { eventId, slug, authorization } = await designer();
     const hero = await upload(eventId, authorization);

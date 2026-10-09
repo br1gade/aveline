@@ -3839,6 +3839,7 @@
     },
     "/api/v1/invitations/{slug}/questions/{questionId}": {
       "patch": {
+        "description": "Omitted fields are unchanged.",
         "operationId": "DesignController_updateQuestion",
         "parameters": [
           {
@@ -3863,7 +3864,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertQuestionDto"
+                "$ref": "#/components/schemas/UpdateQuestionDto"
               }
             }
           }
@@ -6064,6 +6065,33 @@
           "type",
           "prompt"
         ]
+      },
+      "UpdateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "LONG_TEXT",
+              "SINGLE_CHOICE",
+              "MULTI_CHOICE",
+              "BOOLEAN",
+              "SIGNATURE"
+            ]
+          },
+          "prompt": {
+            "type": "object",
+            "description": "Translated prompt keyed by locale"
+          },
+          "options": {
+            "type": "object",
+            "description": "Translated choices, for the choice types"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
       },
       "UpsertTimelineEntryDto": {
         "type": "object",

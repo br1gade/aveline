@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
 import { isUniqueViolation } from '../../common/prisma-errors';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NOT_RELEASED } from './released-seat';
 import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto } from './dto/seating.dto';
 import { SeatableHousehold, SeatableTable, buildSeatingPlan } from './seating-plan';
 
@@ -16,6 +17,11 @@ export class SeatingService {
       where: { eventId },
       include: {
         seats: { include: { guest: { select: { id: true, firstName: true, lastName: true } } } },
+        releasedSeats: {
+          where: { seat: null },
+          select: { id: true, firstName: true, lastName: true, seatReleasedAt: true },
+          orderBy: { seatReleasedAt: 'asc' },
+        },
       },
       orderBy: { name: 'asc' },
     });
@@ -35,6 +41,12 @@ export class SeatingService {
         guestId: seat.guest.id,
         name: [seat.guest.firstName, seat.guest.lastName].filter(Boolean).join(' '),
         position: seat.position,
+      })),
+      // Freed by a decline: the gap, and who left it, until the host acts.
+      released: table.releasedSeats.map((guest) => ({
+        guestId: guest.id,
+        name: [guest.firstName, guest.lastName].filter(Boolean).join(' '),
+        releasedAt: guest.seatReleasedAt,
       })),
     }));
   }
@@ -153,26 +165,28 @@ export class SeatingService {
         create: { guestId: dto.guestId, tableId: dto.tableId, position: dto.position ?? null },
         update: { tableId: dto.tableId, position: dto.position ?? null },
       });
+      await tx.guest.update({ where: { id: dto.guestId }, data: NOT_RELEASED });
 
       return { guestId: dto.guestId, tableId: dto.tableId, table: table.name };
     });
   }
 
+  /**
+   * Unseats a guest — or, for one whose decline already freed their seat,
+   * dismisses the flag that says so.
+   */
   async unassign(eventId: string, guestId: string) {
-    const removed = await this.prisma.seat.deleteMany({
-      where: { guestId, guest: { eventId } },
+    return this.prisma.$transaction(async (tx) => {
+      const removed = await tx.seat.deleteMany({ where: { guestId, guest: { eventId } } });
+      const dismissed = await tx.guest.updateMany({
+        where: { id: guestId, eventId, seatReleasedAt: { not: null } },
+        data: NOT_RELEASED,
+      });
+      if (removed.count === 0 && dismissed.count === 0) throw new NotFoundException('That guest is not seated');
+      return { ok: true as const };
     });
-    if (removed.count === 0) throw new NotFoundException('That guest is not seated');
-    return { ok: true as const };
   }
 
-  /**
-   * Seats everyone who has accepted, keeping households together.
-   *
-   * Additive: guests already placed keep their seats and their tables count
-   * as partly occupied, so running this after a late RSVP fills the gaps
-   * rather than rearranging a plan a host has already adjusted by hand.
-   */
   /**
    * Lets guests see their tables, on their own invitation link (decision D4).
    * Changes after publishing show at once — guests read the live plan, not a
@@ -195,25 +209,32 @@ export class SeatingService {
     });
   }
 
+  /**
+   * Seats everyone who has accepted, keeping households together.
+   *
+   * Additive: guests already placed keep their seats and their tables count
+   * as partly occupied, so running this after a late RSVP fills the gaps
+   * rather than rearranging a plan a host has already adjusted by hand.
+   */
   async autoAssign(eventId: string) {
-    const [households, tables] = await Promise.all([
-      this.loadSeatableHouseholds(eventId),
-      this.loadSeatableTables(eventId),
-    ]);
+    const plan = await this.prisma.$transaction(async (tx) => {
+      // Every table locked before the room is read: a planner seating someone
+      // by hand locks their table too, so they wait for this plan or it waits
+      // for them — never both planning from the same empty chair.
+      await tx.$queryRaw`SELECT id FROM tables WHERE "eventId" = ${eventId} ORDER BY id FOR UPDATE`;
+      const [households, tables] = await Promise.all([
+        loadSeatableHouseholds(tx, eventId),
+        loadSeatableTables(tx, eventId),
+      ]);
 
-    const plan = buildSeatingPlan(households, tables);
-
-    await this.prisma.$transaction(
-      plan.assignments.flatMap((assignment) =>
-        assignment.guestIds.map((guestId) =>
-          this.prisma.seat.upsert({
-            where: { guestId },
-            create: { guestId, tableId: assignment.tableId },
-            update: { tableId: assignment.tableId },
-          }),
-        ),
-      ),
-    );
+      const planned = buildSeatingPlan(households, tables);
+      const seats = planned.assignments.flatMap((assignment) =>
+        assignment.guestIds.map((guestId) => ({ guestId, tableId: assignment.tableId })),
+      );
+      await tx.seat.createMany({ data: seats });
+      await tx.guest.updateMany({ where: { id: { in: seats.map((seat) => seat.guestId) } }, data: NOT_RELEASED });
+      return planned;
+    });
 
     return {
       seated: plan.assignments.reduce((sum, a) => sum + a.guestIds.length, 0),
@@ -221,46 +242,46 @@ export class SeatingService {
       unseated: plan.unseated,
     };
   }
+}
 
-  /** Only households with someone attending and not yet seated. */
-  private async loadSeatableHouseholds(eventId: string): Promise<SeatableHousehold[]> {
-    const guests = await this.prisma.guest.findMany({
-      where: { eventId, rsvp: { status: RsvpStatus.ATTENDING }, seat: null },
-      select: { id: true, householdId: true, attribution: true },
-      orderBy: { householdId: 'asc' },
-    });
+/** Only households with someone attending and not yet seated. */
+async function loadSeatableHouseholds(tx: Prisma.TransactionClient, eventId: string): Promise<SeatableHousehold[]> {
+  const guests = await tx.guest.findMany({
+    where: { eventId, rsvp: { status: RsvpStatus.ATTENDING }, seat: null },
+    select: { id: true, householdId: true, attribution: true },
+    orderBy: { householdId: 'asc' },
+  });
 
-    const byHousehold = new Map<string, SeatableHousehold>();
-    for (const guest of guests) {
-      const existing = byHousehold.get(guest.householdId);
-      if (existing) {
-        existing.guestIds.push(guest.id);
-        continue;
-      }
-      byHousehold.set(guest.householdId, {
-        householdId: guest.householdId,
-        guestIds: [guest.id],
-        side: guest.attribution ?? GuestAttribution.UNKNOWN,
-      });
+  const byHousehold = new Map<string, SeatableHousehold>();
+  for (const guest of guests) {
+    const existing = byHousehold.get(guest.householdId);
+    if (existing) {
+      existing.guestIds.push(guest.id);
+      continue;
     }
-
-    return [...byHousehold.values()];
-  }
-
-  private async loadSeatableTables(eventId: string): Promise<SeatableTable[]> {
-    const tables = await this.prisma.table.findMany({
-      where: { eventId },
-      include: { seats: { include: { guest: { select: { attribution: true } } } } },
-      orderBy: { name: 'asc' },
+    byHousehold.set(guest.householdId, {
+      householdId: guest.householdId,
+      guestIds: [guest.id],
+      side: guest.attribution ?? GuestAttribution.UNKNOWN,
     });
-
-    return tables.map((table) => ({
-      tableId: table.id,
-      capacity: table.capacity,
-      occupied: table.seats.length,
-      side: dominantSide(table.seats.map((seat) => seat.guest.attribution)),
-    }));
   }
+
+  return [...byHousehold.values()];
+}
+
+async function loadSeatableTables(tx: Prisma.TransactionClient, eventId: string): Promise<SeatableTable[]> {
+  const tables = await tx.table.findMany({
+    where: { eventId },
+    include: { seats: { include: { guest: { select: { attribution: true } } } } },
+    orderBy: { name: 'asc' },
+  });
+
+  return tables.map((table) => ({
+    tableId: table.id,
+    capacity: table.capacity,
+    occupied: table.seats.length,
+    side: dominantSide(table.seats.map((seat) => seat.guest.attribution)),
+  }));
 }
 
 /** Which side a table already belongs to, if any clearly does. */

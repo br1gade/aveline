@@ -504,6 +504,47 @@ describe('Invitation design (e2e)', () => {
       expect(body[0]).toMatchObject({ type: 'TEXT', required: true });
     });
 
+    // B25: a PATCH that left `required` out reset it to false, and one that
+    // left `options` out emptied a choice question.
+    describe('changing a question', () => {
+      const change = (slug: string, authorization: string, questionId: string, body: Record<string, unknown>) =>
+        http().patch(`/api/v1/invitations/${slug}/questions/${questionId}`).set('Authorization', authorization).send(body);
+
+      const choice = {
+        type: QuestionType.SINGLE_CHOICE,
+        prompt: { en: 'Meat or fish?' },
+        options: { en: ['Meat', 'Fish'] },
+        required: true,
+      };
+
+      it('changes only what is sent', async () => {
+        const { slug, authorization } = await designer();
+        const { body: created } = await add(slug, authorization, choice).expect(201);
+
+        const { body } = await change(slug, authorization, created.id as string, { prompt: { en: 'Main course?' } }).expect(200);
+
+        expect(body).toMatchObject({ ...choice, prompt: { en: 'Main course?' } });
+      });
+
+      it('makes a question optional without restating it', async () => {
+        const { slug, authorization } = await designer();
+        const { body: created } = await add(slug, authorization, choice).expect(201);
+
+        const { body } = await change(slug, authorization, created.id as string, { required: false }).expect(200);
+
+        expect(body).toMatchObject({ ...choice, required: false });
+      });
+
+      it('still refuses a change that leaves a choice question with no choices', async () => {
+        const { slug, authorization } = await designer();
+        const { body: created } = await add(slug, authorization, choice).expect(201);
+
+        const { body } = await change(slug, authorization, created.id as string, { options: { en: [] } }).expect(400);
+
+        expect(body.message).toMatch(/^options:/);
+      });
+    });
+
     it('rejects a question with no prompt in any language', async () => {
       const { slug, authorization } = await designer();
 

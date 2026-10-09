@@ -1,5 +1,5 @@
 import { GuestAttribution } from '@prisma/client';
-import { parseGuestCsv } from './csv-guests';
+import { TooManyRowsError, parseGuestCsv } from './csv-guests';
 
 /**
  * Hosts export from Excel, Google Sheets and phone contacts, so the input is
@@ -19,7 +19,8 @@ describe('parseGuestCsv', () => {
     const { guests } = parseGuestCsv('first name,last name\nArmen,Petrosyan\n');
 
     expect(guests[0].household).toBe('Armen Petrosyan');
-    expect(guests[0].seatsAllotted).toBe(1);
+    // Unstated, so the import sizes the household to the people it names.
+    expect(guests[0].seatsAllotted).toBeUndefined();
   });
 
   it('groups guests who share a household name', () => {
@@ -54,10 +55,18 @@ describe('parseGuestCsv', () => {
     { side: 'side b', expected: GuestAttribution.SIDE_B },
     { side: 'both', expected: GuestAttribution.SHARED },
     { side: 'nonsense', expected: GuestAttribution.UNKNOWN },
-    { side: '', expected: GuestAttribution.UNKNOWN },
+    // Blank is "not said", so a re-import keeps the side already set.
+    { side: '', expected: undefined },
   ])('reads a side of $side as $expected', ({ side, expected }) => {
     const { guests } = parseGuestCsv(`name,side\nArmen,${side}\n`);
     expect(guests[0].attribution).toBe(expected);
+  });
+
+  it('stops reading one row past the limit, and refuses the file', () => {
+    const csv = ['name', 'A', 'B', 'C'].join('\n');
+
+    expect(() => parseGuestCsv(csv, 2)).toThrow(TooManyRowsError);
+    expect(parseGuestCsv(csv, 3).guests).toHaveLength(3);
   });
 
   describe('bad rows', () => {

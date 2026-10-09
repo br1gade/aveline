@@ -43,6 +43,28 @@ describe('Operations UX (e2e)', () => {
     await disconnectTestDatabase();
   });
 
+  // B32: every request counted, from guests who are not coming too, and
+  // "Sirun Yar" and "sirun yar " were two tracks.
+  describe('the playlist', () => {
+    it('counts requests from guests who are coming, whatever the capitals', async () => {
+      const { eventId, householdId } = await seedEvent(prisma, { seatsAllotted: 6 });
+      const { authorization } = await authenticateAs(app, prisma, { eventId });
+      const requested = (firstName: string, status: RsvpStatus, songRequest: string) =>
+        prisma.guest.create({
+          data: { eventId, householdId, firstName, token: `${firstName}-${eventId}`, rsvp: { create: { status, songRequest } } },
+        });
+      await requested('Ani', RsvpStatus.ATTENDING, 'Sirun Yar');
+      await requested('Aram', RsvpStatus.ATTENDING, ' sirun  yar ');
+      await requested('Lusine', RsvpStatus.ATTENDING, 'Sirun Yar');
+      await requested('Narek', RsvpStatus.DECLINED, 'Hey Jan Ghapama');
+      await requested('Mariam', RsvpStatus.ATTENDING, '   ');
+
+      const { body } = await http().get(`/api/v1/events/${eventId}/playlist`).set('Authorization', authorization).expect(200);
+
+      expect(body).toEqual({ uniqueTracks: 1, tracks: [{ track: 'Sirun Yar', requests: 3 }] });
+    });
+  });
+
   describe('one-call dashboard', () => {
     it('returns every operational view in a single request', async () => {
       const { slug, primaryGuestToken, eventId } = await seedEvent(prisma, { seatsAllotted: 2 });
@@ -120,6 +142,33 @@ describe('Operations UX (e2e)', () => {
       const after = await http().get(`/api/v1/invitations/${slug}`).expect(200);
       const afterTypes = (after.body as { blocks: { type: string }[] }).blocks.map((b) => b.type);
       expect(afterTypes).toEqual(['RSVP', 'HERO']);
+    });
+  });
+
+  // B24: blocks not sent kept their old positions, tying with the ones that
+  // were — so the page order was whatever the database returned.
+  describe('rearranging some of the blocks', () => {
+    it('puts the blocks sent first, in that order, and keeps the rest after them as they were', async () => {
+      const { slug, eventId } = await seedEvent(prisma);
+      const { authorization } = await authenticateAs(app, prisma, { eventId, role: EventRole.DESIGNER });
+      const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug } });
+      await prisma.invitationBlock.createMany({
+        data: [
+          { invitationId: invitation.id, type: 'COUNTDOWN', sortOrder: 2 },
+          { invitationId: invitation.id, type: 'GALLERY', sortOrder: 3 },
+        ],
+      });
+
+      const { body } = await http()
+        .patch(`/api/v1/invitations/${slug}/arrangement`)
+        .set('Authorization', authorization)
+        .send({ blocks: [{ type: 'RSVP' }] })
+        .expect(200);
+
+      const order = (body as { blocks: { type: string; sortOrder: number }[] }).blocks.map((block) => [block.type, block.sortOrder]);
+      expect(order).toEqual([['RSVP', 0], ['HERO', 1], ['COUNTDOWN', 2], ['GALLERY', 3]]);
+      const stored = await prisma.invitationBlock.findMany({ where: { invitationId: invitation.id }, orderBy: { sortOrder: 'asc' } });
+      expect(stored.map((block) => block.type)).toEqual(['RSVP', 'HERO', 'COUNTDOWN', 'GALLERY']);
     });
   });
 

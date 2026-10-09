@@ -53,6 +53,7 @@ export class GuestsService {
 const GUEST_DETAIL = {
   rsvp: true,
   seat: { include: { table: { select: { name: true } } } },
+  seatReleasedFromTable: { select: { name: true } },
   checkIn: { select: { arrivedAt: true } },
 } satisfies Prisma.GuestInclude;
 
@@ -75,6 +76,11 @@ function guestView(guest: DetailedGuest, canSeeContacts: boolean) {
     rsvpStatus: rsvp.status,
     rsvp,
     table: guest.seat?.table.name ?? null,
+    // Their decline freed this seat; shown until they are seated again.
+    seatReleased:
+      guest.seatReleasedAt === null
+        ? null
+        : { table: guest.seatReleasedFromTable?.name ?? null, releasedAt: guest.seatReleasedAt },
     isCheckedIn: guest.checkIn !== null,
     arrivedAt: guest.checkIn?.arrivedAt ?? null,
   };

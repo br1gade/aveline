@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 9 open | 22 open, of which 8 money | — |
+| Bugfixes | 0 open | 2 open | 22 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -62,13 +62,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B24 | Rearranging some blocks leaves the page order ambiguous | Blocks not sent keep their old positions, producing ties; the documented `[RSVP, HERO]` example does it | `invitations/arrangement.service.ts` | S |
-| B25 | Partial updates wipe what was omitted | PATCH on a question resets `required` to false when it is left out. The contract is "omitted means leave as is". (Venues and timeline entries fixed.) | `design/` | S |
-| B27 | CSV import has no size limit ✔ | API.md says 2 MB; nothing enforces it, and the file is parsed synchronously before the row cap. Media upload has no limit either. A re-import without a side column resets sides the guests chose; household seats are not enforced on import | `guests/guests.controller.ts`, `guests/import/` | S |
-| B28 | Auto-seating can overfill a table under concurrency | It plans outside a transaction and writes without re-checking capacity. (Seating one guest by hand now locks the table — fixed 9 October 2026.) | `seating/seating.service.ts` | S |
-| B29 | A guest who declines keeps their seat | Their seat still counts against the table | `seating/seating.service.ts` | S |
-| B31 | "Still to come" undercounts on the day | Walk-ins and declined guests who turn up are subtracted from those expected | `guests/check-in.service.ts` | S |
-| B32 | The playlist includes guests who are not coming | No status filter; capitalisation makes duplicates | `operations/operations.service.ts` | S |
 
 **Public events and tickets**
 

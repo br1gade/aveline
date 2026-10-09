@@ -137,6 +137,60 @@ describe('Guest operations (e2e)', () => {
       expect(body[0]).toMatchObject({ filename: 'guests.csv', rowsImported: 5 });
     });
 
+    // B27: nothing enforced the 2 MB the docs promise.
+    it('refuses a file over 2 MB before reading it', async () => {
+      const { eventId, authorization } = await coordinator();
+      const big = `First Name\n${'Armen\n'.repeat(400_000)}`;
+
+      await importCsv(eventId, authorization, big).expect(413);
+      expect(await prisma.guestImport.count({ where: { eventId } })).toBe(0);
+    });
+
+    it('refuses more than 2000 guests, saying so', async () => {
+      const { eventId, authorization } = await coordinator();
+      const rows = Array.from({ length: 2001 }, (_, index) => `Guest${index}`);
+
+      const { body } = await importCsv(eventId, authorization, ['First Name', ...rows].join('\n')).expect(400);
+
+      expect(body.message).toMatch(/2000/);
+    });
+
+    // B27: a re-import without a Side column reset every guest to UNKNOWN.
+    it('keeps the sides already set when a re-import has no Side column', async () => {
+      const { eventId, authorization } = await coordinator();
+      await importCsv(eventId, authorization, CSV).expect(201);
+
+      await importCsv(eventId, authorization, 'First Name,Last Name,Household\nArmen,Petrosyan,Petrosyan family').expect(201);
+
+      const armen = await prisma.guest.findFirstOrThrow({ where: { eventId, firstName: 'Armen' } });
+      expect(armen.attribution).toBe('SIDE_A');
+    });
+
+    // B27: the import ignored the household's seats, so a family of four
+    // could be named into two seats.
+    it('reports a row that would overfill a household whose seats the file states', async () => {
+      const { eventId, authorization } = await coordinator();
+      const csv = ['First Name,Household,Seats', 'Armen,Petrosyan,2', 'Lusine,Petrosyan,2', 'Narek,Petrosyan,2'].join('\n');
+
+      const { body } = await importCsv(eventId, authorization, csv).expect(201);
+
+      expect(body).toMatchObject({ status: 'PARTIAL', rowsImported: 2, rowsFailed: 1 });
+      expect(body.errors[0]).toMatchObject({ row: 4, message: expect.stringMatching(/2 seat/) });
+      expect(await prisma.guest.count({ where: { eventId, household: { name: 'Petrosyan' } } })).toBe(2);
+    });
+
+    it('gives a household as many seats as people named, when the file does not say', async () => {
+      const { eventId, authorization } = await coordinator();
+      const csv = ['First Name,Household', 'Armen,Petrosyan', 'Lusine,Petrosyan', 'Narek,Petrosyan'].join('\n');
+
+      await importCsv(eventId, authorization, csv).expect(201);
+      await importCsv(eventId, authorization, `${csv}\nAni,Petrosyan`).expect(201);
+
+      const household = await prisma.household.findFirstOrThrow({ where: { eventId, name: 'Petrosyan' }, include: { guests: true } });
+      expect(household.guests).toHaveLength(4);
+      expect(household.seatsAllotted).toBe(4);
+    });
+
     it('refuses an import without guest:write', async () => {
       const { eventId } = await seedEvent(prisma);
       const { authorization } = await authenticateAs(app, prisma, {
@@ -316,6 +370,27 @@ describe('Guest operations (e2e)', () => {
       expect(body).toMatchObject({ arrived: 1 });
       expect(body.expected).toBeGreaterThanOrEqual(1);
       expect(body.recent[0].name).toBe('Armen Petrosyan');
+    });
+
+    // B31: a walk-in, or someone who declined and came anyway, was subtracted
+    // from those expected — so "still to come" fell for people nobody waited for.
+    it('counts only expected guests against those still to come, and walk-ins apart', async () => {
+      const { eventId, authorization } = await coordinator();
+      await importCsv(eventId, authorization, CSV).expect(201);
+      await prisma.rsvp.updateMany({ where: { guest: { eventId } }, data: { status: 'ATTENDING' } });
+      await prisma.rsvp.updateMany({ where: { guest: { eventId, firstName: { in: ['Mariam', 'Tigran'] } } }, data: { status: 'DECLINED' } });
+      const expected = await prisma.guest.count({ where: { eventId, rsvp: { status: 'ATTENDING' } } });
+      const checkIn = async (firstName: string) => {
+        const guest = await prisma.guest.findFirstOrThrow({ where: { eventId, firstName } });
+        await http().post(`/api/v1/events/${eventId}/guests/${guest.id}/check-in`).set('Authorization', authorization).expect(201);
+      };
+      await checkIn('Armen');
+      await checkIn('Mariam');
+      await checkIn('Tigran');
+
+      const { body } = await http().get(`/api/v1/events/${eventId}/arrivals`).set('Authorization', authorization).expect(200);
+
+      expect(body).toMatchObject({ expected, arrived: 3, unexpected: 2, stillToCome: expected - 1 });
     });
   });
 });
