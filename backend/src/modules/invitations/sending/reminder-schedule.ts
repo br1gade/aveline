@@ -84,3 +84,13 @@ export const REMINDER_TEMPLATE_KEY = 'rsvp.reminder';
 
 /** "Once a day" for reminders, scheduled and manual together. */
 export const REMINDER_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How long after its invitation a household may first be reminded (decided
+ * 10 October 2026, D14): three days, or one when the event is under a week
+ * away. A household invited inside a reminder window was otherwise chased
+ * within the hour — sometimes before the invitation itself arrived.
+ */
+export function reminderWaitAfterInvitation(startsAt: Date, now: Date): number {
+  return startsAt.getTime() - now.getTime() < 7 * DAY_MS ? DAY_MS : 3 * DAY_MS;
+}

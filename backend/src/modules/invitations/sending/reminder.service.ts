@@ -14,6 +14,7 @@ import {
   REMINDER_MILESTONES,
   dueMilestone,
   REMINDER_INTERVAL_MS,
+  reminderWaitAfterInvitation,
   REMINDER_TEMPLATE_KEY,
   manualDedupeKey,
   milestoneDedupeKey,
@@ -48,9 +49,11 @@ interface Remindable {
   title: string;
   hosts: string;
   defaultLocale: string;
+  startsAt: Date;
 }
 
 const TEMPLATE_KEY = REMINDER_TEMPLATE_KEY;
+const INVITATION_TEMPLATE_KEY = 'invitation.send';
 const THANK_YOU_TEMPLATE_KEY = 'thankyou.send';
 const DETAILS_CHANGED_TEMPLATE_KEY = 'event.details-changed';
 
@@ -220,6 +223,7 @@ export class ReminderService {
           title: invitation.event.title,
           hosts: invitation.event.hostsLabel,
           defaultLocale: invitation.event.defaultLocale,
+          startsAt: invitation.event.startsAt,
         },
         households: pending,
         available,
@@ -258,12 +262,19 @@ export class ReminderService {
 
     // One query for every key, rather than one per household.
     const alreadySent = await this.existingKeys(plan.recipients.map((recipient) => dedupeKeyFor(recipient.householdId)));
-    const remindedRecently = templateKey === TEMPLATE_KEY ? await this.remindedWithinADay(invitation.eventId) : new Set<string>();
+    const isReminder = templateKey === TEMPLATE_KEY;
+    const remindedRecently = isReminder ? await this.remindedWithinADay(invitation.eventId) : new Set<string>();
+    const invitedRecently = isReminder ? await this.invitedTooRecently(invitation) : new Set<string>();
+    let recentlyInvited = 0;
 
     for (const recipient of plan.recipients) {
       const dedupeKey = dedupeKeyFor(recipient.householdId);
       if (alreadySent.has(dedupeKey) || remindedRecently.has(recipient.householdId)) {
         alreadyRemindedToday += 1;
+        continue;
+      }
+      if (invitedRecently.has(recipient.householdId)) {
+        recentlyInvited += 1;
         continue;
       }
 
@@ -297,6 +308,8 @@ export class ReminderService {
     return {
       queued: queued.length,
       alreadyRemindedToday,
+      // Invited too recently to chase yet (D14) — not an error.
+      recentlyInvited,
       recipients: queued,
       // Separate from "unreachable": the fix is to send the invitation, not to
       // correct an address.
@@ -309,6 +322,21 @@ export class ReminderService {
    * Each kind kept its own key, so a host pressing "remind" and the sweep on
    * the same day wrote to a household twice.
    */
+  /** Households whose invitation went out too recently to be reminded (D14). */
+  private async invitedTooRecently(invitation: Remindable): Promise<Set<string>> {
+    const now = new Date();
+    const since = new Date(now.getTime() - reminderWaitAfterInvitation(invitation.startsAt, now));
+    const recent = await this.prisma.message.groupBy({
+      by: ['guestId'],
+      where: { eventId: invitation.eventId, templateKey: INVITATION_TEMPLATE_KEY, status: { in: REACHED_STATUSES } },
+      _min: { createdAt: true },
+    });
+    const recentGuests = recent.filter((row) => row.guestId && row._min.createdAt && row._min.createdAt > since).map((row) => row.guestId!);
+    if (recentGuests.length === 0) return new Set();
+    const guests = await this.prisma.guest.findMany({ where: { id: { in: recentGuests } }, select: { householdId: true } });
+    return new Set(guests.map((guest) => guest.householdId));
+  }
+
   private async remindedWithinADay(eventId: string): Promise<Set<string>> {
     const recent = await this.prisma.message.findMany({
       where: {

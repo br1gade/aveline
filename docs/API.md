@@ -2118,8 +2118,10 @@ replied — attending or declined — is never chased; that is what turns a
 reminder into a nuisance. Nor is a guest who never received the invitation:
 `notInvited` lists them, and the fix for those is to send, not to remind.
 
-**At most one reminder per household per day**, counting the scheduled ones
-too. Pressing twice is safe, and following up again tomorrow still works. `alreadyRemindedToday` is how many
+**No reminder until a household has had its invitation for 3 days** — 1 day
+if the event is under a week away (decided 10 October 2026). `recentlyInvited`
+counts those skipped for that reason. **At most one reminder per household per
+day**, counting the scheduled ones too. Pressing twice is safe, and following up again tomorrow still works. `alreadyRemindedToday` is how many
 were skipped for that reason — not an error.
 
 Refused with a `400` once the event has started, and for an unpublished

@@ -89,13 +89,19 @@ describe('reminders (integration)', () => {
     return { ...seeded, event };
   };
 
+  /** Sends the invitation and lets time pass, so reminders are due (D14). */
+  const sendEarlier = async (slug: string) => {
+    await sender.send(slug);
+    await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
+  };
+
   const remindersFor = (eventId: string) =>
     prisma.message.count({ where: { eventId, templateKey: 'rsvp.reminder' } });
 
   describe('who gets chased', () => {
     it('reminds a household that was invited and has not answered', async () => {
       const { slug, eventId } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
 
       const result = await reminders.remindNow(slug);
 
@@ -122,7 +128,7 @@ describe('reminders (integration)', () => {
       'does not chase a guest who answered %s',
       async (status) => {
         const { slug, eventId } = await invitedEvent(10);
-        await sender.send(slug);
+        await sendEarlier(slug);
         await prisma.rsvp.updateMany({ where: { guest: { eventId } }, data: { status } });
 
         const result = await reminders.remindNow(slug);
@@ -151,7 +157,7 @@ describe('reminders (integration)', () => {
           token: 'tok-tigran-no-rsvp',
         },
       });
-      await sender.send(slug);
+      await sendEarlier(slug);
 
       const result = await reminders.remindNow(slug);
 
@@ -160,7 +166,7 @@ describe('reminders (integration)', () => {
 
     it('renders the guest’s own link into the reminder', async () => {
       const { slug, eventId } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
 
       await reminders.remindNow(slug);
 
@@ -178,7 +184,7 @@ describe('reminders (integration)', () => {
      */
     it('reminds at most once a day, however many times it is pressed', async () => {
       const { slug, eventId } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
 
       const first = await reminders.remindNow(slug);
       const second = await reminders.remindNow(slug);
@@ -208,7 +214,7 @@ describe('reminders (integration)', () => {
   describe('the scheduled sweep', () => {
     it('sends nothing for an event beyond the first milestone', async () => {
       const { slug, eventId } = await invitedEvent(40);
-      await sender.send(slug);
+      await sendEarlier(slug);
 
       expect(await reminders.sendDueReminders()).toMatchObject({ queued: 0 });
       expect(await remindersFor(eventId)).toBe(0);
@@ -216,7 +222,7 @@ describe('reminders (integration)', () => {
 
     it.each([21, 14, 7, 3, 2, 1])('sends one reminder %s days out', async (daysAway) => {
       const { slug, eventId } = await invitedEvent(daysAway);
-      await sender.send(slug);
+      await sendEarlier(slug);
 
       const result = await reminders.sendDueReminders();
 
@@ -230,7 +236,7 @@ describe('reminders (integration)', () => {
      */
     it('is a no-op when run again within the same milestone', async () => {
       const { slug, eventId } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await reminders.sendDueReminders();
 
       for (let run = 0; run < 5; run += 1) await reminders.sendDueReminders();
@@ -245,7 +251,7 @@ describe('reminders (integration)', () => {
      */
     it('sends one reminder, not three, for a late invitation', async () => {
       const { slug, eventId } = await invitedEvent(3);
-      await sender.send(slug);
+      await sendEarlier(slug);
 
       await reminders.sendDueReminders();
 
@@ -254,7 +260,7 @@ describe('reminders (integration)', () => {
 
     it('sends again when the next milestone comes into force', async () => {
       const { slug, eventId } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await reminders.sendDueReminders();
       // Time passes: that reminder went out days ago.
       await prisma.message.updateMany({ where: { eventId, templateKey: 'rsvp.reminder' }, data: { createdAt: new Date(Date.now() - 5 * DAY_MS) } });
@@ -273,7 +279,7 @@ describe('reminders (integration)', () => {
     // a host has to be able to refuse them.
     it('respects an event with reminders turned off', async () => {
       const { slug, eventId } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await prisma.event.update({ where: { id: eventId }, data: { remindersEnabled: false } });
 
       expect(await reminders.sendDueReminders()).toMatchObject({ queued: 0 });
@@ -292,7 +298,7 @@ describe('reminders (integration)', () => {
 
     it('skips an event that has already happened', async () => {
       const { slug, eventId } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await prisma.event.update({
         where: { id: eventId },
         data: { startsAt: new Date(Date.now() - DAY_MS) },
@@ -304,7 +310,7 @@ describe('reminders (integration)', () => {
 
     it('records a suppressed recipient rather than skipping them silently', async () => {
       const { slug, eventId, event } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await prisma.suppression.create({
         data: {
           organizationId: event.organizationId,
@@ -323,11 +329,36 @@ describe('reminders (integration)', () => {
     });
   });
 
+  // B73 (decided 10 October 2026, D14): a household invited inside a
+  // reminder window was chased within the hour.
+  describe('a household invited late', () => {
+    it('is not reminded until three days after its invitation', async () => {
+      const { slug, eventId } = await invitedEvent(10);
+      await sender.send(slug);
+
+      const now = await reminders.remindNow(slug);
+      await reminders.sendDueReminders();
+
+      expect(now).toMatchObject({ queued: 0, recentlyInvited: 1 });
+      expect(await remindersFor(eventId)).toBe(0);
+    });
+
+    it('waits one day when the event is under a week away', async () => {
+      const { slug, eventId } = await invitedEvent(3);
+      await sender.send(slug);
+      await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) } });
+
+      await reminders.sendDueReminders();
+
+      expect(await remindersFor(eventId)).toBe(1);
+    });
+  });
+
   // B58: three edge cases in how reminders are kept honest.
   describe('keeping reminders honest', () => {
     it('does not send the scheduled reminder on a day the host already sent one by hand', async () => {
       const { slug, eventId } = await invitedEvent(3);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await reminders.remindNow(slug);
 
       await reminders.sendDueReminders();
@@ -337,7 +368,7 @@ describe('reminders (integration)', () => {
 
     it('does not send a manual reminder on a day the scheduled one went', async () => {
       const { slug, eventId } = await invitedEvent(3);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await reminders.sendDueReminders();
 
       const result = await reminders.remindNow(slug);
@@ -348,7 +379,7 @@ describe('reminders (integration)', () => {
 
     it('withdraws a reminder still waiting to go once the household answers', async () => {
       const { slug, eventId, primaryGuestToken } = await invitedEvent(10);
-      await sender.send(slug);
+      await sendEarlier(slug);
       await reminders.remindNow(slug);
       const guest = await prisma.guest.findFirstOrThrow({ where: { token: primaryGuestToken } });
 
@@ -363,7 +394,7 @@ describe('reminders (integration)', () => {
 
   it('dispatches reminders through the same outbox as everything else', async () => {
     const { slug, eventId } = await invitedEvent(10);
-    await sender.send(slug);
+    await sendEarlier(slug);
     await reminders.remindNow(slug);
 
     const dispatched = await communications.dispatchDue();

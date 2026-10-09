@@ -94,6 +94,10 @@ describe('Invitation sending (e2e)', () => {
     return { petrosyans, sargsyans };
   };
 
+  /** Lets time pass after sending, so reminders are due (D14). */
+  const daysPass = () =>
+    prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) } });
+
   const send = (slug: string, authorization: string, body: Record<string, unknown> = {}) =>
     http().post(`/api/v1/invitations/${slug}/send`).set('Authorization', authorization).send(body);
 
@@ -177,6 +181,7 @@ describe('Invitation sending (e2e)', () => {
       const { petrosyans } = await guestList(eventId);
       await prisma.guest.updateMany({ where: { householdId: petrosyans.id, firstName: 'Armen' }, data: { email: null } });
       await send(slug, authorization).expect(201);
+      await daysPass();
       const remind = () => http().post(`/api/v1/invitations/${slug}/remind`).set('Authorization', authorization).expect(201);
       await remind();
       await prisma.guest.updateMany({ where: { householdId: petrosyans.id, firstName: 'Armen' }, data: { email: 'armen@test.local' } });
@@ -349,6 +354,7 @@ describe('Invitation sending (e2e)', () => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);
       await send(slug, authorization).expect(201);
+      await daysPass();
       await http().post(`/api/v1/invitations/${slug}/remind`).set('Authorization', authorization).expect(201);
 
       const { body } = await http().get(`/api/v1/invitations/${slug}/delivery`).set('Authorization', authorization).expect(200);
@@ -515,6 +521,7 @@ describe('Invitation sending (e2e)', () => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);
       await send(slug, authorization).expect(201);
+      await daysPass();
 
       const { body } = await http()
         .post(`/api/v1/invitations/${slug}/remind`)
@@ -529,6 +536,7 @@ describe('Invitation sending (e2e)', () => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);
       await send(slug, authorization).expect(201);
+      await daysPass();
       await http()
         .post(`/api/v1/invitations/${slug}/remind`)
         .set('Authorization', authorization)

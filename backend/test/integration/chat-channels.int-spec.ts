@@ -210,6 +210,7 @@ describe('chat channels (integration)', () => {
     it('lifts the suppression when the guest starts the bot again from their link', async () => {
       const { slug, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
       await sender.send(slug);
+      await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
       await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
       await webhook.receive({ my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'kicked' } } });
 
@@ -269,6 +270,7 @@ describe('chat channels (integration)', () => {
         MessageChannel.TELEGRAM,
       ]);
       await sender.send(slug);
+      await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
       await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
 
       const result = await reminders.remindNow(slug);
@@ -287,6 +289,7 @@ describe('chat channels (integration)', () => {
     it('stays on email when there is no Telegram copy', async () => {
       const { slug, guest } = await eventWithCopy([MessageChannel.EMAIL]);
       await sender.send(slug);
+      await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
       await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
 
       const result = await reminders.remindNow(slug);
@@ -300,6 +303,7 @@ describe('chat channels (integration)', () => {
         MessageChannel.TELEGRAM,
       ]);
       await sender.send(slug);
+      await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
       await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
       await reminders.remindNow(slug);
 
@@ -323,6 +327,7 @@ describe('chat channels (integration)', () => {
         MessageChannel.TELEGRAM,
       ]);
       await sender.send(slug);
+      await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
       await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
       await suppressions.suppress({
         organizationId: event.organizationId,
