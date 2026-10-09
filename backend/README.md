@@ -178,6 +178,9 @@ test/
 | `POST` | `/api/v1/invites/accept` | Accept an invitation, creating the account if needed |
 | `POST` | `/api/v1/event-invites/accept` | Accept an invitation to one event; grants nothing in the organization |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
+| `GET` | `/api/v1/events/:eventId/media` | The event's uploads, with the blocks that show each |
+| `PATCH` | `/api/v1/events/:eventId/media/:assetId` | Set alt text, one language at a time |
+| `DELETE` | `/api/v1/events/:eventId/media/:assetId` | Remove an upload and its file; refused while shown |
 | `POST` | `/api/v1/devices` | Register this device for push (idempotent by token) |
 | `DELETE` | `/api/v1/devices/:token` | Stop sending to this device |
 | `POST` | `/api/v1/webhooks/telegram` | Telegram opt-ins and blocks (**called by Telegram**) |

@@ -2706,6 +2706,102 @@
         "tags": [
           "media"
         ]
+      },
+      "get": {
+        "operationId": "MediaController_list",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The event's uploads, newest first, with the blocks that show each",
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/media/{assetId}": {
+      "patch": {
+        "description": "Alt text per language; a language sent replaces that one, null removes it.",
+        "operationId": "MediaController_update",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMediaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Describe an upload for guests who cannot see it",
+        "tags": [
+          "media"
+        ]
+      },
+      "delete": {
+        "description": "Refused while a block shows it.",
+        "operationId": "MediaController_remove",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove an upload, file and all",
+        "tags": [
+          "media"
+        ]
       }
     },
     "/api/v1/devices": {
@@ -5179,6 +5275,22 @@
         },
         "required": [
           "planKey"
+        ]
+      },
+      "UpdateMediaDto": {
+        "type": "object",
+        "properties": {
+          "altText": {
+            "type": "object",
+            "description": "Alt text keyed by locale, e.g. { \"en\": \"Anna and Davit\" }; null removes a language",
+            "example": {
+              "hy": "Աննան և Դավիթը",
+              "en": "Anna and Davit"
+            }
+          }
+        },
+        "required": [
+          "altText"
         ]
       },
       "RegisterDeviceDto": {

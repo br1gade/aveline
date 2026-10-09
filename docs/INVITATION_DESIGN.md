@@ -94,7 +94,12 @@ disabling that block silences the page. One place to set each means the two
 cannot disagree.
 
 `altText` is translated per locale, the same as block content — accessibility
-text in the wrong language is not accessible.
+text in the wrong language is not accessible. It is written one language at a
+time with `PATCH /events/:eventId/media/:assetId`.
+
+An upload can be removed only while no block shows it — the page guests
+already hold would otherwise show a broken image — and removing it deletes the
+file too.
 
 `sizeBytes` is stored so upload limits can be enforced and per-event storage
 reported, which matters for pricing tiers.
@@ -175,15 +180,13 @@ filename.
 
 1. **Image processing** — resizing, format conversion, thumbnails. One
    original is stored as uploaded.
-2. **Alt text.** `MediaAsset.altText` is returned per locale, but no endpoint
-   writes it, so it is always empty.
-3. **Block creation outside the arrangement call.** Which blocks exist is
+2. **Block creation outside the arrangement call.** Which blocks exist is
    decided there; there is no way to add one while editing its content.
-4. **Reordering custom RSVP questions.** They can be added, changed and
+3. **Reordering custom RSVP questions.** They can be added, changed and
    removed, but a question's `sortOrder` is assigned on creation and nothing
    changes it.
-5. **Signature capture** on the client and its asset write path.
-6. **Template preview** rendering.
+4. **Signature capture** on the client and its asset write path.
+5. **Template preview** rendering.
 
 Theme validation, block content, template switching, RSVP questions and venue
 CRUD are built — see [API.md](API.md) §6.

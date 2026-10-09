@@ -2021,6 +2021,26 @@ large → `413`.
 
 The returned `url` is publicly readable — no credentials needed to display it.
 
+```http
+GET    /api/v1/events/:eventId/media                 # the library
+PATCH  /api/v1/events/:eventId/media/:assetId        { "altText": { "en": "Anna and Davit" } }
+DELETE /api/v1/events/:eventId/media/:assetId
+```
+
+`GET` (needs `invitation:read`) lists the event's uploads newest first, each
+with `id`, `url`, `kind`, `mimeType`, `sizeBytes`, `altText` (keyed by
+language), `createdAt` and `usedBy` — the block types showing it, e.g.
+`["HERO"]`. Generated exports are not in it; they are under `/exports`.
+
+`PATCH` (needs `invitation:design`) sets alt text one language at a time: a
+language sent replaces that one, `null` removes it, the rest are kept. Each
+value is text up to 300 characters — a `400` starting `altText:` otherwise.
+Guests receive it already resolved to their language, as `media[].altText`.
+
+`DELETE` (needs `invitation:design`) removes the upload and its file. It is
+refused with `409` while a block shows it, naming the block — take it off
+there first, with `PATCH /invitations/:slug/blocks/:type`.
+
 > **We do not resize.** A 6 MB photo is stored as 6 MB and served as 6 MB.
 > Downscale client-side before upload until the backend does it.
 

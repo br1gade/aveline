@@ -26,7 +26,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 22 open | 24 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 10 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Features | 1 open (F1, the client) | 9 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -142,7 +142,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 |---|---|---|---|
 | F9 | **Venue coordinates and capacity** | Latitude, longitude and capacity are returned but only ever copied from the venue directory, which nothing can fill. The Map block has only a pasted link | S |
 | F10 | **Configure the built-in RSVP questions** | A host cannot switch off drink or song questions or define the choices. Drinks are free text, so "Wine", "Вино" and "Գինի" are three rows on the bar sheet | M |
-| F11 | **Manage uploads** · Client | No list or delete of an event's media, and no way to set alt text | S–M |
 | F12 | **Delete or archive an event** | `event:delete` exists in the policy and nothing uses it | M |
 | F13 | **Concierge setup** | Staff cannot create an organization or event for a customer and hand it over, which §11 relies on. Workaround: the host registers and creates the event first | M |
 | F14 | **Internal running-order entries** | The day-of timeline and the guest-facing one are the same rows, so "caterer load-in 10:00" would appear on the invitation | S |
