@@ -43,9 +43,16 @@ export class SuppressionService {
     return found !== null;
   }
 
+  /**
+   * What stops this organization reaching someone: its own suppressions, and
+   * the platform-wide ones that touch its own guests. Every platform-wide
+   * suppression used to be listed to every host — every bounced or
+   * complaining address on the platform, including other customers' guests.
+   */
   async list(organizationId: string) {
+    const addresses = await this.guestAddresses(organizationId);
     const rows = await this.prisma.suppression.findMany({
-      where: { OR: [{ organizationId }, { organizationId: null }] },
+      where: { OR: [{ organizationId }, { organizationId: null, address: { in: addresses } }] },
       orderBy: { createdAt: 'desc' },
       take: 500,
     });
@@ -61,6 +68,22 @@ export class SuppressionService {
       notes: row.notes,
       createdAt: row.createdAt,
     }));
+  }
+
+  /** Every email and phone on this organization's guests, as suppressions store them. */
+  private async guestAddresses(organizationId: string): Promise<string[]> {
+    const guests = await this.prisma.guest.findMany({
+      where: { event: { organizationId }, OR: [{ email: { not: null } }, { phone: { not: null } }] },
+      select: { email: true, phone: true },
+    });
+    return [
+      ...new Set(
+        guests.flatMap((guest) => [
+          guest.email ? normalizeAddress(MessageChannel.EMAIL, guest.email) : null,
+          guest.phone,
+        ]).filter((address): address is string => address !== null),
+      ),
+    ];
   }
 
   /**

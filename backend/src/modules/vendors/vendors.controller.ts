@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VendorCategory } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
@@ -31,17 +31,22 @@ export class VendorsController {
   @RequirePermission('vendor:read')
   @OrganizationScope()
   @Get('vendors')
-  @ApiOperation({ summary: 'The partner directory, optionally by category' })
-  listVendors(@Query() query: ListVendorsQuery) {
-    return this.vendors.listVendors(query.category);
+  @ApiOperation({
+    summary: "This organization's vendors and Aveline's curated list, optionally by category",
+  })
+  listVendors(@CurrentActor() actor: RequestActor, @Query() query: ListVendorsQuery) {
+    return this.vendors.listVendors(actor.organizationId ?? null, query.category);
   }
 
   @RequirePermission('vendor:write')
   @OrganizationScope()
   @Post('vendors')
-  @ApiOperation({ summary: 'Add a vendor to the directory' })
-  createVendor(@Body() dto: CreateVendorDto) {
-    return this.vendors.createVendor(dto);
+  @ApiOperation({
+    summary: 'Add a vendor',
+    description: "To the caller's organization, which alone sees it; Aveline staff add to the curated list.",
+  })
+  createVendor(@CurrentActor() actor: RequestActor, @Body() dto: CreateVendorDto) {
+    return this.vendors.createVendor(ownerOfNewVendor(actor), dto);
   }
 
   @RequirePermission('vendor:read')
@@ -116,4 +121,11 @@ export class VendorsController {
  */
 function maySeeFees(actor: RequestActor): boolean {
   return actorCan(actor, 'vendor:fee:read');
+}
+
+/** The caller's organization — or, for Aveline staff who keep the curated list, none. */
+function ownerOfNewVendor(actor: RequestActor): string | null {
+  if (actor.organizationId) return actor.organizationId;
+  if (actorCan(actor, 'directory:manage')) return null;
+  throw new ForbiddenException('Create your organization first; vendors you add belong to it');
 }

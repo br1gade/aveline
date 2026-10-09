@@ -34,6 +34,7 @@ model Organization {
   messages         Message[]
   messageTemplates MessageTemplate[]
   invites          OrganizationInvite[]
+  vendors          Vendor[]
   suppressions     Suppression[]
   subscription     Subscription?
   invoices         Invoice[]
@@ -50,6 +51,9 @@ enum OrgKind {
 
 model User {
   id           String       @id @default(cuid())
+  /// Stored lower-cased. Also unique on lower(email) — a functional index
+  /// Prisma cannot express, created in 20261009160000_access_and_vendors and
+  /// not to be dropped: without it Ani@x.am and ani@x.am were two accounts.
   email        String       @unique
   name         String
   /// Aveline's own staff. Customers are NONE; concierge operators are SUPPORT.
@@ -112,7 +116,10 @@ enum PlatformRole {
 /// forced together.
 model OrganizationMembership {
   id             String           @id @default(cuid())
-  userId         String
+  /// Unique: one organization per account, for now. The guard resolves "your
+  /// organization" from this single row; two would make every
+  /// organization-scoped route act on whichever came back first.
+  userId         String           @unique
   organizationId String
   role           OrganizationRole
   createdAt      DateTime         @default(now())
@@ -692,18 +699,23 @@ model CheckIn {
 // ─────────────────────────── Vendor network ────────────────────────────
 
 model Vendor {
-  id        String         @id @default(cuid())
-  name      String
-  category  VendorCategory
-  email     String?
-  phone     String?
-  notes     String?
-  active    Boolean        @default(true)
-  createdAt DateTime       @default(now())
+  id             String         @id @default(cuid())
+  /// The organization that added this vendor, which only it sees. Null is
+  /// Aveline's own curated list, which every customer sees.
+  organizationId String?
+  name           String
+  category       VendorCategory
+  email          String?
+  phone          String?
+  notes          String?
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
 
+  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bookings     VendorBooking[]
   venueProfile VenueProfile?
 
+  @@index([organizationId])
   @@map("vendors")
 }
 

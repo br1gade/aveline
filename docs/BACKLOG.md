@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 20 open | 23 open, of which 8 money | — |
+| Bugfixes | 0 open | 15 open | 22 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -53,12 +53,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
 | B11 | Read-only roles get guest contact details ✔ | The guest-list export needs only `operations:read`, bypassing `guest:contact:read`, and export files sit at public, non-expiring URLs (the ticket manifest exposes door codes the same way). `GET /invitations/:slug/delivery` gives a DESIGNER or VIEWER every address. `GET /vendors` hands brief tokens, which can carry the `contacts` scope, to any VIEWER. | `exports/`, `invitations/invitation-lifecycle.controller.ts`, `vendors/` | M |
-| B12 | The vendor directory is shared by every customer, and any customer can write to it | `Vendor` has no organization: host B sees the phone number host A entered for their cousin the photographer | `vendors/` | S |
-| B13 | Read-only members can create events and become their owner ✔ | `POST /events` requires no permission | `events/events.controller.ts` | S |
-| B14 | "One organization per account" is not held ✔ | Concurrent creates make three; accepting an invite adds a second. The guard then picks a membership arbitrarily, so events, billing and invites act on a random organization | `organizations/organizations.service.ts`, `account.service.ts`, `infra/auth/auth.guard.ts` | S |
-| B15 | Email addresses are case-sensitive at login ✔ | `Ani@x.am` and `ani@x.am` are two accounts, and logging in with different capitals fails | `infra/auth/auth.service.ts`, `account.service.ts` | S |
 | B16 | Find-your-seat is unreachable for guests, and lists names to anyone ✔ | Keyed by `eventId`, which no guest-facing response contains. With no query it returns ten names and tables — for any event, drafts included. **Decision** D4 | `guests/guests.controller.ts`, `guests.service.ts` | S |
-| B17 | `GET /suppressions` shows other customers' addresses | Global suppressions — every bounced or complaining address on the platform — are listed to every host | `communications/suppression.service.ts` | S |
 
 **Messaging**
 
@@ -115,7 +110,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B50 | Platform staff lose their own memberships' permissions (they now see vendor fees) | `infra/auth/auth.guard.ts`, `vendors/` | S |
 | B51 | Vendor fees are a decimal string, not integer minor units — breaking for the client to change | `vendors/` | S |
 | B53 | Two refreshes with one token make two live sessions ✔ | `infra/auth/auth.service.ts` | S |
-| B54 | Login timing and registration reveal which emails have accounts ✔ | `infra/auth/auth.service.ts` | S |
 | B55 | Any user can revoke or take over another's push device token (nothing sends push yet) ✔ | `devices/devices.service.ts` | S |
 | B56 | The Telegram webhook is unauthenticated when no bot token is set, production included | `communications/telegram-webhook.controller.ts` | S |
 | B57 | Publish, send and design writes are recorded without their event, so they never appear in the audit trail | `infra/audit/audit.interceptor.ts` | S |

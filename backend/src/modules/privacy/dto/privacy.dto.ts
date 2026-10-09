@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DataSubjectRequestKind, DataSubjectRequestStatus } from '@prisma/client';
 import { IsEmail, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { NormalizedEmail } from '../../../common/normalized-email';
 
 export class CreateDataSubjectRequestDto {
   @ApiProperty({ enum: DataSubjectRequestKind })
@@ -8,6 +9,7 @@ export class CreateDataSubjectRequestDto {
   kind!: DataSubjectRequestKind;
 
   @ApiProperty({ description: 'The address the data is held against' })
+  @NormalizedEmail()
   @IsEmail()
   @MaxLength(200)
   subjectEmail!: string;

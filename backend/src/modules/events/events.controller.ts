@@ -59,8 +59,10 @@ export class EventsController {
     return this.events.remove(id);
   }
 
-  // No permission beyond a session and an organization: a host creating their
-  // first event has no event to hold a permission on yet.
+  // Judged by the organization role — a host creating their first event has
+  // no event to hold a permission on yet. A read-only member could make one
+  // and become its owner before this was checked.
+  @RequirePermission('event:write')
   @OrganizationScope()
   @Post()
   @ApiOperation({

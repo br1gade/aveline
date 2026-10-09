@@ -257,6 +257,7 @@ export class AccountService {
     }
 
     const admit = await this.prepareInvitee(invite.email, dto);
+    await this.assertNoOtherOrganization(invite.email, invite.organizationId);
 
     const membership = await this.prisma.$transaction(async (tx) => {
       const user = await admit(tx);
@@ -351,6 +352,23 @@ export class AccountService {
     });
     if (revoked.count === 0) throw new NotFoundException('No pending invitation for that address');
     return { ok: true as const };
+  }
+
+  /**
+   * One organization per account, for now: accepting an invitation into a
+   * second one used to add a second membership, after which the guard picked
+   * either organization arbitrarily on every request.
+   */
+  private async assertNoOtherOrganization(email: string, organizationId: string): Promise<void> {
+    const other = await this.prisma.organizationMembership.findFirst({
+      where: { user: { email: { equals: email, mode: 'insensitive' } }, organizationId: { not: organizationId } },
+      select: { organization: { select: { name: true } } },
+    });
+    if (other) {
+      throw new ConflictException(
+        `This account already belongs to "${other.organization.name}"; one organization per account for now`,
+      );
+    }
   }
 
   /**

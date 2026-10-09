@@ -9,25 +9,40 @@ import { SUGGESTED_SCOPES, sectionsFor } from './vendor-brief';
 export class VendorsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** The partner directory. Aveline curates it; a host picks from it. */
-  listVendors(category?: VendorCategory) {
-    return this.prisma.vendor.findMany({
-      where: { active: true, category },
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        email: true,
-        phone: true,
-        venueProfile: { select: { city: true, capacity: true } },
-      },
-    });
+  /**
+   * The vendors an organization can choose from: its own, and Aveline's
+   * curated list (decided 9 October 2026). The directory used to be one list
+   * every customer read and wrote, so host B saw the phone number host A
+   * entered for their cousin the photographer.
+   */
+  listVendors(organizationId: string | null, category?: VendorCategory) {
+    return this.prisma.vendor
+      .findMany({
+        where: { active: true, category, OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])] },
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        select: {
+          id: true,
+          organizationId: true,
+          name: true,
+          category: true,
+          email: true,
+          phone: true,
+          venueProfile: { select: { city: true, capacity: true } },
+        },
+      })
+      .then((vendors) =>
+        vendors.map(({ organizationId: owner, ...vendor }) => ({ ...vendor, isCurated: owner === null })),
+      );
   }
 
-  createVendor(dto: CreateVendorDto) {
+  /**
+   * Adds a vendor: to the caller's organization, or — for Aveline staff,
+   * who belong to none — to the curated list everyone sees.
+   */
+  createVendor(organizationId: string | null, dto: CreateVendorDto) {
     return this.prisma.vendor.create({
       data: {
+        organizationId,
         name: dto.name,
         category: dto.category,
         email: dto.email ?? null,
@@ -73,7 +88,13 @@ export class VendorsService {
    * cannot read the playlist, not one who can read the guest list.
    */
   async book(eventId: string, dto: BookVendorDto) {
-    const vendor = await this.prisma.vendor.findUnique({ where: { id: dto.vendorId } });
+    // Aveline's list, or this event's own organization's: never another's.
+    const vendor = await this.prisma.vendor.findFirst({
+      where: {
+        id: dto.vendorId,
+        OR: [{ organizationId: null }, { organization: { events: { some: { id: eventId } } } }],
+      },
+    });
     if (!vendor) throw new NotFoundException('No such vendor');
 
     const briefScopes = dto.briefScopes ?? SUGGESTED_SCOPES[vendor.category] ?? [];

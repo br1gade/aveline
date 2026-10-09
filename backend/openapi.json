@@ -3208,12 +3208,13 @@
             "description": ""
           }
         },
-        "summary": "The partner directory, optionally by category",
+        "summary": "This organization's vendors and Aveline's curated list, optionally by category",
         "tags": [
           "vendors"
         ]
       },
       "post": {
+        "description": "To the caller's organization, which alone sees it; Aveline staff add to the curated list.",
         "operationId": "VendorsController_createVendor",
         "parameters": [],
         "requestBody": {
@@ -3231,7 +3232,7 @@
             "description": ""
           }
         },
-        "summary": "Add a vendor to the directory",
+        "summary": "Add a vendor",
         "tags": [
           "vendors"
         ]

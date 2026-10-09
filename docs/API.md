@@ -1367,8 +1367,13 @@ GET  /api/v1/vendors?category=CATERING
 POST /api/v1/vendors                 { "name": "...", "category": "CATERING", ... }
 ```
 
-The partner directory. `category` is one of `VENUE`, `CATERING`, `BAR`,
-`DECOR`, `PHOTOGRAPHY`, `VIDEOGRAPHY`, `MUSIC`, `PRINT`, `OTHER`.
+The vendors an organization chooses from: **its own**, which only it sees,
+and **Aveline's curated list**, which everyone sees — each entry carries
+`isCurated`. A vendor a host adds belongs to their organization (decided 9
+October 2026; the list used to be shared by every customer, contact details
+included). Aveline staff add to the curated list. Booking another
+organization's vendor is a `404`. `category` is one of `VENUE`, `CATERING`,
+`BAR`, `DECOR`, `PHOTOGRAPHY`, `VIDEOGRAPHY`, `MUSIC`, `PRINT`, `OTHER`.
 
 ```http
 GET   /api/v1/events/:eventId/vendors
@@ -1488,6 +1493,9 @@ DELETE /api/v1/suppressions/:suppressionId
 [{ "id": "clz...", "channel": "EMAIL", "address": "ani@example.am",
    "reason": "UNSUBSCRIBED", "scope": "ORGANIZATION", "createdAt": "..." }]
 ```
+
+The list is your own suppressions, plus the platform-wide ones that touch
+an email or phone on your own guests — never another customer's.
 
 `scope` is the field that matters. `ORGANIZATION` is an ordinary unsubscribe
 from your events and you can lift it. `GLOBAL` is a hard bounce or a spam
@@ -1625,8 +1633,15 @@ contains nothing URL-safe, so that is the normal case, not the edge one. Two
 events with the same hosts get different slugs. There is no endpoint to choose
 a custom slug yet.
 
-**`403` means the account has no organization.** Create one first; the message
-says so. `defaultLocale` must be one of `locales` — a `400` naming it otherwise.
+**`403` means the account has no organization, or its role there cannot
+write events** — an organization `MEMBER` or `VIEWER` is read-only.
+
+**An account belongs to one organization, for now.** A second
+`POST /organizations` is a `409`, and so is accepting an invitation into a
+second organization — the message names the one the account is already in.
+
+**Email addresses are compared without regard to capitals**: `Ani@X.am` and
+`ani@x.am` are the same account, and signing in works with either. `defaultLocale` must be one of `locales` — a `400` naming it otherwise.
 
 ### Correcting an event
 

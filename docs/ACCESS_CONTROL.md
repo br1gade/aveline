@@ -111,7 +111,7 @@ owner.
 
 | Permission | Covers |
 |---|---|
-| `event:read` / `event:write` / `event:delete` | The event itself |
+| `event:read` / `event:write` / `event:delete` | The event itself; creating one needs `event:write` from the organization role |
 | `guest:read` | Guest list, names, RSVP status |
 | `guest:contact:read` | Phone numbers and email addresses — separated because it is PII |
 | `guest:write` | Add, edit and remove guests |
@@ -120,7 +120,7 @@ owner.
 | `invitation:publish` | Make it live, close it |
 | `operations:read` | Headcount, catering, bar, playlist, guest book |
 | `seating:read` / `seating:write` | Tables and assignments |
-| `vendor:read` / `vendor:write` | The vendor network for this event |
+| `vendor:read` / `vendor:write` | The organization's own vendors and this event's bookings; Aveline's curated list is read-only to customers |
 | `vendor:fee:read` | What vendors are being paid — separated from `vendor:read` |
 | `member:manage` | Invite and remove members, change roles |
 | `billing:read` | Invoices, plan and promo codes |

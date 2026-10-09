@@ -6,6 +6,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 
+/** A valid hash of a random string nobody knows, at the cost real hashes use. */
+const TIMING_DUMMY_HASH = '$2b$12$Clb6dFgAWHxEY8ObdDx41.sdr2UKjD7MN7iKsH8bxuvyDb3kVMchG';
+
 const BCRYPT_ROUNDS = 12;
 
 /** What an access token carries. Deliberately minimal: roles that govern a
@@ -60,8 +63,11 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
 
     // Compare against a dummy hash when the user is unknown, so a missing
-    // account and a wrong password take the same time to reject.
-    const storedHash = user?.passwordHash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv';
+    // account and a wrong password take the same time to reject. It must be a
+    // real bcrypt hash at the same cost: the old placeholder was malformed,
+    // bcrypt rejected it at once, and the time difference said which
+    // addresses had accounts.
+    const storedHash = user?.passwordHash ?? TIMING_DUMMY_HASH;
     const isCorrect = await compare(dto.password, storedHash);
 
     if (!user || !user.passwordHash || !isCorrect || !user.isActive) {

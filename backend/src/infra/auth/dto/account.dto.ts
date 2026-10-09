@@ -1,9 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EventRole, OrganizationRole } from '@prisma/client';
 import { IsEmail, IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
+import { NormalizedEmail } from '../../../common/normalized-email';
 
 export class RequestPasswordResetDto {
   @ApiProperty()
+  @NormalizedEmail()
   @IsEmail()
   @MaxLength(200)
   email!: string;
@@ -33,6 +35,7 @@ export class VerifyEmailDto {
 
 export class InviteMemberDto {
   @ApiProperty()
+  @NormalizedEmail()
   @IsEmail()
   @MaxLength(200)
   email!: string;
@@ -44,6 +47,7 @@ export class InviteMemberDto {
 
 export class InviteToEventDto {
   @ApiProperty()
+  @NormalizedEmail()
   @IsEmail()
   @MaxLength(200)
   email!: string;

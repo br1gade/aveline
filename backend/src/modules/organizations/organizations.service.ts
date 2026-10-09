@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrganizationRole, OrgKind } from '@prisma/client';
+import { isUniqueViolation } from '../../common/prisma-errors';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrganizationDto, RenameOrganizationDto } from './dto/organization.dto';
 
@@ -27,8 +28,11 @@ export class OrganizationsService {
     }
 
     // Both or neither: an organization with no owner is unreachable, and a
-    // membership with no organization is a broken foreign key.
-    const organization = await this.prisma.$transaction(async (tx) => {
+    // membership with no organization is a broken foreign key. The check above
+    // is for the message; the unique index on the membership's user is what
+    // holds when several requests arrive at once.
+    const organization = await this.prisma
+      .$transaction(async (tx) => {
       const created = await tx.organization.create({
         data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST },
       });
@@ -36,7 +40,13 @@ export class OrganizationsService {
         data: { userId, organizationId: created.id, role: OrganizationRole.OWNER },
       });
       return created;
-    });
+    })
+      .catch((error: unknown) => {
+        if (isUniqueViolation(error)) {
+          throw new ConflictException('You already belong to an organization; one organization per account for now');
+        }
+        throw error;
+      });
 
     return this.describe(organization.id);
   }

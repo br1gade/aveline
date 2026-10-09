@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
 import { CreateOrganizationDto } from './organization.dto';
+import { NormalizedEmail } from '../../../common/normalized-email';
 
 export class OpenForCustomerDto extends CreateOrganizationDto {
   @ApiProperty({ description: 'The customer, invited as owner; they set their own password' })
+  @NormalizedEmail()
   @IsEmail()
   @MaxLength(200)
   ownerEmail!: string;
