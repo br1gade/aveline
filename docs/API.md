@@ -2057,8 +2057,11 @@ re-enters it.
 
 `POST` takes `{ role, name, address, profileId?, mapUrl?, arriveAt? }` where
 `role` is `CEREMONY`, `RECEPTION`, `AFTER_PARTY`, `PREPARATION` or `OTHER`, and
-`arriveAt` is ISO 8601. `PATCH` takes any of the same fields except
-`profileId`; omitted ones are unchanged. Both take `translations` —
+`arriveAt` is ISO 8601. Both also take `latitude` and `longitude` (given
+together, or the first one sent is named in a `400`) and `capacity`; a value
+sent overrides what the directory entry supplies. `PATCH` takes any of the
+same fields except `profileId`; omitted ones are unchanged, and `null` clears
+`mapUrl`, `arriveAt`, the coordinates and `capacity`. Both take `translations` —
 `{ "en": { "name": "...", "address": "..." } }`, one language at a time, the
 same rules as an event's — and guests see the venue in their page's language.
 
@@ -2069,6 +2072,13 @@ guest page reflects the change immediately.
 Naming a `profileId` from the directory **copies** its coordinates and capacity
 rather than referencing them, so a hall that moves next year does not rewrite
 the address on an invitation already sent.
+
+The directory itself is kept by Aveline staff (`directory:manage`):
+`POST /venue-profiles` adds a hall (`name`, `address`, `city?`, `latitude?`,
+`longitude?`, `capacity?`, `notes?`), and `PATCH /venue-profiles/:profileId`
+corrects one or retires it with `isActive: false` — it disappears from the
+list hosts see, and venues already copied from it keep their copy. Hosts
+cannot write to it: every customer reads the same directory.
 
 `DELETE` is refused with a `400` while timeline entries or tables still point
 at the venue, naming how many — the cascade would otherwise detach a running

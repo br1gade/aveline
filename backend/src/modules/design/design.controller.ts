@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseEnumPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BlockType } from '@prisma/client';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
@@ -97,7 +97,7 @@ export class DesignController {
   })
   updateBlock(
     @Param('slug') slug: string,
-    @Param('type') type: BlockType,
+    @Param('type', new ParseEnumPipe(BlockType)) type: BlockType,
     @Body() dto: UpdateBlockDto,
   ) {
     return this.design.updateBlock(slug, type, dto);

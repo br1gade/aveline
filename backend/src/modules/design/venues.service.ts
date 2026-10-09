@@ -4,7 +4,7 @@ import { VENUE_TRANSLATABLE, translationsProblem } from '../../common/field-tran
 import { CacheService } from '../../infra/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
-import { CreateVenueDto } from './dto/design.dto';
+import { CreateVenueDto, CreateVenueProfileDto, UpdateVenueDto, UpdateVenueProfileDto } from './dto/design.dto';
 import { mergeTranslations } from './translated-content';
 
 /**
@@ -60,6 +60,7 @@ export class VenuesService {
    */
   async create(eventId: string, dto: CreateVenueDto) {
     assertTranslations(dto.translations);
+    assertCoordinatePair(dto.latitude, dto.longitude);
     const role = asVenueRole(dto.role);
     const profile = dto.profileId ? await this.requireProfile(dto.profileId) : null;
 
@@ -80,14 +81,20 @@ export class VenuesService {
         translations: mergeTranslations({}, dto.translations ?? {}) as Prisma.InputJsonValue,
         sortOrder: (last?.sortOrder ?? 0) + 1,
         ...fromProfile(profile),
+        // What the host typed wins over the directory's copy.
+        ...withoutUndefined({ latitude: dto.latitude, longitude: dto.longitude, capacity: dto.capacity }),
       },
     });
     return { ...venue, notice: await this.afterChange(eventId) };
   }
 
-  async update(eventId: string, venueId: string, dto: Partial<CreateVenueDto>) {
+  async update(eventId: string, venueId: string, dto: UpdateVenueDto) {
     assertTranslations(dto.translations);
     const current = await this.require(eventId, venueId);
+    assertCoordinatePair(
+      dto.latitude === undefined ? current.latitude : dto.latitude,
+      dto.longitude === undefined ? current.longitude : dto.longitude,
+    );
 
     const venue = await this.prisma.venue.update({
       where: { id: venueId },
@@ -95,8 +102,12 @@ export class VenuesService {
         role: dto.role === undefined ? undefined : asVenueRole(dto.role),
         name: dto.name ?? undefined,
         address: dto.address ?? undefined,
-        mapUrl: dto.mapUrl ?? undefined,
-        arriveAt: dto.arriveAt === undefined ? undefined : new Date(dto.arriveAt),
+        // Omitted leaves these alone; null clears them.
+        mapUrl: dto.mapUrl,
+        arriveAt: dto.arriveAt ? new Date(dto.arriveAt) : dto.arriveAt,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        capacity: dto.capacity,
         translations: dto.translations
           ? (mergeTranslations(current.translations, dto.translations) as Prisma.InputJsonValue)
           : undefined,
@@ -130,6 +141,24 @@ export class VenuesService {
     return { ok: true as const, notice: await this.afterChange(eventId) };
   }
 
+  // ── the shared directory ────────────────────────────────────────────
+
+  /** A hall in the directory every host copies from. Aveline staff only. */
+  createProfile(dto: CreateVenueProfileDto) {
+    assertCoordinatePair(dto.latitude, dto.longitude);
+    return this.prisma.venueProfile.create({ data: { ...dto } });
+  }
+
+  /** Corrects a hall, or retires it. Venues already copied from it keep their copy. */
+  async updateProfile(profileId: string, dto: UpdateVenueProfileDto) {
+    const current = await this.requireProfile(profileId, { includeRetired: true });
+    assertCoordinatePair(
+      dto.latitude === undefined ? current.latitude : dto.latitude,
+      dto.longitude === undefined ? current.longitude : dto.longitude,
+    );
+    return this.prisma.venueProfile.update({ where: { id: profileId }, data: { ...dto } });
+  }
+
   /**
    * What every venue change owes the people holding the invitation.
    *
@@ -152,15 +181,20 @@ export class VenuesService {
     return venue;
   }
 
-  private async requireProfile(profileId: string) {
-    const profile = await this.prisma.venueProfile.findUnique({ where: { id: profileId } });
+  /** A hall in the directory. A retired one is not offered to hosts. */
+  private async requireProfile(profileId: string, options = { includeRetired: false }) {
+    const profile = await this.prisma.venueProfile.findFirst({
+      where: { id: profileId, ...(options.includeRetired ? {} : { isActive: true }) },
+    });
     if (!profile) throw new NotFoundException('No such venue in the directory');
     return profile;
   }
 }
 
 function asVenueRole(value: string): VenueRole {
-  if (!(value in VenueRole)) {
+  // Not `value in VenueRole`: that also matches "constructor" and the other
+  // properties every object inherits, which then failed in the database as a 500.
+  if (!(Object.values(VenueRole) as string[]).includes(value)) {
     throw new BadRequestException(
       `role must be one of ${Object.keys(VenueRole).join(', ')}`,
     );
@@ -187,4 +221,17 @@ function fromProfile(
 function assertTranslations(translations: Record<string, unknown> | undefined): void {
   const problem = translations ? translationsProblem(translations, VENUE_TRANSLATABLE) : null;
   if (problem) throw new BadRequestException(problem);
+}
+
+/** A point on the map needs both halves; half a coordinate is a pin in the sea. */
+function assertCoordinatePair(latitude: number | null | undefined, longitude: number | null | undefined): void {
+  const hasLatitude = latitude !== null && latitude !== undefined;
+  const hasLongitude = longitude !== null && longitude !== undefined;
+  if (hasLatitude !== hasLongitude) {
+    throw new BadRequestException(`${hasLatitude ? 'latitude' : 'longitude'}: give latitude and longitude together`);
+  }
+}
+
+function withoutUndefined<T extends object>(fields: T): Partial<T> {
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as Partial<T>;
 }

@@ -33,6 +33,7 @@ export const ALL_PERMISSIONS = [
   'billing:read',
   'billing:write',
   'privacy:manage',
+  'directory:manage',
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -70,21 +71,24 @@ const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
   // organization and event membership.
   [PlatformRole.NONE]: [],
   // Concierge operators act on a customer's behalf (spec §11) but may not
-  // destroy an event or read what the customer is billed.
-  [PlatformRole.SUPPORT]: [...RUN_EVENT],
+  // destroy an event or read what the customer is billed. They also keep
+  // the shared venue directory, which every customer reads.
+  [PlatformRole.SUPPORT]: [...RUN_EVENT, 'directory:manage'],
   [PlatformRole.ADMIN]: [...ALL_PERMISSIONS],
 };
 
 /**
- * Held by Aveline's own staff and never by a customer.
+ * Held by Aveline's own staff and never by a customer, because each reaches
+ * across every customer.
  *
  * A data-subject request is matched by email across every customer's events,
  * so whoever fulfils one reads or erases data that belongs to other tenants.
  * An organization owner held this once; any self-registered account could
  * then export or erase a stranger's guest records platform-wide (decided
- * 8 October 2026: Aveline staff only).
+ * 8 October 2026: Aveline staff only). The venue directory is read by every
+ * customer, so one customer writing to it would be writing to all of them.
  */
-const PLATFORM_ONLY: readonly Permission[] = ['privacy:manage'];
+const PLATFORM_ONLY: readonly Permission[] = ['privacy:manage', 'directory:manage'];
 
 const CUSTOMER_OWNED = ALL_PERMISSIONS.filter((permission) => !PLATFORM_ONLY.includes(permission));
 

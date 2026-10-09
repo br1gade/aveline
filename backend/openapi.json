@@ -4001,6 +4001,66 @@
         ]
       }
     },
+    "/api/v1/venue-profiles": {
+      "post": {
+        "operationId": "VenueDirectoryController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVenueProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add a hall to the shared directory (Aveline staff)",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/venue-profiles/{profileId}": {
+      "patch": {
+        "description": "isActive: false hides it from hosts; venues already copied from it keep their copy.",
+        "operationId": "VenueDirectoryController_update",
+        "parameters": [
+          {
+            "name": "profileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVenueProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Correct or retire a hall (Aveline staff)",
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/exports": {
       "get": {
         "operationId": "ExportsController_list",
@@ -5861,6 +5921,23 @@
             "type": "string",
             "description": "When guests should arrive, ISO 8601"
           },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90,
+            "description": "With longitude; overrides the directory"
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000,
+            "description": "Seated capacity; overrides the directory"
+          },
           "translations": {
             "type": "object",
             "description": "Per-language name and address, edited one language at a time; null removes one",
@@ -5904,6 +5981,23 @@
             "type": "string",
             "description": "When guests should arrive, ISO 8601"
           },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90,
+            "description": "With longitude; overrides the directory"
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000,
+            "description": "Seated capacity; overrides the directory"
+          },
           "translations": {
             "type": "object",
             "description": "Per-language name and address, edited one language at a time; null removes one",
@@ -5913,6 +6007,78 @@
                 "address": "12 Garden Lane, Yerevan"
               }
             }
+          }
+        }
+      },
+      "CreateVenueProfileDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "address"
+        ]
+      },
+      "UpdateVenueProfileDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "notes": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false retires it: hosts no longer see it; venues copied from it keep their copy"
           }
         }
       },

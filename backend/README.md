@@ -259,6 +259,8 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `PATCH` | `/api/v1/events/:eventId/timeline/:entryId` | Change an entry |
 | `DELETE` | `/api/v1/events/:eventId/timeline/:entryId` | Remove an entry |
 | `GET` | `/api/v1/events/:eventId/venue-profiles` | The reusable venue directory |
+| `POST` | `/api/v1/venue-profiles` | Add a hall to the shared directory (Aveline staff) |
+| `PATCH` | `/api/v1/venue-profiles/:profileId` | Correct or retire a hall (Aveline staff) |
 | `GET` | `/api/v1/events/:eventId/venues` | This event's venues, in order |
 | `POST` | `/api/v1/events/:eventId/venues` | Add one; directory details are copied |
 | `PATCH` | `/api/v1/events/:eventId/venues/:venueId` | Change one |

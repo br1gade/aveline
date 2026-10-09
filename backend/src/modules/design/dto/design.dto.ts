@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNumber,
   IsISO8601,
   IsObject,
   IsOptional,
@@ -133,6 +134,27 @@ export class CreateVenueDto {
   @IsISO8601()
   arriveAt?: string;
 
+  @ApiPropertyOptional({ minimum: -90, maximum: 90, description: 'With longitude; overrides the directory' })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+
+  @ApiPropertyOptional({ minimum: -180, maximum: 180 })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100000, description: 'Seated capacity; overrides the directory' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100_000)
+  capacity?: number;
+
   @ApiPropertyOptional({
     description: 'Per-language name and address, edited one language at a time; null removes one',
     example: { en: { name: 'Garden Hall', address: '12 Garden Lane, Yerevan' } },
@@ -145,8 +167,62 @@ export class CreateVenueDto {
 /**
  * Editing a venue: any of its fields, the rest unchanged. It used to take the
  * create shape, so correcting an address meant resending the name and role.
+ * `null` clears `mapUrl`, `arriveAt`, the coordinates and `capacity`.
  */
 export class UpdateVenueDto extends PartialType(OmitType(CreateVenueDto, ['profileId'] as const)) {}
+
+/** A hall in the shared directory, which hosts copy from. */
+export class CreateVenueProfileDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(160)
+  name!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(300)
+  address!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  city?: string;
+
+  @ApiPropertyOptional({ minimum: -90, maximum: 90 })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+
+  @ApiPropertyOptional({ minimum: -180, maximum: 180 })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100000 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100_000)
+  capacity?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+}
+
+export class UpdateVenueProfileDto extends PartialType(CreateVenueProfileDto) {
+  @ApiPropertyOptional({ description: 'false retires it: hosts no longer see it; venues copied from it keep their copy' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
 
 
 export class UpsertTimelineEntryDto {

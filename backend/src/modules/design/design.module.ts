@@ -3,6 +3,7 @@ import { DesignController } from './design.controller';
 import { DesignService } from './design.service';
 import { DraftReaderService } from './draft-reader.service';
 import { TimelineService } from './timeline.service';
+import { VenueDirectoryController } from './venue-directory.controller';
 import { VenuesService } from './venues.service';
 
 /**
@@ -12,7 +13,7 @@ import { VenuesService } from './venues.service';
  * payload in one language.
  */
 @Module({
-  controllers: [DesignController],
+  controllers: [DesignController, VenueDirectoryController],
   providers: [DesignService, VenuesService, TimelineService, DraftReaderService],
   exports: [DesignService, VenuesService, TimelineService],
 })

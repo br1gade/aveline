@@ -48,6 +48,13 @@ describe('access policy', () => {
       expect(can(staff(PlatformRole.SUPPORT), 'privacy:manage')).toBe(false);
     });
 
+    // The venue directory is read by every customer, so only Aveline staff write to it.
+    it('keeps the shared venue directory with Aveline staff', () => {
+      expect(can(staff(PlatformRole.SUPPORT), 'directory:manage')).toBe(true);
+      expect(can(staff(PlatformRole.ADMIN), 'directory:manage')).toBe(true);
+      expect(can(member(OrganizationRole.OWNER, EventRole.OWNER), 'directory:manage')).toBe(false);
+    });
+
     it('lets a manager run events but not delete them', () => {
       expect(can(member(OrganizationRole.MANAGER), 'event:write')).toBe(true);
       expect(can(member(OrganizationRole.MANAGER), 'seating:write')).toBe(true);
