@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BlockType, Prisma } from '@prisma/client';
+import { BlockType, EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
@@ -80,6 +80,12 @@ export class InvitationsService {
    */
   async getCachedInvitation(slug: string, locale?: string) {
     const published = await this.loadPublished(slug);
+    // A PRIVATE event is reachable by personal link only (spec §13.1; D6,
+    // 9 October 2026). Checked before the cache, on the row just read, so
+    // making an event private closes its generic link at once.
+    if (published.event.visibility === EventVisibility.PRIVATE) {
+      throw new NotFoundException(`Invitation "${slug}" is no longer available`);
+    }
     // Bounds the cache keyspace to the locales this event publishes.
     const effectiveLocale = negotiateLocale(
       locale,

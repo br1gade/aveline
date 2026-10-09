@@ -162,6 +162,7 @@ describe('Onboarding (e2e)', () => {
         .post(`/api/v1/invitations/${created.invitation.slug}/publish`)
         .set('Authorization', authorization)
         .expect(201);
+      await http().patch(`/api/v1/events/${created.id}/settings`).set('Authorization', authorization).send({ visibility: 'UNLISTED' }).expect(200);
 
       const { body } = await http()
         .get(`/api/v1/invitations/${created.invitation.slug}`)
@@ -324,6 +325,9 @@ describe('Onboarding (e2e)', () => {
         .set('Authorization', authorization)
         .send(anEvent)
         .expect(201);
+      // UNLISTED, so the shared page is readable once published; a PRIVATE
+      // event is reachable by personal link only.
+      await http().patch(`/api/v1/events/${body.id as string}/settings`).set('Authorization', authorization).send({ visibility: 'UNLISTED' }).expect(200);
       return { authorization, eventId: body.id as string, slug: body.invitation.slug as string };
     };
 
@@ -470,6 +474,9 @@ describe('Onboarding (e2e)', () => {
           .send({ role: 'RECEPTION', name: 'Ararat Hall', address: 'Yerevan' })
           .expect(201);
       }
+      // UNLISTED, so the shared page is readable once published; a PRIVATE
+      // event is reachable by personal link only.
+      await http().patch(`/api/v1/events/${body.id as string}/settings`).set('Authorization', authorization).send({ visibility: 'UNLISTED' }).expect(200);
       return { authorization, eventId: body.id as string, slug: body.invitation.slug as string };
     };
 

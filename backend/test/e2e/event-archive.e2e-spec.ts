@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventRole, PrismaClient } from '@prisma/client';
+import { EventRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -48,7 +48,7 @@ describe('Archiving and deleting an event (e2e)', () => {
   });
 
   const owner = async (options: { isPublished?: boolean } = {}, role: EventRole = EventRole.OWNER) => {
-    const seeded = await seedEvent(prisma, options);
+    const seeded = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED, ...options });
     if (options.isPublished === false) {
       await prisma.event.update({ where: { id: seeded.eventId }, data: { status: 'DRAFT' } });
     }
@@ -141,6 +141,16 @@ describe('Archiving and deleting an event (e2e)', () => {
     });
 
     await act('delete', `/events/${eventId}`, authorization).expect(409);
+  });
+
+  // B50: a staff account was judged by its platform role alone, so a SUPPORT
+  // member who owns their own event lost the owner's permissions on it.
+  it('lets Aveline staff keep what their own membership grants', async () => {
+    const { eventId } = await owner();
+    const { authorization, userId } = await authenticateAs(app, prisma, { eventId, role: EventRole.OWNER });
+    await prisma.user.update({ where: { id: userId }, data: { platformRole: 'SUPPORT' } });
+
+    await act('post', `/events/${eventId}/archive`, authorization).expect(201);
   });
 
   it('refuses a coordinator, who runs the event but does not own it', async () => {

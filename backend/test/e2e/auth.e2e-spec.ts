@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -111,6 +111,20 @@ describe('Authentication (e2e)', () => {
       await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(201);
 
       await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(401);
+    });
+
+    // B53: two refreshes racing with one token both read it unrevoked.
+    it('makes one live session when the same token is refreshed twice at once', async () => {
+      const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const user = await prisma.user.findFirstOrThrow({ where: { email: credentials.email } });
+      const before = await prisma.session.count({ where: { userId: user.id, revokedAt: null } });
+
+      const statuses = await Promise.all(
+        [1, 2, 3].map(async () => (await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken })).status),
+      );
+
+      expect(statuses.filter((status) => status === 201)).toHaveLength(1);
+      expect(await prisma.session.count({ where: { userId: user.id, revokedAt: null } })).toBe(before);
     });
 
     it('rejects a refresh token after logout', async () => {
@@ -233,7 +247,7 @@ describe('Authentication (e2e)', () => {
     });
 
     it('serves an invitation and accepts an RSVP without a token', async () => {
-      const { slug, primaryGuestToken } = await seedEvent(prisma);
+      const { slug, primaryGuestToken } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
 
       await http().get(`/api/v1/invitations/${slug}`).expect(200);
       await http()

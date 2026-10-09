@@ -19,9 +19,9 @@ export class DevicesController {
   }
 
   @Delete(':token')
-  @ApiOperation({ summary: 'Stop sending to this device' })
-  async revoke(@Param('token') token: string) {
-    await this.devices.revoke(token);
+  @ApiOperation({ summary: 'Stop sending to this device', description: 'Only a device of your own; any other is 404.' })
+  async revoke(@CurrentActor() actor: RequestActor, @Param('token') token: string) {
+    await this.devices.revoke(actor.userId, token);
     return { ok: true };
   }
 }

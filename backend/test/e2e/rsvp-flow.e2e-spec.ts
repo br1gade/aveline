@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { PrismaClient, RsvpStatus } from '@prisma/client';
+import { PrismaClient, RsvpStatus, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -44,7 +44,7 @@ describe('RSVP flow (e2e)', () => {
   });
 
   it('serves a published invitation and personalizes it for a guest', async () => {
-    const { slug, primaryGuestToken } = await seedEvent(prisma);
+    const { slug, primaryGuestToken } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
 
     const anonymous = await http().get(`/api/v1/invitations/${slug}`).expect(200);
     expect(anonymous.body.guest).toBeNull();

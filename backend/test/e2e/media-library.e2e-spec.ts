@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventRole, PrismaClient } from '@prisma/client';
+import { EventRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import sharp from 'sharp';
 import { AppModule } from '../../src/app.module';
@@ -49,7 +49,7 @@ describe('An event’s uploads (e2e)', () => {
   });
 
   const designer = async (role: EventRole = EventRole.DESIGNER) => {
-    const seeded = await seedEvent(prisma);
+    const seeded = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
     const { authorization } = await authenticateAs(app, prisma, { eventId: seeded.eventId, role });
     return { ...seeded, authorization };
   };

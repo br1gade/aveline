@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventRole, PrismaClient, RsvpStatus } from '@prisma/client';
+import { EventRole, PrismaClient, RsvpStatus, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -114,7 +114,7 @@ describe('Operations UX (e2e)', () => {
 
   describe('cached invitation payload', () => {
     it('serves identical content on a repeat read', async () => {
-      const { slug } = await seedEvent(prisma);
+      const { slug } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
 
       const first = await http().get(`/api/v1/invitations/${slug}`).expect(200);
       const second = await http().get(`/api/v1/invitations/${slug}`).expect(200);
@@ -123,7 +123,7 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('reflects a rearrangement immediately, proving invalidation works', async () => {
-      const { slug, eventId } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
       const { authorization } = await authenticateAs(app, prisma, {
         eventId,
         role: EventRole.DESIGNER,
@@ -302,7 +302,7 @@ describe('Operations UX (e2e)', () => {
     it.each(['zz', 'de', '../../etc/passwd', 'a'.repeat(300)])(
       'falls back to the default locale for %p instead of echoing it',
       async (junk) => {
-        const { slug } = await seedEvent(prisma);
+        const { slug } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
 
         const { body } = await http()
           .get(`/api/v1/invitations/${slug}`)
@@ -316,7 +316,7 @@ describe('Operations UX (e2e)', () => {
     );
 
     it('serves a locale the event does publish', async () => {
-      const { slug } = await seedEvent(prisma);
+      const { slug } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
 
       const { body } = await http()
         .get(`/api/v1/invitations/${slug}`)
@@ -329,7 +329,7 @@ describe('Operations UX (e2e)', () => {
 
   describe('block arrangement', () => {
     it('reorders, toggles and re-variants in one atomic request', async () => {
-      const { slug, eventId } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
       // DESIGNER is the least-privileged role that may change an invitation,
       // so using it here also asserts the permission is scoped correctly.
       const { authorization } = await authenticateAs(app, prisma, {
@@ -360,7 +360,7 @@ describe('Operations UX (e2e)', () => {
     });
 
     it('rejects a block the template cannot render and changes nothing', async () => {
-      const { slug, eventId } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
       const { authorization } = await authenticateAs(app, prisma, {
         eventId,
         role: EventRole.DESIGNER,
@@ -384,7 +384,7 @@ describe('Operations UX (e2e)', () => {
       { label: 'unknown block type', payload: { blocks: [{ type: 'NOT_A_BLOCK' }] } },
       { label: 'unknown field', payload: { blocks: [{ type: 'HERO', colour: 'red' }] } },
     ])('rejects $label with 400', async ({ payload }) => {
-      const { slug, eventId } = await seedEvent(prisma);
+      const { slug, eventId } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
       const { authorization } = await authenticateAs(app, prisma, {
         eventId,
         role: EventRole.DESIGNER,

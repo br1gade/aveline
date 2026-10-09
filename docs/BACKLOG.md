@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 0 open | 14 open, of which 8 money | — |
+| Bugfixes | 0 open | 0 open | 9 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -83,12 +83,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B46 | A block the template cannot render can be re-enabled through the block edit; `variant` is free text | `design/design.service.ts` | S |
 | B47 | RSVP accepts `PENDING` as an answer, an unpublished language, and overwrites the host's side for a guest | `rsvp/` | S |
 | B48 | Booking a cancelled vendor again returns a cancelled booking and a dead brief link ✔ | `vendors/vendors.service.ts` | S |
-| B49 | A PRIVATE invitation is readable by anyone with its generic URL (§13.1 says capability link only) | `invitations/invitations.controller.ts` | S |
-| B50 | Platform staff lose their own memberships' permissions (they now see vendor fees) | `infra/auth/auth.guard.ts`, `vendors/` | S |
 | B51 | Vendor fees are a decimal string, not integer minor units — breaking for the client to change | `vendors/` | S |
-| B53 | Two refreshes with one token make two live sessions ✔ | `infra/auth/auth.service.ts` | S |
-| B55 | Any user can revoke or take over another's push device token (nothing sends push yet) ✔ | `devices/devices.service.ts` | S |
-| B56 | The Telegram webhook is unauthenticated when no bot token is set, production included | `communications/telegram-webhook.controller.ts` | S |
 | B57 | Publish, send and design writes are recorded without their event, so they never appear in the audit trail | `infra/audit/audit.interceptor.ts` | S |
 | B58 | Reminder edge cases: "once a day" is not kept across manual and automatic; a reminder still retrying is delivered after the guest answers; the delivery view leaves reminders out | `invitations/sending/` | S |
 | B59 | Sending with one unknown `guestIds` entry returns 201, though API.md promises 400 | `invitations/sending/` | S |

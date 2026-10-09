@@ -1,4 +1,4 @@
-import { BlockType, PrismaClient } from '@prisma/client';
+import { BlockType, EventVisibility, PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 
 export interface SeededEvent {
@@ -16,7 +16,7 @@ export interface SeededEvent {
  */
 export async function seedEvent(
   prisma: PrismaClient,
-  options: { seatsAllotted?: number; isPublished?: boolean } = {},
+  options: { seatsAllotted?: number; isPublished?: boolean; visibility?: EventVisibility } = {},
 ): Promise<SeededEvent> {
   const seatsAllotted = options.seatsAllotted ?? 2;
   const isPublished = options.isPublished ?? true;
@@ -49,6 +49,9 @@ export async function seedEvent(
       sideALabel: 'A',
       sideBLabel: 'B',
       status: 'PUBLISHED',
+      // PRIVATE unless asked: its generic invitation link is closed, so a test
+      // reading the shared page asks for UNLISTED, as a host would.
+      visibility: options.visibility ?? EventVisibility.PRIVATE,
       venues: {
         create: { role: 'RECEPTION', name: 'Fixture Hall', address: '1 Test St', capacity: 50 },
       },

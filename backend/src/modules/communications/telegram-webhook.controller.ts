@@ -1,5 +1,6 @@
 import { Body, Controller, Logger, Post, UnauthorizedException, Headers } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { allowsDevelopmentShortcuts } from '../../common/environment';
 import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import { MessageChannel, SuppressionReason } from '@prisma/client';
 import { Public } from '../../infra/auth/actor';
@@ -24,6 +25,7 @@ interface TelegramUpdate {
 export class TelegramWebhookController {
   private readonly logger = new Logger(TelegramWebhookController.name);
   private readonly secret: string | undefined;
+  private readonly isOpenWithoutSecret: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -32,6 +34,7 @@ export class TelegramWebhookController {
     config: ConfigService,
   ) {
     this.secret = config.get<string>('TELEGRAM_WEBHOOK_SECRET');
+    this.isOpenWithoutSecret = allowsDevelopmentShortcuts(config.get<string>('NODE_ENV') ?? process.env.NODE_ENV);
   }
 
   /**
@@ -128,13 +131,16 @@ export class TelegramWebhookController {
   /**
    * Refuses an update that did not come from Telegram.
    *
-   * When no secret is configured — development, before a bot exists — the
-   * check is skipped, because a webhook nobody can reach needs no guard. In
-   * production the secret is required by `validateEnv`, so this cannot be
-   * skipped where it matters.
+   * Without a secret, only a development or test server listens — for a
+   * local bot. Anywhere else the endpoint is closed until one is set: it was
+   * open whenever no bot token was configured, production included, and an
+   * update can block, unblock or link any chat.
    */
   private assertFromTelegram(secretHeader: string | undefined): void {
-    if (!this.secret) return;
+    if (!this.secret) {
+      if (this.isOpenWithoutSecret) return;
+      throw new UnauthorizedException();
+    }
     if (secretHeader !== this.secret) throw new UnauthorizedException();
   }
 }

@@ -62,7 +62,10 @@ export const CurrentActor = createParamDecorator(
 
 /**
  * Whether this caller holds a permission, judged exactly as the guard judges
- * it: platform staff by platform role, everyone else by membership.
+ * it: by their memberships, and for Aveline staff by their platform role too.
+ *
+ * Both, not either: staff were once judged by platform role alone, so a
+ * SUPPORT account that owned its own event lost the owner's rights on it.
  *
  * For responses that show more to some callers than others — fees, guest
  * contact details — where the route itself is open to both. One function, so
@@ -70,16 +73,11 @@ export const CurrentActor = createParamDecorator(
  * platform staff, who then never saw fees.
  */
 export function actorCan(actor: RequestActor, permission: Permission): boolean {
-  return can(policyActorOf(actor), permission);
-}
-
-export function policyActorOf(actor: RequestActor): Actor {
-  if (actor.platformRole !== PlatformRole.NONE) {
-    return { kind: 'staff', role: actor.platformRole };
-  }
-  return {
+  const asMember: Actor = {
     kind: 'member',
     organizationRole: actor.organizationRole ?? null,
     eventRole: actor.eventRole ?? null,
   };
+  if (can(asMember, permission)) return true;
+  return actor.platformRole !== PlatformRole.NONE && can({ kind: 'staff', role: actor.platformRole }, permission);
 }

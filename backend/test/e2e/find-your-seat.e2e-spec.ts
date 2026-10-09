@@ -130,6 +130,7 @@ describe('Find your seat (e2e)', () => {
   it('shows nothing about seating on the shared, un-personalized page', async () => {
     const { eventId, slug, authorization } = await seated();
     await publishSeating(eventId, authorization).expect(201);
+    await prisma.event.update({ where: { id: eventId }, data: { visibility: 'UNLISTED' } });
 
     const { body } = await http().get(`/api/v1/invitations/${slug}`).expect(200);
 

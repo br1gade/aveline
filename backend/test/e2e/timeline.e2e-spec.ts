@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventRole, PrismaClient } from '@prisma/client';
+import { EventRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -44,7 +44,7 @@ describe('The running order (e2e)', () => {
 
   /** A coordinator, an invitation that shows its running order, and two entries — one internal. */
   const runningOrder = async () => {
-    const seeded = await seedEvent(prisma);
+    const seeded = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
     const { authorization } = await authenticateAs(app, prisma, { eventId: seeded.eventId, role: EventRole.COORDINATOR });
     await prisma.designTemplate.update({
       where: { key: 'test-template' },

@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { BlockType, EventRole, PrismaClient, QuestionType } from '@prisma/client';
+import { BlockType, EventRole, PrismaClient, QuestionType, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import sharp from 'sharp';
 import { AppModule } from '../../src/app.module';
@@ -46,7 +46,7 @@ describe('Invitation design (e2e)', () => {
   });
 
   const designer = async () => {
-    const seeded = await seedEvent(prisma);
+    const seeded = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
     const { authorization } = await authenticateAs(app, prisma, {
       eventId: seeded.eventId,
       role: EventRole.DESIGNER,
@@ -616,7 +616,7 @@ describe('Invitation design (e2e)', () => {
 
   describe('venues', () => {
     const coordinator = async () => {
-      const seeded = await seedEvent(prisma);
+      const seeded = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
       const { authorization } = await authenticateAs(app, prisma, {
         eventId: seeded.eventId,
         role: EventRole.COORDINATOR,

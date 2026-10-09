@@ -256,6 +256,13 @@ GET /api/v1/invitations/:slug                      # generic
 GET /api/v1/invitations/:slug/g/:guestToken        # personalised
 ```
 
+**The generic URL works only for an `UNLISTED` or `PUBLIC` event.** A
+`PRIVATE` event — the default, and every wedding — is reachable by personal
+link only, so its generic URL is `404`, the same answer as an unpublished
+one (spec §13.1; decided 9 October 2026). A host who wants one link to share
+in a group chat sets the event `UNLISTED`. The editor previews through
+`GET /invitations/:slug/design`, never the generic URL.
+
 ```json
 {
   "slug": "anna-davit",
@@ -2383,6 +2390,10 @@ by abandoned checkouts. Scheduled; exposed for manual use.
 POST   /api/v1/devices          { platform: "IOS"|"ANDROID"|"WEB", token, appVersion?, locale? }
 DELETE /api/v1/devices/:token
 ```
+
+`DELETE` stops only a device of your own; any other token is `404`.
+Registering a token that another account had moves it to yours — the device
+is now signed in as you.
 
 Idempotent by token — re-register freely on every app start.
 

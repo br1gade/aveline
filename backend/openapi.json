@@ -2873,6 +2873,7 @@
     },
     "/api/v1/devices/{token}": {
       "delete": {
+        "description": "Only a device of your own; any other is 404.",
         "operationId": "DevicesController_revoke",
         "parameters": [
           {

@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventRole, MessageChannel, OrganizationRole, PrismaClient } from '@prisma/client';
+import { EventRole, MessageChannel, OrganizationRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -43,7 +43,7 @@ describe('Editing an event (e2e)', () => {
   });
 
   const host = async (role: EventRole = EventRole.OWNER) => {
-    const seeded = await seedEvent(prisma);
+    const seeded = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
     const event = await prisma.event.findUniqueOrThrow({ where: { id: seeded.eventId } });
     const { authorization } = await authenticateAs(app, prisma, { eventId: seeded.eventId, role });
     // A real deployment seeds these as Aveline defaults; the test database starts empty.

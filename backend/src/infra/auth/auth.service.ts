@@ -98,10 +98,14 @@ export class AuthService {
       throw new UnauthorizedException('Session is no longer valid');
     }
 
-    await this.prisma.session.update({
-      where: { id: session.id },
+    // The revocation is the claim: conditioned on the session still being
+    // live, so of several refreshes racing with one token exactly one wins.
+    // Read-then-revoke let each of them mint a session.
+    const claimed = await this.prisma.session.updateMany({
+      where: { id: session.id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    if (claimed.count === 0) throw new UnauthorizedException('Session is no longer valid');
 
     return this.issueTokens(session.user, context);
   }

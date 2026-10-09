@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventRole, PrismaClient } from '@prisma/client';
+import { EventRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -52,7 +52,7 @@ describe('Configuring the built-in RSVP questions (e2e)', () => {
   };
 
   const configured = async (role: EventRole = EventRole.COORDINATOR) => {
-    const seeded = await seedEvent(prisma, { seatsAllotted: 3 });
+    const seeded = await seedEvent(prisma, { seatsAllotted: 3, visibility: EventVisibility.UNLISTED });
     const { authorization } = await authenticateAs(app, prisma, { eventId: seeded.eventId, role });
     return { ...seeded, authorization };
   };

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDeviceDto } from './dto/register-device.dto';
 
@@ -13,6 +13,11 @@ export class DevicesService {
    * re-registering must not accumulate rows — each duplicate would deliver
    * the same notification again. Re-registering also clears a prior
    * revocation, which is what reinstalling an app looks like.
+   *
+   * A token already registered to another account moves to this one. Only
+   * the device itself can produce its token, so presenting it is that device
+   * signed in as someone else — and the last account signed in is the one
+   * whose notifications it should show.
    */
   register(userId: string, dto: RegisterDeviceDto) {
     const details = {
@@ -31,10 +36,17 @@ export class DevicesService {
     });
   }
 
-  /** Called when the platform reports a token as no longer deliverable. */
-  async revoke(token: string): Promise<void> {
+  /**
+   * Stops sending to one of this account's own devices. Scoped to the caller:
+   * any account could once revoke another's device by naming its token. A
+   * token that is not theirs is not found, whoever holds it.
+   */
+  async revoke(userId: string, token: string): Promise<void> {
+    const owned = await this.prisma.deviceToken.findFirst({ where: { token, userId }, select: { id: true } });
+    if (!owned) throw new NotFoundException('No such device on this account');
+
     await this.prisma.deviceToken.updateMany({
-      where: { token, revokedAt: null },
+      where: { id: owned.id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }
