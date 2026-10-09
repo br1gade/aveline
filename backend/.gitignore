@@ -4,7 +4,7 @@ dist/
 coverage/
 .env
 *.tsbuildinfo
-storage/
+/storage/
 
 # Local development keys, written down so they are not lost between sessions
 .dev-credentials.md
