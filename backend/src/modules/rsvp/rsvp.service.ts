@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Guest, GuestAttribution, RsvpStatus } from '@prisma/client';
+import { isFollowing, partyAnswersProblem, partyRequiredProblem, partyStatus } from './party';
 import { newGuestToken } from '../guests/guest-token';
 import { LockedHousehold, lockHousehold } from '../guests/household-lock';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -16,6 +17,7 @@ interface HouseholdMember {
   firstName: string;
   lastName: string | null;
   addedByGuest: boolean;
+  rsvp: { status: RsvpStatus } | null;
 }
 
 @Injectable()
@@ -49,6 +51,7 @@ export class RsvpService {
     assertNoProblem(memberAnswersProblem(questions, dto.members ?? []));
     assertNoProblem(builtInAnswerProblem(rsvpFields, dto));
     assertNoProblem(memberBuiltInProblem(rsvpFields, dto.members ?? []));
+    assertNoProblem(partyAnswersProblem(questions, rsvpFields, dto.party ?? []));
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Counted under the household's lock, not from the guest loaded above:
@@ -56,18 +59,22 @@ export class RsvpService {
       const household = await lockHousehold(tx, guest.eventId, guest.householdId);
       const members = await tx.guest.findMany({
         where: { householdId: guest.householdId },
-        select: { id: true, firstName: true, lastName: true, addedByGuest: true },
+        select: { id: true, firstName: true, lastName: true, addedByGuest: true, rsvp: { select: { status: true } } },
       });
       const party = newPartyMembers(members, dto.party ?? []);
       assertHouseholdCapacity(household, party.length);
+      // Only plus-ones named for the first time: a resubmitted one is already
+      // a household member, answered through `members`.
+      assertNoProblem(partyRequiredProblem(questions, party, dto.status));
       assertNoProblem(membersProblem(new Set(members.map((m) => m.id)), guest.id, memberIds(dto)));
       await this.assertRequiredAnswered(tx, guest.id, questions, dto);
 
       await this.applyGuestChanges(tx, guest, dto);
+      const before = members.find((member) => member.id === guest.id)?.rsvp?.status;
       const rsvp = await recordAnswer(tx, guest.id, respondentFields(dto));
       await this.saveCustomAnswers(tx, rsvp.id, dto);
       await this.addPartyMembers(tx, guest, dto, party);
-      await this.answerForMembers(tx, members, guest.id, dto);
+      await this.answerForMembers(tx, members, { respondentId: guest.id, before }, dto);
 
       return {
         status: rsvp.status,
@@ -228,7 +235,7 @@ export class RsvpService {
     party: PartyMemberDto[],
   ): Promise<void> {
     for (const member of party) {
-      await tx.guest.create({
+      const created = await tx.guest.create({
         data: {
           eventId: guest.eventId,
           householdId: guest.householdId,
@@ -238,9 +245,18 @@ export class RsvpService {
           attribution: sideToRecord(guest, dto) ?? guest.attribution,
           locale: dto.locale ?? guest.locale,
           addedByGuest: true,
-          rsvp: { create: { status: dto.status, respondedAt: new Date() } },
+          rsvp: {
+            create: withoutUndefined({
+              status: partyStatus(member, dto.status),
+              dietary: member.dietary,
+              dietaryNotes: member.dietaryNotes,
+              respondedAt: new Date(),
+            }),
+          },
         },
+        select: { rsvp: { select: { id: true } } },
       });
+      if (created.rsvp) await saveAnswers(tx, created.rsvp.id, member.answers ?? []);
     }
   }
 
@@ -253,9 +269,10 @@ export class RsvpService {
   private async answerForMembers(
     tx: Tx,
     members: HouseholdMember[],
-    respondentId: string,
+    respondent: { respondentId: string; before: RsvpStatus | undefined },
     dto: SubmitRsvpDto,
   ): Promise<void> {
+    const { respondentId, before } = respondent;
     const explicit = new Map((dto.members ?? []).map((answer) => [answer.guestId, answer]));
 
     for (const answer of explicit.values()) {
@@ -264,7 +281,11 @@ export class RsvpService {
     }
 
     const followers = members.filter(
-      (member) => member.addedByGuest && member.id !== respondentId && !explicit.has(member.id),
+      (member) =>
+        member.addedByGuest &&
+        member.id !== respondentId &&
+        !explicit.has(member.id) &&
+        isFollowing(member.rsvp?.status, before),
     );
     for (const follower of followers) {
       await recordAnswer(tx, follower.id, { status: dto.status });

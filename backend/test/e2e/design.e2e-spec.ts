@@ -598,6 +598,68 @@ describe('Invitation design (e2e)', () => {
       });
     });
 
+    // B69: a required SIGNATURE question could be created, and then nobody
+    // attending could answer; choice lists could differ per language.
+    it('refuses a signature question until signatures can be captured', async () => {
+      const { slug, authorization } = await designer();
+
+      const { body } = await add(slug, authorization, { type: QuestionType.SIGNATURE, prompt: { en: 'Sign here' }, required: true }).expect(400);
+
+      expect(body.message).toMatch(/^type:/);
+    });
+
+    it('refuses choices that differ in number between languages', async () => {
+      const { slug, authorization } = await designer();
+
+      const { body } = await add(slug, authorization, {
+        type: QuestionType.SINGLE_CHOICE,
+        prompt: { en: 'Meal?', hy: 'Ճաշ?' },
+        options: { en: ['Meat', 'Fish', 'Vegan'], hy: ['Միս', 'Ձուկ'] },
+      }).expect(400);
+
+      expect(body.message).toMatch(/^options:/);
+    });
+
+    // B67 (decided 10 October 2026, D10): once answered, reword and add only.
+    describe('a question guests have answered', () => {
+      const answered = async () => {
+        const { slug, authorization, eventId } = await designer();
+        const { body: question } = await add(slug, authorization, {
+          type: QuestionType.SINGLE_CHOICE,
+          prompt: { en: 'Meal?' },
+          options: { en: ['Meat', 'Fish', 'Vegan'] },
+        }).expect(201);
+        const guest = await prisma.guest.findFirstOrThrow({ where: { eventId } });
+        const rsvp = await prisma.rsvp.upsert({ where: { guestId: guest.id }, create: { guestId: guest.id, status: 'ATTENDING' }, update: { status: 'ATTENDING' } });
+        await prisma.rsvpAnswer.create({ data: { rsvpId: rsvp.id, questionId: question.id as string, value: 1 } });
+        const change = (body: Record<string, unknown>) =>
+          http().patch(`/api/v1/invitations/${slug}/questions/${question.id as string}`).set('Authorization', authorization).send(body);
+        return { change };
+      };
+
+      it('lets the host reword options and add one at the end', async () => {
+        const { change } = await answered();
+
+        await change({ options: { en: ['Beef', 'Fish', 'Vegan', 'Kids menu'] } }).expect(200);
+      });
+
+      it('refuses removing an option, saying how many have answered', async () => {
+        const { change } = await answered();
+
+        const { body } = await change({ options: { en: ['Fish', 'Vegan'] } }).expect(400);
+
+        expect(body.message).toMatch(/^options:.*1 guest/);
+      });
+
+      it('refuses changing the question\'s type', async () => {
+        const { change } = await answered();
+
+        const { body } = await change({ type: QuestionType.TEXT }).expect(400);
+
+        expect(body.message).toMatch(/^type:/);
+      });
+    });
+
     it('rejects a question with no prompt in any language', async () => {
       const { slug, authorization } = await designer();
 

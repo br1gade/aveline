@@ -414,9 +414,13 @@ when the host has not set the guest's side; a side the host set stands.
 - **`party`** — people to add who are not in the household yet. Matched by
   name, ignoring capitals and spacing, against everyone already in it, so a
   name already there is not added again and does not count against the
-  seats twice. Plus-ones the guest added follow the respondent's `status`
-  unless answered for in `members` — switching to `DECLINED` takes them with
-  you.
+  seats twice. **Each new plus-one answers for themselves**: `status`
+  (the respondent's if omitted), `dietary`, `dietaryNotes` and `answers`, as a
+  member does — and a required question binds an attending plus-one, so a
+  missing one is a `400` starting `party: Narek must answer`. Later, a
+  plus-one follows the respondent's `status` only while their answers agree:
+  switching to `DECLINED` takes them with you, but one you answered
+  `DECLINED` in `members` stays declined when you edit something else.
 - **`answers`** — the host's own questions (`rsvpQuestions` on the
   invitation). The value depends on the question's `type`:
 
@@ -2263,18 +2267,24 @@ PATCH  /api/v1/invitations/:slug/questions/:questionId
 DELETE /api/v1/invitations/:slug/questions/:questionId
 ```
 
-`type` is `TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE`, `BOOLEAN` or
-`SIGNATURE`. `prompt` is translated (`{ "hy": "...", "en": "..." }`) and must
+`type` is `TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE` or `BOOLEAN`.
+`SIGNATURE` is refused (`400` starting `type:`) until signatures can be
+captured. `prompt` is translated (`{ "hy": "...", "en": "..." }`) and must
 carry at least one language. `options` is translated too
 (`{ "hy": ["Միս", "Ձուկ"] }`) and is **required for the choice types** — a
-choice question with no choices cannot be answered, so it is a `400`.
+choice question with no choices cannot be answered, so it is a `400`. Every
+language must offer the **same number of choices**, since an answer is a
+position.
 
 New questions go last; `sortOrder` comes back on each.
 
 `PATCH` changes only the fields sent — `{ "required": false }` makes a question
 optional and leaves its wording and choices alone. The result must still be
 answerable: emptying a choice question's `options` is a `400` naming
-`options`.
+`options`. **Once any guest has answered**, options may be reworded or added
+at the end, never removed or reordered, and the type cannot change — each a
+`400` saying how many have answered (answers are stored by position, so a
+removed option would silently turn every later answer into a different one).
 
 **Deleting is refused once any guest has answered**, with a `400` saying how
 many and suggesting you make it optional instead — deleting would discard what

@@ -247,6 +247,8 @@ export class DesignService {
     const options = (dto.options ?? question.options ?? []) as Prisma.InputJsonValue;
     const type = dto.type ?? question.type;
     assertQuestionIsAnswerable({ type, prompt, options: dto.options ?? asObject(question.options) });
+    const answers = await this.prisma.rsvpAnswer.count({ where: { questionId: question.id } });
+    assertAnsweredQuestionKeepsShape(answers, question, { type, options });
 
     const updated = await this.prisma.rsvpQuestion.update({
       where: { id: question.id },
@@ -338,15 +340,50 @@ function assertQuestionIsAnswerable(dto: UpsertQuestionDto): void {
   if (Object.keys(dto.prompt).length === 0) {
     throw new BadRequestException('prompt: give the question in at least one language');
   }
+  // Nothing can capture a signature yet (F25). Allowed, a required one made
+  // every attending answer a 400, and an optional one could never be given.
+  if (dto.type === QuestionType.SIGNATURE) {
+    throw new BadRequestException('type: signature questions cannot be answered yet');
+  }
 
   if (!CHOICE_TYPES.includes(dto.type)) return;
 
-  const options = dto.options ?? {};
-  const hasChoices = Object.values(options).some(
-    (choices) => Array.isArray(choices) && choices.length > 0,
-  );
-  if (!hasChoices) {
+  const lengths = choiceListLengths(dto.options);
+  if (lengths.length === 0 || Math.max(...lengths) === 0) {
     throw new BadRequestException(`options: a ${dto.type} question needs choices to pick from`);
+  }
+  // A choice is stored by position, so every language must offer the same
+  // positions; with lists of different lengths the shorter one won.
+  if (new Set(lengths).size > 1) {
+    throw new BadRequestException('options: every language needs the same number of choices');
+  }
+}
+
+/** How many choices each language's list has. */
+function choiceListLengths(options: unknown): number[] {
+  if (!options || typeof options !== 'object') return [];
+  return Object.values(options as Record<string, unknown>).filter(Array.isArray).map((list) => list.length);
+}
+
+/**
+ * Once guests have answered, a question may be reworded and grow, never
+ * shrink or change kind (decided 10 October 2026, D10). Answers are stored by
+ * position: removing "Meat" from Meat/Fish/Vegan turned every "Fish" into
+ * "Vegan", silently.
+ */
+function assertAnsweredQuestionKeepsShape(
+  answers: number,
+  before: { type: QuestionType; options: Prisma.JsonValue },
+  after: { type: QuestionType; options: unknown },
+): void {
+  if (answers === 0) return;
+  const who = `${answers} guest(s) have answered it`;
+  if (after.type !== before.type) {
+    throw new BadRequestException(`type: ${who}; its type cannot change. Add a new question instead`);
+  }
+  const had = Math.min(...choiceListLengths(before.options), Number.POSITIVE_INFINITY);
+  if (Number.isFinite(had) && choiceListLengths(after.options).some((length) => length < had)) {
+    throw new BadRequestException(`options: ${who}; options can be reworded or added at the end, not removed or reordered`);
   }
 }
 

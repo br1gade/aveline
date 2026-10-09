@@ -5100,6 +5100,31 @@
           },
           "lastName": {
             "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ],
+            "description": "Their answer; the respondent's if omitted"
+          },
+          "dietary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dietaryNotes": {
+            "type": "string"
+          },
+          "answers": {
+            "description": "Their own answers to the host's questions",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomAnswerDto"
+            }
           }
         },
         "required": [

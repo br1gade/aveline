@@ -27,7 +27,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 |---|---|---|---|---|
 | Bugfixes | 0 open | 19 open (B66–B84) | 9 open (B85–B92, B94) | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
-| Decisions | 9 (D1–D9); D8 and D9 open | | | |
+| Decisions | 14 (D1–D14), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
 features — editing an event, and loading the invitation into the editor —
@@ -167,7 +167,7 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 
 ## 3. Decisions needed
 
-D1–D4 were decided on 8 October 2026, D5–D7 on 9 October. D8 and D9 are open.
+D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D14 on 10 October.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
@@ -178,8 +178,13 @@ D1–D4 were decided on 8 October 2026, D5–D7 on 9 October. D8 and D9 are open
 | D5 | A ticket buyer pays after their hold lapsed: then what? | B36 (fixed) | **Issue the tickets if the seats are still there; otherwise refund in full and tell the buyer** |
 | D6 | May a PRIVATE invitation be read from its generic link? | B49 | **No — personal links only, as the spec says.** A host who wants one shareable link sets the event UNLISTED |
 | D7 | What becomes of the public `POST /payments`? | B42 (fixed) | **Removed.** Payments start only from Aveline's own flows; a deposit flow will start its own |
-| D8 | A customer staff set an event up for already has an organization: what happens? | B74 | **Open** |
-| D9 | A MANAGER who creates an event becomes its OWNER, gaining `member:manage` and `event:delete`, which ACCESS_CONTROL says a manager lacks. Intended? | — | **Open** |
+| D8 | A customer staff set an event up for already has an organization: what happens? | B74 | **Build in their existing organization.** The event appears in it; there is no second organization and nothing to accept |
+| D9 | Does a MANAGER who creates an event become its OWNER? | — | **No — its COORDINATOR.** They run it fully; deleting it and managing its team stay with the organization's owner, as ACCESS_CONTROL says |
+| D10 | What may change in a choice question once guests have answered? | B67 | **Reword and add only.** Labels can be reworded or translated and options added at the end; removing, reordering or changing the type is refused |
+| D11 | Do plus-ones answer the host's required questions? | B68 | **Yes, each one.** The form collects each plus-one's own answers; an attending plus-one missing a required one is refused |
+| D12 | When does a public event stop selling, and leave browse? | B70 | **Sales stop at the start; the listing leaves browse at the end.** The detail page still loads by link |
+| D13 | Where does Telegram copy come from? | B72 | **Written with the email copy and seeded, reviewed by the team.** WhatsApp stays off until Meta approves templates |
+| D14 | When may a late-invited household be reminded? | B73 | **Not until 3 days after its invitation — 1 day if the event is under a week away** |
 
 ---
 

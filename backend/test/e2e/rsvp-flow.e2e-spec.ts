@@ -207,6 +207,72 @@ describe('RSVP flow (e2e)', () => {
       expect(response.body.message).toMatch(/^answers: /);
     });
 
+    // B68 (decided 10 October 2026, D11): a plus-one answers the host's
+    // required questions too, or catering is short.
+    describe('plus-ones', () => {
+      it('refuses an attending plus-one without a required answer, naming them', async () => {
+        const { rsvpUrl, mealId, lusineId } = await household();
+
+        const { body } = await http()
+          .post(rsvpUrl)
+          .send({
+            status: 'ATTENDING',
+            answers: [{ questionId: mealId, value: 0 }],
+            members: [{ guestId: lusineId, status: 'DECLINED' }],
+            party: [{ firstName: 'Narek' }],
+          })
+          .expect(400);
+
+        expect(body.message).toMatch(/^party: Narek must answer/);
+      });
+
+      it('records each plus-one\'s own answers and dietary needs', async () => {
+        const { rsvpUrl, mealId, lusineId, householdId } = await household();
+
+        await http()
+          .post(rsvpUrl)
+          .send({
+            status: 'ATTENDING',
+            answers: [{ questionId: mealId, value: 0 }],
+            members: [{ guestId: lusineId, status: 'DECLINED' }],
+            party: [{ firstName: 'Narek', dietary: ['vegetarian'], answers: [{ questionId: mealId, value: 1 }] }],
+          })
+          .expect(201);
+
+        const narek = await prisma.guest.findFirstOrThrow({ where: { householdId, firstName: 'Narek' }, include: { rsvp: { include: { answers: true } } } });
+        expect(narek.rsvp).toMatchObject({ status: 'ATTENDING', dietary: ['vegetarian'] });
+        expect(narek.rsvp?.answers.map((answer) => answer.value)).toEqual([1]);
+      });
+
+      it('keeps a plus-one who was declined declined when the respondent edits something else', async () => {
+        const { rsvpUrl, mealId, lusineId, householdId } = await household();
+        const coming = { status: 'ATTENDING', answers: [{ questionId: mealId, value: 0 }] };
+        await http()
+          .post(rsvpUrl)
+          .send({ ...coming, members: [{ guestId: lusineId, status: 'DECLINED' }], party: [{ firstName: 'Narek', answers: [{ questionId: mealId, value: 1 }] }] })
+          .expect(201);
+        const narek = await prisma.guest.findFirstOrThrow({ where: { householdId, firstName: 'Narek' } });
+        await http().post(rsvpUrl).send({ ...coming, members: [{ guestId: narek.id, status: 'DECLINED' }] }).expect(201);
+
+        await http().post(rsvpUrl).send({ ...coming, songRequest: 'Sirun Yar' }).expect(201);
+
+        expect((await prisma.rsvp.findUniqueOrThrow({ where: { guestId: narek.id } })).status).toBe('DECLINED');
+      });
+
+      it('still takes a plus-one along when the respondent declines', async () => {
+        const { rsvpUrl, mealId, lusineId, householdId } = await household();
+        await http()
+          .post(rsvpUrl)
+          .send({ status: 'ATTENDING', answers: [{ questionId: mealId, value: 0 }], members: [{ guestId: lusineId, status: 'DECLINED' }], party: [{ firstName: 'Narek', answers: [{ questionId: mealId, value: 1 }] }] })
+          .expect(201);
+
+        await http().post(rsvpUrl).send({ status: 'DECLINED' }).expect(201);
+
+        const narek = await prisma.guest.findFirstOrThrow({ where: { householdId, firstName: 'Narek' }, include: { rsvp: true } });
+        expect(narek.rsvp?.status).toBe('DECLINED');
+      });
+    });
+
     it('refuses PENDING as an answer for a household member', async () => {
       const { rsvpUrl, lusineId } = await household();
 

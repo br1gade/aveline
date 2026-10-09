@@ -10,21 +10,10 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 
-export class PartyMemberDto {
-  @ApiProperty()
-  @IsString()
-  @MaxLength(80)
-  firstName!: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(80)
-  lastName?: string;
-}
 
 export class CustomAnswerDto {
   @ApiProperty()
@@ -73,6 +62,48 @@ export class MemberAnswerDto {
     type: [CustomAnswerDto],
     description: "This member's own answers to the host's questions, e.g. their meal",
   })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => CustomAnswerDto)
+  answers?: CustomAnswerDto[];
+}
+
+/** Someone the guest is bringing, named for the first time — with their own answers. */
+export class PartyMemberDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  firstName!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  lastName?: string;
+
+  @ApiPropertyOptional({ enum: MEMBER_STATUSES, description: "Their answer; the respondent's if omitted" })
+  @IsOptional()
+  @IsIn(MEMBER_STATUSES)
+  status?: (typeof MEMBER_STATUSES)[number];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  dietary?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  dietaryNotes?: string;
+
+  @ApiPropertyOptional({ type: [CustomAnswerDto], description: "Their own answers to the host's questions" })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)
