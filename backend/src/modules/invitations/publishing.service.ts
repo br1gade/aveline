@@ -28,6 +28,7 @@ export class PublishingService {
    */
   async publish(slug: string) {
     const invitation = await this.load(slug);
+    assertNotArchived(invitation.event.status);
     this.assertCanMove(invitation.status, InvitationStatus.PUBLISHED);
 
     if (invitation.status === InvitationStatus.DRAFT) {
@@ -60,6 +61,7 @@ export class PublishingService {
   /** Reopening is publishing again, without re-checking a page already live. */
   async reopen(slug: string) {
     const invitation = await this.load(slug);
+    assertNotArchived(invitation.event.status);
     this.assertCanMove(invitation.status, InvitationStatus.PUBLISHED);
     return this.move(invitation, InvitationStatus.PUBLISHED);
   }
@@ -122,11 +124,18 @@ export class PublishingService {
         eventId: true,
         blocks: { select: { type: true, enabled: true } },
         event: {
-          select: { startsAt: true, venues: { select: { address: true } } },
+          select: { status: true, startsAt: true, venues: { select: { address: true } } },
         },
       },
     });
     if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
     return invitation;
+  }
+}
+
+/** An archived event's invitation stays closed until the event is brought back. */
+function assertNotArchived(eventStatus: EventStatus): void {
+  if (eventStatus === EventStatus.ARCHIVED) {
+    throw new BadRequestException('This event is archived; bring it back with POST /events/:id/unarchive first');
   }
 }

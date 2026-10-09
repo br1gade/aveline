@@ -186,7 +186,9 @@ model Event {
   /// surfaces. See docs/PUBLIC_EVENTS.md.
   visibility EventVisibility @default(PRIVATE)
 
-  status EventStatus @default(DRAFT)
+  status              EventStatus  @default(DRAFT)
+  /// What the event was before it was archived, so un-archiving restores it.
+  statusBeforeArchive EventStatus?
 
   /// Whether the scheduled RSVP reminders go out for this event.
   ///

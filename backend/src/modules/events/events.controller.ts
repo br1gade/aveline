@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
@@ -27,8 +27,36 @@ export class EventsController {
       "Their organization's events, if their role there can read them, plus any event they " +
       'were invited onto directly. Platform staff see every event.',
   })
-  findAll(@CurrentActor() actor: RequestActor) {
-    return this.events.findAll(actor);
+  findAll(@CurrentActor() actor: RequestActor, @Query('archived') archived?: string) {
+    return this.events.findAll(actor, archived === 'true');
+  }
+
+  @RequirePermission('event:delete')
+  @Post(':id/archive')
+  @ApiOperation({
+    summary: 'Put the event away',
+    description:
+      'Off the event list; its invitation stops taking answers but stays readable; its listing comes down. Reversible.',
+  })
+  archive(@Param('id') id: string) {
+    return this.events.archive(id);
+  }
+
+  @RequirePermission('event:delete')
+  @Post(':id/unarchive')
+  @ApiOperation({ summary: 'Bring an archived event back as it was' })
+  unarchive(@Param('id') id: string) {
+    return this.events.unarchive(id);
+  }
+
+  @RequirePermission('event:delete')
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete the event for good',
+    description: 'Only one never published and with no payments or ticket orders; archive the rest.',
+  })
+  remove(@Param('id') id: string) {
+    return this.events.remove(id);
   }
 
   // No permission beyond a session and an organization: a host creating their

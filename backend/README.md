@@ -212,6 +212,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:id` | Detail with venues and timeline |
 | `PATCH` | `/api/v1/events/:id` | Correct title, dates, time zone, languages; says whether to tell guests |
 | `PATCH` | `/api/v1/events/:id/settings` | Flip automatic RSVP reminders on or off |
+| `POST` | `/api/v1/events/:id/archive` | Put the event away; its invitation closes, nothing is deleted |
+| `POST` | `/api/v1/events/:id/unarchive` | Bring an archived event back as it was |
+| `DELETE` | `/api/v1/events/:id` | Delete for good — only if never published and no money moved |
 | `GET` | `/api/v1/events/:eventId/team` | Who works on this event, and invitations still open |
 | `POST` | `/api/v1/events/:eventId/team/invites` | Invite someone to this event with a role |
 | `DELETE` | `/api/v1/events/:eventId/team/invites/:email` | Withdraw an open invitation |

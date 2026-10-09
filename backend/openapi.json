@@ -385,7 +385,16 @@
       "get": {
         "description": "Their organization's events, if their role there can read them, plus any event they were invited onto directly. Platform staff see every event.",
         "operationId": "EventsController_findAll",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "archived",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -421,10 +430,10 @@
         ]
       }
     },
-    "/api/v1/events/{id}/invitation": {
+    "/api/v1/events/{id}/archive": {
       "post": {
-        "description": "Only needed when no design template existed when the event was created.",
-        "operationId": "EventsController_createInvitation",
+        "description": "Off the event list; its invitation stops taking answers but stays readable; its listing comes down. Reversible.",
+        "operationId": "EventsController_archive",
         "parameters": [
           {
             "name": "id",
@@ -435,28 +444,65 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateInvitationDto"
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "description": ""
           }
         },
-        "summary": "Add an invitation to an event that has none",
+        "summary": "Put the event away",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{id}/unarchive": {
+      "post": {
+        "operationId": "EventsController_unarchive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Bring an archived event back as it was",
         "tags": [
           "events"
         ]
       }
     },
     "/api/v1/events/{id}": {
+      "delete": {
+        "description": "Only one never published and with no payments or ticket orders; archive the rest.",
+        "operationId": "EventsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete the event for good",
+        "tags": [
+          "events"
+        ]
+      },
       "get": {
         "operationId": "EventsController_findOne",
         "parameters": [
@@ -508,6 +554,41 @@
           }
         },
         "summary": "Correct the event's details",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{id}/invitation": {
+      "post": {
+        "description": "Only needed when no design template existed when the event was created.",
+        "operationId": "EventsController_createInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add an invitation to an event that has none",
         "tags": [
           "events"
         ]

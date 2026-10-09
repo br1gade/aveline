@@ -1,15 +1,17 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventRole, EventStatus, EventVisibility, PlatformRole, Prisma } from '@prisma/client';
+import { EventRole, EventStatus, EventVisibility, InvitationStatus, PlatformRole, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuditService } from '../../infra/audit/audit.service';
 import { RequestActor, actorCan } from '../../infra/auth/actor';
 import { CacheService } from '../../infra/cache/cache.service';
+import { StorageService } from '../../infra/storage/storage.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { PrismaService } from '../../prisma/prisma.service';
 import { defaultBlocksFor } from './default-blocks';
@@ -28,6 +30,7 @@ export class EventsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly cache: CacheService,
+    private readonly storage: StorageService,
   ) {}
 
   /**
@@ -186,13 +189,17 @@ export class EventsService {
    * Someone invited to one event only — a venue's door staff — sees that event
    * and nothing else. Platform staff see everything.
    */
-  findAll(actor: RequestActor) {
+  findAll(actor: RequestActor, isArchiveWanted = false) {
     const reach: Prisma.EventWhereInput[] = [{ memberships: { some: { userId: actor.userId } } }];
     if (actor.organizationId && actorCan(actor, 'event:read')) reach.push({ organizationId: actor.organizationId });
     const isStaff = actor.platformRole !== PlatformRole.NONE;
+    // Archived events are put away: listed only when asked for.
+    const archive: Prisma.EventWhereInput = isArchiveWanted
+      ? { status: EventStatus.ARCHIVED }
+      : { status: { not: EventStatus.ARCHIVED } };
 
     return this.prisma.event.findMany({
-      where: isStaff ? undefined : { OR: reach },
+      where: isStaff ? archive : { AND: [archive, { OR: reach }] },
       include: { invitation: { select: { slug: true, status: true } }, _count: { select: { guests: true } } },
       orderBy: { startsAt: 'asc' },
     });
@@ -269,6 +276,73 @@ export class EventsService {
   }
 
   /**
+   * Puts an event away — always allowed, and reversible (decided 9 October
+   * 2026). It leaves the event list, its invitation stops taking answers but
+   * stays readable for the people who were coming, and its public listing
+   * comes down. Nothing is deleted.
+   */
+  async archive(eventId: string) {
+    const event = await this.findOne(eventId);
+    if (event.status === EventStatus.ARCHIVED) return event;
+
+    await this.prisma.$transaction([
+      this.prisma.event.update({
+        where: { id: eventId },
+        data: { status: EventStatus.ARCHIVED, statusBeforeArchive: event.status },
+      }),
+      this.prisma.invitation.updateMany({
+        where: { eventId, status: InvitationStatus.PUBLISHED },
+        data: { status: InvitationStatus.CLOSED },
+      }),
+      this.prisma.eventListing.updateMany({ where: { eventId }, data: { publishedAt: null } }),
+    ]);
+    if (event.invitation) await this.cache.invalidateInvitation(event.invitation.slug);
+    return this.findOne(eventId);
+  }
+
+  /** Brings an archived event back as it was. Its invitation stays closed until the host reopens it. */
+  async unarchive(eventId: string) {
+    const event = await this.findOne(eventId);
+    if (event.status !== EventStatus.ARCHIVED) throw new BadRequestException('This event is not archived');
+
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: event.statusBeforeArchive ?? EventStatus.DRAFT, statusBeforeArchive: null },
+    });
+    return this.findOne(eventId);
+  }
+
+  /**
+   * Deletes an event for good — only one that was never published and that
+   * no money moved through (decided 9 October 2026). A published event's
+   * invitation is in guests' messages, and a payment is a financial record
+   * with its own retention; both are archived instead. Uploaded files go too.
+   */
+  async remove(eventId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        status: true,
+        statusBeforeArchive: true,
+        mediaAssets: { select: { url: true } },
+        _count: { select: { payments: true, ticketOrders: true } },
+      },
+    });
+    if (!event) throw new NotFoundException(`No event ${eventId}`);
+    assertDeletable(event);
+
+    await this.prisma.event.delete({ where: { id: eventId } });
+    await Promise.all(
+      event.mediaAssets.map((asset) =>
+        this.storage.remove(storageKeyOf(asset.url)).catch((error: unknown) => {
+          this.logger.warn(`event ${eventId} deleted; a file was not: ${String(error)}`);
+        }),
+      ),
+    );
+    return { deleted: eventId };
+  }
+
+  /**
    * Changes the settings a host can reasonably flip themselves.
    *
    * Kept apart from the details: these change how Aveline behaves, not what
@@ -328,4 +402,26 @@ function assertRequiredNotCleared(dto: UpdateEventDto): void {
 /** A date sent as a string, or null when the field was cleared. */
 function optionalDate(value: string | null): Date | null {
   return value === null ? null : new Date(value);
+}
+
+/** Never published, and no money through it — or the answer is to archive. */
+function assertDeletable(event: {
+  status: EventStatus;
+  statusBeforeArchive: EventStatus | null;
+  _count: { payments: number; ticketOrders: number };
+}): void {
+  const statusWhenLive = event.status === EventStatus.ARCHIVED ? event.statusBeforeArchive : event.status;
+  if (statusWhenLive !== EventStatus.DRAFT) {
+    throw new ConflictException(
+      'This event was published, so guests may hold its invitation; archive it instead with POST /events/:id/archive',
+    );
+  }
+  if (event._count.payments > 0 || event._count.ticketOrders > 0) {
+    throw new ConflictException('Money has moved through this event, and those records are kept; archive it instead');
+  }
+}
+
+/** Stored names are generated, so the key is the URL's last segment. */
+function storageKeyOf(url: string): string {
+  return decodeURIComponent(new URL(url, 'http://local').pathname.split('/').pop() ?? '');
 }

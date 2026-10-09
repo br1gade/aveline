@@ -711,6 +711,28 @@ can read events, plus any event they were brought onto directly through a
 team invitation. An account with neither gets `[]`. **Do not pass an
 organizationId** — it is ignored. Platform staff see everything.
 
+### Archiving and deleting an event
+
+```http
+POST   /api/v1/events/:id/archive
+POST   /api/v1/events/:id/unarchive
+DELETE /api/v1/events/:id
+GET    /api/v1/events?archived=true
+```
+
+All need `event:delete`, which owners hold. Decided 9 October 2026:
+
+- **Archive is always allowed, and reversible.** The event leaves
+  `GET /events` (list archived ones with `?archived=true`), its invitation
+  stops taking answers but stays readable for the people who were coming, and
+  its public listing comes down. The invitation cannot be reopened or
+  published while archived (`400`). `unarchive` restores the event's status;
+  the invitation stays closed until the host reopens it.
+- **Delete is for an event that was never published and no money moved
+  through.** It removes everything, uploaded files included. A published
+  event — guests may hold its invitation — or one with payments or ticket
+  orders is refused with `409` saying to archive it instead.
+
 ### The event's team
 
 ```http
