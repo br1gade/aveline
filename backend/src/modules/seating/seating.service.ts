@@ -251,29 +251,43 @@ export class SeatingService {
   }
 }
 
-/** Only households with someone attending and not yet seated. */
+/**
+ * Only households with someone attending and not yet seated — with where the
+ * rest of each household already sits, so a late acceptor joins their family.
+ */
 async function loadSeatableHouseholds(tx: Prisma.TransactionClient, eventId: string): Promise<SeatableHousehold[]> {
   const guests = await tx.guest.findMany({
     where: { eventId, rsvp: { status: RsvpStatus.ATTENDING }, seat: null },
     select: { id: true, householdId: true, attribution: true },
     orderBy: { householdId: 'asc' },
   });
+  const householdIds = [...new Set(guests.map((guest) => guest.householdId))];
+  const seated = await tx.seat.findMany({
+    where: { guest: { householdId: { in: householdIds } } },
+    select: { tableId: true, guest: { select: { householdId: true } } },
+  });
 
-  const byHousehold = new Map<string, SeatableHousehold>();
+  const byHousehold = new Map<string, { guestIds: string[]; sides: GuestAttribution[] }>();
   for (const guest of guests) {
-    const existing = byHousehold.get(guest.householdId);
-    if (existing) {
-      existing.guestIds.push(guest.id);
-      continue;
-    }
-    byHousehold.set(guest.householdId, {
-      householdId: guest.householdId,
-      guestIds: [guest.id],
-      side: guest.attribution ?? GuestAttribution.UNKNOWN,
-    });
+    const entry = byHousehold.get(guest.householdId) ?? { guestIds: [], sides: [] };
+    entry.guestIds.push(guest.id);
+    entry.sides.push(guest.attribution ?? GuestAttribution.UNKNOWN);
+    byHousehold.set(guest.householdId, entry);
   }
 
-  return [...byHousehold.values()];
+  return [...byHousehold.entries()].map(([householdId, entry]) => ({
+    householdId,
+    guestIds: entry.guestIds,
+    side: majoritySide(entry.sides),
+    seatedAt: [...new Set(seated.filter((seat) => seat.guest.householdId === householdId).map((seat) => seat.tableId))],
+  }));
+}
+
+/** The side most of a household belongs to — it was the first guest's. */
+function majoritySide(sides: GuestAttribution[]): GuestAttribution {
+  const counts = new Map<GuestAttribution, number>();
+  for (const side of sides) counts.set(side, (counts.get(side) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? GuestAttribution.UNKNOWN;
 }
 
 async function loadSeatableTables(tx: Prisma.TransactionClient, eventId: string): Promise<SeatableTable[]> {

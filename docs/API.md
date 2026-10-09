@@ -1194,6 +1194,9 @@ Three things to know before you wire the button:
 1. **It is additive, not a re-plan.** Guests already seated keep their seats,
    and their tables count as partly occupied. Running it after a late RSVP
    fills the gaps instead of rearranging a plan the host has adjusted by hand.
+   Someone accepting late joins the table their household already sits at —
+   or, if it is full, is listed in `unseated` with that reason, never put
+   elsewhere.
    There is no "re-seat everything" call; unseat first if that is the intent.
 2. **It never splits a household and never exceeds a capacity** — not even
    when a planner is seating someone by hand at the same moment, or the button

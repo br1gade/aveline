@@ -169,4 +169,27 @@ describe('buildSeatingPlan', () => {
       expect(seatedCount(plan) + plan.unseated[0].size).toBe(6);
     });
   });
+
+  // B66: a late acceptor whose family was already seated went to an empty
+  // table — the household split, which the planner calls a hard constraint.
+  describe('a household partly seated already', () => {
+    it('joins the table its family sits at, not the emptiest', () => {
+      const plan = buildSeatingPlan(
+        [{ ...household('h1', 1), seatedAt: ['t1'] }],
+        [table('t1', 10, 2), table('t2', 10, 0)],
+      );
+
+      expect(plan.assignments).toEqual([expect.objectContaining({ householdId: 'h1', tableId: 't1' })]);
+    });
+
+    it('stays unseated, with a reason, rather than split when that table is full', () => {
+      const plan = buildSeatingPlan(
+        [{ ...household('h1', 1), seatedAt: ['t1'] }],
+        [table('t1', 2, 2), table('t2', 10, 0)],
+      );
+
+      expect(plan.assignments).toEqual([]);
+      expect(plan.unseated[0]).toMatchObject({ householdId: 'h1', reason: expect.stringMatching(/already sits/) });
+    });
+  });
 });

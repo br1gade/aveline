@@ -5,6 +5,12 @@ export interface SeatableHousehold {
   guestIds: string[];
   /** The side most of this household belongs to, used to group tables. */
   side: GuestAttribution;
+  /**
+   * Tables where members of this household already sit. When set, those are
+   * the only tables it may join: a late acceptor goes beside their family,
+   * or stays unseated with a reason — never to another table.
+   */
+  seatedAt?: string[];
 }
 
 export interface SeatableTable {
@@ -32,7 +38,8 @@ export interface SeatingPlan {
  *
  * Two constraints are hard and two are preferences:
  *
- *   hard — a household is never split across tables
+ *   hard — a household is never split across tables, including across a
+ *          run: members accepting late join the table their family sits at
  *   hard — a table never exceeds its capacity
  *   soft — a household prefers a table already holding its own side
  *   soft — among equals, the emptiest table wins, which spreads guests out
@@ -68,12 +75,13 @@ export function buildSeatingPlan(
     const size = household.guestIds.length;
     if (size === 0) continue;
 
-    const table = chooseTable(remaining, household);
+    const allowed = household.seatedAt?.length ? remaining.filter((t) => household.seatedAt?.includes(t.tableId)) : remaining;
+    const table = chooseTable(allowed, household);
     if (!table) {
       plan.unseated.push({
         householdId: household.householdId,
         size,
-        reason: describeWhyNot(remaining, size),
+        reason: household.seatedAt?.length ? whyNotWithFamily(allowed, size) : describeWhyNot(remaining, size),
       });
       continue;
     }
@@ -107,6 +115,12 @@ function chooseTable(
   return candidates.reduce((best, table) =>
     roomFor(table) > roomFor(best) ? table : best,
   );
+}
+
+/** Their family's table has no room: the host decides, by moving or enlarging. */
+function whyNotWithFamily(tables: SeatableTable[], size: number): string {
+  const room = Math.max(0, ...tables.map((table) => table.capacity - table.occupied));
+  return `Needs ${size} seat(s) at the table their household already sits at, which has ${room} free`;
 }
 
 /** A reason a host can act on, rather than "could not place". */
