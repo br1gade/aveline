@@ -5,7 +5,6 @@ import {
   Get,
   Param,
   Post,
-  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -14,7 +13,7 @@ import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GuestsService } from './guests.service';
 import { CheckInService } from './check-in.service';
 import { GuestImportService } from './import/guest-import.service';
-import { CurrentActor, Public, RequestActor, RequirePermission, actorCan } from '../../infra/auth/actor';
+import { CurrentActor, RequestActor, RequirePermission, actorCan } from '../../infra/auth/actor';
 
 @ApiTags('guests')
 @Controller('events/:eventId')
@@ -104,13 +103,5 @@ export class GuestsController {
   @ApiOperation({ summary: 'Live arrivals: expected, arrived, still to come' })
   arrivals(@Param('eventId') eventId: string) {
     return this.checkIns.arrivals(eventId);
-  }
-
-  // Guests look themselves up on a phone at the venue.
-  @Public()
-  @Get('find-seat')
-  @ApiOperation({ summary: 'Guest-facing seat lookup by name' })
-  findSeat(@Param('eventId') eventId: string, @Query('q') q: string) {
-    return this.guests.findSeat(eventId, q ?? '');
   }
 }

@@ -79,4 +79,23 @@ export class SeatingController {
   autoAssign(@Param('eventId') eventId: string) {
     return this.seating.autoAssign(eventId);
   }
+
+  @RequirePermission('seating:write')
+  @Post('seating/publish')
+  @ApiOperation({
+    summary: 'Let guests see their tables',
+    description:
+      'Each guest sees their own household’s tables on their personal invitation ' +
+      'link, never anyone else’s. Later changes to the plan show at once.',
+  })
+  publish(@Param('eventId') eventId: string) {
+    return this.seating.publish(eventId);
+  }
+
+  @RequirePermission('seating:write')
+  @Post('seating/unpublish')
+  @ApiOperation({ summary: 'Take the tables off guests’ pages again' })
+  unpublish(@Param('eventId') eventId: string) {
+    return this.seating.unpublish(eventId);
+  }
 }

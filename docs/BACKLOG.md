@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 14 open | 22 open, of which 8 money | — |
+| Bugfixes | 0 open | 13 open | 22 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -52,7 +52,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B16 | Find-your-seat is unreachable for guests, and lists names to anyone ✔ | Keyed by `eventId`, which no guest-facing response contains. With no query it returns ten names and tables — for any event, drafts included. **Decision** D4 | `guests/guests.controller.ts`, `guests.service.ts` | S |
 
 **Messaging**
 

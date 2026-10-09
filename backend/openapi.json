@@ -1133,38 +1133,6 @@
         ]
       }
     },
-    "/api/v1/events/{eventId}/find-seat": {
-      "get": {
-        "operationId": "GuestsController_findSeat",
-        "parameters": [
-          {
-            "name": "eventId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "q",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Guest-facing seat lookup by name",
-        "tags": [
-          "guests"
-        ]
-      }
-    },
     "/api/v1/events/{eventId}/households/{householdId}": {
       "patch": {
         "description": "Seats cannot go below the number of guests already named in it.",
@@ -3194,6 +3162,55 @@
           }
         },
         "summary": "Seat everyone who has accepted, keeping households together",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seating/publish": {
+      "post": {
+        "description": "Each guest sees their own household’s tables on their personal invitation link, never anyone else’s. Later changes to the plan show at once.",
+        "operationId": "SeatingController_publish",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Let guests see their tables",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seating/unpublish": {
+      "post": {
+        "operationId": "SeatingController_unpublish",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Take the tables off guests’ pages again",
         "tags": [
           "seating"
         ]

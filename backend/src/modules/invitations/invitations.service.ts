@@ -39,9 +39,19 @@ const blockMediaSelect = {
   variants: true,
 } satisfies Prisma.MediaAssetSelect;
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
-type LoadedGuest = Prisma.GuestGetPayload<{
-  include: { rsvp: true; household: { include: { guests: true } } };
-}>;
+const GUEST_INCLUDE = {
+  rsvp: true,
+  household: {
+    include: {
+      guests: {
+        orderBy: { isPrimary: 'desc' },
+        include: { seat: { select: { table: { select: { name: true } } } } },
+      },
+    },
+  },
+} satisfies Prisma.GuestInclude;
+
+type LoadedGuest = Prisma.GuestGetPayload<{ include: typeof GUEST_INCLUDE }>;
 
 /** Resolves a translated field for one request's locale. */
 type Translate = <T>(content: unknown) => T | null;
@@ -151,7 +161,7 @@ export class InvitationsService {
       locale,
       availableLocales: event.locales,
       event: this.buildEventView(event, locale),
-      guest: guest ? this.buildGuestView(guest) : null,
+      guest: guest ? this.buildGuestView(guest, event.seatingPublishedAt !== null) : null,
       blocks: invitation.blocks.map((block) => ({
         type: block.type,
         sortOrder: block.sortOrder,
@@ -220,7 +230,7 @@ export class InvitationsService {
     };
   }
 
-  private buildGuestView(guest: LoadedGuest) {
+  private buildGuestView(guest: LoadedGuest, isSeatingPublished: boolean) {
     return {
       id: guest.id,
       name: fullName(guest),
@@ -234,6 +244,9 @@ export class InvitationsService {
         })),
       },
       rsvp: guest.rsvp && { status: guest.rsvp.status, respondedAt: guest.rsvp.respondedAt },
+      // Decision D4: their own household's tables, on their own link, once the
+      // host publishes — never the room, never on the shared page.
+      seating: isSeatingPublished ? seatingFor(guest) : null,
     };
   }
 
@@ -269,10 +282,7 @@ export class InvitationsService {
   private findGuest(token: string, eventId: string) {
     return this.prisma.guest.findFirst({
       where: { token, eventId },
-      include: {
-        rsvp: true,
-        household: { include: { guests: { orderBy: { isPrimary: 'desc' } } } },
-      },
+      include: GUEST_INCLUDE,
     });
   }
 }
@@ -328,4 +338,14 @@ function isAcceptingResponses(
 ): boolean {
   if (invitation.status !== 'PUBLISHED') return false;
   return invitation.expiresAt === null || invitation.expiresAt > now;
+}
+
+/** Where this guest and the people they came with are sitting; `null` for no table yet. */
+function seatingFor(guest: LoadedGuest) {
+  const tableOf = (member: LoadedGuest['household']['guests'][number]) => member.seat?.table.name ?? null;
+  const own = guest.household.guests.find((member) => member.id === guest.id);
+  return {
+    table: own ? tableOf(own) : null,
+    household: guest.household.guests.map((member) => ({ id: member.id, name: fullName(member), table: tableOf(member) })),
+  };
 }

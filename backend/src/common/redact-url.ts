@@ -6,7 +6,7 @@
  * request URLs is a list of working keys: anyone who can read the logs can
  * answer as any guest. Root CLAUDE.md §3 forbids exactly that. Query values
  * are dropped too unless they are known to be harmless, because a name typed
- * into find-your-seat or a bank's callback parameters are no business of the
+ * into a search box or a bank's callback parameters are no business of the
  * logs either.
  *
  * One function for the request logger, the exception filter and Sentry, so

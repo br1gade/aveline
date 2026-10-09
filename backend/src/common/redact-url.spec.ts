@@ -23,8 +23,8 @@ describe('redactUrl', () => {
   });
 
   it('keeps harmless query values and drops the rest', () => {
-    expect(redactUrl('/api/v1/events/e1/find-seat?q=Armen%20Petrosyan&locale=hy')).toBe(
-      '/api/v1/events/e1/find-seat?q=[redacted]&locale=hy',
+    expect(redactUrl('/api/v1/concierge/organizations?search=Armen%20Petrosyan&locale=hy')).toBe(
+      '/api/v1/concierge/organizations?search=[redacted]&locale=hy',
     );
     expect(redactUrl('/api/v1/payments/return?orderId=123&token=abc')).toBe(
       '/api/v1/payments/return?orderId=[redacted]&token=[redacted]',

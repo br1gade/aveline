@@ -205,6 +205,11 @@ model Event {
   /// rather we did not.
   remindersEnabled Boolean @default(true)
 
+  /// When the host let guests see their tables. Null while the plan is still
+  /// being worked out: a guest shown a table that later changes walks to the
+  /// wrong one (decision D4, 9 October 2026).
+  seatingPublishedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

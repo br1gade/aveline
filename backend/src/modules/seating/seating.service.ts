@@ -173,6 +173,28 @@ export class SeatingService {
    * as partly occupied, so running this after a late RSVP fills the gaps
    * rather than rearranging a plan a host has already adjusted by hand.
    */
+  /**
+   * Lets guests see their tables, on their own invitation link (decision D4).
+   * Changes after publishing show at once — guests read the live plan, not a
+   * copy — so a host moving someone the night before needs no second step.
+   */
+  async publish(eventId: string) {
+    return this.setPublished(eventId, new Date());
+  }
+
+  /** Takes the tables off guests' pages again, for a plan that is being reworked. */
+  async unpublish(eventId: string) {
+    return this.setPublished(eventId, null);
+  }
+
+  private setPublished(eventId: string, seatingPublishedAt: Date | null) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: { seatingPublishedAt },
+      select: { seatingPublishedAt: true },
+    });
+  }
+
   async autoAssign(eventId: string) {
     const [households, tables] = await Promise.all([
       this.loadSeatableHouseholds(eventId),

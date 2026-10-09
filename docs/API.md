@@ -274,7 +274,8 @@ GET /api/v1/invitations/:slug/g/:guestToken        # personalised
   "guest": {
     "name": "Armen Petrosyan",
     "household": { "name": "Petrosyan family", "seatsAllotted": 3, "members": [...] },
-    "rsvp": { "status": "ATTENDING", "respondedAt": "..." }
+    "rsvp": { "status": "ATTENDING", "respondedAt": "..." },
+    "seating": null
   },
   "blocks": [ { "type": "HERO", "sortOrder": 0, "variant": "full-bleed", "content": {...},
                 "media": [ { "id": "...", "url": "https://media.../3f2c....jpg",
@@ -456,9 +457,27 @@ of it, not a replacement for it.
 
 ### Find your seat
 
-```http
-GET /api/v1/events/:eventId/find-seat?q=Armen
+There is no lookup by name. A guest finds their table **on their own
+personalized invitation**, in `guest.seating`, and only once the host has
+published the seating (decided 9 October 2026). Until then it is `null`;
+show nothing rather than "no table".
+
+```json
+"seating": {
+  "table": "Table 3",
+  "household": [
+    { "id": "clz...", "name": "Armen Petrosyan", "table": "Table 3" },
+    { "id": "clz...", "name": "Lusine Petrosyan", "table": "Table 3" }
+  ]
+}
 ```
+
+`table` is `null` for a guest not seated yet — say so and send them to the
+hosts. A guest sees their own household and never anyone else's. The shared,
+un-personalized page carries no seating at all.
+
+**Breaking, 9 October 2026:** `GET /events/:eventId/find-seat` is gone. It
+listed guests' names and tables to anyone who had the event id.
 
 ---
 
@@ -1116,7 +1135,18 @@ Three things to know before you wire the button:
    room is nearly full — present it as "these 2 households need a table",
    not as a failure.
 
-Tables and seats require `seating:write`; reading requires `seating:read`.
+```http
+POST /api/v1/events/:eventId/seating/publish     → { "seatingPublishedAt": "2027-06-10T..." }
+POST /api/v1/events/:eventId/seating/unpublish   → { "seatingPublishedAt": null }
+```
+
+Publishing lets each guest see their household's tables on their personal
+link (see *Find your seat*). Guests read the live plan, so moving someone
+after publishing needs no second step; unpublish while the plan is being
+reworked. `GET /events/:eventId` carries `seatingPublishedAt` for the toggle.
+
+Tables, seats and publishing require `seating:write`; reading requires
+`seating:read`.
 
 ### Check-in on the day
 

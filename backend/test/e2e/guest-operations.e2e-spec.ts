@@ -259,26 +259,6 @@ describe('Guest operations (e2e)', () => {
         .set('Authorization', authorization)
         .expect(409);
     });
-
-    it('lets a guest find their own seat without a token', async () => {
-      const { eventId, authorization } = await readyToSeat();
-      await http()
-        .post(`/api/v1/events/${eventId}/tables/bulk`)
-        .set('Authorization', authorization)
-        .send({ namePrefix: 'Table', count: 2, capacity: 6 })
-        .expect(201);
-      await http()
-        .post(`/api/v1/events/${eventId}/seats/auto-assign`)
-        .set('Authorization', authorization)
-        .expect(201);
-
-      const { body } = await http()
-        .get(`/api/v1/events/${eventId}/find-seat`)
-        .query({ q: 'Armen' })
-        .expect(200);
-
-      expect(body[0].table).toEqual(expect.any(String));
-    });
   });
 
   describe('check-in on the day', () => {

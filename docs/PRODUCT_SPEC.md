@@ -180,7 +180,7 @@ Every operations surface is a **derived view** over the guest graph. Nothing her
 | Surface | What it does |
 |---|---|
 | **Live headcount** | Confirmed / declined / pending, by household and by side, with a response-rate trend |
-| **Seating chart** | Drag-and-drop table assignment, constrained by household (keep together) and attribution (balance sides). Publishes a guest-facing *find your seat* lookup |
+| **Seating chart** | Drag-and-drop table assignment, constrained by household (keep together) and attribution (balance sides). Once the host publishes it, each guest sees their household's table on their own invitation link |
 | **Catering sheet** | Confirmed headcount plus every dietary requirement, exportable for the venue |
 | **Bar sheet** | Drink preferences aggregated into quantities |
 | **Playlist** | Song requests, deduplicated, exportable for the musician or DJ |

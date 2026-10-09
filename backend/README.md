@@ -124,7 +124,7 @@ src/
   prisma/            PrismaService (global module)
   modules/
     events/          event detail, venues, timeline
-    guests/          guest graph by household; CSV import, check-in, find-your-seat
+    guests/          guest graph by household; CSV import, check-in
     invitations/     public invitation payload, data-bound + personalized
     rsvp/            the write side — guest responses
     seating/         tables, seat assignment, the packing algorithm
@@ -202,7 +202,6 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken` | Personalized for one guest |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Read current response |
 | `POST` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
-| `GET` | `/api/v1/events/:eventId/find-seat` | Guest seat lookup by name (`?q=`) |
 | `PATCH` | `/api/v1/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
 
 ### Organizer
@@ -296,6 +295,8 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `DELETE` | `/api/v1/events/:eventId/tables/:tableId` | Remove an empty table |
 | `POST` | `/api/v1/events/:eventId/seats` | Seat one guest at a table |
 | `DELETE` | `/api/v1/events/:eventId/seats/:guestId` | Unseat one guest |
+| `POST` | `/api/v1/events/:eventId/seating/publish` | Let guests see their tables on their own link |
+| `POST` | `/api/v1/events/:eventId/seating/unpublish` | Take the tables off guests' pages |
 | `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Seat everyone attending; reports who did not fit |
 
 #### Vendors and briefs

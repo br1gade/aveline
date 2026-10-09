@@ -72,10 +72,16 @@ which chair. It becomes meaningful when printing place cards.
 
 ### Find-your-seat
 
-`GET /api/events/:eventId/find-seat?q=` is the guest-facing lookup: a guest
-types their name on their phone at the venue and gets their table. It reads
-from the same `Seat` rows the organizer assigned — there is no second data
-source to keep in sync.
+A guest sees their table on their own invitation link, and only once the host
+publishes the seating (`POST /events/:eventId/seating/publish`, which sets
+`Event.seatingPublishedAt`). They see their own household's tables and no one
+else's; the shared page carries none. Decided 9 October 2026 (D4): a public
+lookup by name listed strangers' tables to anyone, and a plan shown before the
+host is ready sends people to the wrong table.
+
+It reads from the same `Seat` rows the organizer assigned — there is no
+second data source to keep in sync, so a change after publishing shows at
+once.
 
 ---
 
