@@ -3490,6 +3490,90 @@
         ]
       }
     },
+    "/api/v1/concierge/organizations": {
+      "post": {
+        "description": "Staff do not become members; the customer sets their own password on accepting.",
+        "operationId": "ConciergeController_open",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenForCustomerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Open a customer's organization and invite them as its owner (Aveline staff)",
+        "tags": [
+          "concierge"
+        ]
+      },
+      "get": {
+        "operationId": "ConciergeController_find",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Part of the name, any case",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Find a customer's organization by name (Aveline staff)",
+        "tags": [
+          "concierge"
+        ]
+      }
+    },
+    "/api/v1/concierge/organizations/{organizationId}/events": {
+      "post": {
+        "description": "Staff design and run it through their platform role; the customer owns it once they accept.",
+        "operationId": "ConciergeController_createEvent",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create an event in a customer's organization (Aveline staff)",
+        "tags": [
+          "concierge"
+        ]
+      }
+    },
     "/api/v1/invitations/{slug}/design": {
       "get": {
         "description": "Drafts included; every block, switched on or not; every language of every block and question; settings, media, and what still blocks publishing. What an editor loads.",
@@ -5760,6 +5844,32 @@
         },
         "required": [
           "name"
+        ]
+      },
+      "OpenForCustomerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Petrosyan Wedding"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "PLANNER",
+              "CORPORATE"
+            ],
+            "description": "HOST for a couple, AGENCY for a planner"
+          },
+          "ownerEmail": {
+            "type": "string",
+            "description": "The customer, invited as owner; they set their own password"
+          }
+        },
+        "required": [
+          "name",
+          "ownerEmail"
         ]
       },
       "ChooseTemplateDto": {

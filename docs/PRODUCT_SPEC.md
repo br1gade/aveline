@@ -319,7 +319,7 @@ A one-time fee on a one-time event is the category's structural weakness. Avelin
 
 Hosts in this market expect to talk to a person, and that expectation is reasonable. A pure self-serve product would fight it.
 
-**Concierge-first, product-backed.** Hosts still reach us over a messaging app — the familiar intake. Internally our staff work inside the product, and the host receives a login to the operations dashboard for their own event.
+**Concierge-first, product-backed.** Hosts still reach us over a messaging app — the familiar intake. Internally our staff work inside the product, and the host receives a login to the operations dashboard for their own event. Staff open the host's organization and event themselves and invite the host as its owner; the host chooses their own password on accepting, so staff never hold it (decided 9 October 2026).
 
 This yields three things at once: a sales motion requiring no behaviour change; our own team as first users, which forces the product to actually work; and a path to self-serve for the low end and for the planner subscription, which is self-serve by nature.
 

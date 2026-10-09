@@ -57,7 +57,7 @@ export class EventsService {
    * One transaction, because a half-created event is worse than none: an event
    * with no membership cannot be read back to be fixed.
    */
-  async create(organizationId: string, userId: string, dto: CreateEventDto) {
+  async create(organizationId: string, userId: string, dto: CreateEventDto, options = { isOnBehalf: false }) {
     // An authenticated account with no organization has nowhere to put an
     // event. Without this the insert fails on a foreign key and the host is
     // shown a database error instead of the one thing they need to do next.
@@ -100,9 +100,13 @@ export class EventsService {
 
       // The creator owns it. Without this the event exists and its creator
       // cannot read it back, because the guard resolves access from membership.
-      await tx.eventMembership.create({
-        data: { eventId: created.id, userId, role: EventRole.OWNER },
-      });
+      // Not when Aveline staff set it up for a customer: they act through
+      // their platform role, and the customer becomes its owner.
+      if (!options.isOnBehalf) {
+        await tx.eventMembership.create({
+          data: { eventId: created.id, userId, role: EventRole.OWNER },
+        });
+      }
 
       if (template) {
         await tx.invitation.create({

@@ -711,6 +711,24 @@ can read events, plus any event they were brought onto directly through a
 team invitation. An account with neither gets `[]`. **Do not pass an
 organizationId** — it is ignored. Platform staff see everything.
 
+### Setting an event up for a customer (Aveline staff)
+
+```http
+POST /api/v1/concierge/organizations                       { "name": "Petrosyan Wedding", "ownerEmail": "anna@example.am" }
+POST /api/v1/concierge/organizations/:organizationId/events  { ...as POST /events }
+GET  /api/v1/concierge/organizations?search=petrosyan
+```
+
+For an Aveline staff console, not the host app: they need `concierge:manage`,
+which only platform staff hold. The first opens the customer's organization
+— staff do not become a member — and emails the customer an owner
+invitation (`{ organization, invite }`, with `devLink` outside production).
+The second creates an event in it, with its draft invitation; staff then
+design and run it through the usual routes using their platform role. When
+the customer accepts at `/accept-invite`, choosing their own password, they
+own the organization and its events. The search lists organizations with
+their `owners`, `pendingOwnerInvites` and number of `events`.
+
 ### Archiving and deleting an event
 
 ```http

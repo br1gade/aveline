@@ -127,6 +127,7 @@ owner.
 | `billing:write` | Change the plan, create and withdraw promo codes |
 | `privacy:manage` | Handle data-subject requests, including erasure |
 | `directory:manage` | Add, correct and retire halls in the shared venue directory |
+| `concierge:manage` | Open an organization and its events for a customer, and invite them as owner |
 
 Two permissions are split out from their obvious parents on purpose:
 `guest:contact:read` from `guest:read`, and `vendor:fee:read` from
@@ -139,11 +140,17 @@ and not by `SUPPORT`. A request is matched by email across every customer's
 events, so whoever fulfils one reads or erases other tenants' data. An
 organization `OWNER` held it until 8 October 2026, which let any
 self-registered account export or erase a stranger's guest records
-platform-wide; it is now one of two permissions an owner does not have.
+platform-wide; it is now one of three permissions an owner does not have.
 
-`directory:manage` is the other. The venue directory is read by every
+`directory:manage` is another. The venue directory is read by every
 customer, so a customer writing to it would be writing to all of them; it is
 kept by platform `ADMIN` and `SUPPORT`.
+
+`concierge:manage` is the third: opening an organization for someone else
+(spec §11). Staff create it and its events without becoming a member, and
+invite the customer as `OWNER`; the customer sets their own password, so staff
+never hold their credential. Staff design and run the event through
+`SUPPORT`'s platform permissions, which the audit trail records.
 
 `billing:read` and `billing:write` are granted by organization `OWNER` and
 platform `ADMIN` only — they are not part of `RUN_EVENT`. A planner running

@@ -177,6 +177,9 @@ test/
 | `DELETE` | `/api/v1/organization/invites/:email` | Revoke a pending invitation |
 | `POST` | `/api/v1/invites/accept` | Accept an invitation, creating the account if needed |
 | `POST` | `/api/v1/event-invites/accept` | Accept an invitation to one event; grants nothing in the organization |
+| `POST` | `/api/v1/concierge/organizations` | Open a customer's organization and invite them as owner (Aveline staff) |
+| `POST` | `/api/v1/concierge/organizations/:organizationId/events` | Create an event for that customer (Aveline staff) |
+| `GET` | `/api/v1/concierge/organizations` | Find a customer's organization by name (Aveline staff) |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `GET` | `/api/v1/events/:eventId/media` | The event's uploads, with the blocks that show each |
 | `PATCH` | `/api/v1/events/:eventId/media/:assetId` | Set alt text, one language at a time |

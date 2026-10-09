@@ -55,6 +55,12 @@ describe('access policy', () => {
       expect(can(member(OrganizationRole.OWNER, EventRole.OWNER), 'directory:manage')).toBe(false);
     });
 
+    // Opening organizations for other people is the concierge's, not a customer's.
+    it('keeps setting events up for customers with Aveline staff', () => {
+      expect(can(staff(PlatformRole.SUPPORT), 'concierge:manage')).toBe(true);
+      expect(can(member(OrganizationRole.OWNER), 'concierge:manage')).toBe(false);
+    });
+
     it('lets a manager run events but not delete them', () => {
       expect(can(member(OrganizationRole.MANAGER), 'event:write')).toBe(true);
       expect(can(member(OrganizationRole.MANAGER), 'seating:write')).toBe(true);
