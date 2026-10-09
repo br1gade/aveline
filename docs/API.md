@@ -259,7 +259,8 @@ GET /api/v1/invitations/:slug/g/:guestToken        # personalised
 **The generic URL works only for an `UNLISTED` or `PUBLIC` event.** A
 `PRIVATE` event — the default, and every wedding — is reachable by personal
 link only, so its generic URL is `404`, the same answer as an unpublished
-one (spec §13.1; decided 9 October 2026). A host who wants one link to share
+one (spec §13.1; decided 9 October 2026). A personal URL whose token is no guest's
+is `404` too, whatever the visibility. A host who wants one link to share
 in a group chat sets the event `UNLISTED`. The editor previews through
 `GET /invitations/:slug/design`, never the generic URL.
 

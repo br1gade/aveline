@@ -59,6 +59,14 @@ describe('Reading an invitation without a personal link (e2e)', () => {
     await http().get(`/api/v1/invitations/${slug}/g/${primaryGuestToken}`).expect(200);
   });
 
+  // The personal path must be a personal link: a token that is no guest's is
+  // the generic URL with extra steps.
+  it('does not show a PRIVATE invitation for a token that is no guest\'s', async () => {
+    const { slug } = await eventWith(EventVisibility.PRIVATE);
+
+    await http().get(`/api/v1/invitations/${slug}/g/not-a-real-token`).expect(404);
+  });
+
   it.each([EventVisibility.UNLISTED, EventVisibility.PUBLIC])('shows a %s invitation on its generic link', async (visibility) => {
     const { slug } = await eventWith(visibility);
 

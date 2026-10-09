@@ -122,6 +122,10 @@ export class InvitationsService {
   async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string) {
     const invitation = await this.loadPublished(slug);
     const guest = guestToken ? await this.findGuest(guestToken, invitation.event.id) : null;
+    // A personal link must belong to a guest. Served with `guest: null`, any
+    // made-up token opened a PRIVATE event's page — its generic URL with
+    // extra steps. Same answer as an unknown slug, so a token is not probeable.
+    if (guestToken && !guest) throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     // A language the guest picks on the page wins, if the event publishes it;
     // otherwise their own. Picking one does not change their stored language.
     const isPublished = requestedLocale !== undefined && invitation.event.locales.includes(requestedLocale);
