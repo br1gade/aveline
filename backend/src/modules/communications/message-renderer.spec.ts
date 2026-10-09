@@ -35,4 +35,24 @@ describe('renderTemplate', () => {
   it('does not re-scan substituted values, so data cannot inject a placeholder', () => {
     expect(renderTemplate('{{a}}', { a: '{{b}}' })).toBe('{{b}}');
   });
+
+  // B72: the invitation offers Telegram only when a bot exists; the wording
+  // stays in the copy, not in code.
+  describe('optional sections', () => {
+    const copy = 'Hello.{{#telegramLink}} Prefer Telegram? {{telegramLink}}{{/telegramLink}}';
+
+    it('keeps a section whose variable has a value', () => {
+      expect(renderTemplate(copy, { telegramLink: 'https://t.me/bot?start=x' })).toBe(
+        'Hello. Prefer Telegram? https://t.me/bot?start=x',
+      );
+    });
+
+    it('drops a section whose variable is empty', () => {
+      expect(renderTemplate(copy, { telegramLink: '' })).toBe('Hello.');
+    });
+
+    it('still refuses a section whose variable was never given', () => {
+      expect(() => renderTemplate(copy, {})).toThrow(/telegramLink/);
+    });
+  });
 });

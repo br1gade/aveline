@@ -15,8 +15,8 @@ export const MESSAGE_COPY = [
     channel: MessageChannel.EMAIL,
     subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}' },
     body: {
-      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\n{{link}}',
-      en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\n{{link}}',
+      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\n{{link}}{{#telegramLink}}\n\nՆախընտրում եք Telegram։ Սեղմեք այստեղ, և հիշեցումներն ու նորությունները կստանաք այնտեղ՝ {{telegramLink}}{{/telegramLink}}',
+      en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\n{{link}}{{#telegramLink}}\n\nPrefer Telegram? Tap here and we will send reminders and updates there instead: {{telegramLink}}{{/telegramLink}}',
     },
   },
   {
@@ -188,6 +188,68 @@ export const MESSAGE_COPY = [
   {
     key: 'rsvp.confirmation.undecided',
     channel: MessageChannel.SMS,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն։ Երբ որոշեք, խնդրում ենք թարմացնել պատասխանը՝ {{link}}',
+      en: '{{guestName}}, thank you. When you know, please update your answer: {{link}}',
+    },
+  },
+
+  // Telegram (decided 10 October 2026, D13): the guest-facing messages, for
+  // guests who opened the bot from their invitation. Plain text, as the
+  // transport sends it, and warmer than SMS because it costs nothing per
+  // character. Reviewed by the team before the pilot. WhatsApp stays off
+  // until Meta approves its templates.
+  {
+    key: 'invitation.send',
+    channel: MessageChannel.TELEGRAM,
+    body: {
+      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\nՁեր հրավերը՝ {{link}}',
+      en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\nYour invitation: {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.reminder',
+    channel: MessageChannel.TELEGRAM,
+    body: {
+      hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին {{eventTitle}}-ի համար։ Պատասխանել՝ {{link}}',
+      en: '{{guestName}}, we are still hoping to hear from you about {{eventTitle}}. Reply here: {{link}}',
+    },
+  },
+  {
+    key: 'event.details-changed',
+    channel: MessageChannel.TELEGRAM,
+    body: {
+      hy: '{{guestName}}, {{hosts}}-ի միջոցառման մանրամասները փոխվել են։ {{note}}\n\nԹարմ տեղեկությունը՝ Ձեր հրավերում․ {{link}}',
+      en: '{{guestName}}, the details of {{hosts}}’s event have changed. {{note}}\n\nThe latest is always on your invitation: {{link}}',
+    },
+  },
+  {
+    key: 'thankyou.send',
+    channel: MessageChannel.TELEGRAM,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։ {{link}}',
+      en: '{{guestName}}, thank you for being with us. {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.attending',
+    channel: MessageChannel.TELEGRAM,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն պատասխանի համար։ Սպասում ենք Ձեզ {{eventTitle}}-ին։ Պատասխանը փոխելու համար՝ {{link}}',
+      en: '{{guestName}}, thank you for your reply. We look forward to seeing you at {{eventTitle}}. To change your answer: {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.declined',
+    channel: MessageChannel.TELEGRAM,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն տեղեկացնելու համար։ Կկարոտենք Ձեզ։ Եթե պլանները փոխվեն՝ {{link}}',
+      en: '{{guestName}}, thank you for letting us know. You will be missed. If your plans change: {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.undecided',
+    channel: MessageChannel.TELEGRAM,
     body: {
       hy: '{{guestName}}, շնորհակալություն։ Երբ որոշեք, խնդրում ենք թարմացնել պատասխանը՝ {{link}}',
       en: '{{guestName}}, thank you. When you know, please update your answer: {{link}}',

@@ -13,6 +13,7 @@ import { TelegramWebhookController } from '../../src/modules/communications/tele
 import { InvitationSenderService } from '../../src/modules/invitations/sending/invitation-sender.service';
 import { ReminderService } from '../../src/modules/invitations/sending/reminder.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { MESSAGE_COPY } from '../../src/seed/message-copy';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
@@ -348,6 +349,56 @@ describe('chat channels (integration)', () => {
       const result = await sender.send(slug);
 
       expect(result.suppressed).toEqual([expect.objectContaining({ toAddress: 'primary@test.local' })]);
+    });
+  });
+
+  // B72 (decided 10 October 2026, D13): with Aveline's own copy — not copy
+  // written by the test — Telegram was never chosen, because none existed,
+  // and the invitation never offered the bot at all.
+  describe('with Aveline\'s own copy', () => {
+    const withSeededCopy = async (config: ConfigService) => {
+      const seeded = await seedEvent(prisma);
+      await prisma.event.update({ where: { id: seeded.eventId }, data: { startsAt: new Date(Date.now() + 10 * DAY_MS) } });
+      await prisma.guest.updateMany({ where: { eventId: seeded.eventId }, data: { email: 'primary@test.local' } });
+      for (const template of MESSAGE_COPY) {
+        await prisma.messageTemplate.create({ data: { organizationId: null, ...template } });
+      }
+      const service = prisma as unknown as PrismaService;
+      return {
+        ...seeded,
+        sender: new InvitationSenderService(service, communications, guestChannels, config),
+        reminders: new ReminderService(service, communications, guestChannels, config),
+      };
+    };
+    const withBot = configOf({ PUBLIC_APP_URL: 'https://aveline.test', SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c', TELEGRAM_BOT_TOKEN: 't', TELEGRAM_BOT_USERNAME: 'AvelineBot' });
+
+    it('offers the bot in the invitation email, with the guest\'s own link', async () => {
+      const { slug, sender: botSender, primaryGuestToken } = await withSeededCopy(withBot);
+
+      await botSender.send(slug);
+
+      const invitation = await prisma.message.findFirstOrThrow({ where: { templateKey: 'invitation.send' } });
+      expect(invitation.body).toContain(`https://t.me/AvelineBot?start=${primaryGuestToken}`);
+    });
+
+    it('leaves the offer out when no bot is configured', async () => {
+      const { slug, sender: plainSender } = await withSeededCopy(configOf({ PUBLIC_APP_URL: 'https://aveline.test', SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c' }));
+
+      await plainSender.send(slug);
+
+      const invitation = await prisma.message.findFirstOrThrow({ where: { templateKey: 'invitation.send' } });
+      expect(invitation.body).not.toContain('Telegram');
+    });
+
+    it('reminds a guest who opened the bot on Telegram', async () => {
+      const { slug, sender: botSender, reminders: botReminders, primaryGuestToken } = await withSeededCopy(withBot);
+      await botSender.send(slug);
+      await webhook.receive({ message: { chat: { id: 4242 }, text: `/start ${primaryGuestToken}` } });
+      await prisma.message.updateMany({ data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
+
+      const result = await botReminders.remindNow(slug);
+
+      expect(result.recipients[0]).toMatchObject({ channel: MessageChannel.TELEGRAM, toAddress: '4242' });
     });
   });
 

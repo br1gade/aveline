@@ -59,6 +59,7 @@ type Translate = <T>(content: unknown) => T | null;
 @Injectable()
 export class InvitationsService {
   private readonly cacheTtlSeconds: number;
+  private readonly botUsername: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -67,6 +68,7 @@ export class InvitationsService {
     config: ConfigService,
   ) {
     this.cacheTtlSeconds = Number(config.get<string>('INVITATION_CACHE_TTL') ?? 300);
+    this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
   }
 
   /**
@@ -257,6 +259,9 @@ export class InvitationsService {
       // Decision D4: their own household's tables, on their own link, once the
       // host publishes — never the room, never on the shared page.
       seating: isSeatingPublished ? seatingFor(guest) : null,
+      // Opening the bot from here opts them in to reminders on Telegram. Their
+      // own token, so it links this guest; null when no bot is configured.
+      telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${guest.token}` : null,
     };
   }
 

@@ -16,10 +16,20 @@ const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
  * Substituted values are not re-scanned, so a guest whose name contains
  * braces cannot inject a placeholder.
  */
+/** `{{#name}}…{{/name}}`: kept when `name` has a value, dropped when it is empty. */
+const SECTION = /\{\{#\s*([\w.]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g;
+
 export function renderTemplate(template: string, variables: Record<string, string>): string {
   const missing: string[] = [];
 
-  const rendered = template.replace(PLACEHOLDER, (_match, name: string) => {
+  // Sections first, so an optional line can be written in the copy — "Prefer
+  // Telegram? …" only when a bot exists — instead of assembled in code.
+  const withSections = template.replace(SECTION, (_match, name: string, inner: string) => {
+    if (variables[name] === undefined) missing.push(name);
+    return variables[name] ? inner : '';
+  });
+
+  const rendered = withSections.replace(PLACEHOLDER, (_match, name: string) => {
     const value = variables[name];
     if (value === undefined) {
       missing.push(name);

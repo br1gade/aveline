@@ -283,7 +283,8 @@ in a group chat sets the event `UNLISTED`. The editor previews through
     "name": "Armen Petrosyan",
     "household": { "name": "Petrosyan family", "seatsAllotted": 3, "members": [...] },
     "rsvp": { "status": "ATTENDING", "respondedAt": "..." },
-    "seating": null
+    "seating": null,
+    "telegramLink": "https://t.me/AvelineBot?start=k7m2..."
   },
   "blocks": [ { "type": "HERO", "sortOrder": 0, "variant": "full-bleed", "content": {...},
                 "media": [ { "id": "...", "url": "https://media.../3f2c....jpg",
@@ -1658,7 +1659,9 @@ for weeks.
 **A suppressed address loses to the guest's others.** A guest who blocked the
 Telegram bot is reached by email; only a guest with nothing else is reported
 as `SUPPRESSED`. A `GLOBAL` suppression comes only from the recipient — a
-bounce, a complaint, blocking the bot. A rejection caused by our own message
+bounce naming their address (SMTP `5.1.x`, a disabled mailbox `5.2.1`, or a
+bare `550`/`551`/`553`), a complaint, blocking the bot. Our own quota, size or
+policy rejections (`5.4.5`, `5.3.4`, `5.7.x`, a bare `554`) never are. A rejection caused by our own message
 (a WhatsApp template problem, a Telegram message too long) is retried and
 reported as `FAILED`, never held against the guest. A guest who starts or
 unblocks the bot again lifts their own Telegram suppression.
@@ -2075,16 +2078,19 @@ else. A channel the guest opted into outranks one that costs per message, and
 SMS is only chosen once a provider is configured. `channel` may be `SMS`, and
 its `toAddress` is the phone number as the host typed it.
 
-**An invitation always goes by email.** A Telegram bot cannot message anyone
-who has not started a conversation with it, so Telegram can never be first
-contact. The sequence is: invitation by email → guest taps a Telegram deep
-link → reminders go to Telegram.
+**Telegram can never be first contact** — a bot cannot message anyone who
+has not started a conversation with it. So the invitation goes by the best
+channel the guest already has (email for most; SMS for a guest with only a
+phone, once a provider exists), and the sequence is: invitation → guest taps
+the Telegram link → reminders, confirmations and updates go to Telegram.
 
-**That deep link is yours to place.** Invitation copy can include
-`{{telegramLink}}`, which renders as `https://t.me/<bot>?start=<guestToken>`.
-Put it in the email and on the invitation page as "get updates on Telegram" —
-without it, no guest ever opts in and the channel stays unused. It is empty
-when no bot is configured, so render it conditionally.
+**The link is already in place.** When a bot is configured, Aveline's
+invitation email ends with a "Prefer Telegram?" line carrying the guest's own
+`https://t.me/<bot>?start=<guestToken>`, and the personalised invitation
+carries it as `guest.telegramLink` (`null` without a bot) — show it as "get
+updates on Telegram". Telegram copy exists for invitations, reminders,
+confirmations, detail changes and thank-yous (decided 10 October 2026).
+WhatsApp is not chosen until Meta-approved templates exist for it.
 
 **Unreachable reasons now distinguish the cases.** A household whose only
 address is a Telegram chat that has not opted in reports *"has not opened the
@@ -2551,7 +2557,8 @@ So you can plan around them rather than discover them:
 
 - **No SMS provider yet.** The SMS channel is built — chosen last, for a
   guest with a phone and no other way in — but no provider is connected, so
-  it is never chosen until one is. Email, Telegram and WhatsApp are delivered.
+  it is never chosen until one is. Email and Telegram are delivered; WhatsApp
+  is built but has no approved templates yet, so it is never chosen.
 - **No WhatsApp delivery receipts.** Meta reports delivery and read status by
   webhook; we do not consume it, so a WhatsApp message stays `SENT`. Email over SMTP is real, retries a temporary
   failure and suppresses an address that hard-bounces.

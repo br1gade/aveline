@@ -84,16 +84,37 @@ export function classifyDeliveryFailure(error: unknown): DeliveryFailure {
 
   const responseCode = numberProperty(error, 'responseCode');
   if (responseCode !== undefined) {
-    return {
-      kind: responseCode >= 500 && responseCode < 600 ? 'UNDELIVERABLE' : 'TEMPORARY',
-      reason,
-    };
+    return { kind: kindOfReply(responseCode, reason), reason };
   }
 
   // An error we do not recognise is treated as temporary. Being wrong that way
   // costs a few retries; being wrong the other way suppresses an address that
   // was never at fault, and a suppression is far harder to notice and undo.
   return { kind: 'TEMPORARY', reason };
+}
+
+/**
+ * A 4xx is "not now". A 5xx is permanent — but permanent for whom decides
+ * everything, because the recipient's refusal suppresses their address for
+ * every customer. Only the enhanced status codes that name the address
+ * (5.1.x: no such mailbox; 5.2.1: disabled) count against them, and without
+ * an enhanced code only 550/551/553. Everything else — our quota (5.4.5),
+ * size (5.3.4), policy and spam judgements (5.7.x), a bare 554 — is ours, and
+ * used to put every guest after the five-hundredth of the day on the list.
+ */
+function kindOfReply(responseCode: number, reason: string): FailureKind {
+  if (responseCode < 500 || responseCode >= 600) return 'TEMPORARY';
+
+  const enhanced = /\b5\.(\d{1,3})\.(\d{1,3})\b/.exec(reason);
+  if (enhanced) return isRecipientFault(enhanced[1], enhanced[2]) ? 'UNDELIVERABLE' : 'MISCONFIGURED';
+  return RECIPIENT_REPLY_CODES.has(responseCode) ? 'UNDELIVERABLE' : 'MISCONFIGURED';
+}
+
+/** Basic SMTP replies that, alone, mean the address is wrong. */
+const RECIPIENT_REPLY_CODES: ReadonlySet<number> = new Set([550, 551, 553]);
+
+function isRecipientFault(subject: string, detail: string): boolean {
+  return subject === '1' || (subject === '2' && detail === '1');
 }
 
 /** Whether another attempt is worth making. */

@@ -20,12 +20,40 @@ describe('classifyDeliveryFailure', () => {
       { code: 550, label: 'no such mailbox' },
       { code: 551, label: 'user not local' },
       { code: 553, label: 'mailbox name not allowed' },
-      { code: 554, label: 'transaction failed' },
-      { code: 599, label: 'the top of the range' },
     ])('treats $code ($label) as undeliverable', ({ code }) => {
       expect(classifyDeliveryFailure(smtpError(code, `${code} rejected`)).kind).toBe(
         'UNDELIVERABLE',
       );
+    });
+
+    it.each([
+      '550 5.1.1 The email account that you tried to reach does not exist',
+      '550 5.1.10 Recipient not found',
+      '550 5.2.1 The email account that you tried to reach is disabled',
+    ])('treats "%s" as the recipient refusing', (response) => {
+      expect(classifyDeliveryFailure(smtpError(550, response)).kind).toBe('UNDELIVERABLE');
+    });
+  });
+
+  // B71: every 5xx counted as the guest's hard bounce, including our own
+  // quota, size and policy rejections — and a hard bounce suppresses the
+  // address platform-wide for good.
+  describe('what was refused because of us', () => {
+    it.each([
+      '550 5.4.5 Daily user sending quota exceeded',
+      '552 5.3.4 Your message exceeded Google\'s message size limits',
+      '550 5.7.1 Our system has detected that this message is likely unsolicited mail',
+      '554 5.7.0 Too many invalid recipients',
+      '535 5.7.8 Username and Password not accepted',
+    ])('never holds "%s" against the recipient', (response) => {
+      const failure = classifyDeliveryFailure(smtpError(Number(response.slice(0, 3)), response));
+
+      expect(failure.kind).toBe('MISCONFIGURED');
+      expect(shouldSuppressAddress(failure.kind)).toBe(false);
+    });
+
+    it.each([554, 599])('treats a bare %s, which names no recipient fault, as ours', (code) => {
+      expect(classifyDeliveryFailure(smtpError(code, `${code} rejected`)).kind).toBe('MISCONFIGURED');
     });
 
     it('carries the server’s own words as the reason', () => {
