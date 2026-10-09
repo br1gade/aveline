@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
+import { BANK_TIMEOUT_MS } from './payment-provider';
 import {
   PaymentGateway,
   ProviderOutcome,
@@ -104,6 +105,9 @@ export class ArcaGateway implements PaymentGateway {
 
     const response = await fetch(`${this.config.baseUrl}/${endpoint}`, {
       method: 'POST',
+      // A hanging bank must not hold a buyer's checkout, or every money sweep
+      // behind it, open for Node's own default of minutes.
+      signal: AbortSignal.timeout(BANK_TIMEOUT_MS),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: query.toString(),
     });

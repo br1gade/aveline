@@ -33,6 +33,9 @@ export class S3StorageAdapter implements StorageAdapter {
       endpoint: config.endpoint,
       region: config.region,
       forcePathStyle: true,
+      // The SDK sets no timeout of its own: an unreachable store held an
+      // upload request, and the image sweep, open indefinitely.
+      requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,

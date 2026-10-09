@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
+import { BANK_TIMEOUT_MS } from './payment-provider';
 import {
   PaymentGateway,
   ProviderStatus,
@@ -117,6 +118,9 @@ export class AmeriabankGateway implements PaymentGateway {
     const url = `${this.config.baseUrl}/VPOS/api/VPOS/${method}`;
     const response = await fetch(url, {
       method: 'POST',
+      // A hanging bank must not hold a buyer's checkout, or every money sweep
+      // behind it, open for Node's own default of minutes.
+      signal: AbortSignal.timeout(BANK_TIMEOUT_MS),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });

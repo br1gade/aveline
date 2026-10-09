@@ -90,3 +90,6 @@ export function toMinorUnits(amount: string | number, currency: string): bigint 
   const padded = fraction.padEnd(exponent, '0').slice(0, exponent);
   return BigInt(whole) * 10n ** BigInt(exponent) + BigInt(padded || '0');
 }
+
+/** How long any one call to a bank may take before it is abandoned. */
+export const BANK_TIMEOUT_MS = 15_000;
