@@ -1465,21 +1465,27 @@ An `ERASURE` anonymises in place and reports what it touched:
 
 ```json
 { "reference": "clz...", "kind": "ERASURE", "guestsAnonymised": 1,
-  "ticketOrdersAnonymised": 1, "messagesRedacted": 4, "suppressionsRemoved": 1,
-  "accountsClosed": 1 }
+  "householdsRenamed": 1, "ticketOrdersAnonymised": 1, "messagesRedacted": 4,
+  "suppressionsRemoved": 1, "accountsClosed": 1 }
 ```
 
 Addresses are matched regardless of capitals. What goes: names, emails, phone
 numbers, the guest's own free text (guest-book message, dietary note, song
-request, drink preference, and answers to free-text questions), their
+request, drink preference), their dietary tags and every answer to the host's
+questions — special-category data that could point at them (decided 9
+October 2026) — their
 Telegram and push connections, every message sent to them on any channel —
 body and address — with anything still queued stopped, and the invitation
 token, which is itself identifying and would otherwise still open their RSVP
 from a group chat. An account with that address is closed: it can no longer
 sign in, its sessions are revoked, and its name and email are replaced.
 
-What stays, on purpose: the household, the seat, the RSVP status, dietary
-tags, menu-style choice answers, and a paid order's amount. A wedding that had 96 covers still had 96
+A household whose every member has been erased is renamed `Removed` and its
+notes cleared; one with someone still in it keeps its name.
+
+What stays, on purpose: the household, the seat, whether they came, and a
+paid order's amount. The headcount does not change; the catering sheet's
+requirement counts drop by the erased guest's. A wedding that had 96 covers still had 96
 covers, the caterer was already paid for them, and a financial record has its
 own retention obligation. So an erased guest appears in sheets as **`Removed`**
 with their structural data intact — expect that string in a guest list and do

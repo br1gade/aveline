@@ -119,7 +119,14 @@ describe('Erasure (integration)', () => {
       },
     });
 
-    return { guestId: guest.id, rsvpId: rsvp.id, choiceId: choice.id, freeTextId: freeText.id, userId: user.id, orderId: order.id };
+    return {
+      guestId: guest.id,
+      householdId: guest.householdId,
+      eventId,
+      rsvpId: rsvp.id,
+      userId: user.id,
+      orderId: order.id,
+    };
   };
 
   const erase = async () => {
@@ -149,17 +156,45 @@ describe('Erasure (integration)', () => {
     expect(ticket.holderEmail).toBeNull();
   });
 
-  it('clears what they wrote in their own words, and keeps the answers that only count', async () => {
-    const { rsvpId, choiceId, freeTextId } = await personEverywhere();
+  /**
+   * Decided 9 October 2026: dietary tags and answers to the host's questions
+   * go too. They are special-category data — "halal", a kosher-meal option —
+   * and an anonymised row in a named household could still point at the
+   * person. The catering count for that event drops by their requirements.
+   */
+  it('clears their dietary tags, drink and every answer to the host’s questions', async () => {
+    const { rsvpId } = await personEverywhere();
 
     await erase();
 
     const rsvp = await prisma.rsvp.findUniqueOrThrow({ where: { id: rsvpId }, include: { answers: true } });
     expect(rsvp.drinkPreference).toBeNull();
-    // A tag and a menu choice feed the caterer and identify nobody.
-    expect(rsvp.dietary).toEqual(['vegan']);
-    expect(rsvp.answers.find((a) => a.questionId === choiceId)?.value).toBe('fish');
-    expect(rsvp.answers.find((a) => a.questionId === freeTextId)).toBeUndefined();
+    expect(rsvp.dietary).toEqual([]);
+    expect(rsvp.answers).toEqual([]);
+    // Whether they came stays: the headcount the caterer was paid for does not change.
+    expect(rsvp.status).toBe(RsvpStatus.ATTENDING);
+  });
+
+  it('renames a household once everyone in it has been erased', async () => {
+    const { householdId } = await personEverywhere();
+
+    const result = await erase();
+
+    const household = await prisma.household.findUniqueOrThrow({ where: { id: householdId } });
+    expect(household).toMatchObject({ name: 'Removed', notes: null });
+    expect(result).toMatchObject({ householdsRenamed: 1 });
+  });
+
+  it('keeps the name of a household with someone still in it', async () => {
+    const { householdId, eventId } = await personEverywhere();
+    await prisma.household.update({ where: { id: householdId }, data: { name: 'Hakobyan family' } });
+    await prisma.guest.create({
+      data: { eventId, householdId, firstName: 'Aram', token: 'aram-token', rsvp: { create: {} } },
+    });
+
+    await erase();
+
+    expect((await prisma.household.findUniqueOrThrow({ where: { id: householdId } })).name).toBe('Hakobyan family');
   });
 
   it('forgets the chat and device the guest connected', async () => {

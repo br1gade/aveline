@@ -167,11 +167,11 @@ Nulling the identifying fields removes the person while headcount, seating and
 catering totals stay correct.
 
 `Rsvp.dietary` and `dietaryNotes` are **special-category data** under GDPR:
-they can reveal health or religion. Erasure clears `dietaryNotes`, the free
-text, and keeps the `dietary` tags on the anonymised row so catering totals
-stay true (`privacy/anonymisation.ts`). That rests on the row identifying
-nobody — and the household's name survives erasure, so "vegan, Petrosyan
-family" can point at a person. An open question; see BACKLOG.md.
+they can reveal health or religion, and so can an answer like "kosher meal".
+Erasure clears both, with the rest of what the guest told us; only whether
+they came stays (decided 9 October 2026, `privacy/anonymisation.ts`). A
+household whose every member is erased is renamed, because "Petrosyan
+family" beside an anonymised row names the person again.
 
 Most guest data is supplied by the host, not the guest, which is legitimate
 interest rather than consent. `consentSource` records which it was, because

@@ -48,16 +48,16 @@ describe('anonymisedGuestFields', () => {
 });
 
 describe('ERASED_RSVP_FIELDS', () => {
-  // Free text the guest wrote themselves goes; the tags that feed the
-  // catering sheet stay, because "vegan" against an anonymous row identifies
-  // nobody.
-  it('clears the free text and nothing else', () => {
+  // Their own words, and — decided 9 October 2026 — their dietary tags, which
+  // are special-category data. Whether they came is not on this list.
+  it('clears what they told us about themselves, and not whether they came', () => {
     expect(ERASED_RSVP_FIELDS).toEqual({
       message: null,
       dietaryNotes: null,
       songRequest: null,
-      // Free text too: a drink preference can name a person or a place.
       drinkPreference: null,
+      dietary: [],
     });
+    expect(ERASED_RSVP_FIELDS).not.toHaveProperty('status');
   });
 });

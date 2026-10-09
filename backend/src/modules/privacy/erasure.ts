@@ -1,4 +1,4 @@
-import { MessageStatus, Prisma, QuestionType } from '@prisma/client';
+import { MessageStatus, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { ERASED_NAME, ERASED_RSVP_FIELDS, anonymisedGuestFields } from './anonymisation';
 
@@ -12,16 +12,14 @@ import { ERASED_NAME, ERASED_RSVP_FIELDS, anonymisedGuestFields } from './anonym
  * with different capitals was missed entirely. Each step below closes one of
  * those.
  *
- * What survives is still deliberate — household, seat, response status,
- * dietary tags, menu choices and a ticket order's amount — so a headcount the
- * caterer was paid for, or a financial record, does not change.
+ * What survives is deliberate — the household (renamed once nobody named is
+ * left in it), the seat, whether they came, and a ticket order's amount — so
+ * a headcount the caterer was paid for, or a financial record, does not
+ * change. Dietary tags and answers go (decided 9 October 2026).
  */
 type Tx = Prisma.TransactionClient;
 
 export const ERASED = '[erased]';
-
-/** Answers a guest wrote in their own words. Choices only count. */
-const OWN_WORDS: QuestionType[] = [QuestionType.TEXT, QuestionType.LONG_TEXT, QuestionType.SIGNATURE];
 
 /** The request is stored lower-cased; rows may not be. */
 export function sameAddress(email: string) {
@@ -40,6 +38,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date) {
   );
 
   await eraseGuests(tx, guestIds, now);
+  const householdsRenamed = await renameEmptiedHouseholds(tx, guestIds);
   const ticketOrdersAnonymised = await eraseTicketHolders(tx, email, guestIds);
   const messagesRedacted = await redactMessages(tx, email, guestIds);
   const suppressionsRemoved = await forgetSuppressions(tx, addresses);
@@ -47,6 +46,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date) {
 
   return {
     guestsAnonymised: guestIds.length,
+    householdsRenamed,
     ticketOrdersAnonymised,
     messagesRedacted,
     suppressionsRemoved,
@@ -64,13 +64,28 @@ async function eraseGuests(tx: Tx, guestIds: string[], now: Date): Promise<void>
   }
 
   await tx.rsvp.updateMany({ where: { guestId: { in: guestIds } }, data: ERASED_RSVP_FIELDS });
-  await tx.rsvpAnswer.deleteMany({
-    where: { rsvp: { guestId: { in: guestIds } }, question: { type: { in: OWN_WORDS } } },
-  });
+  // Every answer to the host's questions, choices included: an option can be
+  // as revealing as a tag ("kosher meal").
+  await tx.rsvpAnswer.deleteMany({ where: { rsvp: { guestId: { in: guestIds } } } });
   // A drawn signature is an image of them; the row goes, which unlinks it.
   await tx.mediaAsset.deleteMany({ where: { rsvpSignatures: { some: { guestId: { in: guestIds } } } } });
   await tx.guestChannel.deleteMany({ where: { guestId: { in: guestIds } } });
   await tx.deviceToken.deleteMany({ where: { guestId: { in: guestIds } } });
+}
+
+/**
+ * A household whose every member is now erased loses its name and notes.
+ * "Petrosyan family" beside an anonymised row is the person, named again.
+ * A household with someone still in it keeps its name — it is theirs.
+ */
+async function renameEmptiedHouseholds(tx: Tx, guestIds: string[]): Promise<number> {
+  const renamed = await tx.household.updateMany({
+    where: {
+      guests: { some: { id: { in: guestIds } }, every: { anonymizedAt: { not: null } } },
+    },
+    data: { name: ERASED_NAME, notes: null },
+  });
+  return renamed.count;
 }
 
 /** A paid order keeps its amount — financial records have their own retention — and loses the person. */

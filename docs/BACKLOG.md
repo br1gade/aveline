@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 23 open | 25 open, of which 8 money | — |
+| Bugfixes | 0 open | 22 open | 25 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 11 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -52,7 +52,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B62 | An erased guest can be re-identified through their household | Erasure keeps the household's name and the dietary tags, which are special-category data — "halal, Petrosyan family" points at a person. Either clear the tags, or rename a household whose every member is erased. **Decision** | `privacy/erasure.ts`, `privacy/anonymisation.ts` | S |
 | B11 | Read-only roles get guest contact details ✔ | The guest-list export needs only `operations:read`, bypassing `guest:contact:read`, and export files sit at public, non-expiring URLs (the ticket manifest exposes door codes the same way). `GET /invitations/:slug/delivery` gives a DESIGNER or VIEWER every address. `GET /vendors` hands brief tokens, which can carry the `contacts` scope, to any VIEWER. | `exports/`, `invitations/invitation-lifecycle.controller.ts`, `vendors/` | M |
 | B12 | The vendor directory is shared by every customer, and any customer can write to it | `Vendor` has no organization: host B sees the phone number host A entered for their cousin the photographer | `vendors/` | S |
 | B13 | Read-only members can create events and become their owner ✔ | `POST /events` requires no permission | `events/events.controller.ts` | S |

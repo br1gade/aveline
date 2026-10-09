@@ -39,19 +39,20 @@ export function anonymisedGuestFields(newToken: string, now: Date): AnonymisedGu
 }
 
 /**
- * The free-text fields a guest wrote themselves.
+ * What a guest told us about themselves, cleared on erasure.
  *
- * A guest-book message signed with a name, a dietary note naming a medical
- * condition and a song dedication are all personal data the guest supplied,
- * so erasure clears them, as does the drink preference, which is free text.
- * The RSVP's status and dietary tags stay: a tag like
- * "vegan" against an anonymous row feeds the catering sheet and identifies
- * nobody.
+ * Their own words — a guest-book message signed with a name, a dietary note
+ * naming a condition, a song dedication, a drink preference — and, decided 9
+ * October 2026, their dietary tags too. A tag like "halal" or "kosher" is
+ * special-category data under GDPR, and an anonymised row in a named
+ * household could still point at the person. What stays is whether they came:
+ * the headcount the caterer was paid for does not change, though the
+ * requirement counts drop by theirs.
  */
 export const ERASED_RSVP_FIELDS = {
   message: null,
   dietaryNotes: null,
   songRequest: null,
-  // Free text, so it can say anything: "the Areni my uncle makes".
   drinkPreference: null,
-} as const;
+  dietary: [],
+};
