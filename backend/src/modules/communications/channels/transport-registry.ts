@@ -1,13 +1,24 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { allowsDevelopmentShortcuts } from '../../../common/environment';
 import { MessageChannel } from '@prisma/client';
 import { ConsoleTransport } from './console.transport';
 import { MessageTransport } from './message-channel';
+import { SmsProvider, SmsSettings, SmsTransport } from './sms.transport';
 import { SmtpSettings, SmtpTransport } from './smtp.transport';
 import { TelegramSettings, TelegramTransport } from './telegram.transport';
 import { WhatsAppSettings, WhatsAppTransport } from './whatsapp.transport';
 
 const logger = new Logger('TransportRegistry');
+
+/**
+ * The SMS providers Aveline can send through, by the name `SMS_PROVIDER`
+ * takes. Empty until one is chosen (decided 9 October 2026: build the channel
+ * provider-neutral, choose later); adding one is a class implementing
+ * `SmsProvider` and a row here.
+ */
+export type SmsProviderFactory = (config: ConfigService) => SmsProvider;
+export const SMS_PROVIDERS: Readonly<Record<string, SmsProviderFactory>> = {};
 
 /**
  * Which transport serves each channel.
@@ -23,7 +34,10 @@ const logger = new Logger('TransportRegistry');
  * that looks exactly like success from the outside. Refusing to boot is the
  * only version of that which gets noticed.
  */
-export function buildTransports(config: ConfigService): Map<MessageChannel, MessageTransport> {
+export function buildTransports(
+  config: ConfigService,
+  smsProviders: Readonly<Record<string, SmsProviderFactory>> = SMS_PROVIDERS,
+): Map<MessageChannel, MessageTransport> {
   const smtp = smtpSettingsFrom(config);
   const isProduction = config.get<string>('NODE_ENV') === 'production';
 
@@ -35,8 +49,14 @@ export function buildTransports(config: ConfigService): Map<MessageChannel, Mess
   }
 
   const transports = new Map<MessageChannel, MessageTransport>();
-  for (const channel of Object.values(MessageChannel)) {
-    transports.set(channel, new ConsoleTransport(channel));
+  // The console stands in for unconfigured channels only where nobody is
+  // waiting for the message. In production it reported messages as
+  // delivered that went nowhere; there, a channel with no transport fails
+  // the message visibly instead — and the planners never choose it.
+  if (allowsDevelopmentShortcuts(config.get<string>('NODE_ENV'))) {
+    for (const channel of Object.values(MessageChannel)) {
+      transports.set(channel, new ConsoleTransport(channel));
+    }
   }
 
   if (smtp) {
@@ -58,6 +78,12 @@ export function buildTransports(config: ConfigService): Map<MessageChannel, Mess
     logger.log(`whatsapp over the Cloud API as ${whatsapp.phoneNumberId}`);
   }
 
+  const sms = smsSettingsFrom(config, smsProviders);
+  if (sms) {
+    transports.set(MessageChannel.SMS, new SmsTransport(sms));
+    logger.log(`sms through ${sms.provider.name}`);
+  }
+
   return transports;
 }
 
@@ -74,6 +100,7 @@ export function deliverableChannels(config: ConfigService): MessageChannel[] {
   if (smtpSettingsFrom(config)) configured.push(MessageChannel.EMAIL);
   if (telegramSettingsFrom(config)) configured.push(MessageChannel.TELEGRAM);
   if (whatsAppSettingsFrom(config)) configured.push(MessageChannel.WHATSAPP);
+  if (smsProviderName(config)) configured.push(MessageChannel.SMS);
 
   // In development nothing may be configured, and a product that can plan no
   // sends at all is harder to work on than one that plans them to the console.
@@ -126,4 +153,31 @@ export function smtpSettingsFrom(config: ConfigService): SmtpSettings | null {
     password: config.get<string>('SMTP_PASSWORD'),
     from,
   };
+}
+
+function smsProviderName(config: ConfigService): string | null {
+  return config.get<string>('SMS_PROVIDER')?.trim() || null;
+}
+
+/**
+ * SMS, when `SMS_PROVIDER` names a provider Aveline has. Naming one it does
+ * not have refuses to boot: a typo would otherwise leave every text unsent
+ * while the setting looked right.
+ */
+export function smsSettingsFrom(
+  config: ConfigService,
+  providers: Readonly<Record<string, SmsProviderFactory>> = SMS_PROVIDERS,
+): SmsSettings | null {
+  const name = smsProviderName(config);
+  if (!name) return null;
+
+  const factory = providers[name];
+  if (!factory) {
+    const known = Object.keys(providers);
+    throw new Error(
+      `SMS_PROVIDER "${name}" is not one Aveline can send through; ` +
+        (known.length > 0 ? `use one of ${known.join(', ')}` : 'none is built yet — leave it unset'),
+    );
+  }
+  return { provider: factory(config), defaultCountryCode: config.get<string>('SMS_DEFAULT_COUNTRY_CODE') ?? '374' };
 }

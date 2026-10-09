@@ -1893,8 +1893,10 @@ each entry in `recipients`:
 chat id, or a phone number. Do not assume it is an email address.
 
 **Preference order:** Telegram if the guest opted in, then WhatsApp if there
-is a phone number, then email. A channel the guest opted into outranks one
-that costs per message.
+is a phone number, then email, then SMS — for a guest with a phone and nothing
+else. A channel the guest opted into outranks one that costs per message, and
+SMS is only chosen once a provider is configured. `channel` may be `SMS`, and
+its `toAddress` is the phone number as the host typed it.
 
 **An invitation always goes by email.** A Telegram bot cannot message anyone
 who has not started a conversation with it, so Telegram can never be first
@@ -2337,8 +2339,9 @@ way a user will see it, formatting included.
 
 So you can plan around them rather than discover them:
 
-- **SMS is not delivered.** Email, Telegram and WhatsApp are. SMS still writes
-  to the server log.
+- **No SMS provider yet.** The SMS channel is built — chosen last, for a
+  guest with a phone and no other way in — but no provider is connected, so
+  it is never chosen until one is. Email, Telegram and WhatsApp are delivered.
 - **No WhatsApp delivery receipts.** Meta reports delivery and read status by
   webhook; we do not consume it, so a WhatsApp message stays `SENT`. Email over SMTP is real, retries a temporary
   failure and suppresses an address that hard-bounces.

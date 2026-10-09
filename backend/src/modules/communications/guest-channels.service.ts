@@ -15,9 +15,10 @@ export class GuestChannelsService {
    *
    * Those two are folded in here rather than duplicated into `GuestChannel`,
    * because a host types them when adding a guest and copying them would mean
-   * two places to keep in step. Phone is offered as a WhatsApp address: on
+   * two places to keep in step. Phone is offered as a WhatsApp address — on
    * WhatsApp a number is reachable without any opt-in, which is the whole
-   * reason that channel is worth having.
+   * reason that channel is worth having — and as an SMS address, for a guest
+   * with neither WhatsApp nor email.
    */
   addressesFor(guest: {
     email: string | null;
@@ -38,6 +39,9 @@ export class GuestChannelsService {
     }
     if (guest.phone && !has(MessageChannel.WHATSAPP)) {
       addresses.push({ channel: MessageChannel.WHATSAPP, address: guest.phone, optedInAt: null });
+    }
+    if (guest.phone && !has(MessageChannel.SMS)) {
+      addresses.push({ channel: MessageChannel.SMS, address: guest.phone, optedInAt: null });
     }
 
     return addresses;

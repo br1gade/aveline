@@ -14,8 +14,11 @@ import { isSafeAddress } from '../../../common/address';
  * - **WhatsApp** can reach someone cold, so it is the fallback when there is a
  *   phone number and no Telegram. Every message costs, which is why it does
  *   not outrank a channel the guest opted into.
- * - **Email** is last and is the only channel that always works from nothing,
- *   which is what makes it the default for an invitation nobody has yet.
+ * - **Email** always works from nothing, which is what makes it the default for
+ *   an invitation nobody has yet.
+ * - **SMS** is last: every text costs, and it is for the guest with a phone
+ *   and nothing else — often the older half of an Armenian guest list. A
+ *   number reachable on WhatsApp is reached there first.
  *
  * Pure, because "how do we write to this person" is a product decision that
  * must be inspectable in one place rather than spread across two senders.
@@ -42,6 +45,7 @@ export const CHANNEL_PREFERENCE: readonly MessageChannel[] = [
   MessageChannel.TELEGRAM,
   MessageChannel.WHATSAPP,
   MessageChannel.EMAIL,
+  MessageChannel.SMS,
 ];
 
 /**

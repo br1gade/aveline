@@ -25,8 +25,8 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 20 open | 24 open, of which 8 money | — |
-| Features | 1 open (F1, the client) | 2 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
+| Bugfixes | 0 open | 20 open | 23 open, of which 8 money | — |
+| Features | 1 open (F1, the client) | 1 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -122,7 +122,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 | B58 | Reminder edge cases: "once a day" is not kept across manual and automatic; a reminder still retrying is delivered after the guest answers; the delivery view leaves reminders out | `invitations/sending/` | S |
 | B59 | Sending with one unknown `guestIds` entry returns 201, though API.md promises 400 | `invitations/sending/` | S |
 | B60 | An answer changed twice within a minute can leave a contradictory last confirmation | `invitations/sending/rsvp-confirmation.ts` | S |
-| B61 | In production, channels without a provider fall back to a console transport that marks messages delivered and logs their links | `communications/channels/transport-registry.ts` | S |
 
 ---
 
@@ -138,7 +137,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Feature | Why | Size |
 |---|---|---|---|
-| F17 | **SMS** | The channel for guests who use neither email nor chat apps — the older half of an Armenian guest list. A host can share a guest's link by hand meanwhile | M |
 | F18 | **Image resizing** | Originals are served as uploaded; a 6 MB photo costs every guest 6 MB | M |
 
 ### P2

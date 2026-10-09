@@ -134,4 +134,63 @@ export const MESSAGE_COPY = [
       en: 'Thank you, {{buyerName}}. Your tickets:\n\n{{link}}',
     },
   },
+  // ── SMS ────────────────────────────────────────────────────────────
+  // The guest messages again, for a guest reached by text: no subject, and on
+  // one line, because a text is read in a few seconds and paid for by length.
+  {
+    key: 'invitation.send',
+    channel: MessageChannel.SMS,
+    body: {
+      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։ {{link}}',
+      en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}. {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.reminder',
+    channel: MessageChannel.SMS,
+    body: {
+      hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։ {{link}}',
+      en: '{{guestName}}, we are still hoping to hear from you. {{link}}',
+    },
+  },
+  {
+    key: 'event.details-changed',
+    channel: MessageChannel.SMS,
+    body: {
+      hy: '{{guestName}}, {{hosts}}-ի միջոցառման մանրամասները փոխվել են։ {{note}} Թարմ տեղեկությունը՝ Ձեր հրավերում․ {{link}}',
+      en: '{{guestName}}, the details of {{hosts}}’s event have changed. {{note}} The latest is always on your invitation: {{link}}',
+    },
+  },
+  {
+    key: 'thankyou.send',
+    channel: MessageChannel.SMS,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։ {{link}}',
+      en: '{{guestName}}, thank you for being with us. {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.attending',
+    channel: MessageChannel.SMS,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն պատասխանի համար։ Սպասում ենք Ձեզ {{eventTitle}}-ին։ Պատասխանը փոխելու համար՝ {{link}}',
+      en: '{{guestName}}, thank you for your reply. We look forward to seeing you at {{eventTitle}}. To change your answer: {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.declined',
+    channel: MessageChannel.SMS,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն տեղեկացնելու համար։ Կկարոտենք Ձեզ։ Եթե պլանները փոխվեն՝ {{link}}',
+      en: '{{guestName}}, thank you for letting us know. You will be missed. If your plans change: {{link}}',
+    },
+  },
+  {
+    key: 'rsvp.confirmation.undecided',
+    channel: MessageChannel.SMS,
+    body: {
+      hy: '{{guestName}}, շնորհակալություն։ Երբ որոշեք, խնդրում ենք թարմացնել պատասխանը՝ {{link}}',
+      en: '{{guestName}}, thank you. When you know, please update your answer: {{link}}',
+    },
+  },
 ];

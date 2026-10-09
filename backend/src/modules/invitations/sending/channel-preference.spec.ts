@@ -21,6 +21,12 @@ const email = (): GuestAddress => ({
   optedInAt: null,
 });
 
+const sms = (): GuestAddress => ({
+  channel: MessageChannel.SMS,
+  address: '+37410000000',
+  optedInAt: null,
+});
+
 describe('chooseChannel', () => {
   describe('preference order', () => {
     // A guest who opted into Telegram chose it, it is free, and it is read
@@ -41,6 +47,18 @@ describe('chooseChannel', () => {
 
     it('falls back to email last', () => {
       expect(chooseChannel([email()], EVERYTHING)?.channel).toBe(MessageChannel.EMAIL);
+    });
+
+    // A text costs, and is for the guest with a phone and nothing else.
+    it('reaches a guest by SMS only when nothing else will', () => {
+      const withSms = [...EVERYTHING, MessageChannel.SMS];
+      expect(chooseChannel([sms(), email()], withSms)?.channel).toBe(MessageChannel.EMAIL);
+      expect(chooseChannel([sms(), whatsapp()], withSms)?.channel).toBe(MessageChannel.WHATSAPP);
+      expect(chooseChannel([sms()], withSms)).toEqual({ channel: MessageChannel.SMS, address: '+37410000000' });
+    });
+
+    it('does not choose SMS where no provider is configured', () => {
+      expect(chooseChannel([sms()], EVERYTHING)).toBeNull();
     });
 
     it('returns the address belonging to the channel it chose', () => {

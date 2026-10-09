@@ -41,7 +41,7 @@ human retyping something another human already typed.
 
 | # | Gap | Why it blocks |
 |---|---|---|
-| 5 | **SMS** | Email, Telegram and WhatsApp are delivered. SMS still resolves to the console transport, and it is the channel that reaches a guest who reads neither email nor chat — the older half of an Armenian guest list. One adapter behind the same port, plus a provider |
+| 5 | **An SMS provider** | The SMS channel is built provider-neutral (decided 9 October 2026): chosen last, numbers normalised, failures classified, copy written. What remains is choosing a provider and writing its adapter — one class implementing `SmsProvider` and a row in `SMS_PROVIDERS` |
 
 ## 3. High value — the actual digitalisation
 

@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel } from '@prisma/client';
 import { ConsoleTransport } from './console.transport';
+import { SmsTransport } from './sms.transport';
 import { SmtpTransport } from './smtp.transport';
 import { TelegramTransport } from './telegram.transport';
 import { WhatsAppTransport } from './whatsapp.transport';
@@ -86,8 +87,8 @@ describe('smtpSettingsFrom', () => {
 });
 
 describe('buildTransports', () => {
-  it('gives every channel a transport', () => {
-    const transports = buildTransports(configOf({}));
+  it('gives every channel a transport in development', () => {
+    const transports = buildTransports(configOf({ NODE_ENV: 'development' }));
 
     for (const channel of Object.values(MessageChannel)) {
       expect(transports.get(channel)).toBeDefined();
@@ -125,16 +126,44 @@ describe('buildTransports', () => {
     ).not.toThrow();
   });
 
-  // The other channels have no implementation yet; recording them beats
-  // dropping them.
+  // In development an unconfigured channel is recorded rather than dropped.
   it.each([MessageChannel.SMS, MessageChannel.TELEGRAM, MessageChannel.WHATSAPP])(
-    'still logs %s to the console',
+    'logs %s to the console in development',
     (channel) => {
-      const transports = buildTransports(configOf({ SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c' }));
+      const transports = buildTransports(
+        configOf({ NODE_ENV: 'development', SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c' }),
+      );
 
       expect(transports.get(channel)).toBeInstanceOf(ConsoleTransport);
     },
   );
+
+  // In production the console marked texts as delivered that went nowhere.
+  it.each([MessageChannel.SMS, MessageChannel.TELEGRAM, MessageChannel.WHATSAPP])(
+    'gives %s no stand-in in production when it is not configured',
+    (channel) => {
+      const transports = buildTransports(
+        configOf({ NODE_ENV: 'production', SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c' }),
+      );
+
+      expect(transports.get(channel)).toBeUndefined();
+    },
+  );
+
+  it('sends SMS through the provider SMS_PROVIDER names', () => {
+    const providers = { test: () => ({ name: 'test', send: () => Promise.resolve({}) }) };
+
+    const transports = buildTransports(configOf({ NODE_ENV: 'development', SMS_PROVIDER: 'test' }), providers);
+
+    expect(transports.get(MessageChannel.SMS)).toBeInstanceOf(SmsTransport);
+  });
+
+  // A typo would otherwise leave every text unsent while the setting looked right.
+  it('refuses to boot with an SMS provider it does not have', () => {
+    expect(() => buildTransports(configOf({ NODE_ENV: 'development', SMS_PROVIDER: 'twillio' }))).toThrow(
+      /SMS_PROVIDER "twillio"/,
+    );
+  });
 
   it('uses the Bot API for Telegram once a token is configured', () => {
     const transports = buildTransports(configOf({ TELEGRAM_BOT_TOKEN: 'bot-token' }));
@@ -158,7 +187,7 @@ describe('buildTransports', () => {
     { label: 'only the phone number id', values: { WHATSAPP_PHONE_NUMBER_ID: '123' } },
     { label: 'only the access token', values: { WHATSAPP_ACCESS_TOKEN: 'tok' } },
   ])('leaves WhatsApp on the console with $label', ({ values }) => {
-    const transports = buildTransports(configOf(values));
+    const transports = buildTransports(configOf({ NODE_ENV: 'development', ...values }));
 
     expect(transports.get(MessageChannel.WHATSAPP)).toBeInstanceOf(ConsoleTransport);
   });
@@ -196,6 +225,15 @@ describe('deliverableChannels', () => {
   // that plans them to the console.
   it('falls back to email when nothing is configured', () => {
     expect(deliverableChannels(configOf({}))).toEqual([MessageChannel.EMAIL]);
+  });
+
+  it('plans SMS only once a provider is named', () => {
+    expect(deliverableChannels(configOf({ SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c' }))).not.toContain(
+      MessageChannel.SMS,
+    );
+    expect(
+      deliverableChannels(configOf({ SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c', SMS_PROVIDER: 'test' })),
+    ).toContain(MessageChannel.SMS);
   });
 
 });

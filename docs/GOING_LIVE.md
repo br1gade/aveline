@@ -42,6 +42,7 @@ Several of the bugs expose people's data.
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
 | 10 | **Off-host backup copies** | A verified nightly Postgres dump and Garage archive now run on the host, with a tested restore. They do not survive losing the machine until `BACKUP_SYNC_COMMAND` points somewhere else |
 | 11 | **A host and a domain** | The stack has now been run end to end locally — seven services healthy, migrations applied, TLS served by Caddy, a verified backup taken, and a full journey from `register` to a published invitation page. What it has never had is a real host, a real domain, or a certificate from Let's Encrypt |
+| 12b | **An SMS provider** | The channel is built and inert. Choose a provider that reaches Armenian numbers, write its adapter (one class), and set `SMS_PROVIDER`. Until then guests with only a phone number are reported unreachable |
 | 12 | **WhatsApp business verification** | The transport is built and inert. Meta needs a verified business — trade licence, tax papers, a dedicated number — and message templates approved in advance. Days to weeks, like the bank accounts |
 | 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
 
