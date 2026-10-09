@@ -229,6 +229,22 @@ describe('RsvpService (integration)', () => {
       ]);
     });
 
+    // B60: the third reused the first's key and was dropped, leaving
+    // "sorry you can't make it" as the last word.
+    it('ends on the answer that stands when it is changed and changed back within a minute', async () => {
+      const { slug, primaryGuestToken } = await withCopy();
+
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING });
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.DECLINED });
+      await service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING });
+
+      expect((await confirmations()).map((message) => message.templateKey)).toEqual([
+        'rsvp.confirmation.attending',
+        'rsvp.confirmation.declined',
+        'rsvp.confirmation.attending',
+      ]);
+    });
+
     // A double-submitted form is one answer.
     it('sends one confirmation for the same answer submitted twice at once', async () => {
       const { slug, primaryGuestToken } = await withCopy();

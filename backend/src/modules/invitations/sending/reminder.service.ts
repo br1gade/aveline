@@ -13,10 +13,13 @@ import { GuestChannelsService } from '../../communications/guest-channels.servic
 import {
   REMINDER_MILESTONES,
   dueMilestone,
+  REMINDER_INTERVAL_MS,
+  REMINDER_TEMPLATE_KEY,
   manualDedupeKey,
   milestoneDedupeKey,
 } from './reminder-schedule';
 import { INVITATION_REACHED, channelsWithCopy, loadSendableHouseholds } from './audience';
+import { REACHED_STATUSES } from './previous-attempts';
 import { SendableHousehold, displayName, planInvitationSend } from './send-plan';
 
 /** Whether a thank-you went to guests who arrived or guests who accepted. */
@@ -47,7 +50,7 @@ interface Remindable {
   defaultLocale: string;
 }
 
-const TEMPLATE_KEY = 'rsvp.reminder';
+const TEMPLATE_KEY = REMINDER_TEMPLATE_KEY;
 const THANK_YOU_TEMPLATE_KEY = 'thankyou.send';
 const DETAILS_CHANGED_TEMPLATE_KEY = 'event.details-changed';
 
@@ -255,10 +258,11 @@ export class ReminderService {
 
     // One query for every key, rather than one per household.
     const alreadySent = await this.existingKeys(plan.recipients.map((recipient) => dedupeKeyFor(recipient.householdId)));
+    const remindedRecently = templateKey === TEMPLATE_KEY ? await this.remindedWithinADay(invitation.eventId) : new Set<string>();
 
     for (const recipient of plan.recipients) {
       const dedupeKey = dedupeKeyFor(recipient.householdId);
-      if (alreadySent.has(dedupeKey)) {
+      if (alreadySent.has(dedupeKey) || remindedRecently.has(recipient.householdId)) {
         alreadyRemindedToday += 1;
         continue;
       }
@@ -298,6 +302,24 @@ export class ReminderService {
       // correct an address.
       notInvited: plan.skipped,
     };
+  }
+
+  /**
+   * Households sent a reminder in the last day, by hand or by the schedule.
+   * Each kind kept its own key, so a host pressing "remind" and the sweep on
+   * the same day wrote to a household twice.
+   */
+  private async remindedWithinADay(eventId: string): Promise<Set<string>> {
+    const recent = await this.prisma.message.findMany({
+      where: {
+        eventId,
+        templateKey: TEMPLATE_KEY,
+        status: { in: REACHED_STATUSES },
+        createdAt: { gte: new Date(Date.now() - REMINDER_INTERVAL_MS) },
+      },
+      select: { guest: { select: { householdId: true } } },
+    });
+    return new Set(recent.flatMap((message) => (message.guest ? [message.guest.householdId] : [])));
   }
 
   private async existingKeys(dedupeKeys: string[]): Promise<Set<string>> {

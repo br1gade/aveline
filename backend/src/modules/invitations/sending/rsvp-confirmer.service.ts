@@ -6,7 +6,7 @@ import { CommunicationsService } from '../../communications/communications.servi
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { channelsWithCopy, loadSendableHouseholds } from './audience';
-import { confirmationDedupeKey, confirmationTemplateFor } from './rsvp-confirmation';
+import { confirmationDedupeKey, confirmationTemplateFor, statusConfirmedBy } from './rsvp-confirmation';
 import { displayName, planInvitationSend } from './send-plan';
 
 /**
@@ -86,6 +86,10 @@ export class RsvpConfirmerService {
     // someone forwarded, and there is no address on file. Nothing to send.
     if (!recipient) return;
 
+    const now = new Date();
+    const dedupeKey = confirmationDedupeKey(guest.householdId, status, now, await this.confirmedThisMinute(guest.householdId, now));
+    if (dedupeKey === null) return;
+
     await this.communications.enqueue({
       organizationId: event.organizationId,
       eventId: event.id,
@@ -100,7 +104,25 @@ export class RsvpConfirmerService {
         eventTitle: event.title,
         link: `${this.appUrl}/invitations/${event.invitation.slug}/g/${recipient.guest.token}`,
       },
-      dedupeKey: confirmationDedupeKey(guest.householdId, status, new Date()),
+      dedupeKey,
+    });
+  }
+
+  /** This household's confirmations queued in the current minute, newest first. */
+  private async confirmedThisMinute(householdId: string, now: Date): Promise<RsvpStatus[]> {
+    const minuteStart = new Date(now);
+    minuteStart.setUTCSeconds(0, 0);
+    const recent = await this.prisma.message.findMany({
+      where: {
+        dedupeKey: { startsWith: `rsvp-confirm:${householdId}:` },
+        createdAt: { gte: minuteStart },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { templateKey: true },
+    });
+    return recent.flatMap((message) => {
+      const status = message.templateKey ? statusConfirmedBy(message.templateKey) : null;
+      return status ? [status] : [];
     });
   }
 }

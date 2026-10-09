@@ -1,4 +1,5 @@
-import { Prisma, RsvpStatus } from '@prisma/client';
+import { MessageStatus, Prisma, RsvpStatus } from '@prisma/client';
+import { REMINDER_TEMPLATE_KEY } from '../invitations/sending/reminder-schedule';
 import { releaseSeat } from '../seating/released-seat';
 import { Answer } from './answers';
 
@@ -30,7 +31,23 @@ export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields) 
   });
   // A guest who is not coming should not hold a chair someone else could use.
   if (fields.status === RsvpStatus.DECLINED) await releaseSeat(tx, guestId);
+  if (fields.status !== RsvpStatus.PENDING) await withdrawReminders(tx, guestId);
   return rsvp;
+}
+
+/**
+ * Withdraws reminders to answer still waiting in the outbox — retrying, or
+ * not yet due — for a household that has now answered. One used to go out
+ * after the answer, asking them to do what they had just done. The outbox
+ * claims only QUEUED messages, so a withdrawn one can never be sent.
+ */
+async function withdrawReminders(tx: Tx, guestId: string): Promise<void> {
+  const guest = await tx.guest.findUnique({ where: { id: guestId }, select: { householdId: true } });
+  if (!guest) return;
+  await tx.message.updateMany({
+    where: { templateKey: REMINDER_TEMPLATE_KEY, status: MessageStatus.QUEUED, guest: { householdId: guest.householdId } },
+    data: { status: MessageStatus.CANCELLED, failureReason: 'The household answered before it was sent' },
+  });
 }
 
 export async function saveAnswers(tx: Tx, rsvpId: string, answers: Answer[]): Promise<void> {

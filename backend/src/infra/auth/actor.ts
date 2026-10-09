@@ -14,6 +14,8 @@ export interface RequestActor {
   organizationRole?: OrganizationRole | null;
   eventRole?: EventRole | null;
   organizationId?: string | null;
+  /** The event this request acts on, however the route named it — id or invitation slug. */
+  eventId?: string | null;
 }
 
 export interface AuthenticatedRequest {

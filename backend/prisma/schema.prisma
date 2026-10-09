@@ -1250,6 +1250,9 @@ enum MessageStatus {
   BOUNCED
   /// Recipient opted out; never attempted.
   SUPPRESSED
+  /// Withdrawn before it was sent, because what it said no longer applied —
+  /// a reminder to answer, for a household that has since answered.
+  CANCELLED
 }
 
 // ─────────────────────── Data-subject requests ─────────────────────────

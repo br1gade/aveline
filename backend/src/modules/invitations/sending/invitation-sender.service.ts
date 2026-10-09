@@ -6,7 +6,8 @@ import { CommunicationsService } from '../../communications/communications.servi
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { channelsWithCopy, loadSendableHouseholds } from './audience';
-import { PreviousAttempt, hasReachedGuest, isSupersededFailure } from './previous-attempts';
+import { PreviousAttempt, REACHED_STATUSES, hasReachedGuest, isSupersededFailure } from './previous-attempts';
+import { REMINDER_TEMPLATE_KEY } from './reminder-schedule';
 import {
   Recipient,
   SendableHousehold,
@@ -52,6 +53,7 @@ export class InvitationSenderService {
    */
   async send(slug: string, options: { guestIds?: string[] } = {}) {
     const invitation = await this.loadSendable(slug);
+    if (options.guestIds) await this.assertGuestsOnEvent(invitation.eventId, options.guestIds);
     const households = await this.householdsFor(invitation.eventId, options.guestIds);
 
     if (households.length === 0) {
@@ -123,7 +125,7 @@ export class InvitationSenderService {
   async deliveryStatus(slug: string, canSeeContacts: boolean) {
     const invitation = await this.loadInvitation(slug);
 
-    const [households, messages] = await Promise.all([
+    const [households, messages, reminders] = await Promise.all([
       this.householdsFor(invitation.eventId),
       this.prisma.message.findMany({
         where: { eventId: invitation.eventId, templateKey: TEMPLATE_KEY },
@@ -137,15 +139,26 @@ export class InvitationSenderService {
           sentAt: true,
         },
       }),
+      // Reminders that went, or are going, newest first — the report used to
+      // leave them out, so a host could not tell who had been chased.
+      this.prisma.message.findMany({
+        where: { eventId: invitation.eventId, templateKey: REMINDER_TEMPLATE_KEY, status: { in: REACHED_STATUSES } },
+        orderBy: { createdAt: 'desc' },
+        select: { guestId: true, createdAt: true },
+      }),
     ]);
 
     // Newest first, so the first message seen for a household is its latest.
     const attemptsByHousehold = groupByHousehold(households, messages);
+    const remindersByHousehold = groupByHousehold(households, reminders);
 
     const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
     const rows = plan.recipients.map((recipient) =>
-      deliveryRow(recipient, attemptsByHousehold.get(recipient.householdId) ?? [], canSeeContacts),
+      ({
+        ...deliveryRow(recipient, attemptsByHousehold.get(recipient.householdId) ?? [], canSeeContacts),
+        ...reminderSummary(remindersByHousehold.get(recipient.householdId) ?? []),
+      }),
     );
 
     return {
@@ -189,6 +202,18 @@ export class InvitationSenderService {
   }
 
   /** Every household on the event, or only those containing the named guests. */
+  /**
+   * Validated before anything is written: one unknown id among real ones used
+   * to be dropped silently while the rest were sent — a host who mistyped a
+   * selection learned nothing.
+   */
+  private async assertGuestsOnEvent(eventId: string, guestIds: string[]): Promise<void> {
+    const found = await this.prisma.guest.findMany({ where: { eventId, id: { in: guestIds } }, select: { id: true } });
+    const known = new Set(found.map((guest) => guest.id));
+    const unknown = [...new Set(guestIds)].filter((id) => !known.has(id));
+    if (unknown.length > 0) throw new BadRequestException(`guestIds: not on this event: ${unknown.join(', ')}`);
+  }
+
   private householdsFor(eventId: string, guestIds?: string[]): Promise<SendableHousehold[]> {
     return loadSendableHouseholds(this.prisma, this.guestChannels, {
       eventId,
@@ -327,4 +352,9 @@ function groupByHousehold<T extends { guestId: string | null }>(
     if (householdId) grouped.set(householdId, [...(grouped.get(householdId) ?? []), message]);
   }
   return grouped;
+}
+
+/** How often a household was chased, and when last. */
+function reminderSummary(reminders: { createdAt: Date }[]) {
+  return { reminders: reminders.length, lastRemindedAt: reminders[0]?.createdAt ?? null };
 }

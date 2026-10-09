@@ -458,7 +458,13 @@ undecided.
 
 It goes to the household's own recipient on the channel they were invited on,
 and carries their personal link so they can change their answer later. Two
-identical submissions within a minute produce one confirmation.
+identical submissions within a minute produce one confirmation; a changed
+answer is always confirmed, so the last confirmation matches the answer that
+stands.
+
+A reminder still waiting in the outbox is withdrawn the moment the household
+answers (its status becomes `CANCELLED`), and a household gets at most one
+reminder a day, scheduled and manual together.
 
 Nothing changes in the response, and **a failure to send never fails the
 RSVP** — the answer is saved first. A household with no address on file, who
@@ -2088,8 +2094,8 @@ replied — attending or declined — is never chased; that is what turns a
 reminder into a nuisance. Nor is a guest who never received the invitation:
 `notInvited` lists them, and the fix for those is to send, not to remind.
 
-**At most one reminder per household per day.** Pressing twice is safe, and
-following up again tomorrow still works. `alreadyRemindedToday` is how many
+**At most one reminder per household per day**, counting the scheduled ones
+too. Pressing twice is safe, and following up again tomorrow still works. `alreadyRemindedToday` is how many
 were skipped for that reason — not an error.
 
 Refused with a `400` once the event has started, and for an unpublished
@@ -2193,7 +2199,10 @@ or `VIEWER` sees who was invited and what happened, not where it went.
 
 `status` is `NOT_SENT` (nothing has been sent to this address yet) or a
 `Message` status: `QUEUED`, `SENDING`, `SENT`, `DELIVERED`, `FAILED`,
-`BOUNCED`, `SUPPRESSED`.
+`BOUNCED`, `SUPPRESSED`, `CANCELLED` (withdrawn before sending).
+
+Each row also has `reminders` — how many reminders the household has had —
+and `lastRemindedAt`.
 
 After a host corrects a bounced address, the row shows the new `toAddress` as
 `NOT_SENT` until it is sent — the bounce was at the old address and is no

@@ -42,7 +42,7 @@ export class AuditInterceptor implements NestInterceptor {
           userId: request.actor?.userId ?? null,
           email: request.actor?.email ?? null,
           organizationId: request.actor?.organizationId ?? null,
-          eventId: eventIdOf(request),
+          eventId: request.actor?.eventId ?? eventIdOf(request),
           statusCode: response.statusCode,
           requestId: request.requestId ?? null,
           at: new Date(),
@@ -65,7 +65,10 @@ function routeOf(request: Request): string {
 }
 
 /**
- * The event a write acted on, when the route names one.
+ * The event a write acted on, when the route names one by id. Routes that
+ * name it by invitation slug — publish, send, design edits — get theirs from
+ * the guard, which resolved it to check permissions; without that they were
+ * recorded with no event and missing from its trail.
  *
  * Recorded as its own field rather than left inside the route, because "show
  * me everything that happened to this event" is the question this trail exists

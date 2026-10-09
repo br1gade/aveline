@@ -25,6 +25,8 @@ const FAILED_STATUSES: ReadonlySet<MessageStatus> = new Set([
   MessageStatus.FAILED,
   MessageStatus.BOUNCED,
   MessageStatus.SUPPRESSED,
+  // Withdrawn before sending: it reached nobody.
+  MessageStatus.CANCELLED,
 ]);
 
 /** Statuses meaning the message reached them, or is on its way. */

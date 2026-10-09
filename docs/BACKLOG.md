@@ -25,9 +25,9 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 0 open | 4 open, of which 8 money | — |
+| Bugfixes | 0 open | 0 open | 0 open | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
-| Decisions | 4 (D1–D4), all decided | | | |
+| Decisions | 7 (D1–D7), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
 features — editing an event, and loading the invitation into the editor —
@@ -48,41 +48,12 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 ### P1 — a pilot host will hit it
 
-**Access and privacy**
-
-| # | Bug | What goes wrong | Where | Size |
-|---|---|---|---|---|
-
-**Messaging**
-
-| # | Bug | What goes wrong | Where | Size |
-|---|---|---|---|---|
-
-**Guests, design and seating**
-
-| # | Bug | What goes wrong | Where | Size |
-|---|---|---|---|---|
-
-**Public events and tickets**
-
-| # | Bug | What goes wrong | Where | Size |
-|---|---|---|---|---|
+None open. All were fixed on 9 October 2026.
 
 ### P2 — after the pilot, and all of "Money" before real money moves
 
-**Money**
-
-| # | Bug | What goes wrong | Where | Size |
-|---|---|---|---|---|
-
-**Everything else**
-
-| # | Bug | Where | Size |
-|---|---|---|---|
-| B57 | Publish, send and design writes are recorded without their event, so they never appear in the audit trail | `infra/audit/audit.interceptor.ts` | S |
-| B58 | Reminder edge cases: "once a day" is not kept across manual and automatic; a reminder still retrying is delivered after the guest answers; the delivery view leaves reminders out | `invitations/sending/` | S |
-| B59 | Sending with one unknown `guestIds` entry returns 201, though API.md promises 400 | `invitations/sending/` | S |
-| B60 | An answer changed twice within a minute can leave a contradictory last confirmation | `invitations/sending/rsvp-confirmation.ts` | S |
+None open. All 22 were fixed on 9 October 2026, the eight money bugs
+(B36–B43) among them.
 
 ---
 

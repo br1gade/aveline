@@ -78,3 +78,9 @@ export function milestoneDedupeKey(
 export function manualDedupeKey(invitationId: string, householdId: string, now: Date): string {
   return `reminder:${invitationId}:${householdId}:${now.toISOString().slice(0, 10)}`;
 }
+
+/** The copy every reminder to answer uses, scheduled or sent by hand. */
+export const REMINDER_TEMPLATE_KEY = 'rsvp.reminder';
+
+/** "Once a day" for reminders, scheduled and manual together. */
+export const REMINDER_INTERVAL_MS = 24 * 60 * 60 * 1000;

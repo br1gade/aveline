@@ -203,6 +203,18 @@ describe('Invitation sending (e2e)', () => {
 
       await send(slug, authorization, { guestIds: ['does-not-exist'] }).expect(400);
     });
+
+    // B59: one unknown id among real ones was dropped silently, and the rest sent.
+    it('rejects the whole send when any one id is not on the event, naming it, and sends nothing', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      const armen = await prisma.guest.findFirstOrThrow({ where: { eventId, firstName: 'Armen' } });
+
+      const { body } = await send(slug, authorization, { guestIds: [armen.id, 'does-not-exist'] }).expect(400);
+
+      expect(body.message).toMatch(/^guestIds:.*does-not-exist/);
+      expect(await prisma.message.count({ where: { eventId } })).toBe(0);
+    });
   });
 
   describe('what it refuses', () => {
@@ -319,6 +331,21 @@ describe('Invitation sending (e2e)', () => {
         .expect(200);
 
       expect((body.households as { toAddress: string }[]).map((row) => row.toAddress)).toContain('armen@test.local');
+    });
+
+    // B58: the delivery view left reminders out.
+    it('shows how many reminders each household has had', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+      await http().post(`/api/v1/invitations/${slug}/remind`).set('Authorization', authorization).expect(201);
+
+      const { body } = await http().get(`/api/v1/invitations/${slug}/delivery`).set('Authorization', authorization).expect(200);
+
+      const petrosyans = (body.households as { household: string; reminders: number; lastRemindedAt: string | null }[]).find(
+        (row) => row.household === 'Petrosyan family',
+      );
+      expect(petrosyans).toMatchObject({ reminders: 1, lastRemindedAt: expect.any(String) });
     });
 
     it('reports nothing sent before the first send', async () => {

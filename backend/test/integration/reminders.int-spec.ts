@@ -8,6 +8,7 @@ import { SuppressionService } from '../../src/modules/communications/suppression
 import { InvitationSenderService } from '../../src/modules/invitations/sending/invitation-sender.service';
 import { ReminderService } from '../../src/modules/invitations/sending/reminder.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { recordAnswer } from '../../src/modules/rsvp/answer-writes';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
@@ -255,6 +256,8 @@ describe('reminders (integration)', () => {
       const { slug, eventId } = await invitedEvent(10);
       await sender.send(slug);
       await reminders.sendDueReminders();
+      // Time passes: that reminder went out days ago.
+      await prisma.message.updateMany({ where: { eventId, templateKey: 'rsvp.reminder' }, data: { createdAt: new Date(Date.now() - 5 * DAY_MS) } });
 
       // The event is now two days away: a new milestone, so a new reminder.
       await prisma.event.update({
@@ -317,6 +320,44 @@ describe('reminders (integration)', () => {
         where: { eventId, templateKey: 'rsvp.reminder' },
       });
       expect(reminder.status).toBe(MessageStatus.SUPPRESSED);
+    });
+  });
+
+  // B58: three edge cases in how reminders are kept honest.
+  describe('keeping reminders honest', () => {
+    it('does not send the scheduled reminder on a day the host already sent one by hand', async () => {
+      const { slug, eventId } = await invitedEvent(3);
+      await sender.send(slug);
+      await reminders.remindNow(slug);
+
+      await reminders.sendDueReminders();
+
+      expect(await remindersFor(eventId)).toBe(1);
+    });
+
+    it('does not send a manual reminder on a day the scheduled one went', async () => {
+      const { slug, eventId } = await invitedEvent(3);
+      await sender.send(slug);
+      await reminders.sendDueReminders();
+
+      const result = await reminders.remindNow(slug);
+
+      expect(result).toMatchObject({ queued: 0, alreadyRemindedToday: 1 });
+      expect(await remindersFor(eventId)).toBe(1);
+    });
+
+    it('withdraws a reminder still waiting to go once the household answers', async () => {
+      const { slug, eventId, primaryGuestToken } = await invitedEvent(10);
+      await sender.send(slug);
+      await reminders.remindNow(slug);
+      const guest = await prisma.guest.findFirstOrThrow({ where: { token: primaryGuestToken } });
+
+      await prisma.$transaction((tx) => recordAnswer(tx, guest.id, { status: RsvpStatus.ATTENDING }));
+      await communications.dispatchDue();
+
+      const reminder = await prisma.message.findFirstOrThrow({ where: { eventId, templateKey: 'rsvp.reminder' } });
+      expect(reminder.status).toBe(MessageStatus.CANCELLED);
+      expect(reminder.sentAt).toBeNull();
     });
   });
 

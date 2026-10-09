@@ -126,6 +126,7 @@ export class AuthGuard implements CanActivate {
       eventRole,
       organizationRole,
       organizationId,
+      eventId: eventId ?? null,
     };
   }
 

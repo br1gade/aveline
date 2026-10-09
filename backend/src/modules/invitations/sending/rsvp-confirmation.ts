@@ -21,19 +21,31 @@ export function confirmationTemplateFor(status: RsvpStatus): string | null {
   return CONFIRMATION_TEMPLATE[status] ?? null;
 }
 
+/** The answer a confirmation template confirms, read back from a queued message. */
+export function statusConfirmedBy(templateKey: string): RsvpStatus | null {
+  const entry = Object.entries(CONFIRMATION_TEMPLATE).find(([, key]) => key === templateKey);
+  return entry ? (entry[0] as RsvpStatus) : null;
+}
+
 /**
- * A key that confirms each answer once, but still confirms a changed one.
+ * The key for this answer's confirmation, or null when there is nothing new
+ * to confirm.
  *
- * Bucketed by minute and keyed on the answer. A double-submitted form — two
- * identical answers seconds apart — produces one confirmation; changing from
- * attending to declined produces a second, because that is a new answer the
- * guest deserves to see acknowledged; giving the same answer again an hour
- * later is a new submission and confirms again.
+ * `earlierThisMinute` is the household's confirmations already queued this
+ * minute, newest first. The same answer as the last of them is a
+ * double-submitted form: nothing to send. Any other answer is new, and its
+ * key carries how many came before it this minute — so attending, declined,
+ * attending again confirms all three, ending on the answer that stands. Keyed
+ * by answer and minute alone, the third reused the first's key and was
+ * dropped (B60). Concurrent identical submissions read the same history and
+ * agree on one key, so the outbox's unique key still sends one.
  */
 export function confirmationDedupeKey(
   householdId: string,
   status: RsvpStatus,
   now: Date,
-): string {
-  return `rsvp-confirm:${householdId}:${status}:${now.toISOString().slice(0, 16)}`;
+  earlierThisMinute: RsvpStatus[],
+): string | null {
+  if (earlierThisMinute[0] === status) return null;
+  return `rsvp-confirm:${householdId}:${status}:${now.toISOString().slice(0, 16)}:${earlierThisMinute.length}`;
 }
