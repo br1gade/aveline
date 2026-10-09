@@ -262,6 +262,36 @@ describe('Invitation sending (e2e)', () => {
   });
 
   describe('delivery status', () => {
+    // B11: a designer or viewer was handed every guest's address.
+    it.each([EventRole.DESIGNER, EventRole.VIEWER])('shows a %s each outcome but not the address', async (role) => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+      const reader = await authenticateAs(app, prisma, { eventId, role });
+
+      const { body } = await http()
+        .get(`/api/v1/invitations/${slug}/delivery`)
+        .set('Authorization', reader.authorization)
+        .expect(200);
+
+      expect(body.households[0]).toMatchObject({ status: 'QUEUED' });
+      expect(body.households[0]).not.toHaveProperty('toAddress');
+      expect(JSON.stringify(body)).not.toContain('@test.local');
+    });
+
+    it('shows the host the address each went to', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+
+      const { body } = await http()
+        .get(`/api/v1/invitations/${slug}/delivery`)
+        .set('Authorization', authorization)
+        .expect(200);
+
+      expect((body.households as { toAddress: string }[]).map((row) => row.toAddress)).toContain('armen@test.local');
+    });
+
     it('reports nothing sent before the first send', async () => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);

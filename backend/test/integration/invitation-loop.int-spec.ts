@@ -176,7 +176,7 @@ describe('invitation loop (integration)', () => {
     await sender.send(slug);
     await communications.dispatchDue();
 
-    const status = await sender.deliveryStatus(slug);
+    const status = await sender.deliveryStatus(slug, true);
     const petrosyans = status.households.find((row) => row.household === 'Petrosyan family');
     expect(petrosyans).toMatchObject({ status: 'SENT', toAddress: 'armen@test.local' });
     expect(petrosyans?.sentAt).not.toBeNull();

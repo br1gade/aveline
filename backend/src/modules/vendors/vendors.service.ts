@@ -58,9 +58,11 @@ export class VendorsService {
    * `maySeeFees` comes from the caller's permissions, not from a query
    * parameter: `vendor:fee:read` is separate from `vendor:read` precisely so a
    * designer or a junior coordinator can work with the vendor list without
-   * seeing commercial terms (ACCESS_CONTROL §3).
+   * seeing commercial terms (ACCESS_CONTROL §3). The brief link likewise only
+   * to a caller who may manage vendors: it is a credential, and one carrying
+   * the `contacts` scope reads guests' phone numbers.
    */
-  async listBookings(eventId: string, maySeeFees: boolean) {
+  async listBookings(eventId: string, maySeeFees: boolean, canShareBriefs: boolean) {
     const bookings = await this.prisma.vendorBooking.findMany({
       where: { eventId },
       include: { vendor: { select: { id: true, name: true, category: true, email: true, phone: true } } },
@@ -72,7 +74,7 @@ export class VendorsService {
       vendor: booking.vendor,
       status: booking.status,
       briefScopes: sectionsFor(booking.briefScopes),
-      briefToken: booking.briefToken,
+      ...(canShareBriefs ? { briefToken: booking.briefToken } : {}),
       ...(maySeeFees
         ? { feeAmount: booking.feeAmount?.toString() ?? null, feeCurrency: booking.feeCurrency }
         : {}),

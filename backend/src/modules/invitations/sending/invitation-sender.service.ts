@@ -115,8 +115,11 @@ export class InvitationSenderService {
    * Grouped by household, because that is the unit a host thinks in — "have
    * the Petrosyans been invited?" is the question, not "what is the status of
    * message 4f2a".
+   *
+   * The address each went to is contact data: shown only to a caller with
+   * `guest:contact:read`, as on the guest list.
    */
-  async deliveryStatus(slug: string) {
+  async deliveryStatus(slug: string, canSeeContacts: boolean) {
     const invitation = await this.loadInvitation(slug);
 
     const [households, messages] = await Promise.all([
@@ -145,7 +148,7 @@ export class InvitationSenderService {
     const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
     const plan = planInvitationSend(households, available);
     const rows = plan.recipients.map((recipient) =>
-      deliveryRow(recipient, attemptsByGuest.get(recipient.guest.id) ?? []),
+      deliveryRow(recipient, attemptsByGuest.get(recipient.guest.id) ?? [], canSeeContacts),
     );
 
     return {
@@ -289,7 +292,7 @@ interface RecordedAttempt extends PreviousAttempt {
 }
 
 /** One household's line in the delivery report, from its attempts newest first. */
-function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[]) {
+function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[], canSeeContacts: boolean) {
   // A failure at an address the host has since corrected is history, not
   // status: what matters now is that the new address has not been sent to.
   const latest = isSupersededFailure(attempts[0], recipient.via.address) ? undefined : attempts[0];
@@ -299,10 +302,15 @@ function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[]) {
     household: recipient.householdName,
     guest: displayName(recipient.guest),
     channel: recipient.via.channel,
-    toAddress: recipient.via.address,
+    ...contactOf(recipient, canSeeContacts),
     status: latest?.status ?? 'NOT_SENT',
     attempts: latest?.attempts ?? 0,
     failureReason: latest?.failureReason ?? null,
     sentAt: latest?.sentAt ?? null,
   };
+}
+
+/** Where it went, for a caller who may see guests' addresses; nothing otherwise. */
+function contactOf(recipient: Recipient, canSeeContacts: boolean): { toAddress?: string } {
+  return canSeeContacts ? { toAddress: recipient.via.address } : {};
 }

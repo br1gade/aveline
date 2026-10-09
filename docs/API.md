@@ -1401,7 +1401,9 @@ forgetting the field is safe. An unrecognised scope is a `400`.
 
 **`feeAmount` is absent from the response unless you hold `vendor:fee:read`.**
 It is not `null` — the field is not there at all. A `VIEWER` sees the vendor
-and not the commercial terms.
+and not the commercial terms. **`briefToken` is likewise absent from
+`GET /events/:eventId/vendors` unless you hold `vendor:write`**: the link is a
+credential, and one with the `contacts` scope reads guests' phone numbers.
 
 Re-posting the same `vendorId` edits the existing engagement; there is never a
 second booking for one vendor on one event.
@@ -1445,9 +1447,10 @@ working. An old link returns `404`; a cancelled booking's current link returns
 ### Exports
 
 ```http
-POST /api/v1/events/:eventId/exports   { "kind": "GUEST_LIST", "format": "CSV" }
+POST /api/v1/events/:eventId/exports                      { "kind": "GUEST_LIST", "format": "CSV" }
 GET  /api/v1/events/:eventId/exports
 GET  /api/v1/events/:eventId/exports/:exportId
+GET  /api/v1/events/:eventId/exports/:exportId/download  → text/csv
 ```
 
 `kind` is one of `GUEST_LIST`, `SEATING_CHART`, `PLACE_CARDS`,
@@ -1456,15 +1459,33 @@ GET  /api/v1/events/:eventId/exports/:exportId
 ```json
 {
   "id": "clz...", "kind": "GUEST_LIST", "format": "CSV", "status": "COMPLETED",
-  "completedAt": "2026-10-05T...",
-  "asset": { "url": "https://storage/...csv", "sizeBytes": 48213 }
+  "failureReason": null, "createdAt": "2026-10-05T...", "completedAt": "2026-10-05T...",
+  "downloadPath": "/api/v1/events/clz.../exports/clz.../download"
 }
 ```
 
-CSV is generated during the request, so `status` is already `COMPLETED` and
-`asset.url` is ready to hand to the browser. **Read `status` anyway** — PDF
-will be queued when it exists, and a client that already branches on it will
-not need changing. `FAILED` carries `failureReason`.
+**There is no public file.** `POST` records the export — the list is the
+history of who exported what, and when — and `downloadPath` is where the
+signed-in client fetches it, **with the same `Authorization` header as any
+other call**. An `<a href>` will not work; fetch it, then hand the browser the
+blob (`URL.createObjectURL`) with the filename from `Content-Disposition`. The
+response is `Cache-Control: no-store`.
+
+The file is built at download time from the event as it is then, so
+downloading the same export tomorrow gives tomorrow's guest list. Who may see
+what is checked on every download, not when the export was asked for:
+
+- `Email` and `Phone` columns appear only for a caller holding
+  `guest:contact:read`. A `VIEWER` gets the guest list without them.
+- `TICKET_MANIFEST` carries door codes and buyers' emails, so it needs
+  `guest:contact:read` both to ask for and to download — `403` otherwise.
+
+**Breaking, 9 October 2026:** the `asset: { url, sizeBytes }` field is gone.
+Its URL was public and never expired.
+
+Read `status` anyway — PDF will be queued when it exists, and a client that
+already branches on it will not need changing. `FAILED` carries
+`failureReason`.
 
 `format` defaults to `CSV`. `PDF` and `XLSX` return `400` today; the message
 says so rather than queueing something that never runs.
@@ -2049,6 +2070,9 @@ GET /api/v1/invitations/:slug/delivery
 
 Grouped by household, because "have the Petrosyans been invited?" is the
 question a host asks — not "what is the status of message 4f2a".
+
+**`toAddress` is absent unless you hold `guest:contact:read`.** A `DESIGNER`
+or `VIEWER` sees who was invited and what happened, not where it went.
 
 `status` is `NOT_SENT` (nothing has been sent to this address yet) or a
 `Message` status: `QUEUED`, `SENDING`, `SENT`, `DELIVERED`, `FAILED`,

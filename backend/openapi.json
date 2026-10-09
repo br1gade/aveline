@@ -1511,7 +1511,7 @@
     },
     "/api/v1/invitations/{slug}/delivery": {
       "get": {
-        "description": "Grouped by household, because that is the unit a host thinks in.",
+        "description": "Grouped by household, because that is the unit a host thinks in. The address each went to only with guest:contact:read.",
         "operationId": "InvitationLifecycleController_deliveryStatus",
         "parameters": [
           {
@@ -3240,7 +3240,7 @@
     },
     "/api/v1/events/{eventId}/vendors": {
       "get": {
-        "description": "Fees are included only for callers holding vendor:fee:read.",
+        "description": "Fees only for callers holding vendor:fee:read; each brief link only for callers holding vendor:write.",
         "operationId": "VendorsController_listBookings",
         "parameters": [
           {
@@ -4251,7 +4251,7 @@
         ]
       },
       "post": {
-        "description": "CSV is generated inline and the response carries its URL. The status field exists for the formats that will be queued.",
+        "description": "Records the export and returns its downloadPath. The file is built when it is downloaded, by a signed-in caller — there is no public link. A ticket manifest needs guest:contact:read.",
         "operationId": "ExportsController_create",
         "parameters": [
           {
@@ -4278,7 +4278,7 @@
             "description": ""
           }
         },
-        "summary": "Generate an export",
+        "summary": "Ask for an export",
         "tags": [
           "exports"
         ]
@@ -4310,7 +4310,40 @@
             "description": ""
           }
         },
-        "summary": "One export and its file",
+        "summary": "One export",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/exports/{exportId}/download": {
+      "get": {
+        "description": "Built now from the event as it is. Email and phone columns appear only for a caller with guest:contact:read.",
+        "operationId": "ExportsController_download",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exportId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Download an export",
         "tags": [
           "exports"
         ]

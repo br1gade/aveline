@@ -1,14 +1,13 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   ExportFormat,
   ExportKind,
   ExportStatus,
-  MediaKind,
+  Prisma,
   QuestionType,
   RsvpStatus,
   TicketOrderStatus,
 } from '@prisma/client';
-import { StorageService } from '../../infra/storage/storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolveTranslation } from '../../common/locale';
 import { OperationsService } from '../operations/operations.service';
@@ -21,133 +20,73 @@ interface Sheet { columns: string[]; rows: CsvRow[] }
 
 @Injectable()
 export class ExportsService {
-  private readonly logger = new Logger(ExportsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: StorageService,
     private readonly operations: OperationsService,
   ) {}
 
   list(eventId: string) {
-    return this.prisma.export.findMany({
-      where: { eventId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      select: {
-        id: true,
-        kind: true,
-        format: true,
-        status: true,
-        failureReason: true,
-        createdAt: true,
-        completedAt: true,
-        asset: { select: { url: true, sizeBytes: true } },
-      },
-    });
+    return this.prisma.export
+      .findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 50, select: EXPORT_SUMMARY })
+      .then((exports) => exports.map((record) => withDownload(eventId, record)));
   }
 
   /**
-   * Generates an export and stores it.
+   * Records an export; the file itself is built when it is downloaded.
    *
-   * Runs inline rather than on a queue because a CSV of a few hundred rows is
-   * a handful of queries and some string building — a job would add a poll
-   * loop to the client for no gain. PDF rendering is the opposite and is why
-   * the Export row carries a status at all: when PDF arrives it will be
-   * queued, and a client that already reads `status` will not need changing.
+   * Decided 9 October 2026: exports are downloaded through the app by someone
+   * signed in with permission, never left at a public link. They used to be
+   * stored at a public URL that never expired — a guest list with every phone
+   * number, a manifest of valid door codes — readable by anyone the link
+   * reached. The record stays as the history of who exported what, and when.
    */
-  async create(eventId: string, userId: string, dto: CreateExportDto) {
+  async create(eventId: string, userId: string, dto: CreateExportDto, canSeeContacts: boolean) {
     const format = dto.format ?? ExportFormat.CSV;
     if (format !== ExportFormat.CSV) {
-      throw new BadRequestException(
-        `${format} is not available yet; CSV is. See docs/GAPS.md`,
-      );
+      throw new BadRequestException(`${format} is not available yet; CSV is. See docs/GAPS.md`);
     }
+    assertMaySee(dto.kind, canSeeContacts);
 
     const record = await this.prisma.export.create({
       data: {
         eventId,
         kind: dto.kind,
         format,
-        status: ExportStatus.RUNNING,
+        status: ExportStatus.COMPLETED,
         requestedByUserId: userId,
+        completedAt: new Date(),
       },
+      select: EXPORT_SUMMARY,
     });
-
-    try {
-      const sheet = await this.build(eventId, dto.kind);
-      const asset = await this.store(
-        { eventId, exportId: record.id, kind: dto.kind, userId },
-        sheet,
-      );
-
-      // Awaited inside the try so a failure to record completion is caught
-      // here rather than escaping as an unhandled rejection.
-      return await this.prisma.export.update({
-        where: { id: record.id },
-        data: { status: ExportStatus.COMPLETED, assetId: asset.id, completedAt: new Date() },
-        select: {
-          id: true,
-          kind: true,
-          format: true,
-          status: true,
-          completedAt: true,
-          asset: { select: { url: true, sizeBytes: true } },
-        },
-      });
-    } catch (error) {
-      // A failed export must say so rather than sit in RUNNING forever, which
-      // is indistinguishable from slow.
-      const reason = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`export ${record.id} failed: ${reason}`);
-      await this.prisma.export.update({
-        where: { id: record.id },
-        data: { status: ExportStatus.FAILED, failureReason: reason, completedAt: new Date() },
-      });
-      throw error;
-    }
+    return withDownload(eventId, record);
   }
 
   async findOne(eventId: string, exportId: string) {
-    const record = await this.prisma.export.findFirst({
-      where: { id: exportId, eventId },
-      select: {
-        id: true,
-        kind: true,
-        format: true,
-        status: true,
-        failureReason: true,
-        completedAt: true,
-        asset: { select: { url: true, sizeBytes: true } },
-      },
-    });
-    if (!record) throw new NotFoundException('No such export on this event');
-    return record;
+    return withDownload(eventId, await this.requireExport(eventId, exportId));
   }
 
-  private async store(
-    context: { eventId: string; exportId: string; kind: ExportKind; userId: string },
-    sheet: Sheet,
-  ) {
-    const { eventId, exportId, kind, userId } = context;
+  /**
+   * The file, built now from the event as it is. Contact columns only for a
+   * caller who may see them; a manifest of door codes not at all otherwise.
+   * A CSV of a few hundred rows is a handful of queries, so it is built
+   * inline; a PDF, when it arrives, will be queued and use `status`.
+   */
+  async download(eventId: string, exportId: string, canSeeContacts: boolean) {
+    const record = await this.requireExport(eventId, exportId);
+    assertMaySee(record.kind, canSeeContacts);
 
-    const stored = await this.storage.putGenerated({
-      buffer: Buffer.from(toCsv(sheet.columns, sheet.rows), 'utf8'),
-      originalName: `${kind.toLowerCase()}-${exportId}.csv`,
-      mimeType: 'text/csv',
-    });
+    const sheet = await this.build(eventId, record.kind);
+    const columns = canSeeContacts ? sheet.columns : sheet.columns.filter((column) => !CONTACT_COLUMNS.has(column));
+    return {
+      filename: `${record.kind.toLowerCase().replace(/_/g, '-')}-${record.id}.csv`,
+      csv: toCsv(columns, sheet.rows),
+    };
+  }
 
-    return this.prisma.mediaAsset.create({
-      data: {
-        eventId,
-        kind: MediaKind.DOCUMENT,
-        url: stored.url,
-        sizeBytes: stored.sizeBytes,
-        mimeType: stored.mimeType,
-        uploadedBy: userId,
-      },
-      select: { id: true },
-    });
+  private async requireExport(eventId: string, exportId: string) {
+    const record = await this.prisma.export.findFirst({ where: { id: exportId, eventId }, select: EXPORT_SUMMARY });
+    if (!record) throw new NotFoundException('No such export on this event');
+    return record;
   }
 
   /** One builder per kind; adding an export is adding a row. */
@@ -368,4 +307,31 @@ function answerCells(questions: QuestionColumn[], answers: { questionId: string;
       return [question.heading, value === undefined ? undefined : formatAnswer(question, value, question.labels)];
     }),
   );
+}
+
+const EXPORT_SUMMARY = {
+  id: true,
+  kind: true,
+  format: true,
+  status: true,
+  failureReason: true,
+  createdAt: true,
+  completedAt: true,
+} satisfies Prisma.ExportSelect;
+
+/** Guest contact details, shown only to a caller with guest:contact:read. */
+const CONTACT_COLUMNS: ReadonlySet<string> = new Set(['Email', 'Phone']);
+
+/** Valid door codes and buyers' emails: contact data and a way in, both. */
+const CONTACT_ONLY_KINDS: ReadonlySet<ExportKind> = new Set([ExportKind.TICKET_MANIFEST]);
+
+function assertMaySee(kind: ExportKind, canSeeContacts: boolean): void {
+  if (CONTACT_ONLY_KINDS.has(kind) && !canSeeContacts) {
+    throw new ForbiddenException(`A ${kind.toLowerCase().replace(/_/g, ' ')} export needs guest:contact:read`);
+  }
+}
+
+/** Where the signed-in client fetches the file. Not a public link: it needs the same authorization. */
+function withDownload<T extends { id: string }>(eventId: string, record: T) {
+  return { ...record, downloadPath: `/api/v1/events/${eventId}/exports/${record.id}/download` };
 }

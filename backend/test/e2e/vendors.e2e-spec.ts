@@ -230,6 +230,7 @@ describe('Vendor briefs (e2e)', () => {
         .expect(200);
 
       expect(body[0].feeAmount).toBe('150000');
+      expect(body[0].briefToken).toMatch(/^[0-9a-f]{64}$/);
     });
 
     // vendor:fee:read is separate from vendor:read for exactly this case.
@@ -247,6 +248,8 @@ describe('Vendor briefs (e2e)', () => {
 
       expect(body[0].vendor.name).toBe('Tashir Catering');
       expect(body[0]).not.toHaveProperty('feeAmount');
+      // B11: the brief link is a credential; with the contacts scope it reads guests' phones.
+      expect(body[0]).not.toHaveProperty('briefToken');
     });
 
     it('refuses a designer entirely', async () => {

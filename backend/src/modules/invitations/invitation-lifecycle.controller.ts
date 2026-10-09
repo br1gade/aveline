@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { EventScope, RequirePermission } from '../../infra/auth/actor';
+import { actorCan, CurrentActor, EventScope, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { NotifyChangesDto } from './dto/notify-changes.dto';
 import { SendInvitationDto } from './dto/send-invitation.dto';
 import { PublishingService } from './publishing.service';
@@ -114,9 +114,11 @@ export class InvitationLifecycleController {
   @Get(':slug/delivery')
   @ApiOperation({
     summary: 'Who has been invited, and what happened to each email',
-    description: 'Grouped by household, because that is the unit a host thinks in.',
+    description:
+      'Grouped by household, because that is the unit a host thinks in. ' +
+      'The address each went to only with guest:contact:read.',
   })
-  deliveryStatus(@Param('slug') slug: string) {
-    return this.sender.deliveryStatus(slug);
+  deliveryStatus(@CurrentActor() actor: RequestActor, @Param('slug') slug: string) {
+    return this.sender.deliveryStatus(slug, actorCan(actor, 'guest:contact:read'));
   }
 }

@@ -53,10 +53,12 @@ export class VendorsController {
   @Get('events/:eventId/vendors')
   @ApiOperation({
     summary: "This event's vendors",
-    description: 'Fees are included only for callers holding vendor:fee:read.',
+    description:
+      'Fees only for callers holding vendor:fee:read; each brief link only for ' +
+      'callers holding vendor:write.',
   })
   listBookings(@CurrentActor() actor: RequestActor, @Param('eventId') eventId: string) {
-    return this.vendors.listBookings(eventId, maySeeFees(actor));
+    return this.vendors.listBookings(eventId, maySeeFees(actor), actorCan(actor, 'vendor:write'));
   }
 
   @RequirePermission('vendor:write')

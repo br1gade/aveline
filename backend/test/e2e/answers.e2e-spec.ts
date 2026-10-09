@@ -95,8 +95,8 @@ describe('Answers to the host’s questions (e2e)', () => {
       .set('Authorization', authorization)
       .send({ kind })
       .expect(201);
-    const file = await fetch(body.asset.url as string);
-    return file.text();
+    const file = await http().get(body.downloadPath as string).set('Authorization', authorization).expect(200);
+    return file.text;
   };
 
   it('counts each option among those coming, in the host’s language', async () => {

@@ -132,7 +132,7 @@ src/
     organizations/   the tenant a new account creates for itself
     billing/         plans, subscriptions, invoices, promo codes
     vendors/         the partner network and scoped briefs
-    exports/         generated CSV documents
+    exports/         CSV documents, built when downloaded
     privacy/         data-subject requests and suppression lists
     operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
@@ -315,8 +315,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/events/:eventId/exports` | Past exports, newest first |
-| `POST` | `/api/v1/events/:eventId/exports` | Generate one; CSV is produced inline |
-| `GET` | `/api/v1/events/:eventId/exports/:exportId` | One export and its file |
+| `POST` | `/api/v1/events/:eventId/exports` | Record one; returns where to download it |
+| `GET` | `/api/v1/events/:eventId/exports/:exportId` | One export |
+| `GET` | `/api/v1/events/:eventId/exports/:exportId/download` | The CSV, built now; contact columns only with `guest:contact:read` |
 
 #### Check-in on the day
 
@@ -493,29 +494,13 @@ cause races. Never add `eslint-disable` to silence a complexity rule — extract
 
 ## Next
 
-1. **SMS.** Email, Telegram and WhatsApp are delivered. SMS still resolves to
-   the console transport; it is one adapter behind the same two-method port,
-   and it is the channel that reaches guests who read neither email nor chat.
-2. **Reminders on other channels.** RSVP reminders go out by email on a
-   three-week / one-week / two-day schedule, and by hand on request. SMS would
-   reach the guests who do not read email, and needs a transport first.
-10. **Design endpoints.** Templates, blocks, media and themes are modelled and
-   `PATCH /invitations/:slug/arrangement` rearranges a page, but there is no
-   endpoint to create a block, and theme values are not validated against the
-   template's `allowedFonts` / `palettes`.
-10. **Promo codes, subscriptions and invoices.** Modelled; no endpoints.
-10. **Vendor brief endpoints.** `briefScopes` and `briefToken` are modelled; the
-   scoped reads are not built.
-10. **Suppression lists and GDPR data-subject requests.** `Guest.consentAt` and
-   `anonymizedAt` exist and `Organization.deletedAt` supports soft deletion;
-   no endpoint exercises them.
-10. **Rate limiting** and **idempotency keys** on the public RSVP route —
-   Redis is wired, the limiter is not.
-10. **Job queue** (BullMQ on Redis) for exports and image processing. Seating
-   runs inline because it is milliseconds on realistic guest lists; exports
-   are not.
-10. **Audit trail** in MongoDB.
-10. **Payments**: no bank credentials yet, so no adapter has run against a real
-   sandbox. See `../docs/PAYMENTS.md` §6–7.
+What is still open, in short. [`../docs/BACKLOG.md`](../docs/BACKLOG.md) is the
+verified list, by priority; `docs/GAPS.md` is the backend's own.
+
+1. **An SMS provider.** The channel is built provider-neutral and is never
+   chosen until `SMS_PROVIDER` names an adapter; none is written yet.
+2. **Payments against a real sandbox.** No bank credentials yet, so no adapter
+   has run against one. See `../docs/PAYMENTS.md` §6–7.
+3. **PDF and XLSX exports.** CSV works; the other two return `400`.
 
 `docs/GAPS.md` is the full list, prioritised.

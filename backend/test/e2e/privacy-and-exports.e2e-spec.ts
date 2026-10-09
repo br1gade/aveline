@@ -371,18 +371,72 @@ describe('Privacy and exports (e2e)', () => {
   });
 
   describe('exports', () => {
-    it('generates a guest list as CSV and returns its URL', async () => {
+    const ask = (eventId: string, authorization: string, kind: string) =>
+      http().post(`/api/v1/events/${eventId}/exports`).set('Authorization', authorization).send({ kind });
+
+    const download = (path: string, authorization?: string) => {
+      const call = http().get(path);
+      return authorization ? call.set('Authorization', authorization) : call;
+    };
+
+    /** A read-only member of the event: operations:read without guest:contact:read. */
+    const viewerOf = async (eventId: string) =>
+      (await authenticateAs(app, prisma, { eventId, role: EventRole.VIEWER })).authorization;
+
+    it('records a guest list and downloads it, signed in, built from the event as it is', async () => {
       const { eventId, authorization } = await organizationOwner();
 
-      const { body } = await http()
-        .post(`/api/v1/events/${eventId}/exports`)
-        .set('Authorization', authorization)
-        .send({ kind: 'GUEST_LIST' })
-        .expect(201);
+      const { body } = await ask(eventId, authorization, 'GUEST_LIST').expect(201);
 
       expect(body).toMatchObject({ kind: 'GUEST_LIST', format: 'CSV', status: 'COMPLETED' });
-      expect(body.asset.url).toEqual(expect.any(String));
-      expect(body.asset.sizeBytes).toBeGreaterThan(0);
+      expect(body.downloadPath).toBe(`/api/v1/events/${eventId}/exports/${body.id}/download`);
+      expect(body).not.toHaveProperty('asset');
+      const file = await download(body.downloadPath as string, authorization).expect(200);
+      expect(file.headers['content-type']).toMatch(/^text\/csv/);
+      expect(file.headers['content-disposition']).toMatch(/^attachment; filename="guest-list-.+\.csv"$/);
+      expect(file.headers['cache-control']).toBe('no-store');
+      expect(file.text).toContain('primary@test.local');
+    });
+
+    // B11: export files sat at public URLs that never expired.
+    it('leaves no public file behind, and refuses a download without a session', async () => {
+      const { eventId, authorization } = await organizationOwner();
+      const { body } = await ask(eventId, authorization, 'GUEST_LIST').expect(201);
+
+      await download(body.downloadPath as string).expect(401);
+      expect(await prisma.mediaAsset.count({ where: { eventId } })).toBe(0);
+    });
+
+    // B11: the export bypassed guest:contact:read.
+    it('gives a read-only member the guest list without email or phone', async () => {
+      const { eventId, authorization } = await organizationOwner();
+      const viewer = await viewerOf(eventId);
+      const { body } = await ask(eventId, authorization, 'GUEST_LIST').expect(201);
+
+      const file = await download(body.downloadPath as string, viewer).expect(200);
+
+      const header = file.text.split(/\r?\n/)[0];
+      expect(header).toContain('First name');
+      expect(header).not.toMatch(/Email|Phone/);
+      expect(file.text).not.toContain('primary@test.local');
+      expect(file.text).not.toContain('+37410000000');
+    });
+
+    it('refuses a read-only member the ticket manifest, which carries door codes', async () => {
+      const { eventId, authorization } = await organizationOwner();
+      const viewer = await viewerOf(eventId);
+      const { body } = await ask(eventId, authorization, 'TICKET_MANIFEST').expect(201);
+
+      await ask(eventId, viewer, 'TICKET_MANIFEST').expect(403);
+      await download(body.downloadPath as string, viewer).expect(403);
+    });
+
+    it('will not download another event\'s export through this one', async () => {
+      const { eventId, authorization } = await organizationOwner();
+      const other = await organizationOwner();
+      const { body } = await ask(other.eventId, other.authorization, 'GUEST_LIST').expect(201);
+
+      await download(`/api/v1/events/${eventId}/exports/${body.id as string}/download`, authorization).expect(404);
     });
 
     it.each([
@@ -392,16 +446,13 @@ describe('Privacy and exports (e2e)', () => {
       'BAR_SHEET',
       'PLAYLIST',
       'TICKET_MANIFEST',
-    ])('generates a %s', async (kind) => {
+    ])('builds a %s', async (kind) => {
       const { eventId, authorization } = await organizationOwner();
 
-      const { body } = await http()
-        .post(`/api/v1/events/${eventId}/exports`)
-        .set('Authorization', authorization)
-        .send({ kind })
-        .expect(201);
+      const { body } = await ask(eventId, authorization, kind).expect(201);
 
       expect(body.status).toBe('COMPLETED');
+      await download(body.downloadPath as string, authorization).expect(200);
     });
 
     // Honest refusal beats a queued job that never runs.
@@ -417,13 +468,9 @@ describe('Privacy and exports (e2e)', () => {
       expect(body.message).toMatch(/CSV/);
     });
 
-    it('lists what has been generated', async () => {
+    it('lists what has been exported, as history', async () => {
       const { eventId, authorization } = await organizationOwner();
-      await http()
-        .post(`/api/v1/events/${eventId}/exports`)
-        .set('Authorization', authorization)
-        .send({ kind: 'GUEST_LIST' })
-        .expect(201);
+      await ask(eventId, authorization, 'GUEST_LIST').expect(201);
 
       const { body } = await http()
         .get(`/api/v1/events/${eventId}/exports`)
@@ -431,7 +478,7 @@ describe('Privacy and exports (e2e)', () => {
         .expect(200);
 
       expect(body).toHaveLength(1);
-      expect(body[0].asset.url).toEqual(expect.any(String));
+      expect(body[0].downloadPath).toEqual(expect.stringMatching(/\/download$/));
     });
 
     it('refuses a designer', async () => {
@@ -441,11 +488,7 @@ describe('Privacy and exports (e2e)', () => {
         role: EventRole.DESIGNER,
       });
 
-      await http()
-        .post(`/api/v1/events/${eventId}/exports`)
-        .set('Authorization', authorization)
-        .send({ kind: 'GUEST_LIST' })
-        .expect(403);
+      await ask(eventId, authorization, 'GUEST_LIST').expect(403);
     });
   });
 });
