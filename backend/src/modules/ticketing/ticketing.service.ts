@@ -45,16 +45,26 @@ export class TicketingService {
     const types = await this.loadTicketTypes(event.id, dto.items);
 
     const reserved: OrderLineDto[] = [];
+    let order: Awaited<ReturnType<TicketingService['createOrderRow']>>;
     try {
       for (const line of dto.items) {
         await this.fulfilment.hold([line]);
         reserved.push(line);
       }
-      return await this.recordOrder(event, dto, types);
+      order = await this.createOrderRow(event, dto, types, subtotalFor(dto.items, types));
     } catch (error) {
-      // Anything already held must go back, or a failed checkout silently
-      // removes seats from sale until the sweep catches them.
+      // No order yet, so the holds are the only record: give them back.
       await this.fulfilment.releaseHolds(reserved);
+      throw error;
+    }
+
+    try {
+      return await this.settleOrPay(event, dto, order);
+    } catch (error) {
+      // The order exists now. Expiring it is what returns its seats — once,
+      // claim-first — where releasing them beside a RESERVED order let the
+      // sweep return them a second time.
+      await this.fulfilment.expire(order.id);
       throw error;
     }
   }
@@ -104,11 +114,12 @@ export class TicketingService {
       include: { items: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.status === TicketOrderStatus.PAID) return this.describe(order);
+    if (order.status === TicketOrderStatus.PAID) return this.markPaid(order.id);
 
-    if (order.status !== TicketOrderStatus.RESERVED) {
-      throw new BadRequestException(`Order is ${order.status.toLowerCase()}`);
-    }
+    // An expired order is still worth asking about: its buyer may have paid
+    // after the hold lapsed (B36).
+    const isAskable = order.status === TicketOrderStatus.RESERVED || order.status === TicketOrderStatus.EXPIRED;
+    if (!isAskable) throw new BadRequestException(`Order is ${order.status.toLowerCase()}`);
     if (!order.paymentOrderNumber) {
       throw new BadRequestException('Order has no payment to confirm');
     }
@@ -118,7 +129,62 @@ export class TicketingService {
       return { ...this.describe(order), payment };
     }
 
-    return this.markPaid(order.id);
+    await this.settleCaptured(order.id);
+    return this.findByAccessToken(accessToken);
+  }
+
+  /**
+   * Settles every ticket order whose payment the bank has captured but which
+   * is not yet paid — the ones reconciliation found, whose buyer never came
+   * back to tell us. Run after each reconciliation sweep.
+   */
+  async settleCapturedPayments(limit = 50): Promise<{ settled: number }> {
+    const orders = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT o.id FROM ticket_orders o
+        JOIN payments p ON p."orderNumber" = o."paymentOrderNumber"
+       WHERE o.status IN ('RESERVED', 'EXPIRED') AND p.status = 'CAPTURED'
+       ORDER BY o."createdAt" ASC
+       LIMIT ${limit}`;
+
+    let settled = 0;
+    for (const order of orders) {
+      try {
+        await this.settleCaptured(order.id);
+        settled += 1;
+      } catch (error) {
+        this.logger.warn(`could not settle order ${order.id}: ${describeError(error)}`);
+      }
+    }
+    return { settled };
+  }
+
+  /**
+   * Turns a captured payment into tickets — or, when its hold had lapsed and
+   * the seats were sold meanwhile, into a full refund the buyer is told about.
+   */
+  private async settleCaptured(orderId: string): Promise<void> {
+    const order = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
+    if (order.status === TicketOrderStatus.RESERVED) {
+      await this.fulfilment.markPaid(orderId);
+      return;
+    }
+    if (order.status !== TicketOrderStatus.EXPIRED) return;
+
+    const outcome = await this.fulfilment.issueLate(orderId);
+    if (outcome === 'SOLD_OUT') await this.refundLate(order);
+  }
+
+  /** Claim first, then the bank; a refused refund reopens the claim for the next sweep. */
+  private async refundLate(order: { id: string; paymentOrderNumber: string | null; totalMinor: bigint }): Promise<void> {
+    if (!order.paymentOrderNumber || !(await this.fulfilment.claimLateRefund(order.id))) return;
+
+    try {
+      await this.payments.refund(order.paymentOrderNumber, order.totalMinor, 'Paid after the hold lapsed; sold out meanwhile');
+    } catch (error) {
+      await this.fulfilment.reopenLateRefund(order.id);
+      throw error;
+    }
+    await this.fulfilment.notifyCancelled(order.id);
   }
 
   /**
@@ -135,9 +201,29 @@ export class TicketingService {
     return this.describe(await this.fulfilment.markPaid(orderId));
   }
 
-  /** Delegated: the sweep is an inventory movement, not a sale. */
-  releaseExpiredReservations(limit = 100): Promise<{ released: number }> {
+  /**
+   * Returns the seats of lapsed checkouts — after asking the bank about each
+   * one that started a payment. Lapsing without asking resold the seats of
+   * buyers who had paid and simply not come back to the site (B36).
+   */
+  async releaseExpiredReservations(limit = 100): Promise<{ released: number }> {
+    const lapsed = await this.prisma.ticketOrder.findMany({
+      where: { status: TicketOrderStatus.RESERVED, reservesUntil: { lt: new Date() }, paymentOrderNumber: { not: null } },
+      select: { id: true, paymentOrderNumber: true },
+      take: limit,
+    });
+    for (const order of lapsed) {
+      const payment = await this.payments
+        .confirm(order.paymentOrderNumber!, 'RECONCILIATION')
+        .catch((error: unknown) => this.logger.warn(`could not ask about ${order.id}: ${describeError(error)}`));
+      if (payment?.status === 'CAPTURED') await this.fulfilment.markPaid(order.id);
+    }
     return this.fulfilment.releaseExpiredReservations(limit);
+  }
+
+  /** Delegated: queues the confirmations a failed attempt did not. */
+  sendMissingNotices(): Promise<{ queued: number }> {
+    return this.fulfilment.sendMissingNotices();
   }
 
   async admit(eventId: string, code: string) {
@@ -207,15 +293,12 @@ export class TicketingService {
     return types;
   }
 
-  private async recordOrder(
+  /** A free order is settled now; anything else starts its payment. */
+  private async settleOrPay(
     event: { id: string; organizationId: string },
     dto: CreateOrderDto,
-    types: { id: string; priceMinor: bigint; currency: string }[],
+    order: Awaited<ReturnType<TicketingService['createOrderRow']>>,
   ) {
-    const subtotalMinor = subtotalFor(dto.items, types);
-
-    const order = await this.createOrderRow(event, dto, types, subtotalMinor);
-
     // A free event — or one discounted to nothing — skips payment entirely.
     if (order.totalMinor === 0n) return this.markPaid(order.id);
     if (!dto.provider) {
@@ -360,4 +443,8 @@ function subtotalFor(
     const type = types.find((candidate) => candidate.id === line.ticketTypeId)!;
     return sum + type.priceMinor * BigInt(line.quantity);
   }, 0n);
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

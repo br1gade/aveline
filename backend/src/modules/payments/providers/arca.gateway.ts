@@ -61,11 +61,17 @@ export class ArcaGateway implements PaymentGateway {
     return { outcome: this.readOutcome(body), raw: body };
   }
 
-  async refund(providerRef: string, amountMinor: bigint): Promise<ProviderStatus> {
+  /** ArCa takes minor units in the order's own currency, so `currency` needs no conversion here. */
+  async refund(providerRef: string, amountMinor: bigint, _currency: string): Promise<ProviderStatus> {
     const body = await this.call('refund.do', {
       orderId: providerRef,
       amount: amountMinor.toString(),
     });
+    // HTTP 200 carries declines too; errorCode 0 (or none) is success.
+    const errorCode = asString(body.errorCode) ?? '0';
+    if (errorCode !== '0') {
+      throw new Error(`${this.provider} refused the refund: ${asString(body.errorMessage) ?? `error code ${errorCode}`}`);
+    }
     return { outcome: { kind: 'refunded', refundedMinor: amountMinor }, raw: body };
   }
 

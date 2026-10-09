@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 0 open | 22 open, of which 8 money | — |
+| Bugfixes | 0 open | 0 open | 14 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -74,14 +74,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B36 | A buyer who pays but does not come back gets no ticket ✔ | The reservation expires after 15 minutes without checking the payment, its seats are resold, and reconciliation updates only the payment: captured, no tickets, no refund. Subscription invoices have the same gap | `ticketing/ticket-fulfilment.service.ts`, `jobs` | M |
-| B37 | A failed checkout releases its seats twice ✔ | When choosing a provider or starting the payment fails after the order is written, the seats are released and the order left RESERVED; the sweep releases them again. A later buyer pays and gets "cannot commit" | `ticketing/ticketing.service.ts` | S–M |
-| B38 | Reconciliation expires a payment the bank captured ✔ | It marks a payment EXPIRED before asking the bank, and EXPIRED is final. Fifty per run, oldest first, so a busy hour reaches real payments only after they expire | `payments/payments.service.ts` | S |
-| B39 | Paying an old cheap invoice activates the newer expensive plan ✔ | Changing plan overwrites the one subscription row; confirming the older invoice activates whatever plan it now holds. Abandoning a plan change drops an active customer to trial | `billing/subscriptions.service.ts` | M |
-| B40 | Refunds in a foreign currency are 100× too large | Ameriabank refunds convert as AMD whatever the currency. Both gateways treat any HTTP 200 as a successful refund without reading the bank's error code | `payments/providers/ameriabank.gateway.ts`, `arca.gateway.ts` | S |
-| B41 | Two refunds at once leave a fully refunded payment "partially refunded" ✔ | The status is computed from a stale read | `payments/payments.service.ts` | S |
-| B42 | Anyone can register a payment against any organization | `POST /payments` is public and takes organization, purpose and amount from the caller | `payments/payments.controller.ts` | S |
-| B43 | Ticket and cancellation emails can be lost | Queued after the transaction with errors swallowed; a retry returns early because the order is already paid | `ticketing/ticket-fulfilment.service.ts` | S |
 
 **Everything else**
 
@@ -156,7 +148,7 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 ## 3. Decisions needed
 
-All four were decided on 8 October 2026.
+D1–D4 were decided on 8 October 2026, D5–D7 on 9 October.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
@@ -164,6 +156,9 @@ All four were decided on 8 October 2026.
 | D2 | Who carries out data-protection requests? | B1 (fixed) | **Aveline staff only.** A request matches an email across every customer, so hosts neither see the queue nor act on it |
 | D3 | When a host changes the date or venue after sending, are guests told? | F2 (built) | **The host is offered it.** After the edit, they choose whether to send an "updated details" message to everyone already invited |
 | D4 | Is find-your-seat public? | B16 | **Only through a guest's own link, and only once the host publishes the seating** |
+| D5 | A ticket buyer pays after their hold lapsed: then what? | B36 (fixed) | **Issue the tickets if the seats are still there; otherwise refund in full and tell the buyer** |
+| D6 | May a PRIVATE invitation be read from its generic link? | B49 | **No — personal links only, as the spec says.** A host who wants one shareable link sets the event UNLISTED |
+| D7 | What becomes of the public `POST /payments`? | B42 (fixed) | **Removed.** Payments start only from Aveline's own flows; a deposit flow will start its own |
 
 ---
 

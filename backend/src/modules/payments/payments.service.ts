@@ -17,7 +17,7 @@ import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { assertTransition, isSettled, nextStatusForRefund } from './payment-status';
 import { ProviderOutcome, ProviderStatus } from './providers/payment-provider';
 import { StartPaymentDto } from './dto/start-payment.dto';
-import { isUniqueViolation } from '../../common/prisma-errors';
+import { isRecordNotFound, isUniqueViolation } from '../../common/prisma-errors';
 
 /** How long a registered-but-unpaid order stays payable before expiry. */
 const ORDER_LIFETIME_MS = 60 * 60 * 1000;
@@ -154,12 +154,20 @@ export class PaymentsService {
     const target = statusFor(status.outcome);
     if (target === payment.status) return this.describe(payment);
 
-    return this.describe(
-      await this.applyTransition(payment.id, target, source, {
-        raw: status.raw,
-        ...extraFieldsFor(status.outcome),
-      }),
-    );
+    try {
+      return this.describe(
+        await this.applyTransition(payment.id, target, source, {
+          raw: status.raw,
+          ...extraFieldsFor(status.outcome),
+        }),
+      );
+    } catch (error) {
+      // Another confirmation — the buyer's return page and the sweep, say —
+      // recorded the bank's answer first. That is the outcome wanted, not a
+      // failure; anything else still is.
+      if (!isRecordNotFound(error)) throw error;
+      return this.describe(await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }));
+    }
   }
 
   /**
@@ -205,13 +213,14 @@ export class PaymentsService {
     const payment = await this.prisma.payment.findUnique({ where: { orderNumber } });
     if (!payment) throw new NotFoundException(`No payment ${orderNumber}`);
 
-    const target = nextStatusForRefund(payment.amountMinor, payment.refundedMinor, amountMinor);
-    const refund = await this.claimRefund(payment.id, amountMinor, target, reason);
+    // Checked here for a clear message; the claim below re-checks atomically.
+    nextStatusForRefund(payment.amountMinor, payment.refundedMinor, amountMinor);
+    const { refund, target } = await this.claimRefund(payment.id, amountMinor, reason);
 
     try {
       const result = await this.gateways
         .get(payment.provider)
-        .refund(payment.providerRef ?? '', amountMinor);
+        .refund(payment.providerRef ?? '', amountMinor, payment.currency);
 
       await this.prisma.$transaction([
         this.prisma.refund.update({
@@ -245,31 +254,33 @@ export class PaymentsService {
    * both succeed: the second finds refundedMinor already increased and
    * matches nothing.
    */
-  private async claimRefund(
-    paymentId: string,
-    amountMinor: bigint,
-    target: PaymentStatus,
-    reason?: string,
-  ) {
-    const claimed = await this.prisma.$executeRaw`
+  private async claimRefund(paymentId: string, amountMinor: bigint, reason?: string) {
+    // The status is decided by the same statement that adds the amount, from
+    // the row as it is then. Computed from an earlier read, two part refunds
+    // completing a payment together each wrote PARTIALLY_REFUNDED.
+    const claimed = await this.prisma.$queryRaw<{ status: PaymentStatus }[]>`
       UPDATE "payments"
          SET "refundedMinor" = "refundedMinor" + ${amountMinor},
-             "status" = ${target}::"PaymentStatus",
+             "status" = CASE WHEN "refundedMinor" + ${amountMinor} = "amountMinor"
+                             THEN 'REFUNDED'::"PaymentStatus"
+                             ELSE 'PARTIALLY_REFUNDED'::"PaymentStatus" END,
              "updatedAt" = NOW()
        WHERE "id" = ${paymentId}
          AND "status" IN ('CAPTURED', 'PARTIALLY_REFUNDED')
          AND "refundedMinor" + ${amountMinor} <= "amountMinor"
+   RETURNING "status"
     `;
 
-    if (claimed === 0) {
+    if (claimed.length === 0) {
       throw new ConflictException(
         'Refund no longer fits — the payment was refunded concurrently or is not captured',
       );
     }
 
-    return this.prisma.refund.create({
+    const refund = await this.prisma.refund.create({
       data: { paymentId, amountMinor, reason: reason ?? null, status: RefundStatus.PENDING },
     });
+    return { refund, target: claimed[0].status };
   }
 
   /** Puts a claimed amount back when the bank refuses it. */
@@ -328,20 +339,21 @@ export class PaymentsService {
     return this.describe(payment);
   }
 
+  /**
+   * The bank first, then the clock. Expiring before asking wrote off payments
+   * the bank had captured — EXPIRED is final — and the sweep reached a busy
+   * hour's real payments only after their lifetime had passed. Only a payment
+   * the bank still calls unpaid is expired; an authorised hold is money, and
+   * waits for the bank to settle it.
+   */
   private async reconcileOne(payment: { id: string; orderNumber: string; status: PaymentStatus; expiresAt: Date | null }) {
     try {
-      if (payment.expiresAt && payment.expiresAt < new Date()) {
-        await this.applyTransition(
-          payment.id,
-          PaymentStatus.EXPIRED,
-          PaymentEventSource.RECONCILIATION,
-          {},
-        );
-        return PaymentStatus.EXPIRED;
-      }
-
       const result = await this.confirm(payment.orderNumber, PaymentEventSource.RECONCILIATION);
-      return result.status;
+      const isOverdue = payment.expiresAt !== null && payment.expiresAt < new Date();
+      if (!isOverdue || result.status !== PaymentStatus.PENDING) return result.status;
+
+      await this.applyTransition(payment.id, PaymentStatus.EXPIRED, PaymentEventSource.RECONCILIATION, {});
+      return PaymentStatus.EXPIRED;
     } catch (error) {
       // One unreachable bank must not stop the sweep for every other payment.
       this.logger.warn(`reconciliation failed for ${payment.orderNumber}: ${describeError(error)}`);

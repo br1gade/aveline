@@ -327,7 +327,6 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Record an arrival; a guest arrives once |
 | `DELETE` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Undo a mis-scan |
 | `GET` | `/api/v1/events/:eventId/arrivals` | Live arrivals against who was expected |
-| `POST` | `/api/v1/payments` | Register an order, get the bank form URL (idempotent) |
 | `GET` | `/api/v1/payments/:orderNumber` | Payment state |
 | `POST` | `/api/v1/payments/:orderNumber/confirm` | Server-to-server outcome check |
 | `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |

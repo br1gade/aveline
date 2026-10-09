@@ -153,6 +153,18 @@ describe('Public event setup (e2e)', () => {
     });
   });
 
+  // B42: anyone could register a charge against any organization.
+  it('has no public way to start a payment', async () => {
+    const { authorization, eventId } = await organizer();
+    const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+
+    await http()
+      .post('/api/v1/payments')
+      .set('Authorization', authorization)
+      .send({ organizationId: event.organizationId, purpose: 'DEPOSIT', provider: 'FAKE', amountMinor: '100', currency: 'AMD', returnUrl: 'https://x.test', idempotencyKey: 'k' })
+      .expect(404);
+  });
+
   // B35: the documented filters were refused as unknown query parameters.
   describe('browsing', () => {
     it('filters by category and answers in the language asked', async () => {

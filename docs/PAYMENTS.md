@@ -58,11 +58,15 @@ differ.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/payments` | Register an order, return the bank form URL |
 | `GET` | `/api/payments/:orderNumber` | Current state |
 | `POST` | `/api/payments/:orderNumber/confirm` | Ask the bank what happened |
 | `POST` | `/api/payments/:orderNumber/refund` | Full or partial refund |
 | `POST` | `/api/payments/reconcile` | Sweep everything unresolved |
+
+There is no endpoint to start a payment. Ticket checkout and subscriptions
+start their own, deciding organization, purpose and amount themselves; a
+public one let anyone register a charge against any organization (removed
+9 October 2026).
 
 ## 3. The four properties that matter
 
@@ -86,8 +90,10 @@ status we read, so two concurrent callbacks cannot both apply.
 
 **Reconciliation is not optional.** Callbacks get lost — an abandoned redirect,
 a timed-out webhook. Without the sweep, a customer the bank charged has an
-order that never completed, which is the worst failure this system has. It also
-expires orders registered and never paid.
+order that never completed, which is the worst failure this system has. It
+asks the bank first and only then expires what the bank still calls unpaid —
+expiring first wrote off payments the bank had captured, because `EXPIRED` is
+final.
 
 Every transition writes a `PaymentEvent` with the verbatim provider payload.
 That table is append-only and is how a disagreement with the bank gets settled.
@@ -112,7 +118,14 @@ Claiming first inverts which failure is possible: at worst we record a refund
 the bank then rejects, which this code compensates for immediately and
 reconciliation would catch regardless. The claim is a single conditional
 `UPDATE` whose `WHERE` carries the invariant, so a second claim matches
-nothing.
+nothing, and which sets `REFUNDED` or `PARTIALLY_REFUNDED` from the row as it
+is then — two part refunds that complete a payment together leave it
+`REFUNDED`.
+
+**A refund succeeds only when the bank says so.** Both banks answer a declined
+refund with HTTP 200; the adapters read Ameriabank's `ResponseCode` and ArCa's
+`errorCode` and throw on anything but success, and amounts go in the
+payment's own currency.
 
 **Ticket settlement is one transaction, claim first.** Committing inventory
 and issuing tickets happen together, behind a conditional update that only
@@ -120,8 +133,32 @@ matches a `RESERVED` order. Ticket codes are random, so without that guard a
 retried callback would mint a second valid set for one paid seat rather than
 failing on a constraint.
 
-These are covered by `test/integration/transaction-safety.int-spec.ts`, which
-runs the concurrent cases rather than reasoning about them.
+**Money that arrives late still buys what it was for, or goes back.** A ticket
+hold lasts 15 minutes; a payment can land later. The release sweep asks the
+bank about every lapsed hold that started a payment and settles a captured one
+instead of releasing it. A capture found after release is issued from the
+seats still free (`sellLate`), or — when they were sold meanwhile — refunded
+in full, claim-first, and the buyer told (decided 9 October 2026). A refused
+refund reopens the claim for the next sweep. Invoices follow the same rule:
+captured pays them, unless a newer plan change had voided them, in which case
+the payment is refunded.
+
+**Every reconciliation is followed by settlement.** `MoneySweepService`
+reconciles, then settles captured ticket orders and invoices — the customers
+who paid and never returned. Reconciliation used to update only the payment.
+
+**A checkout that fails after its order exists expires the order**,
+claim-first, which returns its seats once. Releasing them beside a `RESERVED`
+order let the sweep return them again, and a later buyer's payment failed to
+commit.
+
+**Confirmation emails cannot be lost.** They are queued after settlement with
+a dedupe key; a retried settlement queues again (a no-op if it exists), and a
+sweep queues any paid or cancelled order from the last week that has none.
+
+These are covered by `test/integration/transaction-safety.int-spec.ts` and
+`ticket-settlement.int-spec.ts`, which run the concurrent cases rather than
+reasoning about them.
 
 ## 4. Sandboxes
 

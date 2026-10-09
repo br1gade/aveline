@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { PaymentEventSource } from '@prisma/client';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { StartPaymentDto } from './dto/start-payment.dto';
 import { RefundPaymentDto } from '../ticketing/dto/ticket-setup.dto';
 import { PaymentsService } from './payments.service';
 import { Public, RequirePermission } from '../../infra/auth/actor';
@@ -11,17 +10,10 @@ import { Public, RequirePermission } from '../../infra/auth/actor';
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
-  // Started by a buyer during checkout, so no session exists yet. The
-  // throttle is what protects it.
-  @Public()
-  @Post()
-  @ApiOperation({
-    summary: 'Register an order and get the bank form URL to redirect the payer to',
-    description: 'Idempotent by idempotencyKey — a retry returns the original payment.',
-  })
-  start(@Body() dto: StartPaymentDto) {
-    return this.payments.start(dto);
-  }
+  // No public "start a payment": it let anyone register a charge against any
+  // organization, for any purpose and amount. Payments are started only by our
+  // own flows — ticket checkout and subscriptions — which decide all three
+  // (decided 9 October 2026). A deposit flow will start its own.
 
   @Public()
   @Get(':orderNumber')

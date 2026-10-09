@@ -183,6 +183,16 @@ describe('PaymentsService (integration)', () => {
       expect(result.refundedMinor).toBe('25000');
     });
 
+    // B41: each refund computed the status from its own stale read.
+    it('marks a payment fully refunded when two part refunds complete it at once', async () => {
+      const orderNumber = await capture();
+
+      await Promise.all([service.refund(orderNumber, 10000n), service.refund(orderNumber, 15000n)]);
+
+      const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber } });
+      expect(payment).toMatchObject({ status: PaymentStatus.REFUNDED, refundedMinor: 25000n });
+    });
+
     it('refuses to refund more than was captured', async () => {
       const orderNumber = await capture();
 
@@ -227,6 +237,22 @@ describe('PaymentsService (integration)', () => {
         where: { orderNumber: started.orderNumber },
       });
       expect(after.status).toBe(PaymentStatus.EXPIRED);
+    });
+
+    // B38: it marked the payment EXPIRED before asking the bank, and EXPIRED
+    // is final — a payment the bank had captured was written off.
+    it('asks the bank before expiring, and keeps a payment it captured', async () => {
+      const started = await service.start(startDto());
+      const payment = await prisma.payment.update({
+        where: { orderNumber: started.orderNumber },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      });
+      fake.simulateSuccess(payment.providerRef!);
+
+      await service.reconcile();
+
+      const after = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      expect(after.status).toBe(PaymentStatus.CAPTURED);
     });
 
     it('leaves settled payments alone', async () => {

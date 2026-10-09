@@ -74,6 +74,28 @@ export class TicketNotifierService {
   }
 
   /**
+   * Queues what a failed attempt did not: tickets for paid orders, notices
+   * for cancelled and refunded ones, from the last week. Settlement swallows
+   * a failure to queue — rightly, the money has moved — so without this sweep
+   * one database blip meant a buyer who was never told.
+   */
+  async sendMissing(limit = 50): Promise<{ queued: number }> {
+    const orders = await this.prisma.$queryRaw<{ id: string; status: string }[]>`
+      SELECT o.id, o.status::text AS status FROM ticket_orders o
+       WHERE o.status IN ('PAID', 'CANCELLED', 'REFUNDED')
+         AND o."updatedAt" > now() - interval '7 days'
+         AND NOT EXISTS (
+           SELECT 1 FROM messages m
+            WHERE m."dedupeKey" = (CASE WHEN o.status = 'PAID' THEN 'ticket-issued:' ELSE 'ticket-cancelled:' END) || o.id)
+       LIMIT ${limit}`;
+
+    for (const order of orders) {
+      await (order.status === 'PAID' ? this.sendTickets(order.id) : this.sendCancellation(order.id));
+    }
+    return { queued: orders.length };
+  }
+
+  /**
    * Tells the buyer their order was cancelled and refunded.
    *
    * Without it a buyer finds out from their bank statement, or at the door —

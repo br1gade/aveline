@@ -1795,32 +1795,6 @@
         ]
       }
     },
-    "/api/v1/payments": {
-      "post": {
-        "description": "Idempotent by idempotencyKey — a retry returns the original payment.",
-        "operationId": "PaymentsController_start",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StartPaymentDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Register an order and get the bank form URL to redirect the payer to",
-        "tags": [
-          "payments"
-        ]
-      }
-    },
     "/api/v1/payments/{orderNumber}": {
       "get": {
         "operationId": "PaymentsController_find",
@@ -5241,70 +5215,6 @@
         },
         "required": [
           "status"
-        ]
-      },
-      "StartPaymentDto": {
-        "type": "object",
-        "properties": {
-          "organizationId": {
-            "type": "string"
-          },
-          "eventId": {
-            "type": "string"
-          },
-          "purpose": {
-            "type": "string",
-            "enum": [
-              "DEPOSIT",
-              "TICKET",
-              "SUBSCRIPTION",
-              "OTHER"
-            ]
-          },
-          "provider": {
-            "type": "string",
-            "enum": [
-              "AMERIABANK",
-              "INECOBANK",
-              "IDBANK",
-              "FAKE"
-            ]
-          },
-          "amountMinor": {
-            "type": "string",
-            "description": "Minor units as a decimal string, e.g. \"25000\" for 25,000 AMD"
-          },
-          "currency": {
-            "type": "string",
-            "enum": [
-              "AMD",
-              "USD",
-              "EUR",
-              "RUB"
-            ]
-          },
-          "returnUrl": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "locale": {
-            "type": "string"
-          },
-          "idempotencyKey": {
-            "type": "string",
-            "description": "Caller-supplied; makes a retried request safe"
-          }
-        },
-        "required": [
-          "organizationId",
-          "purpose",
-          "provider",
-          "amountMinor",
-          "currency",
-          "returnUrl",
-          "idempotencyKey"
         ]
       },
       "RefundPaymentDto": {

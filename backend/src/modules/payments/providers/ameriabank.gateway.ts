@@ -71,13 +71,19 @@ export class AmeriabankGateway implements PaymentGateway {
     return { outcome: this.readOutcome(body), raw: body };
   }
 
-  async refund(providerRef: string, amountMinor: bigint): Promise<ProviderStatus> {
+  async refund(providerRef: string, amountMinor: bigint, currency: string): Promise<ProviderStatus> {
     const body = await this.post('RefundPayment', {
       PaymentID: providerRef,
       Username: this.config.username,
       Password: this.config.password,
-      Amount: toMajorUnits(amountMinor, 'AMD'),
+      // In the payment's own currency: converted as AMD, a dollar refund was
+      // a hundred times too large.
+      Amount: toMajorUnits(amountMinor, currency),
     });
+    // HTTP 200 carries declines too; only '00' means the money went back.
+    if (asString(body.ResponseCode) !== '00') {
+      throw new Error(`Ameriabank refused the refund: ${asString(body.ResponseMessage) ?? `code ${asString(body.ResponseCode) ?? 'none'}`}`);
+    }
     return { outcome: { kind: 'refunded', refundedMinor: amountMinor }, raw: body };
   }
 

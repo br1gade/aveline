@@ -95,6 +95,26 @@ export class TicketInventoryService {
   }
 
   /**
+   * Sells seats straight from what is free, for a payment that arrived after
+   * its hold had lapsed and been returned. Whether the type is still on sale
+   * does not matter: the buyer paid while it was. Returns false when the
+   * seats are gone, rather than throwing, because that is an ordinary outcome
+   * the caller answers with a refund.
+   */
+  async sellLate(ticketTypeId: string, quantity: number, tx: Executor): Promise<boolean> {
+    assertPositive(quantity);
+
+    const updated = await tx.$executeRaw`
+      UPDATE "ticket_types"
+         SET "quantitySold" = "quantitySold" + ${quantity},
+             "updatedAt" = NOW()
+       WHERE "id" = ${ticketTypeId}
+         AND "quantitySold" + "quantityReserved" + ${quantity} <= "quantityTotal"
+    `;
+    return updated === 1;
+  }
+
+  /**
    * Puts sold seats back on sale, when an order is cancelled.
    *
    * Conditioned on there being that many sold, for the same reason every

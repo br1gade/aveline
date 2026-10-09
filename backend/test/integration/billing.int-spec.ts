@@ -17,12 +17,13 @@ describe('billing (integration)', () => {
   let prisma: PrismaClient;
   let subscriptions: SubscriptionsService;
   let fake: FakeGateway;
+  let payments: PaymentsService;
   let organizationId: string;
 
   beforeAll(() => {
     prisma = testPrisma();
     fake = new FakeGateway();
-    const payments = new PaymentsService(
+    payments = new PaymentsService(
       prisma as unknown as PrismaService,
       new PaymentGatewayRegistry([fake]),
     );
@@ -166,6 +167,73 @@ describe('billing (integration)', () => {
       await expect(
         subscriptions.subscribe(organizationId, { planKey: 'managed' }),
       ).rejects.toThrow(/provider/);
+    });
+  });
+
+  // B39: changing plan overwrote the one subscription row before anything
+  // was paid, so paying an old invoice activated whatever plan it now held,
+  // and abandoning a change dropped an active customer to trial.
+  describe('changing plan', () => {
+    const subscribeTo = (planKey: string) =>
+      subscriptions.subscribe(organizationId, { planKey, provider: PaymentProvider.FAKE });
+    const payAtTheBank = (invoice: { paymentOrderNumber: string | null }) => fake.simulateSuccess(`fake_${invoice.paymentOrderNumber}`);
+    const activeOn = async (planKey: string) => {
+      const { invoice } = await subscribeTo(planKey);
+      payAtTheBank(invoice!);
+      await subscriptions.confirmPayment(organizationId, invoice!.number);
+    };
+
+    beforeEach(async () => {
+      await plan({ key: 'basic', priceMinor: 10_000n });
+      await plan({ key: 'pro', priceMinor: 50_000n });
+    });
+
+    it('keeps the current plan active until the new one is paid', async () => {
+      await activeOn('basic');
+
+      await subscribeTo('pro');
+
+      const { subscription } = await subscriptions.current(organizationId);
+      expect(subscription).toMatchObject({ status: SubscriptionStatus.ACTIVE, plan: { key: 'basic' } });
+    });
+
+    it('moves to the new plan when its invoice is paid', async () => {
+      await activeOn('basic');
+      const { invoice } = await subscribeTo('pro');
+      payAtTheBank(invoice!);
+
+      await subscriptions.confirmPayment(organizationId, invoice!.number);
+
+      const { subscription } = await subscriptions.current(organizationId);
+      expect(subscription).toMatchObject({ status: SubscriptionStatus.ACTIVE, plan: { key: 'pro' } });
+    });
+
+    it('voids the older open invoice, and refunds it if it is paid anyway', async () => {
+      const { invoice: cheap } = await subscribeTo('basic');
+      await subscribeTo('pro');
+      payAtTheBank(cheap!);
+
+      await subscriptions.confirmPayment(organizationId, cheap!.number);
+
+      const old = await prisma.invoice.findFirstOrThrow({ where: { number: cheap!.number } });
+      expect(old.status).toBe('VOID');
+      const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber: cheap!.paymentOrderNumber! } });
+      expect(payment.status).toBe('REFUNDED');
+      const { subscription } = await subscriptions.current(organizationId);
+      expect(subscription?.status).not.toBe(SubscriptionStatus.ACTIVE);
+    });
+
+    // B36, for subscriptions: a customer who paid and never came back stayed unpaid.
+    it('settles an invoice the bank captured though the customer never came back', async () => {
+      const { invoice } = await subscribeTo('basic');
+      payAtTheBank(invoice!);
+
+      await payments.reconcile();
+      await subscriptions.settleCapturedInvoices();
+
+      expect((await prisma.invoice.findFirstOrThrow({ where: { number: invoice!.number } })).status).toBe('PAID');
+      const { subscription } = await subscriptions.current(organizationId);
+      expect(subscription).toMatchObject({ status: SubscriptionStatus.ACTIVE, plan: { key: 'basic' } });
     });
   });
 

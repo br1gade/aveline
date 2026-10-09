@@ -1537,6 +1537,7 @@ model Plan {
   updatedAt DateTime @updatedAt
 
   subscriptions Subscription[]
+  invoices      Invoice[]
 
   @@map("plans")
 }
@@ -1602,6 +1603,10 @@ model Invoice {
   id             String  @id @default(cuid())
   organizationId String
   subscriptionId String?
+  /// The plan this invoice buys. Applied to the subscription only when it is
+  /// paid: overwriting the subscription at issue meant paying an old invoice
+  /// activated whatever plan the row held by then.
+  planId         String?
 
   /// Human-facing, sequential, and never reused — a legal requirement in
   /// most jurisdictions, including for Armenian corporate customers.
@@ -1628,6 +1633,7 @@ model Invoice {
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status])
   @@map("invoices")

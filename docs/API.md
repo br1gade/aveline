@@ -645,6 +645,15 @@ moved. Safe to call repeatedly.
 `reservesUntil` is a real deadline: inventory is released after it and the
 order becomes `EXPIRED`. Show a countdown.
 
+**A buyer who paid is never left without tickets or money.** Before a hold is
+released the bank is asked; a captured payment is settled instead. If the
+payment arrives after the hold was released — the buyer took their time at
+the bank — confirm on an `EXPIRED` order still works: the tickets are issued
+if the seats are still there, and if they were sold meanwhile the payment is
+refunded in full and the buyer emailed. The order then reads `PAID` or
+`REFUNDED`. A buyer who never comes back is settled by the same rule within
+minutes, and receives their tickets by email. Decided 9 October 2026.
+
 Sold out returns `409` with how many remain.
 
 ---
@@ -1329,8 +1338,13 @@ POST /api/v1/invoices/:number/confirm
 which asks the bank server-to-server and activates the subscription. Safe to
 call twice; a second call never double-activates or double-counts.
 
-Changing plan is the same call with a different `planKey` — it replaces the
-subscription in place rather than opening a second.
+Changing plan is the same call with a different `planKey`. **Nothing changes
+until the new invoice is paid**: the current plan and status stay as they are,
+and paying applies the invoice's plan with a period starting then. A paid
+change abandoned at the bank leaves the customer exactly where they were. A
+newer change replaces the open invoice, which becomes `VOID`; if that old
+invoice is paid anyway, the payment is refunded. A customer who pays and never
+returns is settled within minutes.
 
 ```http
 POST /api/v1/subscription/cancel
@@ -2339,20 +2353,17 @@ event in it, only Aveline staff could scan, and they could scan any event.
 
 ### Payments directly
 
-Ticket checkout handles payment for you — these are for the other cases, such
-as taking a deposit on a booking.
+Payments are started only by Aveline's own flows — ticket checkout and
+subscriptions — which decide the organization, purpose and amount. **There is
+no public endpoint to start one** (removed 9 October 2026: it let anyone
+register a charge against any organization). What remains:
 
 ```http
-POST /api/v1/payments              # public: register an order, get a redirect URL
-GET  /api/v1/payments/:orderNumber # public: current state
+GET  /api/v1/payments/:orderNumber           # public: current state
 POST /api/v1/payments/:orderNumber/confirm   # public: ask the bank what happened
-POST /api/v1/payments/:orderNumber/refund    # requires billing:read
+POST /api/v1/payments/:orderNumber/refund    # requires billing:write; not for tickets
 POST /api/v1/payments/reconcile              # requires billing:read; ops only
 ```
-
-Registration takes `amountMinor` as a string, a `provider`
-(`AMERIABANK` | `INECOBANK` | `IDBANK`), a `returnUrl` and an
-`idempotencyKey` you generate. It returns a `redirectUrl` to send the payer to.
 
 The same rule as ticketing applies and is the one people get wrong: **the
 return redirect is not proof of payment.** Call confirm, which checks
@@ -2360,7 +2371,7 @@ server-to-server. Statuses are `CREATED`, `PENDING`, `AUTHORIZED`, `CAPTURED`,
 `FAILED`, `CANCELLED`, `REFUNDED`, `PARTIALLY_REFUNDED`, `EXPIRED`.
 
 `reconcile` is an operations action — a sweep that re-asks the bank about
-anything unresolved. A scheduled job already runs it; the endpoint exists for
+anything unresolved, and expires only what the bank still calls unpaid. A scheduled job already runs it; the endpoint exists for
 when someone needs it sooner. Not something a user-facing screen should call.
 
 Likewise `POST /api/v1/ticket-orders/release-expired` returns inventory held

@@ -55,9 +55,13 @@ export class TicketFulfilmentService {
       where: { id: orderId },
       include: SETTLED_ORDER,
     });
-    // Already settled: a retried callback or a refreshed return page. The
-    // order is returned unchanged and nothing is issued or sent again.
-    if (order.status === TicketOrderStatus.PAID) return order;
+    // Already settled: a retried callback or a refreshed return page. Nothing
+    // is issued again; the confirmation is queued again, which its dedupe key
+    // makes a no-op unless the first attempt to queue it failed.
+    if (order.status === TicketOrderStatus.PAID) {
+      await this.notifier.sendTickets(orderId);
+      return order;
+    }
 
     /**
      * Claiming, committing inventory and issuing tickets happen in one
@@ -160,7 +164,79 @@ export class TicketFulfilmentService {
     });
   }
 
-  /** Admits a ticket at the door. A code may only be used once. */
+  /**
+   * Expires one order by id: a checkout that failed after its order was
+   * written. Claim-first like the sweep, so the sweep finding it later
+   * changes nothing — releasing the seats here and leaving the order RESERVED
+   * had the sweep release them a second time.
+   */
+  async expire(orderId: string): Promise<boolean> {
+    const order = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, include: { items: true } });
+    return this.expireOrder(order);
+  }
+
+  /**
+   * Issues tickets for a payment that arrived after the order's hold lapsed
+   * (decided 9 October 2026: issue them if the seats are still there, refund
+   * if not). One transaction, claim first: the claim matches only an EXPIRED
+   * order, so two settlements of one late payment issue one set.
+   */
+  async issueLate(orderId: string): Promise<'ISSUED' | 'SOLD_OUT' | 'NOT_EXPIRED'> {
+    const order = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, include: SETTLED_ORDER });
+
+    try {
+      const outcome = await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.ticketOrder.updateMany({
+          where: { id: orderId, status: TicketOrderStatus.EXPIRED },
+          data: { status: TicketOrderStatus.PAID },
+        });
+        if (claimed.count === 0) return 'NOT_EXPIRED' as const;
+
+        for (const item of order.items) {
+          // Thrown to roll the claim back: some seats are not all seats.
+          if (!(await this.inventory.sellLate(item.ticketTypeId, item.quantity, tx))) throw new SoldOut();
+        }
+        await tx.ticket.createMany({ data: this.ticketsFor(order) });
+        return 'ISSUED' as const;
+      });
+      if (outcome === 'ISSUED') await this.notifier.sendTickets(orderId);
+      return outcome;
+    } catch (error) {
+      if (error instanceof SoldOut) return 'SOLD_OUT';
+      throw error;
+    }
+  }
+
+  /**
+   * Claims a late, sold-out order for refunding: EXPIRED to REFUNDED, once.
+   * Returns false if another settlement got there first.
+   */
+  async claimLateRefund(orderId: string): Promise<boolean> {
+    const claimed = await this.prisma.ticketOrder.updateMany({
+      where: { id: orderId, status: TicketOrderStatus.EXPIRED },
+      data: { status: TicketOrderStatus.REFUNDED },
+    });
+    return claimed.count === 1;
+  }
+
+  sendMissingNotices(): Promise<{ queued: number }> {
+    return this.notifier.sendMissing();
+  }
+
+  /** Tells the buyer their late payment was refunded. Idempotent by its dedupe key. */
+  notifyCancelled(orderId: string): Promise<void> {
+    return this.notifier.sendCancellation(orderId);
+  }
+
+  /** Puts a late order back to EXPIRED when the bank refused its refund, so the sweep tries again. */
+  async reopenLateRefund(orderId: string): Promise<void> {
+    await this.prisma.ticketOrder.updateMany({
+      where: { id: orderId, status: TicketOrderStatus.REFUNDED },
+      data: { status: TicketOrderStatus.EXPIRED },
+    });
+  }
+
+  /** The tickets a paid order is owed, each with an unguessable code. */
   private ticketsFor(order: {
     id: string;
     eventId: string;
@@ -238,6 +314,9 @@ export class TicketFulfilmentService {
   }
 
 }
+
+/** The seats a late payment was for have been sold to someone else. */
+class SoldOut extends Error {}
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

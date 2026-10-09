@@ -53,7 +53,11 @@ export interface PaymentGateway {
    */
   getStatus(providerRef: string): Promise<ProviderStatus>;
 
-  refund(providerRef: string, amountMinor: bigint): Promise<ProviderStatus>;
+  /**
+   * Refunds part or all of a captured payment, in the payment's currency.
+   * Resolves only when the bank says it refunded; a decline is thrown.
+   */
+  refund(providerRef: string, amountMinor: bigint, currency: string): Promise<ProviderStatus>;
 
   cancel(providerRef: string): Promise<ProviderStatus>;
 }
