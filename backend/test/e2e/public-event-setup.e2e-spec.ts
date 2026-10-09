@@ -122,6 +122,32 @@ describe('Public event setup (e2e)', () => {
     return { authorization, eventId, slug: listing.slug as string, code: (order.tickets as { code: string }[])[0].code };
   };
 
+  // B63: the order list gave every buyer's email to read-only roles.
+  describe('who sees a buyer\'s email', () => {
+    const orders = (eventId: string, authorization: string) =>
+      http().get(`/api/v1/events/${eventId}/ticket-orders`).set('Authorization', authorization).expect(200);
+
+    it('hides it from a viewer, who still sees the orders', async () => {
+      const { eventId } = await onSale();
+      const viewer = await authenticateAs(app, prisma, { eventId, role: EventRole.VIEWER });
+
+      const { body } = await orders(eventId, viewer.authorization);
+
+      expect(body[0]).toMatchObject({ buyerName: 'Ani', tickets: 1 });
+      expect(body[0]).not.toHaveProperty('buyerEmail');
+      expect(JSON.stringify(body)).not.toContain('ani@test.local');
+    });
+
+    it('shows it to someone who may read guest contacts', async () => {
+      const { eventId } = await onSale();
+      const coordinator = await authenticateAs(app, prisma, { eventId, role: EventRole.COORDINATOR });
+
+      const { body } = await orders(eventId, coordinator.authorization);
+
+      expect(body[0].buyerEmail).toBe('ani@test.local');
+    });
+  });
+
   // B34: the route had no event in it, so only platform staff could scan —
   // and they could scan any event's tickets.
   describe('admitting at the door', () => {

@@ -2308,6 +2308,7 @@
     },
     "/api/v1/events/{eventId}/ticket-orders": {
       "get": {
+        "description": "Buyer emails only with guest:contact:read.",
         "operationId": "TicketSetupController_listOrders",
         "parameters": [
           {

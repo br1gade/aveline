@@ -591,6 +591,9 @@ GET  /api/v1/events/:eventId/ticket-orders?status=PAID
 POST /api/v1/events/:eventId/ticket-orders/:orderId/cancel
 ```
 
+The list needs `operations:read`; **`buyerEmail` is absent unless you also hold
+`guest:contact:read`** — door staff and viewers see orders, not addresses.
+
 **Cancelling is how a ticket order is refunded.** It voids every ticket on the
 order, puts the seats back on sale, returns any promo-code use, refunds the
 payment, and emails the buyer — as one action, exactly once. Free orders end
@@ -964,7 +967,9 @@ GET /api/v1/events/:eventId/guests/imports
 
 The last imports, newest first, each with `filename`, `rowsImported`,
 `rowsFailed`, `status` and `errors` — enough to show "412 of 415 imported" days
-later. Requires `guest:read`.
+later. Requires `guest:read`. A mistyped email is quoted back only in the
+import's own response; the stored history keeps the row and the reason, not
+the address.
 
 ### Reading the guest list
 
@@ -1484,7 +1489,7 @@ DELETE /api/v1/events/:eventId/vendors/:bookingId
 
 | Scope | What it shows |
 |---|---|
-| `headcount` | Confirmed headcount by side |
+| `headcount` | Confirmed headcount by side — the numbers only; household names come with `households` |
 | `catering` | Covers and dietary requirements |
 | `bar` | Drink preferences as quantities |
 | `playlist` | Requested songs |
@@ -2195,8 +2200,11 @@ GET /api/v1/invitations/:slug/delivery
 Grouped by household, because "have the Petrosyans been invited?" is the
 question a host asks — not "what is the status of message 4f2a".
 
-**`toAddress` is absent unless you hold `guest:contact:read`.** A `DESIGNER`
-or `VIEWER` sees who was invited and what happened, not where it went.
+**The report needs `guest:read`** — it is the guest list by household — so a
+`DESIGNER` gets `403`. **`toAddress` is absent unless you hold
+`guest:contact:read`**: a `VIEWER` sees who was invited and what happened, not
+where it went. An `unreachable` reason names the guest whose address is
+malformed but never quotes the address.
 
 `status` is `NOT_SENT` (nothing has been sent to this address yet) or a
 `Message` status: `QUEUED`, `SENDING`, `SENT`, `DELIVERED`, `FAILED`,

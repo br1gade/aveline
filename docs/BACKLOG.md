@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 4 open (B63–B65, B93) | 19 open (B66–B84) | 9 open (B85–B92, B94) | — |
+| Bugfixes | 0 open | 19 open (B66–B84) | 9 open (B85–B92, B94) | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
 | Decisions | 9 (D1–D9); D8 and D9 open | | | |
 
@@ -65,14 +65,7 @@ each claim then checked against the code. One P0 (any made-up guest token
 opened a PRIVATE invitation) was fixed the same day. Duplicates across audits
 are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 
-**P0 — contact or guest data reaching a role that may not see it** (each S)
-
-| # | Bug | Where |
-|---|---|---|
-| B63 | `GET /events/:eventId/ticket-orders` needs only `operations:read` and returns every buyer's email — door staff and viewers see them | `ticketing/ticket-setup.controller.ts`, `ticket-cancellation.service.ts` |
-| B64 | The delivery report needs only `invitation:read`, so a DESIGNER reads every household and guest name and who answered | `invitations/invitation-lifecycle.controller.ts` |
-| B93 | A vendor's `headcount` brief carries the host's whole headcount, including `byHousehold` (every family's name) and the trend — so a caterer, whose default scopes include it, reads guest names that only the `households` scope should give | `vendors/vendor-briefs.service.ts` |
-| B65 | Import errors store the raw bad email and are readable with `guest:read`; the `unreachable` reason quotes a malformed address regardless of `guest:contact:read`; erasure leaves both | `guests/import/csv-guests.ts`, `sending/send-plan.ts` |
+**P0** — none open. B63–B65 and B93 were fixed on 10 October 2026.
 
 **P1 — a pilot host will hit it**
 

@@ -22,6 +22,8 @@ export interface RowError {
   row: number;
   message: string;
   value?: string;
+  /** Set when `value` is contact data: shown to the importer, never stored. */
+  isContact?: boolean;
 }
 
 export interface ParsedGuestList {
@@ -108,7 +110,7 @@ function rejectionFor(field: FieldReader): Omit<RowError, 'row'> | null {
 
   const email = field('email');
   if (email && !isUsableEmailAddress(email)) {
-    return { message: 'That does not look like an email address', value: email };
+    return { message: 'That does not look like an email address', value: email, isContact: true };
   }
 
   return null;

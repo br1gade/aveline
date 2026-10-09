@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { GuestAttribution, ImportStatus, Prisma } from '@prisma/client';
 import { newGuestToken } from '../guest-token';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -56,6 +56,8 @@ export class GuestImportService {
         await this.upsertGuest(eventId, guest, seatsInFile);
         imported += 1;
       } catch (error) {
+        // The full error goes to our logs; the history gets only what is safe to show.
+        this.logger.warn(`import ${record.id} row ${guest.row}: ${error instanceof Error ? error.message : String(error)}`);
         failures.push({ row: guest.row, message: `Could not save ${guest.firstName}: ${describeError(error)}` });
       }
     }
@@ -156,7 +158,9 @@ export class GuestImportService {
         status,
         rowsImported: imported,
         rowsFailed: failures.length,
-        errors: failures as unknown as Prisma.InputJsonValue,
+        // The history is read with guest:read alone and outlives erasure, so a
+        // mistyped address is quoted to the importer below and never kept.
+        errors: failures.map(withoutContact) as unknown as Prisma.InputJsonValue,
         finishedAt: new Date(),
       },
     });
@@ -167,13 +171,21 @@ export class GuestImportService {
       status: record.status,
       rowsImported: record.rowsImported,
       rowsFailed: record.rowsFailed,
-      errors: failures,
+      errors: failures.map(({ isContact: _isContact, ...error }) => error),
     };
   }
 }
 
+/**
+ * A rule we enforce speaks for itself; anything else — a database error can
+ * echo the row's values — is not repeated into a history others read.
+ */
 function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return error instanceof HttpException ? error.message : 'an unexpected error; try the row again';
+}
+
+function withoutContact({ isContact, value, ...error }: RowError): RowError {
+  return isContact ? error : { ...error, ...(value === undefined ? {} : { value }) };
 }
 
 /** Nothing failed, nothing worked, or somewhere in between. */

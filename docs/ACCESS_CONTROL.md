@@ -136,8 +136,11 @@ with PII or commercial terms.
 
 `guest:contact:read` is checked wherever an address could leak, not only on
 the guest list: export downloads drop the `Email` and `Phone` columns without
-it, the ticket manifest is refused without it, and the delivery report omits
-`toAddress`. A vendor brief link is shown only to `vendor:write` holders,
+it, the ticket manifest is refused without it, the ticket order list omits
+`buyerEmail`, and the delivery report omits `toAddress`. The delivery report
+itself needs `guest:read`, so a `DESIGNER` cannot read the guest list through
+it. A vendor's `headcount` brief is numbers only; names come with the
+`households` scope. A vendor brief link is shown only to `vendor:write` holders,
 because a link with the `contacts` scope is contact data by another route.
 
 `privacy:manage` carries the power to erase a person's data and to assemble a

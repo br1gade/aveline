@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TicketOrderStatus } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
-import { RequirePermission } from '../../infra/auth/actor';
+import { actorCan, CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import {
   CreateTicketTypeDto,
   UpdateTicketTypeDto,
@@ -103,9 +103,9 @@ export class TicketSetupController {
 
   @RequirePermission('operations:read')
   @Get('ticket-orders')
-  @ApiOperation({ summary: 'Orders on this event, newest first' })
-  listOrders(@Param('eventId') eventId: string, @Query() query: OrderStatusQuery) {
-    return this.cancellation.listOrders(eventId, query.status);
+  @ApiOperation({ summary: 'Orders on this event, newest first', description: 'Buyer emails only with guest:contact:read.' })
+  listOrders(@CurrentActor() actor: RequestActor, @Param('eventId') eventId: string, @Query() query: OrderStatusQuery) {
+    return this.cancellation.listOrders(eventId, actorCan(actor, 'guest:contact:read'), query.status);
   }
 
   /**

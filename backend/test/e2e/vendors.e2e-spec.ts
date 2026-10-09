@@ -176,6 +176,18 @@ describe('Vendor briefs (e2e)', () => {
       }
     });
 
+    // B93: the headcount section carried every household's name, which only
+    // the households scope is meant to give.
+    it('gives headcount as numbers, without naming the households', async () => {
+      const { token } = await briefFor(['headcount']);
+
+      const { body } = await http().get(`/api/v1/briefs/${token}`).expect(200);
+
+      expect(body.headcount).toMatchObject({ invited: expect.any(Number), attending: expect.any(Number) });
+      expect(body.headcount).not.toHaveProperty('byHousehold');
+      expect(JSON.stringify(body.headcount)).not.toContain('Fixture Household');
+    });
+
     // So a vendor who can see what they were given does not ask by email.
     it('says which sections it carries and why', async () => {
       const { token } = await briefFor(['catering']);

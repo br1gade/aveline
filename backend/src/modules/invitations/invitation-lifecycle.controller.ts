@@ -109,7 +109,9 @@ export class InvitationLifecycleController {
     return this.reminders.thankAttendees(slug);
   }
 
-  @RequirePermission('invitation:read')
+  // guest:read, not invitation:read: the report is every household and guest
+  // by name, and a designer shapes the page without reading the guest list.
+  @RequirePermission('guest:read')
   @EventScope('invitationSlug')
   @Get(':slug/delivery')
   @ApiOperation({

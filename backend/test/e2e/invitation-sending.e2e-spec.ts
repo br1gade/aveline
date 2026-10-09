@@ -304,7 +304,18 @@ describe('Invitation sending (e2e)', () => {
 
   describe('delivery status', () => {
     // B11: a designer or viewer was handed every guest's address.
-    it.each([EventRole.DESIGNER, EventRole.VIEWER])('shows a %s each outcome but not the address', async (role) => {
+    // B64: the report is the guest list — every household and name — so it
+    // needs guest:read, which a designer does not hold.
+    it('refuses a designer, who shapes the page without reading the guest list', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+      const designer = await authenticateAs(app, prisma, { eventId, role: EventRole.DESIGNER });
+
+      await http().get(`/api/v1/invitations/${slug}/delivery`).set('Authorization', designer.authorization).expect(403);
+    });
+
+    it.each([EventRole.VIEWER])('shows a %s each outcome but not the address', async (role) => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);
       await send(slug, authorization).expect(201);

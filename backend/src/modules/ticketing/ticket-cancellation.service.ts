@@ -120,8 +120,12 @@ export class TicketCancellationService {
     };
   }
 
-  /** The orders on an event, for a host deciding which to cancel. */
-  async listOrders(eventId: string, status?: TicketOrderStatus) {
+  /**
+   * The orders on an event, for a host deciding which to cancel. A buyer's
+   * email only for a caller with `guest:contact:read`: the list once gave
+   * every buyer's address to door staff and viewers.
+   */
+  async listOrders(eventId: string, canSeeContacts: boolean, status?: TicketOrderStatus) {
     const orders = await this.prisma.ticketOrder.findMany({
       where: { eventId, status },
       orderBy: { createdAt: 'desc' },
@@ -143,7 +147,7 @@ export class TicketCancellationService {
       orderId: order.id,
       status: order.status,
       buyerName: order.buyerName,
-      buyerEmail: order.buyerEmail,
+      ...(canSeeContacts ? { buyerEmail: order.buyerEmail } : {}),
       totalMinor: order.totalMinor.toString(),
       discountMinor: order.discountMinor.toString(),
       currency: order.currency,

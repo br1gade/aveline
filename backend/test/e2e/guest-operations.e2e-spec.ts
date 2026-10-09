@@ -191,6 +191,20 @@ describe('Guest operations (e2e)', () => {
       expect(household.seatsAllotted).toBe(4);
     });
 
+    // B65: a mistyped email was kept in the import history, which a viewer
+    // reads with guest:read alone, and which erasure never touched.
+    it('quotes a bad email back to the importer, but never keeps it in the history', async () => {
+      const { eventId, authorization } = await coordinator();
+
+      const { body } = await importCsv(eventId, authorization, 'First Name,Email\nAnna,anna.petrosyan.gmail.com').expect(201);
+
+      expect(body.errors[0]).toMatchObject({ row: 2, value: 'anna.petrosyan.gmail.com' });
+      const viewer = await authenticateAs(app, prisma, { eventId, role: EventRole.VIEWER });
+      const history = await http().get(`/api/v1/events/${eventId}/guests/imports`).set('Authorization', viewer.authorization).expect(200);
+      expect(JSON.stringify(history.body)).not.toContain('petrosyan.gmail');
+      expect(JSON.stringify(await prisma.guestImport.findMany())).not.toContain('petrosyan.gmail');
+    });
+
     it('refuses an import without guest:write', async () => {
       const { eventId } = await seedEvent(prisma);
       const { authorization } = await authenticateAs(app, prisma, {

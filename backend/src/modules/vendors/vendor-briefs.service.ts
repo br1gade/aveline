@@ -73,9 +73,19 @@ export class VendorBriefsService {
     };
   }
 
+  /**
+   * The numbers, without `byHousehold`: that breakdown names every family,
+   * which only the `households` scope gives. A caterer, whose default scopes
+   * include headcount, was reading the guest list through it.
+   */
+  private async headcount(eventId: string) {
+    const { byHousehold: _named, ...counts } = await this.operations.headcount(eventId);
+    return counts;
+  }
+
   private async buildSections(eventId: string, sections: BriefSection[], locale: string) {
     const builders: Record<BriefSection, () => Promise<unknown>> = {
-      headcount: () => this.operations.headcount(eventId),
+      headcount: () => this.headcount(eventId),
       catering: () => this.operations.cateringSheet(eventId),
       bar: () => this.operations.barSheet(eventId),
       playlist: () => this.operations.playlist(eventId),

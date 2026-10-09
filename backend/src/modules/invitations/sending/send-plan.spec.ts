@@ -135,17 +135,24 @@ describe('planInvitationSend', () => {
       expect(plan.recipients[0].guest.email).toBe('lusine@test.local');
     });
 
-    // A typo quoted back is fixable; "no email address" when one is present
-    // sends the host looking in the wrong place.
+    // "No email address" when one is present sends the host looking in the
+    // wrong place — but the address is contact data, and this reason reaches
+    // callers who may not see it (B65), so the guest is named, not quoted.
     it.each(['not-an-address', 'two words@test.local', '@', ''])(
-      'quotes %s back rather than calling it missing',
+      'names whose address %s is malformed, without quoting it',
       (email) => {
         const plan = planInvitationSend([household([guest({ email })])]);
 
         expect(plan.recipients).toHaveLength(0);
-        expect(plan.skipped[0].reason).toContain('does not look like');
+        expect(plan.skipped[0].reason).toContain('does not look valid');
       },
     );
+
+    it.each(['not-an-address', 'two words@test.local'])('never quotes %s itself', (email) => {
+      const plan = planInvitationSend([household([guest({ email })])]);
+
+      expect(plan.skipped[0].reason).not.toContain(email);
+    });
 
     it.each([
       { label: 'surrounding spaces', email: '  armen@test.local  ' },

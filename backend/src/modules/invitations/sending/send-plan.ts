@@ -150,10 +150,11 @@ function reasonFor(
     return 'This guest asked for their data to be removed';
   }
 
-  // A typo quoted back is fixable; "no address" when one is present sends the
-  // host looking in the wrong place.
+  // Named, not quoted: "no address" when one is present sends the host
+  // looking in the wrong place, but the address itself is contact data and
+  // this reason reaches callers who may not see it.
   const malformed = guests.find((guest) => guest.email !== null && !isUsableEmailAddress(guest.email));
-  if (malformed) return `"${malformed.email ?? ''}" does not look like an email address`;
+  if (malformed) return `The email address on file for ${displayName(malformed)} does not look valid`;
 
   const addresses = guests.filter((guest) => guest.anonymizedAt === null).flatMap(addressesOf);
   return unreachableReason(addresses, available);
