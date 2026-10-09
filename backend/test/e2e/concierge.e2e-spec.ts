@@ -129,6 +129,32 @@ describe('Setting an event up for a customer (e2e)', () => {
     ]);
   });
 
+  // B74 (decided 10 October 2026, D8): a customer who already had their own
+  // organization could never accept, and staff's work was orphaned.
+  it('builds in the organization a customer already has, with nothing to accept', async () => {
+    const concierge = await staff();
+    await http().post('/api/v1/auth/register').send({ email: 'anna@example.am', password: 'annas-own-password', name: 'Anna' }).expect(201);
+    const login = await http().post('/api/v1/auth/login').send({ email: 'anna@example.am', password: 'annas-own-password' }).expect(201);
+    const anna = `Bearer ${login.body.accessToken as string}`;
+    const { body: own } = await http().post('/api/v1/organizations').set('Authorization', anna).send({ name: 'Anna’s Own' }).expect(201);
+
+    const { body: opened } = await http()
+      .post('/api/v1/concierge/organizations')
+      .set('Authorization', concierge.authorization)
+      .send({ name: 'Petrosyan Wedding', ownerEmail: 'Anna@Example.am' })
+      .expect(201);
+
+    expect(opened).toMatchObject({ organization: { id: own.id }, invite: null, isExisting: true });
+    const event = await http()
+      .post(`/api/v1/concierge/organizations/${opened.organization.id as string}/events`)
+      .set('Authorization', concierge.authorization)
+      .send({ type: 'WEDDING', title: 'Anna & Davit', startsAt: '2027-06-12T15:00:00Z' })
+      .expect(201);
+    const mine = await http().get('/api/v1/events').set('Authorization', anna).expect(200);
+    expect((mine.body as { id: string }[]).map((e) => e.id)).toContain(event.body.id);
+    expect(await prisma.organization.count()).toBe(1);
+  });
+
   it('is closed to customers', async () => {
     const { authorization } = await authenticateAs(app, prisma);
 

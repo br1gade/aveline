@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventRole, EventStatus, EventVisibility, InvitationStatus, PlatformRole, Prisma } from '@prisma/client';
+import { EventRole, EventStatus, EventVisibility, InvitationStatus, OrganizationRole, PlatformRole, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuditService } from '../../infra/audit/audit.service';
 import { RequestActor, actorCan } from '../../infra/auth/actor';
@@ -105,7 +105,7 @@ export class EventsService {
       // their platform role, and the customer becomes its owner.
       if (!options.isOnBehalf) {
         await tx.eventMembership.create({
-          data: { eventId: created.id, userId, role: EventRole.OWNER },
+          data: { eventId: created.id, userId, role: await creatorRole(tx, userId) },
         });
       }
 
@@ -418,4 +418,16 @@ function assertDeletable(event: {
   if (event._count.payments > 0 || event._count.ticketOrders > 0) {
     throw new ConflictException('Money has moved through this event, and those records are kept; archive it instead');
   }
+}
+
+/**
+ * The organization's OWNER owns what they create; anyone else who may create
+ * an event — a MANAGER — runs it as COORDINATOR (decided 10 October 2026,
+ * D9). Owning it gave a manager `event:delete` and `member:manage`, which
+ * ACCESS_CONTROL says they do not hold: they could invite an outsider as
+ * owner, with guest contacts and vendor fees.
+ */
+async function creatorRole(tx: Prisma.TransactionClient, userId: string): Promise<EventRole> {
+  const membership = await tx.organizationMembership.findFirst({ where: { userId }, select: { role: true } });
+  return membership?.role === OrganizationRole.OWNER ? EventRole.OWNER : EventRole.COORDINATOR;
 }

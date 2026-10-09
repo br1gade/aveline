@@ -793,6 +793,11 @@ the customer accepts at `/accept-invite`, choosing their own password, they
 own the organization and its events. The search lists organizations with
 their `owners`, `pendingOwnerInvites` and number of `events`.
 
+**A customer who already has an organization** gets the event built in it
+(decided 10 October 2026): the response is that organization with
+`invite: null` and `isExisting: true`, and the events staff create appear in
+their list with nothing to accept. Otherwise `isExisting` is `false`.
+
 ### Archiving and deleting an event
 
 ```http

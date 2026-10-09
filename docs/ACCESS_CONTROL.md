@@ -96,6 +96,11 @@ numbers, nor see what the caterer is charging. The role grants
 `invitation:design`, `invitation:read` and `event:read`, and explicitly denies
 `guest:contact:read`, `operations:read` and `vendor:fee:read`.
 
+**Whoever creates an event becomes its OWNER only if they own the
+organization.** A `MANAGER` who creates one becomes its `COORDINATOR`: they
+run it fully, but deleting it and managing its team stay with the
+organization's owner (decided 10 October 2026).
+
 **Event roles are granted by invitation.** An event `OWNER` holds
 `member:manage` for that event: they invite someone by email with a role,
 change it, or take them off — `/events/:eventId/team`. Accepting grants the

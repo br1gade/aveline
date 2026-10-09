@@ -24,16 +24,29 @@ export class ConciergeService {
     private readonly accounts: AccountService,
   ) {}
 
+  /**
+   * A customer who already has an organization gets the event built in it
+   * (decided 10 October 2026, D8): no second organization, nothing to
+   * accept. Inviting them as owner of a new one could never be accepted —
+   * an account has one organization — and orphaned the staff's work.
+   */
   async openForCustomer(staffUserId: string, dto: OpenForCustomerDto) {
+    const email = dto.ownerEmail.trim().toLowerCase();
+    const existing = await this.prisma.organizationMembership.findFirst({
+      where: { user: { email } },
+      select: { organization: { select: { id: true, name: true, kind: true, createdAt: true } } },
+    });
+    if (existing) return { organization: existing.organization, invite: null, isExisting: true };
+
     const organization = await this.prisma.organization.create({
       data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST },
       select: { id: true, name: true, kind: true, createdAt: true },
     });
     const invite = await this.accounts.inviteMember(organization.id, staffUserId, {
-      email: dto.ownerEmail.trim().toLowerCase(),
+      email,
       role: OrganizationRole.OWNER,
     });
-    return { organization, invite };
+    return { organization, invite, isExisting: false };
   }
 
   async createEvent(organizationId: string, staffUserId: string, dto: CreateEventDto) {

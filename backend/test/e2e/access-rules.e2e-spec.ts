@@ -74,6 +74,33 @@ describe('Access between and within organizations (e2e)', () => {
     });
   });
 
+  // D9 (decided 10 October 2026): a MANAGER who creates an event runs it
+  // but does not own it — deleting it and managing its team stay with the
+  // organization's owner, as ACCESS_CONTROL says.
+  describe('who an event\'s creator becomes', () => {
+    const created = async (role: OrganizationRole) => {
+      const member = await memberOf(role);
+      const { body } = await newEvent(member.authorization).expect(201);
+      const membership = await prisma.eventMembership.findFirstOrThrow({ where: { eventId: body.id as string, userId: member.userId } });
+      return { ...member, eventId: body.id as string, role: membership.role };
+    };
+
+    it('makes a MANAGER its coordinator, who cannot delete it or manage its team', async () => {
+      const { authorization, eventId, role } = await created(OrganizationRole.MANAGER);
+
+      expect(role).toBe('COORDINATOR');
+      await http().patch(`/api/v1/events/${eventId}`).set('Authorization', authorization).send({ title: 'Renamed' }).expect(200);
+      await http().post(`/api/v1/events/${eventId}/archive`).set('Authorization', authorization).expect(403);
+      await http().post(`/api/v1/events/${eventId}/team/invites`).set('Authorization', authorization).send({ email: 'x@test.local', role: 'OWNER' }).expect(403);
+    });
+
+    it('makes the organization\'s OWNER its owner', async () => {
+      const { role } = await created(OrganizationRole.OWNER);
+
+      expect(role).toBe('OWNER');
+    });
+  });
+
   describe('one organization per account (B14)', () => {
     it('opens only one organization when asked several times at once', async () => {
       const { authorization, userId } = await authenticateAs(app, prisma);

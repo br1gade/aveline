@@ -262,9 +262,7 @@ export class ReminderService {
 
     // One query for every key, rather than one per household.
     const alreadySent = await this.existingKeys(plan.recipients.map((recipient) => dedupeKeyFor(recipient.householdId)));
-    const isReminder = templateKey === TEMPLATE_KEY;
-    const remindedRecently = isReminder ? await this.remindedWithinADay(invitation.eventId) : new Set<string>();
-    const invitedRecently = isReminder ? await this.invitedTooRecently(invitation) : new Set<string>();
+    const { remindedRecently, invitedRecently } = await this.notYet(invitation, templateKey);
     let recentlyInvited = 0;
 
     for (const recipient of plan.recipients) {
@@ -322,6 +320,16 @@ export class ReminderService {
    * Each kind kept its own key, so a host pressing "remind" and the sweep on
    * the same day wrote to a household twice.
    */
+  /** For a reminder: households reminded in the last day, and those invited too recently (D14). */
+  private async notYet(invitation: Remindable, templateKey: string) {
+    if (templateKey !== TEMPLATE_KEY) return { remindedRecently: new Set<string>(), invitedRecently: new Set<string>() };
+    const [remindedRecently, invitedRecently] = await Promise.all([
+      this.remindedWithinADay(invitation.eventId),
+      this.invitedTooRecently(invitation),
+    ]);
+    return { remindedRecently, invitedRecently };
+  }
+
   /** Households whose invitation went out too recently to be reminded (D14). */
   private async invitedTooRecently(invitation: Remindable): Promise<Set<string>> {
     const now = new Date();
