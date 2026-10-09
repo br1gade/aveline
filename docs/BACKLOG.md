@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 3 open (B63–B65) | 19 open (B66–B84) | 8 open (B85–B92) | — |
+| Bugfixes | 4 open (B63–B65, B93) | 19 open (B66–B84) | 9 open (B85–B92, B94) | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
 | Decisions | 9 (D1–D9); D8 and D9 open | | | |
 
@@ -71,6 +71,7 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 |---|---|---|
 | B63 | `GET /events/:eventId/ticket-orders` needs only `operations:read` and returns every buyer's email — door staff and viewers see them | `ticketing/ticket-setup.controller.ts`, `ticket-cancellation.service.ts` |
 | B64 | The delivery report needs only `invitation:read`, so a DESIGNER reads every household and guest name and who answered | `invitations/invitation-lifecycle.controller.ts` |
+| B93 | A vendor's `headcount` brief carries the host's whole headcount, including `byHousehold` (every family's name) and the trend — so a caterer, whose default scopes include it, reads guest names that only the `households` scope should give | `vendors/vendor-briefs.service.ts` |
 | B65 | Import errors store the raw bad email and are readable with `guest:read`; the `unreachable` reason quotes a malformed address regardless of `guest:contact:read`; erasure leaves both | `guests/import/csv-guests.ts`, `sending/send-plan.ts` |
 
 **P1 — a pilot host will hit it**
@@ -108,6 +109,7 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 | B89 | Validation: non-strict ISO dates 500 or shift (`2026-02-30`); import takes phones, lengths and CR/LF unchecked and emails un-normalised; blank names; unbounded guest dietary strings; translation keys unchecked; `{"hy":""}` labels; TTL env values unvalidated (NaN breaks every login) | DTOs, `env.validation.ts` |
 | B90 | Leaks: error bodies echo the URL with its capability token; invite emails and payment order numbers are not redacted from logs; the referer is not scrubbed; register reveals existing accounts (and answers 401); the privacy form reveals another person's request status | `all-exceptions.filter.ts`, `redact-url.ts`, `auth.service.ts`, `privacy.service.ts` |
 | B91 | Load at growth: missing indexes (`messages.guestId`, `tickets.orderId`, `rsvp_answers.questionId`, Mongo `audit_trail`); sweeps scanning all history; Prisma pool size unset; no TTL on Mongo collections; concurrent Mongo connects leak clients; sharp has no pixel limit; erasure's 5 s transaction; bcryptjs on the main thread; staff `GET /events` unbounded | schema, `infra/` |
+| B94 | `PATCH` a timeline entry with `occursAt: null` stores 1 January 1970 instead of a 400 | `design/timeline.service.ts` |
 | B92 | Smaller behaviours: block `variant: null` is ignored on the block edit; personal-page `?locale=en-GB` is not negotiated; timeline ties ignore `sortOrder`; label and question edits replace every language; message copy ignores translated titles; every venue, including `PREPARATION`, shows on the guest page; health says `ok` with Redis down and the container stays healthy with Postgres down; refund route reachable only by platform ADMIN; `?archived=true` unchecked; revoking an org invite is case-sensitive; confirmation dedupe by calendar minute; uploads served nowhere with filesystem storage in dev; SVG served from the app's origin would be XSS | various |
 
 ---
@@ -193,6 +195,7 @@ D1–D4 were decided on 8 October 2026, D5–D7 on 9 October. D8 and D9 are open
 Re-checked on 9 October 2026. Each would be believed.
 
 - **API.md** — promo run-out at checkout is `400`, not `409`; promo-check answers `201`, not `200`; `notInvited` lists invited households with no usable address, not the never-invited; lists return bare arrays except `/public/events` (and `ticket-orders` and concierge truncate silently); a resource you cannot see is `403`, not `404`; a sequential checkout retry returns no `payment`; "an invitation always goes by email"; notify-changes re-chooses the channel; venue edits always suggest notifying; a late bounce is not read; the timeline is not in the operations view; `devLink` also on team invites; example error strings differ; `PRIVATE` public events are `404`, not `noindex`; suppression reasons are not ranked; privacy requests are not sorted soonest-due; `VERIFYING` can be skipped.
+- **API.md, more** — the §4 example theme uses `font`, but the keys are `headingFont`/`bodyFont`; the `devLink` list omits team invites and concierge; `/settings` is "not a general event PATCH" though `PATCH /events/:id` exists; `GET /events?archived=true` needs no `event:delete`; M4A is listed but only `audio/mp4` is accepted, so browsers' `audio/x-m4a` is a 415.
 - **ACCESS_CONTROL.md** — 20 policy tests, not 17; `billing:write` also gates ticket-order cancellation; the throttle is per IP and in memory; refresh "reuse makes theft visible" is not implemented.
 - **INVITATION_DESIGN.md** — `DOCUMENT` kind missing; `LOGO` and `SIGNATURE` cannot be uploaded (the upload's OpenAPI `kind` field is ignored); custom `colors` bypass palettes.
 - **VENUES_AND_SEATING.md** — §4 says venue capacity is respected (it is not; the schema comment agrees with §4); §5 describes the planner as unbuilt; one seat per guest per event, and auto-assign mixes venues.
