@@ -4,6 +4,7 @@ import { CacheService } from '../../infra/cache/cache.service';
 import { blockMediaProblem } from './block-media';
 import { mergeTranslations } from './translated-content';
 import { BUILT_IN_FIELDS, configProblem, fieldOf, mergeConfig } from '../rsvp/rsvp-fields';
+import { TemplateRules, assertBlockEdit, variantProblem } from './block-rules';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   ChooseTemplateDto,
@@ -41,6 +42,8 @@ export class DesignService {
       allowedFonts: template.allowedFonts,
       palettes: template.palettes,
       supportedBlocks: template.supportedBlocks,
+      // The layouts each block may take; `variant` must be one of these or null.
+      blockVariants: template.blockVariants,
       defaultTheme: template.defaultTheme,
     }));
   }
@@ -73,6 +76,7 @@ export class DesignService {
           data: { enabled: false },
         });
       }
+      await clearUnofferedVariants(tx, invitation.id, template);
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -124,6 +128,11 @@ export class DesignService {
    */
   async updateBlock(slug: string, type: BlockType, dto: UpdateBlockDto) {
     const invitation = await this.requireInvitation(slug);
+    const template = await this.prisma.designTemplate.findFirstOrThrow({
+      where: { invitations: { some: { id: invitation.id } } },
+      select: { supportedBlocks: true, blockVariants: true },
+    });
+    assertBlockEdit(template, type, dto);
 
     const block = await this.prisma.invitationBlock.findUnique({
       where: { invitationId_type: { invitationId: invitation.id, type } },
@@ -356,4 +365,15 @@ function isPalette(value: unknown): value is Palette {
   if (value === null || typeof value !== 'object') return false;
   const candidate = value as { name?: unknown; colors?: unknown };
   return typeof candidate.name === 'string' && Array.isArray(candidate.colors);
+}
+
+/** A layout the new template does not offer falls back to the default, rather than to a guess. */
+async function clearUnofferedVariants(tx: Prisma.TransactionClient, invitationId: string, template: TemplateRules): Promise<void> {
+  const blocks = await tx.invitationBlock.findMany({
+    where: { invitationId, variant: { not: null } },
+    select: { id: true, type: true, variant: true },
+  });
+  const unoffered = blocks.filter((block) => variantProblem(template, block.type, block.variant) !== null);
+  if (unoffered.length === 0) return;
+  await tx.invitationBlock.updateMany({ where: { id: { in: unoffered.map((block) => block.id) } }, data: { variant: null } });
 }

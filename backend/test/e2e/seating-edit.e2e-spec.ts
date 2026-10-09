@@ -157,6 +157,22 @@ describe('Editing tables (e2e)', () => {
     expect(await prisma.seat.count({ where: { tableId } })).toBe(2);
   });
 
+  // B44: names continued from the table count, so after a deletion they
+  // collided with ones still there and were silently skipped.
+  it('creates every table asked for after one was deleted, numbering on from the highest', async () => {
+    const { eventId, tableId, authorization } = await planner();
+    const bulk = (count: number) =>
+      http().post(`/api/v1/events/${eventId}/tables/bulk`).set('Authorization', authorization).send({ namePrefix: 'Table', count, capacity: 8 });
+    await bulk(3).expect(201);
+    await http().delete(`/api/v1/events/${eventId}/tables/${tableId}`).set('Authorization', authorization).expect(200);
+
+    const { body } = await bulk(2).expect(201);
+
+    expect(body).toEqual({ created: 2 });
+    const names = (await prisma.table.findMany({ where: { eventId } })).map((table) => table.name);
+    expect(names.sort()).toEqual(['Table 2', 'Table 3', 'Table 4', 'Table 5', 'Table 6']);
+  });
+
   it('refuses a viewer', async () => {
     const { eventId, tableId, authorization } = await planner(EventRole.VIEWER);
 

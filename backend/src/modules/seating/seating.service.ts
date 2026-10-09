@@ -67,12 +67,19 @@ export class SeatingService {
   /** Twenty tables of ten is one request, not twenty. */
   async createTables(eventId: string, dto: CreateTablesDto) {
     await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
-    const existing = await this.prisma.table.count({ where: { eventId } });
+    // On from the highest number already used with this prefix. Counting the
+    // tables instead collided with names still there after a deletion, and
+    // those tables were silently skipped.
+    const taken = await this.prisma.table.findMany({
+      where: { eventId, name: { startsWith: `${dto.namePrefix} ` } },
+      select: { name: true },
+    });
+    const highest = Math.max(0, ...taken.map((table) => numberAfter(dto.namePrefix, table.name)));
 
     const created = await this.prisma.table.createMany({
       data: Array.from({ length: dto.count }, (_, index) => ({
         eventId,
-        name: `${dto.namePrefix} ${existing + index + 1}`,
+        name: `${dto.namePrefix} ${highest + index + 1}`,
         capacity: dto.capacity,
         zone: dto.zone ?? null,
         venueId: dto.venueId ?? null,
@@ -282,6 +289,12 @@ async function loadSeatableTables(tx: Prisma.TransactionClient, eventId: string)
     occupied: table.seats.length,
     side: dominantSide(table.seats.map((seat) => seat.guest.attribution)),
   }));
+}
+
+/** The number in "Table 12" for prefix "Table"; 0 for a name that is not one of the series. */
+function numberAfter(prefix: string, name: string): number {
+  const suffix = name.slice(prefix.length + 1);
+  return /^\d+$/.test(suffix) ? Number(suffix) : 0;
 }
 
 /** Which side a table already belongs to, if any clearly does. */

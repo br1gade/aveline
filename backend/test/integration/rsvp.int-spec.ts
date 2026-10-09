@@ -80,7 +80,9 @@ describe('RsvpService (integration)', () => {
 
     const members = await prisma.guest.findMany({ where: { householdId }, orderBy: { firstName: 'asc' } });
     expect(members).toHaveLength(3);
-    expect(members.every((m) => m.attribution === 'SIDE_B')).toBe(true);
+    // The host set this household's side (the fixture's SIDE_A); a guest's
+    // answer does not override it, and the people they add inherit it.
+    expect(members.every((m) => m.attribution === 'SIDE_A')).toBe(true);
     expect(members.filter((m) => m.addedByGuest)).toHaveLength(2);
     // Every added member gets their own capability token.
     expect(new Set(members.map((m) => m.token)).size).toBe(3);

@@ -49,7 +49,7 @@ layout code.
 | `type` | Which block: `HERO`, `STORY`, `VENUE`, `RSVP`, `SIGNATURE`, … |
 | `sortOrder` | Position on the page |
 | `enabled` | Whether it renders at all |
-| `variant` | Template-provided layout, e.g. `split`, `stacked`, `full-bleed` |
+| `variant` | A layout the template offers for this block (`DesignTemplate.blockVariants`), e.g. `split`, `stacked`, `full-bleed`; `null` is the default |
 | `content` | Block-local copy, translated per locale |
 | `settings` | Non-translated options, e.g. palette swatches |
 | `assetIds` | Ordered media shown by this block |
@@ -171,7 +171,7 @@ numbers.
 
 **Arrangement.** `PATCH /invitations/:slug/arrangement` reorders, toggles and
 re-variants every block in one transaction, validated against the template's
-`supportedBlocks` before any write — so a rejected arrangement changes
+`supportedBlocks` and `blockVariants` before any write — so a rejected arrangement changes
 nothing and the error names the offending block.
 
 **Uploads.** `POST /events/:eventId/media` accepts multipart, enforces a MIME

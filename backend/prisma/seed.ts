@@ -44,6 +44,13 @@ async function seedTemplate() {
         BlockType.RSVP,
         BlockType.CONTACT,
       ],
+      // Every block offers the three layouts the design docs name.
+      blockVariants: Object.fromEntries(
+        ['HERO', 'STORY', 'COUNTDOWN', 'VENUE', 'MAP', 'TIMELINE', 'DRESS_CODE', 'RSVP', 'CONTACT'].map((type) => [
+          type,
+          ['full-bleed', 'split', 'stacked'],
+        ]),
+      ),
       defaultTheme: { font: 'Noto Serif Armenian', palette: 'ivory-gold' },
     },
   });

@@ -50,6 +50,14 @@ const FULL_BLOCK_SET: BlockType[] = [
   BlockType.CONTACT,
 ];
 
+/**
+ * The layouts every seeded block offers — the three the design docs name. A
+ * template narrows or widens them as data; the client renders what is listed.
+ */
+function layoutsFor(blocks: BlockType[]): Record<string, string[]> {
+  return Object.fromEntries(blocks.map((type) => [type, ['full-bleed', 'split', 'stacked']]));
+}
+
 /** What each template can render, so customization stays safe. */
 const DESIGN_TEMPLATES = [
   {
@@ -61,6 +69,7 @@ const DESIGN_TEMPLATES = [
       { name: 'sage', colors: ['#EDF1EA', '#7A8B74', '#2E2A26'] },
     ],
     supportedBlocks: FULL_BLOCK_SET,
+    blockVariants: layoutsFor(FULL_BLOCK_SET),
     defaultTheme: { bodyFont: 'Noto Serif Armenian', palette: 'ivory-gold' },
   },
   {
@@ -78,6 +87,7 @@ const DESIGN_TEMPLATES = [
       BlockType.RSVP,
       BlockType.CONTACT,
     ],
+    blockVariants: layoutsFor([BlockType.HERO, BlockType.VENUE, BlockType.TIMELINE, BlockType.RSVP, BlockType.CONTACT]),
     defaultTheme: { bodyFont: 'Inter', palette: 'paper' },
   },
 ];

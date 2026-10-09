@@ -78,6 +78,59 @@ describe('Invitation design (e2e)', () => {
       expect(body[0]).toMatchObject({ key: 'test-template' });
       expect(body[0].allowedFonts).toContain('Inter');
       expect(body[0].supportedBlocks).toEqual([BlockType.HERO, BlockType.RSVP]);
+      expect(body[0].blockVariants).toEqual({ HERO: ['full-bleed', 'split'], RSVP: ['split', 'stacked'] });
+    });
+
+    // B46: the block edit could switch on a block the template cannot render,
+    // and any text was accepted as a layout.
+    describe('what a block may be', () => {
+      const editBlock = (slug: string, authorization: string, type: string, body: Record<string, unknown>) =>
+        http().patch(`/api/v1/invitations/${slug}/blocks/${type}`).set('Authorization', authorization).send(body);
+
+      it('will not switch on a block the template cannot render', async () => {
+        const { slug, authorization } = await designer();
+        const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug } });
+        await prisma.invitationBlock.create({ data: { invitationId: invitation.id, type: BlockType.GALLERY, enabled: false } });
+
+        const { body } = await editBlock(slug, authorization, 'GALLERY', { enabled: true }).expect(400);
+
+        expect(body.message).toMatch(/^enabled:.*GALLERY/);
+      });
+
+      it.each(['carousel', 'stacked'])('refuses a HERO layout the template does not offer: %s', async (variant) => {
+        const { slug, authorization } = await designer();
+
+        const { body } = await editBlock(slug, authorization, 'HERO', { variant }).expect(400);
+
+        expect(body.message).toMatch(/^variant:/);
+      });
+
+      it('refuses an unoffered layout in an arrangement, and changes nothing', async () => {
+        const { slug, authorization } = await designer();
+
+        const { body } = await http()
+          .patch(`/api/v1/invitations/${slug}/arrangement`)
+          .set('Authorization', authorization)
+          .send({ blocks: [{ type: 'RSVP' }, { type: 'HERO', variant: 'carousel' }] })
+          .expect(400);
+
+        expect(body.message).toMatch(/HERO.*carousel/);
+        const hero = await prisma.invitationBlock.findFirstOrThrow({ where: { invitation: { slug }, type: BlockType.HERO } });
+        expect(hero.sortOrder).toBe(0);
+      });
+
+      it('clears a layout the new template does not offer when switching', async () => {
+        const { slug, authorization } = await designer();
+        await editBlock(slug, authorization, 'HERO', { variant: 'split' }).expect(200);
+        await prisma.designTemplate.create({
+          data: { key: 'plain', name: 'Plain', allowedFonts: ['Inter'], supportedBlocks: [BlockType.HERO, BlockType.RSVP], blockVariants: { HERO: ['full-bleed'] } },
+        });
+
+        await http().post(`/api/v1/invitations/${slug}/template`).set('Authorization', authorization).send({ templateKey: 'plain' }).expect(201);
+
+        const hero = await prisma.invitationBlock.findFirstOrThrow({ where: { invitation: { slug }, type: BlockType.HERO } });
+        expect(hero.variant).toBeNull();
+      });
     });
 
     it('404s an unknown template key', async () => {

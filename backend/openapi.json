@@ -5111,7 +5111,6 @@
           "status": {
             "type": "string",
             "enum": [
-              "PENDING",
               "ATTENDING",
               "DECLINED",
               "UNDECIDED"
@@ -5125,7 +5124,7 @@
               "SHARED",
               "UNKNOWN"
             ],
-            "description": "Which host invited the guest"
+            "description": "Which host invited the guest. Recorded only if the host has not already said"
           },
           "members": {
             "description": "Answers for others already named in the household. Those left out keep their answer.",
@@ -5743,10 +5742,10 @@
               ]
             }
           },
-          "feeAmount": {
+          "feeMinor": {
             "type": "string",
-            "description": "Agreed fee, as a decimal string",
-            "example": "150000.00"
+            "description": "Agreed fee in minor units, as a string — whole drams for AMD",
+            "example": "150000"
           }
         },
         "required": [
@@ -5782,8 +5781,10 @@
               ]
             }
           },
-          "feeAmount": {
-            "type": "string"
+          "feeMinor": {
+            "type": "string",
+            "description": "Agreed fee in minor units, as a string",
+            "example": "150000"
           }
         }
       },

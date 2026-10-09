@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { BookingStatus, Prisma, VendorCategory } from '@prisma/client';
+import { BookingStatus, VendorCategory } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BookVendorDto, CreateVendorDto, UpdateBookingDto } from './dto/vendor.dto';
@@ -76,7 +76,7 @@ export class VendorsService {
       briefScopes: sectionsFor(booking.briefScopes),
       ...(canShareBriefs ? { briefToken: booking.briefToken } : {}),
       ...(maySeeFees
-        ? { feeAmount: booking.feeAmount?.toString() ?? null, feeCurrency: booking.feeCurrency }
+        ? { feeMinor: booking.feeMinor?.toString() ?? null, feeCurrency: booking.feeCurrency }
         : {}),
       createdAt: booking.createdAt,
     }));
@@ -100,6 +100,15 @@ export class VendorsService {
     if (!vendor) throw new NotFoundException('No such vendor');
 
     const briefScopes = dto.briefScopes ?? SUGGESTED_SCOPES[vendor.category] ?? [];
+    const existing = await this.prisma.vendorBooking.findUnique({
+      where: { eventId_vendorId: { eventId, vendorId: dto.vendorId } },
+      select: { status: true },
+    });
+    // Booking a vendor whose engagement was cancelled engages them again, with
+    // a live link. It returned the cancelled booking and its dead link.
+    const reinstated = existing?.status === BookingStatus.CANCELLED
+      ? { status: BookingStatus.ENQUIRED, briefToken: newBriefToken() }
+      : {};
 
     const booking = await this.prisma.vendorBooking.upsert({
       where: { eventId_vendorId: { eventId, vendorId: dto.vendorId } },
@@ -108,14 +117,15 @@ export class VendorsService {
         vendorId: dto.vendorId,
         briefScopes: sectionsFor(briefScopes),
         briefToken: newBriefToken(),
-        feeAmount: dto.feeAmount === undefined ? null : new Prisma.Decimal(dto.feeAmount),
+        feeMinor: dto.feeMinor === undefined ? null : BigInt(dto.feeMinor),
       },
       // Re-booking the same vendor is editing the existing engagement, not a
       // second one — the unique constraint says so, and so does the host's
       // intent when they click the same vendor twice.
       update: {
+        ...reinstated,
         briefScopes: sectionsFor(briefScopes),
-        feeAmount: dto.feeAmount === undefined ? undefined : new Prisma.Decimal(dto.feeAmount),
+        feeMinor: dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor),
       },
       include: { vendor: { select: { id: true, name: true, category: true } } },
     });
@@ -126,7 +136,8 @@ export class VendorsService {
       status: booking.status,
       briefScopes: sectionsFor(booking.briefScopes),
       briefToken: booking.briefToken,
-      feeAmount: booking.feeAmount?.toString() ?? null,
+      feeMinor: booking.feeMinor?.toString() ?? null,
+      feeCurrency: booking.feeCurrency,
     };
   }
 
@@ -138,7 +149,7 @@ export class VendorsService {
       data: {
         status: dto.status ?? undefined,
         briefScopes: dto.briefScopes ? sectionsFor(dto.briefScopes) : undefined,
-        feeAmount: dto.feeAmount === undefined ? undefined : new Prisma.Decimal(dto.feeAmount),
+        feeMinor: dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor),
       },
       include: { vendor: { select: { id: true, name: true, category: true } } },
     });
@@ -148,7 +159,8 @@ export class VendorsService {
       vendor: updated.vendor,
       status: updated.status,
       briefScopes: sectionsFor(updated.briefScopes),
-      feeAmount: updated.feeAmount?.toString() ?? null,
+      feeMinor: updated.feeMinor?.toString() ?? null,
+      feeCurrency: updated.feeCurrency,
     };
   }
 

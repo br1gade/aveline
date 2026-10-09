@@ -99,6 +99,29 @@ describe('Vendor briefs (e2e)', () => {
       expect(Array.isArray(body.message)).toBe(true);
     });
 
+    // B51: money is integer minor units everywhere; fees were the exception.
+    it.each(['150000.00', '1.5', '-5'])('refuses a fee of %s, which is not whole minor units', async (feeMinor) => {
+      const { eventId, authorization } = await coordinator();
+      const vendor = await caterer();
+
+      const { body } = await book(eventId, authorization, { vendorId: vendor.id, feeMinor }).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('feeMinor');
+    });
+
+    // B48: re-booking returned the cancelled booking and its dead link.
+    it('engages a cancelled vendor again, with a link that works', async () => {
+      const { eventId, authorization } = await coordinator();
+      const vendor = await caterer();
+      const { body: first } = await book(eventId, authorization, { vendorId: vendor.id }).expect(201);
+      await http().delete(`/api/v1/events/${eventId}/vendors/${first.id as string}`).set('Authorization', authorization).expect(200);
+
+      const { body: again } = await book(eventId, authorization, { vendorId: vendor.id }).expect(201);
+
+      expect(again.status).toBe('ENQUIRED');
+      await http().get(`/api/v1/briefs/${again.briefToken as string}`).expect(200);
+    });
+
     it('edits the existing engagement rather than opening a second', async () => {
       const { eventId, authorization } = await coordinator();
       const vendor = await caterer();
@@ -213,7 +236,7 @@ describe('Vendor briefs (e2e)', () => {
     const bookWithFee = async () => {
       const { eventId, authorization } = await coordinator();
       const vendor = await caterer();
-      await book(eventId, authorization, { vendorId: vendor.id, feeAmount: '150000.00' }).expect(201);
+      await book(eventId, authorization, { vendorId: vendor.id, feeMinor: '150000' }).expect(201);
       return { eventId };
     };
 
@@ -229,7 +252,7 @@ describe('Vendor briefs (e2e)', () => {
         .set('Authorization', authorization)
         .expect(200);
 
-      expect(body[0].feeAmount).toBe('150000');
+      expect(body[0]).toMatchObject({ feeMinor: '150000', feeCurrency: 'AMD' });
       expect(body[0].briefToken).toMatch(/^[0-9a-f]{64}$/);
     });
 
@@ -247,7 +270,7 @@ describe('Vendor briefs (e2e)', () => {
         .expect(200);
 
       expect(body[0].vendor.name).toBe('Tashir Catering');
-      expect(body[0]).not.toHaveProperty('feeAmount');
+      expect(body[0]).not.toHaveProperty('feeMinor');
       // B11: the brief link is a credential; with the contacts scope it reads guests' phones.
       expect(body[0]).not.toHaveProperty('briefToken');
     });

@@ -395,8 +395,12 @@ themselves at the top level and for everyone else named in the household in
 }
 ```
 
-`status`: `ATTENDING` | `DECLINED` | `UNDECIDED`.
-`attribution`: `SIDE_A` | `SIDE_B` | `SHARED` | `UNKNOWN`.
+`status`: `ATTENDING` | `DECLINED` | `UNDECIDED` — `PENDING` is a `400`, since
+it means "not answered".
+`attribution`: `SIDE_A` | `SIDE_B` | `SHARED` | `UNKNOWN`. It is recorded only
+when the host has not set the guest's side; a side the host set stands.
+`locale` must be one of the event's `availableLocales`; anything else is a
+`400` starting `locale:`.
 
 - **`members`** — answers for others already in the household: `guestId`
   (from `household.members`), `status` (`ATTENDING`, `DECLINED` or
@@ -1125,8 +1129,9 @@ seat. Decided 9 October 2026.
 
 `POST /tables` takes `{ name, capacity, zone?, venueId? }`. For a real room,
 use `/tables/bulk` with `{ namePrefix, count, capacity, zone?, venueId? }` —
-twenty tables of ten is one request, and names continue from the tables that
-already exist (`Table 1` … `Table 20`). It returns `{ "created": 20 }`.
+twenty tables of ten is one request, and numbering continues from the highest
+number already used with that prefix (`Table 1` … `Table 20`, then `Table 21`
+even if `Table 3` was deleted). It returns `{ "created": 20 }`.
 
 `PATCH /tables/:tableId` changes any of `name`, `capacity`, `zone`,
 `venueId`, `posX`, `posY` and `shape` (`round`, `rectangle`, `square`,
@@ -1463,7 +1468,7 @@ organization's vendor is a `404`. `category` is one of `VENUE`, `CATERING`,
 
 ```http
 GET   /api/v1/events/:eventId/vendors
-POST  /api/v1/events/:eventId/vendors   { "vendorId": "...", "briefScopes": ["headcount"], "feeAmount": "150000.00" }
+POST  /api/v1/events/:eventId/vendors   { "vendorId": "...", "briefScopes": ["headcount"], "feeMinor": "150000" }
 PATCH /api/v1/events/:eventId/vendors/:bookingId
 DELETE /api/v1/events/:eventId/vendors/:bookingId
 ```
@@ -1485,7 +1490,14 @@ Omit `briefScopes` and the vendor's category decides: a caterer gets
 `headcount`, `catering`, `timeline`. Defaulting narrows rather than widens, so
 forgetting the field is safe. An unrecognised scope is a `400`.
 
-**`feeAmount` is absent from the response unless you hold `vendor:fee:read`.**
+`feeMinor` is money like every other amount here: integer minor units as a
+string — `"150000"` is 150,000 dram — in `feeCurrency`. **Breaking, 9 October
+2026:** it was `feeAmount`, a two-place decimal string.
+
+Booking a vendor whose engagement was cancelled engages them again: the
+booking goes back to `ENQUIRED` with a new, working `briefToken`.
+
+**`feeMinor` is absent from the response unless you hold `vendor:fee:read`.**
 It is not `null` — the field is not there at all. A `VIEWER` sees the vendor
 and not the commercial terms. **`briefToken` is likewise absent from
 `GET /events/:eventId/vendors` unless you hold `vendor:write`**: the link is a
@@ -1834,13 +1846,18 @@ GET /api/v1/events/:eventId/design-templates
   "allowedFonts": ["Noto Serif Armenian", "Mardoto"],
   "palettes": [{ "name": "blush", "colors": ["#f5e1e0", "#b76e79"] }],
   "supportedBlocks": ["HERO", "STORY", "VENUE", "RSVP"],
+  "blockVariants": { "HERO": ["full-bleed", "split", "stacked"], "RSVP": ["split", "stacked"] },
   "defaultTheme": { "bodyFont": "Mardoto", "palette": "blush" }
 }]
 ```
 
-**Build the design UI from these three lists.** `allowedFonts` and `palettes`
+**Build the design UI from these lists.** `allowedFonts` and `palettes`
 are enforced on write, so a font picker offering anything else produces a
-`400`. `supportedBlocks` is what the arrangement call will accept. Keyed by
+`400`. `supportedBlocks` is what the arrangement call will accept.
+`blockVariants` is the layouts each block may take: a block's `variant` must
+be one of them or `null` (the template's default), and a block type with no
+entry takes none — a `400` naming the block and layout otherwise. Switching
+template resets any layout the new one does not offer to `null`. Keyed by
 event because a plan may later narrow the catalogue.
 
 ```http
@@ -1885,6 +1902,10 @@ PATCH /api/v1/invitations/:slug/blocks/:type
 `:type` is a `BlockType` — `HERO`, `STORY`, `COUNTDOWN`, `MUSIC`, `VENUE`,
 `MAP`, `TIMELINE`, `DRESS_CODE`, `NOTES`, `GALLERY`, `RSVP`, `SIGNATURE`,
 `CHAT`, `CONTACT`.
+
+`variant` must be one of the template's `blockVariants` for that block, and
+`enabled: true` is refused for a block the template cannot render — each a
+`400` starting with the field.
 
 **This call edits what is inside a block. It does not create one.** Which
 blocks exist, and in what order, is `PATCH /invitations/:slug/arrangement` —

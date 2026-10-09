@@ -82,11 +82,15 @@ export class MemberAnswerDto {
 }
 
 export class SubmitRsvpDto {
-  @ApiProperty({ enum: RsvpStatus })
-  @IsEnum(RsvpStatus)
-  status!: RsvpStatus;
+  // PENDING is "not answered yet", so it is not something an answer can say.
+  @ApiProperty({ enum: MEMBER_STATUSES })
+  @IsIn(MEMBER_STATUSES)
+  status!: (typeof MEMBER_STATUSES)[number];
 
-  @ApiPropertyOptional({ enum: GuestAttribution, description: 'Which host invited the guest' })
+  @ApiPropertyOptional({
+    enum: GuestAttribution,
+    description: 'Which host invited the guest. Recorded only if the host has not already said',
+  })
   @IsOptional()
   @IsEnum(GuestAttribution)
   attribution?: GuestAttribution;

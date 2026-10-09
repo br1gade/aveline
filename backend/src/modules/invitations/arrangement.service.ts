@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { BlockType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../infra/cache/cache.service';
+import { TemplateRules, variantProblem } from '../design/block-rules';
 import { ArrangeBlocksDto, BlockPlacementDto } from './dto/arrange-blocks.dto';
 
 type Placement = Pick<BlockPlacementDto, 'type'> & Partial<BlockPlacementDto>;
@@ -13,8 +14,9 @@ type Placement = Pick<BlockPlacementDto, 'type'> & Partial<BlockPlacementDto>;
  */
 export function assertArrangementIsValid(
   blocks: Placement[],
-  supportedBlocks: BlockType[],
+  template: TemplateRules,
 ): void {
+  const { supportedBlocks } = template;
   const seen = new Set<BlockType>();
   for (const block of blocks) {
     if (seen.has(block.type)) {
@@ -24,14 +26,15 @@ export function assertArrangementIsValid(
   }
 
   // An empty list means the template declares no restriction.
-  if (supportedBlocks.length === 0) return;
-
-  const unsupported = blocks.filter((block) => !supportedBlocks.includes(block.type));
+  const unsupported = supportedBlocks.length === 0 ? [] : blocks.filter((block) => !supportedBlocks.includes(block.type));
   if (unsupported.length > 0) {
     throw new BadRequestException(
       `Template does not support: ${unsupported.map((block) => block.type).join(', ')}`,
     );
   }
+
+  const layouts = blocks.map((block) => variantProblem(template, block.type, block.variant)).filter(Boolean);
+  if (layouts.length > 0) throw new BadRequestException(layouts.join('; '));
 }
 
 /**
@@ -51,11 +54,11 @@ export class ArrangementService {
   async arrange(slug: string, dto: ArrangeBlocksDto) {
     const invitation = await this.prisma.invitation.findUnique({
       where: { slug },
-      select: { id: true, template: { select: { supportedBlocks: true } } },
+      select: { id: true, template: { select: { supportedBlocks: true, blockVariants: true } } },
     });
     if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
 
-    assertArrangementIsValid(dto.blocks, invitation.template.supportedBlocks);
+    assertArrangementIsValid(dto.blocks, invitation.template);
 
     const blocks = await this.prisma.$transaction(async (tx) => {
       const placed = await Promise.all(dto.blocks.map((block, index) => this.upsertBlock(tx, invitation.id, block, index)));

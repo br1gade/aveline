@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Guest, RsvpStatus } from '@prisma/client';
+import { Guest, GuestAttribution, RsvpStatus } from '@prisma/client';
 import { newGuestToken } from '../guests/guest-token';
 import { LockedHousehold, lockHousehold } from '../guests/household-lock';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -41,7 +41,10 @@ export class RsvpService {
    */
   async submit(slug: string, token: string, dto: SubmitRsvpDto) {
     const guest = await this.loadGuest(slug, token);
-    const { questions, rsvpFields } = await this.loadAcceptingInvitation(slug);
+    const { questions, rsvpFields, locales } = await this.loadAcceptingInvitation(slug);
+    if (dto.locale !== undefined && !locales.includes(dto.locale)) {
+      throw new BadRequestException(`locale: this invitation is in ${locales.join(', ')}, not "${dto.locale}"`);
+    }
     assertNoProblem(answersProblem(questions, dto.answers ?? []));
     assertNoProblem(memberAnswersProblem(questions, dto.members ?? []));
     assertNoProblem(builtInAnswerProblem(rsvpFields, dto));
@@ -131,13 +134,16 @@ export class RsvpService {
   }
 
   /** The invitation's questions and how it asks the built-in ones, if it is taking answers. */
-  private async loadAcceptingInvitation(slug: string): Promise<{ questions: AnswerableQuestion[]; rsvpFields: unknown }> {
+  private async loadAcceptingInvitation(
+    slug: string,
+  ): Promise<{ questions: AnswerableQuestion[]; rsvpFields: unknown; locales: string[] }> {
     const invitation = await this.prisma.invitation.findUnique({
       where: { slug },
       select: {
         status: true,
         expiresAt: true,
         rsvpFields: true,
+        event: { select: { locales: true } },
         questions: { select: { id: true, type: true, required: true, options: true } },
       },
     });
@@ -148,7 +154,7 @@ export class RsvpService {
     if (invitation.expiresAt && invitation.expiresAt < new Date()) {
       throw new BadRequestException('This invitation has closed');
     }
-    return { questions: invitation.questions, rsvpFields: invitation.rsvpFields };
+    return { questions: invitation.questions, rsvpFields: invitation.rsvpFields, locales: invitation.event.locales };
   }
 
   private async assertRequiredAnswered(
@@ -196,13 +202,19 @@ export class RsvpService {
 
   // ── writes ───────────────────────────────────────────────────────────
 
+  /**
+   * The guest's language, and their side — only where the host left it
+   * unknown. The host knows who they invited; a guest's answer used to
+   * overwrite that and move them across the seating plan.
+   */
   private async applyGuestChanges(tx: Tx, guest: Guest, dto: SubmitRsvpDto): Promise<void> {
-    if (!dto.attribution && !dto.locale) return;
+    const attribution = sideToRecord(guest, dto);
+    if (!attribution && !dto.locale) return;
 
     await tx.guest.update({
       where: { id: guest.id },
       data: {
-        ...(dto.attribution ? { attribution: dto.attribution } : {}),
+        ...(attribution ? { attribution } : {}),
         ...(dto.locale ? { locale: dto.locale } : {}),
       },
     });
@@ -223,7 +235,7 @@ export class RsvpService {
           firstName: member.firstName.trim(),
           lastName: member.lastName?.trim() || null,
           token: newGuestToken(),
-          attribution: dto.attribution ?? guest.attribution,
+          attribution: sideToRecord(guest, dto) ?? guest.attribution,
           locale: dto.locale ?? guest.locale,
           addedByGuest: true,
           rsvp: { create: { status: dto.status, respondedAt: new Date() } },
@@ -315,4 +327,9 @@ function assertHouseholdCapacity(household: LockedHousehold, incoming: number): 
         `${alreadyNamed} already named and ${incoming} more were submitted`,
     );
   }
+}
+
+/** The side a guest's answer may record: theirs only where the host left it unknown. */
+function sideToRecord(guest: Guest, dto: SubmitRsvpDto): GuestAttribution | undefined {
+  return guest.attribution === GuestAttribution.UNKNOWN ? dto.attribution : undefined;
 }

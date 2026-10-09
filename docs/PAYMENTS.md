@@ -232,7 +232,7 @@ See [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §13.
 - **Deposits wired to the booking flow.** The payment core supports it; nothing
   yet marks an event confirmed when a deposit captures.
 - **Tax.** `Invoice.taxMinor` holds an amount; nothing computes one.
-- **Payouts to vendors.** `VendorBooking.feeAmount` records what is owed;
+- **Payouts to vendors.** `VendorBooking.feeMinor` records what is owed;
   disbursement needs a banking relationship we do not have.
 - **Refund execution against a real bank.** The `Refund` model and the gateway
   calls exist but have never run against a sandbox.

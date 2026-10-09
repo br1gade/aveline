@@ -7,7 +7,7 @@ import { assertArrangementIsValid } from './arrangement.service';
  * arrangement must be rejected whole, with a message naming what was wrong.
  */
 describe('assertArrangementIsValid', () => {
-  const supported = [BlockType.HERO, BlockType.STORY, BlockType.RSVP];
+  const supported = { supportedBlocks: [BlockType.HERO, BlockType.STORY, BlockType.RSVP], blockVariants: { HERO: ['split'] } };
 
   it('accepts an arrangement the template supports', () => {
     expect(() =>
@@ -33,7 +33,13 @@ describe('assertArrangementIsValid', () => {
     );
   });
 
+  it('accepts a layout the template offers, and refuses one it does not, naming both', () => {
+    expect(() => assertArrangementIsValid([{ type: BlockType.HERO, variant: 'split' }], supported)).not.toThrow();
+    expect(() => assertArrangementIsValid([{ type: BlockType.HERO, variant: 'carousel' }], supported)).toThrow(/HERO.*carousel/);
+    expect(() => assertArrangementIsValid([{ type: BlockType.STORY, variant: 'split' }], supported)).toThrow(/STORY takes no layout/);
+  });
+
   it('accepts any arrangement when the template declares no restriction', () => {
-    expect(() => assertArrangementIsValid([{ type: BlockType.MAP }], [])).not.toThrow();
+    expect(() => assertArrangementIsValid([{ type: BlockType.MAP }], { supportedBlocks: [], blockVariants: {} })).not.toThrow();
   });
 });

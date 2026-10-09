@@ -30,6 +30,7 @@ export async function seedEvent(
       name: 'Test',
       allowedFonts: ['Inter'],
       supportedBlocks: [BlockType.HERO, BlockType.RSVP],
+      blockVariants: { HERO: ['full-bleed', 'split'], RSVP: ['split', 'stacked'] },
     },
   });
 

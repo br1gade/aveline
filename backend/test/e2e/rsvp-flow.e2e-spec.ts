@@ -219,6 +219,41 @@ describe('RSVP flow (e2e)', () => {
     });
   });
 
+  // B47: the form took PENDING as an answer, any language, and a guest's
+  // choice of side over the one the host had set.
+  describe('what an answer may say', () => {
+    const answer = (slug: string, token: string, body: Record<string, unknown>) =>
+      http().post(`/api/v1/invitations/${slug}/g/${token}/rsvp`).send(body);
+
+    it('refuses PENDING, which is not an answer', async () => {
+      const { slug, primaryGuestToken } = await seedEvent(prisma);
+
+      const { body } = await answer(slug, primaryGuestToken, { status: 'PENDING' }).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('status');
+    });
+
+    it('refuses a language the invitation is not published in', async () => {
+      const { slug, primaryGuestToken } = await seedEvent(prisma);
+
+      const { body } = await answer(slug, primaryGuestToken, { status: 'ATTENDING', locale: 'de' }).expect(400);
+
+      expect(body.message).toMatch(/^locale:/);
+    });
+
+    it('keeps the side the host set, and takes the guest\'s only where none was', async () => {
+      const { slug, primaryGuestToken, eventId } = await seedEvent(prisma);
+      const guest = await prisma.guest.findFirstOrThrow({ where: { eventId, isPrimary: true } });
+
+      await answer(slug, primaryGuestToken, { status: 'ATTENDING', attribution: 'SIDE_B' }).expect(201);
+      expect((await prisma.guest.findUniqueOrThrow({ where: { id: guest.id } })).attribution).toBe('SIDE_A');
+
+      await prisma.guest.update({ where: { id: guest.id }, data: { attribution: 'UNKNOWN' } });
+      await answer(slug, primaryGuestToken, { status: 'ATTENDING', attribution: 'SIDE_B' }).expect(201);
+      expect((await prisma.guest.findUniqueOrThrow({ where: { id: guest.id } })).attribution).toBe('SIDE_B');
+    });
+  });
+
   it('404s a response sent with an unknown guest token', async () => {
     const { slug } = await seedEvent(prisma);
 

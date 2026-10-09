@@ -390,6 +390,10 @@ model DesignTemplate {
   palettes        Json        @default("[]")
   /// Block types this template supports, in their default order
   supportedBlocks BlockType[] @default([])
+  /// The layouts it renders for each block, e.g. { "HERO": ["full-bleed", "split"] }.
+  /// A block's variant must be one of these, or none; a block type with no
+  /// entry takes no variant.
+  blockVariants   Json        @default("{}")
   /// Default design tokens applied when an invitation is created
   defaultTheme    Json        @default("{}")
   isActive        Boolean     @default(true)
@@ -756,7 +760,9 @@ model VendorBooking {
   briefScopes String[]      @default([])
   /// Scoped access token for the vendor-facing brief
   briefToken  String        @unique
-  feeAmount   Decimal?      @db.Decimal(12, 2)
+  /// The agreed fee in minor units — whole drams for AMD — like every amount
+  /// of money in Aveline. Was a two-place decimal, the one exception.
+  feeMinor    BigInt?
   feeCurrency String        @default("AMD")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

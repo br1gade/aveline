@@ -60,11 +60,11 @@ export class BookVendorDto {
   @IsIn(BRIEF_SECTIONS, { each: true })
   briefScopes?: string[];
 
-  @ApiPropertyOptional({ description: 'Agreed fee, as a decimal string', example: '150000.00' })
+  @ApiPropertyOptional({ description: 'Agreed fee in minor units, as a string — whole drams for AMD', example: '150000' })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{1,10}(\.\d{1,2})?$/, { message: 'feeAmount must be a decimal amount' })
-  feeAmount?: string;
+  @Matches(/^\d{1,15}$/, { message: 'feeMinor must be a whole number of minor units, e.g. "150000"' })
+  feeMinor?: string;
 }
 
 /** Omitted means "leave as is". */
@@ -81,9 +81,9 @@ export class UpdateBookingDto {
   @IsIn(BRIEF_SECTIONS, { each: true })
   briefScopes?: string[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Agreed fee in minor units, as a string', example: '150000' })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{1,10}(\.\d{1,2})?$/, { message: 'feeAmount must be a decimal amount' })
-  feeAmount?: string;
+  @Matches(/^\d{1,15}$/, { message: 'feeMinor must be a whole number of minor units, e.g. "150000"' })
+  feeMinor?: string;
 }

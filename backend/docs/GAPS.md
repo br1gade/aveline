@@ -65,7 +65,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 |---|---|---|
 | 13 | **Subscription renewal and dunning** | §9.4 — subscribing, invoicing and settling work; nothing charges again when a period lapses, and no card binding is stored, so renewal is manual |
 | 14 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them. **Decided (8 October 2026): deferred until after the pilot** — paid plans stay inactive and limits stay unenforced until real events show which limits matter and what to charge |
-| 15 | **Vendor referral accounting** | §9.3 — `feeAmount` records what is owed; no payout |
+| 15 | **Vendor referral accounting** | §9.3 — `feeMinor` records what is owed; no payout |
 | 16 | **Corporate contracts** | §9.5 — multi-event, branded |
 | 17 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
 

@@ -208,6 +208,10 @@ than once.
 - **Never edit an applied migration.** Write a new one.
 - **Destructive operations need explicit human consent.** Never run
   `migrate reset` against anything you did not create seconds ago.
+- **Never pass a real database as `--shadow-database-url`.** Prisma resets the
+  shadow database. Generate SQL with `migrate diff --from-url "$DATABASE_URL"
+  --to-schema-datamodel …` (no shadow), as the feature skill says. Passing the
+  dev URL as the shadow wiped the dev database on 9 October 2026.
 
 ## 12. Definition of done
 

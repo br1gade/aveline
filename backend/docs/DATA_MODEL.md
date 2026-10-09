@@ -148,7 +148,7 @@ Deliberate, with the reason.
 
 | Missing | Why it is not here yet |
 |---|---|
-| `Payout` | `VendorBooking.feeAmount` records what is owed; disbursement needs a banking relationship we do not have |
+| `Payout` | `VendorBooking.feeMinor` records what is owed; disbursement needs a banking relationship we do not have |
 | `WebhookEndpoint` | No bank has told us it pushes callbacks; we poll. Modelling it now would guess at the shape |
 | `VendorAvailability` | The physical-services bridge (BACKEND_GAPS §6) |
 | `PrintOrder` | Same |
