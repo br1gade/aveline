@@ -599,7 +599,7 @@ describe('transaction safety (integration)', () => {
     it('refuses an order with a ticket already admitted, and changes nothing', async () => {
       const { orderId } = await paidTicketOrder(2);
       const ticket = await prisma.ticket.findFirstOrThrow({ where: { orderId } });
-      await ticketing.admit(ticket.code);
+      await ticketing.admit(eventId, ticket.code);
 
       await expect(cancellation.cancel(eventId, orderId)).rejects.toThrow(/already admitted/);
 
@@ -627,7 +627,7 @@ describe('transaction safety (integration)', () => {
 
       await cancellation.cancel(eventId, orderId);
 
-      await expect(ticketing.admit(ticket.code)).rejects.toThrow();
+      await expect(ticketing.admit(eventId, ticket.code)).rejects.toThrow();
     });
 
     it('refuses an order from a different event', async () => {

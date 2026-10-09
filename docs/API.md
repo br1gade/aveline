@@ -2314,10 +2314,11 @@ The original is kept and stays at `url`.
 ### Admitting a ticket at the door
 
 ```http
-POST /api/v1/tickets/:code/admit
+POST /api/v1/events/:eventId/tickets/:code/admit
 ```
 
-The scanner screen. `code` is what the QR encodes.
+The scanner screen. `code` is what the QR encodes; the scanner is opened for
+one event, and a code from any other event is `404`.
 
 ```json
 { "code": "A1B2...", "admittedAt": "2026-10-05T18:02:11.000Z", "holderName": "Ani Grigoryan" }
@@ -2330,7 +2331,11 @@ staff scanning the same ticket simultaneously cannot both admit it.
 `404` means the code is not recognised at all. Distinguish the two in the UI:
 "already admitted" is routine, "not recognised" is a problem.
 
-Requires `guest:write`, so door staff need a real account, not a link.
+Requires `guest:write` on that event, so door staff need a real account, not a
+link — invite them to the event as a coordinator (`/events/:eventId/team`).
+
+**Breaking, 9 October 2026:** the path was `/tickets/:code/admit`. With no
+event in it, only Aveline staff could scan, and they could scan any event.
 
 ### Payments directly
 

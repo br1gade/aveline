@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventType, PrismaClient } from '@prisma/client';
+import { EventRole, EventType, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -101,6 +101,74 @@ describe('Public event setup (e2e)', () => {
       .expect(201);
     expect(order.status).toBe('PAID');
     expect(order.tickets).toHaveLength(2);
+  });
+
+  /** A published listing with free tickets, and one stranger's paid-up order. */
+  const onSale = async (categories: string[] = ['concert']) => {
+    const { authorization, eventId } = await organizer();
+    const base = `/api/v1/events/${eventId}`;
+    await at(`${base}/settings`, authorization).patch({ visibility: 'PUBLIC' }).expect(200);
+    const { body: type } = await at(`${base}/ticket-types`, authorization)
+      .post({ name: { en: 'GA' }, priceMinor: '0', quantityTotal: 10 })
+      .expect(201);
+    const { body: listing } = await at(`${base}/listing`, authorization)
+      .put({ headline: { en: 'Jazz' }, categories })
+      .expect(200);
+    await at(`${base}/listing/publish`, authorization).post().expect(201);
+    const { body: order } = await http()
+      .post(`/api/v1/public/events/${listing.slug}/orders`)
+      .send({ items: [{ ticketTypeId: type.id, quantity: 1 }], buyerName: 'Ani', buyerEmail: 'ani@test.local', idempotencyKey: `k-${eventId}` })
+      .expect(201);
+    return { authorization, eventId, slug: listing.slug as string, code: (order.tickets as { code: string }[])[0].code };
+  };
+
+  // B34: the route had no event in it, so only platform staff could scan —
+  // and they could scan any event's tickets.
+  describe('admitting at the door', () => {
+    it('lets the event’s door staff admit a ticket, once', async () => {
+      const { eventId, code } = await onSale();
+      const door = await authenticateAs(app, prisma, { eventId, role: EventRole.COORDINATOR });
+      const admit = () => http().post(`/api/v1/events/${eventId}/tickets/${code}/admit`).set('Authorization', door.authorization);
+
+      const { body } = await admit().expect(201);
+
+      expect(body).toMatchObject({ code, holderName: expect.any(String) });
+      await admit().expect(400);
+    });
+
+    it('does not recognise another event’s ticket', async () => {
+      const theirs = await onSale();
+      const ours = await onSale();
+      const door = await authenticateAs(app, prisma, { eventId: ours.eventId, role: EventRole.COORDINATOR });
+
+      await http().post(`/api/v1/events/${ours.eventId}/tickets/${theirs.code}/admit`).set('Authorization', door.authorization).expect(404);
+      await http().post(`/api/v1/events/${theirs.eventId}/tickets/${theirs.code}/admit`).set('Authorization', door.authorization).expect(403);
+    });
+
+    it('refuses a viewer', async () => {
+      const { eventId, code } = await onSale();
+      const viewer = await authenticateAs(app, prisma, { eventId, role: EventRole.VIEWER });
+
+      await http().post(`/api/v1/events/${eventId}/tickets/${code}/admit`).set('Authorization', viewer.authorization).expect(403);
+    });
+  });
+
+  // B35: the documented filters were refused as unknown query parameters.
+  describe('browsing', () => {
+    it('filters by category and answers in the language asked', async () => {
+      const { slug: concert } = await onSale(['concert']);
+      const { slug: theatre } = await onSale(['theatre']);
+
+      const { body } = await http().get('/api/v1/public/events').query({ category: 'concert', locale: 'en' }).expect(200);
+
+      const slugs = (body as { items: { slug: string }[] }).items.map((item) => item.slug);
+      expect(slugs).toContain(concert);
+      expect(slugs).not.toContain(theatre);
+    });
+
+    it('still refuses a parameter it does not know', async () => {
+      await http().get('/api/v1/public/events').query({ sort: 'price' }).expect(400);
+    });
   });
 
   describe('ticket types', () => {

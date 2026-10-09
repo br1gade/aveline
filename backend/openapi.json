@@ -2048,11 +2048,19 @@
         ]
       }
     },
-    "/api/v1/tickets/{code}/admit": {
+    "/api/v1/events/{eventId}/tickets/{code}/admit": {
       "post": {
-        "description": "A code may only be used once; two scanners cannot both admit it.",
+        "description": "A code may only be used once; two scanners cannot both admit it. A code from another event is not recognised.",
         "operationId": "TicketingController_admit",
         "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "code",
             "required": true,
@@ -2655,16 +2663,18 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Language to answer in, negotiated against what each event publishes",
             "schema": {
               "type": "string"
             }
           },
           {
             "name": "category",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "One listing category, e.g. concert",
             "schema": {
               "type": "string"
             }

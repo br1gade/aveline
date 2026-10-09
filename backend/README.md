@@ -396,7 +396,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/public/events/:slug/orders` | Reserve tickets and start payment (idempotent) |
 | `GET` | `/api/v1/ticket-orders/:accessToken` | A buyer's own order and tickets |
 | `POST` | `/api/v1/ticket-orders/:accessToken/confirm` | Settle after the bank; issues tickets |
-| `POST` | `/api/v1/tickets/:code/admit` | Admit at the door; a code admits once |
+| `POST` | `/api/v1/events/:eventId/tickets/:code/admit` | Admit at the door; a code admits once, and only at its own event |
 | `POST` | `/api/v1/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
 
 ## Three design decisions worth knowing

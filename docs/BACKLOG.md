@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 2 open | 22 open, of which 8 money | — |
+| Bugfixes | 0 open | 0 open | 22 open, of which 8 money | — |
 | Features | 1 open (F1, the client) | 0 open | 12 (F19–F30) | 12 revenue and services (F31–F42) |
 | Decisions | 4 (D1–D4), all decided | | | |
 
@@ -67,8 +67,6 @@ None open. B1–B10 were fixed on 8 October 2026.
 
 | # | Bug | What goes wrong | Where | Size |
 |---|---|---|---|---|
-| B34 | Door staff cannot admit tickets ✔ | `POST /tickets/:code/admit` has no event in its path, so an event coordinator or owner gets 403; only platform staff can scan — any event's tickets | `ticketing/ticketing.controller.ts` | S |
-| B35 | Browsing public events rejects its own documented filters ✔ | `?category=…&locale=…` returns 400 | `public-events/public-events.controller.ts` | S |
 
 ### P2 — after the pilot, and all of "Money" before real money moves
 

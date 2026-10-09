@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { PaginationQuery } from '../../common/dto/pagination.dto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { BrowsePublicEventsQuery } from './dto/browse-public-events.dto';
 import { PublicEventsService } from './public-events.service';
 import { Public } from '../../infra/auth/actor';
 
@@ -12,12 +12,8 @@ export class PublicEventsController {
   @Public()
   @Get()
   @ApiOperation({ summary: 'Browse published public events' })
-  list(
-    @Query() paging: PaginationQuery,
-    @Query('locale') locale?: string,
-    @Query('category') category?: string,
-  ) {
-    return this.publicEvents.list({ ...paging, locale, category });
+  list(@Query() query: BrowsePublicEventsQuery) {
+    return this.publicEvents.list(query);
   }
 
   @Public()

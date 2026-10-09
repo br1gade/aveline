@@ -55,14 +55,17 @@ export class TicketingController {
   }
 
   // Door staff, not the public: possession of a code must not admit itself.
+  // Under the event, so the event's own team can scan, and only its tickets.
   @RequirePermission('guest:write')
-  @Post('tickets/:code/admit')
+  @Post('events/:eventId/tickets/:code/admit')
   @ApiOperation({
     summary: 'Admit a ticket at the door',
-    description: 'A code may only be used once; two scanners cannot both admit it.',
+    description:
+      'A code may only be used once; two scanners cannot both admit it. ' +
+      'A code from another event is not recognised.',
   })
-  admit(@Param('code') code: string) {
-    return this.ticketing.admit(code);
+  admit(@Param('eventId') eventId: string, @Param('code') code: string) {
+    return this.ticketing.admit(eventId, code);
   }
 
   @RequirePermission('event:write')

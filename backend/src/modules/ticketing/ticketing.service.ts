@@ -140,8 +140,10 @@ export class TicketingService {
     return this.fulfilment.releaseExpiredReservations(limit);
   }
 
-  async admit(code: string) {
-    const ticket = await this.prisma.ticket.findUnique({ where: { code } });
+  async admit(eventId: string, code: string) {
+    // Not found, rather than forbidden, for another event's code: a door
+    // scanner learns nothing about tickets that are not for its event.
+    const ticket = await this.prisma.ticket.findFirst({ where: { code, eventId } });
     if (!ticket) throw new NotFoundException('Ticket not recognised');
 
     if (ticket.status !== TicketStatus.VALID) {
