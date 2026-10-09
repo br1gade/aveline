@@ -122,6 +122,47 @@ describe('Public event setup (e2e)', () => {
     return { authorization, eventId, slug: listing.slug as string, code: (order.tickets as { code: string }[])[0].code };
   };
 
+  // B70 (decided 10 October 2026, D12): sales stop at the start; the
+  // listing leaves browse at the end. Ended events stayed listed, oldest
+  // first, and kept selling.
+  describe('when an event has begun or ended', () => {
+    const browse = async () =>
+      ((await http().get('/api/v1/public/events').expect(200)).body as { items: { slug: string }[] }).items.map((item) => item.slug);
+    const buyAt = (slug: string, ticketTypeId: string) =>
+      http()
+        .post(`/api/v1/public/events/${slug}/orders`)
+        .send({ items: [{ ticketTypeId, quantity: 1 }], buyerName: 'Late', buyerEmail: 'late@test.local', idempotencyKey: `late-${slug}` });
+
+    it('stops selling once the event has started, but stays listed until it ends', async () => {
+      const { eventId, slug } = await onSale();
+      const type = await prisma.ticketType.findFirstOrThrow({ where: { eventId } });
+      await prisma.event.update({ where: { id: eventId }, data: { startsAt: new Date(Date.now() - 3_600_000), endsAt: new Date(Date.now() + 3_600_000) } });
+
+      const { body } = await buyAt(slug, type.id).expect(400);
+
+      expect(body.message).toMatch(/started/);
+      expect(await browse()).toContain(slug);
+      await http().get(`/api/v1/public/events/${slug}`).expect(200);
+    });
+
+    it('leaves browse once it has ended, and still opens by link', async () => {
+      const { eventId, slug } = await onSale();
+      await prisma.event.update({ where: { id: eventId }, data: { startsAt: new Date(Date.now() - 7_200_000), endsAt: new Date(Date.now() - 3_600_000) } });
+
+      expect(await browse()).not.toContain(slug);
+      await http().get(`/api/v1/public/events/${slug}`).expect(200);
+    });
+
+    it('will not republish the listing of an archived event', async () => {
+      const { eventId, authorization } = await onSale();
+      await http().post(`/api/v1/events/${eventId}/archive`).set('Authorization', authorization).expect(201);
+
+      const { body } = await http().post(`/api/v1/events/${eventId}/listing/publish`).set('Authorization', authorization).expect(400);
+
+      expect(JSON.stringify(body.message)).toMatch(/archived/);
+    });
+  });
+
   // B63: the order list gave every buyer's email to read-only roles.
   describe('who sees a buyer\'s email', () => {
     const orders = (eventId: string, authorization: string) =>

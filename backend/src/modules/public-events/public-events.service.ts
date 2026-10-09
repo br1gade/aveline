@@ -26,9 +26,16 @@ export class PublicEventsService {
     params: PaginationQuery & { locale?: string; category?: string },
   ): Promise<Page<ReturnType<PublicEventsService['summarize']>>> {
     const paging = resolvePaging(params);
+    const now = new Date();
     const where = {
-      publishedAt: { not: null, lte: new Date() },
-      event: { visibility: EventVisibility.PUBLIC, status: 'PUBLISHED' as const },
+      publishedAt: { not: null, lte: now },
+      event: {
+        visibility: EventVisibility.PUBLIC,
+        status: 'PUBLISHED' as const,
+        // Until it ends (decided 10 October 2026, D12); an event with no end
+        // time ends at its start. Ended events stayed listed, oldest first.
+        OR: [{ endsAt: { gt: now } }, { endsAt: null, startsAt: { gt: now } }],
+      },
       ...(params.category ? { categories: { has: params.category } } : {}),
     };
 

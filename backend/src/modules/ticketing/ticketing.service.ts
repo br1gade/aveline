@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
+  EventStatus,
   PaymentPurpose,
   TicketOrderStatus,
   TicketStatus,
@@ -261,15 +262,18 @@ export class TicketingService {
     const listing = await this.prisma.eventListing.findUnique({
       where: { slug },
       include: {
-        event: { select: { id: true, organizationId: true, visibility: true, status: true } },
+        event: { select: { id: true, organizationId: true, visibility: true, status: true, startsAt: true } },
       },
     });
 
-    if (!listing || listing.publishedAt === null) {
+    const isGone = !listing || listing.publishedAt === null || listing.event.visibility === 'PRIVATE';
+    if (isGone || listing.event.status === EventStatus.ARCHIVED) {
       throw new NotFoundException(`No published event at "${slug}"`);
     }
-    if (listing.event.visibility === 'PRIVATE') {
-      throw new NotFoundException(`No published event at "${slug}"`);
+    // Sales stop when it starts (D12); the door handles the rest. A ticket
+    // type with no sales end kept selling after the event was over.
+    if (listing.event.startsAt <= new Date()) {
+      throw new BadRequestException('Ticket sales closed when this event started');
     }
     return listing.event;
   }

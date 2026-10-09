@@ -202,7 +202,7 @@ export class TicketSetupService {
       where: { eventId },
       select: {
         headline: true,
-        event: { select: { visibility: true, startsAt: true } },
+        event: { select: { visibility: true, startsAt: true, status: true } },
       },
     });
     if (!listing) throw new NotFoundException('Create the listing before publishing it');
@@ -259,11 +259,16 @@ function withDefaults(dto: CreateTicketTypeDto) {
 
 /** Every reason a listing is not ready to go public. */
 function listingPublishProblems(
-  listing: { headline: Prisma.JsonValue; event: { visibility: EventVisibility; startsAt: Date } },
+  listing: { headline: Prisma.JsonValue; event: { visibility: EventVisibility; startsAt: Date; status: EventStatus } },
   now: Date,
 ): string[] {
   const problems: string[] = [];
 
+  // Archiving takes the listing down; publishing it again would sell
+  // tickets for an event the host put away.
+  if (listing.event.status === EventStatus.ARCHIVED) {
+    problems.push('This event is archived. Unarchive it first');
+  }
   if (listing.event.visibility === EventVisibility.PRIVATE) {
     problems.push(
       'This event is private. Set its visibility to PUBLIC or UNLISTED first, deliberately',

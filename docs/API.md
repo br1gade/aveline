@@ -510,6 +510,11 @@ GET /api/v1/public/events?limit=20&offset=0&category=conference&locale=en
 GET /api/v1/public/events/:slug
 ```
 
+Browse lists an event until it ends (an event with no end time, until it
+starts); the detail page keeps loading by link afterwards. **Ticket sales
+stop when the event starts** — checkout is then a `400` saying so — and an
+archived event's listing cannot be published again (decided 10 October 2026).
+
 The detail response includes `ticketTypes` with `available` (a count, never
 the raw inventory counters) and a `metadata` object:
 
