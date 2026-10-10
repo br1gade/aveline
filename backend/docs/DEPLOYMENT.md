@@ -99,7 +99,7 @@ Everything comes from `.env.production`, which exists only on the host. It is
 gitignored, and `chmod 600` because every container that reads it runs as a
 different user than the one who wrote it.
 
-Four settings the app refuses to boot without, each because the default is
+Five settings the app refuses to boot without, each because the default is
 dangerous rather than merely wrong:
 
 | Setting | Why it is required |
@@ -107,6 +107,7 @@ dangerous rather than merely wrong:
 | `DATABASE_URL` | Everywhere, not just production |
 | `JWT_SECRET` | A default would let anyone mint a staff token |
 | `CORS_ORIGINS` | An open policy lets any site call the API as a signed-in user |
+| `PUBLIC_APP_URL` | Every emailed link and every bank return lands on `localhost` without it, and payment `returnUrl`s are checked against its origin |
 | `SMTP_HOST` + `MAIL_FROM` | Without them email is written to a log file, which looks exactly like delivery |
 
 Generate secrets rather than inventing them:

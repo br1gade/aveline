@@ -1,3 +1,4 @@
+import { appPage } from '../../common/app-url';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   BillingInterval,
@@ -132,7 +133,7 @@ export class SubscriptionsService {
       provider: dto.provider,
       amountMinor: invoice.totalMinor.toString(),
       currency: invoice.currency,
-      returnUrl: dto.returnUrl ?? 'https://aveline.test/billing/return',
+      returnUrl: dto.returnUrl ?? appPage('/billing/return'),
       description: `${plan.name} — invoice ${invoice.number}`,
       // One payment per invoice, whatever the client retries.
       idempotencyKey: `invoice-${invoice.id}`,

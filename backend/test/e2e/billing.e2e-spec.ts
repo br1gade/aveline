@@ -162,6 +162,38 @@ describe('Billing (e2e)', () => {
       expect(body.payment.redirectUrl).toEqual(expect.any(String));
     });
 
+    // B86: the bank sends the payer wherever this says, so an unchecked value
+    // made a real payment page the first hop of a phishing redirect.
+    it.each(['https://evil.example/billing/return', 'javascript:alert(1)'])(
+      'refuses to send the payer back to %s, before issuing anything',
+      async (returnUrl) => {
+        const { authorization } = await owner();
+        await plan('managed', 25_000n);
+
+        const { body } = await http()
+          .post('/api/v1/subscription')
+          .set('Authorization', authorization)
+          .send({ planKey: 'managed', provider: 'FAKE', returnUrl })
+          .expect(400);
+
+        expect(JSON.stringify(body.message)).toContain('returnUrl');
+        expect(await prisma.invoice.count()).toBe(0);
+      },
+    );
+
+    it('sends the payer back to the app by default', async () => {
+      const { authorization } = await owner();
+      await plan('managed', 25_000n);
+
+      const { body } = await http()
+        .post('/api/v1/subscription')
+        .set('Authorization', authorization)
+        .send({ planKey: 'managed', provider: 'FAKE' })
+        .expect(201);
+
+      expect(body.payment.redirectUrl).toMatch(/^http:\/\/localhost:5173\/billing\/return\?/);
+    });
+
     it('lists the invoice it issued', async () => {
       const { authorization } = await owner();
       await plan('managed', 25_000n);

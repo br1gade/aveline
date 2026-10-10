@@ -1,3 +1,4 @@
+import { appPage } from '../../common/app-url';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   EventStatus,
@@ -319,7 +320,7 @@ export class TicketingService {
       provider: dto.provider,
       amountMinor: order.totalMinor.toString(),
       currency: order.currency,
-      returnUrl: dto.returnUrl ?? 'https://aveline.test/tickets/return',
+      returnUrl: dto.returnUrl ?? appPage('/tickets/return'),
       description: `Tickets for ${event.id}`,
       locale: order.locale,
       idempotencyKey: `order-${order.id}`,

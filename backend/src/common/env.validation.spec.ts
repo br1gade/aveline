@@ -16,8 +16,8 @@ describe('validateEnv', () => {
   });
 
   // A development default secret in production means anyone can mint a token.
-  it.each(['JWT_SECRET', 'CORS_ORIGINS'])('requires %s in production', (key) => {
-    const env = { ...base, NODE_ENV: 'production', JWT_SECRET: 'x', CORS_ORIGINS: 'y' };
+  it.each(['JWT_SECRET', 'CORS_ORIGINS', 'PUBLIC_APP_URL'])('requires %s in production', (key) => {
+    const env = { ...base, NODE_ENV: 'production', JWT_SECRET: 'x', CORS_ORIGINS: 'y', PUBLIC_APP_URL: 'https://aveline.am' };
     delete (env as Record<string, unknown>)[key];
 
     expect(() => validateEnv(env)).toThrow(new RegExp(key));

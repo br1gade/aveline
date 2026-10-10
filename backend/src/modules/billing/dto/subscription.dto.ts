@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OnAppOrigin } from '../../../common/app-url';
 import { PaymentProvider } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
@@ -13,9 +14,9 @@ export class SubscribeDto {
   @IsEnum(PaymentProvider)
   provider?: PaymentProvider;
 
-  @ApiPropertyOptional({ description: 'Where the bank returns the payer' })
+  @ApiPropertyOptional({ description: 'Where the bank returns the payer; a page of the Aveline app' })
   @IsOptional()
-  @IsString()
+  @OnAppOrigin()
   @MaxLength(500)
   returnUrl?: string;
 }

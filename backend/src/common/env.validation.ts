@@ -18,7 +18,7 @@ export interface ValidatedEnv extends Record<string, unknown> {
 const ALWAYS_REQUIRED = ['DATABASE_URL'] as const;
 
 /** Required only in production, where a development default is dangerous. */
-const PRODUCTION_REQUIRED = ['JWT_SECRET', 'CORS_ORIGINS'] as const;
+const PRODUCTION_REQUIRED = ['JWT_SECRET', 'CORS_ORIGINS', 'PUBLIC_APP_URL'] as const;
 
 /** Environment values arrive as unknown; anything not a primitive is absent
  *  rather than stringified into "[object Object]". */

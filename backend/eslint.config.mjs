@@ -95,7 +95,7 @@ export default tseslint.config(
     // Decorator factories are PascalCase by NestJS convention — @Public(),
     // @RequirePermission(), @NormalizedEmail(). Scoped to the files that
     // define them so the rule still binds everywhere else.
-    files: ['src/infra/auth/actor.ts', 'src/common/normalized-email.ts', 'src/common/iso-timestamp.ts', 'src/common/trimmed.ts'],
+    files: ['src/infra/auth/actor.ts', 'src/common/normalized-email.ts', 'src/common/iso-timestamp.ts', 'src/common/trimmed.ts', 'src/common/app-url.ts'],
     rules: {
       '@typescript-eslint/naming-convention': [
         'error',

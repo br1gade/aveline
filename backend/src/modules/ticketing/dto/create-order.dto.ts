@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OnAppOrigin } from '../../../common/app-url';
 import { PaymentProvider } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
@@ -71,9 +72,9 @@ export class CreateOrderDto {
   @IsEnum(PaymentProvider)
   provider?: PaymentProvider;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Where the bank returns the payer; a page of the Aveline app' })
   @IsOptional()
-  @IsString()
+  @OnAppOrigin()
   @MaxLength(300)
   returnUrl?: string;
 

@@ -669,6 +669,13 @@ POST /api/v1/public/events/:slug/orders
 }
 ```
 
+`returnUrl` must be a page of the client app — the same origin as the
+backend's `PUBLIC_APP_URL` — or the request is a `400` naming it: the bank
+sends the payer wherever it says, so any other origin would be an open
+redirect through a real payment page. Omitted, it is `/tickets/return` on the
+app. The same rule holds for `returnUrl` on `POST /subscription`, whose
+default is `/billing/return`.
+
 **Generate `idempotencyKey` once per checkout attempt and reuse it on retry.**
 A double-tapped button with the same key returns the same order rather than
 reserving twice.
@@ -1382,7 +1389,7 @@ subscribed, which is not an error — render an upgrade prompt, not a failure.
 Requires `billing:read`.
 
 ```http
-POST /api/v1/subscription   { "planKey": "managed-monthly", "provider": "AMERIABANK" }
+POST /api/v1/subscription   { "planKey": "managed-monthly", "provider": "AMERIABANK", "returnUrl"?: "https://aveline.am/billing/return" }
 ```
 
 A free plan (`priceMinor: "0"`) activates immediately and returns
