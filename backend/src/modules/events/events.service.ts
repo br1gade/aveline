@@ -374,7 +374,17 @@ export class EventsService {
       }
 
       return updated;
+    }).then(async (updated) => {
+      // Visibility decides who may read the cached page: making an event
+      // private must close its shared link now, not when the cache expires.
+      if (settings.visibility !== undefined) await this.invalidatePage(eventId);
+      return updated;
     });
+  }
+
+  private async invalidatePage(eventId: string): Promise<void> {
+    const invitation = await this.prisma.invitation.findUnique({ where: { eventId }, select: { slug: true } });
+    if (invitation) await this.cache.invalidateInvitation(invitation.slug);
   }
 
 }

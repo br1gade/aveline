@@ -1,10 +1,11 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { EventVisibility, PrismaClient } from '@prisma/client';
+import { EventRole, EventVisibility, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
@@ -79,7 +80,9 @@ describe('Reading an invitation without a personal link (e2e)', () => {
     const { slug, eventId } = await eventWith(EventVisibility.UNLISTED);
     await http().get(`/api/v1/invitations/${slug}`).expect(200);
 
-    await prisma.event.update({ where: { id: eventId }, data: { visibility: EventVisibility.PRIVATE } });
+    const { authorization } = await authenticateAs(app, prisma, { eventId, role: EventRole.OWNER });
+
+    await http().patch(`/api/v1/events/${eventId}/settings`).set('Authorization', authorization).send({ visibility: 'PRIVATE' }).expect(200);
 
     await http().get(`/api/v1/invitations/${slug}`).expect(404);
   });

@@ -112,9 +112,13 @@ export class RsvpConfirmerService {
   private async confirmedThisMinute(householdId: string, now: Date): Promise<RsvpStatus[]> {
     const minuteStart = new Date(now);
     minuteStart.setUTCSeconds(0, 0);
+    // By the household's guests and the kind of message, which the
+    // (guestId, templateKey) index serves. Matching a prefix of the dedupe key
+    // scanned every message on the platform on every RSVP.
     const recent = await this.prisma.message.findMany({
       where: {
-        dedupeKey: { startsWith: `rsvp-confirm:${householdId}:` },
+        guest: { householdId },
+        templateKey: { startsWith: 'rsvp.confirmation.' },
         createdAt: { gte: minuteStart },
       },
       orderBy: { createdAt: 'desc' },

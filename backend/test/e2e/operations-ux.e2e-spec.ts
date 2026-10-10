@@ -122,6 +122,43 @@ describe('Operations UX (e2e)', () => {
       expect(second.body).toEqual(first.body);
     });
 
+    // B82: the "cached" page loaded the invitation, its blocks, event,
+    // venues and timeline from Postgres on every hit, and a personal link —
+    // what every email carries — was never cached at all.
+    it('serves a warm page without asking Postgres for the invitation', async () => {
+      const { slug } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
+      await http().get(`/api/v1/invitations/${slug}`).expect(200);
+      const loads = jest.spyOn(prisma.invitation, 'findUnique');
+
+      await http().get(`/api/v1/invitations/${slug}`).expect(200);
+
+      expect(loads).not.toHaveBeenCalled();
+      loads.mockRestore();
+    });
+
+    it('builds a personal page from the cached one plus the guest', async () => {
+      const { slug, primaryGuestToken } = await seedEvent(prisma);
+      await http().get(`/api/v1/invitations/${slug}/g/${primaryGuestToken}`).expect(200);
+      const loads = jest.spyOn(prisma.invitation, 'findUnique');
+
+      const { body } = await http().get(`/api/v1/invitations/${slug}/g/${primaryGuestToken}`).expect(200);
+
+      expect(loads).not.toHaveBeenCalled();
+      expect(body.guest).toMatchObject({ name: 'Primary Guest' });
+      expect(body.blocks.length).toBeGreaterThan(0);
+      loads.mockRestore();
+    });
+
+    it('closes the shared link as soon as the event is made private, cache or not', async () => {
+      const { slug, eventId } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
+      const { authorization } = await authenticateAs(app, prisma, { eventId, role: EventRole.OWNER });
+      await http().get(`/api/v1/invitations/${slug}`).expect(200);
+
+      await http().patch(`/api/v1/events/${eventId}/settings`).set('Authorization', authorization).send({ visibility: 'PRIVATE' }).expect(200);
+
+      await http().get(`/api/v1/invitations/${slug}`).expect(404);
+    });
+
     it('reflects a rearrangement immediately, proving invalidation works', async () => {
       const { slug, eventId } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
       const { authorization } = await authenticateAs(app, prisma, {

@@ -52,9 +52,14 @@ identical for everyone reading the same language. Keyed by slug **and** locale
 so a cached Armenian page can never be served to a Russian reader. TTL is a
 backstop; any write that changes what the page renders invalidates immediately.
 
-The **personalized** variant is deliberately *not* cached — it is per-guest by
-definition, so caching it would multiply the keyspace by the guest count for no
-reuse at all.
+Beside each slug's payloads sits a small **page meta** entry — the event id,
+its languages and its visibility — so a hit is two Redis reads and no
+Postgres at all. (It used to load the invitation, blocks, event, venues and
+timeline first, only to choose the key.) Changing visibility invalidates both.
+
+The **personalized** page is the cached shared payload plus one query for the
+guest, never cached itself — per-guest by definition, so caching it would
+multiply the keyspace by the guest count for no reuse.
 
 Invalidation uses `SCAN`, never `KEYS`. `KEYS` blocks the Redis event loop
 across the whole keyspace and stalls every other client on a shared instance.

@@ -4,7 +4,7 @@ import { BlockType, EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
-import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
+import { CacheService, invitationCacheKey, invitationMetaKey } from '../../infra/cache/cache.service';
 import { translatedField } from '../../common/field-translations';
 import { fieldsForPage } from '../rsvp/rsvp-fields';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
@@ -41,6 +41,7 @@ const blockMediaSelect = {
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
 const GUEST_INCLUDE = {
   rsvp: true,
+  event: { select: { seatingPublishedAt: true } },
   household: {
     include: {
       guests: {
@@ -81,68 +82,73 @@ export class InvitationsService {
    * caching it would multiply the keyspace by the guest count for no reuse.
    */
   async getCachedInvitation(slug: string, locale?: string) {
-    const published = await this.loadPublished(slug);
+    const meta = await this.pageMeta(slug);
     // A PRIVATE event is reachable by personal link only (spec §13.1; D6,
-    // 9 October 2026). Checked before the cache, on the row just read, so
-    // making an event private closes its generic link at once.
-    if (published.event.visibility === EventVisibility.PRIVATE) {
+    // 9 October 2026). Changing visibility invalidates the cache, so making
+    // an event private closes its generic link at once.
+    if (meta.visibility === EventVisibility.PRIVATE) {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
     // Bounds the cache keyspace to the locales this event publishes.
-    const effectiveLocale = negotiateLocale(
-      locale,
-      published.event.locales,
-      published.event.defaultLocale,
-    );
-
-    const payload = await this.cache.readThrough(
-      invitationCacheKey(slug, effectiveLocale),
-      this.cacheTtlSeconds,
-      () => Promise.resolve(this.buildPayload(published, null, effectiveLocale)),
-    );
+    const effectiveLocale = negotiateLocale(locale, meta.locales, meta.defaultLocale);
+    const payload = await this.sharedPayload(slug, effectiveLocale);
 
     // Fire and forget: a guest's page must never wait on analytics.
-    void this.analytics.recordInvitationView({
-      slug,
-      eventId: published.event.id,
-      locale: effectiveLocale,
-    });
-
+    void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale: effectiveLocale });
     return payload;
   }
 
   /**
-   * The public invitation payload. Blocks are data-bound: VENUE, TIMELINE and
-   * COUNTDOWN hold no duplicated copy of the event's data, they are hydrated
-   * here from the Event itself. That is what makes one edit propagate
-   * everywhere at once (spec §3, §5.1).
+   * The page personalized for one guest: greeted by name, in their language,
+   * with their household's real seat allowance (spec §5.4).
    *
-   * With `guestToken` the page is personalized: greeted by name, rendered in
-   * the guest's language, showing their household's real seat allowance
-   * (spec §5.4).
+   * Built from the cached shared page plus one query for the guest — the
+   * personal link is what every email carries, so it is most of the traffic,
+   * and rebuilding the whole page per guest cost some fourteen queries.
    */
   async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string) {
-    const invitation = await this.loadPublished(slug);
-    const guest = guestToken ? await this.findGuest(guestToken, invitation.event.id) : null;
+    const meta = await this.pageMeta(slug);
+    const guest = guestToken ? await this.findGuest(guestToken, meta.eventId) : null;
     // A personal link must belong to a guest. Served with `guest: null`, any
     // made-up token opened a PRIVATE event's page — its generic URL with
     // extra steps. Same answer as an unknown slug, so a token is not probeable.
     if (guestToken && !guest) throw new NotFoundException(`Invitation "${slug}" is no longer available`);
+    if (!guest) return this.getCachedInvitation(slug, requestedLocale);
+
     // A language the guest picks on the page wins, if the event publishes it;
     // otherwise their own. Picking one does not change their stored language.
-    const isPublished = requestedLocale !== undefined && invitation.event.locales.includes(requestedLocale);
-    const locale = isPublished ? requestedLocale : (guest?.locale ?? undefined);
+    const preferred = requestedLocale && meta.locales.includes(requestedLocale) ? requestedLocale : (guest.locale ?? undefined);
+    const locale = negotiateLocale(preferred, meta.locales, meta.defaultLocale);
+    const payload = await this.sharedPayload(slug, locale);
 
-    if (guest) {
-      void this.analytics.recordInvitationView({
-        slug,
-        eventId: invitation.event.id,
-        locale: guest.locale ?? invitation.event.defaultLocale,
-        guestId: guest.id,
+    void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: guest.id });
+    return { ...payload, guest: this.buildGuestView(guest, guest.event.seatingPublishedAt !== null) };
+  }
+
+  /**
+   * Who may read the page and in which languages, cached beside it. A hit on
+   * the page used to load the invitation, its blocks, event, venues and
+   * timeline from Postgres first, only to decide the cache key.
+   */
+  private pageMeta(slug: string) {
+    return this.cache.readThrough(invitationMetaKey(slug), this.cacheTtlSeconds, async () => {
+      const invitation = await this.prisma.invitation.findUnique({
+        where: { slug },
+        select: { status: true, event: { select: { id: true, locales: true, defaultLocale: true, visibility: true } } },
       });
-    }
+      if (!invitation || !isReadableByGuests(invitation.status)) {
+        throw new NotFoundException(`Invitation "${slug}" is no longer available`);
+      }
+      const { event } = invitation;
+      return { eventId: event.id, locales: event.locales, defaultLocale: event.defaultLocale, visibility: event.visibility };
+    });
+  }
 
-    return this.buildPayload(invitation, guest, locale);
+  /** The page as every guest reading this language sees it, cached per slug and locale. */
+  private sharedPayload(slug: string, locale: string) {
+    return this.cache.readThrough(invitationCacheKey(slug, locale), this.cacheTtlSeconds, async () =>
+      this.buildPayload(await this.loadPublished(slug), null, locale),
+    );
   }
 
   private buildPayload(

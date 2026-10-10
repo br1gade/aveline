@@ -11,6 +11,11 @@ export function invitationCacheKey(slug: string, locale: string): string {
   return `${NAMESPACE}:invitation:${slug}:${locale}`;
 }
 
+/** Who may read the page, and in which languages — beside the payload, invalidated with it. */
+export function invitationMetaKey(slug: string): string {
+  return `${NAMESPACE}:invitation:${slug}:_meta`;
+}
+
 export function invitationKeyPattern(slug: string): string {
   return `${NAMESPACE}:invitation:${slug}:*`;
 }
