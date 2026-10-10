@@ -918,7 +918,9 @@ Content-Type: multipart/form-data
 
 One field, `file`: a CSV, up to 2 MB and 2000 guests. Requires `guest:write`.
 A larger file is refused with `413` as it arrives; more rows than 2000 is a
-`400` — neither creates an import record.
+`400` — neither creates an import record. **One import of an event runs at a time**: a
+second while the first is running — a double upload, a retry — is a `409`;
+send it again once the first has answered.
 
 Column headers are matched case-insensitively against a list of spellings, so
 you do not need to make the host rename anything. Recognised:

@@ -1382,6 +1382,8 @@ model GuestImport {
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
+  /// Also, in SQL only: a partial unique index allowing one PROCESSING import
+  /// per event (guest_imports_one_running_per_event). Prisma cannot express it.
   @@map("guest_imports")
 }
 

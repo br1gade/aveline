@@ -205,6 +205,19 @@ describe('Guest operations (e2e)', () => {
       expect(JSON.stringify(await prisma.guestImport.findMany())).not.toContain('petrosyan.gmail');
     });
 
+    // B77: a double upload or a retry ran twice at once and duplicated every
+    // household and guest — each duplicate then invited.
+    it('runs one import of an event at a time, so a double upload adds nobody twice', async () => {
+      const { eventId, authorization } = await coordinator();
+
+      const statuses = await Promise.all([1, 2, 3].map(async () => (await importCsv(eventId, authorization, CSV)).status));
+
+      expect(statuses.filter((status) => status === 201).length).toBeGreaterThanOrEqual(1);
+      expect(statuses.every((status) => status === 201 || status === 409)).toBe(true);
+      expect(await prisma.household.count({ where: { eventId, name: 'Petrosyan family' } })).toBe(1);
+      expect(await prisma.guest.count({ where: { eventId, firstName: 'Armen' } })).toBe(1);
+    });
+
     it('refuses an import without guest:write', async () => {
       const { eventId } = await seedEvent(prisma);
       const { authorization } = await authenticateAs(app, prisma, {

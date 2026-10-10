@@ -1,10 +1,14 @@
-import { BadRequestException, HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { isUniqueViolation } from '../../../common/prisma-errors';
 import { GuestAttribution, ImportStatus, Prisma } from '@prisma/client';
 import { newGuestToken } from '../guest-token';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { capacityProblem } from '../guest-rules';
 import { LockedHousehold, lockHousehold } from '../household-lock';
 import { ParsedGuest, RowError, TooManyRowsError, parseGuestCsv } from './csv-guests';
+
+/** A run still PROCESSING after this long was interrupted. */
+const STALE_IMPORT_MS = 10 * 60 * 1000;
 
 /** What the file says about one household: the seats it states, and how many it names. */
 interface HouseholdInFile {
@@ -38,15 +42,7 @@ export class GuestImportService {
     const { guests, errors } = readGuestList(content);
     const seatsInFile = seatsStatedPerHousehold(guests);
 
-    const record = await this.prisma.guestImport.create({
-      data: {
-        eventId,
-        filename,
-        status: ImportStatus.PROCESSING,
-        rowsTotal: guests.length + errors.length,
-        uploadedBy: uploadedBy ?? null,
-      },
-    });
+    const record = await this.startImport({ eventId, filename, rowsTotal: guests.length + errors.length, uploadedBy });
 
     const failures = [...errors];
     let imported = 0;
@@ -63,6 +59,29 @@ export class GuestImportService {
     }
 
     return this.finish(record.id, imported, failures);
+  }
+
+  /**
+   * Claims the event's one running import. A partial unique index allows one
+   * PROCESSING import per event: two at once — a double upload, a retry —
+   * each found no household by name and created one, duplicating the list.
+   * A run left PROCESSING by a crash is closed after ten minutes.
+   */
+  private async startImport(input: { eventId: string; filename: string; rowsTotal: number; uploadedBy?: string }) {
+    await this.prisma.guestImport.updateMany({
+      where: { eventId: input.eventId, status: ImportStatus.PROCESSING, createdAt: { lt: new Date(Date.now() - STALE_IMPORT_MS) } },
+      data: { status: ImportStatus.FAILED, finishedAt: new Date() },
+    });
+    try {
+      return await this.prisma.guestImport.create({
+        data: { ...input, uploadedBy: input.uploadedBy ?? null, status: ImportStatus.PROCESSING },
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('An import of this guest list is already running; try again when it finishes');
+      }
+      throw error;
+    }
   }
 
   listImports(eventId: string) {
