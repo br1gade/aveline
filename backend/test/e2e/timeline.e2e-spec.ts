@@ -128,4 +128,67 @@ describe('The running order (e2e)', () => {
 
     expect(body.venueId).toBeNull();
   });
+
+  describe('edits that keep what they do not mention', () => {
+    const patch = (eventId: string, entryId: string, authorization: string, body: Record<string, unknown>) =>
+      http().patch(`/api/v1/events/${eventId}/timeline/${entryId}`).set('Authorization', authorization).send(body);
+
+    // B94: occursAt null was stored as 1 January 1970.
+    it('refuses a null time rather than storing 1970', async () => {
+      const { eventId, ceremonyId, authorization } = await runningOrder();
+
+      const { body } = await patch(eventId, ceremonyId, authorization, { occursAt: null }).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('occursAt');
+    });
+
+    // B92: correcting the English label deleted the Armenian one.
+    it('edits one language of a label and keeps the others', async () => {
+      const { eventId, ceremonyId, authorization } = await runningOrder();
+      await patch(eventId, ceremonyId, authorization, { label: { hy: 'Պսակադրություն' } }).expect(200);
+
+      await patch(eventId, ceremonyId, authorization, { label: { en: 'Wedding ceremony' } }).expect(200);
+
+      const entry = await prisma.timelineEntry.findUniqueOrThrow({ where: { id: ceremonyId } });
+      expect(entry.label).toEqual({ en: 'Wedding ceremony', hy: 'Պսակադրություն' });
+    });
+
+    // B89: {"hy": ""} counted as a label and rendered a blank row.
+    it('refuses a label that is blank in every language', async () => {
+      const { eventId, authorization } = await runningOrder();
+
+      await http().post(`/api/v1/events/${eventId}/timeline`).set('Authorization', authorization).send({ label: { hy: '  ' }, occursAt: '2027-06-12T16:00:00Z' }).expect(400);
+    });
+
+    // B92: two entries at the same minute appeared in arbitrary order.
+    it('orders entries at the same minute as the host arranged them', async () => {
+      const { eventId, slug, authorization } = await runningOrder();
+      const add = (label: string, sortOrder: number) =>
+        http().post(`/api/v1/events/${eventId}/timeline`).set('Authorization', authorization).send({ label: { en: label }, occursAt: '2027-06-12T18:00:00Z', sortOrder }).expect(201);
+      await add('Toast', 2);
+      await add('First dance', 1);
+
+      const labels = await labelsOnGuestPage(slug);
+
+      expect(labels?.slice(-2)).toEqual(['First dance', 'Toast']);
+    });
+  });
+
+  // B92 (decided 10 October 2026, D17): guests saw every venue, including
+  // where the bride gets ready and places only the crew's entries use.
+  it('shows guests only the venues meant for them', async () => {
+    const { eventId, slug, authorization } = await runningOrder();
+    await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'VENUE', 'TIMELINE', 'RSVP'] } });
+    await http().patch(`/api/v1/invitations/${slug}/arrangement`).set('Authorization', authorization).send({ blocks: [{ type: 'HERO' }, { type: 'VENUE' }, { type: 'TIMELINE' }, { type: 'RSVP' }] }).expect(200);
+    const venue = (role: string, name: string) =>
+      http().post(`/api/v1/events/${eventId}/venues`).set('Authorization', authorization).send({ role, name, address: 'Yerevan' }).expect(201);
+    await venue('PREPARATION', 'The family home');
+    const kitchen = await venue('OTHER', 'Service entrance');
+    await http().post(`/api/v1/events/${eventId}/timeline`).set('Authorization', authorization).send({ label: { en: 'Load in' }, occursAt: '2027-06-12T09:00:00Z', isInternal: true, venueId: kitchen.body.id }).expect(201);
+
+    const { body } = await http().get(`/api/v1/invitations/${slug}`).query({ locale: 'en' }).expect(200);
+
+    const names = (body.blocks as { type: string; data: { name: string }[] }[]).find((b) => b.type === 'VENUE')?.data.map((v) => v.name);
+    expect(names).toEqual(['Fixture Hall']);
+  });
 });

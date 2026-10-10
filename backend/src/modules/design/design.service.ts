@@ -152,7 +152,8 @@ export class DesignService {
           ? (mergeTranslations(block.content, dto.content) as Prisma.InputJsonValue)
           : undefined,
         settings: dto.settings as Prisma.InputJsonValue | undefined,
-        variant: dto.variant ?? undefined,
+        // null is the template's default layout; only omitted leaves it.
+        variant: dto.variant === undefined ? undefined : dto.variant,
         assetIds: dto.assetIds ?? undefined,
         enabled: dto.enabled ?? undefined,
       },
@@ -243,10 +244,12 @@ export class DesignService {
    */
   async updateQuestion(slug: string, questionId: string, dto: UpdateQuestionDto) {
     const question = await this.requireQuestion(slug, questionId);
-    const prompt = dto.prompt ?? asObject(question.prompt);
-    const options = (dto.options ?? question.options ?? []) as Prisma.InputJsonValue;
+    // One language at a time, as block copy is: correcting the English
+    // prompt used to delete the Armenian one.
+    const prompt = dto.prompt ? mergeTranslations(question.prompt, dto.prompt) : asObject(question.prompt);
+    const options = (dto.options ? mergeTranslations(question.options, dto.options) : (question.options ?? [])) as Prisma.InputJsonValue;
     const type = dto.type ?? question.type;
-    assertQuestionIsAnswerable({ type, prompt, options: dto.options ?? asObject(question.options) });
+    assertQuestionIsAnswerable({ type, prompt, options: asObject(options as Prisma.JsonValue) });
     const answers = await this.prisma.rsvpAnswer.count({ where: { questionId: question.id } });
     assertAnsweredQuestionKeepsShape(answers, question, { type, options });
 

@@ -87,6 +87,16 @@ describe('Invitation design (e2e)', () => {
       const editBlock = (slug: string, authorization: string, type: string, body: Record<string, unknown>) =>
         http().patch(`/api/v1/invitations/${slug}/blocks/${type}`).set('Authorization', authorization).send(body);
 
+      // B92: `variant: null` was silently ignored on the block edit.
+      it('resets a layout to the template default with null', async () => {
+        const { slug, authorization } = await designer();
+        await editBlock(slug, authorization, 'HERO', { variant: 'split' }).expect(200);
+
+        const { body } = await editBlock(slug, authorization, 'HERO', { variant: null }).expect(200);
+
+        expect(body.variant).toBeNull();
+      });
+
       it('will not switch on a block the template cannot render', async () => {
         const { slug, authorization } = await designer();
         const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug } });

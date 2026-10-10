@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
+import { mergeTranslations } from './translated-content';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateTimelineEntryDto, UpsertTimelineEntryDto } from './dto/design.dto';
 
@@ -62,14 +63,19 @@ export class TimelineService {
 
   /** Omitted means "leave as is". */
   async update(eventId: string, entryId: string, dto: UpdateTimelineEntryDto) {
-    await this.requireEntry(eventId, entryId);
+    const entry = await this.requireEntry(eventId, entryId);
     if (dto.venueId) await this.assertVenueBelongsToEvent(eventId, dto.venueId);
-    if (dto.label) assertHasLabel({ label: dto.label });
+    // A time can be changed, never cleared: `new Date(null)` stored 1970.
+    if (dto.occursAt === null) throw new BadRequestException('occursAt: give the entry a time; it cannot be cleared');
+    // One language at a time, as block copy is: replacing the whole map made
+    // correcting the English label delete the Armenian one.
+    const label = dto.label ? mergeTranslations(entry.label, dto.label) : undefined;
+    if (label) assertHasLabel({ label });
 
     const updated = await this.prisma.timelineEntry.update({
       where: { id: entryId },
       data: {
-        label: dto.label as Prisma.InputJsonValue | undefined,
+        label: label as Prisma.InputJsonValue | undefined,
         occursAt: dto.occursAt === undefined ? undefined : new Date(dto.occursAt),
         // null detaches it from its venue; omitted leaves it where it is.
         venueId: dto.venueId,
@@ -129,7 +135,10 @@ export class TimelineService {
  * invitation, which reads as a bug to the guests looking at it.
  */
 function assertHasLabel(dto: { label: Record<string, unknown> }): void {
-  if (Object.keys(dto.label).length === 0) {
+  // Blank text is no label either: `{"hy": ""}` rendered the empty row this
+  // rule exists to prevent.
+  const hasText = Object.values(dto.label).some((copy) => typeof copy === 'string' && copy.trim() !== '');
+  if (!hasText) {
     throw new BadRequestException('label: give the entry a name in at least one language');
   }
 }

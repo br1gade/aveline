@@ -86,4 +86,13 @@ describe('Reading an invitation without a personal link (e2e)', () => {
 
     await http().get(`/api/v1/invitations/${slug}`).expect(404);
   });
+
+  // B92: a regional tag was negotiated on the shared page but not here.
+  it('negotiates a regional language on a personal link', async () => {
+    const { slug, primaryGuestToken } = await eventWith(EventVisibility.PRIVATE);
+
+    const { body } = await http().get(`/api/v1/invitations/${slug}/g/${primaryGuestToken}`).query({ locale: 'en-GB' }).expect(200);
+
+    expect(body.locale).toBe('en');
+  });
 });

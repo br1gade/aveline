@@ -82,6 +82,17 @@ describe('An event’s uploads (e2e)', () => {
     expect(await prisma.mediaAsset.count({ where: { eventId } })).toBe(0);
   });
 
+  // B92 (decided 10 October 2026, D18): an SVG can carry script.
+  it('refuses an SVG', async () => {
+    const { eventId, authorization } = await designer();
+
+    await http()
+      .post(`/api/v1/events/${eventId}/media`)
+      .set('Authorization', authorization)
+      .attach('file', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), { filename: 'logo.svg', contentType: 'image/svg+xml' })
+      .expect(415);
+  });
+
   it('lists every upload, and says which blocks show it', async () => {
     const { eventId, slug, authorization } = await designer();
     const hero = await upload(eventId, authorization);

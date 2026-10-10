@@ -1961,7 +1961,10 @@ message starts with `assetIds:`. To set the invitation's cover, attach a photo
 to `HERO`; to set its music, attach audio to `MUSIC` (add the block through the
 arrangement call first). `VENUE`, `TIMELINE` and `COUNTDOWN` blocks ignore
 content you put here for the fields they bind from the event — see
-§Rendering blocks.
+§Rendering blocks. The guest page's `VENUE` and `MAP` data leave out `PREPARATION` venues and
+venues only internal timeline entries use (decided 10 October 2026); timeline
+entries at the same minute follow `sortOrder`. On this call `variant: null`
+resets the layout to the template's default.
 
 ### Publishing the invitation
 
@@ -2368,7 +2371,8 @@ Reading needs `event:read`; writing needs `event:write`. Design calls need
 POST /api/v1/events/:eventId/media        # multipart/form-data, field "file"
 ```
 
-JPEG, PNG, WebP, AVIF, SVG, MP3, M4A. Max 10 MB. Wrong type → `415`, too
+JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. Wrong type → `415` — SVG
+included, since it can carry script (decided 10 October 2026) — too
 large → `413`.
 
 ```json
@@ -2403,7 +2407,7 @@ each JPEG, PNG, WebP or AVIF photo gains smaller WebP copies at 480, 960 and
 the phone's orientation tag. Media on the guest page, in the editor and in the
 library then carry `width`, `height` and `variants`
 (`[{ width, height, url, sizeBytes }]`). **Build `srcset` from `variants` and
-fall back to `url`**: until the copies exist, and for SVG, `variants` is `[]`.
+fall back to `url`**: until the copies exist, `variants` is `[]`.
 The original is kept and stays at `url`.
 
 ### Admitting a ticket at the door

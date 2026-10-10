@@ -7,12 +7,15 @@ import {
 import { randomUUID } from 'node:crypto';
 import { FileToStore, STORAGE_ADAPTER, StorageAdapter, StoredFile } from './storage-port';
 
+/**
+ * No SVG (decided 10 October 2026, D18): an SVG can carry script, which runs
+ * the moment media is served from the app's own origin.
+ */
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/avif',
-  'image/svg+xml',
   'audio/mpeg',
   'audio/mp4',
 ]);
@@ -25,7 +28,6 @@ const EXTENSIONS: Record<string, string> = {
   'image/png': '.png',
   'image/webp': '.webp',
   'image/avif': '.avif',
-  'image/svg+xml': '.svg',
   'audio/mpeg': '.mp3',
   'audio/mp4': '.m4a',
 };

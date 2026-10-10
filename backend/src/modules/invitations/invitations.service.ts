@@ -17,7 +17,8 @@ const invitationInclude = {
     include: {
       venues: { orderBy: { sortOrder: 'asc' } },
       // Entries marked internal are for the people running the day, not guests.
-      timeline: { where: { isInternal: false }, orderBy: { occursAt: 'asc' } },
+      // The host's order breaks ties at the same minute, as on their own list.
+      timeline: { where: { isInternal: false }, orderBy: [{ occursAt: 'asc' }, { sortOrder: 'asc' }] },
     },
   },
 } satisfies Prisma.InvitationInclude;
@@ -25,6 +26,8 @@ const invitationInclude = {
 type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitationInclude }> & {
   /** The uploads its enabled blocks show, by id. */
   media: Map<string, BlockMedia>;
+  /** Venues the crew's internal timeline entries use — kept off the page unless guests' entries use them too. */
+  internalVenueIds: Set<string>;
 };
 type LoadedEvent = LoadedInvitation['event'];
 type LoadedBlock = LoadedInvitation['blocks'][number];
@@ -117,8 +120,9 @@ export class InvitationsService {
 
     // A language the guest picks on the page wins, if the event publishes it;
     // otherwise their own. Picking one does not change their stored language.
-    const preferred = requestedLocale && meta.locales.includes(requestedLocale) ? requestedLocale : (guest.locale ?? undefined);
-    const locale = negotiateLocale(preferred, meta.locales, meta.defaultLocale);
+    // Negotiated like the shared page: `en-GB` reaches `en`.
+    const asked = requestedLocale ? negotiateLocale(requestedLocale, meta.locales, '') : '';
+    const locale = negotiateLocale(asked || (guest.locale ?? undefined), meta.locales, meta.defaultLocale);
     const payload = await this.sharedPayload(slug, locale);
 
     void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: guest.id });
@@ -187,7 +191,7 @@ export class InvitationsService {
         settings: block.settings,
         content: translate(block.content) ?? {},
         media: mediaFor(block, invitation.media, translate),
-        data: this.hydrateBlock(block.type, event, translate, locale),
+        data: this.hydrateBlock(block.type, invitation, translate, locale),
       })),
       // How the built-in questions are asked: which to show, and fixed choices in this language.
       rsvpFields: fieldsForPage(invitation.rsvpFields, locale, event.defaultLocale),
@@ -213,7 +217,14 @@ export class InvitationsService {
     if (invitation.expiresAt && invitation.expiresAt < new Date()) {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
-    return { ...invitation, media: await this.loadBlockMedia(invitation) };
+    const [media, internal] = await Promise.all([
+      this.loadBlockMedia(invitation),
+      this.prisma.timelineEntry.findMany({
+        where: { eventId: invitation.eventId, isInternal: true, venueId: { not: null } },
+        select: { venueId: true },
+      }),
+    ]);
+    return { ...invitation, media, internalVenueIds: new Set(internal.flatMap((entry) => (entry.venueId ? [entry.venueId] : []))) };
   }
 
   /**
@@ -272,11 +283,12 @@ export class InvitationsService {
   }
 
   /** Pulls live Event data for the block types that must never duplicate it. */
-  private hydrateBlock(type: BlockType, event: LoadedEvent, translate: Translate, locale: string): unknown {
+  private hydrateBlock(type: BlockType, invitation: LoadedInvitation, translate: Translate, locale: string): unknown {
+    const { event } = invitation;
     switch (type) {
       case BlockType.VENUE:
       case BlockType.MAP:
-        return event.venues.map((venue) => ({
+        return guestVenues(invitation).map((venue) => ({
           // Timeline entries carry venueId; this is what they point at.
           id: venue.id,
           role: venue.role,
@@ -369,4 +381,17 @@ function seatingFor(guest: LoadedGuest) {
     table: own ? tableOf(own) : null,
     household: guest.household.guests.map((member) => ({ id: member.id, name: fullName(member), table: tableOf(member) })),
   };
+}
+
+/**
+ * The venues a guest should see (decided 10 October 2026, D17): not where the
+ * couple gets ready — often a family home — and not a place only the crew's
+ * internal entries use. The page used to show every venue on the event.
+ */
+function guestVenues(invitation: LoadedInvitation) {
+  const { event, internalVenueIds } = invitation;
+  const usedByGuests = new Set(event.timeline.map((entry) => entry.venueId).filter(Boolean));
+  return event.venues.filter(
+    (venue) => venue.role !== 'PREPARATION' && (!internalVenueIds.has(venue.id) || usedByGuests.has(venue.id)),
+  );
 }
