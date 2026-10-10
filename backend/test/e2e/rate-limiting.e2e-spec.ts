@@ -28,10 +28,11 @@ describe('Rate limiting behind a proxy (e2e)', () => {
   /** The short window is 10 per second, so 12 is comfortably over it. */
   const BURST = 12;
 
+  /** Public routes other than the guest's own page keep the tight limit. */
   const burstFrom = async (forwardedFor: string) => {
     const responses = await Promise.all(
       Array.from({ length: BURST }, () =>
-        http().get('/api/v1/invitations/no-such-slug').set('X-Forwarded-For', forwardedFor),
+        http().get('/api/v1/public/events/no-such-slug').set('X-Forwarded-For', forwardedFor),
       ),
     );
     return responses.filter((response) => response.status === 429).length;
@@ -82,10 +83,35 @@ describe('Rate limiting behind a proxy (e2e)', () => {
     // A different client, immediately afterwards, with its own allowance.
     const second = await Promise.all(
       Array.from({ length: 3 }, () =>
-        http().get('/api/v1/invitations/no-such-slug').set('X-Forwarded-For', '203.0.113.21'),
+        http().get('/api/v1/public/events/no-such-slug').set('X-Forwarded-For', '203.0.113.21'),
       ),
     );
 
     expect(second.map((response) => response.status)).toEqual([404, 404, 404]);
+  });
+
+  // B81: guests on the venue's Wi-Fi share one address, and opening their
+  // invitation to find their table counted against one allowance — 429s.
+  it('lets a whole room of guests on one address open their invitations', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 40 }, () =>
+        http().get('/api/v1/invitations/no-such-slug/g/some-token').set('X-Forwarded-For', '203.0.113.30'),
+      ),
+    );
+
+    expect(responses.filter((response) => response.status === 429)).toHaveLength(0);
+  });
+
+  it('counts signed-in staff per account, not per address', async () => {
+    const register = async (email: string) =>
+      (await http().post('/api/v1/auth/register').set('X-Forwarded-For', `198.51.100.${email.length}`).send({ email, password: 'a-long-enough-password', name: 'Staff' })).body as { accessToken: string };
+    const first = await register('door-one@test.local');
+    const second = await register('door-two-staff@test.local');
+    const list = (token: string) => http().get('/api/v1/events').set('X-Forwarded-For', '203.0.113.40').set('Authorization', `Bearer ${token}`);
+
+    await Promise.all(Array.from({ length: BURST }, () => list(first.accessToken)));
+    const theirs = await Promise.all(Array.from({ length: 3 }, () => list(second.accessToken)));
+
+    expect(theirs.map((response) => response.status)).toEqual([200, 200, 200]);
   });
 });

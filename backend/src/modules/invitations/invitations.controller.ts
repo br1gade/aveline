@@ -1,4 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ArrangementService } from './arrangement.service';
 import { ArrangeBlocksDto } from './dto/arrange-blocks.dto';
@@ -15,6 +17,7 @@ export class InvitationsController {
 
   // The capability link IS the credential — see docs/ACCESS_CONTROL.md §1.
   @Public()
+  @Throttle(GUEST_PAGE_LIMITS)
   @Get(':slug')
   @ApiOperation({ summary: 'Public invitation page payload (cached per slug and locale)' })
   @ApiOkResponse({ description: 'Hydrated, locale-resolved invitation' })
@@ -35,6 +38,7 @@ export class InvitationsController {
   }
 
   @Public()
+  @Throttle(GUEST_PAGE_LIMITS)
   @Get(':slug/g/:guestToken')
   @ApiOperation({ summary: 'Invitation personalized for one guest' })
   getForGuest(

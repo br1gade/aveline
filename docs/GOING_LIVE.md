@@ -65,7 +65,7 @@ Several of the bugs expose people's data.
 | Orphan reclamation | Nothing deletes assets when an event is archived; usage only grows |
 | Invitation expiry | Decided (indefinite paid, 3 months free) and modelled; nothing sets `expiresAt` or sweeps |
 | CDN | Garage serves media directly |
-| Rate limits per actor | The throttle is global, not per account. `POST /privacy/requests` is public and unthrottled |
+| Shared rate limits | Limits are per account or per address, but counted in each instance's memory: a second API instance doubles them. `POST /privacy/requests` has only the general public limit |
 | Asynchronous bounce reports | A rejection at send time is classified and suppresses the address. A bounce that arrives minutes later, as a report to the sending mailbox, is not read by anything |
 | Provider send-rate throttling | The dispatcher now sends for up to 40 seconds a minute, five at a time, account and ticket mail first — hundreds a minute — with no provider-side rate limit. A provider's quota rejection is retried and never suppresses the guest, but a quota hit mid-send still spreads that send over the retry backoff. Set the provider's limit before a large pilot event |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |

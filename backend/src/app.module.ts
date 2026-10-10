@@ -1,7 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { AccountOrAddressThrottlerGuard } from './infra/auth/throttler.guard';
 import { LoggerModule } from 'nestjs-pino';
 import { loggingConfig } from './infra/logging/logging.config';
 import { PrismaModule } from './prisma/prisma.module';
@@ -90,7 +91,7 @@ import { SeatingModule } from './modules/seating/seating.module';
     // Authentication is default-on. A route opts out with @Public, which is
     // a visible decision in the code rather than an omission nobody notices.
     { provide: APP_GUARD, useClass: AuthGuard },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: AccountOrAddressThrottlerGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })

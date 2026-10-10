@@ -77,9 +77,10 @@ content in ~20 ms — the payload is simply rebuilt from Postgres each time.
 
 ### Also in use
 
-**Rate limiting.** A global throttle (10/s, 100/min) stands in front of every
-route, which matters most for the unauthenticated ones — RSVP, ticket checkout
-and payment registration.
+**Rate limiting** is not in Redis: the throttle counts in each instance's
+memory. A signed-in caller is counted per account, anyone else per address
+(10/s, 100/min), and a guest's own invitation page more generously (50/s,
+3,000/min) because a whole room opens it on one Wi-Fi.
 
 **Distributed locks.** Each scheduled sweep takes a lock with `SET NX EX`, one
 atomic operation, so two API instances cannot both run it. If Redis is
@@ -91,7 +92,7 @@ message is better than sending it twice.
 - **Job queue** (BullMQ) for retryable per-item work — exports, image
   processing, seating computation. Cron plus a lock covers periodic sweeps and
   is far less machinery; a queue is for work that must retry individually
-- **Per-actor rate limits** rather than one global throttle
+- **Throttle counts in Redis**, so several API instances share one limit
 
 ### Decided differently
 

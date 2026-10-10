@@ -229,7 +229,11 @@ separate, because an invitee may not have an account yet.
 1. **Rotating guest links.** Vendor brief links can be rotated
    (`/vendors/:bookingId/rotate-brief`); a guest's invitation link is issued
    once and replaced only by erasure.
-2. **Per-actor rate limits.** The throttle is global rather than per account.
+2. **Rate limits shared across instances.** A signed-in caller is limited per
+   account and everyone else per address (10/s, 100/min; a guest's own
+   invitation page 50/s, 3,000/min, so a room on one Wi-Fi is not refused).
+   The counts live in each API instance's memory, so two instances double
+   the effective limit until they move to Redis.
 3. **Email verification is not enforced.** Anyone can register any address.
    Invitations guard against it — accepting for an existing account needs
    that account's password — but nothing else does.
