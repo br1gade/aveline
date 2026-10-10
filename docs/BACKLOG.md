@@ -25,7 +25,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
-| Bugfixes | 0 open | 9 open (B75–B79, B81–B84) | 9 open (B85–B92, B94) | — |
+| Bugfixes | 0 open | 0 open | 9 open (B85–B92, B94) | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
 | Decisions | 14 (D1–D14), all decided | | | |
 
@@ -67,19 +67,7 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 
 **P0** — none open. B63–B65 and B93 were fixed on 10 October 2026.
 
-**P1 — a pilot host will hit it**
-
-| # | Bug | Where | Size |
-|---|---|---|---|
-| B75 | A refresh racing a password reset or "sign out everywhere" creates a session nothing revoked; a reused refresh token is not detected | `infra/auth/auth.service.ts` | S |
-| B76 | A double-clicked Subscribe issues two open invoices, both payable — a double charge | `billing/subscriptions.service.ts` | S |
-| B77 | A double-uploaded or retried CSV duplicates households and guests; each duplicate is invited | `guests/import/guest-import.service.ts` | S |
-| B78 | A refund the bank processed but we failed to record is marked failed and asked again; a crash between claim and Refund row voids tickets with nothing paid back | `payments/payments.service.ts` | M |
-| B79 | No timeout on bank or S3 calls: a hanging bank holds checkout open and stalls every money sweep | `payments/providers/*`, `storage/adapters/s3.adapter.ts` | S |
-| B81 | The throttle is per IP and covers guest pages and check-in: guests and tablets on venue Wi-Fi get 429s | `app.module.ts` | S |
-| B82 | Hot paths are heavier than §12 assumes: the cached page still runs ~8 queries, a personal link ~14 uncached; every RSVP scans `messages`; sending and import run several queries per row | `invitations/`, `sending/rsvp-confirmer.service.ts`, `import/` | M |
-| B83 | PATCHing a booking to CANCELLED keeps its brief link, and PATCHing it back revives the old, possibly forwarded, link | `vendors/vendors.service.ts` | S |
-| B84 | The dev seed stores palettes by `key`, which the code does not read, so every theme edit is a 400 locally | `prisma/seed.ts` | S |
+**P1** — none open. B66–B84 were fixed on 10 October 2026.
 
 **P2 — later; money items before real money moves**
 
@@ -91,7 +79,7 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 | B88 | Erasure leaves the person's name on a household named after them, their email in the Mongo audit trail and invitation views, pending invites, session IP/UA, signature files; it deletes global complaint suppressions; re-importing the original file brings them back; the RSVP form can still write to an erased member | `privacy/erasure.ts` |
 | B89 | Validation: non-strict ISO dates 500 or shift (`2026-02-30`); import takes phones, lengths and CR/LF unchecked and emails un-normalised; blank names; unbounded guest dietary strings; translation keys unchecked; `{"hy":""}` labels; TTL env values unvalidated (NaN breaks every login) | DTOs, `env.validation.ts` |
 | B90 | Leaks: error bodies echo the URL with its capability token; invite emails and payment order numbers are not redacted from logs; the referer is not scrubbed; register reveals existing accounts (and answers 401); the privacy form reveals another person's request status | `all-exceptions.filter.ts`, `redact-url.ts`, `auth.service.ts`, `privacy.service.ts` |
-| B91 | Load at growth: missing indexes (`messages.guestId`, `tickets.orderId`, `rsvp_answers.questionId`, Mongo `audit_trail`); sweeps scanning all history; Prisma pool size unset; no TTL on Mongo collections; concurrent Mongo connects leak clients; sharp has no pixel limit; erasure's 5 s transaction; bcryptjs on the main thread; staff `GET /events` unbounded | schema, `infra/` |
+| B91 | Load at growth: sending and import still run several queries per household or row (1–3 s to send 400, ~20 s for a 2,000-row import); missing indexes (`tickets.orderId`, `rsvp_answers.questionId`, Mongo `audit_trail`); sweeps scanning all history; Prisma pool size unset; no TTL on Mongo collections; concurrent Mongo connects leak clients; sharp has no pixel limit; erasure's 5 s transaction; bcryptjs on the main thread; staff `GET /events` unbounded | schema, `infra/` |
 | B94 | `PATCH` a timeline entry with `occursAt: null` stores 1 January 1970 instead of a 400 | `design/timeline.service.ts` |
 | B92 | Smaller behaviours: block `variant: null` is ignored on the block edit; personal-page `?locale=en-GB` is not negotiated; timeline ties ignore `sortOrder`; label and question edits replace every language; message copy ignores translated titles; every venue, including `PREPARATION`, shows on the guest page; health says `ok` with Redis down and the container stays healthy with Postgres down; refund route reachable only by platform ADMIN; `?archived=true` unchecked; revoking an org invite is case-sensitive; confirmation dedupe by calendar minute; uploads served nowhere with filesystem storage in dev; SVG served from the app's origin would be XSS | various |
 
