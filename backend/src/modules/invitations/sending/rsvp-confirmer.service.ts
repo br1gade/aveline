@@ -6,6 +6,7 @@ import { CommunicationsService } from '../../communications/communications.servi
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { channelsWithCopy, loadSendableHouseholds } from './audience';
+import { eventWording } from './event-wording';
 import { confirmationDedupeKey, confirmationTemplateFor, statusConfirmedBy } from './rsvp-confirmation';
 import { displayName, planInvitationSend } from './send-plan';
 
@@ -66,6 +67,7 @@ export class RsvpConfirmerService {
             organizationId: true,
             title: true,
             hostsLabel: true,
+            translations: true,
             defaultLocale: true,
             invitation: { select: { slug: true } },
           },
@@ -100,8 +102,7 @@ export class RsvpConfirmerService {
       locale: recipient.guest.locale ?? event.defaultLocale,
       variables: {
         guestName: displayName(recipient.guest),
-        hosts: event.hostsLabel,
-        eventTitle: event.title,
+        ...eventWording({ title: event.title, hosts: event.hostsLabel, translations: event.translations }, recipient.guest.locale ?? event.defaultLocale),
         link: `${this.appUrl}/invitations/${event.invitation.slug}/g/${recipient.guest.token}`,
       },
       dedupeKey,

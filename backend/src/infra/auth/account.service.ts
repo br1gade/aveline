@@ -395,8 +395,9 @@ export class AccountService {
   }
 
   async revokeInvite(organizationId: string, email: string) {
+    // Invites are stored lower-cased; the address in the URL may not be.
     const revoked = await this.prisma.organizationInvite.updateMany({
-      where: { organizationId, email, acceptedAt: null, revokedAt: null },
+      where: { organizationId, email: email.trim().toLowerCase(), acceptedAt: null, revokedAt: null },
       data: { revokedAt: new Date() },
     });
     if (revoked.count === 0) throw new NotFoundException('No pending invitation for that address');

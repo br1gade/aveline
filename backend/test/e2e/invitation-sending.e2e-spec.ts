@@ -120,6 +120,18 @@ describe('Invitation sending (e2e)', () => {
       expect(addresses).not.toContain('narek@test.local');
     });
 
+    // B92: copy used the untranslated hosts and title for every language.
+    it('names the hosts in the guest\'s own language', async () => {
+      const { slug, eventId, authorization } = await host();
+      await prisma.event.update({ where: { id: eventId }, data: { translations: { en: { hostsLabel: 'Anna & Davit' } } } });
+      await prisma.guest.updateMany({ where: { eventId }, data: { locale: 'en' } });
+
+      await send(slug, authorization).expect(201);
+
+      const message = await prisma.message.findFirstOrThrow({ where: { eventId } });
+      expect(message.subject).toContain('Anna & Davit');
+    });
+
     it('queues the mail rather than sending it inside the request', async () => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);

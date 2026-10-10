@@ -464,7 +464,7 @@ undecided.
 
 It goes to the household's own recipient on the channel they were invited on,
 and carries their personal link so they can change their answer later. Two
-identical submissions within a minute produce one confirmation; a changed
+identical submissions in the same minute produce one confirmation; a changed
 answer is always confirmed, so the last confirmation matches the answer that
 stands.
 
@@ -807,7 +807,9 @@ DELETE /api/v1/events/:id
 GET    /api/v1/events?archived=true
 ```
 
-All need `event:delete`, which owners hold. Decided 9 October 2026:
+Archiving, unarchiving and deleting need `event:delete`, which owners hold;
+listing archived events is open to anyone who can see the events. Decided 9
+October 2026:
 
 - **Archive is always allowed, and reversible.** The event leaves
   `GET /events` (list archived ones with `?archived=true`), its invitation
@@ -2446,7 +2448,7 @@ register a charge against any organization). What remains:
 ```http
 GET  /api/v1/payments/:orderNumber           # public: current state
 POST /api/v1/payments/:orderNumber/confirm   # public: ask the bank what happened
-POST /api/v1/payments/:orderNumber/refund    # requires billing:write; not for tickets
+POST /api/v1/payments/:orderNumber/refund    # Aveline staff (platform ADMIN); not for tickets
 # a refund the bank does not answer is a 502 "outcome unknown"; it is never retried automatically
 POST /api/v1/payments/reconcile              # requires billing:read; ops only
 ```
@@ -2522,9 +2524,10 @@ GET /api/v1/health/live      # process is up
 GET /api/v1/health/ready     # dependencies
 ```
 
-`ready` returns `"status": "ok"` or `"degraded"`. **Degraded is still
-serving** — only Postgres is required; Redis and Mongo outages cost latency
-and analytics, not correctness.
+`ready` returns `"status": "ok"`, or `"degraded"` when Redis or Mongo is down
+— **degraded is still serving**: those outages cost latency and analytics,
+not correctness. With Postgres down nothing is served, so it answers `503`
+(`"status": "unavailable"`), which the container healthcheck acts on.
 
 ---
 

@@ -20,6 +20,7 @@ import {
   milestoneDedupeKey,
 } from './reminder-schedule';
 import { INVITATION_REACHED, channelsWithCopy, loadSendableHouseholds } from './audience';
+import { eventWording } from './event-wording';
 import { REACHED_STATUSES } from './previous-attempts';
 import { SendableHousehold, displayName, planInvitationSend } from './send-plan';
 
@@ -35,6 +36,7 @@ interface DueInvitation {
     organizationId: string;
     title: string;
     hostsLabel: string;
+    translations: unknown;
     startsAt: Date;
     defaultLocale: string;
   };
@@ -48,6 +50,7 @@ interface Remindable {
   organizationId: string;
   title: string;
   hosts: string;
+  translations: unknown;
   defaultLocale: string;
   startsAt: Date;
 }
@@ -184,6 +187,7 @@ export class ReminderService {
             organizationId: true,
             title: true,
             hostsLabel: true,
+            translations: true,
             startsAt: true,
             defaultLocale: true,
           },
@@ -222,6 +226,7 @@ export class ReminderService {
           organizationId: invitation.event.organizationId,
           title: invitation.event.title,
           hosts: invitation.event.hostsLabel,
+          translations: invitation.event.translations,
           defaultLocale: invitation.event.defaultLocale,
           startsAt: invitation.event.startsAt,
         },
@@ -286,8 +291,7 @@ export class ReminderService {
         locale: recipient.guest.locale ?? invitation.defaultLocale,
         variables: {
           guestName: displayName(recipient.guest),
-          hosts: invitation.hosts,
-          eventTitle: invitation.title,
+          ...eventWording(invitation, recipient.guest.locale ?? invitation.defaultLocale),
           link: `${this.appUrl}/invitations/${invitation.slug}/g/${recipient.guest.token}`,
           ...send.variables,
         },
@@ -496,6 +500,7 @@ export class ReminderService {
             organizationId: true,
             title: true,
             hostsLabel: true,
+            translations: true,
             startsAt: true,
             defaultLocale: true,
           },
@@ -512,6 +517,7 @@ export class ReminderService {
       organizationId: invitation.event.organizationId,
       title: invitation.event.title,
       hosts: invitation.event.hostsLabel,
+      translations: invitation.event.translations,
       startsAt: invitation.event.startsAt,
       defaultLocale: invitation.event.defaultLocale,
     };

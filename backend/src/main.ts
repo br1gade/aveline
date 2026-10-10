@@ -6,12 +6,23 @@ const isSentryEnabled = initialiseSentry(process.env);
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { StorageService } from './infra/storage/storage.service';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SerializeInterceptor } from './common/interceptors/serialize';
 import { proxyHopsFrom } from './common/proxy-trust';
 import { allowsDevelopmentShortcuts } from './common/environment';
+
+/**
+ * With no object store configured, uploads land on this server's disk under
+ * URLs like /files/ab/<key> — which nothing served, so every image and song
+ * was a broken link. The same root the filesystem adapter writes to.
+ */
+function serveLocalUploads(app: NestExpressApplication): void {
+  if (app.get(StorageService).backend !== 'filesystem') return;
+  app.useStaticAssets(process.env.STORAGE_ROOT ?? './storage', { prefix: '/files', index: false, dotfiles: 'deny' });
+}
 
 async function bootstrap() {
   // bufferLogs holds startup messages until pino is attached, so nothing is
@@ -33,6 +44,8 @@ async function bootstrap() {
   // Money is BigInt in the domain and JSON.stringify throws on it, so every
   // response passes through here rather than each endpoint remembering.
   app.useGlobalInterceptors(new SerializeInterceptor());
+
+  serveLocalUploads(app);
 
   // Without this, the disconnect handlers on the Redis and Mongo modules never
   // run: a deploy leaves connections open until the server times them out.

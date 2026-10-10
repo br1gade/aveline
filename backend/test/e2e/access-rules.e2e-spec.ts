@@ -141,6 +141,20 @@ describe('Access between and within organizations (e2e)', () => {
     });
   });
 
+  // B92: revoking an invitation matched the address exactly, though invites
+  // are stored lower-cased — `Ani@X.am` was "not found" and stayed live.
+  it('revokes an invitation whatever the capitals', async () => {
+    const owner = await memberOf(OrganizationRole.OWNER);
+    await prisma.messageTemplate.create({
+      data: { organizationId: null, key: 'organization.invite', channel: MessageChannel.EMAIL, body: { hy: '{{link}} {{organizationName}} {{role}}' } },
+    });
+    await http().post('/api/v1/organization/invites').set('Authorization', owner.authorization).send({ email: 'ani@example.am', role: 'MEMBER' }).expect(201);
+
+    await http().delete('/api/v1/organization/invites/Ani@Example.AM').set('Authorization', owner.authorization).expect(200);
+
+    expect(await prisma.organizationInvite.count({ where: { revokedAt: null } })).toBe(0);
+  });
+
   describe('one account per email, whatever the capitals (B15)', () => {
     it('signs in with any capitals, and refuses a second account that differs only in case', async () => {
       await http().post('/api/v1/auth/register').send({ email: ' Ani@Example.AM ', password: 'a-long-enough-password', name: 'Ani' }).expect(201);

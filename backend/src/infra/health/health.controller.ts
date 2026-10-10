@@ -1,4 +1,4 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type Redis from 'ioredis';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -42,12 +42,12 @@ export class HealthController {
       this.check(() => this.mongo.db()),
     ]);
 
-    return {
-      status: postgres.isUp ? 'ok' : 'degraded',
-      required: { postgres },
-      optional: { redis, mongo },
-      at: new Date().toISOString(),
-    };
+    const report = { required: { postgres }, optional: { redis, mongo }, at: new Date().toISOString() };
+    // Without Postgres nothing is served, so it is not ready: 503, which the
+    // container's healthcheck and a load balancer act on. It used to say
+    // "degraded" with a 200, and "ok" with Redis or Mongo down — the reverse.
+    if (!postgres.isUp) throw new ServiceUnavailableException({ status: 'unavailable', ...report });
+    return { status: redis.isUp && mongo.isUp ? 'ok' : 'degraded', ...report };
   }
 
   private async check(probe: () => Promise<unknown>) {

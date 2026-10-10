@@ -6,6 +6,7 @@ import { CommunicationsService } from '../../communications/communications.servi
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { channelsWithCopy, loadSendableHouseholds } from './audience';
+import { eventWording } from './event-wording';
 import { PreviousAttempt, REACHED_STATUSES, hasReachedGuest, isSupersededFailure } from './previous-attempts';
 import { REMINDER_TEMPLATE_KEY } from './reminder-schedule';
 import {
@@ -170,7 +171,7 @@ export class InvitationSenderService {
   }
 
   private async enqueueFor(
-    invitation: { id: string; slug: string; eventId: string; organizationId: string; hosts: string; title: string; defaultLocale: string },
+    invitation: { id: string; slug: string; eventId: string; organizationId: string; hosts: string; title: string; translations: unknown; defaultLocale: string },
     recipient: Recipient,
     attemptNumber: number,
   ): Promise<'QUEUED' | 'SUPPRESSED'> {
@@ -190,8 +191,7 @@ export class InvitationSenderService {
       locale: guest.locale ?? invitation.defaultLocale,
       variables: {
         guestName: displayName(guest),
-        hosts: invitation.hosts,
-        eventTitle: invitation.title,
+        ...eventWording(invitation, guest.locale ?? invitation.defaultLocale),
         link: this.linkFor(invitation.slug, guest.token),
         telegramLink: this.telegramLinkFor(guest.token),
       },
@@ -252,6 +252,7 @@ export class InvitationSenderService {
             organizationId: true,
             title: true,
             hostsLabel: true,
+            translations: true,
             defaultLocale: true,
           },
         },
@@ -267,6 +268,7 @@ export class InvitationSenderService {
       organizationId: invitation.event.organizationId,
       title: invitation.event.title,
       hosts: invitation.event.hostsLabel,
+      translations: invitation.event.translations,
       defaultLocale: invitation.event.defaultLocale,
     };
   }
