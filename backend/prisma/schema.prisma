@@ -50,24 +50,28 @@ enum OrgKind {
 }
 
 model User {
-  id           String       @id @default(cuid())
+  id                String       @id @default(cuid())
   /// Stored lower-cased. Also unique on lower(email) — a functional index
   /// Prisma cannot express, created in 20261009160000_access_and_vendors and
   /// not to be dropped: without it Ani@x.am and ani@x.am were two accounts.
-  email        String       @unique
-  name         String
+  email             String       @unique
+  name              String
   /// Aveline's own staff. Customers are NONE; concierge operators are SUPPORT.
-  platformRole PlatformRole @default(NONE)
+  platformRole      PlatformRole @default(NONE)
   /// Null for an account that has never set a password — an invited member who
   /// has not accepted, or one that will authenticate another way.
-  passwordHash String?
-  isActive     Boolean      @default(true)
-  lastLoginAt  DateTime?
+  passwordHash      String?
+  isActive          Boolean      @default(true)
+  /// Moved on by a password reset or "sign out everywhere". Every session and
+  /// access token carries the generation it was issued in; an older one is
+  /// refused at once, not when its fifteen minutes run out.
+  sessionGeneration Int          @default(0)
+  lastLoginAt       DateTime?
   /// Account closure. Soft rather than hard, because a deleted user is still
   /// referenced by the events they ran and the payments they authorised.
-  deletedAt    DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  deletedAt         DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   organizationMemberships OrganizationMembership[]
   eventMemberships        EventMembership[]
@@ -96,6 +100,10 @@ model Session {
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime  @default(now())
+  /// The account's session generation when this was issued. A password reset
+  /// or "sign out everywhere" moves the account on, and a session from an
+  /// older generation is dead, however it was minted.
+  generation Int       @default(0)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

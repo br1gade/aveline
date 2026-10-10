@@ -108,9 +108,12 @@ export class AuthGuard implements CanActivate {
   ): Promise<RequestActor> {
     const user = await this.prisma.user.findUnique({
       where: { id: claims.sub },
-      select: { id: true, email: true, platformRole: true, isActive: true },
+      select: { id: true, email: true, platformRole: true, isActive: true, sessionGeneration: true },
     });
     if (!user?.isActive) throw new UnauthorizedException('Account is not active');
+    // Issued before a password reset or "sign out everywhere": refused now,
+    // not when its minutes run out.
+    if ((claims.gen ?? 0) !== user.sessionGeneration) throw new UnauthorizedException('Session has ended');
 
     const eventId = await this.eventIdFrom(params, scope);
     const { eventRole, organizationRole, organizationId } = await this.standingOf(

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { compare, hash } from 'bcryptjs';
@@ -7,6 +7,9 @@ import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 
 /** A valid hash of a random string nobody knows, at the cost real hashes use. */
+/** A replaced refresh token resent this soon is a retry, not theft. */
+const REUSE_GRACE_MS = 60_000;
+
 const TIMING_DUMMY_HASH = '$2b$12$Clb6dFgAWHxEY8ObdDx41.sdr2UKjD7MN7iKsH8bxuvyDb3kVMchG';
 
 const BCRYPT_ROUNDS = 12;
@@ -18,6 +21,8 @@ export interface AccessTokenClaims {
   sub: string;
   email: string;
   platformRole: string;
+  /** The account's session generation when issued; absent on older tokens, read as 0. */
+  gen?: number;
 }
 
 export interface SessionContext {
@@ -27,6 +32,8 @@ export interface SessionContext {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   private readonly accessTokenTtlSeconds: number;
   private readonly refreshTokenTtlMs: number;
 
@@ -93,8 +100,16 @@ export class AuthService {
       where: { tokenHash: hashRefreshToken(refreshToken) },
       include: { user: true },
     });
-
-    if (!session || session.revokedAt || isExpired(session.expiresAt) || !session.user.isActive) {
+    if (!session || isExpired(session.expiresAt) || !session.user.isActive) {
+      throw new UnauthorizedException('Session is no longer valid');
+    }
+    if (session.revokedAt) {
+      await this.treatAsStolenIfStale(session.userId, session.revokedAt);
+      throw new UnauthorizedException('Session is no longer valid');
+    }
+    // From before a password reset or "sign out everywhere": dead, however
+    // it was minted — including by a refresh that raced the reset.
+    if (session.generation !== session.user.sessionGeneration) {
       throw new UnauthorizedException('Session is no longer valid');
     }
 
@@ -110,6 +125,18 @@ export class AuthService {
     return this.issueTokens(session.user, context);
   }
 
+  /**
+   * A refresh token used again after it was replaced is the theft rotation
+   * exists to reveal: the thief or the owner holds a copy. Every session
+   * ends. A retry within a minute — a client resending after a dropped
+   * response — is not treated as theft.
+   */
+  private async treatAsStolenIfStale(userId: string, revokedAt: Date): Promise<void> {
+    if (Date.now() - revokedAt.getTime() < REUSE_GRACE_MS) return;
+    await this.revokeAllSessions(userId);
+    this.logger.warn(`a replaced refresh token for user ${userId} was used again; every session revoked`);
+  }
+
   async logout(refreshToken: string): Promise<void> {
     await this.prisma.session.updateMany({
       where: { tokenHash: hashRefreshToken(refreshToken), revokedAt: null },
@@ -117,23 +144,32 @@ export class AuthService {
     });
   }
 
-  /** Revokes every session for a user — the "sign out everywhere" action. */
+  /**
+   * Revokes every session for a user — the "sign out everywhere" action. The
+   * generation moves on in the same transaction, so access tokens already
+   * issued stop at once, and a session a concurrent refresh mints is born dead.
+   */
   async revokeAllSessions(userId: string): Promise<{ revoked: number }> {
-    const result = await this.prisma.session.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    const [result] = await this.prisma.$transaction([
+      this.prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      this.prisma.user.update({ where: { id: userId }, data: { sessionGeneration: { increment: 1 } } }),
+    ]);
     return { revoked: result.count };
   }
 
+  /**
+   * The generation is the one read before any slow work — the password check,
+   * the session lookup — so a reset landing in between leaves these born dead.
+   */
   private async issueTokens(
-    user: { id: string; email: string; platformRole: string },
+    user: { id: string; email: string; platformRole: string; sessionGeneration: number },
     context: SessionContext,
   ) {
     const refreshToken = newRefreshToken();
 
     await this.prisma.session.create({
       data: {
+        generation: user.sessionGeneration,
         userId: user.id,
         tokenHash: hashRefreshToken(refreshToken),
         expiresAt: new Date(Date.now() + this.refreshTokenTtlMs),
@@ -146,6 +182,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       platformRole: user.platformRole,
+      gen: user.sessionGeneration,
     };
     const accessToken = await this.jwt.signAsync<AccessTokenClaims>(claims, {
       expiresIn: this.accessTokenTtlSeconds,

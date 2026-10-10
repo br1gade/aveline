@@ -137,9 +137,12 @@ export class AccountService {
     const record = await this.consumeToken(token, VerificationPurpose.PASSWORD_RESET);
 
     await this.prisma.$transaction([
+      // The generation moves on with the password: every session and access
+      // token from before is refused at once, including one a concurrent
+      // login or refresh is minting right now.
       this.prisma.user.update({
         where: { id: record.userId },
-        data: { passwordHash: await hash(password, BCRYPT_ROUNDS) },
+        data: { passwordHash: await hash(password, BCRYPT_ROUNDS), sessionGeneration: { increment: 1 } },
       }),
       this.prisma.session.updateMany({
         where: { userId: record.userId, revokedAt: null },

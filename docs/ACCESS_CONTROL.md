@@ -205,8 +205,16 @@ SHA-256 of each token is stored, so a database leak does not hand over live
 sessions.
 
 **Refresh rotates.** Presenting a refresh token revokes it and issues a new
-pair, so a stolen token works at most once — and its use invalidates the
-victim's session, which is how the theft becomes visible.
+pair, so a stolen token works at most once. **A replaced token used again**
+more than a minute later is treated as theft: every session of the account
+ends. (Within the minute it is a client retry, and only refused.)
+
+**Sessions have a generation.** A password reset or "sign out everywhere"
+moves the account's generation on in the same transaction that revokes its
+sessions. Every session and access token carries the generation it was
+issued in, and the guard refuses an older one at once — issued access tokens
+do not live out their minutes, and a session a concurrent login or refresh
+mints during the reset is born dead.
 
 Roles are **never** read from the token. `AuthGuard` loads membership from the
 database on every request, so removing someone from an event takes effect

@@ -127,6 +127,47 @@ describe('Authentication (e2e)', () => {
       expect(await prisma.session.count({ where: { userId: user.id, revokedAt: null } })).toBe(before);
     });
 
+    // B75: signing out everywhere or resetting the password left issued
+    // access tokens working for their remaining minutes, and a refresh racing
+    // the reset could mint a session nothing revoked.
+    describe('ending every session', () => {
+      // Any signed-in route will do: the guard is what is under test.
+      const me = (authorization: string) => http().get('/api/v1/events').set('Authorization', authorization);
+
+      it('stops every issued access token at once when the account signs out everywhere', async () => {
+        const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+        const { body: second } = await http().post('/api/v1/auth/login').send({ email: credentials.email, password: credentials.password }).expect(201);
+        await me(`Bearer ${first.accessToken as string}`).expect(200);
+
+        await http().post('/api/v1/auth/logout-everywhere').set('Authorization', `Bearer ${second.accessToken as string}`).expect(201);
+
+        await me(`Bearer ${first.accessToken as string}`).expect(401);
+        await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(401);
+      });
+
+      it('does not honour a session minted under the old password', async () => {
+        const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+        const user = await prisma.user.findFirstOrThrow({ where: { email: credentials.email } });
+        // A refresh that read the account before the reset, and wrote after it.
+        const { body: raced } = await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(201);
+        await prisma.user.update({ where: { id: user.id }, data: { sessionGeneration: { increment: 1 } } });
+
+        await me(`Bearer ${raced.accessToken as string}`).expect(401);
+        await http().post('/api/v1/auth/refresh').send({ refreshToken: raced.refreshToken }).expect(401);
+      });
+
+      it('signs out every session when a refresh token is used again long after it was replaced', async () => {
+        const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+        const { body: second } = await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(201);
+        await prisma.session.updateMany({ where: { revokedAt: { not: null } }, data: { revokedAt: new Date(Date.now() - 5 * 60_000) } });
+
+        await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(401);
+
+        await me(`Bearer ${second.accessToken as string}`).expect(401);
+        await http().post('/api/v1/auth/refresh').send({ refreshToken: second.refreshToken }).expect(401);
+      });
+    });
+
     it('rejects a refresh token after logout', async () => {
       const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
 
