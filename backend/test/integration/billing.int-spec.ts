@@ -188,6 +188,15 @@ describe('billing (integration)', () => {
       await plan({ key: 'pro', priceMinor: 50_000n });
     });
 
+    // B76: a double click issued two open invoices, both payable.
+    it('issues one invoice for a double-clicked subscribe, and returns it to both', async () => {
+      const [first, second] = await Promise.all([subscribeTo('pro'), subscribeTo('pro')]);
+
+      expect(second.invoice?.number).toBe(first.invoice?.number);
+      expect(second.payment?.orderNumber).toBe(first.payment?.orderNumber);
+      expect(await prisma.invoice.count({ where: { organizationId, status: 'ISSUED' } })).toBe(1);
+    });
+
     it('keeps the current plan active until the new one is paid', async () => {
       await activeOn('basic');
 

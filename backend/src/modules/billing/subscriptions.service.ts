@@ -102,6 +102,17 @@ export class SubscriptionsService {
     // exactly as it is — the invoice carries the plan, applied when paid — so
     // an abandoned change never touches what the customer already has (B39).
     const { subscription, invoice } = await this.prisma.$transaction(async (tx) => {
+      // One plan change at a time per organization: two clicks used to read
+      // "no open invoice" together and issue two, both payable.
+      await tx.$queryRaw`SELECT id FROM organizations WHERE id = ${organizationId} FOR UPDATE`;
+      const open = await tx.invoice.findFirst({
+        where: { organizationId, planId: plan.id, status: InvoiceStatus.ISSUED },
+        include: { subscription: { include: { plan: true } } },
+      });
+      // The same plan asked for again — a double click, a retry — is the same
+      // invoice, and its payment is idempotent by invoice id.
+      if (open?.subscription) return { subscription: open.subscription, invoice: open };
+
       const existing = await tx.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
       const target =
         existing ??

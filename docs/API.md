@@ -1380,7 +1380,9 @@ POST /api/v1/invoices/:number/confirm
 which asks the bank server-to-server and activates the subscription. Safe to
 call twice; a second call never double-activates or double-counts.
 
-Changing plan is the same call with a different `planKey`. **Nothing changes
+Changing plan is the same call with a different `planKey`. Asking for the
+same plan again while its invoice is open — a double click, a retry — returns
+that invoice and its payment, never a second one. **Nothing changes
 until the new invoice is paid**: the current plan and status stay as they are,
 and paying applies the invoice's plan with a period starting then. A paid
 change abandoned at the bank leaves the customer exactly where they were. A
