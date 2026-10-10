@@ -40,6 +40,11 @@ Authorization: Bearer <accessToken>
 `message` is a **string or an array of strings** — validation failures return
 an array, one entry per bad field. Handle both.
 
+`path` has its credential replaced: a guest's link comes back as
+`/invitations/:slug/g/[token]`, an invite's address as `[email]`, a payment's
+order number as `[order]`. An error report or a screenshot of one is not a
+working link.
+
 ### Every response carries an id and a timestamp
 
 ```
@@ -140,14 +145,25 @@ label, alt text — is a `400` naming the field.
 
 ## 2. Authentication
 
-### Register / log in
+### Register, then log in
 
 ```http
-POST /api/v1/auth/register    { email, password, name }
+POST /api/v1/auth/register    { email, password, name }   → 202 { "accepted": true }
 POST /api/v1/auth/login       { email, password }
 ```
 
-Password is at least 10 characters. Both return:
+**Register does not sign in.** It answers `202 { "accepted": true }` whether
+the address was new or already had an account — refusing a taken address told
+anyone which addresses hold accounts. The owner of an existing account is
+emailed a sign-in link instead. So the client always logs in next with the
+same credentials: for a new account that succeeds; for a taken address with
+someone else's password it fails with the usual 401, and "check your email"
+is the honest thing to show.
+
+**Breaking, 10 October 2026:** register returned a token pair with `201`, and
+a taken address answered `401`.
+
+Password is at least 10 characters. Login returns:
 
 ```json
 {
@@ -1298,7 +1314,7 @@ POST /api/v1/organizations      { "name": "Petrosyan Wedding", "kind": "HOST" }
 **A freshly registered account belongs to no organization, and every
 organization-scoped route answers `403` until it does** (`GET /events` answers
 `[]`). Registering is not enough. Make this call immediately after
-`POST /auth/register` unless the account arrived through
+registering and logging in, unless the account arrived through
 `POST /invites/accept`, which already placed it in one — or through
 `POST /event-invites/accept`, which places it on one event and needs no
 organization.
@@ -1698,7 +1714,7 @@ with no account, so requiring one would make the right unexercisable.
 
 ```json
 {
-  "reference": "clz...", "kind": "EXPORT", "status": "RECEIVED",
+  "kind": "EXPORT", "status": "RECEIVED",
   "dueAt": "2026-11-04T...",
   "message": "Your request has been recorded. We will verify your identity and respond within one month."
 }
@@ -1710,8 +1726,11 @@ type any address into this form. Do not build a UI that implies otherwise.
 
 `kind` is `EXPORT` (Article 15), `ERASURE` (Article 17) or `RECTIFICATION`
 (Article 16). `dueAt` is one month out, per Article 12. Submitting the same
-kind for the same address while one is open returns the existing `reference`
-rather than opening a second.
+kind for the same address while one is open adds to it rather than opening a
+second — but the answer is the same fresh receipt either way, so it never
+says that someone else already asked. **Breaking, 10 October 2026:** the
+answer carried a `reference`, and for an open request its own status and
+deadline; `reference` is gone. Staff find a request in the list.
 
 ```http
 GET   /api/v1/privacy/requests?status=RECEIVED

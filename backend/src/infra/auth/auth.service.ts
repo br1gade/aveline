@@ -1,18 +1,17 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { compare, hash } from 'bcryptjs';
+import { compare } from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto } from './dto/auth.dto';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 
-/** A valid hash of a random string nobody knows, at the cost real hashes use. */
 /** A replaced refresh token resent this soon is a retry, not theft. */
 const REUSE_GRACE_MS = 60_000;
 
+/** A valid hash of a random string nobody knows, at the cost real hashes use. */
 const TIMING_DUMMY_HASH = '$2b$12$Clb6dFgAWHxEY8ObdDx41.sdr2UKjD7MN7iKsH8bxuvyDb3kVMchG';
 
-const BCRYPT_ROUNDS = 12;
 
 /** What an access token carries. Deliberately minimal: roles that govern a
  *  specific resource are resolved per request, never trusted from a token
@@ -47,23 +46,6 @@ export class AuthService {
     this.accessTokenTtlSeconds = Number(config.get<string>('ACCESS_TOKEN_TTL_SECONDS') ?? 900);
     this.refreshTokenTtlMs =
       Number(config.get<string>('REFRESH_TOKEN_TTL_DAYS') ?? 30) * 24 * 60 * 60 * 1000;
-  }
-
-  async register(dto: RegisterDto, context: SessionContext) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    // Deliberately the same message as a bad login: whether an address has an
-    // account is information worth not leaking.
-    if (existing) throw new UnauthorizedException('Could not create that account');
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        name: dto.name,
-        passwordHash: await hash(dto.password, BCRYPT_ROUNDS),
-      },
-    });
-
-    return this.issueTokens(user, context);
   }
 
   async login(dto: LoginDto, context: SessionContext) {

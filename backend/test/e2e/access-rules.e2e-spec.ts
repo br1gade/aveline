@@ -136,7 +136,7 @@ describe('Access between and within organizations (e2e)', () => {
         .set('Authorization', owner.authorization)
         .send({ email: 'ani@example.am', role: 'MEMBER' })
         .expect(201);
-      await http().post('/api/v1/auth/register').send({ email: 'ani@example.am', password: 'a-long-enough-password', name: 'Ani' }).expect(201);
+      await http().post('/api/v1/auth/register').send({ email: 'ani@example.am', password: 'a-long-enough-password', name: 'Ani' }).expect(202);
       const ani = await prisma.user.findFirstOrThrow({ where: { email: 'ani@example.am' } });
       const theirs = await prisma.organization.create({ data: { name: 'Ani’s Own', kind: 'HOST' } });
       await prisma.organizationMembership.create({ data: { userId: ani.id, organizationId: theirs.id, role: OrganizationRole.OWNER } });
@@ -167,11 +167,11 @@ describe('Access between and within organizations (e2e)', () => {
 
   describe('one account per email, whatever the capitals (B15)', () => {
     it('signs in with any capitals, and refuses a second account that differs only in case', async () => {
-      await http().post('/api/v1/auth/register').send({ email: ' Ani@Example.AM ', password: 'a-long-enough-password', name: 'Ani' }).expect(201);
+      await http().post('/api/v1/auth/register').send({ email: ' Ani@Example.AM ', password: 'a-long-enough-password', name: 'Ani' }).expect(202);
 
       await http().post('/api/v1/auth/login').send({ email: 'ani@example.am', password: 'a-long-enough-password' }).expect(201);
       await http().post('/api/v1/auth/login').send({ email: 'ANI@EXAMPLE.AM', password: 'a-long-enough-password' }).expect(201);
-      await http().post('/api/v1/auth/register').send({ email: 'ani@example.am', password: 'another-long-password', name: 'Ani 2' }).expect(401);
+      await http().post('/api/v1/auth/register').send({ email: 'ani@example.am', password: 'another-long-password', name: 'Ani 2' }).expect(202);
       expect(await prisma.user.count()).toBe(1);
     });
   });

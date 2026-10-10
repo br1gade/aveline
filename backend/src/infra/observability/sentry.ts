@@ -45,7 +45,13 @@ export function initialiseSentry(env: NodeJS.ProcessEnv): boolean {
  */
 export function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
   if (event.request?.headers) {
-    for (const header of ['authorization', 'cookie', 'x-api-key', 'x-telegram-bot-api-secret-token']) {
+    for (const header of [
+      'authorization',
+      'cookie',
+      'referer',
+      'x-api-key',
+      'x-telegram-bot-api-secret-token',
+    ]) {
       delete event.request.headers[header];
     }
   }

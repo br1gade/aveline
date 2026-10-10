@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, Ip, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpStatus, Ip, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, Public, RequestActor } from './actor';
 import { AccountService } from './account.service';
@@ -20,13 +20,15 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @ApiOperation({ summary: 'Create an account and start a session' })
-  register(
-    @Body() dto: RegisterDto,
-    @Headers('user-agent') userAgent?: string,
-    @Ip() ipAddress?: string,
-  ) {
-    return this.auth.register(dto, { userAgent, ipAddress });
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Create an account',
+    description:
+      'Answers 202 the same way whether or not the address already has an account; the owner of ' +
+      'an existing one is emailed a way in. Does not sign in — log in next.',
+  })
+  register(@Body() dto: RegisterDto) {
+    return this.accounts.register(dto);
   }
 
   @Public()

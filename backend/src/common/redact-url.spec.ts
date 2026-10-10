@@ -9,6 +9,10 @@ describe('redactUrl', () => {
     ['/api/v1/tickets/ABCDEF123/admit', '/api/v1/tickets/[token]/admit'],
     ['/api/v1/briefs/brief-token-1', '/api/v1/briefs/[token]'],
     ['/api/v1/devices/push-token', '/api/v1/devices/[token]'],
+    ['/api/v1/payments/AV-20261010-1234', '/api/v1/payments/[order]'],
+    ['/api/v1/payments/AV-20261010-1234/confirm', '/api/v1/payments/[order]/confirm'],
+    ['/api/v1/organization/invites/anna%40example.am', '/api/v1/organization/invites/[email]'],
+    ['/api/v1/events/clz123/team/invites/anna@example.am', '/api/v1/events/clz123/team/invites/[email]'],
   ])('removes the credential from %s', (url, expected) => {
     expect(redactUrl(url)).toBe(expected);
   });
@@ -16,6 +20,9 @@ describe('redactUrl', () => {
   it.each([
     '/api/v1/invitations/anna-davit',
     '/api/v1/ticket-orders/release-expired',
+    '/api/v1/payments/reconcile',
+    '/api/v1/invites/accept',
+    '/api/v1/organization/invites',
     '/api/v1/events/clz123/ticket-orders',
     '/api/v1/events/clz123/guests/clz456',
   ])('leaves %s alone — no credential in it', (url) => {
@@ -27,7 +34,7 @@ describe('redactUrl', () => {
       '/api/v1/concierge/organizations?search=[redacted]&locale=hy',
     );
     expect(redactUrl('/api/v1/payments/return?orderId=123&token=abc')).toBe(
-      '/api/v1/payments/return?orderId=[redacted]&token=[redacted]',
+      '/api/v1/payments/[order]?orderId=[redacted]&token=[redacted]',
     );
   });
 });

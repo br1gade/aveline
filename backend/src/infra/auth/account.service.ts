@@ -14,11 +14,15 @@ import { allowsDevelopmentShortcuts } from '../../common/environment';
 import { PrismaService } from '../../prisma/prisma.service';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 import { AcceptInviteDto, InviteMemberDto, InviteToEventDto } from './dto/account.dto';
+import { RegisterDto } from './dto/auth.dto';
+import { isUniqueViolation } from '../../common/prisma-errors';
 
 const BCRYPT_ROUNDS = 12;
 const RESET_LIFETIME_MS = 60 * 60 * 1000;
 const VERIFICATION_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const INVITE_LIFETIME_MS = 14 * 24 * 60 * 60 * 1000;
+/** At most one "you already have an account" email per account in this window. */
+const ALREADY_REGISTERED_NOTICE_MS = 60 * 60 * 1000;
 
 /**
  * The parts of an account's life that are not logging in: recovering a
@@ -48,15 +52,6 @@ export class AccountService {
   }
 
   /**
-   * Returns the link itself outside production.
-   *
-   * No transport delivers mail yet, so without this a developer cannot
-   * complete a password reset or accept an invitation at all. Guarded on
-   * NODE_ENV rather than a feature flag, because a flag left on in production
-   * would hand out account-takeover links over HTTP — and only on an explicit
-   * development value, so an unset NODE_ENV cannot turn it on.
-   */
-  /**
    * Sends an account email through the outbox.
    *
    * Through the outbox rather than straight to a transport, so these get the
@@ -79,6 +74,7 @@ export class AccountService {
     toAddress: string;
     variables: Record<string, string>;
     organizationId?: string;
+    dedupeKey?: string;
   }): Promise<void> {
     try {
       await this.communications.enqueue({
@@ -88,6 +84,7 @@ export class AccountService {
         toAddress: params.toAddress,
         locale: this.defaultLocale,
         variables: params.variables,
+        dedupeKey: params.dedupeKey,
       });
     } catch (error) {
       this.logger.error(
@@ -100,8 +97,64 @@ export class AccountService {
     return `${this.appUrl}${path}?token=${token}`;
   }
 
+  /**
+   * Returns the link itself outside production.
+   *
+   * No transport delivers mail yet, so without this a developer cannot
+   * complete a password reset or accept an invitation at all. Guarded on
+   * NODE_ENV rather than a feature flag, because a flag left on in production
+   * would hand out account-takeover links over HTTP — and only on an explicit
+   * development value, so an unset NODE_ENV cannot turn it on.
+   */
   private devLink(path: string, token: string): { devLink?: string } {
     return this.isDevelopmentLinkAllowed ? { devLink: this.linkFor(path, token) } : {};
+  }
+
+  /**
+   * Creates an account — and answers exactly the same when the address
+   * already has one (decided 10 October 2026).
+   *
+   * Refusing an existing address told anyone which addresses hold accounts.
+   * So both paths hash the password, both return the same body, and the
+   * owner of an existing account is emailed a way in instead; a typo'd sign-up
+   * by the real owner still ends with them signed in. Nothing here signs
+   * anyone in: the client logs in next, which is also what proves the
+   * password belongs to whoever is at the keyboard.
+   */
+  async register(dto: RegisterDto) {
+    const passwordHash = await hash(dto.password, BCRYPT_ROUNDS);
+    try {
+      await this.prisma.user.create({ data: { email: dto.email, name: dto.name, passwordHash } });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      // Not awaited: the extra queries would make this path measurably
+      // slower than a real sign-up, which is the same leak by a clock.
+      void this.noticeRegistrationAttempt(dto.email).catch((noticeError: unknown) =>
+        this.logger.error(`could not notice a repeat registration: ${describeError(noticeError)}`),
+      );
+    }
+    return { accepted: true as const };
+  }
+
+  private async noticeRegistrationAttempt(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true, isActive: true, deletedAt: true },
+    });
+    if (!user?.isActive || user.deletedAt !== null) return;
+
+    // One per hour per account, so a script cannot fill someone's inbox.
+    const window = Math.floor(Date.now() / ALREADY_REGISTERED_NOTICE_MS);
+    await this.mail({
+      templateKey: 'account.already-registered',
+      toAddress: user.email,
+      variables: {
+        name: user.name ?? user.email,
+        link: `${this.appUrl}/sign-in`,
+        resetLink: `${this.appUrl}/reset-password`,
+      },
+      dedupeKey: `account.already-registered:${user.id}:${window}`,
+    });
   }
 
   /**

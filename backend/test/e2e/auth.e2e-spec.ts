@@ -19,6 +19,14 @@ describe('Authentication (e2e)', () => {
 
   const http = () => request(app.getHttpServer() as Server);
   const credentials = { email: 'owner@test.local', password: 'a-long-enough-password', name: 'Owner' };
+  /** Registering no longer signs in (D16), so a test that wants tokens logs in next. */
+  const signUp = async () => {
+    await http().post('/api/v1/auth/register').send(credentials).expect(202);
+    return http()
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(201);
+  };
 
   beforeAll(async () => {
     prisma = testPrisma();
@@ -42,31 +50,52 @@ describe('Authentication (e2e)', () => {
   });
 
   describe('registration and login', () => {
-    it('issues a token pair on registration', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+    // B90/D16: refusing an address that already had an account told anyone
+    // which addresses do. The two answers are now the same.
+    it('answers a new address and a taken one identically, and signs neither in', async () => {
+      const first = await http().post('/api/v1/auth/register').send(credentials).expect(202);
+      const again = await http()
+        .post('/api/v1/auth/register')
+        .send({ ...credentials, password: 'someone-elses-password' })
+        .expect(202);
 
-      expect(body).toMatchObject({ tokenType: 'Bearer' });
-      expect(typeof body.accessToken).toBe('string');
-      expect(typeof body.refreshToken).toBe('string');
+      expect(again.body).toEqual(first.body);
+      expect(first.body).not.toHaveProperty('accessToken');
+      expect(await prisma.session.count()).toBe(0);
+    });
+
+    it('keeps the original password when the address is registered again', async () => {
+      await http().post('/api/v1/auth/register').send(credentials).expect(202);
+      await http()
+        .post('/api/v1/auth/register')
+        .send({ ...credentials, password: 'someone-elses-password' })
+        .expect(202);
+
+      await http()
+        .post('/api/v1/auth/login')
+        .send({ email: credentials.email, password: 'someone-elses-password' })
+        .expect(401);
     });
 
     it('never stores the password itself', async () => {
-      await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      await http().post('/api/v1/auth/register').send(credentials).expect(202);
 
       const user = await prisma.user.findUniqueOrThrow({ where: { email: credentials.email } });
       expect(user.passwordHash).not.toBe(credentials.password);
       expect(user.passwordHash).toMatch(/^\$2[aby]\$/);
     });
 
-    it('never stores the refresh token itself', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+    it('issues a token pair on login, and never stores the refresh token itself', async () => {
+      const { body } = await signUp();
 
+      expect(body).toMatchObject({ tokenType: 'Bearer' });
+      expect(typeof body.accessToken).toBe('string');
       const session = await prisma.session.findFirstOrThrow();
       expect(session.tokenHash).not.toBe(body.refreshToken);
     });
 
     it('logs in with the right password', async () => {
-      await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      await http().post('/api/v1/auth/register').send(credentials).expect(202);
 
       await http()
         .post('/api/v1/auth/login')
@@ -78,7 +107,7 @@ describe('Authentication (e2e)', () => {
       { label: 'a wrong password', email: credentials.email, password: 'wrong-password-here' },
       { label: 'an unknown address', email: 'nobody@test.local', password: credentials.password },
     ])('rejects $label with the same 401', async ({ email, password }) => {
-      await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      await http().post('/api/v1/auth/register').send(credentials).expect(202);
 
       const response = await http().post('/api/v1/auth/login').send({ email, password }).expect(401);
       // Identical wording: whether an address has an account is not disclosed.
@@ -95,7 +124,7 @@ describe('Authentication (e2e)', () => {
 
   describe('refresh token rotation', () => {
     it('exchanges a refresh token for a new pair', async () => {
-      const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body: first } = await signUp();
 
       const { body: second } = await http()
         .post('/api/v1/auth/refresh')
@@ -107,7 +136,7 @@ describe('Authentication (e2e)', () => {
 
     // A stolen token must be usable at most once.
     it('revokes the presented token, so replay fails', async () => {
-      const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body: first } = await signUp();
       await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(201);
 
       await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(401);
@@ -115,7 +144,7 @@ describe('Authentication (e2e)', () => {
 
     // B53: two refreshes racing with one token both read it unrevoked.
     it('makes one live session when the same token is refreshed twice at once', async () => {
-      const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body: first } = await signUp();
       const user = await prisma.user.findFirstOrThrow({ where: { email: credentials.email } });
       const before = await prisma.session.count({ where: { userId: user.id, revokedAt: null } });
 
@@ -135,7 +164,7 @@ describe('Authentication (e2e)', () => {
       const me = (authorization: string) => http().get('/api/v1/events').set('Authorization', authorization);
 
       it('stops every issued access token at once when the account signs out everywhere', async () => {
-        const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+        const { body: first } = await signUp();
         const { body: second } = await http().post('/api/v1/auth/login').send({ email: credentials.email, password: credentials.password }).expect(201);
         await me(`Bearer ${first.accessToken as string}`).expect(200);
 
@@ -146,7 +175,7 @@ describe('Authentication (e2e)', () => {
       });
 
       it('does not honour a session minted under the old password', async () => {
-        const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+        const { body: first } = await signUp();
         const user = await prisma.user.findFirstOrThrow({ where: { email: credentials.email } });
         // A refresh that read the account before the reset, and wrote after it.
         const { body: raced } = await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(201);
@@ -157,7 +186,7 @@ describe('Authentication (e2e)', () => {
       });
 
       it('signs out every session when a refresh token is used again long after it was replaced', async () => {
-        const { body: first } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+        const { body: first } = await signUp();
         const { body: second } = await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(201);
         await prisma.session.updateMany({ where: { revokedAt: { not: null } }, data: { revokedAt: new Date(Date.now() - 5 * 60_000) } });
 
@@ -169,7 +198,7 @@ describe('Authentication (e2e)', () => {
     });
 
     it('rejects a refresh token after logout', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body } = await signUp();
 
       await http().post('/api/v1/auth/logout').send({ refreshToken: body.refreshToken }).expect(201);
       await http().post('/api/v1/auth/refresh').send({ refreshToken: body.refreshToken }).expect(401);
@@ -200,7 +229,7 @@ describe('Authentication (e2e)', () => {
     // Authenticated but unprivileged: a plain account holds no event role, so
     // the policy denies rather than the guard.
     it('403s an authenticated account with no standing on the event', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body } = await signUp();
       const { eventId } = await seedEvent(prisma);
 
       await http()
@@ -210,7 +239,7 @@ describe('Authentication (e2e)', () => {
     });
 
     it('allows an owner through to their own event', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body } = await signUp();
       const { eventId } = await seedEvent(prisma);
       const user = await prisma.user.findUniqueOrThrow({ where: { email: credentials.email } });
       await prisma.eventMembership.create({
@@ -229,7 +258,7 @@ describe('Authentication (e2e)', () => {
     // resolved no roles without an :eventId, so an ordinary member was
     // refused their own events and only platform staff could use it.
     it('lets a member list their own organization without naming it', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body } = await signUp();
       const { eventId } = await seedEvent(prisma);
       const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
       const user = await prisma.user.findUniqueOrThrow({ where: { email: credentials.email } });
@@ -247,7 +276,7 @@ describe('Authentication (e2e)', () => {
     });
 
     it('shows nothing to an account with no membership', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body } = await signUp();
       await seedEvent(prisma);
 
       // An empty list rather than a 403: an account brought onto one event
@@ -262,7 +291,7 @@ describe('Authentication (e2e)', () => {
     // The organization can no longer be named by the caller, so there is no
     // parameter left to point at someone else's tenant.
     it('ignores an organizationId supplied in the query', async () => {
-      const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+      const { body } = await signUp();
       const { eventId } = await seedEvent(prisma);
       const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
       const user = await prisma.user.findUniqueOrThrow({ where: { email: credentials.email } });

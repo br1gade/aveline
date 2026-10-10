@@ -48,7 +48,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       message,
       requestId: request.requestId,
-      path: request.url,
+      path: redactUrl(request.url),
       at: new Date().toISOString(),
     });
   }

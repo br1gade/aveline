@@ -133,7 +133,7 @@ describe('Setting an event up for a customer (e2e)', () => {
   // organization could never accept, and staff's work was orphaned.
   it('builds in the organization a customer already has, with nothing to accept', async () => {
     const concierge = await staff();
-    await http().post('/api/v1/auth/register').send({ email: 'anna@example.am', password: 'annas-own-password', name: 'Anna' }).expect(201);
+    await http().post('/api/v1/auth/register').send({ email: 'anna@example.am', password: 'annas-own-password', name: 'Anna' }).expect(202);
     const login = await http().post('/api/v1/auth/login').send({ email: 'anna@example.am', password: 'annas-own-password' }).expect(201);
     const anna = `Bearer ${login.body.accessToken as string}`;
     const { body: own } = await http().post('/api/v1/organizations').set('Authorization', anna).send({ name: 'Anna’s Own' }).expect(201);

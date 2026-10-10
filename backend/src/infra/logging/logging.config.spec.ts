@@ -49,6 +49,7 @@ describe('loggingConfig', () => {
       'req.body.password',
       'req.body.refreshToken',
       'req.body.email',
+      'req.headers.referer',
       'req.headers["x-telegram-bot-api-secret-token"]',
     ])('never logs %s', (path) => {
       expect(config().redact.paths).toContain(path);

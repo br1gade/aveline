@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { PrismaClient } from '@prisma/client';
+import { MessageChannel, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -49,10 +49,48 @@ describe('Account lifecycle (e2e)', () => {
   });
 
   const register = async (credentials = owner) => {
-    const { body } = await http().post('/api/v1/auth/register').send(credentials).expect(201);
+    await http().post('/api/v1/auth/register').send(credentials).expect(202);
+    const { body } = await http()
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(201);
     const user = await prisma.user.findUniqueOrThrow({ where: { email: credentials.email } });
     return { tokens: body as { accessToken: string }, user };
   };
+
+  describe('registering an address that already has an account (D16)', () => {
+    /** The notice is sent after the answer, so the test waits for it to land. */
+    const noticesTo = async (email: string, expected: number) => {
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const count = await prisma.message.count({ where: { templateKey: 'account.already-registered', toAddress: email } });
+        if (count >= expected) return count;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      return prisma.message.count({ where: { templateKey: 'account.already-registered', toAddress: email } });
+    };
+
+    it('emails the owner a way in, once however often it is tried', async () => {
+      await prisma.messageTemplate.create({
+        data: {
+          organizationId: null,
+          key: 'account.already-registered',
+          channel: MessageChannel.EMAIL,
+          subject: { en: 'You already have an account' },
+          body: { en: '{{name}} — {{link}} — {{resetLink}}' },
+        },
+      });
+      await register();
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await http().post('/api/v1/auth/register').send({ ...owner, password: 'someone-elses-password' }).expect(202);
+      }
+
+      expect(await noticesTo(owner.email, 1)).toBe(1);
+      const notice = await prisma.message.findFirstOrThrow({ where: { templateKey: 'account.already-registered' } });
+      expect(notice.body).toContain('/sign-in');
+      expect(notice.body).not.toContain('token=');
+    });
+  });
 
   describe('password reset', () => {
     // Answering differently for a known and an unknown address is a free

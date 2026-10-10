@@ -69,6 +69,10 @@ describe('Privacy and exports (e2e)', () => {
     return { eventId, organizationId: event.organizationId, authorization };
   };
 
+  /** The public answer carries no reference, so staff tests find the request as staff would. */
+  const requestIdFor = async (subjectEmail: string) =>
+    (await prisma.dataSubjectRequest.findFirstOrThrow({ where: { subjectEmail }, orderBy: { requestedAt: 'desc' } })).id;
+
   describe('submitting a request', () => {
     it('needs no account', async () => {
       const { body } = await http()
@@ -77,7 +81,6 @@ describe('Privacy and exports (e2e)', () => {
         .expect(201);
 
       expect(body).toMatchObject({ kind: 'EXPORT', status: 'RECEIVED' });
-      expect(body.reference).toEqual(expect.any(String));
       const { dueAt } = body as { dueAt: string };
       expect(new Date(dueAt).getTime()).toBeGreaterThan(Date.now());
     });
@@ -103,18 +106,40 @@ describe('Privacy and exports (e2e)', () => {
     });
 
     // Twenty copies of one request is twenty clocks to answer.
-    it('returns the open request rather than duplicating it', async () => {
-      const first = await http()
+    it('keeps one open request rather than duplicating it, and adds the new notes to it', async () => {
+      await http()
         .post('/api/v1/privacy/requests')
-        .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'ani@test.local' })
+        .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'ani@test.local', notes: 'First.' })
         .expect(201);
-      const second = await http()
+      await http()
         .post('/api/v1/privacy/requests')
-        .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'ANI@test.local' })
+        .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'ANI@test.local', notes: 'Also the photos.' })
         .expect(201);
 
-      expect(second.body.reference).toBe(first.body.reference);
-      expect(await prisma.dataSubjectRequest.count()).toBe(1);
+      const requests = await prisma.dataSubjectRequest.findMany();
+      expect(requests).toHaveLength(1);
+      expect(requests[0].notes).toContain('Also the photos.');
+    });
+
+    // B90: the answer carried the open request's reference, status and
+    // deadline, telling a stranger that someone had already asked and how
+    // far staff had got.
+    it('answers the same whether or not someone already asked', async () => {
+      const send = () =>
+        http()
+          .post('/api/v1/privacy/requests')
+          .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'ani@test.local' })
+          .expect(201);
+      await send();
+      await prisma.dataSubjectRequest.updateMany({
+        data: { status: DataSubjectRequestStatus.IN_PROGRESS, dueAt: new Date(Date.now() + 86_400_000) },
+      });
+
+      const { body } = await send();
+
+      expect(body).not.toHaveProperty('reference');
+      expect(body.status).toBe('RECEIVED');
+      expect(new Date(body.dueAt as string).getTime()).toBeGreaterThan(Date.now() + 29 * 86_400_000);
     });
 
     it('rejects an address that is not one', async () => {
@@ -140,16 +165,14 @@ describe('Privacy and exports (e2e)', () => {
   describe('handling a request', () => {
     const verifiedRequest = async (kind: DataSubjectRequestKind, subjectEmail: string) => {
       const officer = await privacyAdmin();
-      const { body } = await http()
-        .post('/api/v1/privacy/requests')
-        .send({ kind, subjectEmail })
-        .expect(201);
+      await http().post('/api/v1/privacy/requests').send({ kind, subjectEmail }).expect(201);
+      const reference = await requestIdFor(subjectEmail);
       await http()
-        .patch(`/api/v1/privacy/requests/${body.reference}`)
+        .patch(`/api/v1/privacy/requests/${reference}`)
         .set('Authorization', officer.authorization)
         .send({ status: DataSubjectRequestStatus.IN_PROGRESS })
         .expect(200);
-      return { ...officer, reference: body.reference as string };
+      return { ...officer, reference };
     };
 
     /**
@@ -158,13 +181,14 @@ describe('Privacy and exports (e2e)', () => {
      */
     it('refuses to act before the requester is verified', async () => {
       const officer = await privacyAdmin();
-      const { body } = await http()
+      await http()
         .post('/api/v1/privacy/requests')
         .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'primary@test.local' })
         .expect(201);
+      const reference = await requestIdFor('primary@test.local');
 
       const refusal = await http()
-        .post(`/api/v1/privacy/requests/${body.reference}/fulfil`)
+        .post(`/api/v1/privacy/requests/${reference}/fulfil`)
         .set('Authorization', officer.authorization)
         .expect(400);
 
@@ -282,23 +306,24 @@ describe('Privacy and exports (e2e)', () => {
      */
     it('refuses an organization owner at every step, because a request reaches every customer', async () => {
       const owner = await organizationOwner();
-      const { body } = await http()
+      await http()
         .post('/api/v1/privacy/requests')
         .send({ kind: DataSubjectRequestKind.EXPORT, subjectEmail: 'primary@test.local' })
         .expect(201);
+      const reference = await requestIdFor('primary@test.local');
       await prisma.dataSubjectRequest.update({
-        where: { id: body.reference },
+        where: { id: reference },
         data: { status: DataSubjectRequestStatus.IN_PROGRESS },
       });
 
       await http().get('/api/v1/privacy/requests').set('Authorization', owner.authorization).expect(403);
       await http()
-        .patch(`/api/v1/privacy/requests/${body.reference}`)
+        .patch(`/api/v1/privacy/requests/${reference}`)
         .set('Authorization', owner.authorization)
         .send({ status: DataSubjectRequestStatus.IN_PROGRESS })
         .expect(403);
       await http()
-        .post(`/api/v1/privacy/requests/${body.reference}/fulfil`)
+        .post(`/api/v1/privacy/requests/${reference}/fulfil`)
         .set('Authorization', owner.authorization)
         .expect(403);
     });

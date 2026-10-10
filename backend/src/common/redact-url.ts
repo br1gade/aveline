@@ -19,6 +19,10 @@ const CAPABILITY_SEGMENTS: [RegExp, string][] = [
   [/(\/tickets\/)[^/?#]+/g, '$1[token]'],
   [/(\/briefs\/)[^/?#]+/g, '$1[token]'],
   [/(\/devices\/)[^/?#]+/g, '$1[token]'],
+  // Not credentials, but an order number opens its payment's state to anyone,
+  // and an invitee's address is personal data.
+  [/(\/payments\/)(?!reconcile(?:[/?#]|$))[^/?#]+/g, '$1[order]'],
+  [/(\/invites\/)(?!accept(?:[/?#]|$))[^/?#]+/g, '$1[email]'],
 ];
 
 /** Query parameters that identify nobody and unlock nothing. */

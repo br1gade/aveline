@@ -163,7 +163,7 @@ test/
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/v1/auth/register` | Create an account, get a token pair |
+| `POST` | `/api/v1/auth/register` | Create an account (202 either way; log in next) |
 | `POST` | `/api/v1/auth/login` | Exchange credentials for a token pair |
 | `POST` | `/api/v1/auth/refresh` | Rotate a refresh token; the old one is revoked |
 | `POST` | `/api/v1/auth/logout` | Revoke one session |

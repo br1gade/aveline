@@ -146,7 +146,7 @@ describe('An event’s team (e2e)', () => {
     await http()
       .post('/api/v1/auth/register')
       .send({ email: 'door@test.local', password: 'the-squatters-password', name: 'Not Them' })
-      .expect(201);
+      .expect(202);
     const invited = await invite(eventId, authorization, 'door@test.local', EventRole.COORDINATOR).expect(201);
 
     await http()

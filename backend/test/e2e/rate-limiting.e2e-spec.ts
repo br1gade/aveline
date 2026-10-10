@@ -103,10 +103,13 @@ describe('Rate limiting behind a proxy (e2e)', () => {
   });
 
   it('counts signed-in staff per account, not per address', async () => {
-    const register = async (email: string) =>
-      (await http().post('/api/v1/auth/register').set('X-Forwarded-For', `198.51.100.${email.length}`).send({ email, password: 'a-long-enough-password', name: 'Staff' })).body as { accessToken: string };
-    const first = await register('door-one@test.local');
-    const second = await register('door-two-staff@test.local');
+    const signIn = async (email: string) => {
+      const from = `198.51.100.${email.length}`;
+      await http().post('/api/v1/auth/register').set('X-Forwarded-For', from).send({ email, password: 'a-long-enough-password', name: 'Staff' }).expect(202);
+      return (await http().post('/api/v1/auth/login').set('X-Forwarded-For', from).send({ email, password: 'a-long-enough-password' }).expect(201)).body as { accessToken: string };
+    };
+    const first = await signIn('door-one@test.local');
+    const second = await signIn('door-two-staff@test.local');
     const list = (token: string) => http().get('/api/v1/events').set('X-Forwarded-For', '203.0.113.40').set('Authorization', `Bearer ${token}`);
 
     await Promise.all(Array.from({ length: BURST }, () => list(first.accessToken)));

@@ -274,6 +274,17 @@ describe('Operations UX (e2e)', () => {
       expect(typeof body.requestId).toBe('string');
       expect(typeof body.at).toBe('string');
     });
+
+    // A screenshot of an error page, or a client's error log, should not be a
+    // working link to a guest's invitation.
+    it('does not echo a capability token back in the error', async () => {
+      const { body } = await http()
+        .get('/api/v1/invitations/does-not-exist/g/secret-guest-token')
+        .expect(404);
+
+      expect(body.path).toBe('/api/v1/invitations/does-not-exist/g/[token]');
+      expect(JSON.stringify(body)).not.toContain('secret-guest-token');
+    });
   });
 
   describe('media upload', () => {

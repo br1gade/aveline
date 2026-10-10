@@ -57,6 +57,18 @@ export const MESSAGE_COPY = [
     },
   },
   {
+    // Someone tried to register with an address that already has an account.
+    // Usually the owner, who forgot; the request itself is not acknowledged
+    // any differently, so this email is how they find out.
+    key: 'account.already-registered',
+    channel: MessageChannel.EMAIL,
+    subject: { hy: 'Դուք արդեն ունեք Aveline հաշիվ', en: 'You already have an Aveline account' },
+    body: {
+      hy: '{{name}}, ինչ-որ մեկը փորձեց գրանցվել այս հասցեով, բայց Դուք արդեն ունեք հաշիվ։ Մուտք գործեք՝\n\n{{link}}\n\nՄոռացե՞լ եք գաղտնաբառը՝ {{resetLink}}\n\nԵթե Դուք չէիք, անտեսեք այս նամակը։ Ձեր հաշիվը չի փոխվել։',
+      en: '{{name}}, someone tried to register with this address, but you already have an account. Sign in here:\n\n{{link}}\n\nForgot your password? {{resetLink}}\n\nIf this was not you, ignore this email — nothing about your account has changed.',
+    },
+  },
+  {
     key: 'account.verify-email',
     channel: MessageChannel.EMAIL,
     subject: { hy: 'Հաստատեք Ձեր էլ. հասցեն', en: 'Confirm your email address' },

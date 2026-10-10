@@ -232,7 +232,8 @@ describe('Guest operations (e2e)', () => {
       const { body } = await importCsv(eventId, authorization, csv).expect(201);
 
       expect(body).toMatchObject({ rowsImported: 1, rowsFailed: 2 });
-      expect(body.errors.map((error: { row: number }) => error.row)).toEqual([2, 3]);
+      const { errors } = body as { errors: { row: number }[] };
+      expect(errors.map((error) => error.row)).toEqual([2, 3]);
       const ani = await prisma.guest.findFirstOrThrow({ where: { eventId, firstName: 'Ani' } });
       expect(ani.email).toBe('ani@example.am');
     });
