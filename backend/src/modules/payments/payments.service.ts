@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   Injectable,
@@ -15,7 +16,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { assertTransition, isSettled, nextStatusForRefund } from './payment-status';
-import { ProviderOutcome, ProviderStatus } from './providers/payment-provider';
+import { BankDeclinedError, ProviderOutcome, ProviderStatus } from './providers/payment-provider';
 import { StartPaymentDto } from './dto/start-payment.dto';
 import { isRecordNotFound, isUniqueViolation } from '../../common/prisma-errors';
 
@@ -217,30 +218,33 @@ export class PaymentsService {
     nextStatusForRefund(payment.amountMinor, payment.refundedMinor, amountMinor);
     const { refund, target } = await this.claimRefund(payment.id, amountMinor, reason);
 
+    let result: ProviderStatus;
     try {
-      const result = await this.gateways
-        .get(payment.provider)
-        .refund(payment.providerRef ?? '', amountMinor, payment.currency);
-
-      await this.prisma.$transaction([
-        this.prisma.refund.update({
-          where: { id: refund.id },
-          data: { status: RefundStatus.COMPLETED, completedAt: new Date() },
-        }),
-        this.prisma.paymentEvent.create({
-          data: {
-            paymentId: payment.id,
-            fromStatus: payment.status,
-            toStatus: target,
-            source: PaymentEventSource.API,
-            payload: toJson(result.raw),
-          },
-        }),
-      ]);
+      result = await this.gateways.get(payment.provider).refund(payment.providerRef ?? '', amountMinor, payment.currency);
     } catch (error) {
-      await this.releaseRefund(payment.id, refund.id, amountMinor, describeError(error));
-      throw error;
+      await this.settleFailedRefund(payment.id, refund.id, amountMinor, error);
+      throw error instanceof BankDeclinedError
+        ? error
+        : new BadGatewayException('The bank did not answer, so the outcome is unknown. Confirm with the bank before trying the refund again');
     }
+
+    // The bank said yes. A failure from here is ours, and must not release
+    // the claim: the money has gone, so the books keep saying so.
+    await this.prisma.$transaction([
+      this.prisma.refund.update({
+        where: { id: refund.id },
+        data: { status: RefundStatus.COMPLETED, completedAt: new Date() },
+      }),
+      this.prisma.paymentEvent.create({
+        data: {
+          paymentId: payment.id,
+          fromStatus: payment.status,
+          toStatus: target,
+          source: PaymentEventSource.API,
+          payload: toJson(result.raw),
+        },
+      }),
+    ]);
 
     return this.describe(
       await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }),
@@ -257,30 +261,52 @@ export class PaymentsService {
   private async claimRefund(paymentId: string, amountMinor: bigint, reason?: string) {
     // The status is decided by the same statement that adds the amount, from
     // the row as it is then. Computed from an earlier read, two part refunds
-    // completing a payment together each wrote PARTIALLY_REFUNDED.
-    const claimed = await this.prisma.$queryRaw<{ status: PaymentStatus }[]>`
-      UPDATE "payments"
-         SET "refundedMinor" = "refundedMinor" + ${amountMinor},
-             "status" = CASE WHEN "refundedMinor" + ${amountMinor} = "amountMinor"
-                             THEN 'REFUNDED'::"PaymentStatus"
-                             ELSE 'PARTIALLY_REFUNDED'::"PaymentStatus" END,
-             "updatedAt" = NOW()
-       WHERE "id" = ${paymentId}
-         AND "status" IN ('CAPTURED', 'PARTIALLY_REFUNDED')
-         AND "refundedMinor" + ${amountMinor} <= "amountMinor"
-   RETURNING "status"
-    `;
+    // completing a payment together each wrote PARTIALLY_REFUNDED. The claim
+    // and its Refund row are one transaction: a crash between them once left a
+    // payment marked refunded with no record and no money returned.
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.$queryRaw<{ status: PaymentStatus }[]>`
+        UPDATE "payments"
+           SET "refundedMinor" = "refundedMinor" + ${amountMinor},
+               "status" = CASE WHEN "refundedMinor" + ${amountMinor} = "amountMinor"
+                               THEN 'REFUNDED'::"PaymentStatus"
+                               ELSE 'PARTIALLY_REFUNDED'::"PaymentStatus" END,
+               "updatedAt" = NOW()
+         WHERE "id" = ${paymentId}
+           AND "status" IN ('CAPTURED', 'PARTIALLY_REFUNDED')
+           AND "refundedMinor" + ${amountMinor} <= "amountMinor"
+     RETURNING "status"
+      `;
 
-    if (claimed.length === 0) {
-      throw new ConflictException(
-        'Refund no longer fits — the payment was refunded concurrently or is not captured',
-      );
-    }
+      if (claimed.length === 0) {
+        throw new ConflictException(
+          'Refund no longer fits — the payment was refunded concurrently or is not captured',
+        );
+      }
 
-    const refund = await this.prisma.refund.create({
-      data: { paymentId, amountMinor, reason: reason ?? null, status: RefundStatus.PENDING },
+      const refund = await tx.refund.create({
+        data: { paymentId, amountMinor, reason: reason ?? null, status: RefundStatus.PENDING },
+      });
+      return { refund, target: claimed[0].status };
     });
-    return { refund, target: claimed[0].status };
+  }
+
+  /**
+   * A refund the bank refused gives its amount back. One whose outcome is
+   * unknown keeps it claimed and stays PENDING for someone to confirm with the
+   * bank: releasing it, as every failure once did, let the next attempt pay
+   * out a second time.
+   */
+  private async settleFailedRefund(paymentId: string, refundId: string, amountMinor: bigint, error: unknown): Promise<void> {
+    if (error instanceof BankDeclinedError) {
+      await this.releaseRefund(paymentId, refundId, amountMinor, describeError(error));
+      return;
+    }
+    await this.prisma.refund.update({
+      where: { id: refundId },
+      data: { failureReason: `Outcome unknown (${describeError(error)}); confirm with the bank` },
+    });
+    this.logger.error(`refund ${refundId}: outcome unknown — ${describeError(error)}; left claimed for staff to confirm`);
   }
 
   /** Puts a claimed amount back when the bank refuses it. */

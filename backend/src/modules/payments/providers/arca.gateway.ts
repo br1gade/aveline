@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
-import { BANK_TIMEOUT_MS } from './payment-provider';
+import { BANK_TIMEOUT_MS, BankDeclinedError } from './payment-provider';
 import {
   PaymentGateway,
   ProviderOutcome,
@@ -71,7 +71,7 @@ export class ArcaGateway implements PaymentGateway {
     // HTTP 200 carries declines too; errorCode 0 (or none) is success.
     const errorCode = asString(body.errorCode) ?? '0';
     if (errorCode !== '0') {
-      throw new Error(`${this.provider} refused the refund: ${asString(body.errorMessage) ?? `error code ${errorCode}`}`);
+      throw new BankDeclinedError(`${this.provider} refused the refund: ${asString(body.errorMessage) ?? `error code ${errorCode}`}`);
     }
     return { outcome: { kind: 'refunded', refundedMinor: amountMinor }, raw: body };
   }

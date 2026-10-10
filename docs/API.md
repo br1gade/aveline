@@ -2443,6 +2443,7 @@ register a charge against any organization). What remains:
 GET  /api/v1/payments/:orderNumber           # public: current state
 POST /api/v1/payments/:orderNumber/confirm   # public: ask the bank what happened
 POST /api/v1/payments/:orderNumber/refund    # requires billing:write; not for tickets
+# a refund the bank does not answer is a 502 "outcome unknown"; it is never retried automatically
 POST /api/v1/payments/reconcile              # requires billing:read; ops only
 ```
 

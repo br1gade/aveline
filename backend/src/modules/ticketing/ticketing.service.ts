@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PromoCodesService } from '../billing/promo-codes.service';
 import { PaymentsService } from '../payments/payments.service';
+import { BankDeclinedError } from '../payments/providers/payment-provider';
 import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
 import { CreateOrderDto, OrderLineDto } from './dto/create-order.dto';
 import { TicketFulfilmentService } from './ticket-fulfilment.service';
@@ -182,7 +183,9 @@ export class TicketingService {
     try {
       await this.payments.refund(order.paymentOrderNumber, order.totalMinor, 'Paid after the hold lapsed; sold out meanwhile');
     } catch (error) {
-      await this.fulfilment.reopenLateRefund(order.id);
+      // Only a refusal is worth trying again. An unknown outcome stays claimed
+      // for staff to confirm: retrying it could pay the buyer twice.
+      if (error instanceof BankDeclinedError) await this.fulfilment.reopenLateRefund(order.id);
       throw error;
     }
     await this.fulfilment.notifyCancelled(order.id);

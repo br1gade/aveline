@@ -122,6 +122,14 @@ nothing, and which sets `REFUNDED` or `PARTIALLY_REFUNDED` from the row as it
 is then — two part refunds that complete a payment together leave it
 `REFUNDED`.
 
+**A refund the bank may have made is never asked for again.** Only an
+explicit refusal (`BankDeclinedError`) gives the claimed amount back. A
+timeout, a dropped connection, or our own write failing after the bank's yes
+leaves the refund `PENDING` with "outcome unknown" in `failureReason`, the
+amount still claimed, and a `502` to the caller — staff confirm with the bank.
+Releasing it, as every failure once did, let the next attempt pay out twice.
+The claim and its `Refund` row are one transaction.
+
 **A refund succeeds only when the bank says so.** Both banks answer a declined
 refund with HTTP 200; the adapters read Ameriabank's `ResponseCode` and ArCa's
 `errorCode` and throw on anything but success, and amounts go in the

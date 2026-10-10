@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
-import { BANK_TIMEOUT_MS } from './payment-provider';
+import { BANK_TIMEOUT_MS, BankDeclinedError } from './payment-provider';
 import {
   PaymentGateway,
   ProviderStatus,
@@ -83,7 +83,7 @@ export class AmeriabankGateway implements PaymentGateway {
     });
     // HTTP 200 carries declines too; only '00' means the money went back.
     if (asString(body.ResponseCode) !== '00') {
-      throw new Error(`Ameriabank refused the refund: ${asString(body.ResponseMessage) ?? `code ${asString(body.ResponseCode) ?? 'none'}`}`);
+      throw new BankDeclinedError(`Ameriabank refused the refund: ${asString(body.ResponseMessage) ?? `code ${asString(body.ResponseCode) ?? 'none'}`}`);
     }
     return { outcome: { kind: 'refunded', refundedMinor: amountMinor }, raw: body };
   }

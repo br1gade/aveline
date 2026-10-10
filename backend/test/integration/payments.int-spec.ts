@@ -4,6 +4,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
 import { PaymentsService } from '../../src/modules/payments/payments.service';
 import { FakeGateway } from '../../src/modules/payments/providers/fake.gateway';
+import { BankDeclinedError } from '../../src/modules/payments/providers/payment-provider';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
@@ -191,6 +192,36 @@ describe('PaymentsService (integration)', () => {
 
       const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber } });
       expect(payment).toMatchObject({ status: PaymentStatus.REFUNDED, refundedMinor: 25000n });
+    });
+
+    // B78: any failure after the bank call released the claim, so a refund
+    // the bank had made was recorded as failed and asked for again.
+    describe('when the bank\'s answer is lost', () => {
+      afterEach(() => jest.restoreAllMocks());
+
+      it('keeps the amount claimed and never asks again, when the outcome is unknown', async () => {
+        const orderNumber = await capture();
+        const refund = jest.spyOn(fake, 'refund').mockRejectedValueOnce(new Error('socket hang up'));
+
+        await expect(service.refund(orderNumber, 25000n)).rejects.toThrow(/outcome is unknown/);
+        await expect(service.refund(orderNumber, 25000n)).rejects.toBeInstanceOf(ConflictException);
+
+        expect(refund).toHaveBeenCalledTimes(1);
+        const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber }, include: { refunds: true } });
+        expect(payment.refundedMinor).toBe(25000n);
+        expect(payment.refunds).toEqual([expect.objectContaining({ status: 'PENDING', failureReason: expect.stringMatching(/unknown/) })]);
+      });
+
+      it('gives the amount back when the bank says no', async () => {
+        const orderNumber = await capture();
+        jest.spyOn(fake, 'refund').mockRejectedValueOnce(new BankDeclinedError('Refund amount exceeds balance'));
+
+        await expect(service.refund(orderNumber, 25000n)).rejects.toThrow(/exceeds balance/);
+
+        const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber }, include: { refunds: true } });
+        expect(payment).toMatchObject({ refundedMinor: 0n, status: 'CAPTURED' });
+        expect(payment.refunds[0].status).toBe('FAILED');
+      });
     });
 
     it('refuses to refund more than was captured', async () => {

@@ -93,3 +93,10 @@ export function toMinorUnits(amount: string | number, currency: string): bigint 
 
 /** How long any one call to a bank may take before it is abandoned. */
 export const BANK_TIMEOUT_MS = 15_000;
+
+/**
+ * The bank answered, and the answer was no. Only this releases a claimed
+ * refund: any other failure — a timeout, a dropped connection, our own write
+ * after the bank's yes — leaves it unknown whether money moved.
+ */
+export class BankDeclinedError extends Error {}
