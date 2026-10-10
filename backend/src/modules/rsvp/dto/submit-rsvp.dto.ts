@@ -1,3 +1,4 @@
+import { Trimmed } from '../../../common/trimmed';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { GuestAttribution, RsvpStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -74,6 +75,7 @@ export class MemberAnswerDto {
 export class PartyMemberDto {
   @ApiProperty()
   @IsString()
+  @Trimmed()
   @MinLength(1)
   @MaxLength(80)
   firstName!: string;
@@ -153,6 +155,7 @@ export class SubmitRsvpDto {
   @IsArray()
   @ArrayMaxSize(20)
   @IsString({ each: true })
+  @MaxLength(40, { each: true })
   dietary?: string[];
 
   @ApiPropertyOptional()

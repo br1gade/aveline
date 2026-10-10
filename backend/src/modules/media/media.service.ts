@@ -1,3 +1,4 @@
+import { languageKeysProblem } from '../../common/field-translations';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MediaKind, Prisma } from '@prisma/client';
 import { mergeTranslations } from '../design/translated-content';
@@ -89,6 +90,8 @@ export class MediaService {
    * `null` removes it, the rest are kept.
    */
   async updateAltText(eventId: string, assetId: string, altText: Record<string, unknown>) {
+    const keys = languageKeysProblem('altText', altText);
+    if (keys) throw new BadRequestException(keys);
     const invalid = Object.entries(altText).find(([, text]) => !isAltText(text));
     if (invalid) throw new BadRequestException(`altText: ${invalid[0]} must be text of at most 300 characters, or null`);
     const asset = await this.requireUpload(eventId, assetId);

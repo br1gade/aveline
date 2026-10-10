@@ -3,6 +3,7 @@ import { BlockType, Prisma, QuestionType } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
 import { blockMediaProblem } from './block-media';
 import { mergeTranslations } from './translated-content';
+import { languageKeysProblem } from '../../common/field-translations';
 import { BUILT_IN_FIELDS, configProblem, fieldOf, mergeConfig } from '../rsvp/rsvp-fields';
 import { TemplateRules, assertBlockEdit, variantProblem } from './block-rules';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -133,6 +134,7 @@ export class DesignService {
       select: { supportedBlocks: true, blockVariants: true },
     });
     assertBlockEdit(template, type, dto);
+    assertLanguages(['content', dto.content]);
 
     const block = await this.prisma.invitationBlock.findUnique({
       where: { invitationId_type: { invitationId: invitation.id, type } },
@@ -340,6 +342,7 @@ export class DesignService {
 }
 
 function assertQuestionIsAnswerable(dto: UpsertQuestionDto): void {
+  assertLanguages(['prompt', dto.prompt], ['options', dto.options]);
   if (Object.keys(dto.prompt).length === 0) {
     throw new BadRequestException('prompt: give the question in at least one language');
   }
@@ -416,4 +419,12 @@ async function clearUnofferedVariants(tx: Prisma.TransactionClient, invitationId
   const unoffered = blocks.filter((block) => variantProblem(template, block.type, block.variant) !== null);
   if (unoffered.length === 0) return;
   await tx.invitationBlock.updateMany({ where: { id: { in: unoffered.map((block) => block.id) } }, data: { variant: null } });
+}
+
+/** Each translated field keyed by languages only, or a 400 naming the field. */
+function assertLanguages(...fields: [string, Record<string, unknown> | undefined][]): void {
+  for (const [field, content] of fields) {
+    const problem = languageKeysProblem(field, content);
+    if (problem) throw new BadRequestException(problem);
+  }
 }

@@ -128,6 +128,14 @@ ISO 8601 UTC strings. Events carry an IANA `timezone` (e.g. `Asia/Yerevan`) —
 format in **that** zone, not the viewer's, or a 6pm ceremony reads as 2pm to
 a guest in London.
 
+**Send times in the extended form**: `2027-06-12T15:00:00Z` (seconds,
+fraction and offset optional). Compact or week forms (`20270612`,
+`2027-W01`) and impossible dates (`2027-02-30`) are a `400` naming the field.
+
+**Translated content is keyed by language codes** (`hy`, `en`, `ru`, `en-GB`).
+Any other key — in block copy, a question's prompt or options, a timeline
+label, alt text — is a `400` naming the field.
+
 ---
 
 ## 2. Authentication

@@ -1,3 +1,4 @@
+import { IsIsoTimestamp } from '../../../common/iso-timestamp';
 import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { BlockType, QuestionType } from '@prisma/client';
 import {
@@ -7,7 +8,6 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
-  IsISO8601,
   IsObject,
   IsOptional,
   IsString,
@@ -134,7 +134,7 @@ export class CreateVenueDto {
 
   @ApiPropertyOptional({ description: 'When guests should arrive, ISO 8601' })
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   arriveAt?: string;
 
   @ApiPropertyOptional({ minimum: -90, maximum: 90, description: 'With longitude; overrides the directory' })
@@ -234,7 +234,7 @@ export class UpsertTimelineEntryDto {
   label!: Record<string, unknown>;
 
   @ApiProperty({ description: 'When it happens, ISO 8601' })
-  @IsISO8601()
+  @IsIsoTimestamp()
   occursAt!: string;
 
   @ApiPropertyOptional({ description: 'Which of this event’s venues it happens at; null detaches it', nullable: true })

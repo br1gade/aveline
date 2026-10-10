@@ -32,12 +32,29 @@ export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
   const nodeEnv = recognisedNodeEnv(raw.NODE_ENV);
   assertRequiredPresent(raw);
 
+  assertWholeNumbers(raw, ['ACCESS_TOKEN_TTL_SECONDS', 'REFRESH_TOKEN_TTL_DAYS']);
+
   return {
     ...raw,
     NODE_ENV: nodeEnv,
     DATABASE_URL: asText(raw.DATABASE_URL) ?? '',
     PORT: String(parsePort(raw.PORT)),
   };
+}
+
+/**
+ * Settings read with `Number()`. `ACCESS_TOKEN_TTL_SECONDS=15m` became NaN,
+ * and every login, register and refresh then failed with a 500 — found by a
+ * user, not at boot.
+ */
+function assertWholeNumbers(raw: Record<string, unknown>, keys: readonly string[]): void {
+  for (const key of keys) {
+    const value = asText(raw[key]);
+    if (value === undefined || value === '') continue;
+    if (!/^\d+$/.test(value) || Number(value) <= 0) {
+      throw new Error(`${key} must be a whole number above zero, got "${value}"`);
+    }
+  }
 }
 
 function assertRequiredPresent(raw: Record<string, unknown>): void {

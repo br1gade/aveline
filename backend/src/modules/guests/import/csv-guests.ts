@@ -1,5 +1,6 @@
 import { GuestAttribution } from '@prisma/client';
-import { isUsableEmailAddress } from '../../../common/address';
+import { isUsableEmailAddress, normalizeEmailAddress } from '../../../common/address';
+import { readPhone } from '../guest-rules';
 import { parse } from 'csv-parse/sync';
 
 export interface ParsedGuest {
@@ -113,6 +114,26 @@ function rejectionFor(field: FieldReader): Omit<RowError, 'row'> | null {
     return { message: 'That does not look like an email address', value: email, isContact: true };
   }
 
+  // The rules a host's own edit applies (guest-rules.ts), which the import
+  // skipped: a phone with letters or a line break in it, a megabyte name.
+  const phone = readPhone(field('phone') || undefined);
+  if (phone.kind === 'invalid') return { message: 'That does not look like a phone number', value: field('phone'), isContact: true };
+
+  return lengthProblem(field);
+}
+
+/** Longest each field may be — the same limits as adding a guest by hand. */
+const FIELD_LIMITS: Partial<Record<keyof typeof COLUMNS, number>> = {
+  firstName: 80,
+  lastName: 80,
+  household: 120,
+  locale: 10,
+};
+
+function lengthProblem(field: FieldReader): Omit<RowError, 'row'> | null {
+  for (const [key, limit] of Object.entries(FIELD_LIMITS) as [keyof typeof COLUMNS, number][]) {
+    if (field(key).length > limit) return { message: `${key} must be at most ${limit} characters` };
+  }
   return null;
 }
 
@@ -131,7 +152,8 @@ function toGuest(field: FieldReader, row: number): ParsedGuest {
     row,
     firstName,
     lastName: lastName || undefined,
-    email: field('email') || undefined,
+    // Stored lower-cased, as a host's edit stores it.
+    email: field('email') ? normalizeEmailAddress(field('email')) : undefined,
     phone: field('phone') || undefined,
     // A guest with no household named is their own household, so they are
     // never silently grouped with a stranger.

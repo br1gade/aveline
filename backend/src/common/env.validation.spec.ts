@@ -50,4 +50,18 @@ describe('validateEnv', () => {
       );
     },
   );
+
+  // B89: `ACCESS_TOKEN_TTL_SECONDS=15m` became NaN, and every login, register
+  // and refresh then failed with a 500.
+  it.each([
+    ['ACCESS_TOKEN_TTL_SECONDS', '15m'],
+    ['ACCESS_TOKEN_TTL_SECONDS', '0'],
+    ['REFRESH_TOKEN_TTL_DAYS', 'thirty'],
+  ])('refuses to start with %s=%s, naming it', (key, value) => {
+    expect(() => validateEnv({ ...base, [key]: value })).toThrow(new RegExp(key));
+  });
+
+  it('accepts whole-number token lifetimes', () => {
+    expect(() => validateEnv({ ...base, ACCESS_TOKEN_TTL_SECONDS: '900', REFRESH_TOKEN_TTL_DAYS: '30' })).not.toThrow();
+  });
 });

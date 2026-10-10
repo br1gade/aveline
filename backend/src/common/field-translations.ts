@@ -15,6 +15,17 @@ export type FieldLimits = Readonly<Record<string, number>>;
 export const EVENT_TRANSLATABLE: FieldLimits = { title: 200, hostsLabel: 200 };
 export const VENUE_TRANSLATABLE: FieldLimits = { name: 160, address: 300 };
 
+/**
+ * Content keyed by language — block copy, a question's prompt and options, a
+ * timeline label, alt text — must be keyed by languages. Any key was taken:
+ * `{"foo bar": 42}` was stored and could never be shown to anyone.
+ */
+export function languageKeysProblem(field: string, content: Record<string, unknown> | undefined): string | null {
+  if (!content) return null;
+  const stray = Object.keys(content).find((key) => !LOCALE.test(key));
+  return stray === undefined ? null : `${field}: "${stray}" is not a language code, such as hy or en`;
+}
+
 /** The first problem with an edit, naming `translations` — or null. */
 export function translationsProblem(edit: Record<string, unknown>, fields: FieldLimits): string | null {
   for (const [locale, copy] of Object.entries(edit)) {

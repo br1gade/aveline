@@ -1,3 +1,4 @@
+import { IsIsoTimestamp } from '../../../common/iso-timestamp';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DiscountKind } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -8,7 +9,6 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
-  IsISO8601,
   IsOptional,
   IsString,
   Matches,
@@ -65,12 +65,12 @@ export class CreatePromoCodeDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   validFrom?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   validUntil?: string;
 }
 
@@ -85,7 +85,7 @@ export class UpdatePromoCodeDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   validUntil?: string;
 
   @ApiPropertyOptional()

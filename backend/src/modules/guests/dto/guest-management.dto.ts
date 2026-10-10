@@ -1,3 +1,4 @@
+import { Trimmed } from '../../../common/trimmed';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { GuestAttribution } from '@prisma/client';
 import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
@@ -5,6 +6,7 @@ import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } f
 export class AddGuestDto {
   @ApiProperty()
   @IsString()
+  @Trimmed()
   @MinLength(1)
   @MaxLength(80)
   firstName!: string;
@@ -62,6 +64,7 @@ export class UpdateGuestDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Trimmed()
   @MinLength(1)
   @MaxLength(80)
   firstName?: string;
@@ -105,6 +108,7 @@ export class UpdateHouseholdDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Trimmed()
   @MinLength(1)
   @MaxLength(120)
   name?: string;

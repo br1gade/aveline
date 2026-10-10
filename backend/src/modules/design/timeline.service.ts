@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
 import { mergeTranslations } from './translated-content';
+import { languageKeysProblem } from '../../common/field-translations';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateTimelineEntryDto, UpsertTimelineEntryDto } from './dto/design.dto';
 
@@ -135,6 +136,8 @@ export class TimelineService {
  * invitation, which reads as a bug to the guests looking at it.
  */
 function assertHasLabel(dto: { label: Record<string, unknown> }): void {
+  const keys = languageKeysProblem('label', dto.label);
+  if (keys) throw new BadRequestException(keys);
   // Blank text is no label either: `{"hy": ""}` rendered the empty row this
   // rule exists to prevent.
   const hasText = Object.values(dto.label).some((copy) => typeof copy === 'string' && copy.trim() !== '');

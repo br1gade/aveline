@@ -280,6 +280,19 @@ describe('Invitation design (e2e)', () => {
      * Editing one language used to replace the whole content map, so a host
      * who corrected the English wording deleted the Armenian invitation.
      */
+    // B89: any key was taken as a language — `{"foo bar": 42}` was stored.
+    it('refuses content keyed by something that is not a language', async () => {
+      const { slug, authorization } = await designer();
+
+      const { body } = await http()
+        .patch(`/api/v1/invitations/${slug}/blocks/HERO`)
+        .set('Authorization', authorization)
+        .send({ content: { 'foo bar': { title: 'x' } } })
+        .expect(400);
+
+      expect(body.message).toMatch(/^content:/);
+    });
+
     it('edits one language without touching the others, and removes one sent as null', async () => {
       const { slug, authorization } = await designer();
       const edit = (content: Record<string, unknown>) =>

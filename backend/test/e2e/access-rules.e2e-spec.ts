@@ -101,6 +101,16 @@ describe('Access between and within organizations (e2e)', () => {
     });
   });
 
+  // B89: non-strict ISO dates passed validation and then failed as Invalid
+  // Date (a 500) or shifted silently (`2026-02-30` became 2 March).
+  it.each(['20270612', '2027-W01', '2027-06-12T10', '2027-02-30T10:00:00Z'])('refuses a start time of %s, naming it', async (startsAt) => {
+    const { authorization } = await memberOf(OrganizationRole.OWNER);
+
+    const { body } = await http().post('/api/v1/events').set('Authorization', authorization).send({ type: 'WEDDING', title: 'A & B', startsAt }).expect(400);
+
+    expect(JSON.stringify(body.message)).toContain('startsAt');
+  });
+
   describe('one organization per account (B14)', () => {
     it('opens only one organization when asked several times at once', async () => {
       const { authorization, userId } = await authenticateAs(app, prisma);

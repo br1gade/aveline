@@ -1,3 +1,4 @@
+import { IsIsoTimestamp } from '../../../common/iso-timestamp';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EventType, EventVisibility } from '@prisma/client';
 import {
@@ -5,7 +6,6 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
-  IsISO8601,
   IsOptional,
   IsString,
   MaxLength,
@@ -33,12 +33,12 @@ export class CreateEventDto {
   hostsLabel?: string;
 
   @ApiProperty({ description: 'When it starts, ISO 8601' })
-  @IsISO8601()
+  @IsIsoTimestamp()
   startsAt!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   endsAt?: string;
 
   @ApiPropertyOptional({ default: 'Asia/Yerevan', description: 'IANA zone' })

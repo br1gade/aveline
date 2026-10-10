@@ -291,6 +291,20 @@ describe('RSVP flow (e2e)', () => {
     const answer = (slug: string, token: string, body: Record<string, unknown>) =>
       http().post(`/api/v1/invitations/${slug}/g/${token}/rsvp`).send(body);
 
+    // B89: a blank plus-one name created a nameless guest holding a seat, and
+    // the guest's own dietary tags had no length limit.
+    it('refuses a plus-one whose name is only spaces', async () => {
+      const { slug, primaryGuestToken } = await seedEvent(prisma, { seatsAllotted: 2 });
+
+      await answer(slug, primaryGuestToken, { status: 'ATTENDING', party: [{ firstName: '   ' }] }).expect(400);
+    });
+
+    it('refuses a dietary tag longer than 40 characters', async () => {
+      const { slug, primaryGuestToken } = await seedEvent(prisma);
+
+      await answer(slug, primaryGuestToken, { status: 'ATTENDING', dietary: ['x'.repeat(41)] }).expect(400);
+    });
+
     it('refuses PENDING, which is not an answer', async () => {
       const { slug, primaryGuestToken } = await seedEvent(prisma);
 

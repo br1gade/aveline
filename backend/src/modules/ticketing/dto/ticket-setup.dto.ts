@@ -1,10 +1,10 @@
+import { IsIsoTimestamp } from '../../../common/iso-timestamp';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsInt,
-  IsISO8601,
   IsObject,
   IsOptional,
   IsString,
@@ -54,12 +54,12 @@ export class CreateTicketTypeDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   salesStartAt?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   salesEndAt?: string;
 }
 
@@ -104,12 +104,12 @@ export class UpdateTicketTypeDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   salesStartAt?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsISO8601()
+  @IsIsoTimestamp()
   salesEndAt?: string;
 
   @ApiPropertyOptional({ description: 'false stops sales without deleting anything' })

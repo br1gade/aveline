@@ -218,6 +218,25 @@ describe('Guest operations (e2e)', () => {
       expect(await prisma.guest.count({ where: { eventId, firstName: 'Armen' } })).toBe(1);
     });
 
+    // B89: import took phones, names and emails unchecked, though a host's
+    // own edit validates them — a line break in a phone, a megabyte name.
+    it('checks imported phones, names and emails as a host\'s edit does', async () => {
+      const { eventId, authorization } = await coordinator();
+      const csv = [
+        'First Name,Last Name,Phone,Email',
+        'Armen,Petrosyan,call me maybe,',
+        `${'A'.repeat(200)},Long,,`,
+        'Ani,Sargsyan,+374 91 000000,Ani@Example.AM',
+      ].join('\n');
+
+      const { body } = await importCsv(eventId, authorization, csv).expect(201);
+
+      expect(body).toMatchObject({ rowsImported: 1, rowsFailed: 2 });
+      expect(body.errors.map((error: { row: number }) => error.row)).toEqual([2, 3]);
+      const ani = await prisma.guest.findFirstOrThrow({ where: { eventId, firstName: 'Ani' } });
+      expect(ani.email).toBe('ani@example.am');
+    });
+
     it('refuses an import without guest:write', async () => {
       const { eventId } = await seedEvent(prisma);
       const { authorization } = await authenticateAs(app, prisma, {
