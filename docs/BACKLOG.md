@@ -27,7 +27,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 |---|---|---|---|---|
 | Bugfixes | 0 open | 0 open | 9 open (B85–B92, B94) | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
-| Decisions | 14 (D1–D14), all decided | | | |
+| Decisions | 20 (D1–D20), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
 features — editing an event, and loading the invitation into the editor —
@@ -145,7 +145,7 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 
 ## 3. Decisions needed
 
-D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D14 on 10 October.
+D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D20 on 10 October.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
@@ -163,6 +163,12 @@ D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D14 on 10 Oct
 | D12 | When does a public event stop selling, and leave browse? | B70 | **Sales stop at the start; the listing leaves browse at the end.** The detail page still loads by link |
 | D13 | Where does Telegram copy come from? | B72 | **Written with the email copy and seeded, reviewed by the team.** WhatsApp stays off until Meta approves templates |
 | D14 | When may a late-invited household be reminded? | B73 | **Not until 3 days after its invitation — 1 day if the event is under a week away** |
+| D15 | What does erasure do with do-not-contact records? | B88 | **Keeps them as a one-way hash**: the address is still recognised and blocked, never readable |
+| D16 | Registering with an email that already has an account? | B90 | **The same answer either way**; the owner is emailed a sign-in link instead. Register no longer signs in — the client logs in next |
+| D17 | Do guests see PREPARATION venues, and ones only internal entries use? | B92 | **No.** Ceremony, reception, after-party and venues the visible timeline uses |
+| D18 | SVG uploads? | B92 | **Refused.** JPEG, PNG, WebP, AVIF for images |
+| D19 | What does a full refund of a subscription payment do? | B85 | **Voids the invoice and ends the plan at once.** A partial refund changes nothing |
+| D20 | What is an erased guest's household called, when it was named after them? | B88 | **"Household" and a number** |
 
 ---
 
