@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
@@ -11,6 +11,21 @@ import {
   RequestActor,
   RequirePermission,
 } from '../../infra/auth/actor';
+
+/**
+ * `limit` 1–500 and `offset` 0 or more, both optional. Read by hand rather
+ * than through a query DTO, because this route deliberately ignores query
+ * parameters it does not know (an `organizationId` there once chose the tenant).
+ */
+function readPage(limit?: string, offset?: string): { limit?: number; offset: number } {
+  const take = limit === undefined ? undefined : Number(limit);
+  const skip = offset === undefined ? 0 : Number(offset);
+  if (take !== undefined && (!Number.isInteger(take) || take < 1 || take > 500)) {
+    throw new BadRequestException('limit must be a whole number from 1 to 500');
+  }
+  if (!Number.isInteger(skip) || skip < 0) throw new BadRequestException('offset must be a whole number, 0 or more');
+  return { limit: take, offset: skip };
+}
 
 @ApiTags('events')
 @Controller('events')
@@ -27,8 +42,13 @@ export class EventsController {
       "Their organization's events, if their role there can read them, plus any event they " +
       'were invited onto directly. Platform staff see every event.',
   })
-  findAll(@CurrentActor() actor: RequestActor, @Query('archived') archived?: string) {
-    return this.events.findAll(actor, archived === 'true');
+  findAll(
+    @CurrentActor() actor: RequestActor,
+    @Query('archived') archived?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.events.findAll(actor, { isArchiveWanted: archived === 'true', page: readPage(limit, offset) });
   }
 
   @RequirePermission('event:delete')

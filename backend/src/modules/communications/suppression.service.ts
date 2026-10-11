@@ -47,6 +47,29 @@ export class SuppressionService {
   }
 
   /**
+   * Which of these addresses are suppressed for this sender, in one query —
+   * for a send of hundreds, where asking one by one was a query a guest.
+   * Keys are `channel|address`, the address as normalised.
+   */
+  async suppressedAmong(organizationId: string | null, entries: { channel: MessageChannel; address: string }[]): Promise<Set<string>> {
+    const plainByForm = new Map<string, string>();
+    for (const { channel, address } of entries) {
+      const [plain, hashed] = storedForms(channel, address);
+      plainByForm.set(plain, plain).set(hashed, plain);
+    }
+    if (plainByForm.size === 0) return new Set();
+
+    const rows = await this.prisma.suppression.findMany({
+      where: {
+        address: { in: [...plainByForm.keys()] },
+        OR: organizationId === null ? [{ organizationId: null }] : [{ organizationId: null }, { organizationId }],
+      },
+      select: { channel: true, address: true },
+    });
+    return new Set(rows.map((row) => `${row.channel}|${plainByForm.get(row.address) ?? row.address}`));
+  }
+
+  /**
    * What stops this organization reaching someone: its own suppressions, and
    * the platform-wide ones that touch its own guests. Every platform-wide
    * suppression used to be listed to every host — every bounced or

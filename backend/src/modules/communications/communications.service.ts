@@ -1,3 +1,4 @@
+import { normalizeAddress } from './address-form';
 import { isUniqueViolation } from '../../common/prisma-errors';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MessageChannel, MessageStatus, Prisma,
@@ -104,43 +105,50 @@ export class CommunicationsService {
       params.toAddress,
       params.organizationId,
     );
+    const template = await this.loadTemplate(params.organizationId, params.templateKey, params.channel);
+    return this.createOnce(params.dedupeKey, messageData(params, template, isSuppressed));
+  }
 
-    const template = await this.loadTemplate(
-      params.organizationId,
-      params.templateKey,
-      params.channel,
-    );
+  /**
+   * Many messages at once, each keyed for deduplication: one read for those
+   * already queued, one for suppressions, each template once, one insert.
+   * A send of four hundred households ran four queries per guest through
+   * `enqueue` — one to three seconds (B91). Returned by dedupe key.
+   */
+  async enqueueMany(list: (EnqueueParams & { dedupeKey: string })[]): Promise<Map<string, DueMessage>> {
+    const byKey = new Map<string, DueMessage>();
+    if (list.length === 0) return byKey;
+    const keys = list.map((params) => params.dedupeKey);
+    for (const message of await this.prisma.message.findMany({ where: { dedupeKey: { in: keys } } })) byKey.set(message.dedupeKey!, message);
 
-    const subject = resolveTranslation<string>(template.subject, params.locale, 'hy');
-    const body = resolveTranslation<string>(template.body, params.locale, 'hy');
-    if (body === null) {
-      throw new NotFoundException(`Template "${params.templateKey}" has no body for any locale`);
+    const todo = list.filter((params) => !byKey.has(params.dedupeKey));
+    const data = await this.renderAll(todo);
+    if (data.length > 0) {
+      await this.prisma.message.createMany({ data, skipDuplicates: true });
+      // Read back rather than trusting the insert's return: a concurrent send
+      // may have inserted some keys first, and theirs are the messages.
+      for (const message of await this.prisma.message.findMany({ where: { dedupeKey: { in: todo.map((params) => params.dedupeKey) } } })) {
+        byKey.set(message.dedupeKey!, message);
+      }
     }
+    return byKey;
+  }
 
-    return this.createOnce(params.dedupeKey, {
-        organizationId: params.organizationId,
-        eventId: params.eventId ?? null,
-        guestId: params.guestId ?? null,
-        channel: params.channel,
-        templateKey: params.templateKey,
-        toAddress: params.toAddress,
-        locale: params.locale,
-        subject: subject === null ? null : renderTemplate(subject, params.variables),
-        body: renderTemplate(body, params.variables),
-        scheduledFor: params.scheduledFor ?? new Date(),
-        priority: priorityFor(params.templateKey),
-        dedupeKey: params.dedupeKey ?? null,
-        // Resolved here, not at dispatch, for the same reason the body is:
-        // what was sent must stay knowable after the template changes.
-        providerTemplate: template.providerTemplate,
-        providerParams: template.providerTemplate
-          ? positionalParams(template.providerParams, params.variables)
-          : [],
-        // Recorded rather than dropped: a host asking why a guest never got
-        // their invitation deserves the answer "they opted out", and a
-        // message that silently never existed cannot give it.
-        ...queueState(isSuppressed),
-    });
+  private async renderAll(list: EnqueueParams[]): Promise<Prisma.MessageCreateManyInput[]> {
+    const templates = new Map<string, Awaited<ReturnType<CommunicationsService['loadTemplate']>>>();
+    const suppressedByOrganization = new Map<string | null, Set<string>>();
+    for (const organizationId of new Set(list.map((params) => params.organizationId))) {
+      const theirs = list.filter((params) => params.organizationId === organizationId);
+      suppressedByOrganization.set(organizationId, await this.suppressions.suppressedAmong(organizationId, theirs.map((params) => ({ channel: params.channel, address: params.toAddress }))));
+    }
+    const data: Prisma.MessageCreateManyInput[] = [];
+    for (const params of list) {
+      const templateKey = `${params.organizationId}|${params.templateKey}|${params.channel}`;
+      if (!templates.has(templateKey)) templates.set(templateKey, await this.loadTemplate(params.organizationId, params.templateKey, params.channel));
+      const isSuppressed = suppressedByOrganization.get(params.organizationId)!.has(`${params.channel}|${normalizeAddress(params.channel, params.toAddress)}`);
+      data.push(messageData(params, templates.get(templateKey)!, isSuppressed));
+    }
+    return data;
   }
 
   /**
@@ -511,6 +519,39 @@ export class CommunicationsService {
     if (!found) throw new NotFoundException(`No ${channel} template "${key}"`);
     return found;
   }
+}
+
+/** A message as it is stored: rendered now, so what was sent stays knowable after the copy changes. */
+function messageData(
+  params: EnqueueParams,
+  template: { subject: Prisma.JsonValue; body: Prisma.JsonValue; providerTemplate: string | null; providerParams: string[] },
+  isSuppressed: boolean,
+): Prisma.MessageUncheckedCreateInput {
+  const subject = resolveTranslation<string>(template.subject, params.locale, 'hy');
+  const body = resolveTranslation<string>(template.body, params.locale, 'hy');
+  if (body === null) throw new NotFoundException(`Template "${params.templateKey}" has no body for any locale`);
+
+  return {
+    organizationId: params.organizationId,
+    eventId: params.eventId ?? null,
+    guestId: params.guestId ?? null,
+    channel: params.channel,
+    templateKey: params.templateKey,
+    toAddress: params.toAddress,
+    locale: params.locale,
+    subject: subject === null ? null : renderTemplate(subject, params.variables),
+    body: renderTemplate(body, params.variables),
+    scheduledFor: params.scheduledFor ?? new Date(),
+    priority: priorityFor(params.templateKey),
+    dedupeKey: params.dedupeKey ?? null,
+    // Resolved here, not at dispatch, for the same reason the body is.
+    providerTemplate: template.providerTemplate,
+    providerParams: template.providerTemplate ? positionalParams(template.providerParams, params.variables) : [],
+    // Recorded rather than dropped: a host asking why a guest never got
+    // their invitation deserves the answer "they opted out", and a message
+    // that silently never existed cannot give it.
+    ...queueState(isSuppressed),
+  };
 }
 
 /** A suppressed recipient is recorded as such instead of being queued. */

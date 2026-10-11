@@ -238,6 +238,31 @@ describe('Guest operations (e2e)', () => {
       expect(ani.email).toBe('ani@example.am');
     });
 
+    it('takes a person listed twice in one file as one guest, keeping what either row says', async () => {
+      const { eventId, authorization } = await coordinator();
+      const csv = ['First Name,Last Name,Household,Email,Phone', 'Ani,Sargsyan,Sargsyan,ani@example.am,', 'Ani,Sargsyan,Sargsyan,,+37491000000'].join('\n');
+
+      await importCsv(eventId, authorization, csv).expect(201);
+
+      const anis = await prisma.guest.findMany({ where: { eventId, firstName: 'Ani' } });
+      expect(anis).toHaveLength(1);
+      expect(anis[0]).toMatchObject({ email: 'ani@example.am', phone: '+37491000000' });
+    });
+
+    // B91: four or five queries a row made a 2,000-row list take ~20 s.
+    it('imports two thousand rows in one request, quickly', async () => {
+      const { eventId, authorization } = await coordinator();
+      const rows = Array.from({ length: 2000 }, (_, index) => `Guest${index},Family${Math.floor(index / 3)},Family${Math.floor(index / 3)}`);
+      const started = Date.now();
+
+      const { body } = await importCsv(eventId, authorization, ['First Name,Last Name,Household', ...rows].join('\n')).expect(201);
+
+      expect(body).toMatchObject({ rowsImported: 2000, rowsFailed: 0 });
+      expect(await prisma.guest.count({ where: { eventId, household: { name: { startsWith: 'Family' } } } })).toBe(2000);
+      // About one second locally; the bound leaves room for a slow machine.
+      expect(Date.now() - started).toBeLessThan(5_000);
+    });
+
     it('refuses an import without guest:write', async () => {
       const { eventId } = await seedEvent(prisma);
       const { authorization } = await authenticateAs(app, prisma, {

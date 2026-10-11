@@ -17,22 +17,26 @@ export type MongoClientFactory = () => MongoClient;
 @Injectable()
 export class MongoConnection {
   private client: MongoClient | null = null;
+  /** The connect under way, shared: every caller arriving meanwhile used to open a client of its own and leak it. */
+  private connecting: Promise<MongoClient> | null = null;
 
   constructor(private readonly createClient: MongoClientFactory) {}
 
   async db(): Promise<Db> {
     if (!this.client) {
-      const client = this.createClient();
-      try {
-        await client.connect();
-      } catch (error) {
-        // Do not keep a client whose topology the driver has already closed.
-        this.client = null;
-        throw error;
-      }
-      this.client = client;
+      this.connecting ??= this.connect().finally(() => {
+        this.connecting = null;
+      });
+      this.client = await this.connecting;
     }
     return this.client.db();
+  }
+
+  private async connect(): Promise<MongoClient> {
+    const client = this.createClient();
+    // A failure leaves nothing kept: the driver has already closed that topology.
+    await client.connect();
+    return client;
   }
 
   /** Callers hand back operation errors so a dead client is not reused. */

@@ -1,8 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { MONGO_CONNECTION } from '../analytics/analytics.service';
 import { MongoConnection } from '../analytics/mongo-connection';
 
 export const AUDIT_COLLECTION = 'audit_trail';
+
+/** Two years: long enough to answer a dispute about what support did (decided 10 October 2026, D22). */
+export const AUDIT_RETENTION_SECONDS = 730 * 24 * 60 * 60;
 
 export interface AuditEntry {
   action: string;
@@ -38,10 +41,30 @@ export interface AuditEntry {
  * guest list, not what the new list was.
  */
 @Injectable()
-export class AuditService {
+export class AuditService implements OnModuleInit {
   private readonly logger = new Logger(AuditService.name);
 
   constructor(@Inject(MONGO_CONNECTION) private readonly connection: MongoConnection) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.ensureIndexes();
+  }
+
+  /**
+   * The index `forEvent` reads by — it scanned the whole trail — and a TTL so
+   * the trail stops growing for ever. Safe to call repeatedly; Mongo may not
+   * be up yet, which is logged and left for the next start.
+   */
+  async ensureIndexes(): Promise<void> {
+    try {
+      const db = await this.connection.db();
+      await db.collection(AUDIT_COLLECTION).createIndex({ eventId: 1, at: -1 });
+      await db.collection(AUDIT_COLLECTION).createIndex({ at: 1 }, { expireAfterSeconds: AUDIT_RETENTION_SECONDS });
+    } catch (error) {
+      this.connection.reportFailure(error);
+      this.logger.warn(`audit index creation failed: ${describeError(error)}`);
+    }
+  }
 
   async record(entry: AuditEntry): Promise<void> {
     try {

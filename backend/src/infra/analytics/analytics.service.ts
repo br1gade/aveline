@@ -7,6 +7,9 @@ export const ANALYTICS_READ_TIMEOUT_MS = Symbol('ANALYTICS_READ_TIMEOUT_MS');
 
 export const ANALYTICS_COLLECTION = 'invitation_events';
 
+/** Thirteen months: enough to compare a season with the same one a year on (decided 10 October 2026, D22). */
+export const VIEW_RETENTION_SECONDS = 395 * 24 * 60 * 60;
+
 export interface InvitationView {
   slug: string;
   eventId: string;
@@ -121,12 +124,17 @@ export class AnalyticsService {
     await this.connection.close();
   }
 
-  /** Indexes the two fields every query filters on. Safe to call repeatedly. */
+  /**
+   * Indexes the two fields every query filters on, and lets Mongo delete
+   * views past their retention itself — the collection grew without bound.
+   * Safe to call repeatedly.
+   */
   async ensureIndexes(): Promise<void> {
     if (!this.isEnabled) return;
     try {
       const db = await this.connection.db();
       await db.collection(ANALYTICS_COLLECTION).createIndex({ eventId: 1, at: -1 });
+      await db.collection(ANALYTICS_COLLECTION).createIndex({ at: 1 }, { expireAfterSeconds: VIEW_RETENTION_SECONDS });
     } catch (error) {
       // Mongo may simply not be up yet. The next write creates the index.
       this.connection.reportFailure(error);

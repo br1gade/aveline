@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { InvitationStatus, MessageChannel, MessageStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { deliverableChannels } from '../../communications/channels/transport-registry';
-import { CommunicationsService } from '../../communications/communications.service';
+import { CommunicationsService, EnqueueParams } from '../../communications/communications.service';
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { channelsWithCopy, loadSendableHouseholds } from './audience';
@@ -70,12 +70,17 @@ export class InvitationSenderService {
     const previous = await this.previousAttempts(invitation.eventId, households);
     const outcome = new SendOutcome();
 
+    const toSend = plan.recipients.filter((recipient) => !hasReachedGuest(previous.get(recipient.householdId) ?? []));
+    const messages = toSend.map((recipient) =>
+      this.messageFor(invitation, recipient, (previous.get(recipient.householdId) ?? []).length + 1),
+    );
+    // One batch for the whole send: one enqueue per household was four
+    // queries each, one to three seconds for four hundred (B91).
+    const queued = await this.communications.enqueueMany(messages);
     for (const recipient of plan.recipients) {
-      const attempts = previous.get(recipient.householdId) ?? [];
-      const result = hasReachedGuest(attempts)
-        ? 'ALREADY_SENT'
-        : await this.enqueueFor(invitation, recipient, attempts.length + 1);
-      outcome.record(result, recipient);
+      const index = toSend.indexOf(recipient);
+      if (index === -1) outcome.record('ALREADY_SENT', recipient);
+      else outcome.record(queued.get(messages[index].dedupeKey)?.status === MessageStatus.SUPPRESSED ? 'SUPPRESSED' : 'QUEUED', recipient);
     }
 
     this.logger.log(
@@ -170,18 +175,13 @@ export class InvitationSenderService {
     };
   }
 
-  private async enqueueFor(
+  private messageFor(
     invitation: { id: string; slug: string; eventId: string; organizationId: string; hosts: string; title: string; translations: unknown; defaultLocale: string },
     recipient: Recipient,
     attemptNumber: number,
-  ): Promise<'QUEUED' | 'SUPPRESSED'> {
+  ): EnqueueParams & { dedupeKey: string } {
     const { guest } = recipient;
-    // Whether to send at all was decided by `hasReachedGuest`. The key, per
-    // attempt, is what keeps two simultaneous presses of "send" — which both
-    // count the same earlier attempts — from both queueing.
-    const dedupeKey = `invitation:${invitation.id}:${guest.id}:${attemptNumber}`;
-
-    const message = await this.communications.enqueue({
+    return {
       organizationId: invitation.organizationId,
       eventId: invitation.eventId,
       guestId: guest.id,
@@ -195,10 +195,11 @@ export class InvitationSenderService {
         link: this.linkFor(invitation.slug, guest.token),
         telegramLink: this.telegramLinkFor(guest.token),
       },
-      dedupeKey,
-    });
-
-    return message.status === MessageStatus.SUPPRESSED ? 'SUPPRESSED' : 'QUEUED';
+      // Whether to send at all was decided by `hasReachedGuest`. The key, per
+      // attempt, is what keeps two simultaneous presses of "send" — which both
+      // count the same earlier attempts — from both queueing.
+      dedupeKey: `invitation:${invitation.id}:${guest.id}:${attemptNumber}`,
+    };
   }
 
   /** Every household on the event, or only those containing the named guests. */

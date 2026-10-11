@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, VerificationPurpose } from '@prisma/client';
-import { compare, hash } from 'bcryptjs';
+import { compare, hash } from 'bcrypt';
 import { MessageChannel } from '@prisma/client';
 import { CommunicationsService } from '../../modules/communications/communications.service';
 import { allowsDevelopmentShortcuts } from '../../common/environment';

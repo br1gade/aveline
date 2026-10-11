@@ -79,6 +79,20 @@ describe('Archiving and deleting an event (e2e)', () => {
       .expect(400);
   });
 
+  // B91: platform staff listed every customer's events in one response.
+  it('pages the list on request, and refuses a page it cannot serve', async () => {
+    const { authorization } = await owner();
+    const user = await prisma.user.findFirstOrThrow({ where: { email: { startsWith: 'test-' } } });
+    await prisma.user.update({ where: { id: user.id }, data: { platformRole: 'SUPPORT' } });
+    await seedEvent(prisma);
+    await seedEvent(prisma);
+
+    expect(await listed(authorization, { limit: '2' })).toHaveLength(2);
+    expect(await listed(authorization, { limit: '2', offset: '2' })).toHaveLength(1);
+    await http().get('/api/v1/events').query({ limit: '0' }).set('Authorization', authorization).expect(400);
+    await http().get('/api/v1/events').query({ offset: '-1' }).set('Authorization', authorization).expect(400);
+  });
+
   it('will not reopen the invitation of an archived event', async () => {
     const { eventId, slug, authorization } = await owner();
     await act('post', `/events/${eventId}/archive`, authorization).expect(201);

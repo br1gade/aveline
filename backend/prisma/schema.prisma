@@ -619,6 +619,8 @@ model RsvpAnswer {
   question RsvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([rsvpId, questionId])
+  /// Whether a question has been answered, before it is edited or deleted.
+  @@index([questionId])
   @@map("rsvp_answers")
 }
 
@@ -1031,6 +1033,8 @@ model TicketOrder {
   @@index([eventId, status])
   /// The reservation sweep scans expiring holds oldest-first.
   @@index([status, reservesUntil])
+  /// The notice sweep reads the last week's settled orders.
+  @@index([status, updatedAt])
   @@map("ticket_orders")
 }
 
@@ -1056,6 +1060,8 @@ model TicketOrderItem {
   ticketType TicketType  @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
 
   @@unique([orderId, ticketTypeId])
+  /// Whether a ticket type has been ordered, before it is deleted.
+  @@index([ticketTypeId])
   @@map("ticket_order_items")
 }
 
@@ -1085,6 +1091,8 @@ model Ticket {
   guest      Guest?      @relation(fields: [guestId], references: [id], onDelete: SetNull)
 
   @@index([eventId, status])
+  /// Voiding an order's tickets and listing them filter by order.
+  @@index([orderId])
   @@map("tickets")
 }
 
@@ -1667,6 +1675,10 @@ model Invoice {
   plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status])
+  /// Settlement and refunds find an invoice by its payment.
+  @@index([paymentOrderNumber])
+  /// Settlement reads ISSUED and VOID invoices across organizations.
+  @@index([status])
   @@map("invoices")
 }
 

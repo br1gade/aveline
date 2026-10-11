@@ -24,6 +24,8 @@ import { mergeTranslations } from '../design/translated-content';
 import { lockRow } from '../../common/row-lock';
 import { invitationSlug } from './invitation-slug';
 
+const STAFF_PAGE_SIZE = 100;
+
 @Injectable()
 export class EventsService {
   private readonly logger = new Logger(EventsService.name);
@@ -195,7 +197,8 @@ export class EventsService {
    * Someone invited to one event only — a venue's door staff — sees that event
    * and nothing else. Platform staff see everything.
    */
-  findAll(actor: RequestActor, isArchiveWanted = false) {
+  findAll(actor: RequestActor, options: { isArchiveWanted?: boolean; page?: { limit?: number; offset: number } } = {}) {
+    const { isArchiveWanted = false, page = { offset: 0 } } = options;
     const reach: Prisma.EventWhereInput[] = [{ memberships: { some: { userId: actor.userId } } }];
     if (actor.organizationId && actorCan(actor, 'event:read')) reach.push({ organizationId: actor.organizationId });
     const isStaff = actor.platformRole !== PlatformRole.NONE;
@@ -207,7 +210,11 @@ export class EventsService {
     return this.prisma.event.findMany({
       where: isStaff ? archive : { AND: [archive, { OR: reach }] },
       include: { invitation: { select: { slug: true, status: true } }, _count: { select: { guests: true } } },
-      orderBy: { startsAt: 'asc' },
+      orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+      // Staff see every customer's events, so their list is paged by default;
+      // it was the whole platform in one response (B91).
+      take: page.limit ?? (isStaff ? STAFF_PAGE_SIZE : undefined),
+      skip: page.offset,
     });
   }
 

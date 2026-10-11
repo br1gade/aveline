@@ -145,6 +145,17 @@ for response rate.
 organization, event, status — and never a request body. What makes `SUPPORT`
 staff acting on a customer's behalf accountable.
 
+**Both expire on their own** (decided 10 October 2026): invitation views
+after 13 months, enough to compare a season with the same one a year on; the
+audit trail after two years, long enough to answer a dispute about what
+support did. TTL indexes on `at` do it, created at start-up with the
+`{eventId, at}` index each collection is read by. Neither grew bounded
+before.
+
+**One connection, however many callers.** Calls arriving while the client
+was still connecting each opened a client of their own, and only the last
+was kept; they now share the connect in progress.
+
 **Erasure reaches both.** Once an erasure has committed in Postgres, the
 person's address is removed from their audit entries (the entries stay) and
 their invitation views lose the `guestId`, browser and referrer that tied
@@ -208,6 +219,14 @@ Integration and e2e run against real Postgres. Redis and Mongo failures are
 covered by **unit** tests that inject a failing client, because what matters is
 that the service degrades rather than that the server is reachable — and those
 tests must stay fast and runnable with neither container up.
+
+**Mongo cannot be reached from Jest at all.** Driver 7's handshake builds
+its client metadata as a `Map` and BSON-serialises it; inside Jest's sandbox
+that comes out empty and the server refuses the connection ("Missing
+required sub-document 'driver'"). So no e2e test exercises a real Mongo
+write — the app degrades as designed and the tests pass. Index and TTL
+behaviour was checked against real Mongo from plain Node. Redis is
+unaffected and has a real-server integration test.
 
 Both of the failures above were found by stopping a container against a running
 API, not by a test. **Run the degraded path by hand before trusting it**: a unit

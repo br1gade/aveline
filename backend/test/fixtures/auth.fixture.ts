@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { EventRole, PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
-import { hashSync } from 'bcryptjs';
+import { hashSync } from 'bcrypt';
 
 const TEST_PASSWORD = 'a-long-enough-test-password';
 /** Hashed once per test file: registering hashed it on every call, which is most of a test's time. */

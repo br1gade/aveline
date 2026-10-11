@@ -815,6 +815,11 @@ can read events, plus any event they were brought onto directly through a
 team invitation. An account with neither gets `[]`. **Do not pass an
 organizationId** — it is ignored. Platform staff see everything.
 
+Optional `?limit=` (1–500) and `?offset=` page the list, soonest event first.
+A customer's list is whole unless they ask; **platform staff get 100 at a
+time by default**, since theirs is every customer's events — page with
+`offset` (added 10 October 2026; the response is still a plain array).
+
 ### Setting an event up for a customer (Aveline staff)
 
 ```http

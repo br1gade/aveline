@@ -25,6 +25,19 @@ describe('MongoConnection', () => {
     expect(client.connect).toHaveBeenCalledTimes(1);
   });
 
+  // B91: calls arriving while the first connect was in flight each built and
+  // connected a client of their own, and all but the last were never closed.
+  it('shares one connect between calls that arrive while it is in flight', async () => {
+    const client = makeClient();
+    const create = jest.fn().mockReturnValue(client);
+    const connection = new MongoConnection(create as never);
+
+    await Promise.all([connection.db(), connection.db(), connection.db()]);
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(client.connect).toHaveBeenCalledTimes(1);
+  });
+
   it('builds a new client after a closed topology, so the next call recovers', async () => {
     const dead = makeClient({ connect: jest.fn().mockRejectedValue(new Error('Topology is closed')) });
     const alive = makeClient();

@@ -110,6 +110,13 @@ dangerous rather than merely wrong:
 | `PUBLIC_APP_URL` | Every emailed link and every bank return lands on `localhost` without it, and payment `returnUrl`s are checked against its origin |
 | `SMTP_HOST` + `MAIL_FROM` | Without them email is written to a log file, which looks exactly like delivery |
 
+**Size the database pool on purpose.** `DATABASE_URL` carries
+`connection_limit` (per API process) and `pool_timeout`, as
+`.env.production.example` shows. Left unset, Prisma's pool is 2 × CPUs + 1,
+which moves with the host and, with a second process, can pass Postgres's
+`max_connections`. The total across processes must leave room for
+migrations and the backup job.
+
 Generate secrets rather than inventing them:
 
 ```bash

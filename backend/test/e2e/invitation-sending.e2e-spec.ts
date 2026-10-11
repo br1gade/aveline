@@ -102,6 +102,37 @@ describe('Invitation sending (e2e)', () => {
     http().post(`/api/v1/invitations/${slug}/send`).set('Authorization', authorization).send(body);
 
   describe('sending', () => {
+    // B91: one enqueue per household was four queries each — one to three
+    // seconds to send four hundred.
+    it('queues four hundred households in one press, quickly, and only once', async () => {
+      const { slug, eventId, authorization } = await host();
+      const households = await prisma.household.createManyAndReturn({
+        data: Array.from({ length: 400 }, (_, index) => ({ eventId, name: `Family ${index}`, seatsAllotted: 2 })),
+        select: { id: true },
+      });
+      await prisma.guest.createMany({
+        data: households.map((household, index) => ({
+          eventId,
+          householdId: household.id,
+          firstName: `Guest${index}`,
+          email: `guest${index}@test.local`,
+          token: `bulk-token-${index}`,
+          isPrimary: true,
+        })),
+      });
+      const started = Date.now();
+
+      const { body } = await send(slug, authorization).expect(201);
+      const elapsed = Date.now() - started;
+      const again = await send(slug, authorization).expect(201);
+
+      expect(body.queued).toBe(401);
+      expect(again.body).toMatchObject({ queued: 0, alreadySent: 401 });
+      expect(await prisma.message.count({ where: { eventId, templateKey: 'invitation.send' } })).toBe(401);
+      // A few hundred milliseconds locally; the bound leaves room for a slow machine.
+      expect(elapsed).toBeLessThan(3_000);
+    });
+
     /**
      * The household rule. Three emails about one invitation means three people
      * answering for the same seats and a host who looks careless.

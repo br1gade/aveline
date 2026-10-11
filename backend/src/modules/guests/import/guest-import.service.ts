@@ -1,21 +1,17 @@
-import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { isUniqueViolation } from '../../../common/prisma-errors';
-import { GuestAttribution, ImportStatus, MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
+import { ImportStatus, MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
 import { addressFingerprint } from '../../communications/address-form';
-import { newGuestToken } from '../guest-token';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { capacityProblem } from '../guest-rules';
-import { LockedHousehold, lockHousehold } from '../household-lock';
 import { ParsedGuest, RowError, TooManyRowsError, parseGuestCsv } from './csv-guests';
+import { HOUSEHOLDS_PER_BATCH, HouseholdInFile, describeImportError, importHouseholds } from './household-import';
+
+/** A batch of a hundred households is a few queries; this is room, not a target. */
+const BATCH_TIMEOUT_MS = 30_000;
 
 /** A run still PROCESSING after this long was interrupted. */
 const STALE_IMPORT_MS = 10 * 60 * 1000;
 
-/** What the file says about one household: the seats it states, and how many it names. */
-interface HouseholdInFile {
-  stated?: number;
-  named: number;
-}
 
 @Injectable()
 export class GuestImportService {
@@ -50,18 +46,19 @@ export class GuestImportService {
     const failures = [...errors];
     let imported = 0;
 
-    for (const guest of guests) {
+    for (const batch of inBatches(groupByHousehold(guests), HOUSEHOLDS_PER_BATCH)) {
       try {
-        await this.upsertGuest(eventId, guest, seatsInFile);
-        imported += 1;
+        const outcome = await this.prisma.$transaction((tx) => importHouseholds(tx, eventId, batch, seatsInFile), { timeout: BATCH_TIMEOUT_MS });
+        imported += outcome.imported;
+        failures.push(...outcome.failures);
       } catch (error) {
         // The full error goes to our logs; the history gets only what is safe to show.
-        this.logger.warn(`import ${record.id} row ${guest.row}: ${error instanceof Error ? error.message : String(error)}`);
-        failures.push({ row: guest.row, message: `Could not save ${guest.firstName}: ${describeError(error)}` });
+        this.logger.warn(`import ${record.id} batch from row ${batch[0][0].row}: ${error instanceof Error ? error.message : String(error)}`);
+        failures.push(...batch.flat().map((guest) => ({ row: guest.row, message: `Could not save ${guest.firstName}: ${describeImportError(error)}` })));
       }
     }
 
-    return this.finish(record.id, imported, failures);
+    return this.finish(record.id, imported, failures.sort((a, b) => a.row - b.row));
   }
 
   /**
@@ -124,82 +121,6 @@ export class GuestImportService {
     });
   }
 
-  /**
-   * One CSV row into the guest graph.
-   *
-   * Re-importing a corrected spreadsheet must not duplicate anyone, so a
-   * household is matched by name and a guest by name within it. Updating
-   * never clears a field the CSV left blank — the host may have filled in a
-   * phone number by hand since the first import, and a guest may have said
-   * which side invited them.
-   */
-  private async upsertGuest(eventId: string, guest: ParsedGuest, seatsInFile: Map<string, HouseholdInFile>) {
-    const householdId = await this.findOrCreateHousehold(eventId, guest, seatsInFile);
-
-    const existing = await this.prisma.guest.findFirst({
-      where: { eventId, householdId, firstName: guest.firstName, lastName: guest.lastName ?? null },
-    });
-
-    if (existing) {
-      await this.prisma.guest.update({
-        where: { id: existing.id },
-        data: {
-          email: guest.email ?? existing.email,
-          phone: guest.phone ?? existing.phone,
-          locale: guest.locale ?? existing.locale,
-          attribution: guest.attribution ?? existing.attribution,
-        },
-      });
-      return;
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      // Locked, as the guest API does, so the count is still true when written.
-      const household = await lockHousehold(tx, eventId, householdId);
-      await makeRoom(tx, household, seatsInFile.get(guest.household));
-      await tx.guest.create({
-        data: {
-          eventId,
-          householdId,
-          firstName: guest.firstName,
-          lastName: guest.lastName ?? null,
-          email: guest.email ?? null,
-          phone: guest.phone ?? null,
-          locale: guest.locale ?? null,
-          attribution: guest.attribution ?? GuestAttribution.UNKNOWN,
-          token: newGuestToken(),
-          // The first person listed for a household holds its invitation
-          // link; the rest are family on the same link.
-          isPrimary: household.namedGuests === 0,
-          // An imported guest was given to us by the host, which is the lawful
-          // basis we record (spec §GDPR). Not a guest's own consent.
-          consentAt: new Date(),
-          consentSource: 'host-import',
-          rsvp: { create: {} },
-        },
-      });
-    });
-  }
-
-  private async findOrCreateHousehold(
-    eventId: string,
-    guest: ParsedGuest,
-    seatsInFile: Map<string, HouseholdInFile>,
-  ): Promise<string> {
-    const existing = await this.prisma.household.findFirst({
-      where: { eventId, name: guest.household },
-      select: { id: true },
-    });
-    if (existing) return existing.id;
-
-    const inFile = seatsInFile.get(guest.household);
-    const created = await this.prisma.household.create({
-      data: { eventId, name: guest.household, seatsAllotted: inFile?.stated ?? inFile?.named ?? 1 },
-      select: { id: true },
-    });
-    return created.id;
-  }
-
   private async finish(importId: string, imported: number, failures: RowError[]) {
     const status = importStatusFor(imported, failures.length);
 
@@ -225,14 +146,6 @@ export class GuestImportService {
       errors: failures.map(({ isContact: _isContact, ...error }) => error),
     };
   }
-}
-
-/**
- * A rule we enforce speaks for itself; anything else — a database error can
- * echo the row's values — is not repeated into a history others read.
- */
-function describeError(error: unknown): string {
-  return error instanceof HttpException ? error.message : 'an unexpected error; try the row again';
 }
 
 function withoutContact({ isContact, value, ...error }: RowError): RowError {
@@ -266,33 +179,13 @@ function seatsStatedPerHousehold(guests: ParsedGuest[]): Map<string, HouseholdIn
   return households;
 }
 
-/**
- * A seat for one more named guest, or the reason there is none.
- *
- * The same rule as adding a guest by hand: named guests never outnumber seats.
- * When the file states a household's seats, that is the host's word and a
- * row past it is reported. When it does not, the host has simply named the
- * people they are inviting, and the household grows to fit them.
- */
-async function makeRoom(
-  tx: Prisma.TransactionClient,
-  household: LockedHousehold,
-  inFile: HouseholdInFile | undefined,
-): Promise<void> {
-  const seats = seatsWithOneMore(household, inFile?.stated);
-  if (seats !== household.seatsAllotted) {
-    await tx.household.update({ where: { id: household.id }, data: { seatsAllotted: seats } });
-  }
+/** Rows grouped by household, in the order each household first appears. */
+function groupByHousehold(guests: ParsedGuest[]): ParsedGuest[][] {
+  const groups = new Map<string, ParsedGuest[]>();
+  for (const guest of guests) groups.set(guest.household, [...(groups.get(guest.household) ?? []), guest]);
+  return [...groups.values()];
 }
 
-/** The household's seats once one more guest is named in it; throws if they cannot be. */
-function seatsWithOneMore(household: LockedHousehold, stated: number | undefined): number {
-  const needed = household.namedGuests + 1;
-  if (stated === undefined) return Math.max(household.seatsAllotted, needed);
-
-  // Never shrinks: a host who raised the seats by hand keeps them.
-  const seats = Math.max(household.seatsAllotted, stated);
-  const problem = capacityProblem(seats, needed);
-  if (problem) throw new BadRequestException(problem);
-  return seats;
+function inBatches<T>(items: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
 }
