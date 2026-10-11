@@ -545,12 +545,14 @@ describe('transaction safety (integration)', () => {
     it('refunds exactly once under concurrent cancellations', async () => {
       const { orderId, ticketTypeId } = await paidTicketOrder(2);
 
-      await Promise.allSettled([
+      const results = await Promise.all([
         cancellation.cancel(eventId, orderId),
         cancellation.cancel(eventId, orderId),
         cancellation.cancel(eventId, orderId),
       ]);
 
+      // B85: the losers were refused with a 409; each now gets the cancelled order.
+      expect(results.map((result) => result.status)).toEqual(['REFUNDED', 'REFUNDED', 'REFUNDED']);
       const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
       const payment = await prisma.payment.findUniqueOrThrow({
         where: { orderNumber: order.paymentOrderNumber! },

@@ -193,11 +193,8 @@ export class TicketingService {
   }
 
   /**
-   * Converts holds into sales and issues the tickets. Idempotent: a repeated
-   * callback must not issue a second set.
-   */
-  /**
-   * Turns a settled payment into tickets.
+   * Turns a settled payment into tickets. Idempotent: a repeated callback
+   * must not issue a second set.
    *
    * Delegated: committing inventory, issuing codes and telling the buyer are
    * fulfilment, not the sale. This keeps the shape the callers already expect.
@@ -217,13 +214,27 @@ export class TicketingService {
       select: { id: true, paymentOrderNumber: true },
       take: limit,
     });
+    // Each order on its own: one that could not be settled used to throw out
+    // of the loop, and no abandoned checkout's seats were released that run.
+    // An order that failed here is kept back from expiry too — its money may
+    // be in — and the next run tries it again.
+    const unsettled: string[] = [];
     for (const order of lapsed) {
-      const payment = await this.payments
-        .confirm(order.paymentOrderNumber!, 'RECONCILIATION')
-        .catch((error: unknown) => this.logger.warn(`could not ask about ${order.id}: ${describeError(error)}`));
-      if (payment?.status === 'CAPTURED') await this.fulfilment.markPaid(order.id);
+      if (!(await this.settleIfPaid(order))) unsettled.push(order.id);
     }
-    return this.fulfilment.releaseExpiredReservations(limit);
+    return this.fulfilment.releaseExpiredReservations(limit, unsettled);
+  }
+
+  /** Issues a lapsed order whose payment the bank took. False if that could not be settled. */
+  private async settleIfPaid(order: { id: string; paymentOrderNumber: string | null }): Promise<boolean> {
+    try {
+      const payment = await this.payments.confirm(order.paymentOrderNumber!, 'RECONCILIATION');
+      if (payment.status === 'CAPTURED') await this.fulfilment.markPaid(order.id);
+      return true;
+    } catch (error) {
+      this.logger.warn(`could not settle lapsed order ${order.id}: ${describeError(error)}`);
+      return false;
+    }
   }
 
   /** Delegated: queues the confirmations a failed attempt did not. */

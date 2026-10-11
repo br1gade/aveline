@@ -165,6 +165,21 @@ export class PromoCodesService {
     `;
   }
 
+  /**
+   * Takes a released redemption back for an order that is being honoured
+   * after all — a payment that landed after its hold lapsed. Not capped: the
+   * buyer already paid the discounted price, so the redemption is owed even
+   * if someone took the last one meanwhile. Without it, a later cancellation
+   * gave the redemption back a second time.
+   */
+  async retake(promoCodeId: string | null, tx: Executor): Promise<void> {
+    if (!promoCodeId) return;
+
+    await tx.$executeRaw`
+      UPDATE "promo_codes" SET "redemptions" = "redemptions" + 1, "updatedAt" = NOW() WHERE "id" = ${promoCodeId}
+    `;
+  }
+
   private async findOwned(organizationId: string, codeId: string) {
     const code = await this.prisma.promoCode.findFirst({ where: { id: codeId, organizationId } });
     if (!code) throw new NotFoundException('No such promo code');

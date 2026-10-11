@@ -643,14 +643,18 @@ payment, and emails the buyer — as one action, exactly once. Free orders end
 - **Refused if any ticket was already admitted** (`409`): refunding after
   attendance is a dispute with the buyer, not a cancellation.
 - **Safe to retry and safe to double-click.** A second call returns the
-  cancelled order rather than an error, and never refunds twice.
+  cancelled order rather than an error, and never refunds twice — even two at
+  the same moment: the second waits for the first's refund and answers with
+  its result. (Until 10 October 2026 that case answered `409`.)
 - **Requires `billing:write`** — money leaves the business, so in practice the
   organization owner.
 
 `POST /payments/:orderNumber/refund` now **refuses ticket payments** and
 points here, because refunding the money alone left a buyer refunded and still
 able to get in. It remains for other payments, is staff-only, and takes a
-validated `{ "amountMinor": "15000", "reason": "..." }`.
+validated `{ "amountMinor": "15000", "reason": "..." }`. Refunding a
+subscription payment **in full** voids its invoice and ends the plan at once
+(decided 10 October 2026); a partial refund changes nothing.
 
 ### Buying tickets
 
@@ -675,6 +679,9 @@ sends the payer wherever it says, so any other origin would be an open
 redirect through a real payment page. Omitted, it is `/tickets/return` on the
 app. The same rule holds for `returnUrl` on `POST /subscription`, whose
 default is `/billing/return`.
+
+List each ticket type **once**, with its quantity: a basket naming one type
+twice is a `400` on `items` (two lines of six used to pass a limit of ten).
 
 **Generate `idempotencyKey` once per checkout attempt and reuse it on retry.**
 A double-tapped button with the same key returns the same order rather than
@@ -1403,14 +1410,18 @@ bank URL:
 
 ```json
 {
-  "subscription": { "status": "TRIALING", ... },
+  "subscription": null,
   "invoice": { "number": "AV-2026-000001", "status": "ISSUED", "totalMinor": "25000" },
   "payment": { "orderNumber": "...", "redirectUrl": "https://bank..." }
 }
 ```
 
-**Access begins when the payment confirms, not when this call returns.** The
-subscription stays `TRIALING` until then — send the payer to `redirectUrl`, and
+**Access begins when the payment confirms, not when this call returns.** A
+first paid plan has **no subscription until it is paid** — `subscription` is
+`null` here and on `GET /subscription` — and a plan change leaves the current
+subscription as it is. **Breaking, 10 October 2026:** a first paid plan used to
+create a `TRIALING` subscription on the paid plan, which reported its
+entitlements before anything was paid. Send the payer to `redirectUrl`, and
 on their return call:
 
 ```http
@@ -1437,7 +1448,8 @@ POST /api/v1/subscription/resume
 
 Cancelling sets `cancelAtPeriodEnd: true` and leaves the status `ACTIVE`:
 someone who paid for the month keeps the month. Show them
-`currentPeriodEnd`, not "cancelled". `resume` undoes it until that date passes,
+`currentPeriodEnd`, not "cancelled". A cancel stands even if a plan change
+issued before it is paid afterwards. `resume` undoes it until that date passes,
 after which it returns `400` and the answer is to subscribe again. Both need
 `billing:write`.
 

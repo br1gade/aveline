@@ -834,6 +834,9 @@ model Payment {
   capturedAt   DateTime?
   /// Registered orders do not stay payable forever; reconciliation expires them.
   expiresAt    DateTime?
+  /// When reconciliation last asked the bank. The sweep takes the longest
+  /// unasked first, so payments that never settle cannot fill every batch.
+  lastCheckedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -845,8 +848,8 @@ model Payment {
 
   @@index([organizationId])
   @@index([eventId])
-  /// Reconciliation sweeps unresolved payments oldest-first.
-  @@index([status, createdAt])
+  /// Reconciliation sweeps unresolved payments, longest unasked first.
+  @@index([status, lastCheckedAt])
   @@map("payments")
 }
 

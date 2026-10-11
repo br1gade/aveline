@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
 import { BANK_TIMEOUT_MS, BankDeclinedError } from './payment-provider';
+import { outcomeForOrderStatus } from './card-order-status';
 import {
   PaymentGateway,
   ProviderStatus,
@@ -98,20 +99,22 @@ export class AmeriabankGateway implements PaymentGateway {
   }
 
   /**
-   * vPOS reports both a transport-level ResponseCode and a payment state.
-   * '00' is the success code; anything else is a decline with a message.
+   * vPOS reports both a transport-level ResponseCode and the payment's
+   * OrderStatus. The OrderStatus decides when there is one; without it, '00'
+   * is a capture and anything else is not yet an answer. Every non-'00' code
+   * used to read as a decline — including a payment still being paid — and
+   * FAILED is final.
    */
   private readOutcome(body: Record<string, unknown>): ProviderStatus['outcome'] {
     const responseCode = asString(body.ResponseCode);
     const amount = toMinorUnits(asString(body.Amount) ?? '0', asString(body.Currency) ?? 'AMD');
 
+    const outcome = outcomeForOrderStatus(body.OrderStatus, amount, asString(body.ResponseMessage) ?? `Ameriabank response code ${responseCode ?? 'none'}`);
+    if (outcome) return outcome;
     if (responseCode === '00') return { kind: 'captured', amountMinor: amount };
-    if (responseCode === undefined) return { kind: 'pending' };
 
-    return {
-      kind: 'failed',
-      reason: asString(body.ResponseMessage) ?? `Ameriabank response code ${responseCode}`,
-    };
+    this.logger.warn(`Ameriabank gave response code ${responseCode ?? 'none'} and no order status; still pending`);
+    return { kind: 'pending' };
   }
 
   private async post(method: string, payload: Record<string, unknown>) {

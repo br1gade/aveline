@@ -87,6 +87,12 @@ export class TicketNotifierService {
          AND NOT EXISTS (
            SELECT 1 FROM messages m
             WHERE m."dedupeKey" = (CASE WHEN o.status = 'PAID' THEN 'ticket-issued:' ELSE 'ticket-cancelled:' END) || o.id)
+         -- "Refunded" only once the bank has refunded. The order is claimed
+         -- REFUNDED before the bank is asked, and an unknown outcome stays
+         -- that way until staff confirm it (B85).
+         AND (o.status = 'PAID' OR o."paymentOrderNumber" IS NULL OR EXISTS (
+           SELECT 1 FROM refunds r JOIN payments p ON p.id = r."paymentId"
+            WHERE p."orderNumber" = o."paymentOrderNumber" AND r.status = 'COMPLETED'))
        LIMIT ${limit}`;
 
     for (const order of orders) {

@@ -1,5 +1,5 @@
 import { appPage } from '../../common/app-url';
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import {
   BillingInterval,
   InvoiceStatus,
@@ -17,13 +17,17 @@ import { SubscribeDto } from './dto/subscription.dto';
 const PAYMENT_TERMS_DAYS = 7;
 
 @Injectable()
-export class SubscriptionsService {
+export class SubscriptionsService implements OnModuleInit {
   private readonly logger = new Logger(SubscriptionsService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly payments: PaymentsService,
   ) {}
+
+  onModuleInit(): void {
+    this.payments.onRefunded(PaymentPurpose.SUBSCRIPTION, (payment) => this.endRefundedPlan(payment));
+  }
 
   /** The price list. Public, because it is the pricing page. */
   async listPlans() {
@@ -80,9 +84,8 @@ export class SubscriptionsService {
     });
     if (!plan) throw new NotFoundException(`No plan "${dto.planKey}" is available`);
 
-    const period = periodAfter(plan.interval, new Date());
-
     if (plan.priceMinor === 0n) {
+      const period = periodAfter(plan.interval, new Date());
       const subscription = await this.prisma.$transaction(async (tx) => {
         // Choosing a free plan is choosing not to pay the open invoice.
         await voidOpenInvoices(tx, organizationId);
@@ -112,19 +115,16 @@ export class SubscriptionsService {
       });
       // The same plan asked for again — a double click, a retry — is the same
       // invoice, and its payment is idempotent by invoice id.
-      if (open?.subscription) return { subscription: open.subscription, invoice: open };
+      if (open) return { subscription: open.subscription, invoice: open };
 
+      // A first paid plan opens no subscription until it is paid: a TRIALING
+      // row on the paid plan reported its entitlements to an organization that
+      // had paid nothing (B85). Paying the invoice creates it.
       const existing = await tx.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
-      const target =
-        existing ??
-        (await this.upsertSubscription(
-          { organizationId, planId: plan.id, period, status: SubscriptionStatus.TRIALING },
-          tx,
-        ));
       // One open invoice at a time: the newer intent replaces the older.
       await voidOpenInvoices(tx, organizationId);
-      const issued = await this.issueInvoice(tx, { organizationId, subscriptionId: target.id, plan });
-      return { subscription: target, invoice: issued };
+      const issued = await this.issueInvoice(tx, { organizationId, subscriptionId: existing?.id ?? null, plan });
+      return { subscription: existing, invoice: issued };
     });
 
     const payment = await this.payments.start({
@@ -145,7 +145,7 @@ export class SubscriptionsService {
     });
 
     return {
-      subscription: describeSubscription(subscription),
+      subscription: subscription ? describeSubscription(subscription) : null,
       invoice: describeInvoice(linked),
       payment,
     };
@@ -228,19 +228,80 @@ export class SubscriptionsService {
       });
       if (claimed.count === 0) return false;
 
-      const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { plan: true } });
-      if (invoice.subscriptionId) {
-        await tx.subscription.update({
-          where: { id: invoice.subscriptionId },
-          data: { status: SubscriptionStatus.ACTIVE, ...planChange(invoice.plan) },
-        });
-      }
+      const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { plan: true, subscription: true } });
+      await this.applyPaidPlan(tx, invoice);
       return true;
     });
 
     if (wasSettled) this.logger.log(`invoice ${invoiceId} paid`);
     const invoice = await this.prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
     return describeInvoice(invoice);
+  }
+
+  /**
+   * The plan a paid invoice was for, from now. A first plan opens the
+   * subscription here, at payment. A cancel made after the invoice was issued
+   * stands: paying an older plan change used to quietly undo it (B87).
+   */
+  private async applyPaidPlan(
+    tx: Prisma.TransactionClient,
+    invoice: {
+      id: string;
+      organizationId: string;
+      createdAt: Date;
+      plan: { id: string; interval: BillingInterval } | null;
+      subscription: { id: string; cancelledAt: Date | null } | null;
+    },
+  ): Promise<void> {
+    if (!invoice.subscription) {
+      if (!invoice.plan) return;
+      const opened = await this.upsertSubscription(
+        { organizationId: invoice.organizationId, planId: invoice.plan.id, period: periodAfter(invoice.plan.interval, new Date()), status: SubscriptionStatus.ACTIVE },
+        tx,
+      );
+      await tx.invoice.update({ where: { id: invoice.id }, data: { subscriptionId: opened.id } });
+      return;
+    }
+    const isCancelledSince = invoice.subscription.cancelledAt !== null && invoice.subscription.cancelledAt > invoice.createdAt;
+    const change = planChange(invoice.plan);
+    await tx.subscription.update({
+      where: { id: invoice.subscription.id },
+      data: {
+        status: SubscriptionStatus.ACTIVE,
+        ...change,
+        ...(isCancelledSince ? { cancelAtPeriodEnd: true, cancelledAt: invoice.subscription.cancelledAt } : {}),
+      },
+    });
+  }
+
+  /**
+   * A subscription payment refunded in full voids its invoice and ends the
+   * plan now (decided 10 October 2026, D19) — money back and access kept was
+   * the gap. Only for the invoice the current period was bought with: an old
+   * invoice refunded later does not end a newer paid period.
+   */
+  async endRefundedPlan(payment: { orderNumber: string; status: string }): Promise<void> {
+    if (payment.status !== 'REFUNDED') return;
+    await this.prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findFirst({
+        where: { paymentOrderNumber: payment.orderNumber, status: InvoiceStatus.PAID },
+        select: { id: true, subscriptionId: true, paidAt: true },
+      });
+      if (!invoice) return;
+      await tx.invoice.update({ where: { id: invoice.id }, data: { status: InvoiceStatus.VOID } });
+      if (!invoice.subscriptionId) return;
+
+      const newer = await tx.invoice.count({
+        where: { subscriptionId: invoice.subscriptionId, status: InvoiceStatus.PAID, paidAt: { gt: invoice.paidAt ?? new Date(0) } },
+      });
+      if (newer > 0) return;
+
+      const now = new Date();
+      await tx.subscription.update({
+        where: { id: invoice.subscriptionId },
+        data: { status: SubscriptionStatus.CANCELLED, currentPeriodEnd: now, cancelledAt: now, cancelAtPeriodEnd: false },
+      });
+    });
   }
 
   /**
@@ -342,7 +403,7 @@ export class SubscriptionsService {
     tx: Prisma.TransactionClient,
     input: {
       organizationId: string;
-      subscriptionId: string;
+      subscriptionId: string | null;
       plan: { id: string; key: string; name: string; priceMinor: bigint; currency: string; interval: BillingInterval };
     },
   ) {
@@ -381,7 +442,8 @@ export class SubscriptionsService {
 /** Replaces any invoice still waiting for payment: the customer changed their mind. */
 async function voidOpenInvoices(tx: Prisma.TransactionClient, organizationId: string): Promise<void> {
   await tx.invoice.updateMany({
-    where: { organizationId, status: InvoiceStatus.ISSUED, subscriptionId: { not: null } },
+    // Plan invoices only — a first plan's invoice has no subscription yet.
+    where: { organizationId, status: InvoiceStatus.ISSUED, planId: { not: null } },
     data: { status: InvoiceStatus.VOID },
   });
 }

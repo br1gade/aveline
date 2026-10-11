@@ -27,6 +27,7 @@ describe('ticket settlement (integration)', () => {
   let ticketing: TicketingService;
   let notifier: TicketNotifierService;
   let fake: FakeGateway;
+  let fulfilment: TicketFulfilmentService;
   let eventId: string;
 
   beforeAll(() => {
@@ -41,7 +42,7 @@ describe('ticket settlement (integration)', () => {
     );
     const communications = new CommunicationsService(database, transports, new SuppressionService(database));
     notifier = new TicketNotifierService(database, communications, { get: () => 'https://aveline.test' } as unknown as ConfigService);
-    const fulfilment = new TicketFulfilmentService(database, inventory, promoCodes, notifier);
+    fulfilment = new TicketFulfilmentService(database, inventory, promoCodes, notifier);
     ticketing = new TicketingService(database, payments, promoCodes, fulfilment);
   });
 
@@ -128,6 +129,54 @@ describe('ticket settlement (integration)', () => {
       expect(await prisma.message.count({ where: { dedupeKey: `ticket-issued:${created.orderId}` } })).toBe(1);
     });
 
+    // B85: expiring gave the redemption back and late issuance never took it
+    // again, so a later cancellation gave it back a second time.
+    it('takes the promo redemption again when it issues late', async () => {
+      const { slug, ticketTypeId } = await onSale(10);
+      const { organizationId } = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+      const code = await prisma.promoCode.create({
+        data: { organizationId, code: 'FRIENDS', kind: 'PERCENT', value: 10n, maxRedemptions: 1 },
+      });
+      const created = await ticketing.createOrder(slug, {
+        items: [{ ticketTypeId, quantity: 1 }],
+        buyerName: 'Ani',
+        buyerEmail: 'ani@test.local',
+        idempotencyKey: 'order-with-code',
+        provider: PaymentProvider.FAKE,
+        promoCode: 'FRIENDS',
+      });
+      await lapse(created.orderId);
+      await ticketing.releaseExpiredReservations();
+      expect((await prisma.promoCode.findUniqueOrThrow({ where: { id: code.id } })).redemptions).toBe(0);
+      await paysAtTheBank(created.orderId);
+
+      await payments.reconcile();
+      await ticketing.settleCapturedPayments();
+
+      expect((await prisma.ticketOrder.findUniqueOrThrow({ where: { id: created.orderId } })).status).toBe(TicketOrderStatus.PAID);
+      expect((await prisma.promoCode.findUniqueOrThrow({ where: { id: code.id } })).redemptions).toBe(1);
+    });
+
+    // B85: the order is marked refunded before the bank is asked, and the
+    // notice sweep told the buyer "refunded" while the refund was still unknown.
+    it('does not say refunded until the bank has refunded', async () => {
+      const { slug, ticketTypeId } = await onSale(2);
+      const late = await buy(slug, ticketTypeId, 2);
+      await lapse(late.orderId);
+      await ticketing.releaseExpiredReservations();
+      const other = await buy(slug, ticketTypeId, 2);
+      await paysAtTheBank(other.orderId);
+      await ticketing.confirmOrder(other.accessToken);
+      const { order } = await paysAtTheBank(late.orderId);
+      jest.spyOn(fake, 'refund').mockRejectedValueOnce(new Error('connection reset'));
+
+      await ticketing.confirmOrder(order.accessToken).catch(() => undefined);
+      await ticketing.sendMissingNotices();
+
+      expect((await prisma.ticketOrder.findUniqueOrThrow({ where: { id: late.orderId } })).status).toBe(TicketOrderStatus.REFUNDED);
+      expect(await prisma.message.count({ where: { dedupeKey: `ticket-cancelled:${late.orderId}` } })).toBe(0);
+    });
+
     it('is refunded in full, and told, when the seats were sold in the meantime', async () => {
       const { slug, ticketTypeId } = await onSale(2);
       const late = await buy(slug, ticketTypeId, 2);
@@ -147,6 +196,23 @@ describe('ticket settlement (integration)', () => {
       expect(payment).toMatchObject({ status: PaymentStatus.REFUNDED, refundedMinor: 20_000n });
       expect(await sold(ticketTypeId)).toEqual({ sold: 2, reserved: 0 });
       expect(await prisma.message.count({ where: { dedupeKey: `ticket-cancelled:${late.orderId}` } })).toBe(1);
+    });
+
+    // B85: one paid order that could not be settled threw out of the loop,
+    // and no abandoned checkout's seats were released that run.
+    it('still releases abandoned holds when one paid order cannot be settled', async () => {
+      const { slug, ticketTypeId } = await onSale(10);
+      const paid = await buy(slug, ticketTypeId, 1);
+      const abandoned = await buy(slug, ticketTypeId, 2);
+      await paysAtTheBank(paid.orderId);
+      await lapse(paid.orderId);
+      await lapse(abandoned.orderId);
+      jest.spyOn(fulfilment, 'markPaid').mockRejectedValueOnce(new Error('database blip'));
+
+      await ticketing.releaseExpiredReservations();
+
+      const after = await prisma.ticketOrder.findUniqueOrThrow({ where: { id: abandoned.orderId } });
+      expect(after.status).toBe(TicketOrderStatus.EXPIRED);
     });
 
     it('settles once however many times it is asked', async () => {

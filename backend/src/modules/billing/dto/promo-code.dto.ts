@@ -4,6 +4,7 @@ import { DiscountKind } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   ArrayMinSize,
   IsArray,
   IsBoolean,
@@ -111,6 +112,8 @@ export class CheckPromoCodeDto {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(10)
+  // One line per type: two lines of six each passed a limit of ten (B85).
+  @ArrayUnique((line: OrderLineDto) => line?.ticketTypeId, { message: 'items: list each ticket type once, with its quantity' })
   @ValidateNested({ each: true })
   @Type(() => OrderLineDto)
   items!: OrderLineDto[];

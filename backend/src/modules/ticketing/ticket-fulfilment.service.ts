@@ -110,9 +110,9 @@ export class TicketFulfilmentService {
    * Without this, every abandoned basket permanently removes seats from sale
    * and a popular event sells out to nobody.
    */
-  async releaseExpiredReservations(limit = 100): Promise<{ released: number }> {
+  async releaseExpiredReservations(limit = 100, exceptOrderIds: string[] = []): Promise<{ released: number }> {
     const expired = await this.prisma.ticketOrder.findMany({
-      where: { status: TicketOrderStatus.RESERVED, reservesUntil: { lt: new Date() } },
+      where: { status: TicketOrderStatus.RESERVED, reservesUntil: { lt: new Date() }, id: { notIn: exceptOrderIds } },
       include: { items: true },
       orderBy: { reservesUntil: 'asc' },
       take: limit,
@@ -196,6 +196,8 @@ export class TicketFulfilmentService {
           // Thrown to roll the claim back: some seats are not all seats.
           if (!(await this.inventory.sellLate(item.ticketTypeId, item.quantity, tx))) throw new SoldOut();
         }
+        // Expiring gave the redemption back; honouring the order takes it again.
+        await this.promoCodes.retake(order.promoCodeId, tx);
         await tx.ticket.createMany({ data: this.ticketsFor(order) });
         return 'ISSUED' as const;
       });

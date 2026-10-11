@@ -122,6 +122,31 @@ describe('Public event setup (e2e)', () => {
     return { authorization, eventId, slug: listing.slug as string, code: (order.tickets as { code: string }[])[0].code };
   };
 
+  // B85: two lines of six each passed a per-order limit of ten.
+  it('refuses a basket that lists one ticket type twice', async () => {
+    const { authorization, eventId } = await organizer();
+    const base = `/api/v1/events/${eventId}`;
+    await at(`${base}/settings`, authorization).patch({ visibility: 'PUBLIC' }).expect(200);
+    const { body: type } = await at(`${base}/ticket-types`, authorization)
+      .post({ name: { en: 'GA' }, priceMinor: '0', quantityTotal: 50 })
+      .expect(201);
+    const { body: listing } = await at(`${base}/listing`, authorization).put({ headline: { en: 'Jazz' } }).expect(200);
+    await at(`${base}/listing/publish`, authorization).post().expect(201);
+
+    const { body } = await http()
+      .post(`/api/v1/public/events/${listing.slug}/orders`)
+      .send({
+        items: [{ ticketTypeId: type.id, quantity: 6 }, { ticketTypeId: type.id, quantity: 6 }],
+        buyerName: 'Ani',
+        buyerEmail: 'ani@test.local',
+        idempotencyKey: 'twice',
+      })
+      .expect(400);
+
+    expect(JSON.stringify(body.message)).toContain('items: list each ticket type once');
+    expect(await prisma.ticketOrder.count()).toBe(0);
+  });
+
   // B70 (decided 10 October 2026, D12): sales stop at the start; the
   // listing leaves browse at the end. Ended events stayed listed, oldest
   // first, and kept selling.

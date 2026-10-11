@@ -95,6 +95,18 @@ asks the bank first and only then expires what the bank still calls unpaid —
 expiring first wrote off payments the bank had captured, because `EXPIRED` is
 final.
 
+The sweep takes the payments **longest unasked first** (`lastCheckedAt`), not
+the oldest: holds the bank kept calling authorised used to fill every batch,
+so nothing newer was ever asked about. A `CREATED` row past its lifetime —
+the process died between claiming the key and reaching the bank — is swept
+and expired too.
+
+**A status the adapter cannot read is pending, never failed.** `FAILED` is
+final. An unknown orderStatus, a bank error instead of a status, or a payment
+still being paid used to be written off for good; now only an explicit
+decline (orderStatus 6) fails a payment, and anything unread is asked again
+next sweep and expires on its own clock if it truly went nowhere.
+
 Every transition writes a `PaymentEvent` with the verbatim provider payload.
 That table is append-only and is how a disagreement with the bank gets settled.
 
@@ -154,6 +166,29 @@ the payment is refunded.
 **Every reconciliation is followed by settlement.** `MoneySweepService`
 reconciles, then settles captured ticket orders and invoices — the customers
 who paid and never returned. Reconciliation used to update only the payment.
+
+**One order that cannot be settled stops nothing else.** Each lapsed order is
+settled on its own; one that throws is logged and kept back from expiry, since
+its money may be in, and the run goes on to release every abandoned hold.
+
+**A promo redemption follows the order.** Expiring gives it back; a late
+payment that is honoured takes it again (uncapped — the discount was already
+paid), so a later cancellation cannot give it back twice.
+
+**"Refunded" is said only after the bank refunds.** A late order is claimed
+`REFUNDED` before the bank is asked; the notice sweep waits for a completed
+`Refund`, so an unknown outcome is never announced as money returned.
+
+**Two cancellations of one order both get the cancelled order.** The loser of
+the refund claim waits — bounded by the bank timeout — for the winner to
+finish, rather than answering 409 or voiding tickets whose refund is still
+at the bank.
+
+**A subscription payment refunded in full ends the plan now** (decided 10
+October 2026): its invoice is voided and the subscription is `CANCELLED` with
+its period ending at that moment. A partial refund changes nothing. Billing
+learns of it through a refund listener on `PaymentsService`, since billing
+depends on payments and not the reverse.
 
 **A checkout that fails after its order exists expires the order**,
 claim-first, which returns its seats once. Releasing them beside a `RESERVED`
@@ -215,13 +250,18 @@ Visa, Mastercard and ArCa come with any of the three gateways.
    a warning where that matters. Everything deciding business outcomes lives in
    `PaymentsService`, so corrections stay inside one adapter.
 2. **Run the certification** each bank requires.
-3. **Schedule reconciliation.** Nothing calls `/reconcile` on a timer yet; it
-   needs a job (BullMQ on Redis — see [DATA_STORES.md](../backend/docs/DATA_STORES.md)).
-4. **Authenticate the endpoints.** Payments inherit the project-wide gap: there
-   is no auth, so `/api/payments` is currently open. This must not ship.
-5. **Decide two-step vs one-step** for deposits and request the authority.
-6. **Confirm the callback mechanism** each bank offers. We poll on confirm and
-   reconcile; if a bank pushes a webhook, its signature must be verified.
+3. **Decide two-step vs one-step** for deposits and request the authority.
+4. **Confirm the callback mechanism** each bank offers. We poll on confirm and
+   reconcile (every five minutes, `MoneySweepService`); if a bank pushes a
+   webhook, its signature must be verified.
+5. **Confirm three suspected mismatches** with the banks:
+   - Ameriabank may require `OrderID` to be an integer in a range it assigns;
+     ours is a string like `AVL-…`.
+   - ArCa's ISO 4217 table gives AMD two decimal places, so it may expect
+     luma (amount × 100) where we send whole dram.
+   - We read Ameriabank's `OrderStatus` with the same codes as ArCa's; confirm
+     its `GetPaymentDetails` returns it, or declines will read as pending
+     until they expire.
 
 ## 7. What uses it
 

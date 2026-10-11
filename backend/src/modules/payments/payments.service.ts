@@ -23,18 +23,34 @@ import { isRecordNotFound, isUniqueViolation } from '../../common/prisma-errors'
 /** How long a registered-but-unpaid order stays payable before expiry. */
 const ORDER_LIFETIME_MS = 60 * 60 * 1000;
 
+/** States in which an overdue payment is written off: the bank holds no money for it. */
+const UNPAID_STATUSES: readonly string[] = [PaymentStatus.CREATED, PaymentStatus.PENDING];
+
 /** How long a loser of the idempotency race waits for the winner's result. */
 const REGISTRATION_WAIT_MS = 50;
 const REGISTRATION_WAIT_ATTEMPTS = 40;
 
+/** Told after a refund the bank accepted, with the payment as it now stands. */
+export type RefundListener = (payment: { orderNumber: string; status: PaymentStatus }) => Promise<unknown>;
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private readonly refundListeners = new Map<PaymentPurpose, RefundListener>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateways: PaymentGatewayRegistry,
   ) {}
+
+  /**
+   * Lets the module that owns a purpose react to its refunds — billing ends a
+   * plan whose payment went back in full (D19). A listener rather than a call
+   * into billing, because billing depends on payments and not the reverse.
+   */
+  onRefunded(purpose: PaymentPurpose, listener: RefundListener): void {
+    this.refundListeners.set(purpose, listener);
+  }
 
   /**
    * Registers an order with the bank and returns where to send the payer.
@@ -172,23 +188,6 @@ export class PaymentsService {
   }
 
   /**
-   * Refunds all or part of a captured payment.
-   *
-   * The order of operations is the whole point. We claim the amount in the
-   * database FIRST, with a conditional update that can only succeed once,
-   * and only then ask the bank to move money.
-   *
-   * The reverse order — call the bank, then record it — is the obvious
-   * reading and is wrong: two concurrent requests both read refundedMinor as
-   * zero, both pass the arithmetic check, and both tell the bank to refund.
-   * The second database write then fails, so the books show one refund and
-   * the bank statement shows two. Money that has left cannot be un-sent.
-   *
-   * Claiming first inverts which failure is possible: at worst we record a
-   * refund the bank then rejects, which reconciliation can see and this
-   * method compensates for immediately.
-   */
-  /**
    * The public refund, for everything except tickets.
    *
    * Ticket payments are refunded only by cancelling their order, which voids
@@ -210,6 +209,23 @@ export class PaymentsService {
     return this.refund(orderNumber, amountMinor, reason);
   }
 
+  /**
+   * Refunds all or part of a captured payment.
+   *
+   * The order of operations is the whole point. We claim the amount in the
+   * database FIRST, with a conditional update that can only succeed once,
+   * and only then ask the bank to move money.
+   *
+   * The reverse order — call the bank, then record it — is the obvious
+   * reading and is wrong: two concurrent requests both read refundedMinor as
+   * zero, both pass the arithmetic check, and both tell the bank to refund.
+   * The second database write then fails, so the books show one refund and
+   * the bank statement shows two. Money that has left cannot be un-sent.
+   *
+   * Claiming first inverts which failure is possible: at worst we record a
+   * refund the bank then rejects, which reconciliation can see and this
+   * method compensates for immediately.
+   */
   async refund(orderNumber: string, amountMinor: bigint, reason?: string) {
     const payment = await this.prisma.payment.findUnique({ where: { orderNumber } });
     if (!payment) throw new NotFoundException(`No payment ${orderNumber}`);
@@ -246,9 +262,18 @@ export class PaymentsService {
       }),
     ]);
 
-    return this.describe(
-      await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }),
-    );
+    const refunded = await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+    await this.tellRefundListener(refunded);
+    return this.describe(refunded);
+  }
+
+  /** Logged, never raised: the money has gone back, and that answer must reach the caller. */
+  private async tellRefundListener(payment: { purpose: PaymentPurpose; orderNumber: string; status: PaymentStatus }) {
+    try {
+      await this.refundListeners.get(payment.purpose)?.(payment);
+    } catch (error) {
+      this.logger.error(`after refunding ${payment.orderNumber}: ${describeError(error)}`);
+    }
   }
 
   /**
@@ -343,10 +368,27 @@ export class PaymentsService {
    * never completed, which is the worst failure this system has.
    */
   async reconcile(limit = 50): Promise<{ checked: number; changed: number }> {
+    const now = new Date();
+    // Longest unasked first: oldest-first let fifty holds the bank kept
+    // calling authorised fill every batch, so nothing newer was ever asked.
+    // A CREATED row past its lifetime never reached the bank — a crash
+    // between the claim and the call — and is swept too, to be expired.
     const stale = await this.prisma.payment.findMany({
-      where: { status: { in: [PaymentStatus.PENDING, PaymentStatus.AUTHORIZED] } },
-      orderBy: { createdAt: 'asc' },
+      where: {
+        OR: [
+          { status: { in: [PaymentStatus.PENDING, PaymentStatus.AUTHORIZED] } },
+          { status: PaymentStatus.CREATED, expiresAt: { lt: now } },
+        ],
+      },
+      orderBy: [{ lastCheckedAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }],
       take: limit,
+      select: { id: true, orderNumber: true, status: true, expiresAt: true },
+    });
+    // Stamped before asking, so a sweep that dies part-way does not start
+    // with the same batch next time.
+    await this.prisma.payment.updateMany({
+      where: { id: { in: stale.map((payment) => payment.id) } },
+      data: { lastCheckedAt: now },
     });
 
     let changed = 0;
@@ -376,7 +418,7 @@ export class PaymentsService {
     try {
       const result = await this.confirm(payment.orderNumber, PaymentEventSource.RECONCILIATION);
       const isOverdue = payment.expiresAt !== null && payment.expiresAt < new Date();
-      if (!isOverdue || result.status !== PaymentStatus.PENDING) return result.status;
+      if (!isOverdue || !UNPAID_STATUSES.includes(result.status)) return result.status;
 
       await this.applyTransition(payment.id, PaymentStatus.EXPIRED, PaymentEventSource.RECONCILIATION, {});
       return PaymentStatus.EXPIRED;

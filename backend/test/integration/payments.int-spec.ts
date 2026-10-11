@@ -286,6 +286,46 @@ describe('PaymentsService (integration)', () => {
       expect(after.status).toBe(PaymentStatus.CAPTURED);
     });
 
+    // B85: the sweep took the oldest fifty every time, so holds the bank kept
+    // calling authorised filled every batch and newer payments were never asked about.
+    it('reaches newer payments even when older ones never settle', async () => {
+      for (let held = 0; held < 2; held++) {
+        const started = await service.start(startDto());
+        const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber: started.orderNumber } });
+        fake.simulate(payment.providerRef!, { kind: 'authorized', amountMinor: 25_000n });
+      }
+      const newer = await service.start(startDto());
+      const newerRow = await prisma.payment.findUniqueOrThrow({ where: { orderNumber: newer.orderNumber } });
+      fake.simulateSuccess(newerRow.providerRef!);
+
+      await service.reconcile(2);
+      await service.reconcile(2);
+
+      const after = await prisma.payment.findUniqueOrThrow({ where: { id: newerRow.id } });
+      expect(after.status).toBe(PaymentStatus.CAPTURED);
+    });
+
+    // A crash between claiming the key and reaching the bank left CREATED rows nothing ever looked at.
+    it('expires a payment that never reached the bank', async () => {
+      const row = await prisma.payment.create({
+        data: {
+          organizationId,
+          purpose: PaymentPurpose.DEPOSIT,
+          provider: PaymentProvider.FAKE,
+          orderNumber: 'AVL-NEVER-SENT',
+          amountMinor: 100n,
+          currency: 'AMD',
+          returnUrl: 'https://aveline.test/return',
+          idempotencyKey: 'never-sent',
+          expiresAt: new Date(Date.now() - 1000),
+        },
+      });
+
+      await service.reconcile();
+
+      expect((await prisma.payment.findUniqueOrThrow({ where: { id: row.id } })).status).toBe(PaymentStatus.EXPIRED);
+    });
+
     it('leaves settled payments alone', async () => {
       const started = await service.start(startDto());
       const payment = await prisma.payment.findUniqueOrThrow({

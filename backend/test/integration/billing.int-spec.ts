@@ -28,6 +28,7 @@ describe('billing (integration)', () => {
       new PaymentGatewayRegistry([fake]),
     );
     subscriptions = new SubscriptionsService(prisma as unknown as PrismaService, payments);
+    subscriptions.onModuleInit();
   });
 
   beforeEach(async () => {
@@ -101,7 +102,7 @@ describe('billing (integration)', () => {
 
       const result = await subscriptions.subscribe(organizationId, { planKey: 'free' });
 
-      expect(result.subscription.status).toBe(SubscriptionStatus.ACTIVE);
+      expect(result.subscription?.status).toBe(SubscriptionStatus.ACTIVE);
       expect(result.invoice).toBeNull();
       expect(await prisma.invoice.count({ where: { organizationId } })).toBe(0);
     });
@@ -115,7 +116,10 @@ describe('billing (integration)', () => {
         provider: PaymentProvider.FAKE,
       });
 
-      expect(result.subscription.status).toBe(SubscriptionStatus.TRIALING);
+      // B85: a first paid plan used to create a TRIALING subscription on the
+      // paid plan, so GET /subscription reported its entitlements unpaid.
+      expect(result.subscription).toBeNull();
+      expect((await subscriptions.current(organizationId)).subscription).toBeNull();
       expect(result.invoice?.number).toMatch(/^AV-\d{4}-\d{6}$/);
       expect(result.invoice?.status).toBe('ISSUED');
       expect(result.payment?.redirectUrl).toEqual(expect.any(String));
@@ -233,6 +237,34 @@ describe('billing (integration)', () => {
     });
 
     // B36, for subscriptions: a customer who paid and never came back stayed unpaid.
+    // D19: refunding a subscription payment in full voids its invoice and ends the plan now.
+    it('ends the plan when its payment is refunded in full, and not when in part', async () => {
+      await activeOn('basic');
+      const invoice = await prisma.invoice.findFirstOrThrow({ where: { organizationId, status: 'PAID' } });
+
+      await payments.refundNonTicket(invoice.paymentOrderNumber!, 4_000n);
+      expect((await subscriptions.current(organizationId)).subscription).toMatchObject({ status: SubscriptionStatus.ACTIVE });
+
+      await payments.refundNonTicket(invoice.paymentOrderNumber!, 6_000n);
+      expect((await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).status).toBe('VOID');
+      const { subscription } = await subscriptions.current(organizationId);
+      expect(subscription?.status).toBe(SubscriptionStatus.CANCELLED);
+      expect(subscription!.currentPeriodEnd.getTime()).toBeLessThanOrEqual(Date.now());
+    });
+
+    // B87: paying an invoice issued before the customer cancelled undid the cancel.
+    it('keeps a cancel made after the invoice was issued', async () => {
+      await activeOn('basic');
+      const { invoice } = await subscribeTo('pro');
+      await subscriptions.cancel(organizationId);
+      payAtTheBank(invoice!);
+
+      await subscriptions.confirmPayment(organizationId, invoice!.number);
+
+      const { subscription } = await subscriptions.current(organizationId);
+      expect(subscription).toMatchObject({ plan: { key: 'pro' }, cancelAtPeriodEnd: true });
+    });
+
     it('settles an invoice the bank captured though the customer never came back', async () => {
       const { invoice } = await subscribeTo('basic');
       payAtTheBank(invoice!);

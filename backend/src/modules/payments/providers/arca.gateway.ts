@@ -1,3 +1,4 @@
+import { outcomeForOrderStatus } from './card-order-status';
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
 import { BANK_TIMEOUT_MS, BankDeclinedError } from './payment-provider';
@@ -81,19 +82,14 @@ export class ArcaGateway implements PaymentGateway {
     return { outcome: { kind: 'cancelled' }, raw: body };
   }
 
-  /**
-   * ArCa's orderStatus codes, mapped to our vocabulary here so nothing
-   * downstream has to know a bank's numbering. A table rather than a switch,
-   * so adding a code is adding a row.
-   */
+  /** ArCa's orderStatus, in our vocabulary — and pending when it cannot be read (see `outcomeForOrderStatus`). */
   private readOutcome(body: Record<string, unknown>): ProviderOutcome {
     const amountMinor = BigInt(asString(body.amount) ?? '0');
-    const status = Number(body.orderStatus ?? -1);
+    const outcome = outcomeForOrderStatus(body.orderStatus, amountMinor, asString(body.actionCodeDescription));
+    if (outcome) return outcome;
 
-    const read = ARCA_ORDER_STATUS[status];
-    if (!read) return { kind: 'failed', reason: `Unrecognised orderStatus ${status}` };
-
-    return read(amountMinor, asString(body.actionCodeDescription));
+    this.logger.warn(`${this.provider} gave no readable orderStatus (errorCode ${asString(body.errorCode) ?? 'none'}); still pending`);
+    return { kind: 'pending' };
   }
 
   private async call(endpoint: string, params: Record<string, string>) {
@@ -119,18 +115,6 @@ export class ArcaGateway implements PaymentGateway {
     return (await response.json()) as Record<string, unknown>;
   }
 }
-
-type ArcaOutcomeReader = (amountMinor: bigint, declineReason?: string) => ProviderOutcome;
-
-const ARCA_ORDER_STATUS: Record<number, ArcaOutcomeReader> = {
-  0: () => ({ kind: 'pending' }), // registered, not yet paid
-  5: () => ({ kind: 'pending' }), // 3-D Secure authentication under way
-  1: (amountMinor) => ({ kind: 'authorized', amountMinor }), // pre-authorization hold
-  2: (amountMinor) => ({ kind: 'captured', amountMinor }), // fully authorized
-  3: () => ({ kind: 'cancelled' }),
-  4: (amountMinor) => ({ kind: 'refunded', refundedMinor: amountMinor }),
-  6: (_amountMinor, declineReason) => ({ kind: 'failed', reason: declineReason ?? 'Declined' }),
-};
 
 /** ArCa expects ISO 4217 numeric codes rather than letters. */
 const NUMERIC_CURRENCY: Record<string, string> = {

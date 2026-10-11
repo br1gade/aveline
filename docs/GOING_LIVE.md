@@ -25,6 +25,7 @@ Several of the bugs expose people's data.
 | 2 | **No adapter has run against a real sandbox** | The three gateways are written against published integrations and their field names are our best reading. They must be checked against the spec each bank sends |
 | 3 | **Ameriabank certification not done** | Requires at least five successful completed REST payments in their test environment before production access is granted |
 | 4 | **One-step vs two-step not decided** | Deposits probably want authorize-then-capture, which must be requested from the bank separately |
+| 4b | **Three suspected field mismatches** | Ameriabank's `OrderID` may need to be an integer; ArCa may expect AMD in luma (× 100); Ameriabank's `OrderStatus` is read with ArCa's codes. Each must be confirmed against the bank's own specification — see PAYMENTS.md §6 |
 | 5 | **Refunds never executed for real** | The claim-then-call ordering is tested against a fake gateway. It has never moved actual money |
 
 ### Communication

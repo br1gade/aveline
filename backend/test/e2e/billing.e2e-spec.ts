@@ -157,7 +157,8 @@ describe('Billing (e2e)', () => {
         .send({ planKey: 'managed', provider: 'FAKE' })
         .expect(201);
 
-      expect(body.subscription.status).toBe('TRIALING');
+      // No subscription until it is paid (B85).
+      expect(body.subscription).toBeNull();
       expect(body.invoice.number).toMatch(/^AV-\d{4}-\d{6}$/);
       expect(body.payment.redirectUrl).toEqual(expect.any(String));
     });

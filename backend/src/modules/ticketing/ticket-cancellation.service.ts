@@ -1,8 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { TicketOrderStatus, TicketStatus } from '@prisma/client';
+import { RefundStatus, TicketOrderStatus, TicketStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentsService } from '../payments/payments.service';
 import { TicketFulfilmentService } from './ticket-fulfilment.service';
+import { BANK_TIMEOUT_MS } from '../payments/providers/payment-provider';
+
+const CONCURRENT_POLL_MS = 100;
+const CONCURRENT_GRACE_MS = 2_000;
 
 /**
  * Cancelling a ticket order, which refunds it.
@@ -70,10 +74,27 @@ export class TicketCancellationService {
     }
 
     const isPaid = order.totalMinor > 0n && order.paymentOrderNumber !== null;
-    if (isPaid) await this.refundRemaining(order.paymentOrderNumber!);
+    if (isPaid && !(await this.refundRemaining(order.paymentOrderNumber!))) {
+      // Another cancellation holds the refund and is at the bank now. Voiding
+      // here could void an order whose refund the bank then refuses, so wait
+      // for that one to finish and answer with what it did — a double click
+      // is answered, not refused with a 409.
+      return this.describe(await this.settledBySomeoneElse(orderId));
+    }
 
     await this.fulfilment.voidPaidOrder(orderId, isPaid ? 'REFUNDED' : 'CANCELLED');
     return this.describe(orderId);
+  }
+
+  /** Waits, bounded by the bank's own timeout, for a concurrent cancellation to leave PAID. */
+  private async settledBySomeoneElse(orderId: string): Promise<string> {
+    const deadline = Date.now() + BANK_TIMEOUT_MS + CONCURRENT_GRACE_MS;
+    while (Date.now() < deadline) {
+      const { status } = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+      if (status !== TicketOrderStatus.PAID) break;
+      await new Promise((resolve) => setTimeout(resolve, CONCURRENT_POLL_MS));
+    }
+    return orderId;
   }
 
   /**
@@ -83,15 +104,23 @@ export class TicketCancellationService {
    * a retry safe: a cancellation that refunded and then died finds nothing
    * left to refund and moves on to voiding.
    */
-  private async refundRemaining(orderNumber: string): Promise<void> {
+  private async refundRemaining(orderNumber: string): Promise<boolean> {
     const payment = await this.prisma.payment.findUniqueOrThrow({
       where: { orderNumber },
-      select: { amountMinor: true, refundedMinor: true },
+      select: { amountMinor: true, refundedMinor: true, refunds: { where: { status: RefundStatus.PENDING }, select: { id: true } } },
     });
 
+    // Nothing left to claim is only "done" once no claimed refund is still
+    // waiting on the bank; otherwise it is someone else's, in flight.
     const remaining = payment.amountMinor - payment.refundedMinor;
-    if (remaining > 0n) {
+    if (remaining === 0n) return payment.refunds.length === 0;
+    try {
       await this.payments.refund(orderNumber, remaining, 'Ticket order cancelled by the host');
+      return true;
+    } catch (error) {
+      // Lost the claim to a concurrent cancellation: theirs is the refund.
+      if (error instanceof ConflictException) return false;
+      throw error;
     }
   }
 
