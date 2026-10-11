@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
-import { normalizeEmailAddress } from '../../common/address';
+import { isFingerprint, normalizeAddress, storedForms } from './address-form';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -12,6 +12,9 @@ import { PrismaService } from '../../prisma/prisma.service';
  * for every customer. A row with an organization is an ordinary unsubscribe
  * from one host's events, and says nothing about the others.
  */
+/** What a host sees for an erased person's row. */
+const ERASED_ADDRESS = '[erased]';
+
 @Injectable()
 export class SuppressionService {
   constructor(private readonly prisma: PrismaService) {}
@@ -30,7 +33,7 @@ export class SuppressionService {
     const found = await this.prisma.suppression.findFirst({
       where: {
         channel,
-        address: normalizeAddress(channel, address),
+        address: { in: storedForms(channel, address) },
         // Platform mail is only ever stopped by a global suppression: a
         // password reset must not be blocked because one organization
         // unsubscribed that address from their own events.
@@ -50,9 +53,9 @@ export class SuppressionService {
    * complaining address on the platform, including other customers' guests.
    */
   async list(organizationId: string) {
-    const addresses = await this.guestAddresses(organizationId);
+    const plainByForm = await this.guestAddressForms(organizationId);
     const rows = await this.prisma.suppression.findMany({
-      where: { OR: [{ organizationId }, { organizationId: null, address: { in: addresses } }] },
+      where: { OR: [{ organizationId }, { organizationId: null, address: { in: [...plainByForm.keys()] } }] },
       orderBy: { createdAt: 'desc' },
       take: 500,
     });
@@ -60,7 +63,9 @@ export class SuppressionService {
     return rows.map((row) => ({
       id: row.id,
       channel: row.channel,
-      address: row.address,
+      // A hashed row shows the guest address it matches, if the host has one;
+      // otherwise it is a person who was erased, and stays unreadable.
+      address: plainByForm.get(row.address) ?? (isFingerprint(row.address) ? ERASED_ADDRESS : row.address),
       reason: row.reason,
       // A host should see that an address is beyond their control before they
       // ask support why removing it did not work.
@@ -70,20 +75,25 @@ export class SuppressionService {
     }));
   }
 
-  /** Every email and phone on this organization's guests, as suppressions store them. */
-  private async guestAddresses(organizationId: string): Promise<string[]> {
+  /**
+   * Every email and phone on this organization's guests, keyed by each form a
+   * suppression may store it in, pointing back at the address itself.
+   */
+  private async guestAddressForms(organizationId: string): Promise<Map<string, string>> {
     const guests = await this.prisma.guest.findMany({
       where: { event: { organizationId }, OR: [{ email: { not: null } }, { phone: { not: null } }] },
       select: { email: true, phone: true },
     });
-    return [
-      ...new Set(
-        guests.flatMap((guest) => [
-          guest.email ? normalizeAddress(MessageChannel.EMAIL, guest.email) : null,
-          guest.phone,
-        ]).filter((address): address is string => address !== null),
-      ),
-    ];
+    const plainByForm = new Map<string, string>();
+    for (const guest of guests) {
+      const known: [MessageChannel, string | null][] = [[MessageChannel.EMAIL, guest.email], [MessageChannel.SMS, guest.phone]];
+      for (const [channel, address] of known) {
+        if (!address) continue;
+        const [plain, hashed] = storedForms(channel, address);
+        plainByForm.set(plain, plain).set(hashed, plain);
+      }
+    }
+    return plainByForm;
   }
 
   /**
@@ -160,7 +170,7 @@ export class SuppressionService {
    * can do. A host can never reach this; an email bounce is never lifted by it.
    */
   async liftAfterOptIn(channel: typeof MessageChannel.TELEGRAM, address: string): Promise<void> {
-    await this.prisma.suppression.deleteMany({ where: { channel, address: normalizeAddress(channel, address) } });
+    await this.prisma.suppression.deleteMany({ where: { channel, address: { in: storedForms(channel, address) } } });
   }
 
   /**
@@ -180,23 +190,15 @@ export class SuppressionService {
       );
     }
     if (row.organizationId !== organizationId) throw new NotFoundException('No such suppression');
+    if (row.reason === SuppressionReason.ERASED) {
+      throw new ConflictException('This person asked for their data to be erased; they cannot be contacted again');
+    }
 
     await this.prisma.suppression.delete({ where: { id: suppressionId } });
     return { ok: true as const };
   }
 }
 
-/**
- * Email addresses are case-insensitive in practice, so they are stored and
- * matched lower-cased — otherwise `Ani@x.am` would slip past a suppression
- * recorded for `ani@x.am`. Phone numbers and chat handles are left as given,
- * because normalising them correctly needs a region and guessing wrong would
- * suppress the wrong person.
- */
-export function normalizeAddress(channel: MessageChannel, address: string): string {
-  return channel === MessageChannel.EMAIL
-    ? normalizeEmailAddress(address)
-    : address.trim();
-}
+export { normalizeAddress } from './address-form';
 
 export type SuppressionRow = Prisma.SuppressionGetPayload<object>;

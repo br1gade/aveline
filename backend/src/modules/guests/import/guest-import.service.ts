@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { isUniqueViolation } from '../../../common/prisma-errors';
-import { GuestAttribution, ImportStatus, Prisma } from '@prisma/client';
+import { GuestAttribution, ImportStatus, MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
+import { addressFingerprint } from '../../communications/address-form';
 import { newGuestToken } from '../guest-token';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { capacityProblem } from '../guest-rules';
@@ -36,10 +37,12 @@ export class GuestImportService {
    * deleting everyone first.
    */
   async importCsv(eventId: string, filename: string, content: Buffer, uploadedBy?: string) {
-    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { id: true, organizationId: true } });
     if (!event) throw new NotFoundException(`No event ${eventId}`);
 
-    const { guests, errors } = readGuestList(content);
+    const parsed = readGuestList(content);
+    const { guests, refused } = await this.withoutErased(event.organizationId, parsed.guests);
+    const errors = [...parsed.errors, ...refused];
     const seatsInFile = seatsStatedPerHousehold(guests);
 
     const record = await this.startImport({ eventId, filename, rowsTotal: guests.length + errors.length, uploadedBy });
@@ -59,6 +62,35 @@ export class GuestImportService {
     }
 
     return this.finish(record.id, imported, failures);
+  }
+
+  /**
+   * Rows for people whose data was erased from this organization's events
+   * (decided 10 October 2026, D21). Re-importing the original spreadsheet
+   * brought them straight back; their addresses are kept only as hashes, so
+   * each row's address is hashed and checked against them.
+   */
+  private async withoutErased(organizationId: string, guests: ParsedGuest[]) {
+    const fingerprintsOf = (guest: ParsedGuest) => [
+      ...(guest.email ? [addressFingerprint(MessageChannel.EMAIL, guest.email)] : []),
+      ...(guest.phone ? [addressFingerprint(MessageChannel.SMS, guest.phone)] : []),
+    ];
+    const candidates = [...new Set(guests.flatMap(fingerprintsOf))];
+    if (candidates.length === 0) return { guests, refused: [] };
+
+    const erased = await this.prisma.suppression.findMany({
+      where: { organizationId, reason: SuppressionReason.ERASED, address: { in: candidates } },
+      select: { address: true },
+    });
+    const erasedSet = new Set(erased.map((row) => row.address));
+    const isErased = (guest: ParsedGuest) => fingerprintsOf(guest).some((fingerprint) => erasedSet.has(fingerprint));
+    return {
+      guests: guests.filter((guest) => !isErased(guest)),
+      refused: guests.filter(isErased).map((guest) => ({
+        row: guest.row,
+        message: 'This person asked for their data to be erased and cannot be added again',
+      })),
+    };
   }
 
   /**

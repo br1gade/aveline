@@ -1,4 +1,4 @@
-import { ERASED_NAME, ERASED_RSVP_FIELDS, anonymisedGuestFields } from './anonymisation';
+import { ERASED_NAME, ERASED_RSVP_FIELDS, anonymisedGuestFields, isNamedAfter, nextHouseholdName } from './anonymisation';
 
 describe('anonymisedGuestFields', () => {
   const NOW = new Date('2026-10-05T12:00:00.000Z');
@@ -59,5 +59,28 @@ describe('ERASED_RSVP_FIELDS', () => {
       dietary: [],
     });
     expect(ERASED_RSVP_FIELDS).not.toHaveProperty('status');
+  });
+});
+
+describe('isNamedAfter (D20)', () => {
+  const ani = { firstName: 'Ani', lastName: 'Hakobyan' };
+
+  it.each([
+    ['names them by first name', 'Ani & Davit', [{ lastName: 'Petrosyan' }], true],
+    ['ignores case and punctuation', 'ANI, Davit', [{ lastName: 'Petrosyan' }], true],
+    ['names them by a family nobody left shares', 'Hakobyan family', [{ lastName: 'Petrosyan' }], true],
+    ['keeps a family name someone left shares', 'Hakobyan family', [{ lastName: 'Hakobyan' }], false],
+    ['keeps a family name someone left might share', 'Hakobyan family', [{ lastName: null }], false],
+    ['does not match inside another word', 'Anigrand table', [{ lastName: 'Petrosyan' }], false],
+    ['always renames once nobody is left', 'Table 4', [], true],
+  ])('%s', (_label, name, remaining, expected) => {
+    expect(isNamedAfter(name, [ani], remaining as { lastName: string | null }[])).toBe(expected);
+  });
+});
+
+describe('nextHouseholdName', () => {
+  it('counts on from the highest number used', () => {
+    expect(nextHouseholdName(['Household 2', 'Petrosyan family', 'Household 7'])).toBe('Household 8');
+    expect(nextHouseholdName([])).toBe('Household 1');
   });
 });

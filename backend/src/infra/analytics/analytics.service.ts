@@ -61,6 +61,24 @@ export class AnalyticsService {
   }
 
   /**
+   * Unlinks an erased guest's views. The count of views stays, which is
+   * the host's; which of them were this person's, and from what browser and
+   * page, does not.
+   */
+  async forgetGuests(guestIds: string[]): Promise<void> {
+    if (!this.isEnabled || guestIds.length === 0) return;
+    try {
+      const db = await this.connection.db();
+      await db
+        .collection(ANALYTICS_COLLECTION)
+        .updateMany({ guestId: { $in: guestIds } }, { $unset: { guestId: '', userAgent: '', referrer: '' } });
+    } catch (error) {
+      this.connection.reportFailure(error);
+      this.logger.warn(`analytics erasure failed: ${describe(error)}`);
+    }
+  }
+
+  /**
    * Aggregates in Mongo rather than pulling documents — the collection grows
    * without bound and must never be loaded into Node to be counted.
    *

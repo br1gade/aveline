@@ -1,6 +1,6 @@
 import { MessageChannel, Prisma, PrismaClient } from '@prisma/client';
 import { GuestChannelsService } from '../../communications/guest-channels.service';
-import { normalizeAddress } from '../../communications/suppression.service';
+import { normalizeAddress, storedForms } from '../../communications/address-form';
 import { GuestAddress } from './channel-preference';
 import { REACHED_STATUSES } from './previous-attempts';
 import { SendableHousehold } from './send-plan';
@@ -111,21 +111,24 @@ async function suppressedAmong(
   prisma: Reader,
   households: { organizationId: string; guests: { addresses?: GuestAddress[] }[] }[],
 ): Promise<Set<string>> {
-  const addresses = households.flatMap((household) =>
-    household.guests.flatMap((guest) => (guest.addresses ?? []).map((address) => normalizeAddress(address.channel, address.address))),
-  );
-  if (addresses.length === 0) return new Set();
+  // Each stored form — plain, or hashed after an erasure — back to the address.
+  const plainByForm = new Map<string, string>();
+  for (const address of households.flatMap((household) => household.guests.flatMap((guest) => guest.addresses ?? []))) {
+    const [plain, hashed] = storedForms(address.channel, address.address);
+    plainByForm.set(plain, plain).set(hashed, plain);
+  }
+  if (plainByForm.size === 0) return new Set();
 
   const organizationIds = [...new Set(households.map((household) => household.organizationId))];
   const rows = await prisma.suppression.findMany({
-    where: { address: { in: [...new Set(addresses)] }, OR: [{ organizationId: null }, { organizationId: { in: organizationIds } }] },
+    where: { address: { in: [...plainByForm.keys()] }, OR: [{ organizationId: null }, { organizationId: { in: organizationIds } }] },
     select: { organizationId: true, channel: true, address: true },
   });
   // A platform-wide row applies to every organization these households are in.
   return new Set(
     rows.flatMap((row) =>
       (row.organizationId === null ? organizationIds : [row.organizationId]).map((organizationId) =>
-        suppressionKey(organizationId, row.channel, row.address),
+        suppressionKey(organizationId, row.channel, plainByForm.get(row.address) ?? row.address),
       ),
     ),
   );

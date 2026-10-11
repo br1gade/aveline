@@ -133,6 +133,15 @@ which language, when. Feeds the engagement panel on the operations dashboard
 and tells us which invitations are actually being read — the leading indicator
 for response rate.
 
+**Audit trail** (`audit_trail`). Who did what — method, route, account,
+organization, event, status — and never a request body. What makes `SUPPORT`
+staff acting on a customer's behalf accountable.
+
+**Erasure reaches both.** Once an erasure has committed in Postgres, the
+person's address is removed from their audit entries (the entries stay) and
+their invitation views lose the `guestId`, browser and referrer that tied
+them to the person (the counts stay).
+
 Writes are fire-and-forget: a guest's page never waits on analytics, and a
 Mongo outage returns an empty summary rather than failing the dashboard.
 Aggregation runs in Mongo, never by pulling documents into Node, because the
@@ -159,8 +168,6 @@ engagement resumed with no restart.
 
 ### Intended, not yet built
 
-- **Audit trail** — who changed what. Matters most for `SUPPORT` staff acting
-  on a customer's behalf. Blocked on authentication
 - **Delivery logs** — email, SMS and webhook receipts, whose payload shapes are
   dictated by third parties
 

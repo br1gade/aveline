@@ -2,6 +2,7 @@ import { MessageChannel, MessageStatus, PrismaClient, SuppressionReason } from '
 import { ConsoleTransport } from '../../src/modules/communications/channels/console.transport';
 import { MessageTransport } from '../../src/modules/communications/channels/message-channel';
 import { CommunicationsService } from '../../src/modules/communications/communications.service';
+import { addressFingerprint } from '../../src/modules/communications/address-form';
 import { SuppressionService } from '../../src/modules/communications/suppression.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { seedEvent } from '../fixtures/event.fixture';
@@ -223,6 +224,21 @@ describe('suppression (integration)', () => {
       expect(
         await suppressions.isSuppressed(MessageChannel.EMAIL, 'ani@test.local', organizationId),
       ).toBe(false);
+    });
+
+    // D21: an erased person's record is what keeps them from being re-added.
+    it('refuses to lift the record an erasure left, and shows it unreadable', async () => {
+      const row = await prisma.suppression.create({
+        data: {
+          organizationId,
+          channel: MessageChannel.EMAIL,
+          address: addressFingerprint(MessageChannel.EMAIL, 'gone@test.local'),
+          reason: SuppressionReason.ERASED,
+        },
+      });
+
+      await expect(suppressions.unsuppress(organizationId, row.id)).rejects.toThrow(/erased/);
+      expect(await suppressions.list(organizationId)).toEqual([expect.objectContaining({ id: row.id, address: '[erased]' })]);
     });
 
     it('will not let one organization remove another’s', async () => {

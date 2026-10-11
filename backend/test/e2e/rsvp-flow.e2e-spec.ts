@@ -196,6 +196,21 @@ describe('RSVP flow (e2e)', () => {
       ]);
     });
 
+    // B88: an erased member stays for the headcount, but nobody may answer for them.
+    it('neither lists nor accepts an answer for a member who was erased', async () => {
+      const { rsvpUrl, mealId, lusineId } = await household();
+      await prisma.guest.update({ where: { id: lusineId }, data: { firstName: 'Removed', anonymizedAt: new Date() } });
+
+      const current = await http().get(rsvpUrl).expect(200);
+      expect(current.body.household.members).toEqual([]);
+
+      const refusal = await http()
+        .post(rsvpUrl)
+        .send({ status: RsvpStatus.ATTENDING, answers: [{ questionId: mealId, value: 1 }], members: [{ guestId: lusineId, status: RsvpStatus.ATTENDING }] })
+        .expect(400);
+      expect(refusal.body.message).toMatch(/^members: /);
+    });
+
     it.each([
       { label: 'a choice by its text', body: (q: string) => ({ status: 'ATTENDING', answers: [{ questionId: q, value: 'Fish' }] }) },
       { label: 'a required question left out', body: () => ({ status: 'ATTENDING' }) },

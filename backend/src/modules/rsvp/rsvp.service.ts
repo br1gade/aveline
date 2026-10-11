@@ -17,6 +17,7 @@ interface HouseholdMember {
   firstName: string;
   lastName: string | null;
   addedByGuest: boolean;
+  anonymizedAt: Date | null;
   rsvp: { status: RsvpStatus } | null;
 }
 
@@ -59,14 +60,17 @@ export class RsvpService {
       const household = await lockHousehold(tx, guest.eventId, guest.householdId);
       const members = await tx.guest.findMany({
         where: { householdId: guest.householdId },
-        select: { id: true, firstName: true, lastName: true, addedByGuest: true, rsvp: { select: { status: true } } },
+        select: { id: true, firstName: true, lastName: true, addedByGuest: true, anonymizedAt: true, rsvp: { select: { status: true } } },
       });
       const party = newPartyMembers(members, dto.party ?? []);
       assertHouseholdCapacity(household, party.length);
       // Only plus-ones named for the first time: a resubmitted one is already
       // a household member, answered through `members`.
       assertNoProblem(partyRequiredProblem(questions, party, dto.status));
-      assertNoProblem(membersProblem(new Set(members.map((m) => m.id)), guest.id, memberIds(dto)));
+      // An erased member stays in the household for the headcount, but their
+      // answer is no longer anyone's to give — B88.
+      const answerable = new Set(members.filter((member) => !member.anonymizedAt).map((member) => member.id));
+      assertNoProblem(membersProblem(answerable, guest.id, memberIds(dto)));
       await this.assertRequiredAnswered(tx, guest.id, questions, dto);
 
       await this.applyGuestChanges(tx, guest, dto);
@@ -100,6 +104,8 @@ export class RsvpService {
         household: {
           include: {
             guests: {
+              // Someone erased at their request is not anyone's to answer for.
+              where: { anonymizedAt: null },
               orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
               select: { id: true, firstName: true, lastName: true, addedByGuest: true, rsvp: true },
             },
@@ -283,6 +289,7 @@ export class RsvpService {
     const followers = members.filter(
       (member) =>
         member.addedByGuest &&
+        !member.anonymizedAt &&
         member.id !== respondentId &&
         !explicit.has(member.id) &&
         isFollowing(member.rsvp?.status, before),

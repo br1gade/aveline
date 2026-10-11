@@ -1499,7 +1499,8 @@ model Suppression {
   /// Set suppresses it for one organization only — an ordinary unsubscribe.
   organizationId String?
   channel        MessageChannel
-  /// Email address or phone number, normalised by the caller.
+  /// Email address or phone number, normalised by the caller — or, once its
+  /// owner's data is erased, `sha256:` and the hash of it (D15).
   address        String
   reason         SuppressionReason
   notes          String?
@@ -1522,6 +1523,9 @@ enum SuppressionReason {
   HARD_BOUNCE
   COMPLAINT
   MANUAL
+  /// The person's data was erased. Kept per organization that held them, as a
+  /// hash, so that host cannot import or message them again (D21).
+  ERASED
 }
 
 // ───────────────── Subscription billing (PRODUCT_SPEC §9.4) ────────────

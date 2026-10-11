@@ -55,6 +55,22 @@ export class AuditService {
   }
 
   /**
+   * Drops an erased person's address from the trail. The entries stay — that
+   * an account did something is the accountability this exists for — but the
+   * address goes, as it does everywhere else.
+   */
+  async forgetPerson(person: { email: string; userId: string | null }): Promise<void> {
+    try {
+      const db = await this.connection.db();
+      const theirs = person.userId ? [{ email: person.email }, { userId: person.userId }] : [{ email: person.email }];
+      await db.collection<AuditEntry>(AUDIT_COLLECTION).updateMany({ $or: theirs }, { $set: { email: null } });
+    } catch (error) {
+      this.connection.reportFailure(error);
+      this.logger.warn(`audit erasure failed: ${describeError(error)}`);
+    }
+  }
+
+  /**
    * The trail for one event, newest first.
    *
    * Bounded, because this is read by a human answering a question, not by a

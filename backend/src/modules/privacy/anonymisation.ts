@@ -56,3 +56,31 @@ export const ERASED_RSVP_FIELDS = {
   drinkPreference: null,
   dietary: [],
 };
+
+/**
+ * Whether a household's name still names someone who was erased (D20).
+ *
+ * "Anna & Davit" names Anna; a household of nobody but erased people names
+ * them whatever it says. A family name is different: "Hakobyan family" is
+ * also the name of the Hakobyans still invited, so it goes only when nobody
+ * left could be one — a remaining guest with no last name might be.
+ */
+export function isNamedAfter(
+  householdName: string,
+  erased: { firstName: string; lastName: string | null }[],
+  remaining: { lastName: string | null }[],
+): boolean {
+  if (remaining.length === 0) return true;
+  const words = new Set(householdName.toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean));
+  const named = (name: string | null) => Boolean(name) && words.has((name as string).toLocaleLowerCase());
+  const familyKept = (lastName: string) =>
+    remaining.some((guest) => guest.lastName === null || guest.lastName.toLocaleLowerCase() === lastName.toLocaleLowerCase());
+
+  return erased.some((person) => named(person.firstName) || (named(person.lastName) && !familyKept(person.lastName as string)));
+}
+
+/** "Household 4", one past the highest such number the event already uses. */
+export function nextHouseholdName(existingNames: string[]): string {
+  const numbers = existingNames.map((name) => /^Household (\d+)$/.exec(name)?.[1]).filter(Boolean).map(Number);
+  return `Household ${Math.max(0, ...numbers) + 1}`;
+}

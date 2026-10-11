@@ -1011,6 +1011,11 @@ stays on the event. A blank cell — or a column the file does not have —
 leaves what is stored, so a re-import without a `side` column keeps the sides
 already set.
 
+A row whose email or phone belongs to someone **erased from your
+organization's events** is refused as a row error — "This person asked for
+their data to be erased and cannot be added again" — so re-uploading the
+original spreadsheet does not bring them back (decided 10 October 2026).
+
 ```http
 GET /api/v1/events/:eventId/guests/imports
 ```
@@ -1689,6 +1694,13 @@ complaint, applies platform-wide, and `DELETE` on it returns `409` — one
 customer's send must not be allowed to damage delivery for the others. Show
 global entries as informational, without a remove button.
 
+`reason: "ERASED"` marks someone whose data was erased at their request. It
+is `ORGANIZATION`-scoped, cannot be lifted (`DELETE` returns `409`), and its
+`address` reads `"[erased]"` unless it matches one of your current guests:
+after an erasure an address is kept only as a one-way hash, which can confirm
+an address you already have but never show one. **New value, 10 October
+2026** — handle an unknown `reason` gracefully.
+
 Addresses are matched case-insensitively for email, and `POST` is idempotent.
 `reason` defaults to `MANUAL`; a later, stronger reason replaces a weaker one.
 
@@ -1771,8 +1783,11 @@ An `ERASURE` anonymises in place and reports what it touched:
 ```json
 { "reference": "clz...", "kind": "ERASURE", "guestsAnonymised": 1,
   "householdsRenamed": 1, "ticketOrdersAnonymised": 1, "messagesRedacted": 4,
-  "suppressionsRemoved": 1, "accountsClosed": 1 }
+  "suppressionsHashed": 1, "invitesWithdrawn": 0, "accountsClosed": 1 }
 ```
+
+**Breaking (staff screen only), 10 October 2026:** `suppressionsRemoved`
+became `suppressionsHashed`, and `invitesWithdrawn` was added.
 
 Addresses are matched regardless of capitals. What goes: names, emails, phone
 numbers, the guest's own free text (guest-book message, dietary note, song
@@ -1783,10 +1798,22 @@ Telegram and push connections, every message sent to them on any channel —
 body and address — with anything still queued stopped, and the invitation
 token, which is itself identifying and would otherwise still open their RSVP
 from a group chat. An account with that address is closed: it can no longer
-sign in, its sessions are revoked, and its name and email are replaced.
+sign in, its sessions are revoked and stripped of IP address and browser, and
+its name and email are replaced. Pending team invitations to the address are
+withdrawn. A drawn signature's file is deleted from storage, the address is
+dropped from the staff audit trail, and the guest's invitation views are
+unlinked from them — these three after the database has committed.
 
-A household whose every member has been erased is renamed `Removed` and its
-notes cleared; one with someone still in it keeps its name.
+**Do-not-contact records are kept, as a hash** (decided 10 October 2026): a
+bounce or complaint still blocks the address if a host re-adds it, but the
+record no longer holds it. Every organization whose events held the person
+also gets an `ERASED` record, which stops that host importing or messaging
+them again; other hosts are unaffected.
+
+A household whose name still names them becomes `Household` and a number —
+`Household 3` — as does one whose every member is erased (its notes are then
+cleared too). "Anna & Davit" is renamed when Anna is erased; "Hakobyan
+family" keeps its name while a remaining guest could be a Hakobyan.
 
 What stays, on purpose: the household, the seat, whether they came, and a
 paid order's amount. The headcount does not change; the catering sheet's

@@ -27,7 +27,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 |---|---|---|---|---|
 | Bugfixes | 0 open | 0 open | 9 open (B85–B92, B94) | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
-| Decisions | 20 (D1–D20), all decided | | | |
+| Decisions | 22 (D1–D22), all decided | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
 features — editing an event, and loading the invitation into the editor —
@@ -145,7 +145,7 @@ are merged; "suspected" marks what needs timing or a bank's spec to confirm.
 
 ## 3. Decisions needed
 
-D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D20 on 10 October.
+D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D22 on 10 October.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
@@ -169,6 +169,8 @@ D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D20 on 10 Oct
 | D18 | SVG uploads? | B92 | **Refused.** JPEG, PNG, WebP, AVIF for images |
 | D19 | What does a full refund of a subscription payment do? | B85 | **Voids the invoice and ends the plan at once.** A partial refund changes nothing |
 | D20 | What is an erased guest's household called, when it was named after them? | B88 | **"Household" and a number** |
+| D21 | After an erasure, who may add the person again? | B88 | **Only the hosts who had them are stopped**: each such organization keeps a hashed `ERASED` record that blocks import and messages; other hosts are unaffected |
+| D22 | How long is Mongo observability data kept? | B91 | **Invitation views 13 months, audit trail 2 years**, then deleted automatically |
 
 ---
 

@@ -2,10 +2,15 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import {
   DataSubjectRequestKind,
   DataSubjectRequestStatus,
+  MessageChannel,
   Prisma,
 } from '@prisma/client';
 import { Sentry } from '../../infra/observability/sentry';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../infra/storage/storage.service';
+import { AuditService } from '../../infra/audit/audit.service';
+import { AnalyticsService } from '../../infra/analytics/analytics.service';
+import { addressFingerprint } from '../communications/address-form';
 import { eraseSubject, sameAddress } from './erasure';
 import { statusChangeProblem } from './request-status';
 import {
@@ -25,6 +30,8 @@ const OPEN_STATUSES: DataSubjectRequestStatus[] = [
   DataSubjectRequestStatus.IN_PROGRESS,
 ];
 
+const ERASURE_TIMEOUT_MS = 60_000;
+
 /** Repeat submissions add their notes, up to this much in all. */
 const NOTES_LIMIT = 20_000;
 
@@ -32,7 +39,12 @@ const NOTES_LIMIT = 20_000;
 export class PrivacyService {
   private readonly logger = new Logger(PrivacyService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+    private readonly audit: AuditService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   /**
    * Records a request from the public.
@@ -210,10 +222,7 @@ export class PrivacyService {
         select: { channel: true, templateKey: true, status: true, sentAt: true, subject: true },
         take: 500,
       }),
-      this.prisma.suppression.findMany({
-        where: { address: sameAddress(subjectEmail) },
-        select: { channel: true, reason: true, createdAt: true },
-      }),
+      this.suppressionsOf(subjectEmail),
     ]);
 
     return {
@@ -230,9 +239,40 @@ export class PrivacyService {
     };
   }
 
-  /** Erases the personal data held against an address — see `erasure.ts` for what goes and what stays. */
-  private erase(subjectEmail: string) {
-    return this.prisma.$transaction((tx) => eraseSubject(tx, subjectEmail, new Date()));
+  /** Their do-not-contact records, including those an earlier erasure left hashed. */
+  private suppressionsOf(subjectEmail: string) {
+    return this.prisma.suppression.findMany({
+      where: {
+        OR: [
+          { address: sameAddress(subjectEmail) },
+          { address: addressFingerprint(MessageChannel.EMAIL, subjectEmail) },
+        ],
+      },
+      select: { channel: true, reason: true, createdAt: true },
+    });
+  }
+
+  /**
+   * Erases the personal data held against an address — see `erasure.ts` for
+   * what goes and what stays.
+   *
+   * A longer timeout than Prisma's five seconds: it matches addresses
+   * case-insensitively across messages and orders, which on a large platform
+   * is a scan, and running out of time rolls the whole erasure back. Files and
+   * Mongo are cleared only once Postgres has committed, so a rollback never
+   * leaves a guest whose signature is already gone.
+   */
+  private async erase(subjectEmail: string) {
+    const { counts, afterwards } = await this.prisma.$transaction(
+      (tx) => eraseSubject(tx, subjectEmail, new Date()),
+      { timeout: ERASURE_TIMEOUT_MS },
+    );
+    await Promise.all([
+      Promise.allSettled(afterwards.fileUrls.map((url) => this.storage.removeByUrl(url))),
+      this.audit.forgetPerson({ email: subjectEmail, userId: afterwards.userId }),
+      this.analytics.forgetGuests(afterwards.guestIds),
+    ]);
+    return counts;
   }
 
   /**
