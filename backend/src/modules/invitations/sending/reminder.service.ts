@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   InvitationStatus,
@@ -65,7 +65,7 @@ const DETAILS_CHANGED_TEMPLATE_KEY = 'event.details-changed';
 const HORIZON_DAYS = Math.max(...REMINDER_MILESTONES) + 1;
 
 @Injectable()
-export class ReminderService {
+export class ReminderService implements OnModuleInit {
   private readonly logger = new Logger(ReminderService.name);
   private readonly appUrl: string;
 
@@ -79,6 +79,20 @@ export class ReminderService {
   ) {
     this.appUrl = config.get<string>('PUBLIC_APP_URL') ?? 'http://localhost:5173';
     this.configuredChannels = deliverableChannels(config);
+  }
+
+  /** A reminder goes only to a household someone in which has still not answered. */
+  onModuleInit(): void {
+    this.communications.checkBeforeSending(REMINDER_TEMPLATE_KEY, async ({ guestId }) => {
+      if (!guestId) return true;
+      const undecided = await this.prisma.guest.count({
+        where: {
+          household: { guests: { some: { id: guestId } } },
+          OR: [{ rsvp: null }, { rsvp: { status: RsvpStatus.PENDING } }],
+        },
+      });
+      return undecided > 0;
+    });
   }
 
   /**

@@ -685,7 +685,9 @@ twice is a `400` on `items` (two lines of six used to pass a limit of ten).
 
 **Generate `idempotencyKey` once per checkout attempt and reuse it on retry.**
 A double-tapped button with the same key returns the same order rather than
-reserving twice.
+reserving twice — **with its `payment`**, so a retry can still send the buyer
+to the bank. Two taps arriving at once both get that order; neither is a
+`409` (until 10 October 2026 one was, and a retry came back without a link).
 
 ```json
 {

@@ -379,6 +379,29 @@ describe('Account lifecycle (e2e)', () => {
       await http().post('/api/v1/invites/accept').send(accept).expect(400);
     });
 
+    // B87: accepting checked the invite, then wrote; a revoke between the two was ignored.
+    it('lets a revoke and an accept arriving together settle one way only', async () => {
+      const { authorization } = await asOwner();
+      const invited = await http()
+        .post('/api/v1/organization/invites')
+        .set('Authorization', authorization)
+        .send({ email: 'new@test.local', role: 'MEMBER' })
+        .expect(201);
+      const token = tokenFrom(invited.body);
+
+      const [accepted, revoked] = await Promise.all([
+        http().post('/api/v1/invites/accept').send({ token, name: 'New Person', password: 'a-long-enough-password' }),
+        http().delete('/api/v1/organization/invites/new@test.local').set('Authorization', authorization),
+      ]);
+
+      const invite = await prisma.organizationInvite.findFirstOrThrow({ where: { email: 'new@test.local' } });
+      const joined = await prisma.organizationMembership.count({ where: { user: { email: 'new@test.local' } } });
+      expect(invite.acceptedAt !== null && invite.revokedAt !== null).toBe(false);
+      expect(joined).toBe(accepted.status === 201 ? 1 : 0);
+      expect(accepted.status).toBe(invite.acceptedAt ? 201 : 400);
+      expect(revoked.status).toBeLessThan(500);
+    });
+
     it('refuses a revoked invitation', async () => {
       const { authorization } = await asOwner();
       const invited = await http()

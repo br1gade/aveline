@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   DataSubjectRequestKind,
   DataSubjectRequestStatus,
@@ -34,6 +34,10 @@ const ERASURE_TIMEOUT_MS = 60_000;
 
 /** Repeat submissions add their notes, up to this much in all. */
 const NOTES_LIMIT = 20_000;
+
+function completedBy(userId: string) {
+  return { status: DataSubjectRequestStatus.COMPLETED, completedAt: new Date(), handledByUserId: userId };
+}
 
 @Injectable()
 export class PrivacyService {
@@ -156,20 +160,15 @@ export class PrivacyService {
       );
     }
 
+    const completion = { requestId, userId };
     const result =
       request.kind === DataSubjectRequestKind.EXPORT
         ? await this.assembleExport(request.subjectEmail)
-        : await this.erase(request.subjectEmail);
+        : await this.erase(request.subjectEmail, completion);
 
-    await this.prisma.dataSubjectRequest.update({
-      where: { id: requestId },
-      data: {
-        status: DataSubjectRequestStatus.COMPLETED,
-        completedAt: new Date(),
-        handledByUserId: userId,
-      },
-    });
-
+    if (request.kind === DataSubjectRequestKind.EXPORT) {
+      await this.prisma.dataSubjectRequest.updateMany({ where: { id: requestId }, data: completedBy(userId) });
+    }
     return { reference: requestId, kind: request.kind, ...result };
   }
 
@@ -262,9 +261,19 @@ export class PrivacyService {
    * Mongo are cleared only once Postgres has committed, so a rollback never
    * leaves a guest whose signature is already gone.
    */
-  private async erase(subjectEmail: string) {
+  private async erase(subjectEmail: string, completion: { requestId: string; userId: string }) {
     const { counts, afterwards } = await this.prisma.$transaction(
-      (tx) => eraseSubject(tx, subjectEmail, new Date()),
+      async (tx) => {
+        // The request is claimed in the same transaction, first: two staff
+        // pressing fulfil together both ran the erasure (B87). A failed
+        // erasure rolls the claim back with it.
+        const claimed = await tx.dataSubjectRequest.updateMany({
+          where: { id: completion.requestId, status: DataSubjectRequestStatus.IN_PROGRESS },
+          data: completedBy(completion.userId),
+        });
+        if (claimed.count === 0) throw new ConflictException('This request is being carried out by someone else, or already was');
+        return eraseSubject(tx, subjectEmail, new Date());
+      },
       { timeout: ERASURE_TIMEOUT_MS },
     );
     await Promise.all([

@@ -21,6 +21,7 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { EventDetails, NOTICE_WORTHY, changedFields, detailsProblem } from './event-details';
 import { EVENT_TRANSLATABLE, translationsProblem } from '../../common/field-translations';
 import { mergeTranslations } from '../design/translated-content';
+import { lockRow } from '../../common/row-lock';
 import { invitationSlug } from './invitation-slug';
 
 @Injectable()
@@ -237,38 +238,42 @@ export class EventsService {
    * `POST /invitations/:slug/notify-changes` (decided 8 October 2026).
    */
   async updateDetails(eventId: string, dto: UpdateEventDto) {
-    const current = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      select: {
-        startsAt: true,
-        endsAt: true,
-        timezone: true,
-        locales: true,
-        defaultLocale: true,
-        translations: true,
-        invitation: { select: { slug: true } },
-      },
-    });
-    if (!current) throw new NotFoundException(`No event ${eventId}`);
-
     assertRequiredNotCleared(dto);
-    const next = nextDetails(current, dto);
-    const problem = detailsProblem(next) ?? (dto.translations ? translationsProblem(dto.translations, EVENT_TRANSLATABLE) : null);
-    if (problem) throw new BadRequestException(problem);
+    const { current, next } = await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'events', eventId);
+      const found = await tx.event.findUnique({
+        where: { id: eventId },
+        select: {
+          startsAt: true,
+          endsAt: true,
+          timezone: true,
+          locales: true,
+          defaultLocale: true,
+          translations: true,
+          invitation: { select: { slug: true } },
+        },
+      });
+      if (!found) throw new NotFoundException(`No event ${eventId}`);
 
-    await this.prisma.event.update({
-      where: { id: eventId },
-      data: {
-        ...next,
-        type: dto.type,
-        title: dto.title,
-        hostsLabel: dto.hostsLabel,
-        sideALabel: dto.sideALabel,
-        sideBLabel: dto.sideBLabel,
-        translations: dto.translations
-          ? (mergeTranslations(current.translations, dto.translations) as Prisma.InputJsonValue)
-          : undefined,
-      },
+      const merged = nextDetails(found, dto);
+      const problem = detailsProblem(merged) ?? (dto.translations ? translationsProblem(dto.translations, EVENT_TRANSLATABLE) : null);
+      if (problem) throw new BadRequestException(problem);
+
+      await tx.event.update({
+        where: { id: eventId },
+        data: {
+          ...merged,
+          type: dto.type,
+          title: dto.title,
+          hostsLabel: dto.hostsLabel,
+          sideALabel: dto.sideALabel,
+          sideBLabel: dto.sideBLabel,
+          translations: dto.translations
+            ? (mergeTranslations(found.translations, dto.translations) as Prisma.InputJsonValue)
+            : undefined,
+        },
+      });
+      return { current: found, next: merged };
     });
     if (current.invitation) await this.cache.invalidateInvitation(current.invitation.slug);
 
@@ -290,17 +295,21 @@ export class EventsService {
     const event = await this.findOne(eventId);
     if (event.status === EventStatus.ARCHIVED) return event;
 
-    await this.prisma.$transaction([
-      this.prisma.event.update({
+    await this.prisma.$transaction(async (tx) => {
+      // The same row lock publishing takes, so a publish cannot land after
+      // this and leave an archived event live (B87).
+      const [locked] = await tx.$queryRaw<{ status: EventStatus }[]>`SELECT status FROM events WHERE id = ${eventId} FOR UPDATE`;
+      if (locked.status === EventStatus.ARCHIVED) return;
+      await tx.event.update({
         where: { id: eventId },
-        data: { status: EventStatus.ARCHIVED, statusBeforeArchive: event.status },
-      }),
-      this.prisma.invitation.updateMany({
+        data: { status: EventStatus.ARCHIVED, statusBeforeArchive: locked.status },
+      });
+      await tx.invitation.updateMany({
         where: { eventId, status: InvitationStatus.PUBLISHED },
         data: { status: InvitationStatus.CLOSED },
-      }),
-      this.prisma.eventListing.updateMany({ where: { eventId }, data: { publishedAt: null } }),
-    ]);
+      });
+      await tx.eventListing.updateMany({ where: { eventId }, data: { publishedAt: null } });
+    });
     if (event.invitation) await this.cache.invalidateInvitation(event.invitation.slug);
     return this.findOne(eventId);
   }

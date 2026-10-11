@@ -4,7 +4,7 @@ import { BlockType, EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
-import { CacheService, invitationCacheKey, invitationMetaKey } from '../../infra/cache/cache.service';
+import { CacheService, invitationCacheKey, invitationMetaKey, invitationGenerationKey } from '../../infra/cache/cache.service';
 import { translatedField } from '../../common/field-translations';
 import { fieldsForPage } from '../rsvp/rsvp-fields';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
@@ -145,13 +145,16 @@ export class InvitationsService {
       }
       const { event } = invitation;
       return { eventId: event.id, locales: event.locales, defaultLocale: event.defaultLocale, visibility: event.visibility };
-    });
+    }, invitationGenerationKey(slug));
   }
 
   /** The page as every guest reading this language sees it, cached per slug and locale. */
   private sharedPayload(slug: string, locale: string) {
-    return this.cache.readThrough(invitationCacheKey(slug, locale), this.cacheTtlSeconds, async () =>
-      this.buildPayload(await this.loadPublished(slug), null, locale),
+    return this.cache.readThrough(
+      invitationCacheKey(slug, locale),
+      this.cacheTtlSeconds,
+      async () => this.buildPayload(await this.loadPublished(slug), null, locale),
+      invitationGenerationKey(slug),
     );
   }
 

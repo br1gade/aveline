@@ -90,6 +90,26 @@ describe('message delivery (integration)', () => {
       variables: {},
     });
 
+  // B87: both read "none yet", and the loser's unique violation became a 409.
+  it('queues one message when the same dedupe key is enqueued twice at once', async () => {
+    const twice = await Promise.all(
+      [1, 2, 3].map(() =>
+        communications.enqueue({
+          organizationId,
+          channel: MessageChannel.EMAIL,
+          templateKey: 'invitation',
+          toAddress: 'ani@test.local',
+          locale: 'hy',
+          variables: {},
+          dedupeKey: 'invitation:once',
+        }),
+      ),
+    );
+
+    expect(new Set(twice.map((message) => message.id)).size).toBe(1);
+    expect(await prisma.message.count({ where: { dedupeKey: 'invitation:once' } })).toBe(1);
+  });
+
   /** Pretends the backoff has elapsed, so a retry is due now. */
   const makeDue = async (messageId: string) => {
     await prisma.message.update({

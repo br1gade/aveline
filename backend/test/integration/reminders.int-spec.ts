@@ -56,6 +56,7 @@ describe('reminders (integration)', () => {
       guestChannels,
       config,
     );
+    reminders.onModuleInit();
   });
 
   beforeEach(() => resetTestDatabase());
@@ -390,6 +391,24 @@ describe('reminders (integration)', () => {
       expect(reminder.status).toBe(MessageStatus.CANCELLED);
       expect(reminder.sentAt).toBeNull();
     });
+  });
+
+  // B87: the sweep read "unanswered", the answer landed, and only then was
+  // the reminder queued — after the answer had withdrawn what was there.
+  it('does not send a reminder queued just after the household answered', async () => {
+    const { slug, eventId, primaryGuestToken } = await invitedEvent(10);
+    await sendEarlier(slug);
+    const guest = await prisma.guest.findFirstOrThrow({ where: { token: primaryGuestToken } });
+    await prisma.$transaction((tx) => recordAnswer(tx, guest.id, { status: RsvpStatus.ATTENDING }));
+    await prisma.message.create({
+      data: { eventId, guestId: guest.id, channel: MessageChannel.EMAIL, templateKey: 'rsvp.reminder', toAddress: 'late@test.local', body: 'Will you come?' },
+    });
+
+    await communications.dispatchDue();
+
+    const reminder = await prisma.message.findFirstOrThrow({ where: { eventId, templateKey: 'rsvp.reminder' } });
+    expect(reminder.status).toBe(MessageStatus.CANCELLED);
+    expect(reminder.sentAt).toBeNull();
   });
 
   it('dispatches reminders through the same outbox as everything else', async () => {

@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '../../common/prisma-errors';
 import { appPage } from '../../common/app-url';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
@@ -17,6 +18,14 @@ import { TicketFulfilmentService } from './ticket-fulfilment.service';
 
 /** How long a checkout holds inventory before the sweep returns it. */
 const RESERVATION_WINDOW_MS = 15 * 60 * 1000;
+
+const PAYMENT_WAIT_MS = 50;
+const PAYMENT_WAIT_ATTEMPTS = 60;
+
+/** A paid order whose payment has not been started yet — by another request, still running. */
+function isAwaitingPayment(order: { status: TicketOrderStatus; totalMinor: bigint; paymentOrderNumber: string | null }): boolean {
+  return order.status === TicketOrderStatus.RESERVED && order.totalMinor > 0n && order.paymentOrderNumber === null;
+}
 
 @Injectable()
 export class TicketingService {
@@ -38,11 +47,8 @@ export class TicketingService {
    * who has paid for a seat that no longer exists.
    */
   async createOrder(eventSlug: string, dto: CreateOrderDto) {
-    const existing = await this.prisma.ticketOrder.findUnique({
-      where: { idempotencyKey: dto.idempotencyKey },
-      include: { items: true },
-    });
-    if (existing) return this.describe(existing);
+    const existing = await this.existingOrder(dto.idempotencyKey);
+    if (existing) return existing;
 
     const event = await this.loadSellableEvent(eventSlug);
     const types = await this.loadTicketTypes(event.id, dto.items);
@@ -58,6 +64,11 @@ export class TicketingService {
     } catch (error) {
       // No order yet, so the holds are the only record: give them back.
       await this.fulfilment.releaseHolds(reserved);
+      // A double tap that raced this one to the same key: theirs is the order.
+      if (isUniqueViolation(error)) {
+        const raced = await this.existingOrder(dto.idempotencyKey);
+        if (raced) return raced;
+      }
       throw error;
     }
 
@@ -70,6 +81,22 @@ export class TicketingService {
       await this.fulfilment.expire(order.id);
       throw error;
     }
+  }
+
+  /**
+   * The order already placed under this key, with its payment — a retry
+   * used to get the order without the bank link it needed to pay (B87).
+   */
+  private async existingOrder(idempotencyKey: string) {
+    let order = await this.prisma.ticketOrder.findUnique({ where: { idempotencyKey }, include: { items: true } });
+    // The other request may still be starting the payment; wait for it, briefly.
+    for (let attempt = 0; order && isAwaitingPayment(order) && attempt < PAYMENT_WAIT_ATTEMPTS; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, PAYMENT_WAIT_MS));
+      order = await this.prisma.ticketOrder.findUnique({ where: { idempotencyKey }, include: { items: true } });
+    }
+    if (!order) return null;
+    if (!order.paymentOrderNumber) return this.describe(order);
+    return { ...this.describe(order), payment: await this.payments.findByOrderNumber(order.paymentOrderNumber) };
   }
 
   /**

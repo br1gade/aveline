@@ -316,12 +316,8 @@ export class AccountService {
     await this.assertNoOtherOrganization(invite.email, invite.organizationId);
 
     const membership = await this.prisma.$transaction(async (tx) => {
+      assertClaimed(await tx.organizationInvite.updateMany({ where: liveInvite(invite.id), data: { acceptedAt: new Date() } }));
       const user = await admit(tx);
-
-      await tx.organizationInvite.update({
-        where: { id: invite.id },
-        data: { acceptedAt: new Date() },
-      });
 
       return tx.organizationMembership.upsert({
         where: { userId_organizationId: { userId: user.id, organizationId: invite.organizationId } },
@@ -389,8 +385,8 @@ export class AccountService {
     const admit = await this.prepareInvitee(invite.email, dto);
 
     const membership = await this.prisma.$transaction(async (tx) => {
+      assertClaimed(await tx.eventInvite.updateMany({ where: liveInvite(invite.id), data: { acceptedAt: new Date() } }));
       const user = await admit(tx);
-      await tx.eventInvite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });
       return tx.eventMembership.upsert({
         where: { userId_eventId: { userId: user.id, eventId: invite.eventId } },
         create: { userId: user.id, eventId: invite.eventId, role: invite.role },
@@ -522,6 +518,19 @@ async function assertOwnPassword(
         'or reset the password first if it is not yours to know.',
     );
   }
+}
+
+/**
+ * An invite still open at the moment of accepting. Accepting is a claim on
+ * it, not a write after a check: a revoke landing between the two used to
+ * be ignored, and the revoked person joined anyway (B87).
+ */
+function liveInvite(id: string) {
+  return { id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } };
+}
+
+function assertClaimed(claim: { count: number }): void {
+  if (claim.count === 0) throw new BadRequestException('This invitation is no longer valid');
 }
 
 function describeError(error: unknown): string {

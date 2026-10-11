@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Guest, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddGuestDto, UpdateGuestDto, UpdateHouseholdDto } from './dto/guest-management.dto';
@@ -70,7 +70,7 @@ export class GuestManagementService {
     const phone = accepted(readPhone(dto.phone));
 
     const guest = await this.prisma.$transaction(async (tx) => {
-      const current = await lockGuest(tx, eventId, guestId);
+      const current = await lockGuestAndHouseholds(tx, eventId, guestId, dto.householdId);
       if (current.anonymizedAt) {
         throw new BadRequestException("This guest's details were erased at their request");
       }
@@ -103,8 +103,7 @@ export class GuestManagementService {
       // The guest row is locked before checking for an arrival, so a check-in
       // recorded at the same moment either lands first and is seen here, or
       // waits and then fails on a guest that no longer exists. Never both.
-      const guest = await lockGuest(tx, eventId, guestId);
-      await lockHousehold(tx, eventId, guest.householdId);
+      const guest = await lockGuestAndHouseholds(tx, eventId, guestId);
 
       const checkIn = await tx.checkIn.findUnique({ where: { guestId }, select: { id: true } });
       const problem = removalProblem({
@@ -200,6 +199,29 @@ export class GuestManagementService {
 }
 
 /** Locks one guest row on this event, or 404s. */
+/**
+ * Locks the guest's household (and any household they are moving to), then
+ * the guest — the order RSVP submission takes them in. Guest first here and
+ * household first there could deadlock one against the other (B87). If the
+ * guest moved household between the read and the lock, the caller retries.
+ */
+async function lockGuestAndHouseholds(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  guestId: string,
+  targetHouseholdId?: string,
+): Promise<LockedGuest> {
+  const found = await tx.guest.findFirst({ where: { id: guestId, eventId }, select: { householdId: true } });
+  if (!found) throw new NotFoundException(`No guest ${guestId} on this event`);
+  await lockHouseholds(tx, eventId, targetHouseholdId ? [found.householdId, targetHouseholdId] : [found.householdId]);
+
+  const guest = await lockGuest(tx, eventId, guestId);
+  if (guest.householdId !== found.householdId) {
+    throw new ConflictException('This guest was moved to another household just now; try again');
+  }
+  return guest;
+}
+
 async function lockGuest(
   tx: Prisma.TransactionClient,
   eventId: string,

@@ -231,6 +231,32 @@ describe('ticket settlement (integration)', () => {
 
   // B37: a checkout that failed after its order was written released its
   // seats, left the order RESERVED, and the sweep released them again.
+  // B87: a retry got the order without its bank link, and a double tap that
+  // raced to the same key got a 409.
+  describe('a checkout sent twice', () => {
+    it('answers both with the one order and its payment link, holding the seats once', async () => {
+      const { slug, ticketTypeId } = await onSale(10);
+      const send = () =>
+        ticketing.createOrder(slug, {
+          items: [{ ticketTypeId, quantity: 2 }],
+          buyerName: 'Ani',
+          buyerEmail: 'ani@test.local',
+          idempotencyKey: 'double-tap',
+          provider: PaymentProvider.FAKE,
+        });
+
+      const [first, second] = await Promise.all([send(), send()]);
+      const retry = await send();
+
+      expect(second.orderId).toBe(first.orderId);
+      expect(retry.orderId).toBe(first.orderId);
+      for (const answer of [first, second, retry]) {
+        expect((answer as { payment?: { redirectUrl: string | null } }).payment?.redirectUrl).toEqual(expect.any(String));
+      }
+      expect(await sold(ticketTypeId)).toEqual({ sold: 0, reserved: 2 });
+    });
+  });
+
   describe('a checkout that fails half-way', () => {
     it('gives its seats back once, and the next buyer can pay', async () => {
       const { slug, ticketTypeId } = await onSale(2);

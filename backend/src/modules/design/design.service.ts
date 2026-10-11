@@ -3,6 +3,7 @@ import { BlockType, Prisma, QuestionType } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
 import { blockMediaProblem } from './block-media';
 import { mergeTranslations } from './translated-content';
+import { lockRow } from '../../common/row-lock';
 import { languageKeysProblem } from '../../common/field-translations';
 import { BUILT_IN_FIELDS, configProblem, fieldOf, mergeConfig } from '../rsvp/rsvp-fields';
 import { TemplateRules, assertBlockEdit, variantProblem } from './block-rules';
@@ -136,29 +137,32 @@ export class DesignService {
     assertBlockEdit(template, type, dto);
     assertLanguages(['content', dto.content]);
 
-    const block = await this.prisma.invitationBlock.findUnique({
-      where: { invitationId_type: { invitationId: invitation.id, type } },
-    });
-    if (!block) {
-      throw new NotFoundException(
-        `This invitation has no ${type} block; add it through the arrangement call first`,
-      );
-    }
-
     if (dto.assetIds) await this.assertAttachable(invitation.eventId, type, dto.assetIds);
 
-    const updated = await this.prisma.invitationBlock.update({
-      where: { id: block.id },
-      data: {
-        content: dto.content
-          ? (mergeTranslations(block.content, dto.content) as Prisma.InputJsonValue)
-          : undefined,
-        settings: dto.settings as Prisma.InputJsonValue | undefined,
-        // null is the template's default layout; only omitted leaves it.
-        variant: dto.variant === undefined ? undefined : dto.variant,
-        assetIds: dto.assetIds ?? undefined,
-        enabled: dto.enabled ?? undefined,
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const block = await tx.invitationBlock.findUnique({
+        where: { invitationId_type: { invitationId: invitation.id, type } },
+        select: { id: true },
+      });
+      if (!block) {
+        throw new NotFoundException(`This invitation has no ${type} block; add it through the arrangement call first`);
+      }
+      // Merged under the row's lock, so a co-host editing another language
+      // at the same moment is merged into rather than written over.
+      await lockRow(tx, 'invitation_blocks', block.id);
+      if (dto.assetIds) await shareLockAssets(tx, dto.assetIds);
+      const { content } = await tx.invitationBlock.findUniqueOrThrow({ where: { id: block.id }, select: { content: true } });
+      return tx.invitationBlock.update({
+        where: { id: block.id },
+        data: {
+          content: dto.content ? (mergeTranslations(content, dto.content) as Prisma.InputJsonValue) : undefined,
+          settings: dto.settings as Prisma.InputJsonValue | undefined,
+          // null is the template's default layout; only omitted leaves it.
+          variant: dto.variant === undefined ? undefined : dto.variant,
+          assetIds: dto.assetIds ?? undefined,
+          enabled: dto.enabled ?? undefined,
+        },
+      });
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -182,13 +186,13 @@ export class DesignService {
     const problem = configProblem(edit);
     if (problem) throw new BadRequestException(problem);
 
-    const invitation = await this.prisma.invitation.findUnique({ where: { slug }, select: { id: true, rsvpFields: true } });
-    if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
-
-    const merged = mergeConfig(invitation.rsvpFields, edit);
-    await this.prisma.invitation.update({
-      where: { id: invitation.id },
-      data: { rsvpFields: merged as Prisma.InputJsonValue },
+    const { id } = await this.requireInvitation(slug);
+    const merged = await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'invitations', id);
+      const { rsvpFields } = await tx.invitation.findUniqueOrThrow({ where: { id }, select: { rsvpFields: true } });
+      const next = mergeConfig(rsvpFields, edit);
+      await tx.invitation.update({ where: { id }, data: { rsvpFields: next as Prisma.InputJsonValue } });
+      return next;
     });
     await this.cache.invalidateInvitation(slug);
     return Object.fromEntries(BUILT_IN_FIELDS.map((field) => [field, fieldOf(merged, field)]));
@@ -245,19 +249,25 @@ export class DesignService {
    * emptied a choice question. The merged question must still be answerable.
    */
   async updateQuestion(slug: string, questionId: string, dto: UpdateQuestionDto) {
-    const question = await this.requireQuestion(slug, questionId);
-    // One language at a time, as block copy is: correcting the English
-    // prompt used to delete the Armenian one.
-    const prompt = dto.prompt ? mergeTranslations(question.prompt, dto.prompt) : asObject(question.prompt);
-    const options = (dto.options ? mergeTranslations(question.options, dto.options) : (question.options ?? [])) as Prisma.InputJsonValue;
-    const type = dto.type ?? question.type;
-    assertQuestionIsAnswerable({ type, prompt, options: asObject(options as Prisma.JsonValue) });
-    const answers = await this.prisma.rsvpAnswer.count({ where: { questionId: question.id } });
-    assertAnsweredQuestionKeepsShape(answers, question, { type, options });
+    const { id } = await this.requireQuestion(slug, questionId);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Locked, so two edits merge one after the other, and an answer cannot
+      // arrive between the shape check and the write.
+      await lockRow(tx, 'rsvp_questions', id);
+      const question = await tx.rsvpQuestion.findUniqueOrThrow({ where: { id } });
+      // One language at a time, as block copy is: correcting the English
+      // prompt used to delete the Armenian one.
+      const prompt = dto.prompt ? mergeTranslations(question.prompt, dto.prompt) : asObject(question.prompt);
+      const options = (dto.options ? mergeTranslations(question.options, dto.options) : (question.options ?? [])) as Prisma.InputJsonValue;
+      const type = dto.type ?? question.type;
+      assertQuestionIsAnswerable({ type, prompt, options: asObject(options as Prisma.JsonValue) });
+      const answers = await tx.rsvpAnswer.count({ where: { questionId: id } });
+      assertAnsweredQuestionKeepsShape(answers, question, { type, options });
 
-    const updated = await this.prisma.rsvpQuestion.update({
-      where: { id: question.id },
-      data: { type, prompt: prompt as Prisma.InputJsonValue, options, required: dto.required ?? question.required },
+      return tx.rsvpQuestion.update({
+        where: { id },
+        data: { type, prompt: prompt as Prisma.InputJsonValue, options, required: dto.required ?? question.required },
+      });
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -274,15 +284,20 @@ export class DesignService {
   async removeQuestion(slug: string, questionId: string) {
     const question = await this.requireQuestion(slug, questionId);
 
-    const answers = await this.prisma.rsvpAnswer.count({ where: { questionId: question.id } });
-    if (answers > 0) {
-      throw new BadRequestException(
-        `${answers} guest(s) have answered this question; deleting it would discard their answers. ` +
-          'Make it optional instead.',
-      );
-    }
-
-    await this.prisma.rsvpQuestion.delete({ where: { id: question.id } });
+    await this.prisma.$transaction(async (tx) => {
+      // Locked before counting: an answer arriving between the count and the
+      // delete was cascaded away (B87). The lock conflicts with the one an
+      // answer's foreign key takes, so the two now run one after the other.
+      await tx.$queryRaw`SELECT id FROM rsvp_questions WHERE id = ${question.id} FOR UPDATE`;
+      const answers = await tx.rsvpAnswer.count({ where: { questionId: question.id } });
+      if (answers > 0) {
+        throw new BadRequestException(
+          `${answers} guest(s) have answered this question; deleting it would discard their answers. ` +
+            'Make it optional instead.',
+        );
+      }
+      await tx.rsvpQuestion.delete({ where: { id: question.id } });
+    });
     await this.cache.invalidateInvitation(slug);
     return { ok: true as const };
   }
@@ -394,6 +409,20 @@ function assertAnsweredQuestionKeepsShape(
 }
 
 /** A JSON object column as a record; anything else as empty. */
+/**
+ * Holds the files being attached until the block is written: removing one
+ * at the same moment waits, then sees it shown and refuses — or, if it went
+ * first, the file is gone and this refuses (B87).
+ */
+async function shareLockAssets(tx: Prisma.TransactionClient, assetIds: string[]): Promise<void> {
+  if (assetIds.length === 0) return;
+  const found = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id FROM media_assets WHERE id IN (${Prisma.join(assetIds)}) FOR SHARE`;
+  if (found.length !== new Set(assetIds).size) {
+    throw new BadRequestException('assetIds: one of these files was just removed');
+  }
+}
+
 function asObject(value: Prisma.JsonValue): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }

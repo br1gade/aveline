@@ -57,6 +57,14 @@ its languages and its visibility — so a hit is two Redis reads and no
 Postgres at all. (It used to load the invitation, blocks, event, venues and
 timeline first, only to choose the key.) Changing visibility invalidates both.
 
+**Invalidation cannot be undone by a slow reader.** Each invitation has a
+generation counter (`aveline:invitation-generation:<slug>`, outside the
+payload pattern so deleting payloads never resets it). Invalidating bumps it
+before deleting; a miss reads it before loading and stores the result only if
+it has not moved — one Lua script, so the check and the write are atomic. A
+request that read the old row just before an edit used to store it back for
+the whole TTL.
+
 The **personalized** page is the cached shared payload plus one query for the
 guest, never cached itself — per-guest by definition, so caching it would
 multiply the keyspace by the guest count for no reuse.

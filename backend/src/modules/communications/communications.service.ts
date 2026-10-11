@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '../../common/prisma-errors';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MessageChannel, MessageStatus, Prisma,
   SuppressionReason,
@@ -64,15 +65,30 @@ const STRANDED_AFTER_MS = 15 * 60 * 1000;
 
 type DueMessage = Prisma.MessageGetPayload<object>;
 
+/** Whether a queued message still says something true, asked just before it is sent. */
+export type StillWanted = (message: { guestId: string | null; eventId: string | null }) => Promise<boolean>;
+
 @Injectable()
 export class CommunicationsService {
   private readonly logger = new Logger(CommunicationsService.name);
+  private readonly stillWanted = new Map<string, StillWanted>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly transports: Map<MessageChannel, MessageTransport>,
     private readonly suppressions: SuppressionService,
   ) {}
+
+  /**
+   * Lets the module that sends a kind of message withdraw it at the last
+   * moment if it no longer applies. A reminder to answer was queued by a sweep
+   * that read "unanswered" just before the answer landed, and went out anyway
+   * (B87); the answer withdraws what is already queued, and this catches what
+   * is queued after.
+   */
+  checkBeforeSending(templateKey: string, check: StillWanted): void {
+    this.stillWanted.set(templateKey, check);
+  }
 
   /** Renders now, sends later. Returns the queued message. */
   async enqueue(params: EnqueueParams) {
@@ -101,8 +117,7 @@ export class CommunicationsService {
       throw new NotFoundException(`Template "${params.templateKey}" has no body for any locale`);
     }
 
-    return this.prisma.message.create({
-      data: {
+    return this.createOnce(params.dedupeKey, {
         organizationId: params.organizationId,
         eventId: params.eventId ?? null,
         guestId: params.guestId ?? null,
@@ -125,8 +140,22 @@ export class CommunicationsService {
         // their invitation deserves the answer "they opted out", and a
         // message that silently never existed cannot give it.
         ...queueState(isSuppressed),
-      },
     });
+  }
+
+  /**
+   * Inserts the message, or returns the one a concurrent caller inserted
+   * under the same dedupe key. Two sends at once both passed the read above,
+   * and the loser's unique violation became a 409 that also abandoned every
+   * guest after it in the loop (B87).
+   */
+  private async createOnce(dedupeKey: string | undefined, data: Prisma.MessageUncheckedCreateInput) {
+    try {
+      return await this.prisma.message.create({ data });
+    } catch (error) {
+      if (!dedupeKey || !isUniqueViolation(error)) throw error;
+      return this.prisma.message.findUniqueOrThrow({ where: { dedupeKey } });
+    }
   }
 
   /**
@@ -192,8 +221,20 @@ export class CommunicationsService {
       await this.markSuppressed(message.id);
       return 'SUPPRESSED';
     }
+    if (!(await this.isStillWanted(message))) {
+      await this.prisma.message.update({
+        where: { id: message.id },
+        data: { status: MessageStatus.CANCELLED, failureReason: 'No longer applied when it was due to be sent' },
+      });
+      return 'TAKEN';
+    }
 
     return this.deliver({ ...message, attempts: attempt });
+  }
+
+  private async isStillWanted(message: DueMessage): Promise<boolean> {
+    const check = message.templateKey ? this.stillWanted.get(message.templateKey) : undefined;
+    return check ? check(message) : true;
   }
 
   /**

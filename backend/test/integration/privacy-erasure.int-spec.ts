@@ -352,6 +352,19 @@ describe('Erasure (integration)', () => {
     expect(there).toMatchObject({ rowsImported: 2, rowsFailed: 0 });
   });
 
+  // B87: two staff pressing fulfil together both ran the erasure.
+  it('carries an erasure out once when fulfilled twice at once', async () => {
+    await personEverywhere();
+    const request = await prisma.dataSubjectRequest.create({
+      data: { kind: DataSubjectRequestKind.ERASURE, subjectEmail: ADDRESS, status: DataSubjectRequestStatus.IN_PROGRESS, dueAt: new Date(Date.now() + 86_400_000) },
+    });
+
+    const results = await Promise.allSettled([service.fulfil(request.id, 'one'), service.fulfil(request.id, 'two')]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(removedFiles).toHaveLength(1);
+  });
+
   describe('request status', () => {
     const requestIn = (
       status: DataSubjectRequestStatus,

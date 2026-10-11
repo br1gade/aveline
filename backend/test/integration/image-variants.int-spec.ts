@@ -39,6 +39,8 @@ describe('Resizing photos (integration)', () => {
     ({ eventId } = await seedEvent(prisma));
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   afterAll(async () => {
     await rm(root, { recursive: true, force: true });
     await disconnectTestDatabase();
@@ -108,8 +110,46 @@ describe('Resizing photos (integration)', () => {
     expect(row.url).toBe(asset.url);
   });
 
+  // B87: storage being briefly unreachable marked the photo unreadable for good.
+  it('tries again next sweep when storage could not hand the file back', async () => {
+    const asset = await uploaded(await photo(2000, 1000));
+    jest.spyOn(storage, 'get').mockRejectedValueOnce(new Error('connection reset'));
+
+    await images.processPending();
+    const second = await images.processPending();
+
+    expect(second).toEqual({ processed: 1, failed: 0 });
+    const row = await prisma.mediaAsset.findUniqueOrThrow({ where: { id: asset.id } });
+    expect(row.variantsError).toBeNull();
+  });
+
+  // B87: an upload removed mid-resize threw out of the sweep and orphaned its copies.
+  it('carries on, and leaves no copies behind, when an upload is removed while it is resized', async () => {
+    const removed = await uploaded(await photo(2000, 1000));
+    const kept = await uploaded(await photo(2000, 1000));
+    const put = storage.put.bind(storage);
+    const written: string[] = [];
+    jest.spyOn(storage, 'put').mockImplementation(async (file) => {
+      const stored = await put(file);
+      written.push(stored.url);
+      await prisma.mediaAsset.deleteMany({ where: { id: removed.id } });
+      return stored;
+    });
+    const removedUrls: string[] = [];
+    jest.spyOn(storage, 'removeByUrl').mockImplementation((url) => Promise.resolve(void removedUrls.push(url)));
+
+    await images.processPending();
+
+    expect((await prisma.mediaAsset.findUniqueOrThrow({ where: { id: kept.id } })).variantsProcessedAt).not.toBeNull();
+    expect(removedUrls.length).toBeGreaterThan(0);
+    expect(removedUrls.every((url) => written.includes(url))).toBe(true);
+  });
+
   it('leaves SVGs and audio alone', async () => {
-    const svg = await uploaded(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'image/svg+xml');
+    // SVG uploads are refused now (B92); one stored before that is still left alone.
+    const svg = await prisma.mediaAsset.create({
+      data: { eventId, kind: MediaKind.PHOTO, url: 'http://media.test/legacy.svg', mimeType: 'image/svg+xml', sizeBytes: 40 },
+    });
     const song = await uploaded(Buffer.from('ID3'), 'audio/mpeg', MediaKind.AUDIO);
 
     expect(await images.processPending()).toEqual({ processed: 0, failed: 0 });

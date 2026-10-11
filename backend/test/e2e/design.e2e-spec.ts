@@ -280,6 +280,19 @@ describe('Invitation design (e2e)', () => {
      * Editing one language used to replace the whole content map, so a host
      * who corrected the English wording deleted the Armenian invitation.
      */
+    // B87: two co-hosts each read the block, merged their language and wrote
+    // the whole map back — the slower one wrote over the other's edit.
+    it('keeps both of two languages edited at the same moment', async () => {
+      const { slug, authorization } = await designer();
+      const edit = (content: Record<string, unknown>) =>
+        http().patch(`/api/v1/invitations/${slug}/blocks/HERO`).set('Authorization', authorization).send({ content });
+
+      await Promise.all([edit({ hy: { title: 'Բարի գալուստ' } }), edit({ en: { title: 'Welcome' } }), edit({ ru: { title: 'Добро пожаловать' } })]);
+
+      const block = await prisma.invitationBlock.findFirstOrThrow({ where: { invitation: { slug }, type: 'HERO' } });
+      expect(block.content).toEqual({ hy: { title: 'Բարի գալուստ' }, en: { title: 'Welcome' }, ru: { title: 'Добро пожаловать' } });
+    });
+
     // B89: any key was taken as a language — `{"foo bar": 42}` was stored.
     it('refuses content keyed by something that is not a language', async () => {
       const { slug, authorization } = await designer();

@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { CreateVenueDto, CreateVenueProfileDto, UpdateVenueDto, UpdateVenueProfileDto } from './dto/design.dto';
 import { mergeTranslations } from './translated-content';
+import { lockRow } from '../../common/row-lock';
 
 /**
  * Venues on an event.
@@ -90,28 +91,32 @@ export class VenuesService {
 
   async update(eventId: string, venueId: string, dto: UpdateVenueDto) {
     assertTranslations(dto.translations);
-    const current = await this.require(eventId, venueId);
-    assertCoordinatePair(
-      dto.latitude === undefined ? current.latitude : dto.latitude,
-      dto.longitude === undefined ? current.longitude : dto.longitude,
-    );
+    const venue = await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'venues', venueId);
+      const current = await tx.venue.findFirst({ where: { id: venueId, eventId } });
+      if (!current) throw new NotFoundException('No such venue on this event');
+      assertCoordinatePair(
+        dto.latitude === undefined ? current.latitude : dto.latitude,
+        dto.longitude === undefined ? current.longitude : dto.longitude,
+      );
 
-    const venue = await this.prisma.venue.update({
-      where: { id: venueId },
-      data: {
-        role: dto.role === undefined ? undefined : asVenueRole(dto.role),
-        name: dto.name ?? undefined,
-        address: dto.address ?? undefined,
-        // Omitted leaves these alone; null clears them.
-        mapUrl: dto.mapUrl,
-        arriveAt: dto.arriveAt ? new Date(dto.arriveAt) : dto.arriveAt,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
-        capacity: dto.capacity,
-        translations: dto.translations
-          ? (mergeTranslations(current.translations, dto.translations) as Prisma.InputJsonValue)
-          : undefined,
-      },
+      return tx.venue.update({
+        where: { id: venueId },
+        data: {
+          role: dto.role === undefined ? undefined : asVenueRole(dto.role),
+          name: dto.name ?? undefined,
+          address: dto.address ?? undefined,
+          // Omitted leaves these alone; null clears them.
+          mapUrl: dto.mapUrl,
+          arriveAt: dto.arriveAt ? new Date(dto.arriveAt) : dto.arriveAt,
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+          capacity: dto.capacity,
+          translations: dto.translations
+            ? (mergeTranslations(current.translations, dto.translations) as Prisma.InputJsonValue)
+            : undefined,
+        },
+      });
     });
     return { ...venue, notice: await this.afterChange(eventId) };
   }

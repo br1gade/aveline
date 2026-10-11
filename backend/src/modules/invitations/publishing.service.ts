@@ -1,3 +1,4 @@
+import { lockLiveEvent } from '../events/event-lock';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventStatus, InvitationStatus } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
@@ -77,6 +78,7 @@ export class PublishingService {
     to: InvitationStatus,
   ) {
     const updated = await this.prisma.$transaction(async (tx) => {
+      if (to === InvitationStatus.PUBLISHED) await lockLiveEvent(tx, invitation.eventId);
       const moved = await tx.invitation.updateMany({
         where: { id: invitation.id, status: invitation.status },
         data: { status: to },

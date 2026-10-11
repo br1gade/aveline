@@ -2,6 +2,7 @@ import { languageKeysProblem } from '../../common/field-translations';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MediaKind, Prisma } from '@prisma/client';
 import { mergeTranslations } from '../design/translated-content';
+import { lockRow } from '../../common/row-lock';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../infra/cache/cache.service';
 import { StorageService } from '../../infra/storage/storage.service';
@@ -39,15 +40,23 @@ export class MediaService {
       mimeType: file.mimetype,
     });
 
-    const asset = await this.prisma.mediaAsset.create({
-      data: {
-        eventId,
-        kind: kindFor(file.mimetype),
-        url: stored.url,
-        sizeBytes: stored.sizeBytes,
-        mimeType: stored.mimeType,
-      },
-    });
+    // The event can be deleted while the file is uploading; its row then
+    // cannot be written, and the file would be left with nothing pointing at
+    // it (B87). It goes back out instead.
+    const asset = await this.prisma.mediaAsset
+      .create({
+        data: {
+          eventId,
+          kind: kindFor(file.mimetype),
+          url: stored.url,
+          sizeBytes: stored.sizeBytes,
+          mimeType: stored.mimeType,
+        },
+      })
+      .catch(async (error: unknown) => {
+        await this.storage.removeByUrl(stored.url);
+        throw error;
+      });
 
     return { id: asset.id, url: asset.url, kind: asset.kind, sizeBytes: asset.sizeBytes };
   }
@@ -94,11 +103,15 @@ export class MediaService {
     if (keys) throw new BadRequestException(keys);
     const invalid = Object.entries(altText).find(([, text]) => !isAltText(text));
     if (invalid) throw new BadRequestException(`altText: ${invalid[0]} must be text of at most 300 characters, or null`);
-    const asset = await this.requireUpload(eventId, assetId);
-    const updated = await this.prisma.mediaAsset.update({
-      where: { id: asset.id },
-      data: { altText: mergeTranslations(asset.altText, altText) as Prisma.InputJsonValue },
-      select: { id: true, url: true, kind: true, altText: true },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'media_assets', assetId);
+      const asset = await tx.mediaAsset.findFirst({ where: { id: assetId, eventId, kind: { in: UPLOAD_KINDS } } });
+      if (!asset) throw new NotFoundException(`No upload ${assetId} on this event`);
+      return tx.mediaAsset.update({
+        where: { id: asset.id },
+        data: { altText: mergeTranslations(asset.altText, altText) as Prisma.InputJsonValue },
+        select: { id: true, url: true, kind: true, altText: true },
+      });
     });
     await this.dropCachedInvitation(eventId);
     return updated;
@@ -111,15 +124,24 @@ export class MediaService {
    * breaks the page.
    */
   async remove(eventId: string, assetId: string) {
-    const asset = await this.requireUpload(eventId, assetId);
-    const showing = (await this.blocksShowingMedia(eventId)).filter((block) => block.assetIds.includes(asset.id));
-    if (showing.length > 0) {
-      throw new ConflictException(
-        `The ${showing.map((block) => block.type).join(', ')} block shows this; take it off there first`,
-      );
-    }
+    const asset = await this.prisma.$transaction(async (tx) => {
+      // Locked before checking where it is shown: a block attaching it at the
+      // same moment takes a share lock on it, so one waits for the other —
+      // never a block showing a file just deleted (B87).
+      await lockRow(tx, 'media_assets', assetId);
+      const found = await tx.mediaAsset.findFirst({ where: { id: assetId, eventId, kind: { in: UPLOAD_KINDS } } });
+      if (!found) throw new NotFoundException(`No upload ${assetId} on this event`);
+      const blocks = await tx.invitationBlock.findMany({
+        where: { invitation: { eventId }, assetIds: { has: assetId } },
+        select: { type: true },
+      });
+      if (blocks.length > 0) {
+        throw new ConflictException(`The ${blocks.map((block) => block.type).join(', ')} block shows this; take it off there first`);
+      }
+      await tx.mediaAsset.delete({ where: { id: assetId } });
+      return found;
+    });
 
-    await this.prisma.mediaAsset.delete({ where: { id: asset.id } });
     await Promise.all(urlsOf(asset).map((url) => this.storage.removeByUrl(url)));
     return { removed: asset.id };
   }

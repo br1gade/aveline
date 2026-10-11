@@ -127,20 +127,20 @@ export class SeatingService {
   }
 
   async deleteTable(eventId: string, tableId: string) {
-    const table = await this.prisma.table.findFirst({
-      where: { id: tableId, eventId },
-      include: { _count: { select: { seats: true } } },
+    await this.prisma.$transaction(async (tx) => {
+      // Locked before counting, for the reason questions are: a guest seated
+      // between the count and the delete was cascaded off the plan (B87).
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM tables WHERE id = ${tableId} AND "eventId" = ${eventId} FOR UPDATE`;
+      if (locked.length === 0) throw new NotFoundException(`No table ${tableId} on this event`);
+
+      // Deleting would cascade the seats and silently unseat people.
+      const seated = await tx.seat.count({ where: { tableId } });
+      if (seated > 0) {
+        throw new ConflictException(`${seated} guest(s) are seated here; move them before deleting the table`);
+      }
+      await tx.table.delete({ where: { id: tableId } });
     });
-    if (!table) throw new NotFoundException(`No table ${tableId} on this event`);
-
-    // Deleting would cascade the seats and silently unseat people.
-    if (table._count.seats > 0) {
-      throw new ConflictException(
-        `${table._count.seats} guest(s) are seated here; move them before deleting the table`,
-      );
-    }
-
-    await this.prisma.table.delete({ where: { id: tableId } });
     return { ok: true as const };
   }
 
@@ -256,11 +256,12 @@ export class SeatingService {
  * rest of each household already sits, so a late acceptor joins their family.
  */
 async function loadSeatableHouseholds(tx: Prisma.TransactionClient, eventId: string): Promise<SeatableHousehold[]> {
-  const guests = await tx.guest.findMany({
+  const candidates = await tx.guest.findMany({
     where: { eventId, rsvp: { status: RsvpStatus.ATTENDING }, seat: null },
     select: { id: true, householdId: true, attribution: true },
     orderBy: { householdId: 'asc' },
   });
+  const guests = await stillAttending(tx, candidates);
   const householdIds = [...new Set(guests.map((guest) => guest.householdId))];
   const seated = await tx.seat.findMany({
     where: { guest: { householdId: { in: householdIds } } },
@@ -281,6 +282,22 @@ async function loadSeatableHouseholds(tx: Prisma.TransactionClient, eventId: str
     side: majoritySide(entry.sides),
     seatedAt: [...new Set(seated.filter((seat) => seat.guest.householdId === householdId).map((seat) => seat.tableId))],
   }));
+}
+
+/**
+ * The candidates whose answer is still ATTENDING, with those answers locked
+ * until the plan commits. A decline landing between reading the room and
+ * writing the plan used to be seated anyway (B87): now it either commits
+ * first and is filtered out here, or waits and then releases the new seat.
+ */
+async function stillAttending<T extends { id: string }>(tx: Prisma.TransactionClient, candidates: T[]): Promise<T[]> {
+  if (candidates.length === 0) return candidates;
+  const rows = await tx.$queryRaw<{ guestId: string }[]>`
+    SELECT "guestId" FROM rsvps
+     WHERE "guestId" IN (${Prisma.join(candidates.map((guest) => guest.id))}) AND status = 'ATTENDING'
+       FOR SHARE`;
+  const attending = new Set(rows.map((row) => row.guestId));
+  return candidates.filter((guest) => attending.has(guest.id));
 }
 
 /** The side most of a household belongs to — it was the first guest's. */

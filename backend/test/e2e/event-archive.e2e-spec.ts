@@ -88,6 +88,22 @@ describe('Archiving and deleting an event (e2e)', () => {
     expect(body.message).toMatch(/archived/i);
   });
 
+  // B87: reopening checked "not archived" and then wrote, so an archive in
+  // between left an archived event taking answers.
+  it('never leaves an archived event live when a reopen races the archive', async () => {
+    const { eventId, slug, authorization } = await owner();
+    await act('post', `/invitations/${slug}/close`, authorization).expect(201);
+
+    await Promise.all([
+      act('post', `/invitations/${slug}/reopen`, authorization),
+      act('post', `/events/${eventId}/archive`, authorization),
+    ]);
+
+    const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId }, include: { invitation: true } });
+    expect(event.status).toBe('ARCHIVED');
+    expect(event.invitation?.status).not.toBe('PUBLISHED');
+  });
+
   it('brings an archived event back as it was, ready to be reopened', async () => {
     const { eventId, slug, authorization } = await owner();
     await act('post', `/events/${eventId}/archive`, authorization).expect(201);

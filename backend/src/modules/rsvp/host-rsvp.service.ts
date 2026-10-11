@@ -53,6 +53,13 @@ export class HostRsvpService {
     if (problem) throw new BadRequestException(problem);
 
     const rsvp = await this.prisma.$transaction(async (tx) => {
+      // Checked again under the guest's row lock: an erasure committing
+      // between the check above and this write left the host's answer — their
+      // dietary note, say — on an erased person (B87). Erasure updates the
+      // same row, so the two now run one after the other.
+      const [locked] = await tx.$queryRaw<{ anonymizedAt: Date | null }[]>`
+        SELECT "anonymizedAt" FROM guests WHERE id = ${guestId} FOR UPDATE`;
+      if (locked?.anonymizedAt) throw new BadRequestException("This guest's details were erased at their request");
       const recorded = await recordAnswer(
         tx,
         guestId,

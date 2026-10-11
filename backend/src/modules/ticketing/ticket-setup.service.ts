@@ -1,3 +1,4 @@
+import { lockLiveEvent } from '../events/event-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -211,6 +212,7 @@ export class TicketSetupService {
     if (problems.length > 0) throw new BadRequestException(problems);
 
     return this.prisma.$transaction(async (tx) => {
+      await lockLiveEvent(tx, eventId);
       await tx.event.updateMany({
         where: { id: eventId, status: EventStatus.DRAFT },
         data: { status: EventStatus.PUBLISHED },
