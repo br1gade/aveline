@@ -1,6 +1,8 @@
 import { MessageChannel } from '@prisma/client';
 
 export interface OutboundMessage {
+  /** Stable internal identity for a provider adapter's later feedback. */
+  messageId?: string;
   toAddress: string;
   subject?: string;
   body: string;

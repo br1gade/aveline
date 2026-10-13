@@ -175,6 +175,12 @@ plan or issue a discount, because a discount is revenue.
 
 ## 4. Policy is a lookup, not a branch
 
+**Email feedback is an integration credential.** The normalized feedback route
+is public to the session guard but requires a server-held HMAC key, current
+timestamp and exact raw body signature. Hosts, guests and the browser never
+receive this key. Native provider authentication belongs in the future trusted
+adapter; this boundary does not make an arbitrary provider payload trusted.
+
 `access-policy.ts` is a pure function over three lookup tables. Adding a role
 means adding a row; it never means adding control flow. Two consequences:
 

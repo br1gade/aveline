@@ -51,6 +51,7 @@ export function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
       'referer',
       'x-api-key',
       'x-telegram-bot-api-secret-token',
+      'x-aveline-feedback-signature',
     ]) {
       delete event.request.headers[header];
     }

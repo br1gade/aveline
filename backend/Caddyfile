@@ -1,3 +1,23 @@
+(private-log-format) {
+	output stdout
+	# Tokens and addresses occur in paths, queries and referrers. Keep
+	# method/status/timing here; the API logs its sanitized route separately.
+	format filter {
+		wrap json
+		fields {
+			request>uri delete
+			request>headers delete
+			resp_headers delete
+		}
+	}
+}
+
+(private-access) {
+	log {
+		import private-log-format
+	}
+}
+
 # TLS, obtained and renewed by Caddy itself.
 #
 # The renewal is the part that fails silently months later, so it is the
@@ -5,6 +25,10 @@
 
 {
 	email {$ACME_EMAIL}
+	# Proxy errors use the runtime logger, separate from per-site access logs.
+	log {
+		import private-log-format
+	}
 	# Uncomment while testing, to avoid Let's Encrypt's rate limits on a
 	# domain whose DNS is still being sorted out:
 	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
@@ -30,8 +54,19 @@
 		-Server
 	}
 
-	log {
-		output stdout
-		format json
+	import private-access
+}
+
+{$MEDIA_DOMAIN} {
+	import private-access
+	encode zstd gzip
+	# Garage selects the public bucket by Host, not by its S3 API path.
+	reverse_proxy garage:3902 {
+		header_up Host {$MEDIA_BUCKET_HOST}
+	}
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
 	}
 }

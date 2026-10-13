@@ -2,6 +2,13 @@
 
 Armenian card acquiring through Ameriabank, Inecobank and IDBank.
 
+**Free pilot policy:** `PILOT_MODE=true` disables charge initiation centrally
+and refuses paid ticket checkout and paid subscription selection with `403`.
+No payable order, invoice or payment is committed by those refused requests;
+ticket reservations are released. Free ticket orders and free subscriptions
+remain available. Production Compose enables the policy by default. This does
+not undo historical payments or disable refunds/confirmation of existing ones.
+
 > **Status:** the provider-agnostic core and all three adapters are built and
 > tested. No bank has issued credentials yet, so no adapter has been exercised
 > against a real sandbox. See [§6](#6-before-go-live).

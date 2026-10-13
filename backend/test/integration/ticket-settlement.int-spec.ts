@@ -95,6 +95,37 @@ describe('ticket settlement (integration)', () => {
     return { sold: type.quantitySold, reserved: type.quantityReserved };
   };
 
+  it('rejects a pilot charge without consuming inventory or creating an order', async () => {
+    const { slug, ticketTypeId } = await onSale(10);
+    const previous = process.env.PILOT_MODE;
+    process.env.PILOT_MODE = 'true';
+    try {
+      await expect(buy(slug, ticketTypeId, 2)).rejects.toThrow('Payments are disabled for the free pilot');
+      expect(await sold(ticketTypeId)).toEqual({ sold: 0, reserved: 0 });
+      expect(await prisma.ticketOrder.count()).toBe(0);
+      expect(await prisma.payment.count()).toBe(0);
+    } finally {
+      if (previous === undefined) delete process.env.PILOT_MODE;
+      else process.env.PILOT_MODE = previous;
+    }
+  });
+
+  it('allows free tickets in pilot mode', async () => {
+    const { slug, ticketTypeId } = await onSale(10);
+    await prisma.ticketType.update({ where: { id: ticketTypeId }, data: { priceMinor: 0n } });
+    const previous = process.env.PILOT_MODE;
+    process.env.PILOT_MODE = 'true';
+    try {
+      const order = await buy(slug, ticketTypeId, 2);
+      expect(order.status).toBe('PAID');
+      expect(await sold(ticketTypeId)).toEqual({ sold: 2, reserved: 0 });
+      expect(await prisma.payment.count()).toBe(0);
+    } finally {
+      if (previous === undefined) delete process.env.PILOT_MODE;
+      else process.env.PILOT_MODE = previous;
+    }
+  });
+
   // B36: the hold lapsed without asking the bank, the seats were resold, and
   // the buyer's money was taken with no ticket and no refund.
   describe('a buyer who pays and does not come back', () => {

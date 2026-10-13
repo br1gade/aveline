@@ -6,6 +6,13 @@ import { MongoConnection } from './mongo-connection';
  * recovered. A transient outage must not permanently disable analytics.
  */
 describe('MongoConnection', () => {
+  it('checks a connected server with a real command rather than trusting a cached Db handle', async () => {
+    const command = jest.fn().mockRejectedValue(new Error('server unreachable'));
+    const client = { connect: jest.fn().mockResolvedValue(undefined), db: () => ({ command }), close: jest.fn().mockResolvedValue(undefined) };
+    const connection = new MongoConnection(jest.fn().mockReturnValue(client) as never);
+    await expect(connection.probe()).rejects.toThrow('server unreachable');
+    expect(command).toHaveBeenCalled();
+  });
   const makeClient = (overrides: Record<string, jest.Mock> = {}) => ({
     connect: jest.fn().mockResolvedValue(undefined),
     db: jest.fn().mockReturnValue({ name: 'aveline' }),

@@ -92,7 +92,9 @@ the same posture as the invitation link itself.
 In development `*.localhost` resolves, so
 `http://aveline-media.web.garage.localhost:3902/<key>` works directly. In
 production a reverse proxy maps a real hostname to the web endpoint, and that
-hostname goes in `S3_PUBLIC_URL`.
+hostname goes in `S3_PUBLIC_URL`. Production Caddy routes `MEDIA_DOMAIN` to
+Garage's website endpoint and supplies `MEDIA_BUCKET_HOST` to select the bucket;
+the S3 API and private exports are not published by that route.
 
 ## 5. Durability
 
@@ -116,6 +118,6 @@ on; doing so on one node buys nothing.
   row points at
 - **CDN** in front of the public URL
 - **Virus scanning** for host-uploaded files
-- **Backups.** Described above; not automated here
+- **Off-host recovery configuration.** Paired quiesced capture and complete restore tooling are built; the real encrypted destination and operator alerts remain to be configured. See [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Test isolation.** The e2e suite writes real objects into whichever bucket
   is configured. Harmless locally, but CI needs a throwaway bucket

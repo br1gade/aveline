@@ -13,6 +13,12 @@ with the code, so the committed file is current.
 
 ## 1. Conventions that apply everywhere
 
+**Free-pilot deployments:** `PILOT_MODE=true` refuses paid ticket checkout and
+paid subscription selection with `403` and the message "Payments are disabled
+for the free pilot". No payable order/invoice is committed. Free ticket orders
+and free subscriptions continue to work. Treat this as an unavailable paid
+capability, not a retryable payment failure.
+
 Learn these once and every endpoint behaves predictably.
 
 ### Authentication is default-on
@@ -2571,6 +2577,41 @@ for something to integrate with. It records a guest's opt-in when they tap the
 deep link, treats blocking the bot as an unsubscribe, and lifts that
 unsubscribe when the guest starts or unblocks the bot again.
 
+### Not for the browser: normalized email feedback
+
+```http
+POST /api/v1/communications/email-feedback
+```
+
+This is a provider-neutral boundary for a **trusted server-side adapter**, not
+a native provider webhook and not a host/guest API. No provider adapter has been
+selected. Never put its signing secret in the client. When
+`EMAIL_FEEDBACK_SECRET` is unset, ingestion answers `503`.
+
+Send a JSON object with `receiptKey` (unique opaque key, 1–120 ASCII letters,
+digits, dot, underscore, colon or hyphen), `messageId` (internal Message id,
+1–80 letters/digits/underscore/hyphen), `outcome` (`DELIVERED`, `HARD_BOUNCE`,
+`SOFT_BOUNCE`, `COMPLAINT`) and `occurredAt` (ISO 8601 UTC ending in `Z`).
+Do not include recipient addresses, message bodies or native provider payloads.
+SMTP carries the internal id in `X-Aveline-Message-Id`; the eventual adapter
+must verify its provider's own authentication and preserve/correlate that id.
+
+Headers: `x-aveline-feedback-timestamp` is current Unix seconds, and
+`x-aveline-feedback-signature` is the hex HMAC-SHA256 of
+`timestamp + "." + exact raw JSON bytes`, keyed by the secret. The timestamp
+must be within five minutes of the server. Invalid authentication is `401`,
+invalid fields/body size (maximum 16 KiB) are `400`, and accepted input returns
+`202 { "accepted": true }`. Standard public throttling still applies; retry
+with backoff and a newly signed current timestamp.
+
+Repeated receipt keys are idempotent. Delivery never overrides a permanent
+bounce/complaint. Soft bounces record the outcome without suppressing the guest
+or re-sending a provider-accepted message. Hard bounces/complaints suppress
+future sends globally; a later weaker report cannot downgrade the reason.
+Late feedback never reconstructs erased addresses. Early/unmatched receipts
+are reconciled every minute, least-recently checked first, for at most seven
+days. Processed receipts expire after thirty days.
+
 ### The audit trail
 
 ```http
@@ -2604,10 +2645,14 @@ GET /api/v1/health/live      # process is up
 GET /api/v1/health/ready     # dependencies
 ```
 
-`ready` returns `"status": "ok"`, or `"degraded"` when Redis or Mongo is down
+`ready` returns `"status": "ok"`, or `"degraded"` when Redis, Mongo or storage is down
 — **degraded is still serving**: those outages cost latency and analytics,
 not correctness. With Postgres down nothing is served, so it answers `503`
 (`"status": "unavailable"`), which the container healthcheck acts on.
+
+The response names `required.postgres` and `optional.redis`, `optional.mongo`,
+`optional.storage`; each has `isUp`, `latencyMs`, and an error when unreachable.
+Storage failure affects media operations even though domain reads remain ready.
 
 ---
 
@@ -2671,9 +2716,9 @@ So you can plan around them rather than discover them:
 - **No block creation outside the arrangement call**, and no way to reorder
   custom RSVP questions once added.
 - **PDF and XLSX exports.** CSV works; the other two formats return `400`.
-- **Asynchronous bounce reports.** A rejection at send time suppresses the
-  address automatically. A bounce that arrives later, as a report to the
-  sending mailbox, is not read by anything.
+- **A native email feedback adapter.** Normalized signed delivery/bounce/complaint
+  ingestion is built; no provider has been selected or connected. Ordinary
+  bounce emails arriving in a mailbox are still not parsed.
 
 The authoritative list is [GAPS.md](../backend/docs/GAPS.md), and
 [GOING_LIVE.md](GOING_LIVE.md) is what blocks production.

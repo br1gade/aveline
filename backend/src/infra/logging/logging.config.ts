@@ -17,6 +17,7 @@ const REDACTED = [
   // The page a request came from: a guest's invitation link, token and all.
   'req.headers.referer',
   'req.headers["x-telegram-bot-api-secret-token"]',
+  'req.headers["x-aveline-feedback-signature"]',
   'req.body.password',
   'req.body.refreshToken',
   'req.body.token',

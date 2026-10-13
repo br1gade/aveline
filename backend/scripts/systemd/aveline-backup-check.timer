@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Aveline recovery protection every fifteen minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Unit=aveline-backup-check.service
+
+[Install]
+WantedBy=timers.target

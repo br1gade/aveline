@@ -30,8 +30,8 @@ export class HealthTransitionTracker {
 
   /**
    * Records the current state of each dependency and returns only those that
-   * changed. The first observation of a dependency is not a transition — a
-   * freshly started process has not learned anything yet.
+   * changed, plus dependencies already down at startup. An initially healthy
+   * dependency stays silent; an existing outage must still reach the operator.
    */
   observe(readings: Record<DependencyName, boolean>): DependencyTransition[] {
     const at = this.now();
@@ -41,11 +41,15 @@ export class HealthTransitionTracker {
       const previous = this.known.get(name);
       this.known.set(name, previous?.isUp === isUp ? previous : { isUp, since: at });
 
-      if (previous && previous.isUp !== isUp) {
-        transitions.push({ dependency: name, isUp, heldForMs: at - previous.since });
+      if (shouldReport(previous, isUp)) {
+        transitions.push({ dependency: name, isUp, heldForMs: previous ? at - previous.since : 0 });
       }
     }
 
     return transitions;
   }
+}
+
+function shouldReport(previous: KnownState | undefined, isUp: boolean): boolean {
+  return previous ? previous.isUp !== isUp : !isUp;
 }

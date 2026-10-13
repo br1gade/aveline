@@ -1,0 +1,5 @@
+FROM postgres:16.15-alpine
+RUN apk add --no-cache restic jq openssh-client
+COPY scripts /scripts
+ENTRYPOINT []
+CMD ["/bin/sh", "/scripts/backup.sh"]

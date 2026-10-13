@@ -11,6 +11,7 @@ import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PromoCodesService } from '../billing/promo-codes.service';
 import { PaymentsService } from '../payments/payments.service';
+import { assertAmountMayBeCharged } from '../payments/pilot-payments';
 import { BankDeclinedError } from '../payments/providers/payment-provider';
 import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
 import { CreateOrderDto, OrderLineDto } from './dto/create-order.dto';
@@ -397,6 +398,8 @@ export class TicketingService {
         : null;
 
       const discountMinor = claim?.discountMinor ?? 0n;
+      // Roll back a promo claim and release holds if this would start a charge.
+      assertAmountMayBeCharged(subtotalMinor - discountMinor);
 
       return tx.ticketOrder.create({
         data: {

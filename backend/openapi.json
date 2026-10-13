@@ -2706,6 +2706,51 @@
         ]
       }
     },
+    "/api/v1/communications/email-feedback": {
+      "post": {
+        "description": "Requires an HMAC signature of timestamp + dot + raw request bytes. Native provider payloads are not accepted.",
+        "operationId": "EmailFeedbackController_receive",
+        "parameters": [
+          {
+            "name": "x-aveline-feedback-signature",
+            "in": "header",
+            "description": "Hex HMAC-SHA256 over timestamp + dot + exact raw request bytes",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-aveline-feedback-timestamp",
+            "in": "header",
+            "description": "Unix timestamp in seconds, within five minutes of server time",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailFeedbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "summary": "Accept normalized email delivery feedback from a trusted signed adapter",
+        "tags": [
+          "communications"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/media": {
       "post": {
         "description": "Assets are scoped to an event, so deleting the event reclaims its storage and no asset is reachable from an unrelated invitation.",
@@ -5560,6 +5605,38 @@
         },
         "required": [
           "planKey"
+        ]
+      },
+      "EmailFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "receiptKey": {
+            "type": "string",
+            "description": "Unique, opaque receipt key from the trusted adapter; not an address or token"
+          },
+          "messageId": {
+            "type": "string",
+            "description": "Internal outbound Message id from X-Aveline-Message-Id"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "DELIVERED",
+              "HARD_BOUNCE",
+              "SOFT_BOUNCE",
+              "COMPLAINT"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "description": "When the delivery event occurred, in ISO 8601 UTC"
+          }
+        },
+        "required": [
+          "receiptKey",
+          "messageId",
+          "outcome",
+          "occurredAt"
         ]
       },
       "UpdateMediaDto": {

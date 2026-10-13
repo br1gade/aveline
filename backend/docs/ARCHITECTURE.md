@@ -100,19 +100,24 @@ development is quiet without needing a flag.
 Two things watch the system, neither of which is tracing:
 
 **Cron check-ins.** Each sweep runs inside `Sentry.withMonitor`, so Sentry
-alerts when one stops running *at all*. That is the failure mode worth
-catching: these three sweeps were implemented and inert for weeks and nothing
-said so.
+alerts when one stops running or fails. Redis lock failures and sweep errors
+propagate to the monitor instead of completing a successful check-in.
 
-**Dependency transitions.** `HealthWatchService` probes Postgres, Redis and
-Mongo every minute and reports only *changes* — edge-triggered, never
+**Dependency transitions.** `HealthWatchService` probes Postgres, Redis,
+Mongo and storage every minute and reports changes plus outages already present
+at startup — edge-triggered, never
 level-triggered. A check that re-reported "Redis is down" on every probe would
 send one alert a minute for an entire outage, and the first thing anyone does
 with a repeating alert is mute it, which is also how the next one gets missed.
 
 Severity follows [DATA_STORES.md](DATA_STORES.md): losing Postgres is `fatal`
-because it holds the domain; Redis and Mongo are `warning` because they
+because it holds the domain; Redis, Mongo and storage are `warning` because they
 degrade the product rather than break it.
+
+Mongo executes a real `ping` with a 500ms operation timeout instead of trusting
+a cached connection. S3 storage uses a bounded two-second `HeadBucket`;
+filesystem storage checks that its root is accessible for reads and writes.
+These probes establish availability, not object integrity or future capacity.
 
 Verified by stopping Redis against a running app: silent while healthy, one
 alert on failure, no repeat for the duration, one recovery message carrying
@@ -163,6 +168,7 @@ until `JobsService` existed:
 | `payments.reconcile` | 5 min | A paid order stays pending |
 | `ticketing.releaseExpiredReservations` | 5 min | Abandoned baskets hold seats forever |
 | `media.resize` (`ImageVariantsService`) | 1 min | Guests download every photo at its uploaded size |
+| `email.feedback` (`EmailFeedbackService`) | 1 min | Early delivery receipts remain pending; receipt retention does not run |
 
 Each takes a Redis lock with `SET NX EX` — one atomic operation, so exactly
 one instance runs it. The TTL is shorter than the interval and never extended:

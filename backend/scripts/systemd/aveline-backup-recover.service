@@ -1,0 +1,12 @@
+[Unit]
+Description=Resume Aveline services interrupted by backup capture
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/aveline/backend
+ExecStart=/usr/bin/bash /opt/aveline/backend/scripts/capture-backup.sh --resume-only
+
+[Install]
+WantedBy=multi-user.target

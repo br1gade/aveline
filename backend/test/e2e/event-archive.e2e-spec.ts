@@ -3,8 +3,14 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { EventRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { STORAGE_ADAPTER } from '../../src/infra/storage/storage-port';
+import { FilesystemStorageAdapter } from '../../src/infra/storage/adapters/filesystem.adapter';
+import { StorageService, storageKeyOf } from '../../src/infra/storage/storage.service';
 import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
@@ -18,6 +24,7 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/
 describe('Archiving and deleting an event (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
+  let mediaRoot: string;
 
   const http = () => request(app.getHttpServer() as Server);
 
@@ -28,7 +35,10 @@ describe('Archiving and deleting an event (e2e)', () => {
 
   beforeAll(async () => {
     prisma = testPrisma();
+    mediaRoot = await mkdtemp(join(tmpdir(), 'aveline-archive-e2e-'));
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(STORAGE_ADAPTER)
+      .useValue(new FilesystemStorageAdapter(mediaRoot, '/files'))
       .overrideProvider(PrismaService)
       .useValue(prisma)
       .compile();
@@ -45,6 +55,7 @@ describe('Archiving and deleting an event (e2e)', () => {
   afterAll(async () => {
     await app.close();
     await disconnectTestDatabase();
+    await rm(mediaRoot, { recursive: true, force: true });
   });
 
   const owner = async (options: { isPublished?: boolean } = {}, role: EventRole = EventRole.OWNER) => {
@@ -136,11 +147,13 @@ describe('Archiving and deleting an event (e2e)', () => {
       .set('Authorization', authorization)
       .attach('file', pixel, { filename: 'photo.png', contentType: 'image/png' })
       .expect(201);
+    const key = storageKeyOf(upload.body.url as string);
+    await expect(app.get(StorageService).get(key)).resolves.toEqual(pixel);
 
     await act('delete', `/events/${eventId}`, authorization).expect(200);
 
     expect(await prisma.event.findUnique({ where: { id: eventId } })).toBeNull();
-    expect((await fetch(upload.body.url as string)).status).toBe(404);
+    await expect(app.get(StorageService).get(key)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   // Guests already hold the invitation; deleting would break the link in their messages.

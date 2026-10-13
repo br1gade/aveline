@@ -1,0 +1,67 @@
+name: Backend release checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16.15-alpine
+        env:
+          POSTGRES_USER: aveline
+          POSTGRES_PASSWORD: aveline
+          POSTGRES_DB: aveline_test
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U aveline"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7.4.8-alpine
+        ports: ['6380:6379']
+      mongo:
+        image: mongo:7@sha256:1f995ad6fdb93244a1addab1b58f934a0bc2f5643c38e02f5e9d7f0c7d227a7b
+        env:
+          MONGO_INITDB_ROOT_USERNAME: aveline
+          MONGO_INITDB_ROOT_PASSWORD: aveline
+        ports: ['27018:27017']
+      mailpit:
+        image: axllent/mailpit:v1.21
+        ports: ['1025:1025', '8025:8025']
+    env:
+      NODE_ENV: test
+      PILOT_MODE: 'false'
+      DATABASE_URL: postgresql://aveline:aveline@localhost:5433/aveline_test?schema=public
+      TEST_DATABASE_URL: postgresql://aveline:aveline@localhost:5433/aveline_test?schema=public
+      REDIS_URL: redis://localhost:6380
+      MONGO_URL: mongodb://aveline:aveline@localhost:27018/aveline_test?authSource=admin
+      SMTP_HOST: localhost
+      SMTP_PORT: '1025'
+      MAIL_FROM: pilot@aveline.test
+      STORAGE_ROOT: /tmp/aveline-ci-media
+      PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+      - run: npm run test:edge
+      - run: npm run test:backup
+      - run: docker build --tag aveline-api:ci .
+      - run: npm run pilot:rehearsal
+        env:
+          PILOT_REHEARSAL_IMAGE: aveline-api:ci
+      - run: docker build --file Dockerfile.backup --tag aveline-backup:pilot-readiness .
+      - run: npm run backup:rehearsal
+        env:
+          PILOT_REHEARSAL_IMAGE: aveline-api:ci

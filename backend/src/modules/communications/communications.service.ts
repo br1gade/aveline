@@ -17,6 +17,7 @@ import { resolveTranslation } from '../../common/locale';
 import { DeliveryResult, MessageTransport } from './channels/message-channel';
 import { priorityFor } from './message-priority';
 import { renderTemplate } from './message-renderer';
+import { EmailQuotaService, EmailQuotaWaitError } from './email-quota.service';
 
 export interface EnqueueParams {
   /** Null for platform mail — a reset link, a verification, an org invite. */
@@ -73,12 +74,13 @@ export type StillWanted = (message: { guestId: string | null; eventId: string | 
 export class CommunicationsService {
   private readonly logger = new Logger(CommunicationsService.name);
   private readonly stillWanted = new Map<string, StillWanted>();
+  private readonly emailQuota: EmailQuotaService;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly transports: Map<MessageChannel, MessageTransport>,
     private readonly suppressions: SuppressionService,
-  ) {}
+  ) { this.emailQuota = new EmailQuotaService(prisma); }
 
   /**
    * Lets the module that sends a kind of message withdraw it at the last
@@ -185,14 +187,18 @@ export class CommunicationsService {
     // fast the mail server was, and a large send delayed everything behind it.
     const tally = { sent: 0, failed: 0, suppressed: 0, retrying: 0 };
     const deadline = Date.now() + DISPATCH_BUDGET_MS;
+    const blockedChannels = new Set<MessageChannel>();
     for (let batch = 0; batch < MAX_BATCHES_PER_RUN && Date.now() < deadline; batch += 1) {
       const due = await this.prisma.message.findMany({
-        where: { status: MessageStatus.QUEUED, scheduledFor: { lte: new Date() } },
+        where: { status: MessageStatus.QUEUED, scheduledFor: { lte: new Date() }, channel: { notIn: [...blockedChannels] } },
         orderBy: [{ priority: 'desc' }, { scheduledFor: 'asc' }],
         take: limit,
       });
       if (due.length === 0) break;
-      await this.dispatchBatch(due, tally);
+      const retryAt = await this.dispatchBatch(due, tally);
+      if (!retryAt) continue;
+      if (retryAt.getTime() >= deadline) blockedChannels.add(MessageChannel.EMAIL);
+      else await pause(Math.max(0, retryAt.getTime() - Date.now()));
     }
     return tally;
   }
@@ -200,16 +206,30 @@ export class CommunicationsService {
   private async dispatchBatch(
     due: DueMessage[],
     tally: { sent: number; failed: number; suppressed: number; retrying: number },
-  ): Promise<void> {
-    for (let start = 0; start < due.length; start += SENDS_AT_ONCE) {
+  ): Promise<Date | null> {
+    const concurrency = Number(process.env.EMAIL_SEND_CONCURRENCY ?? SENDS_AT_ONCE);
+    for (let start = 0; start < due.length; start += concurrency) {
       const outcomes = await Promise.all(
-        due.slice(start, start + SENDS_AT_ONCE).map((message) =>
-          this.dispatchOne(message).catch((error: unknown) =>
-            error instanceof SentButUnrecordedError ? this.leaveSent(error) : this.requeueAfterError(message.id, error),
-          ),
-        ),
+        due.slice(start, start + concurrency).map((message) => this.dispatchSafely(message)),
       );
-      for (const outcome of outcomes) if (outcome !== 'TAKEN') tally[TALLY_KEY[outcome]] += 1;
+      for (const outcome of outcomes) if (typeof outcome === 'string' && outcome !== 'TAKEN') tally[TALLY_KEY[outcome]] += 1;
+      const waiting = outcomes.find((outcome) => outcome instanceof EmailQuotaWaitError);
+      if (waiting) return waiting.retryAt;
+    }
+    return null;
+  }
+
+  private async dispatchSafely(message: DueMessage): Promise<DispatchOutcome | EmailQuotaWaitError> {
+    // Budget infrastructure failures must reach the sweep monitor. No claim
+    // or delivery attempt happens until a durable allowance is available.
+    if (message.channel === MessageChannel.EMAIL) {
+      const retryAt = await this.emailQuota.reserve();
+      if (retryAt) return new EmailQuotaWaitError(retryAt);
+    }
+    try { return await this.dispatchOne(message); }
+    catch (error) {
+      if (error instanceof SentButUnrecordedError) return this.leaveSent(error);
+      return this.requeueAfterError(message.id, error);
     }
   }
 
@@ -363,6 +383,7 @@ export class CommunicationsService {
     let result: DeliveryResult;
     try {
       result = await transport.send({
+        messageId: message.id,
         toAddress: message.toAddress,
         subject: message.subject ?? undefined,
         body: message.body,
@@ -404,7 +425,12 @@ export class CommunicationsService {
 
     for (let attempt = 1; ; attempt += 1) {
       try {
-        await this.prisma.message.update({ where: { id: messageId }, data });
+        await this.prisma.$transaction(async (tx) => {
+          // A callback may have already recorded delivery or a permanent
+          // failure while SMTP acknowledgement was still returning.
+          await tx.message.updateMany({ where: { id: messageId, status: MessageStatus.SENDING }, data });
+          await tx.message.updateMany({ where: { id: messageId, sentAt: null }, data: { sentAt: data.sentAt, providerRef: data.providerRef } });
+        });
         return;
       } catch (error) {
         if (attempt >= RECORD_SENT_ATTEMPTS) throw new SentButUnrecordedError(messageId, error);

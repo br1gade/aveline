@@ -33,6 +33,29 @@ nothing and costs consistency.
 
 ---
 
+### Email delivery correctness
+
+**Email provider budgets live in Postgres.** `EmailSendQuota` is a shared token
+bucket with integer credits plus a UTC daily budget. Reservations serialize on
+one sender-budget row and persist across API/Redis restarts. Production defaults
+to 60 sends/minute, burst 5 and 1,000/day; tune `EMAIL_SENDS_PER_MINUTE`,
+`EMAIL_SEND_BURST`, `EMAIL_SENDS_PER_DAY` and `EMAIL_SEND_CONCURRENCY` to the
+selected provider. Configured concurrency is capped at 20. A quota wait happens
+before claiming a message and consumes no retry attempt. Reservations for a
+send that subsequently fails/loses its claim remain consumed conservatively.
+If the quota database is unavailable, dispatch stops before claiming a message
+and reports failure to the sweep monitor; no email is sent without its allowance.
+
+**Email feedback also lives in Postgres.** The signed provider-neutral boundary
+stores only receipt/message ids, an outcome and clocks. Message changes and
+global suppressions are applied transactionally, with row locks; duplicate,
+out-of-order and pre-acknowledgement feedback cannot undo permanent outcomes.
+Unmatched receipts rotate by `lastCheckedAt` so fifty unknown ids cannot starve
+the rest, expire after seven days, and processed receipts expire after thirty.
+There is no native provider adapter yet.
+
+---
+
 ## 2. Redis — speed, never truth
 
 Redis holds only data that can be rebuilt from Postgres. The governing rule:
@@ -120,6 +143,8 @@ moment.
 ---
 
 ## 3. MongoDB — append-only observability
+
+
 
 MongoDB holds data that is written far more often than it is read, never joined
 against the domain, and whose shape changes as we learn what to measure.

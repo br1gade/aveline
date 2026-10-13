@@ -8,12 +8,14 @@ import { CommunicationsService } from './communications.service';
 import { GuestChannelsService } from './guest-channels.service';
 import { SuppressionService } from './suppression.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
+import { EmailFeedbackController } from './email-feedback.controller';
+import { EmailFeedbackService } from './email-feedback.service';
 
 export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
 
 @Global()
 @Module({
-  controllers: [TelegramWebhookController],
+  controllers: [TelegramWebhookController, EmailFeedbackController],
   providers: [
     {
       provide: MESSAGE_TRANSPORTS,
@@ -21,6 +23,7 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
       useFactory: buildTransports,
     },
     SuppressionService,
+    EmailFeedbackService,
     GuestChannelsService,
     {
       provide: CommunicationsService,
@@ -32,6 +35,6 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
       ) => new CommunicationsService(prisma, transports, suppressions),
     },
   ],
-  exports: [CommunicationsService, SuppressionService, GuestChannelsService],
+  exports: [CommunicationsService, SuppressionService, GuestChannelsService, EmailFeedbackService],
 })
 export class CommunicationsModule {}

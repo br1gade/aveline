@@ -1,0 +1,10 @@
+[Unit]
+Description=Aveline paired database/media backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/aveline/backend
+ExecStart=/usr/bin/bash /opt/aveline/backend/scripts/capture-backup.sh
+TimeoutStartSec=30min

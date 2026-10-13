@@ -24,6 +24,8 @@ export interface StorageAdapter {
   /** The stored bytes — for work done on a file after upload, such as resizing. */
   get(key: string): Promise<Buffer>;
   remove(key: string): Promise<void>;
+  /** Bounded reachability/access check, without listing objects or reading PII. */
+  probe(): Promise<void>;
 }
 
 export const STORAGE_ADAPTER = Symbol('STORAGE_ADAPTER');

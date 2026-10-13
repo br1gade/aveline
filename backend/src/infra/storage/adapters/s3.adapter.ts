@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { FileToStore, StorageAdapter, StoredFile } from '../storage-port';
 
 export interface S3StorageConfig {
@@ -73,5 +73,9 @@ export class S3StorageAdapter implements StorageAdapter {
     await this.client.send(
       new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }),
     );
+  }
+
+  async probe(): Promise<void> {
+    await this.client.send(new HeadBucketCommand({ Bucket: this.config.bucket }), { abortSignal: AbortSignal.timeout(2000) });
   }
 }

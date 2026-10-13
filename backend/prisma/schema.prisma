@@ -1144,6 +1144,40 @@ model MessageTemplate {
   @@map("message_templates")
 }
 
+/// Shared SMTP budget. Correct after process or Redis restarts, not a cache.
+model EmailSendQuota {
+  scope        String   @id
+  credits      BigInt
+  refilledAt   DateTime
+  dayStartedAt DateTime
+  usedToday    Int      @default(0)
+
+  @@map("email_send_quotas")
+}
+
+/// Normalized email feedback, without provider payloads or recipient addresses.
+model EmailFeedback {
+  receiptKey  String               @id
+  messageId   String
+  outcome     EmailFeedbackOutcome
+  occurredAt  DateTime
+  receivedAt  DateTime             @default(now())
+  lastCheckedAt DateTime?
+  processedAt DateTime?
+
+  /// Acknowledgement can follow callback; unmatched work is bounded by time.
+  @@index([processedAt, receivedAt])
+  @@index([processedAt, lastCheckedAt, receivedAt])
+  @@map("email_feedback")
+}
+
+enum EmailFeedbackOutcome {
+  DELIVERED
+  HARD_BOUNCE
+  SOFT_BOUNCE
+  COMPLAINT
+}
+
 /// One outbound message. Written in the same transaction as the action that
 /// causes it and dispatched afterwards — an outbox — so a send can never be
 /// lost because the process died between committing and calling the provider.

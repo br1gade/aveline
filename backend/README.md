@@ -398,6 +398,12 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/tickets/:code/admit` | Admit at the door; a code admits once, and only at its own event |
 | `POST` | `/api/v1/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
 
+### Signed integration feedback
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/communications/email-feedback` | Normalized email delivery feedback; public route requiring a trusted HMAC signature |
+
 ## Three design decisions worth knowing
 
 **Blocks are data-bound.** An `InvitationBlock` of type `VENUE`, `TIMELINE` or
@@ -430,6 +436,22 @@ adapter; TypeScript 7 waits on `ts-jest`.
 Read it before running `npm outdated` and reaching for `--force`.
 
 ## Testing
+
+CI runs the full verification pipeline with disposable databases and a Mailpit
+mail sink, then exercises the production Caddy configuration, builds the API
+image and runs disposable API/recovery rehearsals. `npm run test:edge` needs
+Docker and checks local TLS, routing and logs with synthetic credentials.
+`npm run pilot:rehearsal` also tests real Mongo retention/erasure and dependency
+recovery outside Jest. `npm run test:backup` covers capture and protection-check
+failures; `npm run backup:rehearsal` restores fresh Postgres/Garage from a local
+encrypted test repository. `npm run pilot:smoke` exercises a seeded running API over
+HTTP; it creates synthetic account/event data. Remote targets require explicit
+`PILOT_SMOKE_ALLOW_REMOTE=true` and a controlled `PILOT_SMOKE_EMAIL`.
+
+Destructive integration/e2e setup rejects `NODE_ENV=production` and database
+names other than `*_test` or `*_test_<suffix>`, before connecting or truncating.
+Only the public schema is supported. Point `TEST_DATABASE_URL` at a disposable
+database; never at the development or production database.
 
 Three layers, each with a distinct job. See `../CLAUDE.md` §6.
 

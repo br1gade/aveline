@@ -33,6 +33,12 @@ export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
   assertRequiredPresent(raw);
 
   assertWholeNumbers(raw, ['ACCESS_TOKEN_TTL_SECONDS', 'REFRESH_TOKEN_TTL_DAYS']);
+  assertEmailQuotaSettings(raw);
+  const feedbackSecret = asText(raw.EMAIL_FEEDBACK_SECRET);
+  if (feedbackSecret && feedbackSecret.length < 32) throw new Error('EMAIL_FEEDBACK_SECRET must have at least 32 characters');
+  if (raw.PILOT_MODE !== undefined && !['true', 'false'].includes(asText(raw.PILOT_MODE) ?? '')) {
+    throw new Error('PILOT_MODE must be true or false');
+  }
 
   return {
     ...raw,
@@ -54,6 +60,15 @@ function assertWholeNumbers(raw: Record<string, unknown>, keys: readonly string[
     if (!/^\d+$/.test(value) || Number(value) <= 0) {
       throw new Error(`${key} must be a whole number above zero, got "${value}"`);
     }
+  }
+}
+
+function assertEmailQuotaSettings(raw: Record<string, unknown>): void {
+  const maximums = { EMAIL_SENDS_PER_MINUTE: 60000, EMAIL_SENDS_PER_DAY: 1000000, EMAIL_SEND_BURST: 1000, EMAIL_SEND_CONCURRENCY: 20 };
+  assertWholeNumbers(raw, Object.keys(maximums));
+  for (const [key, maximum] of Object.entries(maximums)) {
+    const value = asText(raw[key]);
+    if (value !== undefined && (value === '' || Number(value) > maximum)) throw new Error(`${key} must be between 1 and ${maximum}`);
   }
 }
 

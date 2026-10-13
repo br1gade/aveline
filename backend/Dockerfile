@@ -8,7 +8,7 @@
 # that can be vulnerable.
 # ─────────────────────────────────────────────────────────────────────────
 
-ARG NODE_VERSION=26-alpine
+ARG NODE_VERSION=26-alpine@sha256:143494b1da2945f061539253adc65e4f1569ddf07da2d384c022c791a9d90a4a
 
 # ── deps: every dependency, needed to build ──────────────────────────────
 FROM node:${NODE_VERSION} AS deps

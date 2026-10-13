@@ -27,7 +27,7 @@ function serveLocalUploads(app: NestExpressApplication): void {
 async function bootstrap() {
   // bufferLogs holds startup messages until pino is attached, so nothing is
   // emitted in the default format and then again in ours.
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, rawBody: true });
   app.useLogger(app.get(PinoLogger));
 
   const logger = app.get(PinoLogger);

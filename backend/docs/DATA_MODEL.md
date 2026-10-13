@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 47 models across three
+The authoritative map of what is stored and where. 49 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -82,6 +82,8 @@ lives outside Postgres.
 |---|---|
 | `MessageTemplate` | Reusable copy, translated, overridable per organization |
 | `Message` | One message — an outbox. Carries `direction` and `threadKey` so inbound is additive later |
+| `EmailSendQuota` | Persistent shared SMTP token bucket and UTC daily budget; survives deploys and Redis eviction |
+| `EmailFeedback` | Normalized, idempotent delivery outcomes keyed by an opaque receipt; no address or raw provider payload |
 | `Suppression` | Who must not be contacted, and why |
 | `DeviceToken` | A phone or browser that can receive a push |
 

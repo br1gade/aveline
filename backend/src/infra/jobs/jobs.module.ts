@@ -8,6 +8,7 @@ import { PrivacyModule } from '../../modules/privacy/privacy.module';
 import { TicketingModule } from '../../modules/ticketing/ticketing.module';
 import { HealthWatchService } from '../observability/health-watch.service';
 import { ImageSweepService } from './image-sweep.service';
+import { EmailFeedbackSweepService } from './email-feedback-sweep.service';
 import { JobLockService } from './job-lock.service';
 import { JobsService } from './jobs.service';
 import { MoneySweepService } from './money-sweep.service';
@@ -23,6 +24,7 @@ import { ReminderSweepService } from './reminder-sweep.service';
     ReminderSweepService,
     PrivacySweepService,
     ImageSweepService,
+    EmailFeedbackSweepService,
     HealthWatchService,
   ],
   exports: [JobsService, MoneySweepService, ReminderSweepService, PrivacySweepService, HealthWatchService],
