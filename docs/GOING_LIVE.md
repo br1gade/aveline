@@ -15,7 +15,14 @@ customer's trust.
 ### Code
 
 Every open **P0 bugfix** and **P0 feature** in [BACKLOG.md](BACKLOG.md).
-Several of the bugs expose people's data.
+The original remaining P0 feature is the client. The user has also made the
+expanded [implementation plan](PILOT_IMPLEMENTATION_PLAN.md) a release gate:
+17 requested feature items, including all export formats, both attendance modes
+and explicit reconfirmation when changing modes, multiple directory venues per
+vendor, gallery, acknowledgements and final rehearsal. Native F22 is the one
+explicit exception. Repeat the complete host/guest walkthrough in English, Russian,
+French and Armenian after frontend integration. The tentative 25 October 2026
+date can move; full scope takes priority.
 
 ### Money
 
@@ -33,7 +40,7 @@ Several of the bugs expose people's data.
 | # | Blocker | Why |
 |---|---|---|
 | 6 | **A sending domain and its DNS** | Email is implemented over SMTP and refuses to boot in production without it, but no mail account, sending domain or SPF/DKIM/DMARC records exist. Without them mail is sent and then filed as spam, which looks like delivery and is not |
-| 7 | **Google Workspace is not a transactional sender** | Paid Workspace allows 2,000 messages/day over `smtp.gmail.com` and 10,000/day over `smtp-relay.gmail.com`, so volume is not the blocker it was thought to be. What it lacks is bounce and complaint webhooks, a suppression API and delivery events — so a bounce arriving after the send is never recorded. That is the reason to use a transactional provider, not the cap |
+| 7 | **Real delivery feedback is not connected** | Persistent quotas and signed provider-neutral delivery/bounce/complaint handling are built. A native provider bridge is deferred by the user; sending, authentication and internal message correlation must still be proven against the chosen provider |
 
 ### Security and data
 
@@ -42,7 +49,7 @@ Several of the bugs expose people's data.
 | 8 | **`JWT_SECRET` must be real** | The app refuses to boot in production without it, which is the guard — but it must be generated, stored in a secret manager, and rotatable |
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
 | 9b | **`PUBLIC_APP_URL` must be the client's real origin** | Enforced at boot. Guest links, account emails and the bank's return page are all built from it, and a payment `returnUrl` on any other origin is refused — so a wrong value breaks checkout rather than opening a redirect |
-| 10 | **Off-host backup copies** | A verified nightly Postgres dump and Garage archive now run on the host, with a tested restore. They do not survive losing the machine until `BACKUP_SYNC_COMMAND` points somewhere else |
+| 10 | **A verified off-host recovery destination** | Quiesced paired database/media capture, encrypted Restic upload and complete restoration tooling are built. An isolated round trip preserved a guest credential and original/variant media. Configure a real separate destination, install the timer/boot recovery units, verify remote restoration and missed-backup alerts |
 | 11 | **A host and a domain** | The stack has now been run end to end locally — seven services healthy, migrations applied, TLS served by Caddy, a verified backup taken, and a full journey from `register` to a published invitation page. What it has never had is a real host, a real domain, or a certificate from Let's Encrypt |
 | 12b | **An SMS provider** | The channel is built and inert. Choose a provider that reaches Armenian numbers, write its adapter (one class), and set `SMS_PROVIDER`. Until then guests with only a phone number are reported unreachable |
 | 12 | **WhatsApp business verification** | The transport is built and inert. Meta needs a verified business — trade licence, tax papers, a dedicated number — and message templates approved in advance. Days to weeks, like the bank accounts |
@@ -68,8 +75,8 @@ Several of the bugs expose people's data.
 | Invitation expiry | Decided (indefinite paid, 3 months free) and modelled; nothing sets `expiresAt` or sweeps |
 | CDN | Garage serves media directly |
 | Shared rate limits | Limits are per account or per address, but counted in each instance's memory: a second API instance doubles them. `POST /privacy/requests` has only the general public limit |
-| Asynchronous bounce reports | A rejection at send time is classified and suppresses the address. A bounce that arrives minutes later, as a report to the sending mailbox, is not read by anything |
-| Provider send-rate throttling | The dispatcher now sends for up to 40 seconds a minute, five at a time, account and ticket mail first — hundreds a minute — with no provider-side rate limit. A provider's quota rejection is retried and never suppresses the guest, but a quota hit mid-send still spreads that send over the retry backoff. Set the provider's limit before a large pilot event |
+| Asynchronous bounce reports | Signed provider-neutral delivery/bounce/complaint ingestion is built. Native provider/mailbox integration stays deferred by D30; it is not connected to real delivery events |
+| Provider send-rate throttling | Persistent per-minute/daily budgets and sending concurrency are built. Configure them against the actual sender's limits and prove controlled sending; quota waits do not consume delivery attempts |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
 | BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
 | Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |

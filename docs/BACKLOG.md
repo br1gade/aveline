@@ -27,12 +27,22 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 |---|---|---|---|---|
 | Bugfixes | 0 open | 0 open | 0 open | — |
 | Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
-| Decisions | 22 (D1–D22), all decided | | | |
+| Decisions | 38 decided (D1–D38) | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
 features — editing an event, and loading the invitation into the editor —
-were built the same day. What still blocks the pilot is F1, the client. Fixed items are removed, so a gap in the
+were built the same day. F1, the client, remains the original P0 feature.
+The expanded release scope below adds further pilot gates. Fixed items are removed, so a gap in the
 numbering is something that has been done.
+
+**Release scope revised 13 October 2026:** the user requires all the listed P2
+features plus F45 before the pilot, with **native F22 deferred explicitly**.
+The historical priority labels remain for reference; they no longer imply these
+features may ship after this pilot. The release needs 17 requested feature items,
+the frontend and the external launch checks. Attendance, export, gallery,
+signature, language and directory choices are recorded in D23–D38 and the
+[implementation plan](PILOT_IMPLEMENTATION_PLAN.md). The tentative 25 October
+date can move; full scope takes priority.
 
 Infrastructure and accounts (bank, domain, mail DNS, server) are not here;
 they are in [GOING_LIVE.md](GOING_LIVE.md). The long-range view of the
@@ -99,7 +109,7 @@ it needs a cancellation during the event itself, at the door.
 | F19 | Shared post-event photo gallery guests can add to (§7.2) | M–L |
 | F20 | PDF exports — the seating chart on paper (CSV works) | M |
 | F21 | WhatsApp delivery receipts | S–M |
-| F22 | Reading bounce reports that arrive after sending | M |
+| F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
 | F23 | Ticket holders join the guest list, so arrivals and catering count them (§13.4) | M |
 | F24 | Hero and share-preview images on event listings (§13.2) | S |
 | F25 | Guest signature capture (`SIGNATURE` question) | S–M |
@@ -132,7 +142,7 @@ it needs a cancellation during the event itself, at the door.
 | F42 | Logistics, print orders, on-site staff, paper ticket fallback | GAPS #24–27 | L |
 | F43 | Vendor listing fees — §9.3 names "margin or listing fee"; F36 covers only the margin | §7.3, §9.3 | M |
 | F44 | Template authoring for the Production tier's custom design — templates exist only as seed data, with no way to make one | §8 | M–L |
-| F45 | Measure the §12 latency targets under load — nothing has measured them | §12 | S–M |
+| F45 | Complete the §12 load/outage rehearsal. A disposable 400-guest import and 50-reader personalized-page baseline exist; mixed writes, venue seating, PDFs and production-host measurements remain | §12 | S–M |
 | — | **Deferred:** enforcing plan limits — decided 8 October 2026, until after the pilot | §8 | — |
 
 ---
@@ -140,6 +150,9 @@ it needs a cancellation during the event itself, at the door.
 ## 3. Decisions needed
 
 D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D22 on 10 October.
+D23–D38 were decided on 13 October while planning the expanded pilot scope.
+All recorded product questions have answers; implementation details and external
+launch inputs are tracked in the implementation plan.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
@@ -165,6 +178,22 @@ D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D22 on 10 Oct
 | D20 | What is an erased guest's household called, when it was named after them? | B88 | **"Household" and a number** |
 | D21 | After an erasure, who may add the person again? | B88 | **Only the hosts who had them are stopped**: each such organization keeps a hashed `ERASED` record that blocks import and messages; other hosts are unaffected |
 | D22 | How long is Mongo observability data kept? | B91 | **Invitation views 13 months, audit trail 2 years**, then deleted automatically |
+| D23 | Attendance across multiple venues? | F50 | **Host chooses per event:** event-wide or per-venue attendance; household submissions still contain each person's answers |
+| D24 | Which of the 18 requested items must precede the pilot? | Release scope | **Full scope before pilot**, subject to D30's explicit native-email exception |
+| D25 | Which PDF exports are required? | F20 | **All seven existing export kinds**, not only seating charts |
+| D26 | Who uses the guest photo gallery? | F19 | **Invited guests only, with host approval before other guests see uploads** |
+| D27 | Who provides ticket attendee identities? | F23 | **Buyer supplies every attendee's names/details at checkout** |
+| D28 | How are guest acknowledgements captured? | F25 | **Both drawn and typed options** |
+| D29 | Are background exports live data or snapshots? | F27 | **Fixed snapshots; host regenerates when needed**, deliberately changing current CSV freshness behavior |
+| D30 | Must native email feedback integration precede the pilot? | F22 | **No. Keep provider-neutral and defer native F22 explicitly**; sender/domain setup and real sending still need verification |
+| D31 | Does free invitation expiry delete event data? | F30 | **Close guest access; retain host data and media** |
+| D32 | Who is invited to venues in per-venue mode? | F50 | **Everyone is invited to every guest-facing venue**; preparation/internal-only venues stay hidden |
+| D33 | May someone acknowledge for household members? | F25 | **Yes, a representative may acknowledge for their household**; record signer and subjects separately |
+| D34 | Is the pilot date or complete scope fixed? | Release | **Full scope wins. 25 October 2026 is tentative and may move** |
+| D35 | Which languages must the pilot support? | Language coverage | **English, Russian, French and Armenian**; host-interface coverage is D36 |
+| D36 | Must the host interface also support all four languages? | Frontend scope | **Yes. Guest flows and the host/organizer interface in English, Russian, French and Armenian**, including localized validation and operational screens |
+| D37 | May attendance mode change after guests answer? | F50 | **Yes, through an explicit reconfirmation flow.** Preserve historical answers; do not guess attendance under the new policy |
+| D38 | May one vendor operate several directory venues? | F47 | **Yes. One venue vendor may operate several directory venues**; preserve existing links when removing the current uniqueness restriction |
 
 ---
 
