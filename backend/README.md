@@ -288,6 +288,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/events/:eventId/seating/arrangements` | Plans by venue plus the unspecified legacy plan |
 | `GET` | `/api/v1/events/:eventId/tables` | Tables with seated counts |
 | `POST` | `/api/v1/events/:eventId/tables` | Add one table |
 | `POST` | `/api/v1/events/:eventId/tables/bulk` | Add numbered tables in one call |
@@ -297,7 +298,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `DELETE` | `/api/v1/events/:eventId/seats/:guestId` | Unseat one guest |
 | `POST` | `/api/v1/events/:eventId/seating/publish` | Let guests see their tables on their own link |
 | `POST` | `/api/v1/events/:eventId/seating/unpublish` | Take the tables off guests' pages |
-| `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Seat everyone attending; reports who did not fit |
+| `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Seat attendees in the selected arrangement; reports who did not fit |
 
 #### Vendors and briefs
 
@@ -526,3 +527,9 @@ verified list, by priority; `docs/GAPS.md` is the backend's own.
 3. **PDF and XLSX exports.** CSV works; the other two return `400`.
 
 `docs/GAPS.md` is the full list, prioritised.
+
+Multi-venue seating now permits one seat per guest per arrangement. Automatic
+seating and unassignment use `?arrangementId=...` when several plans are in use;
+assignment derives the arrangement from its table. Guest views, check-in and
+CSV outputs carry venue labels. Attendance is still event-wide; per-venue RSVP
+and policy reconfirmation remain in the pilot implementation plan.

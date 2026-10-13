@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { resolveTranslation } from '../../common/locale';
 import { OperationsService } from '../operations/operations.service';
 import { formatAnswer, optionLabels } from '../rsvp/answer-display';
+import { SEAT_DETAIL, singleTable } from '../seating/seat-view';
 import { CsvRow, toCsv } from './csv';
 import { CreateExportDto } from './dto/export.dto';
 
@@ -119,7 +120,7 @@ export class ExportsService {
               answers: { select: { questionId: true, value: true } },
             },
           },
-          seat: { include: { table: { select: { name: true } } } },
+          seats: { include: SEAT_DETAIL },
           checkIn: { select: { arrivedAt: true } },
         },
         orderBy: [{ household: { name: 'asc' } }, { isPrimary: 'desc' }, { firstName: 'asc' }],
@@ -130,7 +131,7 @@ export class ExportsService {
     return {
       columns: [
         'Household', 'First name', 'Last name', 'Email', 'Phone', 'Side',
-        'Seats allotted', 'RSVP', 'Dietary', 'Dietary notes', 'Drink', 'Table', 'Arrived',
+        'Seats allotted', 'RSVP', 'Dietary', 'Dietary notes', 'Drink', 'Table', 'Seating by venue', 'Arrived',
         ...questions.map((question) => question.heading),
       ],
       rows: guests.map((guest) => ({
@@ -146,7 +147,8 @@ export class ExportsService {
         // An allergy written in a note is the line a kitchen most needs.
         'Dietary notes': guest.rsvp?.dietaryNotes,
         Drink: guest.rsvp?.drinkPreference,
-        Table: guest.seat?.table.name,
+        Table: singleTable(guest.seats),
+        'Seating by venue': guest.seats.map((seat) => `${seat.table.venue?.name ?? 'Unspecified'}: ${seat.table.name}`).sort().join('; '),
         Arrived: guest.checkIn?.arrivedAt.toISOString(),
         ...answerCells(questions, guest.rsvp?.answers ?? []),
       })),
@@ -178,6 +180,7 @@ export class ExportsService {
     const tables = await this.prisma.table.findMany({
       where: { eventId },
       include: {
+        venue: { select: { name: true } },
         seats: {
           include: { guest: { select: { firstName: true, lastName: true } } },
           orderBy: { position: 'asc' },
@@ -187,13 +190,15 @@ export class ExportsService {
     });
 
     return {
-      columns: ['Table', 'Capacity', 'Seated', 'Guest'],
+      columns: ['Venue', 'Arrangement', 'Table', 'Capacity', 'Seated', 'Guest'],
       rows: tables.flatMap((table): CsvRow[] =>
         // A table with nobody at it still needs a line, or the venue setting
         // out the room will not know it exists.
         table.seats.length === 0
-          ? [{ Table: table.name, Capacity: table.capacity, Seated: 0, Guest: null }]
+          ? [{ Venue: table.venue?.name ?? 'Unspecified', Arrangement: table.arrangementId, Table: table.name, Capacity: table.capacity, Seated: 0, Guest: null }]
           : table.seats.map((seat) => ({
+              Venue: table.venue?.name ?? 'Unspecified',
+              Arrangement: table.arrangementId,
               Table: table.name,
               Capacity: table.capacity,
               Seated: table.seats.length,
@@ -207,13 +212,17 @@ export class ExportsService {
   private async placeCards(eventId: string): Promise<Sheet> {
     const guests = await this.prisma.guest.findMany({
       where: { eventId, rsvp: { status: RsvpStatus.ATTENDING } },
-      include: { seat: { include: { table: { select: { name: true } } } } },
+      include: { seats: { include: SEAT_DETAIL } },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
 
     return {
-      columns: ['Name', 'Table'],
-      rows: guests.map((guest) => ({ Name: fullName(guest), Table: guest.seat?.table.name })),
+      columns: ['Name', 'Venue', 'Arrangement', 'Table'],
+      rows: guests.flatMap((guest): CsvRow[] => guest.seats.length === 0
+        ? [{ Name: fullName(guest), Venue: null, Arrangement: null, Table: null }]
+        : guest.seats.map((seat) => ({
+          Name: fullName(guest), Venue: seat.table.venue?.name ?? 'Unspecified', Arrangement: seat.arrangementId, Table: seat.table.name,
+        }))),
     };
   }
 

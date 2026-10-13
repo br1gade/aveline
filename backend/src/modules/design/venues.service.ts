@@ -92,6 +92,7 @@ export class VenuesService {
   async update(eventId: string, venueId: string, dto: UpdateVenueDto) {
     assertTranslations(dto.translations);
     const venue = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM seating_arrangements WHERE "venueId" = ${venueId} AND "eventId" = ${eventId} FOR UPDATE`;
       await lockRow(tx, 'venues', venueId);
       const current = await tx.venue.findFirst({ where: { id: venueId, eventId } });
       if (!current) throw new NotFoundException('No such venue on this event');
@@ -100,6 +101,7 @@ export class VenuesService {
         dto.longitude === undefined ? current.longitude : dto.longitude,
       );
 
+      await assertVenueCapacity(tx, venueId, dto.capacity);
       return tx.venue.update({
         where: { id: venueId },
         data: {
@@ -128,21 +130,24 @@ export class VenuesService {
    * them to null and quietly detach a running order from where it happens.
    */
   async remove(eventId: string, venueId: string) {
-    const venue = await this.prisma.venue.findFirst({
-      where: { id: venueId, eventId },
-      include: { _count: { select: { timeline: true, tables: true } } },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM seating_arrangements WHERE "venueId" = ${venueId} AND "eventId" = ${eventId} FOR UPDATE`;
+      await lockRow(tx, 'venues', venueId);
+      const venue = await tx.venue.findFirst({
+        where: { id: venueId, eventId },
+        include: { _count: { select: { timeline: true, tables: true } } },
+      });
+      if (!venue) throw new NotFoundException('No such venue on this event');
+      const releases = await tx.seatRelease.count({ where: { arrangement: { venueId } } });
+      if (venue._count.timeline + venue._count.tables + releases > 0) {
+        throw new BadRequestException(
+          `${venue._count.timeline} timeline entr(ies), ${venue._count.tables} table(s) and ${releases} release marker(s) ` +
+          'still point at this venue; move or dismiss them first',
+        );
+      }
+      await tx.seatingArrangement.deleteMany({ where: { eventId, venueId } });
+      await tx.venue.delete({ where: { id: venueId } });
     });
-    if (!venue) throw new NotFoundException('No such venue on this event');
-
-    const dependents = venue._count.timeline + venue._count.tables;
-    if (dependents > 0) {
-      throw new BadRequestException(
-        `${venue._count.timeline} timeline entr(ies) and ${venue._count.tables} table(s) ` +
-          'still point at this venue; move them first',
-      );
-    }
-
-    await this.prisma.venue.delete({ where: { id: venueId } });
     return { ok: true as const, notice: await this.afterChange(eventId) };
   }
 
@@ -239,4 +244,10 @@ function assertCoordinatePair(latitude: number | null | undefined, longitude: nu
 
 function withoutUndefined<T extends object>(fields: T): Partial<T> {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
+async function assertVenueCapacity(tx: Prisma.TransactionClient, venueId: string, capacity: number | null | undefined) {
+  if (capacity === undefined || capacity === null) return;
+  const seated = await tx.seat.count({ where: { table: { venueId } } });
+  if (capacity < seated) throw new BadRequestException(`capacity: ${seated} guests are seated at this venue`);
 }

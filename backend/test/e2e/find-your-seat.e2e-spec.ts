@@ -92,9 +92,10 @@ describe('Find your seat (e2e)', () => {
     const { body } = await personalPage(slug, primaryGuestToken);
     expect(body.guest.seating).toEqual({
       table: 'Table 3',
+      assignments: [expect.objectContaining({ table: 'Table 3', venueId: null })],
       household: [
-        { id: expect.any(String), name: 'Primary Guest', table: 'Table 3' },
-        { id: expect.any(String), name: 'Ani Guest', table: 'Table 3' },
+        { id: expect.any(String), name: 'Primary Guest', table: 'Table 3', assignments: [expect.objectContaining({ table: 'Table 3' })] },
+        { id: expect.any(String), name: 'Ani Guest', table: 'Table 3', assignments: [expect.objectContaining({ table: 'Table 3' })] },
       ],
     });
     expect(JSON.stringify(body)).not.toContain('Table 7');
@@ -111,7 +112,7 @@ describe('Find your seat (e2e)', () => {
 
     const { body } = await personalPage(slug, late.token);
 
-    expect(body.guest.seating).toEqual({ table: null, household: [{ id: late.id, name: 'Late', table: null }] });
+    expect(body.guest.seating).toEqual({ table: null, assignments: [], household: [{ id: late.id, name: 'Late', table: null, assignments: [] }] });
   });
 
   it('hides the tables again when the host takes the seating back', async () => {

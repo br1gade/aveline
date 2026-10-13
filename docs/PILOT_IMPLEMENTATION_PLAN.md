@@ -2,7 +2,8 @@
 
 Prepared 12 October 2026; revised 13 October 2026 (Asia/Yerevan).
 **Status: product decisions confirmed; implementation plan ready.
-Readiness groundwork is implemented, the remaining feature milestones are not.**
+Readiness groundwork and the first F50 seating slice are implemented; feature
+milestones remain open until all of their acceptance checks pass.**
 
 Goal: deliver the requested pilot features while the frontend is being built,
 then verify them together on production infrastructure. The pilot remains free.
@@ -79,8 +80,9 @@ This is baseline evidence, not final capacity proof.
 
 Current limitations that drive the new plan:
 
-- A guest has one seat for the whole event; the planner considers tables across
-  venues and runs inside the request.
+- The original one-seat/event layout has been replaced by separate venue
+  arrangements, scoped assignment/release history and enforced venue capacity.
+  Attendance remains event-wide and automatic seating still runs in the request.
 - CSV exports generate current data during download. PDF/XLSX are rejected.
 - The storage port returns public URLs. Private exports, signatures and
   guest-gallery originals need a separate protected storage path.
@@ -156,6 +158,25 @@ largest technical uncertainties. No firm replacement pilot date should be set
 before these checks and the frontend's estimate.
 
 ## 4. Milestone B — attendance and multi-venue seating (F50)
+
+**First slice implemented, 13 October:** arrangement-scoped tables/seats and
+release history, explicit selection for ambiguous unassignment/auto-seating,
+venue capacity, protected published household assignments and venue-labelled
+host/check-in/CSV reads. Migration preserves legacy IDs and unknown venue data.
+
+**Verified 13 October:** full `npm run verify` passed lint, docs, generated
+OpenAPI, build, **1,010 unit / 324 integration / 550 HTTP tests**. Focused
+regressions cover populated historical migrations, cross-event/arrangement
+constraints, capacity/chair races, scoped release/deletion history, simultaneous
+bulk numbering, RSVP/seating lock ordering and all four translated guest venue
+labels. An existing queued-email fixture now stops its background cron dispatcher
+so its status assertion does not depend on the wall clock. New migrations were
+applied to guarded disposable test stores; no production deployment occurred.
+
+**B remains open:** attendance policy/revision models, per-venue RSVP, mode-change
+preview/reconfirmation/history, related statistics/notifications and frontend
+acceptance are still required. F27's worker cutover is a later milestone.
+
 
 **Model and migration**
 

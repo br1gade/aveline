@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 49 models across three
+The authoritative map of what is stored and where. 51 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 42 |
+| **PostgreSQL** | The entire domain. The only source of truth | 51 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -53,7 +53,9 @@ lives outside Postgres.
 | `Guest` | A person, reached by capability token |
 | `Rsvp` · `RsvpQuestion` · `RsvpAnswer` | The response, and host-authored questions |
 | `GuestImport` | One upload, with per-row errors |
-| `Table` · `Seat` | Furniture, and who sits where |
+| `SeatingArrangement` | A separately seated venue or the explicit unspecified legacy plan |
+| `Table` · `Seat` | Furniture and one seat per guest per arrangement |
+| `SeatRelease` | Decline history retained independently for each arrangement |
 | `CheckIn` | Day-of arrival |
 
 ### Ticketing
@@ -123,6 +125,9 @@ reject the bad row.
 
 | Table | Constraint |
 |---|---|
+| `seating_arrangements` | One arrangement per venue and one unspecified arrangement per event (partial unique index) |
+| `tables` · `seats` | Derived arrangement/event IDs, matching composite foreign keys, arrangement-scoped names and guest seats; unique numbered chairs |
+| `seat_releases` | A known table must belong to the release's event and arrangement; a deleted/unknown table remains null without erasing history |
 | `ticket_types` | `sold + reserved <= total`; counters never negative |
 | `promo_codes` | redemptions within limit; value positive; percent ≤ 100 |
 | `refunds` | amount positive |
@@ -134,6 +139,14 @@ reject the bad row.
 | `device_tokens` | exactly one subject — a user or a guest, never both or neither |
 | `data_subject_requests` | the response deadline cannot precede the request |
 | `message_templates` | one global template per key and channel (partial index — Postgres treats NULLs as distinct, so the compound unique alone does not bind) |
+
+The multi-venue migration creates arrangements, backfills existing tables/seats
+and release markers, then constrains the new columns. Missing venue membership
+stays unspecified. Triggers create event/venue arrangements, derive table/seat
+write fields and enforce release-table scope, including bulk writes; their `NULL::text` Prisma
+defaults are filled before NOT NULL checks. A conflicting explicit field is
+rejected. Keep triggers and partial indexes in SQL migrations; Prisma does not
+model them. Legacy release columns remain historical input, not current view data.
 
 ## 5. Storage layout
 

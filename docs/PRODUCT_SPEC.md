@@ -81,7 +81,7 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 ## 4. Domain model
 
 The entities below are the ones the product argument rests on. The complete
-inventory — 49 models, what each is for, and the invariants the database
+inventory — 51 models, what each is for, and the invariants the database
 enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 
 | Entity | Purpose |
@@ -95,7 +95,8 @@ enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 | **Household** | The unit invitations and seating operate on |
 | **Guest** | A person, reached by capability token |
 | **Rsvp** | The response every operational view is derived from |
-| **Table** · **Seat** | Furniture, and who sits where |
+| **SeatingArrangement** · **Table** · **Seat** | A venue's seating plan, its furniture and one seat per person in that arrangement |
+| **SeatRelease** | Where a decline freed a seat, independently at each venue |
 | **EventListing** | The public face of a public event |
 | **TicketType** · **TicketOrder** · **Ticket** | Capacity, a purchase, an admitted person |
 | **Payment** | A charge, with every transition recorded |

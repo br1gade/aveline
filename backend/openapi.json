@@ -2950,6 +2950,30 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/seating/arrangements": {
+      "get": {
+        "operationId": "SeatingController_listArrangements",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Seating arrangements by venue, including the unspecified legacy plan",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/tables": {
       "get": {
         "operationId": "SeatingController_listTables",
@@ -2958,6 +2982,15 @@
             "name": "eventId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "arrangementId",
+            "required": false,
+            "in": "query",
+            "description": "Arrangement returned by GET seating/arrangements; required when ambiguous",
             "schema": {
               "type": "string"
             }
@@ -3168,6 +3201,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "arrangementId",
+            "required": false,
+            "in": "query",
+            "description": "Arrangement returned by GET seating/arrangements; required when ambiguous",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3190,6 +3232,15 @@
             "name": "eventId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "arrangementId",
+            "required": false,
+            "in": "query",
+            "description": "Arrangement returned by GET seating/arrangements; required when ambiguous",
             "schema": {
               "type": "string"
             }

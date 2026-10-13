@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RequirePermission } from '../../infra/auth/actor';
-import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto } from './dto/seating.dto';
+import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto, SeatingSelectionDto } from './dto/seating.dto';
 import { SeatingService } from './seating.service';
 
 @ApiTags('seating')
@@ -10,10 +10,17 @@ export class SeatingController {
   constructor(private readonly seating: SeatingService) {}
 
   @RequirePermission('seating:read')
+  @Get('seating/arrangements')
+  @ApiOperation({ summary: 'Seating arrangements by venue, including the unspecified legacy plan' })
+  listArrangements(@Param('eventId') eventId: string) {
+    return this.seating.listArrangements(eventId);
+  }
+
+  @RequirePermission('seating:read')
   @Get('tables')
   @ApiOperation({ summary: 'Tables with who is seated at each' })
-  listTables(@Param('eventId') eventId: string) {
-    return this.seating.listTables(eventId);
+  listTables(@Param('eventId') eventId: string, @Query() selection: SeatingSelectionDto) {
+    return this.seating.listTables(eventId, selection.arrangementId);
   }
 
   @RequirePermission('seating:write')
@@ -63,8 +70,8 @@ export class SeatingController {
   @RequirePermission('seating:write')
   @Delete('seats/:guestId')
   @ApiOperation({ summary: 'Unseat a guest' })
-  unassign(@Param('eventId') eventId: string, @Param('guestId') guestId: string) {
-    return this.seating.unassign(eventId, guestId);
+  unassign(@Param('eventId') eventId: string, @Param('guestId') guestId: string, @Query() selection: SeatingSelectionDto) {
+    return this.seating.unassign(eventId, guestId, selection.arrangementId);
   }
 
   @RequirePermission('seating:write')
@@ -76,8 +83,8 @@ export class SeatingController {
       'a late RSVP fills gaps rather than rearranging a plan already adjusted by hand. ' +
       'Anything it cannot place is returned with a reason.',
   })
-  autoAssign(@Param('eventId') eventId: string) {
-    return this.seating.autoAssign(eventId);
+  autoAssign(@Param('eventId') eventId: string, @Query() selection: SeatingSelectionDto) {
+    return this.seating.autoAssign(eventId, selection.arrangementId);
   }
 
   @RequirePermission('seating:write')

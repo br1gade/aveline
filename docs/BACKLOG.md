@@ -122,7 +122,7 @@ it needs a cancellation during the event itself, at the door.
 | F47 | Linking a directory venue to the vendor who runs it (VENUES §1) | S |
 | F48 | Logo uploads for corporate events (INVITATION_DESIGN §3) | S |
 | F49 | XLSX exports — the format is in the API enum and refused; or drop it from the enum | S |
-| F50 | Choosing seats per venue: one seat per guest per event today, and auto-assign mixes venues' tables | M |
+| F50 | **Partly built:** separate venue arrangements, seats, release history and venue capacity; remaining host-selectable attendance modes and explicit reconfirmation | L |
 
 ### Revenue and services — after the pilot
 
@@ -205,7 +205,6 @@ Re-checked on 9 October 2026. Each would be believed.
 - **API.md, more** — the §4 example theme uses `font`, but the keys are `headingFont`/`bodyFont`; the `devLink` list omits team invites and concierge; `/settings` is "not a general event PATCH" though `PATCH /events/:id` exists; `GET /events?archived=true` needs no `event:delete`; M4A is listed but only `audio/mp4` is accepted, so browsers' `audio/x-m4a` is a 415.
 - **ACCESS_CONTROL.md** — 20 policy tests, not 17; `billing:write` also gates ticket-order cancellation; the throttle is per IP and in memory; refresh "reuse makes theft visible" is not implemented.
 - **INVITATION_DESIGN.md** — `DOCUMENT` kind missing; `LOGO` and `SIGNATURE` cannot be uploaded (the upload's OpenAPI `kind` field is ignored); custom `colors` bypass palettes.
-- **VENUES_AND_SEATING.md** — §4 says venue capacity is respected (it is not; the schema comment agrees with §4); §5 describes the planner as unbuilt; one seat per guest per event, and auto-assign mixes venues.
 - **PAYMENTS.md** — paths lack `/v1`; "nothing schedules reconciliation" and "no auth" are false; "nothing charges" (the first period is charged).
 - **GAPS.md** §7 cites item numbers that now mean other things.
 - **DATA_MODEL.md / DATA_STORES.md / ARCHITECTURE.md** — the audit trail is built (Mongo `audit_trail`); `GuestChannel` and `InvoiceCounter` missing; the throttle is not in Redis; no job queue; the prefix is `/api/v1`; four sweeps plus reminders and privacy, not three.

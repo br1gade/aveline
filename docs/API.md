@@ -525,8 +525,15 @@ show nothing rather than "no table".
 }
 ```
 
-`table` is `null` for a guest not seated yet — say so and send them to the
-hosts. A guest sees their own household and never anyone else's. The shared,
+`guest.seating.assignments` and each household member's `assignments` are
+arrays of `{ arrangementId, venueId, venue, tableId, table, position }`.
+Guest `venue` labels use the negotiated page language and fall back to the
+venue's plain name when no translation exists. Only the household's guest-facing venues and unspecified seats are returned;
+preparation/internal-only venue IDs and names never appear. These arrays stay
+inside the published seating boundary.
+
+The legacy `table` field is `null` when there are zero or multiple assignments.
+Use the array to distinguish “not seated” from “seated at several venues”. A guest sees their own household and never anyone else's. The shared,
 un-personalized page carries no seating at all.
 
 **Breaking, 9 October 2026:** `GET /events/:eventId/find-seat` is gone. It
@@ -1072,8 +1079,12 @@ the primary first within each:
 ```
 
 `seatReleased` is `{ "table": "Table 4", "releasedAt": "..." }` for a guest
-whose decline freed their seat — see *A decline frees the seat* below — and
-`null` otherwise.
+whose decline freed a seat — see the seating section below — and `null` when
+there are zero or multiple release records. Guests also carry `seating` as an
+array of `{ arrangementId, venueId, venue, tableId, table, position }`, and
+`seatReleases` as `{ arrangementId, venueId, table, releasedAt }` records.
+The legacy `table` is null when several assignments exist. Host reads include
+all arrangements, including internal venues.
 
 **`email`, `phone` and `token` are present only for callers holding
 `guest:contact:read`** — owners and coordinators, not viewers or designers.
@@ -1185,6 +1196,7 @@ of the two is refused. Show the refusal; do not retry it.
 ### Tables and seating
 
 ```http
+GET    /api/v1/events/:eventId/seating/arrangements
 GET    /api/v1/events/:eventId/tables
 POST   /api/v1/events/:eventId/tables
 POST   /api/v1/events/:eventId/tables/bulk
@@ -1192,14 +1204,18 @@ PATCH  /api/v1/events/:eventId/tables/:tableId
 DELETE /api/v1/events/:eventId/tables/:tableId
 ```
 
-`GET` returns each table with its occupancy, who is at it and where it sits
-on the plan, which is the whole seating screen in one request:
+`GET /seating/arrangements` returns a bare array of `{ id, eventId, venueId,
+venue: { name, capacity } | null, _count: { tables } }`. Every venue has an
+arrangement and every event has an explicit unspecified plan (`venueId: null`).
+Treat IDs as opaque. `GET /tables` returns all tables or accepts
+`?arrangementId=...` to read one plan, with occupancy and names in one request:
+
 
 ```json
 [
   {
     "id": "clz...", "name": "Table 1", "capacity": 10, "zone": "Main hall",
-    "venueId": "clz...", "posX": 120.5, "posY": 40, "shape": "round",
+    "venueId": "clz...", "venue": "Reception hall", "arrangementId": "clz...", "posX": 120.5, "posY": 40, "shape": "round",
     "seated": 7, "available": 3,
     "guests": [{ "guestId": "clz...", "name": "Armen Petrosyan", "position": null }],
     "released": [{ "guestId": "clz...", "name": "Ani Sargsyan", "releasedAt": "..." }]
@@ -1207,26 +1223,34 @@ on the plan, which is the whole seating screen in one request:
 ]
 ```
 
-**A decline frees the seat.** When a guest declines — on their own link or
-recorded by the host — their seat is given back, so `seated` and `available`
-are true. The table lists them in `released` so the plan can show the gap and
-why. The flag clears when they are seated again, or when the host dismisses it
-with `DELETE /seats/:guestId`. Answering `ATTENDING` or `UNDECIDED` keeps the
-seat. Decided 9 October 2026.
+**An event-wide decline frees every seat.** Guest and host RSVP writes release
+all of that person's assignments and keep one flag per arrangement in the
+tables' `released` arrays. Reseating them clears only the target arrangement's
+flag; explicit unassignment dismisses only the selected arrangement's flag.
+Answering `ATTENDING` or `UNDECIDED` keeps seats. Attendance remains event-wide
+in this first F50 slice; per-venue attendance and reconfirmation are not built.
+
 
 `POST /tables` takes `{ name, capacity, zone?, venueId? }`. For a real room,
 use `/tables/bulk` with `{ namePrefix, count, capacity, zone?, venueId? }` —
 twenty tables of ten is one request, and numbering continues from the highest
 number already used with that prefix (`Table 1` … `Table 20`, then `Table 21`
-even if `Table 3` was deleted). It returns `{ "created": 20 }`.
+even if `Table 3` was deleted). Names and numbering are scoped to the venue's
+arrangement, so both venues can use “Table 1”. Omitting `venueId` creates a table
+in the unspecified arrangement. Number allocation and insertion are atomic
+within the arrangement; simultaneous batches create all requested tables. It
+returns `{ "created": 20 }`.
 
 `PATCH /tables/:tableId` changes any of `name`, `capacity`, `zone`,
 `venueId`, `posX`, `posY` and `shape` (`round`, `rectangle`, `square`,
 `oval`); omitted fields are unchanged and `null` clears `zone`, `venueId` and
 the position. Use it to save a table's place when it is dragged on the plan.
-`capacity` cannot go below the guests already seated, a name another table
-has is refused, and `venueId` must be one of this event's venues — each a
-`400` whose message starts with the field. The position is in the editor's
+`capacity` cannot go below the guests already seated or their numbered chairs,
+a name another table in the same arrangement has is refused, and `venueId`
+must be one of this event's venues — each a `400` naming the field.
+Changing `venueId` while seats or release flags remain returns `409`; move
+people and dismiss the flags before reparenting an empty table. Updating a
+venue's capacity below its seated headcount is also refused. The position is in the editor's
 own units; the server stores it and does not interpret it.
 
 Deleting a table with guests at it returns `409` naming how many, because the
@@ -1237,9 +1261,19 @@ POST   /api/v1/events/:eventId/seats          { guestId, tableId, position? }
 DELETE /api/v1/events/:eventId/seats/:guestId
 ```
 
-`POST` seats a guest, or moves one who was already seated — there is no
-separate move call. `DELETE` unseats a guest, or dismisses the `released` flag
-of one whose decline already freed their seat. A full table returns `409` with its name. Capacity is
+`POST` seats a guest or moves their existing seat **within the target table's
+arrangement**, keeping their assignments at other venues. It returns
+`{ guestId, tableId, table, arrangementId }`. A duplicate numbered chair is
+`409` naming `position`; a position past table capacity is `400`.
+
+`DELETE` accepts `?arrangementId=...` and removes only that arrangement's seat
+or release flag. **Contract cutover, 13 October 2026:** omission is `400` naming
+`arrangementId` if more than one arrangement has tables or release history.
+Automatic seating below has the same selection rule. Existing one-plan clients
+may omit it; new clients must retain the active arrangement ID. A foreign event's
+arrangement returns `404`; rejected requests change nothing.
+
+A full table or venue returns `409`. Capacity is
 checked inside the transaction, so two coordinators filling the last chair at
 once cannot both succeed; handle the `409` as a routine outcome of drag-and-drop
 and re-fetch the table.
@@ -1248,7 +1282,8 @@ and re-fetch the table.
 POST /api/v1/events/:eventId/seats/auto-assign
 ```
 
-Seats everyone who has accepted, then tells you who did not fit:
+Accepts `?arrangementId=...`. Seats confirmed attendees only in the selected
+arrangement, keeping other venue seats intact, then reports who did not fit:
 
 ```json
 {
@@ -1260,9 +1295,15 @@ Seats everyone who has accepted, then tells you who did not fit:
 }
 ```
 
+Households with an attendance answer or guest identity being updated are
+returned in `unseated` with a reason asking the host to refresh and run again.
+The whole household waits; the planner does not split off members whose rows
+were available. A concurrent decline cannot leave a newly assigned automatic
+seat behind. Manual seating serializes against host answer writes.
+
 Three things to know before you wire the button:
 
-1. **It is additive, not a re-plan.** Guests already seated keep their seats,
+1. **It is additive, not a re-plan.** Guests already seated in this arrangement keep their seats,
    and their tables count as partly occupied. Running it after a late RSVP
    fills the gaps instead of rearranging a plan the host has adjusted by hand.
    Someone accepting late joins the table their household already sits at —
@@ -1307,7 +1348,9 @@ DELETE /api/v1/events/:eventId/guests/:guestId/check-in
 ```
 
 The response is the door screen: the name to confirm, the table to point at,
-and `wasExpected` — `false` means this guest declined or never responded and
+and the venue-labelled `seating` array (same shape as host guest reads). The
+legacy `table` is null when several assignments exist. `wasExpected` being
+`false` means this guest declined or never responded and
 has turned up anyway, which is worth showing the host rather than silently
 admitting.
 
@@ -1696,6 +1739,15 @@ words. The catering sheet lists every dietary note under its counts, with
 the guest it belongs to.
 
 Requires `operations:read`.
+
+### Export columns for separate venue seating (13 October 2026)
+
+CSV guest lists retain the legacy `Table` column (empty for multiple assignments)
+and add `Seating by venue`. Seating charts add `Venue` and `Arrangement`; place
+cards add those columns and produce one row per seated arrangement for each
+attending guest, or one blank-seat row if unseated. Import consumers must use
+headers rather than fixed column positions. CSV downloads still use current
+data until the separate snapshot/worker export milestone ships.
 
 ### Suppression — who must not be contacted
 

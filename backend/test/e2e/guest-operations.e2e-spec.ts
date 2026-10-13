@@ -320,9 +320,9 @@ describe('Guest operations (e2e)', () => {
       // The Petrosyans must all be at one table.
       const petrosyans = await prisma.guest.findMany({
         where: { eventId, household: { name: 'Petrosyan family' } },
-        include: { seat: true },
+        include: { seats: true },
       });
-      expect(new Set(petrosyans.map((g) => g.seat?.tableId)).size).toBe(1);
+      expect(new Set(petrosyans.map((g) => g.seats[0]?.tableId)).size).toBe(1);
       const seatedTables = tables.body as { seated: number; capacity: number }[];
       expect(seatedTables.every((table) => table.seated <= table.capacity)).toBe(true);
     });

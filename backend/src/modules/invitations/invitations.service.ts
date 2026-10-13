@@ -6,6 +6,8 @@ import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey, invitationMetaKey, invitationGenerationKey } from '../../infra/cache/cache.service';
 import { translatedField } from '../../common/field-translations';
+import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
+import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
 import { fieldsForPage } from '../rsvp/rsvp-fields';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
 
@@ -15,7 +17,7 @@ const invitationInclude = {
   questions: { orderBy: { sortOrder: 'asc' } },
   event: {
     include: {
-      venues: { orderBy: { sortOrder: 'asc' } },
+      venues: { where: GUEST_FACING_VENUES, orderBy: { sortOrder: 'asc' } },
       // Entries marked internal are for the people running the day, not guests.
       // The host's order breaks ties at the same minute, as on their own list.
       timeline: { where: { isInternal: false }, orderBy: [{ occursAt: 'asc' }, { sortOrder: 'asc' }] },
@@ -26,8 +28,6 @@ const invitationInclude = {
 type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitationInclude }> & {
   /** The uploads its enabled blocks show, by id. */
   media: Map<string, BlockMedia>;
-  /** Venues the crew's internal timeline entries use — kept off the page unless guests' entries use them too. */
-  internalVenueIds: Set<string>;
 };
 type LoadedEvent = LoadedInvitation['event'];
 type LoadedBlock = LoadedInvitation['blocks'][number];
@@ -44,12 +44,12 @@ const blockMediaSelect = {
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
 const GUEST_INCLUDE = {
   rsvp: true,
-  event: { select: { seatingPublishedAt: true } },
+  event: { select: { seatingPublishedAt: true, venues: { where: GUEST_FACING_VENUES, select: { id: true } } } },
   household: {
     include: {
       guests: {
         orderBy: { isPrimary: 'desc' },
-        include: { seat: { select: { table: { select: { name: true } } } } },
+        include: { seats: { include: SEAT_DETAIL } },
       },
     },
   },
@@ -126,7 +126,7 @@ export class InvitationsService {
     const payload = await this.sharedPayload(slug, locale);
 
     void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: guest.id });
-    return { ...payload, guest: this.buildGuestView(guest, guest.event.seatingPublishedAt !== null) };
+    return { ...payload, guest: this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, locale) };
   }
 
   /**
@@ -186,7 +186,7 @@ export class InvitationsService {
       locale,
       availableLocales: event.locales,
       event: this.buildEventView(event, locale),
-      guest: guest ? this.buildGuestView(guest, event.seatingPublishedAt !== null) : null,
+      guest: guest ? this.buildGuestView(guest, event.seatingPublishedAt !== null, locale) : null,
       blocks: invitation.blocks.map((block) => ({
         type: block.type,
         sortOrder: block.sortOrder,
@@ -220,14 +220,8 @@ export class InvitationsService {
     if (invitation.expiresAt && invitation.expiresAt < new Date()) {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
-    const [media, internal] = await Promise.all([
-      this.loadBlockMedia(invitation),
-      this.prisma.timelineEntry.findMany({
-        where: { eventId: invitation.eventId, isInternal: true, venueId: { not: null } },
-        select: { venueId: true },
-      }),
-    ]);
-    return { ...invitation, media, internalVenueIds: new Set(internal.flatMap((entry) => (entry.venueId ? [entry.venueId] : []))) };
+    const media = await this.loadBlockMedia(invitation);
+    return { ...invitation, media };
   }
 
   /**
@@ -262,7 +256,7 @@ export class InvitationsService {
     };
   }
 
-  private buildGuestView(guest: LoadedGuest, isSeatingPublished: boolean) {
+  private buildGuestView(guest: LoadedGuest, isSeatingPublished: boolean, locale: string) {
     return {
       id: guest.id,
       name: fullName(guest),
@@ -278,7 +272,7 @@ export class InvitationsService {
       rsvp: guest.rsvp && { status: guest.rsvp.status, respondedAt: guest.rsvp.respondedAt },
       // Decision D4: their own household's tables, on their own link, once the
       // host publishes — never the room, never on the shared page.
-      seating: isSeatingPublished ? seatingFor(guest) : null,
+      seating: isSeatingPublished ? seatingFor(guest, locale) : null,
       // Opening the bot from here opts them in to reminders on Telegram. Their
       // own token, so it links this guest; null when no bot is configured.
       telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${guest.token}` : null,
@@ -377,12 +371,19 @@ function isAcceptingResponses(
 }
 
 /** Where this guest and the people they came with are sitting; `null` for no table yet. */
-function seatingFor(guest: LoadedGuest) {
-  const tableOf = (member: LoadedGuest['household']['guests'][number]) => member.seat?.table.name ?? null;
+function seatingFor(guest: LoadedGuest, locale: string) {
+  const visibleVenueIds = new Set(guest.event.venues.map((venue) => venue.id));
+  const visibleSeats = (member: LoadedGuest['household']['guests'][number]) => member.seats.filter(
+    (seat) => seat.table.venueId === null || visibleVenueIds.has(seat.table.venueId),
+  );
+  const tableOf = (member: LoadedGuest['household']['guests'][number]) => singleTable(visibleSeats(member));
   const own = guest.household.guests.find((member) => member.id === guest.id);
   return {
     table: own ? tableOf(own) : null,
-    household: guest.household.guests.map((member) => ({ id: member.id, name: fullName(member), table: tableOf(member) })),
+    assignments: own ? seatingAssignments(visibleSeats(own), locale) : [],
+    household: guest.household.guests.map((member) => ({
+      id: member.id, name: fullName(member), table: tableOf(member), assignments: seatingAssignments(visibleSeats(member), locale),
+    })),
   };
 }
 
@@ -392,9 +393,5 @@ function seatingFor(guest: LoadedGuest) {
  * internal entries use. The page used to show every venue on the event.
  */
 function guestVenues(invitation: LoadedInvitation) {
-  const { event, internalVenueIds } = invitation;
-  const usedByGuests = new Set(event.timeline.map((entry) => entry.venueId).filter(Boolean));
-  return event.venues.filter(
-    (venue) => venue.role !== 'PREPARATION' && (!internalVenueIds.has(venue.id) || usedByGuests.has(venue.id)),
-  );
+  return invitation.event.venues;
 }

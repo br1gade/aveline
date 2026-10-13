@@ -221,26 +221,27 @@ model Event {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  memberships    EventMembership[]
-  invites        EventInvite[]
-  listing        EventListing?
-  ticketTypes    TicketType[]
-  ticketOrders   TicketOrder[]
-  tickets        Ticket[]
-  messages       Message[]
-  guestImports   GuestImport[]
-  promoCodes     PromoCode[]
-  exports        Export[]
-  venues         Venue[]
-  timeline       TimelineEntry[]
-  invitation     Invitation?
-  households     Household[]
-  guests         Guest[]
-  tables         Table[]
-  mediaAssets    MediaAsset[]
-  payments       Payment[]
-  vendorBookings VendorBooking[]
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships         EventMembership[]
+  invites             EventInvite[]
+  listing             EventListing?
+  ticketTypes         TicketType[]
+  ticketOrders        TicketOrder[]
+  tickets             Ticket[]
+  messages            Message[]
+  guestImports        GuestImport[]
+  promoCodes          PromoCode[]
+  exports             Export[]
+  venues              Venue[]
+  timeline            TimelineEntry[]
+  invitation          Invitation?
+  households          Household[]
+  guests              Guest[]
+  tables              Table[]
+  seatingArrangements SeatingArrangement[]
+  mediaAssets         MediaAsset[]
+  payments            Payment[]
+  vendorBookings      VendorBooking[]
 
   @@index([organizationId])
   @@index([startsAt])
@@ -294,11 +295,13 @@ model Venue {
   capacity     Int?
   sortOrder    Int       @default(0)
 
-  event    Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  profile  VenueProfile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
-  timeline TimelineEntry[]
-  tables   Table[]
+  event              Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  profile            VenueProfile?       @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  timeline           TimelineEntry[]
+  tables             Table[]
+  seatingArrangement SeatingArrangement?
 
+  @@unique([id, eventId])
   @@index([eventId])
   @@map("venues")
 }
@@ -510,9 +513,7 @@ model Guest {
   /// headcount, seating and catering totals stay correct.
   anonymizedAt DateTime?
 
-  /// Set when declining freed this guest's seat, so the plan can show the
-  /// gap and why until the host seats someone — or them — again (decided
-  /// 9 October 2026: free the seat, and flag it).
+  /// Legacy release snapshot retained as migration history. Current flags are SeatRelease rows.
   seatReleasedAt          DateTime?
   seatReleasedFromTableId String?
 
@@ -524,12 +525,14 @@ model Guest {
   seatReleasedFromTable Table?         @relation("ReleasedSeats", fields: [seatReleasedFromTableId], references: [id], onDelete: SetNull)
   channels              GuestChannel[]
   rsvp                  Rsvp?
-  seat                  Seat?
+  seats                 Seat[]
+  seatReleases          SeatRelease[]
   checkIn               CheckIn?
   ticket                Ticket?
   messages              Message[]
   deviceTokens          DeviceToken[]
 
+  @@unique([id, eventId])
   @@index([eventId])
   @@index([householdId])
   @@index([seatReleasedFromTableId])
@@ -673,42 +676,87 @@ enum MediaKind {
 
 // ───────────────────────────── Seating ─────────────────────────────────
 
+/// A separately seated venue, or the explicitly unspecified legacy plan.
+model SeatingArrangement {
+  id      String  @id @default(cuid())
+  eventId String
+  venueId String? @unique
+
+  event    Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue    Venue?        @relation(fields: [venueId, eventId], references: [id, eventId], onDelete: NoAction)
+  tables   Table[]
+  releases SeatRelease[]
+
+  @@unique([id, eventId])
+  @@unique([venueId, eventId])
+  @@index([eventId])
+  @@map("seating_arrangements")
+}
+
+/// Decline history is kept independently for each arrangement.
+model SeatRelease {
+  id            String   @id @default(cuid())
+  guestId       String
+  eventId       String
+  arrangementId String
+  tableId       String?
+  releasedAt    DateTime
+
+  guest       Guest              @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: Cascade)
+  arrangement SeatingArrangement @relation(fields: [arrangementId, eventId], references: [id, eventId], onDelete: Cascade)
+  table       Table?             @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  @@unique([guestId, arrangementId])
+  @@index([tableId])
+  @@index([arrangementId])
+  @@map("seat_releases")
+}
+
 model Table {
-  id       String  @id @default(cuid())
-  eventId  String
-  /// Which venue this table stands in. Null for a single-venue event.
-  venueId  String?
-  name     String
-  capacity Int
+  id            String  @id @default(cuid())
+  eventId       String
+  /// Null identifies the explicit legacy/unspecified arrangement.
+  venueId       String?
+  /// Filled by the database from event/venue for every write, including bulk imports.
+  arrangementId String  @default(dbgenerated("NULL::text"))
+  name          String
+  capacity      Int
   /// Free-text grouping inside a venue, e.g. "main hall", "terrace".
-  zone     String?
+  zone          String?
   /// Canvas position for the seating editor
-  posX     Float?
-  posY     Float?
-  shape    String  @default("round")
+  posX          Float?
+  posY          Float?
+  shape         String  @default("round")
 
-  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  venue         Venue?  @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  event         Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue         Venue?             @relation(fields: [venueId, eventId], references: [id, eventId], onDelete: NoAction)
+  arrangement   SeatingArrangement @relation(fields: [arrangementId, eventId], references: [id, eventId], onDelete: NoAction)
   seats         Seat[]
-  /// Guests whose decline freed a seat here, until they or the seat are dealt with.
-  releasedSeats Guest[] @relation("ReleasedSeats")
+  /// Historical single-seat release relation; current views read seatReleases.
+  releasedSeats Guest[]            @relation("ReleasedSeats")
+  seatReleases  SeatRelease[]
 
-  @@unique([eventId, name])
+  @@unique([arrangementId, name])
+  @@unique([id, arrangementId, eventId])
   @@index([eventId])
   @@map("tables")
 }
 
 model Seat {
-  id         String   @id @default(cuid())
-  tableId    String
-  guestId    String   @unique
+  id            String   @id @default(cuid())
+  tableId       String
+  guestId       String
+  arrangementId String   @default(dbgenerated("NULL::text"))
+  eventId       String   @default(dbgenerated("NULL::text"))
   /// Place at the table, for place cards and printed plans.
-  position   Int?
-  assignedAt DateTime @default(now())
+  position      Int?
+  assignedAt    DateTime @default(now())
 
-  table Table @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  table Table @relation(fields: [tableId, arrangementId, eventId], references: [id, arrangementId, eventId], onDelete: Cascade)
+  guest Guest @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: Cascade)
 
+  @@unique([guestId, arrangementId])
+  @@index([arrangementId])
   @@unique([tableId, position])
   @@index([tableId])
   @@map("seats")

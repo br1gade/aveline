@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { RsvpStatus } from '@prisma/client';
+import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -15,7 +16,7 @@ export class CheckInService {
   async checkIn(eventId: string, guestId: string, notedBy?: string) {
     const guest = await this.prisma.guest.findFirst({
       where: { id: guestId, eventId },
-      include: { checkIn: true, rsvp: true, seat: { include: { table: true } } },
+      include: { checkIn: true, rsvp: true, seats: { include: SEAT_DETAIL } },
     });
     if (!guest) throw new NotFoundException('That guest is not on this event');
 
@@ -36,7 +37,8 @@ export class CheckInService {
       // The two things door staff need next: where to send them, and whether
       // they were expected — someone who declined still turning up is worth
       // flagging rather than silently admitting.
-      table: guest.seat?.table.name ?? null,
+      table: singleTable(guest.seats),
+      seating: seatingAssignments(guest.seats),
       wasExpected: guest.rsvp?.status === RsvpStatus.ATTENDING,
     };
   }
