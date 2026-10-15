@@ -1927,12 +1927,9 @@ what is checked on every download, not when the export was asked for:
 **Breaking, 9 October 2026:** the `asset: { url, sizeBytes }` field is gone.
 Its URL was public and never expired.
 
-Read `status` anyway — PDF will be queued when it exists, and a client that
-already branches on it will not need changing. `FAILED` carries
-`failureReason`.
-
-`format` defaults to `CSV`. `PDF` and `XLSX` return `400` today; the message
-says so rather than queueing something that never runs.
+`format` defaults to `CSV`. These legacy routes return `400` for `PDF` and
+`XLSX`, directing callers to the snapshot routes below. Those routes support
+all three formats and their queued states. Legacy records remain live CSV.
 
 The files are UTF-8 with a BOM and CRLF endings, so Excel opens Armenian text
 correctly, and every cell is quoted — including a defensive tab in front of
@@ -1955,7 +1952,7 @@ attending guest, or one blank-seat row if unseated. Import consumers must use
 headers rather than fixed column positions. CSV downloads still use current
 data on the legacy `/exports` routes. Use `/export-snapshots` for fixed files.
 
-### Private snapshot exports (15 October 2026)
+### Private snapshot exports (16 October 2026)
 
 ```http
 POST /api/v1/events/:eventId/export-snapshots
@@ -1964,7 +1961,7 @@ GET  /api/v1/events/:eventId/export-snapshots/:snapshotId
 GET  /api/v1/events/:eventId/export-snapshots/:snapshotId/download
 ```
 
-These additive routes support all seven kinds above, initially **CSV only**.
+These additive routes support all seven kinds above in **CSV, PDF and XLSX**.
 The frontend can migrate explicitly; `/exports` keeps its existing live behavior.
 Old export records now explicitly carry `isSnapshot: false` and
 `requiresRegeneration: true`: they cannot recover past data and must be
@@ -1972,18 +1969,32 @@ regenerated through the new route. Their live compatibility download remains
 available until the frontend migrates. Snapshot jobs appear only in the new history, newest 50 first.
 
 Create with `{ "kind": "GUEST_LIST", "idempotencyKey": "<new UUID v4>",
-"locale": "en", "includesContacts": false }`. Format defaults to `CSV`;
-`PDF`/`XLSX` return `400`. Locale defaults to the event language and accepts
+"format": "PDF", "locale": "en", "includesContacts": false }`. Format defaults
+to `CSV`; accepted values are `CSV`, `PDF`, `XLSX`. Locale defaults to the event language and accepts
 `en`, `ru`, `fr`, `hy`. Translated question/choice labels use it; standard sheet
 headings remain English until F35. `includesContacts` defaults to the caller's
 current contact permission. A viewer can request redacted sheets; a contact
 holder can also explicitly request them. Manifests always require contact
 permission and cannot be redacted. The existing CSV columns and formula
 protection apply. Venue and arrangement columns identify separate seating.
+Snapshot catering and bar sheets add `Venue` and use each guest-facing venue's
+current attendance answers; preparation/internal-only venues are excluded.
+Event-wide attendees count at every guest-facing venue. Without any such venue,
+these sheets retain the event-wide layout. Legacy live CSV columns are unchanged.
+
+PDF uses embedded fonts for Latin, Cyrillic, Armenian and French accents. Seating
+charts group rosters by venue/arrangement/table with capacity and seated counts;
+place cards are six **90 × 70 mm flat cut cards on A4**, with cut guides. Wide
+lists split into column groups with identifying fields repeated. XLSX uses typed
+counts/dates and literal text cells; ticket codes keep leading zeros, and text
+never becomes a formula or external link. Catering workbooks separate requirements
+and dietary notes. Workbook timestamps are labelled UTC; PDF generation times
+use the event timezone.
 
 Create returns `201` with `id`, `kind`, `format`, `locale`, `includesContacts`,
 `status: "QUEUED"`, `attempts: 0`, and `downloadPath: null`. The same UUID,
-event, requester and intent returns the same job; changed intent returns `409`.
+event, requester and intent (kind, format, locale and contact visibility) returns
+the same job; changed intent returns `409`.
 A regeneration uses a **new UUID**. At most 10 queued/running jobs per event;
 further new work returns `409`, while retries of accepted intents still work.
 
@@ -2007,7 +2018,10 @@ A queued/running/failed job returns `409` on download. Revoked or expired files
 return `410`; cross-event snapshot IDs return `404` to an authorized event
 caller. A missing/offline object returns `503`. Fetch with authorization and
 use the returned blob, as for legacy exports; responses use `Cache-Control:
-no-store`. Do not render a public anchor or store a permanent file URL.
+no-store`. MIME types are `text/csv; charset=utf-8`, `application/pdf`, or
+`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, with matching
+`.csv`/`.pdf`/`.xlsx` filenames in `Content-Disposition`. Do not render a public
+anchor or store a permanent file URL.
 
 Subject erasure revokes existing jobs/artifacts for affected events, including
 snapshots that retain an earlier email address. In-flight jobs cannot publish
@@ -2015,11 +2029,12 @@ after erasure. Event deletion leaves a private cleanup ledger. Cleanup is
 asynchronous and retried during storage outages; future downloads are denied
 immediately on revocation/expiry. Hosts regenerate after these transitions.
 
-The CSV foundation has a 10 MiB output cap and input caps of 5,000 guests,
-tickets, seats, orders, attendees and tables each, 200 custom questions and
-100,000 answers; oversized jobs fail with bounded
-retries. PDF/XLSX and background seating jobs are still pending, so F27 remains
-open.
+All formats have a 10 MiB output cap and input caps of 5,000 guests, tickets,
+seats, orders, attendees and tables each, 50 venues, 200 custom questions and
+100,000 answers. Rendered sheets are limited to 20,000 rows, 256 columns,
+32,767 characters per cell and 2 million text characters; PDF also has a
+500-page/45-second rendering limit. Oversized jobs fail with bounded retries
+and safe failure codes. Background seating jobs remain pending, so F27 is open.
 
 ### Suppression — who must not be contacted
 
@@ -3052,7 +3067,9 @@ So you can plan around them rather than discover them:
 - **One organization per account.** See §6.
 - **No block creation outside the arrangement call**, and no way to reorder
   custom RSVP questions once added.
-- **PDF and XLSX exports.** CSV works; the other two formats return `400`.
+- **Background automatic seating.** All export formats run in the dedicated
+  worker, but automatic seating still runs in the request. Standard export
+  headings remain English pending F35; four-language frontend acceptance remains.
 - **A native email feedback adapter.** Normalized signed delivery/bounce/complaint
   ingestion is built; no provider has been selected or connected. Ordinary
   bounce emails arriving in a mailbox are still not parsed.

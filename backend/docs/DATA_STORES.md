@@ -125,7 +125,7 @@ message is better than sending it twice.
 
 ### Intended, not yet built
 
-- **Background seating and PDF/XLSX jobs.** Private CSV exports now use a
+- **Background seating jobs.** CSV/PDF/XLSX exports now use a
   dedicated Postgres queue. Image resizing still uses a sweep; its missing
   variant is its work marker. No generic Redis queue is required for these
   correctness-sensitive jobs.
@@ -265,11 +265,12 @@ the client recovers.
 `ExportSnapshot` is the durable queue, not Redis: losing a claim or publication
 must not silently lose an accepted host request. Export-specific claims use
 Postgres row locks, attempt tokens and expiring leases. Consistent inputs and
-subject references are captured in a short repeatable-read transaction; CSV
-encoding/storage IO happen afterwards in a separate process. An object ledger
+subject references are captured in a short repeatable-read transaction;
+CSV/PDF/XLSX rendering and storage IO happen afterwards in a separate process. An object ledger
 is committed before upload. Publication checks standing and ownership again.
 Erasure fences capture/publication and revokes affected jobs; the cleanup ledger
 survives cascading event deletion. See [EXPORT_WORKER.md](EXPORT_WORKER.md).
 
-Not yet built: background seating jobs, PDF/XLSX rendering, and conversion of
+Not yet built: background seating jobs, translated standard export headings,
+and conversion of
 legacy live-CSV clients to the additive snapshot contract.

@@ -1,9 +1,9 @@
 # Pilot and P2 implementation plan
 
-Prepared 12 October 2026; revised 15 October 2026 (Asia/Yerevan).
+Prepared 12 October 2026; revised 16 October 2026 (Asia/Yerevan).
 **Status: product decisions confirmed; implementation plan ready.
 Readiness groundwork, F50 backend seating/attendance, F23 named attendees and
-the private CSV snapshot/worker foundation are implemented; feature milestones
+private CSV/PDF/XLSX snapshot exports are implemented; feature milestones
 remain open until all of their acceptance checks pass.**
 
 Goal: deliver the requested pilot features while the frontend is being built,
@@ -41,6 +41,7 @@ prevent live charge initiation.
 | Per-venue invitations | Everyone is invited to every guest-facing venue; internal/preparation venues stay hidden |
 | PDFs | All seven existing export kinds, including seating charts and place cards |
 | Export freshness | Fixed snapshots; host regenerates when needed |
+| Place-card paper | Flat cut cards on A4; six 90 × 70 mm cards per sheet |
 | Gallery | Invited guests only; host approval before other guests see a photo |
 | Ticket attendee identity | Buyer supplies every attendee's name/details and own venue choices at checkout |
 | Guest acknowledgements | Both drawn and typed options; a representative may acknowledge for household members |
@@ -85,7 +86,8 @@ Current limitations that drive the new plan:
   arrangements, scoped assignment/release history and enforced venue capacity.
   Attendance now supports both modes and reconfirmation; automatic seating still runs in the request.
 - Legacy `/exports` CSV remains live; additive `/export-snapshots` jobs generate
-  fixed private files for all seven kinds. PDF/XLSX are still rejected.
+  fixed private CSV/PDF/XLSX files for all seven kinds. Frontend adoption,
+  standard heading translations and production acceptance remain.
 - A separate private storage port now serves export artifacts. Signatures and
   guest-gallery originals still need to adopt protected storage.
 - Named ticket checkout, legacy registration and explicit invited-guest linking
@@ -362,14 +364,42 @@ not snapshots. See [API.md](API.md) and
 [worker operations](../backend/docs/EXPORT_WORKER.md). The frontend still needs
 to adopt queue/status/regeneration behavior. Standard CSV headings remain
 English pending F35. Production worker/bucket recovery is still a rehearsal
-gate. **F20/F49/F27 remain open:** PDF/XLSX, their library/font/visual checks,
-and background seating are the next export/seating work.
+gate. The PDF/XLSX batch below extends this foundation. **F27 remains open**
+until background seating runs in a worker as well.
 
 Verification: `npm run verify` passed lint, docs, OpenAPI, build, **1,049 unit,
 384 integration and 577 HTTP tests**. Snapshot coverage includes real worker
 termination/replacement and graceful shutdown, stale-owner rejection, erasure
 fencing, permission loss during download, expiry and cleanup retry. Production
 bucket policy and expanded-stack rehearsal remain unverified launch gates.
+
+### PDF/XLSX backend delivered (16 October 2026)
+
+All **21 kind/format combinations** now produce private fixed snapshots, with
+format-aware idempotency, MIME types and filenames. Legacy live CSV routes stay
+available during frontend migration. PDF uses bundled licensed DejaVu fonts,
+repeated table headers/identity columns and venue/table roster sections. Place
+cards use the confirmed flat A4 layout: six 90 × 70 mm cards with cut guides.
+XLSX preserves literal text, leading-zero codes, typed counts/UTC dates and
+separate catering requirements/notes tabs. New catering/bar snapshots aggregate
+attendance by guest-facing venue in both attendance modes.
+
+The bounded library/font spike selected PDFKit and write-excel-file. The
+400-person fixture produced 84 files across four locales; all 28 PDFs and 28
+workbooks passed structural/content checks, including long names, combining
+accents and formula-like text. PDF raster pages and workbook previews were
+visually inspected. See [renderer acceptance](../backend/docs/EXPORT_RENDERERS.md)
+for versions, limits, measurements and repeatable commands.
+
+**F20/F49 backend work is implemented; their release gates remain open** for
+frontend adoption, translated standard headings (F35), native spreadsheet and
+physical printing acceptance, and production worker/private-store rehearsal.
+**F27 still needs background automatic seating.** No production deployment or
+frontend implementation is included in this backend batch.
+
+Verification: `npm run verify` passed lint, docs, OpenAPI, build, **1,062 unit,
+400 integration and 578 HTTP tests (2,040 total)**. The 84 synthetic files
+passed the renderer rehearsal and PDF/XLSX acceptance recorded above.
 
 ### All exports (F20, F49, export part of F27)
 
@@ -673,8 +703,8 @@ Outside this 18-item plan: paid event packages/add-ons, deposits, automatic
 renewals/dunning, tax, referral payouts, corporate contracts, availability/
 logistics/staff services, full HA and unrelated long-range gaps. Their separate
 backlog entries stay open. Plan-limit enforcement remains deferred by its
-existing decision. F49 will be implemented as XLSX support, not solved by
-removing the enum.
+existing decision. F49 uses the implemented XLSX snapshot support; the enum
+remains intact.
 
 ## 14. Feature coverage checklist
 

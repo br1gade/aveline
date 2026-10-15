@@ -63,11 +63,13 @@
     "nanoid": "^3.3.8",
     "nestjs-pino": "^5.3.1",
     "nodemailer": "^10.0.16",
+    "pdfkit": "0.20.2",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "write-excel-file": "4.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -80,11 +82,13 @@
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.4",
     "@types/nodemailer": "^8.0.2",
+    "@types/pdfkit": "0.17.6",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^29.16.6",
+    "fflate": "0.8.3",
     "jest": "^30.5.2",
     "pg": "^8.23.1",
     "pino-pretty": "^13.2.0",

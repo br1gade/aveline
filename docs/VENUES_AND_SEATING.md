@@ -200,7 +200,8 @@ guard across planning and application in separate worker transactions.
 3. **Floor plan editor** persistence beyond a table's `posX` / `posY` /
    `shape`, which `PATCH /tables/:tableId` stores — rotation, room outlines,
    non-table objects.
-4. **Printed outputs as PDF** — place cards and the seating chart export as
-   CSV today.
+4. **Print acceptance.** Snapshot PDFs include venue/table rosters with counts
+   and six 90 × 70 mm flat place cards per A4; synthetic layout checks pass.
+   Verify physical venue printouts and translated headings before the pilot.
 5. **Auto-seating as a job.** It runs in the request; fine at hundreds of
    guests, not at thousands.

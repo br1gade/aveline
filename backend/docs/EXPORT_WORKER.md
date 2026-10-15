@@ -27,11 +27,17 @@ with a new UUID; do not edit queue rows to retry them in production.
 A repeatable-read capture records time, timezone, attendance revision and the
 opaque Postgres visibility token. It registers subject fingerprints for erasure.
 Capture is capped at 20 seconds and 5,000 each of guests, seats, tickets, orders
-and attendee records, plus 5,000 tables, 200 custom questions and 100,000
-answers. CPU CSV encoding and upload happen after that transaction;
-output is capped at 20,000 rows and 10 MiB. One job runs at a time per process.
+and attendee records, plus 5,000 tables, 50 venues, 200 custom questions and
+100,000 answers. CPU CSV/PDF/XLSX rendering and upload happen after that
+transaction. Output is capped at 20,000 rows, 256 columns, 32,767 characters
+per cell, 2 million text characters and 10 MiB. PDF has an additional
+500-page/45-second rendering limit. One job runs at a time per process.
 Attempts that exceed limits fail rather than consuming unbounded API resources.
 Standard headings remain English until the four-language export rollout.
+All seven kinds support all three formats; the Docker runtime includes
+licensed DejaVu fonts under `assets/fonts`. Preserve that directory in custom
+images. No system font download is needed. See
+[EXPORT_RENDERERS.md](EXPORT_RENDERERS.md) for layouts and measured acceptance.
 
 The worker writes `/tmp/aveline-export-worker-heartbeat` after successful store/
 queue work. `node scripts/check-export-worker.mjs` exits nonzero when absent or
@@ -73,8 +79,10 @@ cleanup warnings and ledger backlog; retaining tombstones is intentional.
 
 ## Not yet built / release checks
 
-PDF and XLSX renderers/font acceptance, background seating, full translation
-of standard export headings, frontend adoption and production rehearsal remain.
+Background seating, full translation of standard export headings, frontend
+adoption and production rehearsal remain. PDF/XLSX renderers and the synthetic
+four-script 400-person file acceptance are implemented; native spreadsheet
+viewer and physical printing checks remain part of pilot acceptance.
 Legacy `/exports` CSV routes still build live data; their audit rows are not
 past snapshots. After the frontend moves, retire that compatibility surface.
 

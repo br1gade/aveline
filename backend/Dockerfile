@@ -55,6 +55,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY scripts ./scripts
+COPY assets ./assets
+RUN test -s assets/fonts/DejaVuSans.ttf && test -s assets/fonts/DejaVuSans-Bold.ttf
 
 # node's own unprivileged user, so a container escape is not already root.
 USER node

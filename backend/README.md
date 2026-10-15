@@ -324,17 +324,21 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:eventId/exports/:exportId` | One export |
 | `GET` | `/api/v1/events/:eventId/exports/:exportId/download` | The CSV, built now; contact columns only with `guest:contact:read` |
 | `GET` | `/api/v1/events/:eventId/export-snapshots` | Latest 50 snapshot jobs |
-| `POST` | `/api/v1/events/:eventId/export-snapshots` | Queue an immutable private CSV; UUID idempotency key required |
+| `POST` | `/api/v1/events/:eventId/export-snapshots` | Queue an immutable private CSV/PDF/XLSX; UUID idempotency key required |
 | `GET` | `/api/v1/events/:eventId/export-snapshots/:snapshotId` | Job state, generation metadata and expiry |
 | `GET` | `/api/v1/events/:eventId/export-snapshots/:snapshotId/download` | Stored bytes; rechecks current permissions and revocation |
 
-Snapshot CSV supports all seven existing kinds. Run `npm run build` then
+Snapshot CSV, PDF and XLSX support all seven existing kinds. Run `npm run build` then
 `npm run start:export-worker` in a separate process. It claims one job at a time
 from Postgres, retries at most three attempts and recovers expired 90-second
 leases. API startup does not process this queue. Use `PRIVATE_S3_BUCKET` with
 anonymous access disabled, or a shared `PRIVATE_STORAGE_ROOT` outside public
 storage. Files expire after `EXPORT_RETENTION_DAYS` (default 7, range 1–30).
-See [EXPORT_WORKER.md](docs/EXPORT_WORKER.md) for recovery and cleanup.
+See [EXPORT_WORKER.md](docs/EXPORT_WORKER.md) for recovery and cleanup, and
+[EXPORT_RENDERERS.md](docs/EXPORT_RENDERERS.md) for fonts, layouts, limits and
+the database-free 400-person file rehearsal. PDF place cards are six flat
+90 × 70 mm cut cards per A4. Snapshot catering/bar totals are venue-specific.
+Standard headings remain English until F35.
 The existing `/exports` API remains live CSV during frontend migration;
 its records are references to regenerate, never historical snapshots.
 
@@ -545,7 +549,9 @@ verified list, by priority; `docs/GAPS.md` is the backend's own.
    chosen until `SMS_PROVIDER` names an adapter; none is written yet.
 2. **Payments against a real sandbox.** No bank credentials yet, so no adapter
    has run against one. See `../docs/PAYMENTS.md` §6–7.
-3. **PDF and XLSX exports.** CSV works; the other two return `400`.
+3. **Background seating and integrated pilot acceptance.** All seven export
+   kinds now support private CSV/PDF/XLSX snapshots; frontend adoption, full
+   heading translations and production worker/storage rehearsal remain.
 
 `docs/GAPS.md` is the full list, prioritised.
 

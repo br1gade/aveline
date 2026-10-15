@@ -1,4 +1,6 @@
-import { PrismaClient, ExportKind } from '@prisma/client';
+import { AttendancePolicyService } from '../../src/modules/events/attendance-policy.service';
+import { CacheService } from '../../src/infra/cache/cache.service';
+import { PrismaClient, ExportKind, ExportFormat } from '@prisma/client';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ConfigService } from '@nestjs/config';
@@ -44,20 +46,54 @@ describe('Fixed export snapshots (integration)', () => {
     await prisma.guest.updateMany({ where: { eventId: event.eventId }, data: { email: 'primary@test.local' } });
     return { ...event, userId: user.id };
   };
-  const request = (event: { eventId: string; userId: string }, kind: ExportKind = 'GUEST_LIST') => service.create(event.eventId, event.userId, { kind, locale: 'en', idempotencyKey: randomUUID() });
+  const request = (event: { eventId: string; userId: string }, kind: ExportKind = 'GUEST_LIST', format: ExportFormat = 'CSV') => service.create(event.eventId, event.userId, { kind, format, locale: 'en', idempotencyKey: randomUUID() });
 
-  it.each(Object.values(ExportKind))('publishes one immutable, private %s CSV snapshot', async (kind) => {
+  const matrix = Object.values(ExportKind).flatMap((kind) => Object.values(ExportFormat).map((format) => ({ kind, format })));
+  it.each(matrix)('publishes one immutable private $kind $format snapshot', async ({ kind, format }) => {
     const event = await setup();
-    const job = await request(event, kind);
-    expect(job).toMatchObject({ status: 'QUEUED', includesContacts: true, locale: 'en', downloadPath: null });
+    const job = await request(event, kind, format);
+    expect(job).toMatchObject({ format, status: 'QUEUED', includesContacts: true, locale: 'en', downloadPath: null });
     await runner.runOne();
     const completed = await service.findOne(event.eventId, job.id);
     expect(completed).toMatchObject({ status: 'COMPLETED', snapshotAt: expect.any(Date), timezone: 'Asia/Yerevan', attendanceRevision: 1 });
     const before = await service.download(event.eventId, job.id, event.userId);
+    expect(before.filename.endsWith(`.${format.toLowerCase()}`)).toBe(true);
+    const magic = { CSV: Buffer.from('\uFEFF'), PDF: Buffer.from('%PDF-'), XLSX: Buffer.from('PK') }[format];
+    expect(before.buffer.subarray(0, magic.length).equals(magic)).toBe(true);
     await prisma.guest.updateMany({ where: { eventId: event.eventId }, data: { firstName: 'Changed' } });
     expect((await service.download(event.eventId, job.id, event.userId)).buffer.equals(before.buffer)).toBe(true);
     expect(JSON.stringify(completed)).not.toMatch(/artifactKey|http:\/\//);
     expect(await prisma.mediaAsset.count()).toBe(0);
+  });
+
+  it.each(['EVENT_WIDE', 'PER_VENUE'] as const)('exports independent venue covers and drinks in %s mode', async (mode) => {
+    const event = await setup();
+    const hall = await prisma.venue.findFirstOrThrow({ where: { eventId: event.eventId } });
+    const garden = await prisma.venue.create({ data: { eventId: event.eventId, name: 'Garden', address: '2 Test St', role: 'RECEPTION' } });
+    await prisma.venue.create({ data: { eventId: event.eventId, name: 'Private preparation', address: 'Secret', role: 'PREPARATION' } });
+    if (mode === 'PER_VENUE') {
+      const policies = new AttendancePolicyService(prisma as unknown as PrismaService, { invalidateInvitation: jest.fn().mockResolvedValue(undefined) } as unknown as CacheService);
+      const preview = await policies.preview(event.eventId, mode);
+      await policies.change(event.eventId, { ...preview.request, transitionId: randomUUID() });
+    }
+    const guest = await prisma.guest.findFirstOrThrow({ where: { eventId: event.eventId } });
+    await prisma.rsvp.update({ where: { guestId: guest.id }, data: { status: 'ATTENDING', dietary: ['vegan'], dietaryNotes: 'No nuts', drinkPreference: 'water' } });
+    if (mode === 'PER_VENUE') {
+      await prisma.attendanceResponse.createMany({ data: [
+        { eventId: event.eventId, guestId: guest.id, revision: 2, scopeId: hall.id, venueId: hall.id, status: 'ATTENDING' },
+        { eventId: event.eventId, guestId: guest.id, revision: 2, scopeId: garden.id, venueId: garden.id, status: 'DECLINED' },
+      ] });
+    }
+    const catering = await request(event, 'CATERING_SHEET');
+    const bar = await request(event, 'BAR_SHEET');
+    await runner.runOne(); await runner.runOne();
+    const covers = (await service.download(event.eventId, catering.id, event.userId)).buffer.toString();
+    const drinks = (await service.download(event.eventId, bar.id, event.userId)).buffer.toString();
+    expect(covers).toContain('"Venue"');
+    expect(covers).toContain(`"Garden","Total covers","${mode === 'PER_VENUE' ? 0 : 1}"`);
+    expect(covers).not.toContain('Private preparation');
+    expect(drinks).toContain('"Fixture Hall","water","1","100"');
+    expect(drinks).not.toContain('Private preparation');
   });
 
   it('deduplicates one intent and rejects reuse with a different kind or visibility', async () => {
@@ -66,6 +102,7 @@ describe('Fixed export snapshots (integration)', () => {
     const jobs = await Promise.all([service.create(event.eventId, event.userId, dto), service.create(event.eventId, event.userId, dto)]);
     expect(jobs[0].id).toBe(jobs[1].id);
     await expect(service.create(event.eventId, event.userId, { ...dto, kind: 'PLAYLIST' })).rejects.toThrow('another export');
+    await expect(service.create(event.eventId, event.userId, { ...dto, format: 'PDF' })).rejects.toThrow('another export');
   });
 
   it('refuses incomplete, cross-event, reduced-role and inactive-user downloads', async () => {

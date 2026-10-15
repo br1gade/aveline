@@ -181,8 +181,10 @@ unguarded, because double-dispatching messages is worse than delaying them.
 it does not start HTTP or cron sweeps. `ExportSnapshot` owns claims/90-second
 leases, bounded retries and guarded publication. `FOR UPDATE SKIP LOCKED` allows
 separate worker processes without duplicate publication. No Redis availability
-is required. See [EXPORT_WORKER.md](EXPORT_WORKER.md). Background seating and
-PDF/XLSX rendering still follow this CSV foundation. Photo resizing remains a
+is required. CSV, PDF and XLSX render outside the capture transaction in this
+worker, with bounded inputs and bundled fonts. See
+[EXPORT_WORKER.md](EXPORT_WORKER.md) and [EXPORT_RENDERERS.md](EXPORT_RENDERERS.md).
+Background seating still runs in the API. Photo resizing remains a
 cron sweep because its missing variant is already its work marker.
 
 ## 4. Degradation
@@ -254,8 +256,9 @@ failed open.
 
 ## 8. Still missing from the frame
 
-- **Background seating and PDF/XLSX renderers.** Private CSV already runs in
-  the dedicated durable export worker; periodic sweeps keep their Redis locks.
+- **Background seating.** All export formats run in the dedicated durable
+  worker; automatic seating still runs in the API. Periodic sweeps keep their
+  Redis locks.
 - **Metrics and tracing**
 - **Per-actor rate limits** — the throttle is global, not per account
 - **Outbound webhook signature verification**

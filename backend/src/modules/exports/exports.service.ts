@@ -36,7 +36,7 @@ export class ExportsService {
   async create(eventId: string, userId: string, dto: CreateExportDto, canSeeContacts: boolean) {
     const format = dto.format ?? ExportFormat.CSV;
     if (format !== ExportFormat.CSV) {
-      throw new BadRequestException(`${format} is not available yet; CSV is. See docs/GAPS.md`);
+      throw new BadRequestException(`Legacy exports support CSV; use export-snapshots for ${format}`);
     }
     assertMaySee(dto.kind, canSeeContacts);
 

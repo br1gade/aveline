@@ -1,3 +1,4 @@
+import { venueOperationsSheet } from './export-venue-sheets';
 import { ExportKind, Prisma, QuestionType, RsvpStatus, TicketOrderStatus } from '@prisma/client';
 import { resolveTranslation } from '../../common/locale';
 import { OperationsService } from '../operations/operations.service';
@@ -10,6 +11,14 @@ export interface Sheet { columns: string[]; rows: CsvRow[] }
 /** The same sheet queries serve legacy CSV and a repeatable-read worker capture. */
 export class ExportSheets {
   constructor(private readonly prisma: Prisma.TransactionClient, private readonly operations: OperationsService, private readonly locale?: string) {}
+
+  async buildSnapshot(eventId: string, kind: ExportKind): Promise<Sheet> {
+    if (kind === 'CATERING_SHEET' || kind === 'BAR_SHEET') {
+      const sheet = await venueOperationsSheet(this.prisma, { eventId, kind, locale: this.locale ?? 'hy' });
+      if (sheet) return sheet;
+    }
+    return this.build(eventId, kind);
+  }
 
   /** One builder per kind; adding an export is adding a row. */
   build(eventId: string, kind: ExportKind): Promise<Sheet> {

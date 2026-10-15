@@ -107,7 +107,7 @@ it needs a cancellation during the event itself, at the door.
 | # | Feature | Size |
 |---|---|---|
 | F19 | Shared post-event photo gallery guests can add to (§7.2) | M–L |
-| F20 | PDF exports — the seating chart on paper (CSV works) | M |
+| F20 | Backend implemented: PDFs for all seven kinds, embedded four-script fonts and A4 flat place cards. Frontend, translated headings and pilot print acceptance remain | M |
 | F21 | WhatsApp delivery receipts | S–M |
 | F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
 | F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
@@ -121,7 +121,7 @@ it needs a cancellation during the event itself, at the door.
 | F46 | A guest correcting their own name on the RSVP form (§5.3 "Full name") | S |
 | F47 | Linking a directory venue to the vendor who runs it (VENUES §1) | S |
 | F48 | Logo uploads for corporate events (INVITATION_DESIGN §3) | S |
-| F49 | XLSX exports — the format is in the API enum and refused; or drop it from the enum | S |
+| F49 | Backend implemented: typed XLSX snapshots for all seven kinds; literal untrusted text and separate catering tabs. Frontend, translations and native-viewer acceptance remain | S |
 | F50 | **Backend implemented; acceptance pending:** separate venue seating, attendance modes, per-venue RSVP, preview/reconfirmation and history; frontend integration and four-language acceptance remain | L |
 
 ### Revenue and services — after the pilot

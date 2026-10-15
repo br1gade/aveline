@@ -39,16 +39,17 @@ describe('Snapshot contract (HTTP)', () => {
     const actor = await authenticateAs(app, prisma, { eventId: event.eventId, role: 'OWNER' });
     return { ...event, ...actor, base: `/api/v1/events/${event.eventId}/export-snapshots` };
   };
-  it('returns queued metadata, then fixed bytes through an authenticated no-store download', async () => {
+  it.each(['CSV', 'PDF', 'XLSX'] as const)('returns queued %s metadata, then authenticated bytes with the correct MIME type', async (format) => {
     const event = await setup();
-    const response = await http().post(event.base).set('Authorization', event.authorization).send({ kind: 'GUEST_LIST', locale: 'en', idempotencyKey: randomUUID() }).expect(201);
+    const response = await http().post(event.base).set('Authorization', event.authorization).send({ kind: 'GUEST_LIST', format, locale: 'en', idempotencyKey: randomUUID() }).expect(201);
     const id = (response.body as { id: string }).id;
     expect(response.body).toMatchObject({ status: 'QUEUED', downloadPath: null, includesContacts: true });
     await http().get(`${event.base}/${id}/download`).set('Authorization', event.authorization).expect(409);
     await app.get(ExportRunner).runOne();
     await http().get(`${event.base}/${id}`).set('Authorization', event.authorization).expect(200).expect(({ body }: { body: { status: string } }) => { expect(body.status).toBe('COMPLETED'); });
-    const file = await http().get(`${event.base}/${id}/download`).set('Authorization', event.authorization).expect(200).expect('Cache-Control', 'no-store').expect('Content-Type', /text\/csv/);
-    expect(file.text).toContain('Primary');
+    const file = await http().get(`${event.base}/${id}/download`).set('Authorization', event.authorization).expect(200).expect('Cache-Control', 'no-store').expect('Content-Type', ({ CSV: /text\/csv/, PDF: /application\/pdf/, XLSX: /spreadsheetml/ })[format]);
+    expect(file.headers['content-disposition']).toContain(`.${format.toLowerCase()}`);
+    expect(file.headers['content-length']).toBeDefined();
     await http().get(`${event.base}/${id}/download`).expect(401);
     const other = await seedEvent(prisma);
     await http().get(`/api/v1/events/${other.eventId}/export-snapshots/${id}`).set('Authorization', event.authorization).expect(403);
@@ -58,8 +59,7 @@ describe('Snapshot contract (HTTP)', () => {
     { kind: 'GUEST_LIST', idempotencyKey: randomUUID(), locale: 'zz' },
     { kind: 'GUEST_LIST', idempotencyKey: randomUUID(), includesContacts: 'false' },
     { kind: 'UNKNOWN', idempotencyKey: randomUUID() },
-    { kind: 'GUEST_LIST', idempotencyKey: randomUUID(), format: 'PDF' },
-    { kind: 'GUEST_LIST', idempotencyKey: randomUUID(), format: 'XLSX' },
+    { kind: 'GUEST_LIST', idempotencyKey: randomUUID(), format: 'DOCX' },
   ])('rejects unsupported or malformed requests atomically: %j', async (dto) => {
     const event = await setup();
     await http().post(event.base).set('Authorization', event.authorization).send(dto).expect(400);

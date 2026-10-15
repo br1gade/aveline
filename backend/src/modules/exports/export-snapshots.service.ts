@@ -1,3 +1,4 @@
+import { EXPORT_TYPES } from './renderers/export-document';
 import { BadRequestException, ConflictException, ForbiddenException, GoneException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ExportSnapshot } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -10,16 +11,13 @@ export class ExportSnapshotsService {
   constructor(private readonly prisma: PrismaService, private readonly storage: PrivateStorageService) {}
 
   async create(eventId: string, userId: string, dto: CreateExportSnapshotDto) {
-    if (dto.format && dto.format !== 'CSV') throw new BadRequestException('Snapshot PDF and XLSX are not available yet; use CSV');
     const record = await this.prisma.$transaction(async (tx) => {
       // Bounds queue admission across API replicas and concurrent requests.
       await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
       const access = await exportAccess(tx, eventId, userId);
-      const hasContacts = dto.includesContacts ?? access.canSeeContacts;
-      if ((hasContacts || dto.kind === 'TICKET_MANIFEST') && !access.canSeeContacts) throw new ForbiddenException('This export needs guest contact permission');
-      if (dto.kind === 'TICKET_MANIFEST' && !hasContacts) throw new BadRequestException('A ticket manifest cannot be redacted');
+      const hasContacts = resolveContacts(dto, access.canSeeContacts);
       const event = await tx.event.findUniqueOrThrow({ where: { id: eventId }, select: { defaultLocale: true } });
-      const data = { eventId, requestedByUserId: userId, idempotencyKey: dto.idempotencyKey, kind: dto.kind,
+      const data = { eventId, requestedByUserId: userId, idempotencyKey: dto.idempotencyKey, kind: dto.kind, format: dto.format ?? 'CSV',
         locale: dto.locale ?? event.defaultLocale, includesContacts: hasContacts };
       const existing = await tx.exportSnapshot.findUnique({ where: { eventId_requestedByUserId_idempotencyKey: { eventId, requestedByUserId: userId, idempotencyKey: dto.idempotencyKey } } });
       if (existing) return requireSameIntent(existing, data);
@@ -44,7 +42,8 @@ export class ExportSnapshotsService {
     catch { throw new ServiceUnavailableException('Private export storage is temporarily unavailable'); }
     // Storage IO holds no database locks. Recheck standing and revocation after it.
     await this.assertDownload(await this.requireSnapshot(eventId, snapshotId), userId);
-    return { buffer, filename: `${record.kind.toLowerCase().replace(/_/g, '-')}-${record.id}.csv` };
+    return { buffer, mimeType: EXPORT_TYPES[record.format].mimeType,
+      filename: `${record.kind.toLowerCase().replace(/_/g, '-')}-${record.id}.${EXPORT_TYPES[record.format].extension}` };
   }
 
   private async requireSnapshot(eventId: string, id: string) {
@@ -62,8 +61,8 @@ export class ExportSnapshotsService {
   }
 }
 
-function requireSameIntent(existing: ExportSnapshot, data: Pick<ExportSnapshot, 'kind' | 'locale' | 'includesContacts'>) {
-  if (existing.kind !== data.kind || existing.locale !== data.locale || existing.includesContacts !== data.includesContacts) throw new ConflictException('This idempotency key belongs to another export intent');
+function requireSameIntent(existing: ExportSnapshot, data: Pick<ExportSnapshot, 'kind' | 'format' | 'locale' | 'includesContacts'>) {
+  if (existing.format !== data.format || existing.kind !== data.kind || existing.locale !== data.locale || existing.includesContacts !== data.includesContacts) throw new ConflictException('This idempotency key belongs to another export intent');
   return existing;
 }
 
@@ -74,4 +73,12 @@ function snapshotView(record: ExportSnapshot) {
   return { id, kind, format, locale, includesContacts: hasContacts, status, attempts, failureReason, snapshotAt, timezone,
     attendanceRevision, dataRevision, expiresAt, revokedAt, createdAt, completedAt,
     downloadPath: isReady ? `/api/v1/events/${eventId}/export-snapshots/${id}/download` : null };
+}
+
+
+function resolveContacts(dto: CreateExportSnapshotDto, canSeeContacts: boolean): boolean {
+  const hasContacts = dto.includesContacts ?? canSeeContacts;
+  if ((hasContacts || dto.kind === 'TICKET_MANIFEST') && !canSeeContacts) throw new ForbiddenException('This export needs guest contact permission');
+  if (dto.kind === 'TICKET_MANIFEST' && !hasContacts) throw new BadRequestException('A ticket manifest cannot be redacted');
+  return hasContacts;
 }

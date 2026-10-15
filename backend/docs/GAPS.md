@@ -50,7 +50,7 @@ Each replaces a process the incumbent market performs by hand.
 | # | Gap | Replaces |
 |---|---|---|
 | 6 | **WhatsApp delivery receipts** | Meta reports delivery and read status by webhook; nothing consumes it, so a WhatsApp message stays SENT and a failure after acceptance is never recorded. The same webhook is how a WhatsApp block would reach us |
-| 7 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. Private CSV snapshots now have a durable worker; printable PDF and typed XLSX renderers still remain |
+| 7 | **Export pilot acceptance** | All seven kinds now have private CSV/PDF/XLSX worker snapshots and synthetic four-script file acceptance. Frontend adoption, translated headings, native spreadsheet/print checks and production worker/private-bucket rehearsal remain |
 | 8 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — the guest book and the thank-you flow are built; a gallery guests can add to needs capability-token uploads and a moderation answer |
 | 9 | **Disputed refunds** | A ticket order with any admitted ticket cannot be cancelled — refunding after attendance is a dispute with the buyer, not a cancellation, and voiding a used ticket would erase the record that they came. There is no flow for that dispute; it is handled outside the system |
 | 10 | **Partial ticket cancellation** | **Decided (8 October 2026): whole orders only.** A buyer who can bring three of four is refunded and buys again. Revisit if hosts ask |

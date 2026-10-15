@@ -28,11 +28,11 @@ export class ExportSnapshotsController {
 
   @RequirePermission('operations:read')
   @Get(':snapshotId/download')
-  @ApiProduces('text/csv')
+  @ApiProduces('text/csv', 'application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Download stored snapshot bytes with current event/contact authorization' })
   async download(@CurrentActor() actor: RequestActor, @Param('eventId') eventId: string, @Param('snapshotId') snapshotId: string) {
     const file = await this.snapshots.download(eventId, snapshotId, actor.userId);
-    return new StreamableFile(file.buffer, { type: 'text/csv; charset=utf-8', disposition: `attachment; filename="${file.filename}"` });
+    return new StreamableFile(file.buffer, { type: file.mimeType, disposition: `attachment; filename="${file.filename}"` });
   }
 }

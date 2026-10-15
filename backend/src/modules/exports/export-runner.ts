@@ -8,9 +8,7 @@ import { exportAccess } from './export-access';
 import { lockExportPrivacy, rememberExportSubjects } from './export-privacy';
 import { ExportQueue, EXPORT_LEASE_MS, ownedExport } from './export-queue';
 import { ExportSheets } from './export-sheets';
-import { toCsv } from './csv';
-
-const MAX_BYTES = 10 * 1024 * 1024;
+import { renderExport } from './renderers/render-export';
 
 @Injectable()
 export class ExportRunner {
@@ -32,12 +30,11 @@ export class ExportRunner {
       heartbeat = setInterval(() => { void this.queue.renew(job).catch(() => false); }, 15_000);
       // The repeatable read has ended: no DB locks during encoding or upload.
       const columns = job.includesContacts ? input.sheet.columns : input.sheet.columns.filter((column) => !['Email', 'Phone'].includes(column));
-      if (input.sheet.rows.length > 20_000) throw new Error('Export row limit exceeded');
-      const buffer = Buffer.from(toCsv(columns, input.sheet.rows), 'utf8');
-      if (buffer.length > MAX_BYTES) throw new Error('Export byte limit exceeded');
+      const file = await renderExport({ ...input.context, kind: job.kind, format: job.format,
+        locale: job.locale, includesContacts: job.includesContacts, sheet: { columns, rows: input.sheet.rows } });
       const key = randomUUID();
       if (!await this.reserveArtifact(job, key)) return;
-      await this.storage.put(key, buffer, 'text/csv; charset=utf-8');
+      await this.storage.put(key, file.buffer, file.mimeType);
       await this.publish(job, key);
     } catch {
       await this.queue.fail(job, 'GENERATION_FAILED');
@@ -50,15 +47,15 @@ export class ExportRunner {
       await lockExportPrivacy(tx);
       await this.assertMayRun(tx, job);
       await assertCaptureBounds(tx, job.eventId);
-      const event = await tx.event.findUniqueOrThrow({ where: { id: job.eventId }, select: { timezone: true, attendanceRevision: true } });
+      const event = await tx.event.findUniqueOrThrow({ where: { id: job.eventId }, select: { title: true, timezone: true, attendanceRevision: true } });
       const [revision] = await tx.$queryRaw<{ value: string; at: Date }[]>`SELECT txid_current_snapshot()::text AS value, current_timestamp AS at`;
-      const sheet = await new ExportSheets(tx, this.operations.inTransaction(tx, job.locale), job.locale).build(job.eventId, job.kind);
+      const sheet = await new ExportSheets(tx, this.operations.inTransaction(tx, job.locale), job.locale).buildSnapshot(job.eventId, job.kind);
       await rememberExportSubjects(tx, job);
       const update = await tx.exportSnapshot.updateMany({ where: ownedExport(job), data: {
         snapshotAt: revision.at, timezone: event.timezone, attendanceRevision: event.attendanceRevision, dataRevision: revision.value,
       } });
       if (!update.count) throw new Error('Export lease lost');
-      return { sheet };
+      return { sheet, context: { ...event, snapshotAt: revision.at, dataRevision: revision.value } };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 20_000, maxWait: 5000 });
   }
 
@@ -119,6 +116,7 @@ async function assertCaptureBounds(tx: Prisma.TransactionClient, eventId: string
     tx.seat.count({ where: { guest: { eventId } } }), tx.ticketOrder.count({ where: { eventId } }),
     tx.orderAttendee.count({ where: { order: { eventId } } }), tx.table.count({ where: { eventId } }),
   ]);
+  if (await tx.venue.count({ where: { eventId } }) > 50) throw new Error('Event exceeds venue limit');
   const questions = await tx.rsvpQuestion.count({ where: { invitation: { eventId } } });
   const answers = await tx.rsvpAnswer.count({ where: { rsvp: { guest: { eventId } } } });
   if (counts.some((count) => count > 5000) || questions > 200 || answers > 100_000) throw new Error('Event exceeds worker input limit');

@@ -78,8 +78,8 @@ date can move; full scope takes priority.
 | Asynchronous bounce reports | Signed provider-neutral delivery/bounce/complaint ingestion is built. Native provider/mailbox integration stays deferred by D30; it is not connected to real delivery events |
 | Provider send-rate throttling | Persistent per-minute/daily budgets and sending concurrency are built. Configure them against the actual sender's limits and prove controlled sending; quota waits do not consume delivery attempts |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
-| Background export/seating completion | Private CSV jobs use a dedicated Postgres queue. PDF/XLSX and asynchronous seating still remain |
-| Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |
+| Background export/seating completion | All seven CSV/PDF/XLSX exports use the dedicated Postgres worker; asynchronous seating and production worker rehearsal remain |
+| Seating chart on paper | PDFs and A4 flat place cards are implemented and visually checked with synthetic data; verify the venue's physical printouts |
 | Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
 | Invoice tax | `taxMinor` is always zero, so an invoice is not a tax document |
 | Entitlement enforcement | Plans publish limits that nothing refuses an action against |
@@ -128,4 +128,6 @@ and verify anonymous reads fail. Deploy the dedicated export worker, check its
 heartbeat/failed queue state, exercise termination/lease recovery and a storage
 outage, and prove expiry, event deletion and subject erasure clean up stored
 bytes. See [worker runbook](../backend/docs/EXPORT_WORKER.md). Frontend adoption,
-PDF/XLSX and background seating remain release gates in the pilot plan.
+translated headings, native spreadsheet/printing acceptance and background seating
+remain release gates in the pilot plan. PDF/XLSX backend rendering is implemented;
+see [renderer acceptance](../backend/docs/EXPORT_RENDERERS.md).
