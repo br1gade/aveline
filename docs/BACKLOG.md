@@ -122,7 +122,7 @@ it needs a cancellation during the event itself, at the door.
 | F47 | Linking a directory venue to the vendor who runs it (VENUES §1) | S |
 | F48 | Logo uploads for corporate events (INVITATION_DESIGN §3) | S |
 | F49 | XLSX exports — the format is in the API enum and refused; or drop it from the enum | S |
-| F50 | **Partly built:** separate venue arrangements, seats, release history and venue capacity; remaining host-selectable attendance modes and explicit reconfirmation | L |
+| F50 | **Backend implemented; acceptance pending:** separate venue seating, attendance modes, per-venue RSVP, preview/reconfirmation and history; frontend integration and four-language acceptance remain | L |
 
 ### Revenue and services — after the pilot
 

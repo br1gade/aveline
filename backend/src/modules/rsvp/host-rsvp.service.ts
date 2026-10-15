@@ -1,3 +1,4 @@
+import { assertAttendanceRevision, lockAttendancePolicy, normalizePersonAttendance } from './attendance/attendance-context';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
@@ -26,7 +27,58 @@ export class HostRsvpService {
     private readonly confirmer: RsvpConfirmerService,
   ) {}
 
-  async record(eventId: string, guestId: string, dto: HostRsvpDto) {
+  async record(eventId: string, guestId: string, submitted: HostRsvpDto) {
+    const invitation = await this.loadAnswerableInvitation(eventId, guestId);
+    const problem =
+      answersProblem(invitation?.questions ?? [], submitted.answers ?? []) ??
+      builtInAnswerProblem(invitation?.rsvpFields, submitted);
+    if (problem) throw new BadRequestException(problem);
+
+    const rsvp = await this.prisma.$transaction(async (tx) => {
+      const policy = await lockAttendancePolicy(tx, eventId);
+      assertAttendanceRevision(policy, submitted.attendanceRevision);
+      // Checked again under the guest's row lock: an erasure committing
+      // between the check above and this write left the host's answer — their
+      // dietary note, say — on an erased person (B87). Erasure updates the
+      // same row, so the two now run one after the other.
+      const [locked] = await tx.$queryRaw<{ anonymizedAt: Date | null }[]>`
+        SELECT "anonymizedAt" FROM guests WHERE id = ${guestId} FOR UPDATE`;
+      if (locked?.anonymizedAt) throw new BadRequestException("This guest's details were erased at their request");
+      const earlier = await tx.attendanceResponse.findMany({ where: { guestId, revision: policy.attendanceRevision } });
+      const dto = normalizePersonAttendance(policy, submitted, earlier);
+      const recorded = await recordAnswer(
+        tx,
+        guestId,
+        withoutUndefined({
+          status: dto.status,
+          dietary: dto.dietary,
+          dietaryNotes: dto.dietaryNotes,
+          drinkPreference: dto.drinkPreference,
+          songRequest: dto.songRequest,
+          message: dto.message,
+        }),
+        { policy, venueAttendance: dto.venueAttendance },
+      );
+      await saveAnswers(tx, recorded.id, submitted.answers ?? []);
+      return { ...recorded, attendanceMode: policy.attendanceMode, attendanceRevision: policy.attendanceRevision };
+    });
+
+    // After the commit, and only when asked. Never fails the recording.
+    if (submitted.notifyGuest) await this.confirmer.confirm(guestId, rsvp.status, rsvp.attendanceMode);
+
+    return {
+      attendanceMode: rsvp.attendanceMode,
+      attendanceRevision: rsvp.attendanceRevision,
+      status: rsvp.status,
+      respondedAt: rsvp.respondedAt,
+      dietary: rsvp.dietary,
+      dietaryNotes: rsvp.dietaryNotes,
+      drinkPreference: rsvp.drinkPreference,
+      songRequest: rsvp.songRequest,
+      message: rsvp.message,
+    };
+  }
+  private async loadAnswerableInvitation(eventId: string, guestId: string) {
     const guest = await this.prisma.guest.findFirst({
       where: { id: guestId, eventId },
       select: {
@@ -46,47 +98,7 @@ export class HostRsvpService {
     if (!guest) throw new NotFoundException(`No guest ${guestId} on this event`);
     if (guest.anonymizedAt) throw new BadRequestException("This guest's details were erased at their request");
 
-    const invitation = guest.event.invitation;
-    const problem =
-      answersProblem(invitation?.questions ?? [], dto.answers ?? []) ??
-      builtInAnswerProblem(invitation?.rsvpFields, dto);
-    if (problem) throw new BadRequestException(problem);
-
-    const rsvp = await this.prisma.$transaction(async (tx) => {
-      // Checked again under the guest's row lock: an erasure committing
-      // between the check above and this write left the host's answer — their
-      // dietary note, say — on an erased person (B87). Erasure updates the
-      // same row, so the two now run one after the other.
-      const [locked] = await tx.$queryRaw<{ anonymizedAt: Date | null }[]>`
-        SELECT "anonymizedAt" FROM guests WHERE id = ${guestId} FOR UPDATE`;
-      if (locked?.anonymizedAt) throw new BadRequestException("This guest's details were erased at their request");
-      const recorded = await recordAnswer(
-        tx,
-        guestId,
-        withoutUndefined({
-          status: dto.status,
-          dietary: dto.dietary,
-          dietaryNotes: dto.dietaryNotes,
-          drinkPreference: dto.drinkPreference,
-          songRequest: dto.songRequest,
-          message: dto.message,
-        }),
-      );
-      await saveAnswers(tx, recorded.id, dto.answers ?? []);
-      return recorded;
-    });
-
-    // After the commit, and only when asked. Never fails the recording.
-    if (dto.notifyGuest) await this.confirmer.confirm(guestId, rsvp.status);
-
-    return {
-      status: rsvp.status,
-      respondedAt: rsvp.respondedAt,
-      dietary: rsvp.dietary,
-      dietaryNotes: rsvp.dietaryNotes,
-      drinkPreference: rsvp.drinkPreference,
-      songRequest: rsvp.songRequest,
-      message: rsvp.message,
-    };
+    return guest.event.invitation;
   }
+
 }

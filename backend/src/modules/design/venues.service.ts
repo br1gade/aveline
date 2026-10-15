@@ -1,3 +1,4 @@
+import { mutateGuestVenues } from '../rsvp/attendance/venue-attendance';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, VenueRole } from '@prisma/client';
 import { VENUE_TRANSLATABLE, translationsProblem } from '../../common/field-translations';
@@ -71,7 +72,7 @@ export class VenuesService {
       select: { sortOrder: true },
     });
 
-    const venue = await this.prisma.venue.create({
+    const venue = await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, () => tx.venue.create({
       data: {
         eventId,
         role,
@@ -85,13 +86,13 @@ export class VenuesService {
         // What the host typed wins over the directory's copy.
         ...withoutUndefined({ latitude: dto.latitude, longitude: dto.longitude, capacity: dto.capacity }),
       },
-    });
+    })));
     return { ...venue, notice: await this.afterChange(eventId) };
   }
 
   async update(eventId: string, venueId: string, dto: UpdateVenueDto) {
     assertTranslations(dto.translations);
-    const venue = await this.prisma.$transaction(async (tx) => {
+    const venue = await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, async () => {
       await tx.$queryRaw`SELECT id FROM seating_arrangements WHERE "venueId" = ${venueId} AND "eventId" = ${eventId} FOR UPDATE`;
       await lockRow(tx, 'venues', venueId);
       const current = await tx.venue.findFirst({ where: { id: venueId, eventId } });
@@ -119,7 +120,7 @@ export class VenuesService {
             : undefined,
         },
       });
-    });
+    }));
     return { ...venue, notice: await this.afterChange(eventId) };
   }
 
@@ -130,7 +131,7 @@ export class VenuesService {
    * them to null and quietly detach a running order from where it happens.
    */
   async remove(eventId: string, venueId: string) {
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, async () => {
       await tx.$queryRaw`SELECT id FROM seating_arrangements WHERE "venueId" = ${venueId} AND "eventId" = ${eventId} FOR UPDATE`;
       await lockRow(tx, 'venues', venueId);
       const venue = await tx.venue.findFirst({
@@ -139,6 +140,8 @@ export class VenuesService {
       });
       if (!venue) throw new NotFoundException('No such venue on this event');
       const releases = await tx.seatRelease.count({ where: { arrangement: { venueId } } });
+      const responses = await tx.attendanceResponse.count({ where: { eventId, venueId } });
+      if (responses > 0) throw new BadRequestException('venue: attendance history exists; retain this venue');
       if (venue._count.timeline + venue._count.tables + releases > 0) {
         throw new BadRequestException(
           `${venue._count.timeline} timeline entr(ies), ${venue._count.tables} table(s) and ${releases} release marker(s) ` +
@@ -147,7 +150,7 @@ export class VenuesService {
       }
       await tx.seatingArrangement.deleteMany({ where: { eventId, venueId } });
       await tx.venue.delete({ where: { id: venueId } });
-    });
+    }));
     return { ok: true as const, notice: await this.afterChange(eventId) };
   }
 

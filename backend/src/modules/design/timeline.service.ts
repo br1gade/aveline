@@ -1,3 +1,4 @@
+import { mutateGuestVenues } from '../rsvp/attendance/venue-attendance';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
@@ -45,7 +46,7 @@ export class TimelineService {
     if (dto.venueId) await this.assertVenueBelongsToEvent(eventId, dto.venueId);
     assertHasLabel(dto);
 
-    const entry = await this.prisma.timelineEntry.create({
+    const entry = await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, () => tx.timelineEntry.create({
       data: {
         eventId,
         label: dto.label as Prisma.InputJsonValue,
@@ -54,7 +55,7 @@ export class TimelineService {
         sortOrder: dto.sortOrder ?? 0,
         isInternal: dto.isInternal ?? false,
       },
-    });
+    })));
 
     // The TIMELINE block renders from this, and the invitation payload is
     // cached per slug and locale.
@@ -73,7 +74,7 @@ export class TimelineService {
     const label = dto.label ? mergeTranslations(entry.label, dto.label) : undefined;
     if (label) assertHasLabel({ label });
 
-    const updated = await this.prisma.timelineEntry.update({
+    const updated = await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, () => tx.timelineEntry.update({
       where: { id: entryId },
       data: {
         label: label as Prisma.InputJsonValue | undefined,
@@ -83,7 +84,7 @@ export class TimelineService {
         sortOrder: dto.sortOrder ?? undefined,
         isInternal: dto.isInternal,
       },
-    });
+    })));
 
     await this.invalidateInvitation(eventId);
     return updated;
@@ -92,7 +93,7 @@ export class TimelineService {
   async remove(eventId: string, entryId: string) {
     await this.requireEntry(eventId, entryId);
 
-    await this.prisma.timelineEntry.delete({ where: { id: entryId } });
+    await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, () => tx.timelineEntry.delete({ where: { id: entryId } })));
     await this.invalidateInvitation(eventId);
     return { ok: true as const };
   }

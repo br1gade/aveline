@@ -222,6 +222,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `DELETE` | `/api/v1/events/:eventId/team/invites/:email` | Withdraw an open invitation |
 | `PATCH` | `/api/v1/events/:eventId/team/:userId` | Change someone's role; never the last owner |
 | `DELETE` | `/api/v1/events/:eventId/team/:userId` | Take someone off; they lose access at once |
+| `POST` | `/api/v1/events/:eventId/attendance-policy/preview` | Preview a mode change |
+| `POST` | `/api/v1/events/:eventId/attendance-policy` | Confirm policy change and require fresh attendance |
+| `GET` | `/api/v1/events/:eventId/guests/:guestId/attendance-history` | Attendance history across policies |
 | `GET` | `/api/v1/events/:id/audit-trail` | Who changed what on this event |
 | `GET` | `/api/v1/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
 | `GET` | `/api/v1/events/:id/guests` | Guest graph grouped by household |
@@ -531,5 +534,23 @@ verified list, by priority; `docs/GAPS.md` is the backend's own.
 Multi-venue seating now permits one seat per guest per arrangement. Automatic
 seating and unassignment use `?arrangementId=...` when several plans are in use;
 assignment derives the arrangement from its table. Guest views, check-in and
-CSV outputs carry venue labels. Attendance is still event-wide; per-venue RSVP
-and policy reconfirmation remain in the pilot implementation plan.
+CSV outputs carry venue labels. Event-wide and per-venue attendance are now
+available through an explicit policy preview/reconfirmation flow:
+
+```http
+POST /api/v1/events/:eventId/attendance-policy/preview
+POST /api/v1/events/:eventId/attendance-policy
+GET  /api/v1/events/:eventId/guests/:guestId/attendance-history
+```
+
+Both policy writes require `event:write`; history requires `guest:read`.
+Guest/host RSVP writes carry the active `attendanceRevision`; omission works
+only at unchanged EVENT_WIDE revision 1. Per-venue payloads use `venueAttendance`
+for each person. Transitions preserve history, personal answers, seats and
+admissions, while requiring fresh attendance. Reserved seats remain counted
+and are flagged `isReservation`. Venue declines release only their own seats.
+Headcount adds per-venue totals; catering/bar accept optional `venueId`.
+See the shared API contract for payloads, stale-preview handling and frontend
+cutover. Apply both new migrations and rerun `seed:production` for the new
+four-language venue-response confirmation copy. Production deployment,
+frontend reconfirmation screens and language review remain acceptance gates.

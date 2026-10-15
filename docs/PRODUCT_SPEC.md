@@ -81,7 +81,7 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 ## 4. Domain model
 
 The entities below are the ones the product argument rests on. The complete
-inventory — 51 models, what each is for, and the invariants the database
+inventory — 53 models, what each is for, and the invariants the database
 enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 
 | Entity | Purpose |
@@ -163,6 +163,16 @@ The RSVP is a configurable questionnaire, not a fixed form. Every question has a
 named member, each attending or not, in one submission — decided 8 October
 2026, because families split ("we're coming, grandma can't travel") and
 catering and seating count people, not households.
+
+Attendance policy is host-selectable: EVENT_WIDE or PER_VENUE. Everyone is
+invited to each guest-facing venue. A policy change requires a preview and
+explicit confirmation, preserves earlier attendance as history and requests
+fresh answers under the new revision. Seats remain visible capacity-consuming
+reservations until reconfirmed; a fresh venue decline releases only that venue.
+Household submissions contain each person's own venue choices, including new
+plus-ones. Operational totals count unique people and offer venue-specific
+attendance/catering/bar views. The frontend reconfirmation journey still needs
+integration and acceptance in en/ru/fr/hy.
 
 ### 5.4 Per-guest personalization
 

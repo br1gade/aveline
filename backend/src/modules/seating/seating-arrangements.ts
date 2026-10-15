@@ -47,7 +47,7 @@ export async function lockGuestAnswer(tx: Prisma.TransactionClient, eventId: str
 /** Busy answers are deferred as whole households; waiting while holding other answers can deadlock a submission. */
 export async function lockAttendingAnswers(tx: Prisma.TransactionClient, eventId: string, arrangementId: string) {
   const candidates = await tx.guest.findMany({
-    where: { eventId, rsvp: { status: 'ATTENDING' }, seats: { none: { arrangementId } } },
+    where: { eventId, ...await attendanceEligibility(tx, eventId, arrangementId), rsvp: { status: 'ATTENDING' }, seats: { none: { arrangementId } } },
     select: { id: true, householdId: true },
   });
   if (candidates.length === 0) return { guestIds: [], deferred: [] };
@@ -55,7 +55,10 @@ export async function lockAttendingAnswers(tx: Prisma.TransactionClient, eventId
     SELECT id FROM guests WHERE id IN (${Prisma.join(candidates.map((guest) => guest.id))})
     ORDER BY id FOR KEY SHARE SKIP LOCKED`;
   const ready = await lockReadyAnswers(tx, guests.map((guest) => guest.id));
-  return deferChangingHouseholds(candidates, new Set(ready));
+  const eligible = await tx.guest.findMany({
+    where: { id: { in: ready }, ...await attendanceEligibility(tx, eventId, arrangementId) }, select: { id: true },
+  });
+  return deferChangingHouseholds(candidates, new Set(eligible.map((guest) => guest.id)));
 }
 
 async function lockReadyAnswers(tx: Prisma.TransactionClient, guestIds: string[]) {
@@ -78,4 +81,12 @@ function deferChangingHouseholds(candidates: { id: string; householdId: string }
       householdId, size, reason: 'Attendance changed or a guest is being updated; refresh and run again',
     })),
   };
+}
+
+async function attendanceEligibility(tx: Prisma.TransactionClient, eventId: string, arrangementId: string): Promise<Prisma.GuestWhereInput> {
+  const event = await tx.event.findUniqueOrThrow({ where: { id: eventId }, select: { attendanceMode: true, attendanceRevision: true } });
+  if (event.attendanceMode === 'EVENT_WIDE') return {};
+  const arrangement = await tx.seatingArrangement.findUniqueOrThrow({ where: { id: arrangementId }, select: { venueId: true } });
+  if (!arrangement.venueId) return { id: { in: [] } };
+  return { attendanceResponses: { some: { revision: event.attendanceRevision, venueId: arrangement.venueId, status: 'ATTENDING' } } };
 }

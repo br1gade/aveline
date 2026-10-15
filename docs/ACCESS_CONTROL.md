@@ -243,3 +243,8 @@ separate, because an invitee may not have an account yet.
 3. **Email verification is not enforced.** Anyone can register any address.
    Invitations guard against it — accepting for an existing account needs
    that account's password — but nothing else does.
+
+Attendance policy preview/confirmation requires `event:write`. Attendance
+history requires `guest:read` and is event/person scoped; designers cannot
+read it. Guest capabilities permit current answers only for their own household,
+including venue attendance. No new role or permission was introduced.

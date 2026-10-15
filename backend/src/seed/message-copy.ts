@@ -9,7 +9,19 @@ import { MessageChannel } from '@prisma/client';
  * production seed and the development seed read this one list — there used to
  * be a second, shorter copy in the development seed that had already drifted.
  */
+const VENUE_RESPONSE_COPY = {
+  hy: '{{guestName}}, Ձեր մասնակցության պատասխանները պահպանվել են։ Դիտեք կամ փոխեք դրանք Ձեր հրավերում։\n\n{{link}}',
+  en: '{{guestName}}, your venue attendance answers have been saved. Review or change them on your invitation.\n\n{{link}}',
+  ru: '{{guestName}}, ваши ответы об участии на площадках сохранены. Проверьте или измените их в приглашении.\n\n{{link}}',
+  fr: '{{guestName}}, vos réponses de participation aux différents lieux ont été enregistrées. Consultez-les ou modifiez-les dans votre invitation.\n\n{{link}}',
+};
+
 export const MESSAGE_COPY = [
+  ...[MessageChannel.EMAIL, MessageChannel.TELEGRAM, MessageChannel.WHATSAPP].map((channel) => ({
+    key: 'rsvp.confirmation.venues', channel,
+    subject: { hy: 'Պատասխանը պահպանվել է', en: 'Your answers are saved', ru: 'Ваши ответы сохранены', fr: 'Vos réponses sont enregistrées' },
+    body: VENUE_RESPONSE_COPY,
+  })),
   {
     key: 'invitation.send',
     channel: MessageChannel.EMAIL,

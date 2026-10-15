@@ -2,7 +2,7 @@
 
 Prepared 12 October 2026; revised 13 October 2026 (Asia/Yerevan).
 **Status: product decisions confirmed; implementation plan ready.
-Readiness groundwork and the first F50 seating slice are implemented; feature
+Readiness groundwork and F50 backend seating/attendance are implemented; feature
 milestones remain open until all of their acceptance checks pass.**
 
 Goal: deliver the requested pilot features while the frontend is being built,
@@ -82,7 +82,7 @@ Current limitations that drive the new plan:
 
 - The original one-seat/event layout has been replaced by separate venue
   arrangements, scoped assignment/release history and enforced venue capacity.
-  Attendance remains event-wide and automatic seating still runs in the request.
+  Attendance now supports both modes and reconfirmation; automatic seating still runs in the request.
 - CSV exports generate current data during download. PDF/XLSX are rejected.
 - The storage port returns public URLs. Private exports, signatures and
   guest-gallery originals need a separate protected storage path.
@@ -173,9 +173,31 @@ labels. An existing queued-email fixture now stops its background cron dispatche
 so its status assertion does not depend on the wall clock. New migrations were
 applied to guarded disposable test stores; no production deployment occurred.
 
-**B remains open:** attendance policy/revision models, per-venue RSVP, mode-change
-preview/reconfirmation/history, related statistics/notifications and frontend
-acceptance are still required. F27's worker cutover is a later milestone.
+**Second slice implemented and verified, 13 October:** event-wide/per-venue
+policy revisions, preview/confirmation with stale-state protection and idempotent
+transitions, preserved attendance history, current household/plus-one venue
+answers, scoped declines, reservation flags, venue totals and catering/bar scope.
+Venue/timeline visibility edits preserve answered history and new venues start
+pending. Guest/host writes and seating share policy locks; transitions and venue
+edits serialize ahead of them. Confirmations use per-venue copy in four languages;
+hosts may request reconfirmation through the existing separate notify-changes
+outbox operation. Unknown imported answer times stay null.
+
+**Second-slice verification:** full `npm run verify` passed zero-warning lint,
+docs, generated OpenAPI (130 paths), build, **1,020 unit / 341 integration /
+562 HTTP tests** (1,923 total). Regressions cover populated legacy backfills
+including unknown response times, immutable historical identities, transitions
+in both directions, stale previews/forms, retries, simultaneous venue answers,
+policy/RSVP/venue-edit lock ordering, scoped seating and venue totals. HTTP
+checks cover permission boundaries, invalid payload rollback and translated venue
+labels in all four languages. Partial venue replies now count consistently in
+response rate and daily response trend. New migrations were applied only to
+guarded test stores; no development/production migration or deployment occurred.
+
+**B remains open for frontend acceptance:** mode selection/preview, household
+reconfirmation, reservation/history displays and four-language walkthroughs need
+the frontend team. F27's worker cutover, snapshot exports and personalized caching
+remain later milestones; their cross-request guards will use these revisions.
 
 
 **Model and migration**

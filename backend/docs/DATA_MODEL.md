@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 51 models across three
+The authoritative map of what is stored and where. 53 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 51 |
+| **PostgreSQL** | The entire domain. The only source of truth | 53 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -51,6 +51,7 @@ lives outside Postgres.
 |---|---|
 | `Household` | The unit invitations and seating operate on |
 | `Guest` | A person, reached by capability token |
+| `AttendancePolicy` · `AttendanceResponse` | Versioned attendance modes and person/venue answers; one active policy per event |
 | `Rsvp` · `RsvpQuestion` · `RsvpAnswer` | The response, and host-authored questions |
 | `GuestImport` | One upload, with per-row errors |
 | `SeatingArrangement` | A separately seated venue or the explicit unspecified legacy plan |
@@ -202,3 +203,19 @@ Requests are accepted publicly and handled by Aveline staff — export,
 erasure, and a manual close for rectification (`privacy/`). What is missing:
 `Session.ipAddress` is personal data with no retention limit, and nothing
 verifies who is asking before a human marks a request in progress.
+
+Attendance now has an immutable policy identity `(eventId, revision)` and a
+response identity `(guestId, revision, scopeId)`. `scopeId` is `event` or the
+venue ID, checked against nullable `venueId`. Composite foreign keys enforce
+same-event guests, policies and venues; archived policy responses cannot be
+changed or moved to another revision. Event mode/revision updates must match
+an active policy. Initial policies are created for every event, including bulk
+writers. Migration backfills event-wide responses and keeps unknown response
+times null. No historical event-wide answer is copied to venues.
+
+`Rsvp.status` is the current person-level projection; dietary/custom fields stay
+personal. In per-venue mode it counts a person attending any eligible venue once,
+then pending/undecided/declined without guessing unanswered venues. Venue and
+timeline edits refresh that projection in the same transaction. Response history
+contains no contact details or free text, is included in subject exports, and
+retains anonymous operational attendance consistently with existing erasure rules.

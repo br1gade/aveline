@@ -33,6 +33,11 @@ describe('Multi-venue seating migration (integration)', () => {
         { guestId: 'unknown', arrangementId: 'legacy:event', tableId: null, releasedAt: '2026-10-02 12:00:00' },
       ]);
       expect((await connection.query<{ status: string }>('SELECT status FROM rsvps')).rows).toEqual([{ status: 'ATTENDING' }]);
+      expect((await connection.query('SELECT "attendanceMode", "attendanceRevision" FROM events')).rows).toEqual([{ attendanceMode: 'EVENT_WIDE', attendanceRevision: 1 }]);
+      expect((await connection.query('SELECT "guestId", revision, "scopeId", "venueId", status FROM attendance_responses')).rows).toEqual([
+        { guestId: 'venue', revision: 1, scopeId: 'event', venueId: null, status: 'ATTENDING' },
+      ]);
+      expect((await connection.query('SELECT "respondedAt" FROM attendance_responses')).rows).toEqual([{ respondedAt: null }]);
       expect((await connection.query<{ venueId: string | null }>('SELECT "venueId" FROM tables WHERE id = \'legacy-table\'')).rows).toEqual([{ venueId: null }]);
     } finally {
       await connection.query('ROLLBACK');

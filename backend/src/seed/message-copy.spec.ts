@@ -62,9 +62,15 @@ describe('message copy', () => {
     expect(keysTheCodeSends()).toContain(key);
   });
 
+  it('gives venue-response confirmations all four pilot languages on every supported channel', () => {
+    const confirmations = MESSAGE_COPY.filter((template) => template.key === 'rsvp.confirmation.venues');
+    expect(confirmations.map((template) => template.channel).sort()).toEqual(['EMAIL', 'TELEGRAM', 'WHATSAPP']);
+    for (const template of confirmations) expect(Object.keys(template.body).sort()).toEqual(['en', 'fr', 'hy', 'ru']);
+  });
+
   it('gives every template a body in Armenian and English', () => {
     for (const template of MESSAGE_COPY) {
-      expect(Object.keys(template.body).sort()).toEqual(['en', 'hy']);
+      expect(Object.keys(template.body)).toEqual(expect.arrayContaining(['en', 'hy']));
     }
   });
 });

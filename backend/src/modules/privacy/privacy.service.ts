@@ -199,6 +199,7 @@ export class PrivacyService {
           event: { select: { title: true, startsAt: true } },
           household: { select: { name: true } },
           rsvp: { include: { answers: { select: { value: true, question: { select: { prompt: true } } } } } },
+          attendanceResponses: { select: { revision: true, venueId: true, status: true, respondedAt: true, policy: { select: { mode: true } } } },
           channels: { select: { channel: true, address: true, optedInAt: true } },
           checkIn: { select: { arrivedAt: true } },
         },

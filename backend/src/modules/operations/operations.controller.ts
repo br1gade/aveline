@@ -34,15 +34,15 @@ export class OperationsController {
   @RequirePermission('operations:read')
   @Get('catering-sheet')
   @ApiOperation({ summary: 'Covers and dietary requirements for the venue' })
-  catering(@Param('eventId') eventId: string) {
-    return this.operations.cateringSheet(eventId);
+  catering(@Param('eventId') eventId: string, @Query('venueId') venueId?: string) {
+    return this.operations.cateringSheet(eventId, venueId);
   }
 
   @RequirePermission('operations:read')
   @Get('bar-sheet')
   @ApiOperation({ summary: 'Drink preferences aggregated into quantities' })
-  bar(@Param('eventId') eventId: string) {
-    return this.operations.barSheet(eventId);
+  bar(@Param('eventId') eventId: string, @Query('venueId') venueId?: string) {
+    return this.operations.barSheet(eventId, venueId);
   }
 
   @RequirePermission('operations:read')

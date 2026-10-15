@@ -1,6 +1,7 @@
 import { MessageStatus, Prisma, RsvpStatus } from '@prisma/client';
 import { REMINDER_TEMPLATE_KEY } from '../invitations/sending/reminder-schedule';
 import { releaseSeat } from '../seating/released-seat';
+import { AttendanceWrite, writeAttendance } from './attendance/attendance-writes';
 import { Answer } from './answers';
 
 /**
@@ -20,7 +21,7 @@ export type RsvpFields = Partial<
  * of the first answer is kept: an edit is not a new response, and the
  * response-rate trend reads when people first answered.
  */
-export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields) {
+export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields, attendance?: AttendanceWrite) {
   const existing = await tx.rsvp.findUnique({ where: { guestId }, select: { respondedAt: true } });
   const respondedAt = existing?.respondedAt ?? new Date();
 
@@ -30,9 +31,10 @@ export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields) 
     update: { ...fields, respondedAt },
   });
   // A guest who is not coming should not hold a chair someone else could use.
-  if (fields.status === RsvpStatus.DECLINED) await releaseSeat(tx, guestId);
+  if (attendance) await writeAttendance(tx, guestId, fields.status, attendance);
+  else if (fields.status === RsvpStatus.DECLINED) await releaseSeat(tx, guestId);
   if (fields.status !== RsvpStatus.PENDING) await withdrawReminders(tx, guestId);
-  return rsvp;
+  return attendance ? tx.rsvp.findUniqueOrThrow({ where: { guestId } }) : rsvp;
 }
 
 /**

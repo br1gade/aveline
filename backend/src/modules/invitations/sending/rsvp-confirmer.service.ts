@@ -1,6 +1,7 @@
+import { VENUE_CONFIRMATION_TEMPLATE_KEY, venueConfirmationDedupe } from './venue-confirmation';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageChannel, RsvpStatus } from '@prisma/client';
+import { AttendanceMode, MessageChannel, RsvpStatus } from '@prisma/client';
 import { deliverableChannels } from '../../communications/channels/transport-registry';
 import { CommunicationsService } from '../../communications/communications.service';
 import { GuestChannelsService } from '../../communications/guest-channels.service';
@@ -45,8 +46,8 @@ export class RsvpConfirmerService {
    * because a confirmation could not be queued would tell them their reply
    * was lost when it was not — the opposite of what the message is for.
    */
-  async confirm(guestId: string, status: RsvpStatus): Promise<void> {
-    const templateKey = confirmationTemplateFor(status);
+  async confirm(guestId: string, status: RsvpStatus, mode: AttendanceMode = 'EVENT_WIDE'): Promise<void> {
+    const templateKey = mode === 'PER_VENUE' ? VENUE_CONFIRMATION_TEMPLATE_KEY : confirmationTemplateFor(status);
     if (!templateKey) return;
 
     try {
@@ -64,6 +65,7 @@ export class RsvpConfirmerService {
         event: {
           select: {
             id: true,
+            attendanceRevision: true,
             organizationId: true,
             title: true,
             hostsLabel: true,
@@ -89,7 +91,9 @@ export class RsvpConfirmerService {
     if (!recipient) return;
 
     const now = new Date();
-    const dedupeKey = confirmationDedupeKey(guest.householdId, status, now, await this.confirmedThisMinute(guest.householdId, now));
+    const dedupeKey = templateKey === VENUE_CONFIRMATION_TEMPLATE_KEY
+      ? await venueConfirmationDedupe(this.prisma, guest.householdId, now)
+      : confirmationDedupeKey(guest.householdId, status, now, await this.confirmedThisMinute(guest.householdId, now, event.attendanceRevision));
     if (dedupeKey === null) return;
 
     await this.communications.enqueue({
@@ -105,12 +109,12 @@ export class RsvpConfirmerService {
         ...eventWording({ title: event.title, hosts: event.hostsLabel, translations: event.translations }, recipient.guest.locale ?? event.defaultLocale),
         link: `${this.appUrl}/invitations/${event.invitation.slug}/g/${recipient.guest.token}`,
       },
-      dedupeKey,
+      dedupeKey: templateKey === VENUE_CONFIRMATION_TEMPLATE_KEY ? dedupeKey : `${dedupeKey}:policy:${event.attendanceRevision}`,
     });
   }
 
   /** This household's confirmations queued in the current minute, newest first. */
-  private async confirmedThisMinute(householdId: string, now: Date): Promise<RsvpStatus[]> {
+  private async confirmedThisMinute(householdId: string, now: Date, revision: number): Promise<RsvpStatus[]> {
     const minuteStart = new Date(now);
     minuteStart.setUTCSeconds(0, 0);
     // By the household's guests and the kind of message, which the
@@ -123,9 +127,10 @@ export class RsvpConfirmerService {
         createdAt: { gte: minuteStart },
       },
       orderBy: { createdAt: 'desc' },
-      select: { templateKey: true },
+      select: { templateKey: true, dedupeKey: true },
     });
-    return recent.flatMap((message) => {
+    return recent.filter((message) => message.dedupeKey?.endsWith(`:policy:${revision}`)
+      || (revision === 1 && !message.dedupeKey?.includes(':policy:'))).flatMap((message) => {
       const status = message.templateKey ? statusConfirmedBy(message.templateKey) : null;
       return status ? [status] : [];
     });

@@ -6,6 +6,7 @@ import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey, invitationMetaKey, invitationGenerationKey } from '../../infra/cache/cache.service';
 import { translatedField } from '../../common/field-translations';
+import { ATTENDANCE_GUEST, attendanceView } from '../rsvp/attendance/attendance-view';
 import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
 import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
 import { fieldsForPage } from '../rsvp/rsvp-fields';
@@ -43,13 +44,14 @@ const blockMediaSelect = {
 } satisfies Prisma.MediaAssetSelect;
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
 const GUEST_INCLUDE = {
+  ...ATTENDANCE_GUEST,
   rsvp: true,
-  event: { select: { seatingPublishedAt: true, venues: { where: GUEST_FACING_VENUES, select: { id: true } } } },
+  event: { select: { seatingPublishedAt: true, ...ATTENDANCE_GUEST.event.select } },
   household: {
     include: {
       guests: {
         orderBy: { isPrimary: 'desc' },
-        include: { seats: { include: SEAT_DETAIL } },
+        include: { ...ATTENDANCE_GUEST, seats: { include: SEAT_DETAIL } },
       },
     },
   },
@@ -267,8 +269,10 @@ export class InvitationsService {
         members: guest.household.guests.map((member) => ({
           id: member.id,
           name: fullName(member),
+          attendance: attendanceView(member, locale),
         })),
       },
+      attendance: attendanceView(guest, locale),
       rsvp: guest.rsvp && { status: guest.rsvp.status, respondedAt: guest.rsvp.respondedAt },
       // Decision D4: their own household's tables, on their own link, once the
       // host publishes — never the room, never on the shared page.

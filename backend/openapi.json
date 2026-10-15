@@ -827,6 +827,106 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/attendance-policy/preview": {
+      "post": {
+        "operationId": "AttendancePolicyController_preview",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewAttendancePolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Preview the responses and seats affected by changing attendance mode",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/attendance-policy": {
+      "post": {
+        "operationId": "AttendancePolicyController_change",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAttendancePolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Confirm a previewed policy change and request fresh attendance",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guests/{guestId}/attendance-history": {
+      "get": {
+        "operationId": "AttendancePolicyController_history",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a guest attendance history across policy revisions",
+        "tags": [
+          "events"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/guests": {
       "get": {
         "operationId": "GuestsController_list",
@@ -1685,6 +1785,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1706,6 +1814,14 @@
             "name": "eventId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -4981,6 +5097,50 @@
           "role"
         ]
       },
+      "PreviewAttendancePolicyDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "EVENT_WIDE",
+              "PER_VENUE"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "ChangeAttendancePolicyDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "EVENT_WIDE",
+              "PER_VENUE"
+            ]
+          },
+          "expectedRevision": {
+            "type": "number"
+          },
+          "previewToken": {
+            "type": "string",
+            "description": "Fingerprint returned by the preview; stale previews are rejected"
+          },
+          "transitionId": {
+            "type": "string",
+            "description": "Client UUID reused when retrying this transition"
+          }
+        },
+        "required": [
+          "mode",
+          "expectedRevision",
+          "previewToken",
+          "transitionId"
+        ]
+      },
       "AddGuestDto": {
         "type": "object",
         "properties": {
@@ -5143,6 +5303,26 @@
           }
         }
       },
+      "VenueAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "venueId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ]
+          }
+        },
+        "required": [
+          "venueId",
+          "status"
+        ]
+      },
       "CustomAnswerDto": {
         "type": "object",
         "properties": {
@@ -5162,17 +5342,24 @@
       "MemberAnswerDto": {
         "type": "object",
         "properties": {
-          "guestId": {
-            "type": "string",
-            "description": "A guest in the same household"
-          },
           "status": {
             "type": "string",
             "enum": [
               "ATTENDING",
               "DECLINED",
               "UNDECIDED"
-            ]
+            ],
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "guestId": {
+            "type": "string",
+            "description": "A guest in the same household"
           },
           "dietary": {
             "type": "array",
@@ -5192,19 +5379,12 @@
           }
         },
         "required": [
-          "guestId",
-          "status"
+          "guestId"
         ]
       },
       "PartyMemberDto": {
         "type": "object",
         "properties": {
-          "firstName": {
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          },
           "status": {
             "type": "string",
             "enum": [
@@ -5212,7 +5392,19 @@
               "DECLINED",
               "UNDECIDED"
             ],
-            "description": "Their answer; the respondent's if omitted"
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
           },
           "dietary": {
             "type": "array",
@@ -5244,7 +5436,18 @@
               "ATTENDING",
               "DECLINED",
               "UNDECIDED"
-            ]
+            ],
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "attendanceRevision": {
+            "type": "number",
+            "description": "The current revision shown by the guest/host form. Mandatory after any policy change"
           },
           "attribution": {
             "type": "string",
@@ -5297,10 +5500,7 @@
               "$ref": "#/components/schemas/CustomAnswerDto"
             }
           }
-        },
-        "required": [
-          "status"
-        ]
+        }
       },
       "HostRsvpDto": {
         "type": "object",
@@ -5311,7 +5511,18 @@
               "ATTENDING",
               "DECLINED",
               "UNDECIDED"
-            ]
+            ],
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "attendanceRevision": {
+            "type": "number",
+            "description": "The current revision shown by the guest/host form. Mandatory after any policy change"
           },
           "dietary": {
             "type": "array",
@@ -5342,10 +5553,7 @@
             "default": false,
             "description": "Send the guest the usual confirmation. Off by default: they told you themselves."
           }
-        },
-        "required": [
-          "status"
-        ]
+        }
       },
       "RefundPaymentDto": {
         "type": "object",

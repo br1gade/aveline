@@ -213,6 +213,9 @@ model Event {
   /// rather we did not.
   remindersEnabled Boolean @default(true)
 
+  attendanceMode     AttendanceMode @default(EVENT_WIDE)
+  attendanceRevision Int            @default(1)
+
   /// When the host let guests see their tables. Null while the plan is still
   /// being worked out: a guest shown a table that later changes walks to the
   /// wrong one (decision D4, 9 October 2026).
@@ -238,6 +241,7 @@ model Event {
   households          Household[]
   guests              Guest[]
   tables              Table[]
+  attendancePolicies  AttendancePolicy[]
   seatingArrangements SeatingArrangement[]
   mediaAssets         MediaAsset[]
   payments            Payment[]
@@ -299,6 +303,7 @@ model Venue {
   profile            VenueProfile?       @relation(fields: [profileId], references: [id], onDelete: SetNull)
   timeline           TimelineEntry[]
   tables             Table[]
+  attendanceResponses AttendanceResponse[]
   seatingArrangement SeatingArrangement?
 
   @@unique([id, eventId])
@@ -525,6 +530,7 @@ model Guest {
   seatReleasedFromTable Table?         @relation("ReleasedSeats", fields: [seatReleasedFromTableId], references: [id], onDelete: SetNull)
   channels              GuestChannel[]
   rsvp                  Rsvp?
+  attendanceResponses   AttendanceResponse[]
   seats                 Seat[]
   seatReleases          SeatRelease[]
   checkIn               CheckIn?
@@ -572,6 +578,52 @@ model Rsvp {
   answers        RsvpAnswer[]
 
   @@map("rsvps")
+}
+
+enum AttendanceMode {
+  EVENT_WIDE
+  PER_VENUE
+}
+
+/// Each transition keeps its policy and answers available as history.
+model AttendancePolicy {
+  id               String         @id @default(cuid())
+  eventId          String
+  revision         Int
+  mode             AttendanceMode
+  isActive         Boolean        @default(true)
+  transitionId     String?
+  previewToken     String?
+  createdAt        DateTime       @default(now())
+
+  event     Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  responses AttendanceResponse[]
+
+  @@unique([eventId, revision])
+  @@unique([eventId, transitionId])
+  @@map("attendance_policies")
+}
+
+/// scopeId is "event" or the venue ID; the SQL check prevents a mismatched scope.
+model AttendanceResponse {
+  id          String     @id @default(cuid())
+  eventId     String
+  guestId     String
+  revision    Int
+  scopeId     String
+  venueId     String?
+  status      RsvpStatus
+  respondedAt DateTime?
+  updatedAt   DateTime   @updatedAt
+
+  guest  Guest            @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: Cascade)
+  policy AttendancePolicy @relation(fields: [eventId, revision], references: [eventId, revision], onDelete: Cascade)
+  venue  Venue?           @relation(fields: [venueId, eventId], references: [id, eventId], onDelete: NoAction)
+
+  @@unique([guestId, revision, scopeId])
+  @@index([eventId, revision, venueId, status])
+  @@index([venueId])
+  @@map("attendance_responses")
 }
 
 enum RsvpStatus {

@@ -1,3 +1,5 @@
+import { lockAttendancePolicy } from '../rsvp/attendance/attendance-context';
+import { ATTENDANCE_GUEST, isAttendanceReservation } from '../rsvp/attendance/attendance-view';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
 import { isUniqueViolation } from '../../common/prisma-errors';
@@ -27,9 +29,9 @@ export class SeatingService {
       where: { eventId, arrangementId },
       include: {
         venue: { select: { name: true } },
-        seats: { include: { guest: { select: { id: true, firstName: true, lastName: true } } } },
+        seats: { include: { guest: { select: { id: true, firstName: true, lastName: true, ...ATTENDANCE_GUEST } } } },
         seatReleases: {
-          include: { guest: { select: { id: true, firstName: true, lastName: true } } },
+          include: { guest: { select: { id: true, firstName: true, lastName: true, ...ATTENDANCE_GUEST } } },
           orderBy: { releasedAt: 'asc' },
         },
       },
@@ -53,6 +55,7 @@ export class SeatingService {
         guestId: seat.guest.id,
         name: [seat.guest.firstName, seat.guest.lastName].filter(Boolean).join(' '),
         position: seat.position,
+        isReservation: isAttendanceReservation(seat.guest, table.venueId),
       })),
       // Freed by a decline: the gap, and who left it, until the host acts.
       released: table.seatReleases.map((release) => ({
@@ -168,6 +171,7 @@ export class SeatingService {
    */
   async assign(eventId: string, dto: AssignSeatDto) {
     return this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
       await lockGuestAnswer(tx, eventId, dto.guestId);
       const target = await tx.table.findFirst({ where: { id: dto.tableId, eventId }, select: { arrangementId: true } });
       if (!target) throw new NotFoundException('That table is not on this event');
@@ -194,6 +198,7 @@ export class SeatingService {
    */
   async unassign(eventId: string, guestId: string, arrangementId?: string) {
     return this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
       const arrangement = await resolveArrangement(tx, eventId, arrangementId);
       await lockGuestAnswer(tx, eventId, guestId);
       await lockArrangement(tx, eventId, arrangement.id);
@@ -235,6 +240,7 @@ export class SeatingService {
    */
   async autoAssign(eventId: string, arrangementId?: string) {
     const plan = await this.prisma.$transaction(async (tx) => {
+      const policy = await lockAttendancePolicy(tx, eventId);
       // Every table locked before the room is read: a planner seating someone
       // by hand locks their table too, so they wait for this plan or it waits
       // for them — never both planning from the same empty chair.
@@ -253,10 +259,11 @@ export class SeatingService {
       );
       await tx.seat.createMany({ data: seats });
       await clearRelease(tx, seats.map((seat) => seat.guestId), arrangement.id);
-      return { ...planned, unseated: [...planned.unseated, ...attending.deferred] };
+      return { attendanceRevision: policy.attendanceRevision, ...planned, unseated: [...planned.unseated, ...attending.deferred] };
     });
 
     return {
+      attendanceRevision: plan.attendanceRevision,
       seated: plan.assignments.reduce((sum, a) => sum + a.guestIds.length, 0),
       households: plan.assignments.length,
       unseated: plan.unseated,

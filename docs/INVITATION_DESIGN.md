@@ -110,7 +110,7 @@ reported, which matters for pricing tiers.
 
 The invitation asks the guest for things in two ways.
 
-**Well-known questions** are columns on `Rsvp`: attendance, attribution,
+**Well-known questions** feed `Rsvp` and the versioned attendance model: attendance, attribution,
 dietary, drink preference, song request, message. They are columns because
 every operational view is a query over them (see
 [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §6). Each except attendance can be switched

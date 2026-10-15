@@ -1,7 +1,9 @@
+import { ATTENDANCE_GUEST, isAttendanceReservation } from '../rsvp/attendance/attendance-view';
 import { Prisma } from '@prisma/client';
 import { translatedField } from '../../common/field-translations';
 
 export const SEAT_DETAIL = {
+  guest: { select: ATTENDANCE_GUEST },
   table: { select: { id: true, name: true, venueId: true, venue: { select: { name: true, translations: true } } } },
 } satisfies Prisma.SeatInclude;
 
@@ -20,6 +22,7 @@ export function seatingAssignments(seats: DetailedSeat[], locale?: string) {
     tableId: seat.table.id,
     table: seat.table.name,
     position: seat.position,
+    isReservation: isAttendanceReservation(seat.guest, seat.table.venueId),
   })).sort((a, b) => a.arrangementId.localeCompare(b.arrangementId));
 }
 

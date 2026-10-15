@@ -1,3 +1,4 @@
+import { ATTENDANCE_GUEST, attendanceView } from '../rsvp/attendance/attendance-view';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Rsvp, RsvpStatus } from '@prisma/client';
 import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
@@ -52,6 +53,7 @@ export class GuestsService {
 }
 
 const GUEST_DETAIL = {
+  ...ATTENDANCE_GUEST,
   rsvp: true,
   seats: { include: SEAT_DETAIL },
   seatReleases: { include: { table: { select: { name: true } }, arrangement: { select: { venueId: true } } } },
@@ -74,6 +76,7 @@ function guestView(guest: DetailedGuest, canSeeContacts: boolean) {
     addedByGuest: guest.addedByGuest,
     isAnonymized: guest.anonymizedAt !== null,
     // Kept beside `rsvp.status` for clients that read the flat field.
+    attendance: attendanceView(guest),
     rsvpStatus: rsvp.status,
     rsvp,
     table: singleTable(guest.seats),

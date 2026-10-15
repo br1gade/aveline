@@ -427,7 +427,7 @@ themselves at the top level and for everyone else named in the household in
 }
 ```
 
-`status`: `ATTENDING` | `DECLINED` | `UNDECIDED` — `PENDING` is a `400`, since
+`status` in EVENT_WIDE mode: `ATTENDING` | `DECLINED` | `UNDECIDED` — `PENDING` is a `400`, since
 it means "not answered".
 `attribution`: `SIDE_A` | `SIDE_B` | `SHARED` | `UNKNOWN`. It is recorded only
 when the host has not set the guest's side; a side the host set stands.
@@ -508,6 +508,107 @@ answered from a forwarded link, simply receives nothing. So the on-screen
 success state is still the client's to show; the email is reassurance on top
 of it, not a replacement for it.
 
+### Attendance modes and reconfirmation
+
+Events default to `EVENT_WIDE`, revision 1. The host may choose `PER_VENUE`:
+every person is invited to every guest-facing venue. Preparation and exclusively
+internal venues are excluded, using the same rule as invitation venue display.
+
+Personal invitation responses include `guest.attendance`; each
+`guest.household.members` entry also has `attendance`. The RSVP read includes
+`attendance` and each other household member's attendance. Host guest reads
+include the same projection. Only current answers are in guest projections.
+
+```json
+{
+  "mode": "PER_VENUE", "revision": 2, "status": "ATTENDING",
+  "needsReconfirmation": true,
+  "venues": [
+    { "venueId": "hall-id", "venue": "Reception", "status": "ATTENDING", "respondedAt": "..." },
+    { "venueId": "church-id", "venue": "Ceremony", "status": "PENDING", "respondedAt": null }
+  ]
+}
+```
+
+Venue labels on the invitation use the negotiated page language. `PENDING`
+means no answer for that venue. The person-level summary is ATTENDING if any
+eligible venue is accepted; otherwise PENDING if any is unanswered, otherwise
+UNDECIDED if any is undecided, otherwise DECLINED. With no eligible venues the
+summary is PENDING. Counts never count a person twice at event level.
+`needsReconfirmation` is true after a policy transition while attendance is
+still pending for the person or any eligible venue. A newly added venue starts
+pending; it does not inherit an earlier answer.
+
+In per-venue mode, omit `status` and send bounded `venueAttendance` instead:
+
+```json
+{
+  "attendanceRevision": 2,
+  "venueAttendance": [{ "venueId": "hall-id", "status": "ATTENDING" }],
+  "members": [{ "guestId": "member-id", "venueAttendance": [{ "venueId": "hall-id", "status": "DECLINED" }] }],
+  "party": [{ "firstName": "Anna", "venueAttendance": [{ "venueId": "church-id", "status": "ATTENDING" }] }]
+}
+```
+
+Each person submitted must have at least one venue answer, at most 100, with no
+repeated, foreign or hidden venue IDs. Other venues and omitted members keep
+their answers. New plus-ones need their own venue answers; they do not implicitly
+follow the respondent in this mode. Dietary/custom required questions bind each
+person whose summary is ATTENDING. Venue declines release seats only at that
+venue; event-wide declines release every seat. Unspecified legacy seats remain
+reservations in per-venue mode until the host explicitly unseats them.
+
+**Frontend cutover:** guest submissions and host-recorded RSVPs use
+`attendanceRevision`. It may be omitted only for an unchanged EVENT_WIDE event
+at revision 1. Once mode changes, stale or missing revisions return **409** with
+an `attendanceRevision:` message: reload the form and ask for fresh attendance.
+Returning to EVENT_WIDE does not restore old-client compatibility. Invalid
+payloads return 400 naming `status`, `venueAttendance` or `attendanceRevision`.
+
+Host policy transitions are a preview followed by explicit confirmation;
+both require `event:write`:
+
+```http
+POST /api/v1/events/:eventId/attendance-policy/preview
+     { "mode": "PER_VENUE" }
+POST /api/v1/events/:eventId/attendance-policy
+     { "mode": "PER_VENUE", "expectedRevision": 1,
+       "previewToken": "<32-character fingerprint>", "transitionId": "<client UUID>" }
+GET  /api/v1/events/:eventId/guests/:guestId/attendance-history
+```
+
+Preview returns `mode`, `expectedRevision`, `previewToken`, `affected`
+(`guests`, `responses`, `seatedGuests`, `seats`),
+`seatsRetainedAsReservations: true`, and `request` containing the fields to
+confirm. Add a client-generated UUID to `request` and reuse the exact payload
+on retry. A changed revision, RSVP or seating/venue state invalidates the preview
+with 409; preview again. Choosing the current mode or PER_VENUE without any
+eligible venue returns 400. Repeated identical transitions return the originally
+created revision, even if a later transition has since occurred; a reused UUID
+with a different payload is 409.
+
+Transition returns `{ mode, revision, notice }`. It preserves old attendance
+under its original revision, keeps dietary/custom answers and admission history,
+and resets current attendance to pending. Seats are retained, visibly marked
+`isReservation`, and continue to occupy capacity. Confirmed totals and automatic
+seating exclude unconfirmed people. A fresh decline releases the appropriate
+seats. History needs `guest:read`, stays scoped to that event/person, and returns
+up to 1,000 records newest revision first. Records include policy mode/active
+state, venue, status and response/update times; unknown imported response times
+remain null rather than being guessed.
+
+`notice.notificationPath` offers the existing `notify-changes` outbox operation
+after the transition commits. Sending is a separate deliberate host call; add a
+note asking guests to reconfirm. Failure/retry cannot repeat the mode transition
+or discard answers. Per-venue RSVP confirmations use dedicated copy that
+acknowledges saved answers without claiming the whole event was accepted or
+declined. New default copy supports en/ru/fr/hy on email, Telegram and WhatsApp;
+rerun the idempotent production seed before enabling it. Translation review
+and frontend reconfirmation screens remain acceptance work.
+
+Answered venues cannot be deleted or hidden through role/timeline edits;
+these return a field error and roll back the edit, preserving attendance history.
+
 ### Find your seat
 
 There is no lookup by name. A guest finds their table **on their own
@@ -526,7 +627,7 @@ show nothing rather than "no table".
 ```
 
 `guest.seating.assignments` and each household member's `assignments` are
-arrays of `{ arrangementId, venueId, venue, tableId, table, position }`.
+arrays of `{ arrangementId, venueId, venue, tableId, table, position, isReservation }`.
 Guest `venue` labels use the negotiated page language and fall back to the
 venue's plain name when no translation exists. Only the household's guest-facing venues and unspecified seats are returned;
 preparation/internal-only venue IDs and names never appear. These arrays stay
@@ -784,6 +885,14 @@ arriving or a reminder is due. A day with no answers is absent, not zero.
 Bar-sheet `preferences` and catering-sheet `requirements` each carry `key` —
 what guests sent — beside the label (`drink`, `requirement`) in the event's
 language. For free text the two are the same.
+
+`headcount` (also in the dashboard) adds `venues`, each with `venueId`, `venue`,
+`invited`, `attending`, `declined`, `undecided` and `pending`. Only guest-facing
+venues appear. Response rate and its daily trend count people who answered any
+venue, including partial replies whose remaining venues are pending.
+`catering-sheet` and `bar-sheet` accept optional `?venueId=...`;
+without it they count unique people attending anywhere. A foreign or hidden
+venue is 404. Personal dietary/drink choices remain one answer per person.
 
 ### Answers to the host's own questions
 
@@ -1227,8 +1336,9 @@ Treat IDs as opaque. `GET /tables` returns all tables or accepts
 all of that person's assignments and keep one flag per arrangement in the
 tables' `released` arrays. Reseating them clears only the target arrangement's
 flag; explicit unassignment dismisses only the selected arrangement's flag.
-Answering `ATTENDING` or `UNDECIDED` keeps seats. Attendance remains event-wide
-in this first F50 slice; per-venue attendance and reconfirmation are not built.
+Answering `ATTENDING` or `UNDECIDED` keeps seats. Per-venue declines release only
+the selected venue; policy transitions retain seats as flagged reservations
+until fresh attendance is given. See attendance modes above.
 
 
 `POST /tables` takes `{ name, capacity, zone?, venueId? }`. For a real room,

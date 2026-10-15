@@ -85,12 +85,26 @@ release flag. Reseating or dismissing a flag clears only the chosen arrangement.
 The old `Guest.seatReleasedAt` / `seatReleasedFromTableId` columns are retained
 as historical migration input; current views read `SeatRelease`.
 
-**Auto-seating locks one arrangement.** It locks guest keys and available
+**Attendance is versioned.** Hosts choose EVENT_WIDE or PER_VENUE through
+preview and confirmation. Every guest-facing venue is eligible for every person;
+preparation/internal-only venues stay hidden. A transition keeps earlier answers
+as history and resets current attendance without guessing venue answers. Current
+personal and household forms show the revision and require fresh attendance;
+stale submissions are rejected. Dietary/custom answers and check-ins remain.
+
+Existing seats become flagged reservations and still occupy capacity. Per-venue
+answers apply to each person; a decline releases only that venue's seats.
+Automatic seating excludes pending/undecided/declined venue attendance and does
+not seat the unspecified arrangement in per-venue mode. A new venue starts
+pending. Answered venues cannot be hidden/deleted; role and timeline edits are
+guarded so history never disappears from the current invitation accidentally.
+
+**Auto-seating locks one arrangement.** It first shares the event policy lock, then locks guest keys and available
 attending answers before locking the arrangement and its tables, then reads,
 plans and writes in the same transaction. Busy/changed answers defer the entire
 household with an `unseated` explanation; refresh and run again after the edit.
 Skipping busy answers avoids deadlocking against a household submission. Manual
-seating takes guest keys before answer locks, matching host RSVP write order. Manual assignment takes the same arrangement lock before the
+seating shares the policy lock and takes guest keys before answer locks, matching host RSVP write order. Manual assignment takes the same arrangement lock before the
 table lock, enforcing both table and venue capacity even across different tables.
 Guests already seated elsewhere remain eligible for this room. Late acceptors
 join their family only within the selected arrangement.
@@ -134,7 +148,7 @@ over relationships the RSVP already captured:
 |---|---|
 | Keep a household together | `Guest.householdId` |
 | Balance or separate the two sides | `Guest.attribution` (`SIDE_A` / `SIDE_B`) |
-| Seat only confirmed attendees | `Rsvp.status = ATTENDING` |
+| Seat only confirmed attendees | Event-wide RSVP, or current policy answer for the selected venue |
 | Respect table capacity | `Table.capacity` |
 | Respect venue capacity | `Venue.capacity` |
 
@@ -168,6 +182,12 @@ not.
 
 ---
 
+Attendance policy transitions and venue/timeline mutations take the event lock
+exclusively before arrangement/answer locks. Ordinary RSVP/seating writers share
+it first. This prevents obsolete writes and avoids venue-edit/decline lock cycles.
+The inline automatic planner returns its policy revision; F27 will extend that
+guard across planning and application in separate worker transactions.
+
 ## 6. Not yet built
 
 1. **Zone and adjacency preferences.** The planner keeps households together
@@ -177,13 +197,10 @@ not.
 2. **Re-planning.** `auto-assign` is additive and never moves a seated guest,
    so it cannot find a packing that requires rearranging. Unseating first is
    the current answer.
-3. **Per-venue attendance and policy reconfirmation.** Attendance still uses
-   the event-wide RSVP. Host-selectable modes, venue-specific answers and the
-   explicit change/reconfirmation flow are the next F50 slice.
-4. **Floor plan editor** persistence beyond a table's `posX` / `posY` /
+3. **Floor plan editor** persistence beyond a table's `posX` / `posY` /
    `shape`, which `PATCH /tables/:tableId` stores — rotation, room outlines,
    non-table objects.
-5. **Printed outputs as PDF** — place cards and the seating chart export as
+4. **Printed outputs as PDF** — place cards and the seating chart export as
    CSV today.
-6. **Auto-seating as a job.** It runs in the request; fine at hundreds of
+5. **Auto-seating as a job.** It runs in the request; fine at hundreds of
    guests, not at thousands.
