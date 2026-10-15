@@ -1,3 +1,4 @@
+import { attendeeRoster } from '../fixtures/tickets.fixture';
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel, PaymentProvider, PaymentStatus, PrismaClient, TicketOrderStatus } from '@prisma/client';
 import { ConsoleTransport } from '../../src/modules/communications/channels/console.transport';
@@ -72,6 +73,7 @@ describe('ticket settlement (integration)', () => {
 
   const buy = (slug: string, ticketTypeId: string, quantity: number) =>
     ticketing.createOrder(slug, {
+      attendees: [...attendeeRoster(ticketTypeId, quantity)],
       items: [{ ticketTypeId, quantity }],
       buyerName: 'Ani',
       buyerEmail: 'ani@test.local',
@@ -169,6 +171,7 @@ describe('ticket settlement (integration)', () => {
         data: { organizationId, code: 'FRIENDS', kind: 'PERCENT', value: 10n, maxRedemptions: 1 },
       });
       const created = await ticketing.createOrder(slug, {
+      attendees: [...attendeeRoster(ticketTypeId, 1)],
         items: [{ ticketTypeId, quantity: 1 }],
         buyerName: 'Ani',
         buyerEmail: 'ani@test.local',
@@ -269,6 +272,7 @@ describe('ticket settlement (integration)', () => {
       const { slug, ticketTypeId } = await onSale(10);
       const send = () =>
         ticketing.createOrder(slug, {
+      attendees: [...attendeeRoster(ticketTypeId, 2)],
           items: [{ ticketTypeId, quantity: 2 }],
           buyerName: 'Ani',
           buyerEmail: 'ani@test.local',

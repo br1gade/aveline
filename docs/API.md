@@ -742,6 +742,12 @@ POST /api/v1/events/:eventId/ticket-orders/:orderId/cancel
 The list needs `operations:read`; **`buyerEmail` is absent unless you also hold
 `guest:contact:read`** — door staff and viewers see orders, not addresses.
 
+Cancellation freezes admission before contacting the bank. A definite refund
+refusal reopens it; an uncertain bank outcome stays frozen until reconciled.
+Successful cancellation declines linked guests in the current attendance
+policy and releases all their seats while preserving release history. Later
+RSVPs cannot mark a void/refunded ticket holder attending again.
+
 **Cancelling is how a ticket order is refunded.** It voids every ticket on the
 order, puts the seats back on sale, returns any promo-code use, refunds the
 payment, and emails the buyer — as one action, exactly once. Free orders end
@@ -770,6 +776,43 @@ validated `{ "amountMinor": "15000", "reason": "..." }`. Refunding a
 subscription payment **in full** voids its invoice and ends the plan at once
 (decided 10 October 2026); a partial refund changes nothing.
 
+### Reviewing and reconciling attendees
+
+```http
+GET  /api/v1/events/:eventId/ticket-orders/:orderId
+POST /api/v1/events/:eventId/tickets/:ticketId/attendee
+POST /api/v1/events/:eventId/tickets/:ticketId/link-guest
+```
+
+The order detail requires `guest:read`. It returns the ordered captured roster
+and tickets with their attendee and current guest IDs. Only callers with
+`guest:contact:read` receive attendee email/phone and ticket codes. No guest
+capability, buyer access token or archived personal answer snapshot is exposed.
+
+Both writes require `guest:write` and only reconcile active paid tickets.
+To register an unlinked legacy ticket, supply
+`{attendee: {ticketTypeId, firstName, ...}, attendanceRevision}` using the same
+attendee rules as checkout. This creates its named guest and attaches it to the
+existing ticket; it never issues another code or guesses from the buyer name.
+The ticket type must match. Already-registered tickets return `409`.
+
+To link an existing invited guest, send
+`{guestId, expectedGuestId, keepExistingAnswers: true}`. The expected ID is the
+current ticket guest, or explicit `null` for an unlinked legacy ticket; omission
+is `400`, a changed link is `409`. The target must belong to this event, be
+unerased and have no other ticket. Repeating a completed link is safe.
+The invited guest keeps their profile and answers; an automatically created
+checkout duplicate is archived under the roster and removed from live totals.
+Household allowance is reduced accordingly. Existing invited guests cannot be
+silently replaced. A checkout duplicate with seats/release history, admission,
+a signature, channels/devices or messages must be resolved first (`409`).
+A known legacy admission timestamp is retained when linking; unknown/conflicting
+admission timestamps require staff review. Erased attendees cannot be relinked.
+
+Legacy tickets remain valid without invented guest identities until hosts
+explicitly register/link them. Their guest-based operational counts are complete
+only after reconciliation.
+
 ### Buying tickets
 
 ```http
@@ -781,6 +824,11 @@ POST /api/v1/public/events/:slug/orders
   "items": [{ "ticketTypeId": "...", "quantity": 2 }],
   "buyerName": "Ani Grigoryan",
   "buyerEmail": "ani@example.com",
+  "attendanceRevision": 1,
+  "attendees": [
+    { "ticketTypeId": "...", "firstName": "Anna", "email": "anna@example.com" },
+    { "ticketTypeId": "...", "firstName": "Davit" }
+  ],
   "provider": "AMERIABANK",
   "returnUrl": "https://yourapp.am/tickets/return",
   "idempotencyKey": "<uuid you generate>"
@@ -794,14 +842,56 @@ redirect through a real payment page. Omitted, it is `/tickets/return` on the
 app. The same rule holds for `returnUrl` on `POST /subscription`, whose
 default is `/billing/return`.
 
+**Breaking checkout contract, 15 October 2026:** `attendees` is required,
+with exactly one named person for each ticket in `items` (up to 1,000 people).
+Each person names their `ticketTypeId`. The buyer is separate; omitted attendee
+email/phone never falls back to the buyer's contacts. An omitted buyer locale uses the event's default language. An attendee's
+locale falls back to the buyer locale, then the event default. Attendees accept
+`firstName`, `lastName`, `email`, `phone`, `locale`, `dietary`, `dietaryNotes`,
+`drinkPreference`, custom `answers`, and attendance inputs. The event's locale
+list and RSVP question rules apply. `householdKey`, when supplied, explicitly
+groups people within this order; otherwise each person gets a separate household.
+Matching names or email addresses never merge people.
+
+Load the public event detail first. Its `checkout` object supplies
+`attendanceMode`, `attendanceRevision`, `venues: [{id, name}]`, `rsvpFields`
+and localized `questions: [{id, type, required, prompt, options}]`. The checkout
+built-in fields are `dietary` and `drinkPreference`, the fields accepted per
+attendee.
+Preparation/internal-only venues are excluded from both checkout and the
+public venue list; public venue entries now also include their `id`.
+In `EVENT_WIDE`, an attendee's omitted `status` means `ATTENDING`.
+In `PER_VENUE`, omit `status` and collect each attendee's own
+`venueAttendance: [{venueId, status}]`; at least one choice per person is
+required, with unanswered venues left pending. Send the current top-level
+`attendanceRevision`; omission only works for the original event-wide revision.
+Stale revisions return `409` and invalid choices return `400`, before inventory
+or a promo claim is written.
+
+Ticket types with checkout history must be deactivated instead of deleted,
+even after an order expires. Questions answered in pending or archived
+checkout rosters cannot be deleted or have their answer shape changed.
+
+The reserved order stores the roster atomically. Settlement (including free
+checkout) creates guests, answers and linked tickets once. An abandoned order
+creates no guest. If the host changes attendance policy before settlement,
+checkout answers stay in the roster and the new guest must reconfirm under the
+current policy. Buying a ticket never invents venue answers. Responses include
+`attendees` (names, IDs, ticket types, positions and captured attendance) and
+issued `tickets` with `id`, `attendeeId`, `holderName`, `code`, `status`.
+Guest capability tokens are never returned to buyers.
+
 List each ticket type **once**, with its quantity: a basket naming one type
 twice is a `400` on `items` (two lines of six used to pass a limit of ten).
 
 **Generate `idempotencyKey` once per checkout attempt and reuse it on retry.**
 A double-tapped button with the same key returns the same order rather than
 reserving twice — **with its `payment`**, so a retry can still send the buyer
-to the bank. Two taps arriving at once both get that order; neither is a
-`409` (until 10 October 2026 one was, and a retry came back without a link).
+to the bank. Two identical taps arriving at once both get that order. Reusing
+the key with
+a different event, buyer, basket or roster returns `409`; use a new key for a
+changed intent. Legacy keys created before roster fingerprints cannot be
+replayed through checkout; their existing access-token URL still works.
 
 ```json
 {
@@ -1285,6 +1375,10 @@ and empty-household removal apply:
 the record that they came. Undo the check-in first if it was a mistake. (A
 product decision, 8 October 2026.)
 
+**A ticket-linked guest cannot be removed** (`400`), including after
+cancellation: keep their operational history. Use the explicit ticket linking
+flow to reconcile a checkout duplicate.
+
 **A household's seats** can be changed, and it can be renamed, but
 `seatsAllotted` cannot go below the number of guests already named in it:
 
@@ -1467,7 +1561,9 @@ admitting.
 **A guest arrives once.** A second check-in returns `409`. Two people on the
 door cannot both record the same arrival, so treat the `409` as "already here"
 and show the first arrival time, not as an error. `DELETE` undoes a mis-scan
-and a guest can then be checked in again.
+and a guest can then be checked in again. For a ticket-linked guest, a used,
+void/refunded ticket or a cancelled/frozen order instead returns `400` with
+the ticket reason; a used ticket means the person was already admitted.
 
 ```http
 GET /api/v1/events/:eventId/arrivals
@@ -1961,7 +2057,13 @@ request is itself a breach**: the form is public, so without that gate anyone
 could erase a stranger's data by typing their address.
 
 An `EXPORT` returns the data as JSON in the response — account, guest records,
-ticket orders, messages sent and suppressions. It is assembled on demand and
+ticket orders, subject-specific ticket attendee records (including archived
+checkout answers), messages sent and suppressions. A buyer-only export does
+not include unrelated attendee records. Erasure clears attendee snapshots and
+reserved rosters independently of the buyer; later settlement cannot restore
+the erased names or answers. Erasure also invalidates checkout-key replay;
+the buyer access-token URL continues to show the retained order. Financial
+amounts and operational history remain. It is assembled on demand and
 never stored, because a copy waiting to be collected is a second place it can
 leak from.
 
@@ -1969,7 +2071,8 @@ An `ERASURE` anonymises in place and reports what it touched:
 
 ```json
 { "reference": "clz...", "kind": "ERASURE", "guestsAnonymised": 1,
-  "householdsRenamed": 1, "ticketOrdersAnonymised": 1, "messagesRedacted": 4,
+  "householdsRenamed": 1, "ticketOrdersAnonymised": 1, "ticketAttendeesAnonymised": 2,
+  "messagesRedacted": 4,
   "suppressionsHashed": 1, "invitesWithdrawn": 0, "accountsClosed": 1 }
 ```
 
@@ -2676,6 +2779,12 @@ one event, and a code from any other event is `404`.
 **A code admits exactly once.** A second scan returns `400` with
 `"Ticket already used"` — which is the point, and the message to show. Two
 staff scanning the same ticket simultaneously cannot both admit it.
+For a linked ticket, either the ticket scanner or guest-list check-in writes
+one `CheckIn` and marks the ticket `USED` with the same timestamp, atomically.
+The ticket response also includes `guestId` (null for an unlinked legacy ticket).
+Guest-list check-in refuses void/refunded tickets and orders frozen for
+cancellation. Explicit guest check-in undo restores an active paid ticket to
+`VALID`; attendance-policy changes never undo admission.
 
 `404` means the code is not recognised at all. Distinguish the two in the UI:
 "already admitted" is routine, "not recognised" is a problem.

@@ -2488,6 +2488,122 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/ticket-orders/{orderId}": {
+      "get": {
+        "operationId": "TicketAttendeesController_findOrder",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Review named attendees and ticket links; contacts/codes require contact permission",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/tickets/{ticketId}/attendee": {
+      "post": {
+        "operationId": "TicketAttendeesController_register",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterTicketAttendeeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register an explicitly supplied attendee for an unlinked legacy ticket",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/tickets/{ticketId}/link-guest": {
+      "post": {
+        "operationId": "TicketAttendeesController_link",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkTicketGuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Explicitly link an existing invited guest, preserving their answers",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
     "/api/v1/promo-codes": {
       "get": {
         "operationId": "PromoCodesController_list",
@@ -5571,6 +5687,71 @@
           "amountMinor"
         ]
       },
+      "OrderAttendeeDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ],
+            "description": "Defaults to ATTENDING in event-wide mode; omit and supply venueAttendance in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "dietary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dietaryNotes": {
+            "type": "string"
+          },
+          "answers": {
+            "description": "Their own answers to the host's questions",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomAnswerDto"
+            }
+          },
+          "ticketTypeId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "householdKey": {
+            "type": "string",
+            "description": "Explicit household grouping within this order only; omit to keep people separate"
+          },
+          "drinkPreference": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "firstName",
+          "ticketTypeId"
+        ]
+      },
       "OrderLineDto": {
         "type": "object",
         "properties": {
@@ -5591,6 +5772,16 @@
       "CreateOrderDto": {
         "type": "object",
         "properties": {
+          "attendees": {
+            "description": "Exactly one named person per requested ticket",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderAttendeeDto"
+            }
+          },
+          "attendanceRevision": {
+            "type": "number"
+          },
           "promoCode": {
             "type": "string",
             "description": "A promo code to redeem, case-insensitive"
@@ -5633,6 +5824,7 @@
           }
         },
         "required": [
+          "attendees",
           "items",
           "buyerName",
           "buyerEmail",
@@ -5777,6 +5969,45 @@
             "description": "Allow search engines to index it. Off by default."
           }
         }
+      },
+      "RegisterTicketAttendeeDto": {
+        "type": "object",
+        "properties": {
+          "attendee": {
+            "$ref": "#/components/schemas/OrderAttendeeDto"
+          },
+          "attendanceRevision": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "attendee"
+        ]
+      },
+      "LinkTicketGuestDto": {
+        "type": "object",
+        "properties": {
+          "guestId": {
+            "type": "string"
+          },
+          "expectedGuestId": {
+            "type": "string",
+            "nullable": true,
+            "description": "The guest currently linked to this ticket, or null for a legacy unlinked ticket"
+          },
+          "keepExistingAnswers": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Explicitly preserve the invited guest’s answers; checkout answers remain archived"
+          }
+        },
+        "required": [
+          "guestId",
+          "expectedGuestId",
+          "keepExistingAnswers"
+        ]
       },
       "CreatePromoCodeDto": {
         "type": "object",

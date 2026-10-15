@@ -1,3 +1,4 @@
+import { attendeeSubject, exportAttendees } from '../ticketing/attendee-privacy';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   DataSubjectRequestKind,
@@ -180,13 +181,13 @@ export class PrivacyService {
    * from.
    */
   private async assembleExport(subjectEmail: string) {
-    const [user, guests, ticketOrders, messages, suppressions] = await Promise.all([
+    const [user, guests, ticketOrders, messages, suppressions, ticketAttendees] = await Promise.all([
       this.prisma.user.findFirst({
         where: { email: sameAddress(subjectEmail) },
         select: { email: true, name: true, createdAt: true, lastLoginAt: true },
       }),
       this.prisma.guest.findMany({
-        where: { email: sameAddress(subjectEmail) },
+        where: { OR: [{ email: sameAddress(subjectEmail) }, { ticket: { attendee: attendeeSubject(subjectEmail) } }] },
         select: {
           firstName: true,
           lastName: true,
@@ -223,6 +224,7 @@ export class PrivacyService {
         take: 500,
       }),
       this.suppressionsOf(subjectEmail),
+      exportAttendees(this.prisma, subjectEmail),
     ]);
 
     return {
@@ -230,6 +232,7 @@ export class PrivacyService {
       assembledAt: new Date().toISOString(),
       account: user,
       guestRecords: guests,
+      ticketAttendees,
       ticketOrders: ticketOrders.map((order) => ({
         ...order,
         totalMinor: order.totalMinor.toString(),

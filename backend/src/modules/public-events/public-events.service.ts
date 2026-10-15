@@ -1,3 +1,5 @@
+import { checkoutMetadata } from '../ticketing/checkout-metadata';
+import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,7 +9,7 @@ import { Page, PaginationQuery, resolvePaging, toPage } from '../../common/dto/p
 const listingInclude = {
   event: {
     include: {
-      venues: { orderBy: { sortOrder: 'asc' } },
+      venues: { where: GUEST_FACING_VENUES, orderBy: { sortOrder: 'asc' } },
       ticketTypes: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
     },
   },
@@ -73,6 +75,7 @@ export class PublicEventsService {
 
     return {
       slug: listing.slug,
+      checkout: { ...await checkoutMetadata(this.prisma, event.id, locale), venues: event.venues.map((venue) => ({ id: venue.id, name: venue.name })) },
       locale,
       availableLocales: event.locales,
       headline: t(listing.headline),
@@ -83,6 +86,7 @@ export class PublicEventsService {
       endsAt: event.endsAt,
       timezone: event.timezone,
       venues: event.venues.map((venue) => ({
+        id: venue.id,
         name: venue.name,
         address: venue.address,
         latitude: venue.latitude,

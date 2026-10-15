@@ -1,3 +1,4 @@
+import { attendeeRoster } from '../fixtures/tickets.fixture';
 import {
   DiscountKind,
   MessageChannel,
@@ -198,6 +199,7 @@ describe('transaction safety (integration)', () => {
 
       const listing = await prisma.eventListing.findFirstOrThrow({ where: { eventId } });
       const order = await ticketing.createOrder(listing.slug, {
+      attendees: [...attendeeRoster(type.id, quantity)],
         items: [{ ticketTypeId: type.id, quantity }],
         buyerName: 'Buyer',
         buyerEmail: 'buyer@test.local',
@@ -265,6 +267,7 @@ describe('transaction safety (integration)', () => {
 
     const order = (slug: string, ticketTypeId: string, promoCode?: string) =>
       ticketing.createOrder(slug, {
+      attendees: [...attendeeRoster(ticketTypeId, 1)],
         items: [{ ticketTypeId, quantity: 1 }],
         buyerName: 'Buyer',
         buyerEmail: 'buyer@test.local',
@@ -409,6 +412,7 @@ describe('transaction safety (integration)', () => {
       });
 
       return ticketing.createOrder(listing.slug, {
+      attendees: [...attendeeRoster(type.id, quantity)],
         items: [{ ticketTypeId: type.id, quantity }],
         buyerName: 'Ani Grigoryan',
         buyerEmail: 'buyer@test.local',
@@ -464,6 +468,7 @@ describe('transaction safety (integration)', () => {
       });
 
       const order = await ticketing.createOrder(listing.slug, {
+      attendees: [...attendeeRoster(type.id, 2)],
         items: [{ ticketTypeId: type.id, quantity: 2 }],
         buyerName: 'Ani',
         buyerEmail: 'buyer@test.local',
@@ -495,6 +500,7 @@ describe('transaction safety (integration)', () => {
       });
 
       const created = await ticketing.createOrder(listing.slug, {
+      attendees: [...attendeeRoster(type.id, quantity)],
         items: [{ ticketTypeId: type.id, quantity }],
         buyerName: 'Ani',
         buyerEmail: 'buyer@test.local',
@@ -654,6 +660,7 @@ describe('transaction safety (integration)', () => {
         data: { eventId, slug: `r-${Math.random().toString(36).slice(2, 8)}`, publishedAt: new Date() },
       });
       const created = await ticketing.createOrder(listing.slug, {
+      attendees: [...attendeeRoster(type.id, 1)],
         items: [{ ticketTypeId: type.id, quantity: 1 }],
         buyerName: 'Ani',
         buyerEmail: 'buyer@test.local',

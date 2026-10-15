@@ -1,3 +1,4 @@
+import { OrderAttendeeDto } from './attendee.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OnAppOrigin } from '../../../common/app-url';
 import { PaymentProvider } from '@prisma/client';
@@ -32,6 +33,21 @@ export class OrderLineDto {
 }
 
 export class CreateOrderDto {
+  @ApiProperty({ type: [OrderAttendeeDto], description: 'Exactly one named person per requested ticket' })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => OrderAttendeeDto)
+  attendees!: OrderAttendeeDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  attendanceRevision?: number;
+
   @ApiPropertyOptional({ description: 'A promo code to redeem, case-insensitive' })
   @IsOptional()
   @IsString()

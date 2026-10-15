@@ -131,11 +131,16 @@ options:
 **A choice is stored by its position in the option list**, not its text. The
 options are translated and each guest sees them in their own language, so
 position is what lets every language count as one answer — so every language
-must list the same number of options, and once a guest has answered, options
+must list the same number of options, and once a guest or a pending ticket checkout has answered, options
 can be reworded or added at the end but never removed or reordered, and the
 type cannot change (decided 10 October 2026). Answers are checked against
 their question's type and options when submitted, and a `required` question
 binds every guest who is attending, plus-ones included.
+
+Ticket checkout locks question definitions before validating the complete roster.
+Pending and archived checkout answers also protect questions from deletion or
+shape changes, so later payment settlement cannot lose an answer or reference a
+deleted question. Host draft `answerCount` still counts live RSVP answers only.
 
 The design rule: **a question with no downstream consumer does not get asked.**
 Collecting data nobody reads is how the rest of the category ends up with an

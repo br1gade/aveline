@@ -1,6 +1,8 @@
+import { beginCancellation, withdrawTicketGuests } from './cancellation-state';
+import { issueAttendeeTickets } from './issue-attendees';
+import { lockAttendancePolicy } from '../rsvp/attendance/attendance-context';
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, TicketOrderStatus, TicketStatus } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
 import { PromoCodesService } from '../billing/promo-codes.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TicketInventoryService } from './ticket-inventory.service';
@@ -28,8 +30,9 @@ import { TicketNotifierService } from './ticket-notifier.service';
  * second request away from the thing they had just been given.
  */
 const SETTLED_ORDER = {
-  items: true,
-  tickets: { select: { code: true, status: true } },
+  items: { orderBy: { ticketTypeId: 'asc' } },
+  attendees: { orderBy: { position: 'asc' } },
+  tickets: { select: { id: true, attendeeId: true, holderName: true, code: true, status: true } },
 } as const;
 
 @Injectable()
@@ -44,9 +47,9 @@ export class TicketFulfilmentService {
   ) {}
 
   /** Holds seats for an in-flight checkout, one line at a time. */
-  async hold(items: { ticketTypeId: string; quantity: number }[]): Promise<void> {
-    for (const line of items) {
-      await this.inventory.reserve(line.ticketTypeId, line.quantity);
+  async hold(items: { ticketTypeId: string; quantity: number }[], tx?: Prisma.TransactionClient): Promise<void> {
+    for (const line of [...items].sort((a, b) => a.ticketTypeId.localeCompare(b.ticketTypeId))) {
+      await this.inventory.reserve(line.ticketTypeId, line.quantity, tx);
     }
   }
 
@@ -79,16 +82,17 @@ export class TicketFulfilmentService {
     let wasIssued = false;
 
     await this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, order.eventId);
       const claimed = await tx.ticketOrder.updateMany({
         where: { id: orderId, status: TicketOrderStatus.RESERVED },
         data: { status: TicketOrderStatus.PAID, reservesUntil: null },
       });
       if (claimed.count === 0) return;
 
-      for (const item of order.items) {
+      for (const item of [...order.items].sort((a, b) => a.ticketTypeId.localeCompare(b.ticketTypeId))) {
         await this.inventory.commit(item.ticketTypeId, item.quantity, tx);
       }
-      await tx.ticket.createMany({ data: this.ticketsFor(order) });
+      await issueAttendeeTickets(tx, order);
       wasIssued = true;
     });
 
@@ -153,7 +157,7 @@ export class TicketFulfilmentService {
       });
       if (claimed.count === 0) return false;
 
-      for (const item of order.items) {
+      for (const item of [...order.items].sort((a, b) => a.ticketTypeId.localeCompare(b.ticketTypeId))) {
         await this.inventory.release(item.ticketTypeId, item.quantity, tx);
       }
 
@@ -186,19 +190,20 @@ export class TicketFulfilmentService {
 
     try {
       const outcome = await this.prisma.$transaction(async (tx) => {
+        await lockAttendancePolicy(tx, order.eventId);
         const claimed = await tx.ticketOrder.updateMany({
           where: { id: orderId, status: TicketOrderStatus.EXPIRED },
           data: { status: TicketOrderStatus.PAID },
         });
         if (claimed.count === 0) return 'NOT_EXPIRED' as const;
 
-        for (const item of order.items) {
+        for (const item of [...order.items].sort((a, b) => a.ticketTypeId.localeCompare(b.ticketTypeId))) {
           // Thrown to roll the claim back: some seats are not all seats.
           if (!(await this.inventory.sellLate(item.ticketTypeId, item.quantity, tx))) throw new SoldOut();
         }
         // Expiring gave the redemption back; honouring the order takes it again.
         await this.promoCodes.retake(order.promoCodeId, tx);
-        await tx.ticket.createMany({ data: this.ticketsFor(order) });
+        await issueAttendeeTickets(tx, order);
         return 'ISSUED' as const;
       });
       if (outcome === 'ISSUED') await this.notifier.sendTickets(orderId);
@@ -238,26 +243,6 @@ export class TicketFulfilmentService {
     });
   }
 
-  /** The tickets a paid order is owed, each with an unguessable code. */
-  private ticketsFor(order: {
-    id: string;
-    eventId: string;
-    buyerName: string;
-    buyerEmail: string;
-    items: { ticketTypeId: string; quantity: number }[];
-  }): Prisma.TicketCreateManyInput[] {
-    return order.items.flatMap((item) =>
-      Array.from({ length: item.quantity }, () => ({
-        eventId: order.eventId,
-        orderId: order.id,
-        ticketTypeId: item.ticketTypeId,
-        code: randomBytes(12).toString('base64url').toUpperCase(),
-        holderName: order.buyerName,
-        holderEmail: order.buyerEmail,
-      })),
-    );
-  }
-
   /**
    * Voids a paid order's tickets and puts its seats back on sale.
    *
@@ -280,6 +265,7 @@ export class TicketFulfilmentService {
     });
 
     const wasVoided = await this.prisma.$transaction(async (tx) => {
+      await beginCancellation(tx, order.eventId, orderId);
       const claimed = await tx.ticketOrder.updateMany({
         where: { id: orderId, status: TicketOrderStatus.PAID },
         data: { status: finalStatus },
@@ -294,11 +280,12 @@ export class TicketFulfilmentService {
         data: { status: TicketStatus.VOID },
       });
 
-      for (const item of order.items) {
+      for (const item of [...order.items].sort((a, b) => a.ticketTypeId.localeCompare(b.ticketTypeId))) {
         await this.inventory.returnSold(item.ticketTypeId, item.quantity, tx);
       }
 
       await this.promoCodes.releaseClaim(order.promoCodeId, tx);
+      await withdrawTicketGuests(tx, order.eventId, orderId);
       return true;
     });
 
@@ -306,14 +293,6 @@ export class TicketFulfilmentService {
     return wasVoided;
   }
 
-  /** Gives holds back when a checkout fails or is abandoned. */
-  async releaseHolds(items: { ticketTypeId: string; quantity: number }[]): Promise<void> {
-    for (const item of items) {
-      await this.inventory.release(item.ticketTypeId, item.quantity).catch((error: unknown) => {
-        this.logger.error(`failed to release inventory: ${describeError(error)}`);
-      });
-    }
-  }
 
 }
 

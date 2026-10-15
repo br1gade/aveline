@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 53 models across three
+The authoritative map of what is stored and where. 54 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 53 |
+| **PostgreSQL** | The entire domain. The only source of truth | 54 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -64,7 +64,8 @@ lives outside Postgres.
 |---|---|
 | `TicketType` | A sellable tier; inventory lives here |
 | `TicketOrder` · `TicketOrderItem` | One purchase |
-| `Ticket` | One admitted person |
+| `OrderAttendee` | One captured attendee per requested ticket, saved at reservation; original answers, explicit household grouping and reconciliation snapshot |
+| `Ticket` | One admitted person, uniquely linked to its attendee and guest within the event |
 | `PromoCode` | Discounts, percent or fixed |
 
 ### Money
@@ -134,7 +135,8 @@ reject the bad row.
 | `refunds` | amount positive |
 | `invoices` | amounts never negative |
 | `plans` | price never negative |
-| `ticket_orders` | discount never negative |
+| `ticket_orders` | discount never negative; request fingerprint binds retries; cancellation marker freezes admission before a refund |
+| `order_attendees` · `tickets` | Unique roster position/order, unique attendee/ticket and guest/ticket; composite event FKs plus trigger reject mismatched order/type attendee links |
 | `subscriptions` | period end after period start |
 | `plans` | an invitation lifetime, when set, is positive — zero would expire a page on publication |
 | `device_tokens` | exactly one subject — a user or a guest, never both or neither |
@@ -177,7 +179,7 @@ Deliberate, with the reason.
 ## 7. Privacy
 
 Erasure **anonymises a guest rather than deleting them**. Deleting cascades to
-their RSVP, seat, ticket and check-in, which destroys the host's record of
+their RSVP, seat and check-in, which destroys the host's record of
 their own event — a record the host has a legitimate interest in keeping.
 Nulling the identifying fields removes the person while headcount, seating and
 catering totals stay correct.
@@ -219,3 +221,8 @@ then pending/undecided/declined without guessing unanswered venues. Venue and
 timeline edits refresh that projection in the same transaction. Response history
 contains no contact details or free text, is included in subject exports, and
 retains anonymous operational attendance consistently with existing erasure rules.
+
+Ticket attendee erasure clears the captured roster and reconciliation snapshot
+independently of buyer details and invalidates the checkout fingerprint. Issuance
+re-reads the roster after claiming the order, so delayed settlement cannot
+restore erased data. Existing guest/ticket links are retained for headcounts.

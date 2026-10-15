@@ -112,6 +112,7 @@ export class GuestManagementService {
       });
       if (problem) throw new BadRequestException(problem);
 
+      if (await tx.ticket.count({ where: { guestId } })) throw new BadRequestException('This guest is linked to a ticket; retain their attendance history');
       await tx.guest.delete({ where: { id: guestId } });
       const isHouseholdRemoved = await settleHousehold(tx, guest.householdId, guest.isPrimary);
 

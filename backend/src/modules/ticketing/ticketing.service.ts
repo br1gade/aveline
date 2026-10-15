@@ -1,6 +1,7 @@
-import { isUniqueViolation } from '../../common/prisma-errors';
+import { lockAdmission, recordAdmission } from '../guests/admission';
+import { claimCheckout, checkoutFingerprint, prepareRoster } from './checkout-roster';
 import { appPage } from '../../common/app-url';
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   EventStatus,
   PaymentPurpose,
@@ -48,28 +49,20 @@ export class TicketingService {
    * who has paid for a seat that no longer exists.
    */
   async createOrder(eventSlug: string, dto: CreateOrderDto) {
-    const existing = await this.existingOrder(dto.idempotencyKey);
+    const fingerprint = await checkoutFingerprint(eventSlug, dto);
+    const existing = await this.existingOrder(dto.idempotencyKey, fingerprint);
     if (existing) return existing;
 
     const event = await this.loadSellableEvent(eventSlug);
     const types = await this.loadTicketTypes(event.id, dto.items);
 
-    const reserved: OrderLineDto[] = [];
     let order: Awaited<ReturnType<TicketingService['createOrderRow']>>;
     try {
-      for (const line of dto.items) {
-        await this.fulfilment.hold([line]);
-        reserved.push(line);
-      }
-      order = await this.createOrderRow(event, dto, types, subtotalFor(dto.items, types));
+      order = await this.createOrderRow(event, dto, types, fingerprint);
     } catch (error) {
-      // No order yet, so the holds are the only record: give them back.
-      await this.fulfilment.releaseHolds(reserved);
-      // A double tap that raced this one to the same key: theirs is the order.
-      if (isUniqueViolation(error)) {
-        const raced = await this.existingOrder(dto.idempotencyKey);
-        if (raced) return raced;
-      }
+      // A duplicate that lost the inventory race still receives the original order.
+      const raced = await this.existingOrder(dto.idempotencyKey, fingerprint);
+      if (raced) return raced;
       throw error;
     }
 
@@ -88,12 +81,13 @@ export class TicketingService {
    * The order already placed under this key, with its payment — a retry
    * used to get the order without the bank link it needed to pay (B87).
    */
-  private async existingOrder(idempotencyKey: string) {
-    let order = await this.prisma.ticketOrder.findUnique({ where: { idempotencyKey }, include: { items: true } });
+  private async existingOrder(idempotencyKey: string, fingerprint: string) {
+    let order = await this.prisma.ticketOrder.findUnique({ where: { idempotencyKey }, include: { items: true, tickets: true, attendees: { orderBy: { position: 'asc' } } } });
+    if (order && order.requestFingerprint !== fingerprint) throw new ConflictException('idempotencyKey: already used for another checkout intent');
     // The other request may still be starting the payment; wait for it, briefly.
     for (let attempt = 0; order && isAwaitingPayment(order) && attempt < PAYMENT_WAIT_ATTEMPTS; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, PAYMENT_WAIT_MS));
-      order = await this.prisma.ticketOrder.findUnique({ where: { idempotencyKey }, include: { items: true } });
+      order = await this.prisma.ticketOrder.findUnique({ where: { idempotencyKey }, include: { items: true, tickets: true, attendees: { orderBy: { position: 'asc' } } } });
     }
     if (!order) return null;
     if (!order.paymentOrderNumber) return this.describe(order);
@@ -142,7 +136,7 @@ export class TicketingService {
   async confirmOrder(accessToken: string) {
     const order = await this.prisma.ticketOrder.findUnique({
       where: { accessToken },
-      include: { items: true },
+      include: { items: true, attendees: { orderBy: { position: 'asc' } } },
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.status === TicketOrderStatus.PAID) return this.markPaid(order.id);
@@ -276,24 +270,17 @@ export class TicketingService {
     const ticket = await this.prisma.ticket.findFirst({ where: { code, eventId } });
     if (!ticket) throw new NotFoundException('Ticket not recognised');
 
-    if (ticket.status !== TicketStatus.VALID) {
-      throw new BadRequestException(`Ticket already ${ticket.status.toLowerCase()}`);
-    }
-
-    // Conditioned on VALID so two scanners cannot both admit one code.
-    const admitted = await this.prisma.ticket.updateMany({
-      where: { id: ticket.id, status: TicketStatus.VALID },
-      data: { status: TicketStatus.USED, usedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const current = await lockAdmission(tx, eventId, ticket);
+      const admittedAt = await recordAdmission(tx, current!.id, current!.guestId);
+      return { code, admittedAt: admittedAt.toISOString(), holderName: current!.holderName, guestId: current!.guestId };
     });
-    if (admitted.count === 0) throw new BadRequestException('Ticket already used');
-
-    return { code, admittedAt: new Date().toISOString(), holderName: ticket.holderName };
   }
 
   async findByAccessToken(accessToken: string) {
     const order = await this.prisma.ticketOrder.findUnique({
       where: { accessToken },
-      include: { items: true, tickets: true },
+      include: { items: true, attendees: { orderBy: { position: 'asc' } }, tickets: true },
     });
     if (!order) throw new NotFoundException('Order not found');
     return this.describe(order);
@@ -305,7 +292,7 @@ export class TicketingService {
     const listing = await this.prisma.eventListing.findUnique({
       where: { slug },
       include: {
-        event: { select: { id: true, organizationId: true, visibility: true, status: true, startsAt: true } },
+        event: { select: { id: true, organizationId: true, visibility: true, status: true, startsAt: true, defaultLocale: true } },
       },
     });
 
@@ -382,12 +369,16 @@ export class TicketingService {
    * after the fact is a write that might not run.
    */
   private async createOrderRow(
-    event: { id: string; organizationId: string },
+    event: { id: string; organizationId: string; defaultLocale: string },
     dto: CreateOrderDto,
     types: { id: string; priceMinor: bigint; currency: string }[],
-    subtotalMinor: bigint,
+    fingerprint: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
+      await claimCheckout(tx, dto.idempotencyKey);
+      const attendees = await prepareRoster(tx, event.id, dto);
+      const subtotalMinor = subtotalFor(dto.items, types);
+      await this.fulfilment.hold(dto.items, tx);
       const claim = dto.promoCode
         ? await this.promoCodes.claim(
             event.organizationId,
@@ -401,18 +392,19 @@ export class TicketingService {
       // Roll back a promo claim and release holds if this would start a charge.
       assertAmountMayBeCharged(subtotalMinor - discountMinor);
 
-      return tx.ticketOrder.create({
+      const order = await tx.ticketOrder.create({
         data: {
           eventId: event.id,
           buyerName: dto.buyerName,
           buyerEmail: dto.buyerEmail,
           buyerPhone: dto.buyerPhone ?? null,
-          locale: dto.locale ?? 'hy',
+          locale: dto.locale ?? event.defaultLocale,
           totalMinor: subtotalMinor - discountMinor,
           promoCodeId: claim?.promoCodeId ?? null,
           discountMinor,
           currency: types[0]?.currency ?? 'AMD',
           idempotencyKey: dto.idempotencyKey,
+          requestFingerprint: fingerprint,
           accessToken: randomBytes(16).toString('hex'),
           reservesUntil: new Date(Date.now() + RESERVATION_WINDOW_MS),
           items: {
@@ -423,8 +415,10 @@ export class TicketingService {
             })),
           },
         },
-        include: { items: true },
+        select: { id: true },
       });
+      await tx.orderAttendee.createMany({ data: attendees.map((person) => ({ ...person, orderId: order.id })) });
+      return tx.ticketOrder.findUniqueOrThrow({ where: { id: order.id }, include: { items: true, attendees: { orderBy: { position: 'asc' } } } });
     });
   }
 
@@ -437,7 +431,8 @@ export class TicketingService {
     currency: string;
     reservesUntil: Date | null;
     items: { ticketTypeId: string; quantity: number; unitPriceMinor: bigint }[];
-    tickets?: { code: string; status: TicketStatus }[];
+    tickets?: { id?: string; attendeeId?: string | null; holderName?: string | null; code: string; status: TicketStatus }[];
+    attendees?: { id: string; ticketTypeId: string; position: number; firstName: string; lastName: string | null; attendanceRevision: number; status: string; venueAttendance: unknown }[];
   }) {
     return {
       orderId: order.id,
@@ -452,7 +447,9 @@ export class TicketingService {
         quantity: item.quantity,
         unitPriceMinor: item.unitPriceMinor.toString(),
       })),
-      tickets: order.tickets?.map((ticket) => ({ code: ticket.code, status: ticket.status })),
+      attendees: order.attendees?.map((person) => ({ id: person.id, ticketTypeId: person.ticketTypeId, position: person.position, firstName: person.firstName,
+        lastName: person.lastName, attendanceRevision: person.attendanceRevision, status: person.status, venueAttendance: person.venueAttendance })),
+      tickets: order.tickets?.map((ticket) => ({ id: ticket.id, attendeeId: ticket.attendeeId, holderName: ticket.holderName, code: ticket.code, status: ticket.status })),
     };
   }
 }

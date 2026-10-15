@@ -12,11 +12,12 @@ export async function mutateGuestVenues<T>(tx: Prisma.TransactionClient, eventId
   const ids = new Set(after.map((venue) => venue.id));
   const hidden = before.venues.filter((venue) => !ids.has(venue.id)).map((venue) => venue.id);
   if (hidden.length > 0) {
-    const [responses, seats] = await Promise.all([
+    const [responses, seats, rosters] = await Promise.all([
       tx.attendanceResponse.count({ where: { eventId, venueId: { in: hidden } } }),
       tx.seat.count({ where: { eventId, table: { venueId: { in: hidden } } } }),
+      tx.orderAttendee.count({ where: { eventId, OR: hidden.map((venueId) => ({ venueAttendance: { array_contains: [{ venueId }] } })) } }),
     ]);
-    if (responses + seats > 0) throw new ConflictException('venue: attendance or seats exist; keep the venue guest-facing to preserve history');
+    if (responses + seats + rosters > 0) throw new ConflictException('venue: attendance, checkout choices or seats exist; keep the venue guest-facing to preserve history');
   }
   await refreshVenueAttendance(tx, eventId);
   return result;

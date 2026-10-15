@@ -381,6 +381,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/listing/publish` | Make it public |
 | `POST` | `/api/v1/events/:eventId/listing/unpublish` | Take it down |
 | `GET` | `/api/v1/events/:eventId/ticket-orders` | Orders on the event, newest first |
+| `GET` | `/api/v1/events/:eventId/ticket-orders/:orderId` | Review captured attendees and ticket/guest links; contacts/codes permission-filtered |
+| `POST` | `/api/v1/events/:eventId/tickets/:ticketId/attendee` | Register an explicitly supplied legacy ticket attendee |
+| `POST` | `/api/v1/events/:eventId/tickets/:ticketId/link-guest` | Link an existing invited guest, preserving their answers |
 | `POST` | `/api/v1/events/:eventId/ticket-orders/:orderId/cancel` | Cancel and refund an order, exactly once |
 
 ### Public — vendor briefs and discounts

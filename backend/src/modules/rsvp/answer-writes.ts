@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { MessageStatus, Prisma, RsvpStatus } from '@prisma/client';
 import { REMINDER_TEMPLATE_KEY } from '../invitations/sending/reminder-schedule';
 import { releaseSeat } from '../seating/released-seat';
@@ -22,6 +23,9 @@ export type RsvpFields = Partial<
  * response-rate trend reads when people first answered.
  */
 export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields, attendance?: AttendanceWrite) {
+  if (fields.status === 'ATTENDING' && await tx.ticket.count({ where: { guestId, status: { in: ['VOID', 'REFUNDED'] } } })) {
+    throw new BadRequestException('Ticket is no longer valid; attendance cannot be reconfirmed');
+  }
   const existing = await tx.rsvp.findUnique({ where: { guestId }, select: { respondedAt: true } });
   const respondedAt = existing?.respondedAt ?? new Date();
 

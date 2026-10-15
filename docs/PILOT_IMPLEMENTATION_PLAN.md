@@ -41,7 +41,7 @@ prevent live charge initiation.
 | PDFs | All seven existing export kinds, including seating charts and place cards |
 | Export freshness | Fixed snapshots; host regenerates when needed |
 | Gallery | Invited guests only; host approval before other guests see a photo |
-| Ticket attendee identity | Buyer supplies every attendee's name/details at checkout |
+| Ticket attendee identity | Buyer supplies every attendee's name/details and own venue choices at checkout |
 | Guest acknowledgements | Both drawn and typed options; a representative may acknowledge for household members |
 | Free invitation expiry | Close guest access; retain host event data and media |
 | Email feedback | Keep provider-neutral; native F22 is an explicit release exception |
@@ -86,8 +86,10 @@ Current limitations that drive the new plan:
 - CSV exports generate current data during download. PDF/XLSX are rejected.
 - The storage port returns public URLs. Private exports, signatures and
   guest-gallery originals need a separate protected storage path.
-- Ticket-to-guest and venue-profile-to-vendor relations exist, but their write
-  flows are missing. Ticket and guest check-in are currently separate.
+- Named ticket checkout, legacy registration and explicit invited-guest linking
+  now write the guest graph and share admission/cancellation tracking. Frontend
+  attendee/reconciliation screens and language acceptance remain. Venue-profile
+  directory operator write flows are still missing.
 - The upload controller advertises `kind` but ignores it; uploaded images become
   PHOTO. Signature questions are refused, and one RSVP signature field cannot
   represent several separate acknowledgements.
@@ -286,6 +288,16 @@ all four interface languages.
 briefs; [VENUES_AND_SEATING.md](VENUES_AND_SEATING.md) and [API.md](API.md).
 
 ## 5. Milestone C — named ticket holders in the guest graph (F23)
+
+Backend implementation now covers the roster, atomic issuance, deliberate
+legacy reconciliation, shared admission, cancellation and attendee privacy.
+Frontend integration and the final four-language/production acceptance remain.
+This batch changes checkout: `attendees` is now required (see API contract).
+
+Local verification on 15 October passed the full pipeline and final focused
+regressions, including 1,030 unit tests, 364 integration tests and 569 HTTP
+tests across those runs. The populated migration preserves legacy ticket
+links and admission timestamps without inferring attendee identities.
 
 - Checkout supplies exactly one bounded attendee record per requested ticket.
   Capture names and useful existing guest fields; do not assume buyer = attendee

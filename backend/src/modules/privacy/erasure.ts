@@ -1,3 +1,4 @@
+import { attendeeSubject, eraseAttendees, lockSubjectOrders } from '../ticketing/attendee-privacy';
 import { MessageChannel, MessageStatus, Prisma, SuppressionReason } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { addressFingerprint } from '../communications/address-form';
@@ -53,11 +54,14 @@ interface KnownAddress {
 }
 
 export async function eraseSubject(tx: Tx, email: string, now: Date) {
+  await lockSubjectOrders(tx, email);
   const { guests, addresses } = await findGuests(tx, email);
   const guestIds = guests.map((guest) => guest.id);
   const fileUrls = await signatureFiles(tx, guestIds);
   const buyerOrganizationIds = await organizationsSoldTo(tx, email);
 
+  const ticketAttendeesAnonymised = await eraseAttendees(tx, { email, guestIds, now });
+  if (guestIds.length) await tx.$queryRaw`SELECT id FROM households WHERE id IN (SELECT "householdId" FROM guests WHERE id IN (${Prisma.join(guestIds)})) ORDER BY id FOR UPDATE`;
   await eraseGuests(tx, guestIds, now);
   const householdsRenamed = await renameHouseholdsNamedAfter(tx, guests);
   const ticketOrdersAnonymised = await eraseTicketHolders(tx, email, guestIds);
@@ -70,6 +74,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date) {
   return {
     counts: {
       guestsAnonymised: guestIds.length,
+      ticketAttendeesAnonymised,
       householdsRenamed,
       ticketOrdersAnonymised,
       messagesRedacted,
@@ -84,7 +89,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date) {
 /** The guest rows, and every address they reached the person at — collected before the rows are cleared. */
 async function findGuests(tx: Tx, email: string): Promise<{ guests: ErasedGuest[]; addresses: KnownAddress[] }> {
   const rows = await tx.guest.findMany({
-    where: { email: sameAddress(email), anonymizedAt: null },
+    where: { anonymizedAt: null, OR: [{ email: sameAddress(email) }, { ticket: { attendee: attendeeSubject(email) } }] },
     select: {
       id: true,
       firstName: true,
@@ -122,7 +127,7 @@ async function signatureFiles(tx: Tx, guestIds: string[]): Promise<string[]> {
 
 async function organizationsSoldTo(tx: Tx, email: string): Promise<string[]> {
   const orders = await tx.ticketOrder.findMany({
-    where: { buyerEmail: sameAddress(email) },
+    where: { OR: [{ buyerEmail: sameAddress(email) }, { attendees: { some: attendeeSubject(email) } }] },
     select: { event: { select: { organizationId: true } } },
   });
   return orders.map((order) => order.event.organizationId);
@@ -182,6 +187,7 @@ async function eraseTicketHolders(tx: Tx, email: string, guestIds: string[]): Pr
   const orders = await tx.ticketOrder.updateMany({
     where: { buyerEmail: sameAddress(email) },
     data: {
+      requestFingerprint: null,
       buyerName: ERASED_NAME,
       buyerEmail: `erased-${randomBytes(8).toString('hex')}@erased.invalid`,
       buyerPhone: null,

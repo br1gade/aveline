@@ -22,6 +22,13 @@ describe('Multi-venue seating migration (integration)', () => {
       for (const folder of folders.filter((name) => name >= '20261013110000_multi_venue_seating')) {
         await connection.query(await readFile(`prisma/migrations/${folder}/migration.sql`, 'utf8'));
       }
+      const tickets = await connection.query('SELECT id, "guestId", "attendeeId", status, "holderName", "usedAt"::text AS "usedAt" FROM tickets ORDER BY id');
+      expect(tickets.rows).toEqual([
+        { id: 'legacy-linked', guestId: 'venue', attendeeId: null, status: 'USED', holderName: 'Known holder', usedAt: '2026-10-01 12:00:00' },
+        { id: 'legacy-unlinked', guestId: null, attendeeId: null, status: 'VALID', holderName: 'Buyer', usedAt: null },
+      ]);
+      expect((await connection.query('SELECT count(*)::int AS count FROM order_attendees')).rows).toEqual([{ count: 0 }]);
+      expect((await connection.query('SELECT "requestFingerprint", "cancellationStartedAt" FROM ticket_orders')).rows).toEqual([{ requestFingerprint: null, cancellationStartedAt: null }]);
       const seats = await connection.query<{ id: string; arrangementId: string; eventId: string }>('SELECT id, "arrangementId", "eventId" FROM seats ORDER BY id');
       expect(seats.rows).toEqual([
         { id: 'legacy-seat', arrangementId: 'legacy:event', eventId: 'event' },
@@ -61,6 +68,12 @@ async function insertLegacyFixture(connection: Client) {
     INSERT INTO seats (id, "guestId", "tableId", position) VALUES
       ('venue-seat', 'venue', 'venue-table', 2), ('legacy-seat', 'legacy', 'legacy-table', 1);
     INSERT INTO rsvps (id, "guestId", status, "updatedAt") VALUES ('answer', 'venue', 'ATTENDING', now());
+    INSERT INTO ticket_types (id, "eventId", "priceMinor", "quantityTotal", "updatedAt") VALUES ('type', 'event', 0, 10, now());
+    INSERT INTO ticket_orders (id, "eventId", "buyerName", "buyerEmail", "totalMinor", "idempotencyKey", "accessToken", "updatedAt")
+      VALUES ('order', 'event', 'Buyer', 'buyer@test.local', 0, 'legacy-key', 'legacy-access', now());
+    INSERT INTO tickets (id, "eventId", "orderId", "ticketTypeId", code, "guestId", status, "holderName", "usedAt") VALUES
+      ('legacy-linked', 'event', 'order', 'type', 'linked-code', 'venue', 'USED', 'Known holder', '2026-10-01T12:00:00Z'),
+      ('legacy-unlinked', 'event', 'order', 'type', 'unlinked-code', NULL, 'VALID', 'Buyer', NULL);
     UPDATE guests SET "seatReleasedAt" = '2026-10-01T12:00:00Z', "seatReleasedFromTableId" = 'venue-table' WHERE id = 'released';
     UPDATE guests SET "seatReleasedAt" = '2026-10-02T12:00:00Z' WHERE id = 'unknown';
   `);

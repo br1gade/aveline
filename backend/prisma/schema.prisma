@@ -1087,7 +1087,9 @@ model TicketType {
   event   Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   items   TicketOrderItem[]
   tickets Ticket[]
+  attendees OrderAttendee[]
 
+  @@unique([id, eventId])
   @@index([eventId, isActive])
   @@map("ticket_types")
 }
@@ -1113,6 +1115,8 @@ model TicketOrder {
   reservesUntil      DateTime?
   /// Supplied by the client; makes a double-tapped checkout safe.
   idempotencyKey     String    @unique
+  requestFingerprint String?
+  cancellationStartedAt DateTime?
 
   /// Applied discount, captured so a later code change never rewrites what
   /// a buyer was actually charged.
@@ -1129,7 +1133,9 @@ model TicketOrder {
   promoCode PromoCode?        @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
   items     TicketOrderItem[]
   tickets   Ticket[]
+  attendees OrderAttendee[]
 
+  @@unique([id, eventId])
   @@index([eventId, status])
   /// The reservation sweep scans expiring holds oldest-first.
   @@index([status, reservesUntil])
@@ -1184,16 +1190,56 @@ model Ticket {
   /// Set when a ticket holder is also tracked in the guest graph, which lets
   /// seating and catering treat both populations the same way.
   guestId  String?      @unique
+  attendeeId String?    @unique
 
   event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   order      TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   ticketType TicketType  @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
-  guest      Guest?      @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  guest      Guest?      @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: NoAction)
+  attendee   OrderAttendee? @relation(fields: [attendeeId, eventId], references: [id, eventId], onDelete: NoAction)
 
+  @@unique([guestId, eventId])
+  @@unique([attendeeId, eventId])
   @@index([eventId, status])
   /// Voiding an order's tickets and listing them filter by order.
   @@index([orderId])
   @@map("tickets")
+}
+
+/// Checkout intent belongs to the attendee, independently of the buyer.
+model OrderAttendee {
+  id          String @id @default(cuid())
+  orderId     String
+  eventId     String
+  ticketTypeId String
+  position    Int
+  firstName   String
+  lastName    String?
+  email       String?
+  phone       String?
+  locale      String
+  householdKey String?
+  generatedGuestId String? @unique
+  linkedSourceSnapshot Json?
+  dietary     String[] @default([])
+  dietaryNotes String?
+  drinkPreference String?
+  answers     Json @default("[]")
+  attendanceRevision Int
+  status      RsvpStatus
+  venueAttendance Json @default("[]")
+  erasedAt    DateTime?
+
+  order TicketOrder @relation(fields: [orderId, eventId], references: [id, eventId], onDelete: Cascade)
+  ticketType TicketType @relation(fields: [ticketTypeId, eventId], references: [id, eventId], onDelete: NoAction)
+  ticket Ticket?
+
+  @@unique([id, eventId])
+  @@unique([orderId, position])
+  @@index([ticketTypeId])
+  @@index([email])
+  @@index([eventId])
+  @@map("order_attendees")
 }
 
 enum TicketStatus {

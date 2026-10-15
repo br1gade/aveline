@@ -1,3 +1,4 @@
+import { countQuestionAnswers } from '../ticketing/checkout-questions';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { BlockType, Prisma, QuestionType } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
@@ -261,7 +262,7 @@ export class DesignService {
       const options = (dto.options ? mergeTranslations(question.options, dto.options) : (question.options ?? [])) as Prisma.InputJsonValue;
       const type = dto.type ?? question.type;
       assertQuestionIsAnswerable({ type, prompt, options: asObject(options as Prisma.JsonValue) });
-      const answers = await tx.rsvpAnswer.count({ where: { questionId: id } });
+      const answers = await countQuestionAnswers(tx, id);
       assertAnsweredQuestionKeepsShape(answers, question, { type, options });
 
       return tx.rsvpQuestion.update({
@@ -289,7 +290,7 @@ export class DesignService {
       // delete was cascaded away (B87). The lock conflicts with the one an
       // answer's foreign key takes, so the two now run one after the other.
       await tx.$queryRaw`SELECT id FROM rsvp_questions WHERE id = ${question.id} FOR UPDATE`;
-      const answers = await tx.rsvpAnswer.count({ where: { questionId: question.id } });
+      const answers = await countQuestionAnswers(tx, question.id);
       if (answers > 0) {
         throw new BadRequestException(
           `${answers} guest(s) have answered this question; deleting it would discard their answers. ` +

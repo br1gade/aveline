@@ -81,7 +81,7 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 ## 4. Domain model
 
 The entities below are the ones the product argument rests on. The complete
-inventory — 53 models, what each is for, and the invariants the database
+inventory — 54 models, what each is for, and the invariants the database
 enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 
 | Entity | Purpose |
@@ -447,6 +447,7 @@ robots directive, so the client renders rather than invents them.
 |---|---|
 | **TicketType** | A sellable tier: price, capacity, sales window, per-order limits |
 | **TicketOrder** | One purchase. Buyers are not users — a stranger must not need an account, the same reasoning that makes guests capability-based |
+| **OrderAttendee** | One named attendee, independently of the buyer, with captured attendance and personal answers |
 | **Ticket** | One admitted person, with an unguessable code |
 
 **Inventory is held before payment, never after.** Charging for a seat that no
@@ -463,8 +464,22 @@ A ticket code admits once. Two scanners at one door cannot both admit it.
 
 ### 13.4 Where the two shapes meet
 
-A ticket may link to a `Guest`, which lets seating, catering and check-in
-treat ticket holders and invited guests identically. A corporate client can
+Checkout collects each attendee's names/details and stores the roster with the
+reserved order. Settlement creates a linked `Guest` per ticket exactly once;
+failed/expired checkouts create no attending guests. Household grouping is
+explicit, never inferred from a shared buyer, email or name. Per-venue checkout
+collects each person's own choices; a policy change before settlement requires
+reconfirmation rather than guessed answers.
+
+Hosts can deliberately register legacy holders or link an existing invited
+guest. The invited guest's answers remain; captured checkout answers are
+archived, and the duplicate leaves live counts. Both scanning surfaces share
+one admission record. Cancellation freezes admission, withdraws participation
+and releases seats; used tickets require explicit admission undo first.
+Privacy export/erasure follow the actual attendee independently of the buyer.
+
+These links let seating, catering and check-in treat ticket holders and invited
+guests identically. A corporate client can
 run an invited-only dinner and a public conference from one account, with one
 operations dashboard.
 

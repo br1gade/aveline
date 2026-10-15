@@ -110,7 +110,7 @@ it needs a cancellation during the event itself, at the door.
 | F20 | PDF exports — the seating chart on paper (CSV works) | M |
 | F21 | WhatsApp delivery receipts | S–M |
 | F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
-| F23 | Ticket holders join the guest list, so arrivals and catering count them (§13.4) | M |
+| F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
 | F24 | Hero and share-preview images on event listings (§13.2) | S |
 | F25 | Guest signature capture (`SIGNATURE` question) | S–M |
 | F26 | Caching the personalised page — every link actually sent is personalised and uncached | M |
