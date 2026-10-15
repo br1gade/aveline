@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 54 models across three
+The authoritative map of what is stored and where. 58 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 54 |
+| **PostgreSQL** | The entire domain. The only source of truth | 58 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -79,7 +79,11 @@ lives outside Postgres.
 | Model | Purpose |
 |---|---|
 | `Vendor` · `VendorBooking` | The partner network, with scoped brief access |
-| `Export` | A generated document, produced as a job |
+| `Export` | Legacy live-download audit reference; no historical snapshot |
+| `ExportSnapshot` | Durable private CSV job: intent, claims, attempts, provenance, artifact reference, expiry and revocation |
+| `ExportArtifact` | Write-ahead private object ledger; survives event deletion, retries and delayed uploads |
+| `ExportSnapshotSubject` | Normalized email fingerprints that locate old snapshots during subject erasure |
+| `ExportPrivacyFence` | Shared/exclusive capture/erasure fence; repeatable-read conflicts retry |
 
 ### Communications
 | Model | Purpose |
@@ -156,6 +160,10 @@ model them. Legacy release columns remain historical input, not current view dat
 Files go through `StorageService`, never straight to disk or a bucket. Two
 adapters sit behind it — Garage (S3) and the local filesystem — selected by
 configuration. Keys are generated UUIDs, never the uploaded filename.
+
+Private generated exports are separate: `ExportArtifact` stores internal UUID
+keys in a protected bucket/root; `ExportSnapshot` carries provenance, expiry and
+revocation. No private export is a public `MediaAsset`.
 
 Full detail, including why reads are anonymous and what durability actually
 depends on, is in [STORAGE.md](STORAGE.md).

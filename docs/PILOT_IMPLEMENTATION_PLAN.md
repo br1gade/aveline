@@ -1,9 +1,10 @@
 # Pilot and P2 implementation plan
 
-Prepared 12 October 2026; revised 13 October 2026 (Asia/Yerevan).
+Prepared 12 October 2026; revised 15 October 2026 (Asia/Yerevan).
 **Status: product decisions confirmed; implementation plan ready.
-Readiness groundwork and F50 backend seating/attendance are implemented; feature
-milestones remain open until all of their acceptance checks pass.**
+Readiness groundwork, F50 backend seating/attendance, F23 named attendees and
+the private CSV snapshot/worker foundation are implemented; feature milestones
+remain open until all of their acceptance checks pass.**
 
 Goal: deliver the requested pilot features while the frontend is being built,
 then verify them together on production infrastructure. The pilot remains free.
@@ -83,9 +84,10 @@ Current limitations that drive the new plan:
 - The original one-seat/event layout has been replaced by separate venue
   arrangements, scoped assignment/release history and enforced venue capacity.
   Attendance now supports both modes and reconfirmation; automatic seating still runs in the request.
-- CSV exports generate current data during download. PDF/XLSX are rejected.
-- The storage port returns public URLs. Private exports, signatures and
-  guest-gallery originals need a separate protected storage path.
+- Legacy `/exports` CSV remains live; additive `/export-snapshots` jobs generate
+  fixed private files for all seven kinds. PDF/XLSX are still rejected.
+- A separate private storage port now serves export artifacts. Signatures and
+  guest-gallery originals still need to adopt protected storage.
 - Named ticket checkout, legacy registration and explicit invited-guest linking
   now write the guest graph and share admission/cancellation tracking. Frontend
   attendee/reconciliation screens and language acceptance remain. Venue-profile
@@ -349,6 +351,25 @@ an unrestricted general job framework.
 - Tenant/event scoping and current caller authorization on every download.
   Erasure, event deletion, failed attempts and expired artifacts need bounded
   cleanup that includes originals and variants.
+
+### CSV foundation delivered (15 October 2026)
+
+Dedicated export worker, durable leases/retries, private storage, consistent
+CSV capture for all seven kinds, fixed authenticated downloads, expiry and
+revocation/cleanup are implemented on additive `/export-snapshots` routes.
+Legacy `/exports` remains live during the frontend transition; old rows are
+not snapshots. See [API.md](API.md) and
+[worker operations](../backend/docs/EXPORT_WORKER.md). The frontend still needs
+to adopt queue/status/regeneration behavior. Standard CSV headings remain
+English pending F35. Production worker/bucket recovery is still a rehearsal
+gate. **F20/F49/F27 remain open:** PDF/XLSX, their library/font/visual checks,
+and background seating are the next export/seating work.
+
+Verification: `npm run verify` passed lint, docs, OpenAPI, build, **1,049 unit,
+384 integration and 577 HTTP tests**. Snapshot coverage includes real worker
+termination/replacement and graceful shutdown, stale-owner rejection, erasure
+fencing, permission loss during download, expiry and cleanup retry. Production
+bucket policy and expanded-stack rehearsal remain unverified launch gates.
 
 ### All exports (F20, F49, export part of F27)
 

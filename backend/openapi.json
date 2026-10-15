@@ -4689,6 +4689,126 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/export-snapshots": {
+      "get": {
+        "operationId": "ExportSnapshotsController_list",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Latest 50 fixed snapshots; poll individual jobs for readiness",
+        "tags": [
+          "exports"
+        ]
+      },
+      "post": {
+        "operationId": "ExportSnapshotsController_create",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExportSnapshotDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Queue a private fixed snapshot; use a new idempotency key to regenerate",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/export-snapshots/{snapshotId}": {
+      "get": {
+        "operationId": "ExportSnapshotsController_findOne",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "snapshotId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Snapshot state, generation metadata, expiry and download readiness",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/export-snapshots/{snapshotId}/download": {
+      "get": {
+        "operationId": "ExportSnapshotsController_download",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "snapshotId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Download stored snapshot bytes with current event/contact authorization",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
     "/api/v1/privacy/requests": {
       "post": {
         "description": "Always answers the same way, whether or not anything is held — saying \"we hold nothing about you\" is itself information about that address.",
@@ -6903,6 +7023,54 @@
         },
         "required": [
           "kind"
+        ]
+      },
+      "CreateExportSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "GUEST_LIST",
+              "SEATING_CHART",
+              "PLACE_CARDS",
+              "CATERING_SHEET",
+              "BAR_SHEET",
+              "PLAYLIST",
+              "TICKET_MANIFEST"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "New UUID for each regeneration; reuse only to retry the same request."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "CSV",
+              "XLSX"
+            ],
+            "default": "CSV"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ru",
+              "fr",
+              "hy"
+            ],
+            "description": "Defaults to the event language; headings remain English until F35."
+          },
+          "includesContacts": {
+            "type": "boolean",
+            "description": "Defaults to current contact permission. False requests a redacted artifact."
+          }
+        },
+        "required": [
+          "kind",
+          "idempotencyKey"
         ]
       },
       "CreateDataSubjectRequestDto": {

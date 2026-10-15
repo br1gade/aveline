@@ -9,7 +9,7 @@ wrote it. Everything here has been run; where something has not, it says so.
 
 ## 1. What this is
 
-Six long-running services on one host, plus one-shot migrations and backup tasks:
+Seven long-running services on one host, plus one-shot migrations and backup tasks:
 
 ```
             ┌─────────────────────────────────────────┐
@@ -22,10 +22,18 @@ Six long-running services on one host, plus one-shot migrations and backup tasks
             │          ├──▶ mongo      analytics, audit│
             │          └──▶ garage     media, exports  │
             │                                         │
+            │        export-worker → postgres/garage   │
             │        backup      quiesced capture      │
             │        backup-check freshness and space  │
             └─────────────────────────────────────────┘
 ```
+
+The `export-worker` service is new in the CSV snapshot batch. Compose syntax
+and process recovery are tested locally, but the expanded production stack and
+its private bucket still require rehearsal. Set `PRIVATE_S3_BUCKET` separately
+from public media, disable anonymous reads, and run the same image/migrations
+in API and worker. Its healthcheck reads a process heartbeat; it has no HTTP
+port. See [EXPORT_WORKER.md](EXPORT_WORKER.md) for limits, recovery and cleanup.
 
 **One machine, deliberately.** Replication and failover cost more to run than
 the product earns at this stage, and an architecture nobody can operate is
@@ -34,7 +42,8 @@ worse than a simple one whose limits are written down. The limits are in
 
 ## 2. First deployment
 
-> This stack has been run end to end locally — all seven services healthy,
+> The earlier stack, before the export worker, was run end to end locally —
+> all seven services (including migrations) healthy,
 > migrations applied, TLS served by Caddy, the API answering through it, a
 > backup taken and verified, and a full customer journey from `register` to a
 > published invitation page. What it has **not** had is a real host, a real

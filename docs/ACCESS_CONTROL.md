@@ -140,8 +140,11 @@ Two permissions are split out from their obvious parents on purpose:
 with PII or commercial terms.
 
 `guest:contact:read` is checked wherever an address could leak, not only on
-the guest list: export downloads drop the `Email` and `Phone` columns without
-it, the ticket manifest is refused without it, the ticket order list omits
+the guest list: legacy live CSV downloads drop the `Email` and `Phone` columns
+without it. Private snapshot exports choose full or redacted columns at
+generation; a full artifact is refused after contact permission is lost, so
+the viewer must regenerate a redacted snapshot. Ticket manifests require
+contact permission at creation and download. The ticket order list omits
 `buyerEmail`, and the delivery report omits `toAddress`. The delivery report
 itself needs `guest:read`, so a `DESIGNER` cannot read the guest list through
 it. A vendor's `headcount` brief is numbers only; names come with the

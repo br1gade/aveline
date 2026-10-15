@@ -78,7 +78,7 @@ date can move; full scope takes priority.
 | Asynchronous bounce reports | Signed provider-neutral delivery/bounce/complaint ingestion is built. Native provider/mailbox integration stays deferred by D30; it is not connected to real delivery events |
 | Provider send-rate throttling | Persistent per-minute/daily budgets and sending concurrency are built. Configure them against the actual sender's limits and prove controlled sending; quota waits do not consume delivery attempts |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
-| BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
+| Background export/seating completion | Private CSV jobs use a dedicated Postgres queue. PDF/XLSX and asynchronous seating still remain |
 | Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |
 | Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
 | Invoice tax | `taxMinor` is always zero, so an invoice is not a tax document |
@@ -119,3 +119,13 @@ Worth stating, so the list above is read as scope rather than alarm.
 4. **The P0 items in [BACKLOG.md](BACKLOG.md)**, before the first real
    guest's data is held.
 5. Everything in §2, as usage reveals which matters.
+
+
+### Private snapshot worker gate
+
+Before using snapshots in the pilot, configure the separate private bucket
+and verify anonymous reads fail. Deploy the dedicated export worker, check its
+heartbeat/failed queue state, exercise termination/lease recovery and a storage
+outage, and prove expiry, event deletion and subject erasure clean up stored
+bytes. See [worker runbook](../backend/docs/EXPORT_WORKER.md). Frontend adoption,
+PDF/XLSX and background seating remain release gates in the pilot plan.

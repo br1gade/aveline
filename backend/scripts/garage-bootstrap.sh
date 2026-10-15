@@ -7,6 +7,7 @@ set -euo pipefail
 
 CONTAINER="${GARAGE_CONTAINER:-aveline-garage}"
 BUCKET="${GARAGE_BUCKET:-aveline-media}"
+PRIVATE_BUCKET="${GARAGE_PRIVATE_BUCKET:-aveline-private}"
 KEY_NAME="${GARAGE_KEY:-aveline-backend}"
 CAPACITY="${GARAGE_CAPACITY:-10G}"
 ZONE="${GARAGE_ZONE:-aveline}"
@@ -23,6 +24,15 @@ else
   echo "Layout already assigned."
 fi
 
+if [ "$PRIVATE_BUCKET" = "$BUCKET" ]; then
+  echo 'The private and public buckets must be separate.' >&2
+  exit 1
+fi
+
+garage bucket create "$PRIVATE_BUCKET" >/dev/null 2>&1 || true
+# Explicitly disable website hosting even when reusing a local bucket.
+garage bucket website --deny "$PRIVATE_BUCKET" >/dev/null
+
 garage bucket create "$BUCKET" >/dev/null 2>&1 || true
 
 # `garage key create` does not check for an existing name — running it twice
@@ -34,6 +44,7 @@ if ! garage key list 2>/dev/null | grep -q "[[:space:]]$KEY_NAME\b"; then
 fi
 
 garage bucket allow --read --write --owner "$BUCKET" --key "$KEY_NAME" >/dev/null
+garage bucket allow --read --write "$PRIVATE_BUCKET" --key "$KEY_NAME" >/dev/null
 
 # Anonymous reads. Invitation images are loaded by every guest from a link
 # they were sent; signed URLs would expire and break a shared invitation, and
@@ -51,6 +62,7 @@ Add to backend/.env:
 S3_ENDPOINT="http://localhost:3900"
 S3_REGION="garage"
 S3_BUCKET="$BUCKET"
+PRIVATE_S3_BUCKET="$PRIVATE_BUCKET"
 S3_ACCESS_KEY_ID="$key_id"
 S3_SECRET_ACCESS_KEY="$secret"
 S3_PUBLIC_URL="http://$BUCKET.web.garage.localhost:3902"

@@ -6,7 +6,7 @@ preference.
 | Store | Holds | Losing it costs |
 |---|---|---|
 | **PostgreSQL** | The entire domain. The only source of truth | Everything |
-| **Redis** | Cached reads, rate limits, job queue. Rebuildable | Latency |
+| **Redis** | Cached reads, rate limits, sweep locks. Rebuildable | Latency |
 | **MongoDB** | Append-only analytics. Never domain state | Insight, not correctness |
 
 ---
@@ -125,9 +125,10 @@ message is better than sending it twice.
 
 ### Intended, not yet built
 
-- **Job queue** (BullMQ) for retryable per-item work — exports, image
-  processing, seating computation. Cron plus a lock covers periodic sweeps and
-  is far less machinery; a queue is for work that must retry individually
+- **Background seating and PDF/XLSX jobs.** Private CSV exports now use a
+  dedicated Postgres queue. Image resizing still uses a sweep; its missing
+  variant is its work marker. No generic Redis queue is required for these
+  correctness-sensitive jobs.
 - **Throttle counts in Redis**, so several API instances share one limit
 
 ### Decided differently
@@ -257,3 +258,18 @@ Both of the failures above were found by stopping a container against a running
 API, not by a test. **Run the degraded path by hand before trusting it**: a unit
 test proves the error is caught, not that the timeout is short enough or that
 the client recovers.
+
+
+### Private export jobs
+
+`ExportSnapshot` is the durable queue, not Redis: losing a claim or publication
+must not silently lose an accepted host request. Export-specific claims use
+Postgres row locks, attempt tokens and expiring leases. Consistent inputs and
+subject references are captured in a short repeatable-read transaction; CSV
+encoding/storage IO happen afterwards in a separate process. An object ledger
+is committed before upload. Publication checks standing and ownership again.
+Erasure fences capture/publication and revokes affected jobs; the cleanup ledger
+survives cascading event deletion. See [EXPORT_WORKER.md](EXPORT_WORKER.md).
+
+Not yet built: background seating jobs, PDF/XLSX rendering, and conversion of
+legacy live-CSV clients to the additive snapshot contract.

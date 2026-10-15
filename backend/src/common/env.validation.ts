@@ -34,6 +34,7 @@ export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
 
   assertWholeNumbers(raw, ['ACCESS_TOKEN_TTL_SECONDS', 'REFRESH_TOKEN_TTL_DAYS']);
   assertEmailQuotaSettings(raw);
+  assertExportRetention(raw);
   const feedbackSecret = asText(raw.EMAIL_FEEDBACK_SECRET);
   if (feedbackSecret && feedbackSecret.length < 32) throw new Error('EMAIL_FEEDBACK_SECRET must have at least 32 characters');
   if (raw.PILOT_MODE !== undefined && !['true', 'false'].includes(asText(raw.PILOT_MODE) ?? '')) {
@@ -111,4 +112,11 @@ function parsePort(value: unknown): number {
     throw new Error(`PORT must be a valid port number, got "${asText(value) ?? ''}"`);
   }
   return port;
+}
+
+
+function assertExportRetention(raw: Record<string, unknown>): void {
+  if (raw.EXPORT_RETENTION_DAYS === undefined) return;
+  const value = asText(raw.EXPORT_RETENTION_DAYS) ?? '';
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 30) throw new Error('EXPORT_RETENTION_DAYS must be a whole number between 1 and 30');
 }

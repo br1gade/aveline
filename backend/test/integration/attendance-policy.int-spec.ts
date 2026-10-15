@@ -154,7 +154,7 @@ describe('Attendance policies and venue responses (integration)', () => {
     const event = await fixture();
     await change(event.eventId, 'PER_VENUE');
     await host.record(event.eventId, event.guest.id, { attendanceRevision: 2, dietary: ['vegetarian'], drinkPreference: 'wine', venueAttendance: [{ venueId: event.hall.id, status: 'ATTENDING' }, { venueId: event.church.id, status: 'DECLINED' }] });
-    const operations = new OperationsService(prisma as unknown as PrismaService, {} as never);
+    const operations = new OperationsService(prisma, {} as never);
     expect(await operations.headcount(event.eventId)).toMatchObject({ attending: 1, venues: [expect.objectContaining({ venueId: event.hall.id, attending: 1 }), expect.objectContaining({ venueId: event.church.id, declined: 1 })] });
     expect(await operations.cateringSheet(event.eventId, event.church.id)).toMatchObject({ covers: 0 });
     expect(await operations.barSheet(event.eventId, event.hall.id)).toMatchObject({ totalResponses: 1 });
@@ -188,7 +188,7 @@ describe('Attendance policies and venue responses (integration)', () => {
     const event = await fixture();
     await change(event.eventId, 'PER_VENUE');
     await host.record(event.eventId, event.guest.id, { attendanceRevision: 2, venueAttendance: [{ venueId: event.hall.id, status: 'DECLINED' }] });
-    const operations = new OperationsService(prisma as unknown as PrismaService, {} as never);
+    const operations = new OperationsService(prisma, {} as never);
     expect(await operations.headcount(event.eventId)).toMatchObject({
       pending: 1, responseRate: 100, trend: [expect.objectContaining({ responses: 1, cumulative: 1, responseRate: 100 })],
     });

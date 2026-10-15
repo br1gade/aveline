@@ -78,3 +78,13 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, [key]: value })).toThrow(key);
   });
 });
+
+
+describe('Export file retention', () => {
+  it.each(['0', '31', '1.5', 'seven', ''])('rejects invalid retention days %p at startup', (value) => {
+    expect(() => validateEnv({ NODE_ENV: 'test', DATABASE_URL: 'postgresql://localhost/db', EXPORT_RETENTION_DAYS: value })).toThrow('EXPORT_RETENTION_DAYS');
+  });
+  it.each(['1', '7', '30'])('accepts bounded retention days %s', (value) => {
+    expect(() => validateEnv({ NODE_ENV: 'test', DATABASE_URL: 'postgresql://localhost/db', EXPORT_RETENTION_DAYS: value })).not.toThrow();
+  });
+});

@@ -15,3 +15,5 @@ garage/garage.toml
 !garage/garage.toml.example
 # This build definition is source; the root *.backup pattern is for data files.
 !Dockerfile.backup
+
+/private-storage/

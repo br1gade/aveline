@@ -36,7 +36,8 @@
     "storage:up": "docker compose up -d garage && ./scripts/garage-bootstrap.sh",
     "openapi": "ts-node scripts/export-openapi.ts",
     "openapi:check": "ts-node scripts/export-openapi.ts --check",
-    "seed:production": "ts-node src/seed-production.ts"
+    "seed:production": "ts-node src/seed-production.ts",
+    "start:export-worker": "node --max-old-space-size=384 dist/export-worker.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

@@ -29,7 +29,7 @@ src/
     organizations/  the tenant a new account creates for itself
     billing/        plans, subscriptions, invoices, promo codes
     vendors/        the partner network and scoped briefs
-    exports/        generated CSV documents
+    exports/        legacy CSV, private snapshots and durable export worker
     privacy/        data-subject requests and suppression lists
     payments/       providers/ holds one adapter per bank
     ticketing/      inventory, checkout, admission
@@ -176,10 +176,14 @@ an instance that dies holding the lock delays one run rather than stopping the
 sweep forever. If Redis is unreachable, sweeps are skipped rather than run
 unguarded, because double-dispatching messages is worse than delaying them.
 
-**BullMQ is still the right answer for queued, retryable, per-item work** —
-exports, seating computation. Photo resizing runs as a sweep for now: it
-finds its work by a column being empty, a few photos a minute. Cron plus a lock is correct
-for periodic sweeps and is far less machinery.
+**Private snapshot exports use a dedicated process and durable Postgres jobs.**
+`export-worker.ts` imports only read dependencies, storage and export providers;
+it does not start HTTP or cron sweeps. `ExportSnapshot` owns claims/90-second
+leases, bounded retries and guarded publication. `FOR UPDATE SKIP LOCKED` allows
+separate worker processes without duplicate publication. No Redis availability
+is required. See [EXPORT_WORKER.md](EXPORT_WORKER.md). Background seating and
+PDF/XLSX rendering still follow this CSV foundation. Photo resizing remains a
+cron sweep because its missing variant is already its work marker.
 
 ## 4. Degradation
 
@@ -250,8 +254,8 @@ failed open.
 
 ## 8. Still missing from the frame
 
-- **BullMQ** for queued work with retries and backoff. Cron plus a lock covers
-  periodic sweeps; per-item retryable work needs a queue
+- **Background seating and PDF/XLSX renderers.** Private CSV already runs in
+  the dedicated durable export worker; periodic sweeps keep their Redis locks.
 - **Metrics and tracing**
 - **Per-actor rate limits** — the throttle is global, not per account
 - **Outbound webhook signature verification**

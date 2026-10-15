@@ -1,6 +1,6 @@
 import { attendingAtVenue, venueHeadcount } from './venue-headcount';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { GuestAttribution, RsvpStatus } from '@prisma/client';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { BuiltInField, optionLabel } from '../rsvp/rsvp-fields';
@@ -14,9 +14,17 @@ import { BuiltInField, optionLabel } from '../rsvp/rsvp-fields';
 @Injectable()
 export class OperationsService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PrismaService) private readonly prisma: Prisma.TransactionClient,
     private readonly analytics: AnalyticsService,
   ) {}
+
+  private locale?: string;
+
+  inTransaction(tx: Prisma.TransactionClient, locale: string): OperationsService {
+    const service = new OperationsService(tx, this.analytics);
+    service.locale = locale;
+    return service;
+  }
 
   /**
    * Everything the operations screen renders, in one request.
@@ -248,7 +256,7 @@ export class OperationsService {
       select: { defaultLocale: true, invitation: { select: { rsvpFields: true } } },
     });
     const config = event?.invitation?.rsvpFields ?? {};
-    const locale = event?.defaultLocale ?? 'hy';
+    const locale = this.locale ?? event?.defaultLocale ?? 'hy';
     return (field: BuiltInField, key: string) => optionLabel(config, field, key, locale);
   }
 

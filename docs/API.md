@@ -1953,7 +1953,73 @@ and add `Seating by venue`. Seating charts add `Venue` and `Arrangement`; place
 cards add those columns and produce one row per seated arrangement for each
 attending guest, or one blank-seat row if unseated. Import consumers must use
 headers rather than fixed column positions. CSV downloads still use current
-data until the separate snapshot/worker export milestone ships.
+data on the legacy `/exports` routes. Use `/export-snapshots` for fixed files.
+
+### Private snapshot exports (15 October 2026)
+
+```http
+POST /api/v1/events/:eventId/export-snapshots
+GET  /api/v1/events/:eventId/export-snapshots
+GET  /api/v1/events/:eventId/export-snapshots/:snapshotId
+GET  /api/v1/events/:eventId/export-snapshots/:snapshotId/download
+```
+
+These additive routes support all seven kinds above, initially **CSV only**.
+The frontend can migrate explicitly; `/exports` keeps its existing live behavior.
+Old export records now explicitly carry `isSnapshot: false` and
+`requiresRegeneration: true`: they cannot recover past data and must be
+regenerated through the new route. Their live compatibility download remains
+available until the frontend migrates. Snapshot jobs appear only in the new history, newest 50 first.
+
+Create with `{ "kind": "GUEST_LIST", "idempotencyKey": "<new UUID v4>",
+"locale": "en", "includesContacts": false }`. Format defaults to `CSV`;
+`PDF`/`XLSX` return `400`. Locale defaults to the event language and accepts
+`en`, `ru`, `fr`, `hy`. Translated question/choice labels use it; standard sheet
+headings remain English until F35. `includesContacts` defaults to the caller's
+current contact permission. A viewer can request redacted sheets; a contact
+holder can also explicitly request them. Manifests always require contact
+permission and cannot be redacted. The existing CSV columns and formula
+protection apply. Venue and arrangement columns identify separate seating.
+
+Create returns `201` with `id`, `kind`, `format`, `locale`, `includesContacts`,
+`status: "QUEUED"`, `attempts: 0`, and `downloadPath: null`. The same UUID,
+event, requester and intent returns the same job; changed intent returns `409`.
+A regeneration uses a **new UUID**. At most 10 queued/running jobs per event;
+further new work returns `409`, while retries of accepted intents still work.
+
+Poll the individual job: `QUEUED` → `RUNNING` → `COMPLETED` or `FAILED`.
+Transient failure may return to `QUEUED` with a safe `failureReason`;
+`attempts` is bounded to three. The worker takes a consistent read **when an
+attempt starts**, not when the host queues it. A recovered attempt may capture
+new inputs before publishing. A completed artifact never changes.
+
+Metadata includes nullable `snapshotAt`, event `timezone`, `attendanceRevision`,
+opaque Postgres visibility token `dataRevision`, `completedAt`, `expiresAt`,
+`revokedAt`, and `failureReason`. The visibility token is provenance, not a
+monotonic event edit version. An available artifact has an authenticated
+`downloadPath`; it contains no object key or public URL. Files expire after
+seven days by default (configurable 1–30); source event data is retained.
+
+All routes require `operations:read`. Downloads recheck active user/event
+standing and contact permission **after storage IO too**. A full artifact
+returns `403` after contact permission is lost; request a redacted regeneration.
+A queued/running/failed job returns `409` on download. Revoked or expired files
+return `410`; cross-event snapshot IDs return `404` to an authorized event
+caller. A missing/offline object returns `503`. Fetch with authorization and
+use the returned blob, as for legacy exports; responses use `Cache-Control:
+no-store`. Do not render a public anchor or store a permanent file URL.
+
+Subject erasure revokes existing jobs/artifacts for affected events, including
+snapshots that retain an earlier email address. In-flight jobs cannot publish
+after erasure. Event deletion leaves a private cleanup ledger. Cleanup is
+asynchronous and retried during storage outages; future downloads are denied
+immediately on revocation/expiry. Hosts regenerate after these transitions.
+
+The CSV foundation has a 10 MiB output cap and input caps of 5,000 guests,
+tickets, seats, orders, attendees and tables each, 200 custom questions and
+100,000 answers; oversized jobs fail with bounded
+retries. PDF/XLSX and background seating jobs are still pending, so F27 remains
+open.
 
 ### Suppression — who must not be contacted
 

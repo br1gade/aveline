@@ -132,7 +132,7 @@ src/
     organizations/   the tenant a new account creates for itself
     billing/         plans, subscriptions, invoices, promo codes
     vendors/         the partner network and scoped briefs
-    exports/         CSV documents, built when downloaded
+    exports/         legacy live CSV and private snapshot jobs
     privacy/         data-subject requests and suppression lists
     operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
@@ -323,6 +323,21 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/exports` | Record one; returns where to download it |
 | `GET` | `/api/v1/events/:eventId/exports/:exportId` | One export |
 | `GET` | `/api/v1/events/:eventId/exports/:exportId/download` | The CSV, built now; contact columns only with `guest:contact:read` |
+| `GET` | `/api/v1/events/:eventId/export-snapshots` | Latest 50 snapshot jobs |
+| `POST` | `/api/v1/events/:eventId/export-snapshots` | Queue an immutable private CSV; UUID idempotency key required |
+| `GET` | `/api/v1/events/:eventId/export-snapshots/:snapshotId` | Job state, generation metadata and expiry |
+| `GET` | `/api/v1/events/:eventId/export-snapshots/:snapshotId/download` | Stored bytes; rechecks current permissions and revocation |
+
+Snapshot CSV supports all seven existing kinds. Run `npm run build` then
+`npm run start:export-worker` in a separate process. It claims one job at a time
+from Postgres, retries at most three attempts and recovers expired 90-second
+leases. API startup does not process this queue. Use `PRIVATE_S3_BUCKET` with
+anonymous access disabled, or a shared `PRIVATE_STORAGE_ROOT` outside public
+storage. Files expire after `EXPORT_RETENTION_DAYS` (default 7, range 1–30).
+See [EXPORT_WORKER.md](docs/EXPORT_WORKER.md) for recovery and cleanup.
+The existing `/exports` API remains live CSV during frontend migration;
+its records are references to regenerate, never historical snapshots.
+
 
 #### Check-in on the day
 

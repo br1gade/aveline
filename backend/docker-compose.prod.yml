@@ -78,6 +78,27 @@ services:
     expose:
       - '3000'
 
+  export-worker:
+    image: ${API_IMAGE:-aveline-api:latest}
+    restart: unless-stopped
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      ANALYTICS_ENABLED: 'false'
+    command: ['node', '--max-old-space-size=384', 'dist/export-worker.js']
+    mem_limit: 512m
+    cpus: 1
+    stop_grace_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/check-export-worker.mjs']
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+
   # ── Stores ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16.15-alpine

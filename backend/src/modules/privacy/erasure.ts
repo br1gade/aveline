@@ -1,3 +1,4 @@
+import { revokeSubjectExports } from '../exports/export-privacy';
 import { attendeeSubject, eraseAttendees, lockSubjectOrders } from '../ticketing/attendee-privacy';
 import { MessageChannel, MessageStatus, Prisma, SuppressionReason } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
@@ -54,6 +55,7 @@ interface KnownAddress {
 }
 
 export async function eraseSubject(tx: Tx, email: string, now: Date) {
+  await revokeSubjectExports(tx, email, now);
   await lockSubjectOrders(tx, email);
   const { guests, addresses } = await findGuests(tx, email);
   const guestIds = guests.map((guest) => guest.id);

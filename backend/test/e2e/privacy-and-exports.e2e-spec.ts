@@ -413,7 +413,7 @@ describe('Privacy and exports (e2e)', () => {
 
       const { body } = await ask(eventId, authorization, 'GUEST_LIST').expect(201);
 
-      expect(body).toMatchObject({ kind: 'GUEST_LIST', format: 'CSV', status: 'COMPLETED' });
+      expect(body).toMatchObject({ kind: 'GUEST_LIST', format: 'CSV', status: 'COMPLETED', isSnapshot: false, requiresRegeneration: true });
       expect(body.downloadPath).toBe(`/api/v1/events/${eventId}/exports/${body.id}/download`);
       expect(body).not.toHaveProperty('asset');
       const file = await download(body.downloadPath as string, authorization).expect(200);
