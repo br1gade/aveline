@@ -171,10 +171,10 @@ The current bounded planner uses:
 2. **Capacity budget** — place households only while the selected venue has
    enough remaining seats. Households that cannot fit are returned with reasons.
    Local improvement by bounded pairwise swaps remains future work.
-3. **Keep the request short.** Auto-seating runs inside the request today —
-   bounded, and fast at wedding scale — and should move to a job before
-   events of thousands (see §6). Manual drag-and-drop is a direct write and
-   must stay O(1): one seat, with the table locked while it is counted.
+3. **Keep the request short.** Auto-seating queues a durable job; a dedicated
+   worker computes outside database transactions. It checks arrangement and
+   attendance revisions before atomically applying. Manual drag-and-drop stays
+   a direct write: one seat, with the table locked while it is counted.
 
 Exact optimization is explicitly rejected. A good-enough plan a human then
 adjusts is the product; a provably optimal plan computed in ninety seconds is
@@ -185,8 +185,11 @@ not.
 Attendance policy transitions and venue/timeline mutations take the event lock
 exclusively before arrangement/answer locks. Ordinary RSVP/seating writers share
 it first. This prevents obsolete writes and avoids venue-edit/decline lock cycles.
-The inline automatic planner returns its policy revision; F27 will extend that
-guard across planning and application in separate worker transactions.
+Automatic seating takes that fence exclusively during application. Database
+triggers advance arrangement revisions for seating, guest, attendance, venue and
+timeline writes, including raw cancellation SQL and erasure. Changed or busy
+inputs discard the computed plan and retry, at most three claims. Existing seats
+remain untouched. See [worker operations](../backend/docs/SEATING_WORKER.md).
 
 ## 6. Not yet built
 
@@ -203,5 +206,6 @@ guard across planning and application in separate worker transactions.
 4. **Print acceptance.** Snapshot PDFs include venue/table rosters with counts
    and six 90 × 70 mm flat place cards per A4; synthetic layout checks pass.
    Verify physical venue printouts and translated headings before the pilot.
-5. **Auto-seating as a job.** It runs in the request; fine at hundreds of
-   guests, not at thousands.
+5. **Worker pilot acceptance.** Automatic seating now uses durable worker jobs.
+   Frontend polling, translated reasons and production recovery/load rehearsal
+   remain; manual assignment stays immediate.

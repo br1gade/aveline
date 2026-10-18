@@ -1407,10 +1407,12 @@ PATCH  /api/v1/events/:eventId/tables/:tableId
 DELETE /api/v1/events/:eventId/tables/:tableId
 ```
 
-`GET /seating/arrangements` returns a bare array of `{ id, eventId, venueId,
+`GET /seating/arrangements` returns a bare array of `{ id, eventId, venueId, revision,
 venue: { name, capacity } | null, _count: { tables } }`. Every venue has an
 arrangement and every event has an explicit unspecified plan (`venueId: null`).
-Treat IDs as opaque. `GET /tables` returns all tables or accepts
+Treat IDs as opaque. `revision` advances on relevant seating/attendance/guest
+changes and protects worker application; it is server-maintained. `GET /tables`
+returns all tables or accepts
 `?arrangementId=...` to read one plan, with occupancy and names in one request:
 
 
@@ -1486,24 +1488,67 @@ and re-fetch the table.
 POST /api/v1/events/:eventId/seats/auto-assign
 ```
 
-Accepts `?arrangementId=...`. Seats confirmed attendees only in the selected
-arrangement, keeping other venue seats intact, then reports who did not fit:
+**Breaking cutover, 18 October 2026:** this endpoint now queues a job; it does
+not seat guests in the request. Send `{ "idempotencyKey": "<new UUID v4>" }` and
+retain `?arrangementId=...` under the selection rule above. Requires
+`seating:write`. It returns `201` with `id`, `arrangementId`, `status: "QUEUED"`,
+`attempts: 0`, `result: null` and nullable generation/revision metadata. Manual
+seat assignments remain immediate.
+
+```http
+GET /api/v1/events/:eventId/seating/jobs
+GET /api/v1/events/:eventId/seating/jobs/:jobId
+```
+
+These reads require `seating:read`. History returns the latest 50 job summaries,
+excluding result details. Poll an individual job for `QUEUED` → `RUNNING` →
+`COMPLETED`/`FAILED` and its result:
 
 ```json
 {
-  "seated": 84,
-  "households": 31,
-  "unseated": [
-    { "householdId": "clz...", "size": 5, "reason": "No table has 5 free seats together" }
-  ]
+  "id": "clz...", "arrangementId": "venue:clz...", "status": "COMPLETED",
+  "attempts": 1, "failureReason": null, "snapshotAt": "2026-10-18T12:00:00Z",
+  "attendanceRevision": 1, "arrangementRevision": 40, "appliedRevision": 124,
+  "result": {
+    "seated": 84, "households": 31,
+    "unseated": [
+      { "householdId": "clz...", "size": 5, "reason": "No table has 5 free seats together" }
+    ]
+  },
+  "createdAt": "2026-10-18T11:59:58Z", "completedAt": "2026-10-18T12:00:01Z"
 }
 ```
 
-Households with an attendance answer or guest identity being updated are
-returned in `unseated` with a reason asking the host to refresh and run again.
-The whole household waits; the planner does not split off members whose rows
-were available. A concurrent decline cannot leave a newly assigned automatic
-seat behind. Manual seating serializes against host answer writes.
+The same event/requester/UUID returns its original job. Reusing it with a different
+explicit arrangement returns `409`. One active job per arrangement is enforced;
+a new UUID while it is queued/running returns `409`. After completion/failure, a
+new UUID explicitly starts another additive run. A foreign event's job ID is
+`404` to an authorized caller of that event. Job results describe their completed
+attempt; refresh tables for the current live room rather than applying the
+result in the browser.
+
+The worker captures inputs when an attempt starts, computes outside database
+locks, then rechecks current attendance/policy, arrangement revision, capacity
+and requester permission before atomically inserting seats and completing the
+job. Table edits, manual seats, guest/answer changes, cancellation and erasure
+invalidate captured plans. Busy answers/identities or changed inputs queue a
+fresh attempt (`failureReason: "STATE_CHANGED"`); households are never partially
+applied. Attempts are bounded to three, including crash recovery. A repeated
+conflict ends as `FAILED`; the host can refresh and explicitly run again.
+
+Archived events cannot start or apply a job. Permission loss/inactive users stop
+it with `ACCESS_REVOKED`; archive uses `EVENT_UNAVAILABLE`. Exhausted crashed
+claims use `LEASE_EXHAUSTED`; input bounds use `INPUT_LIMIT_EXCEEDED`. Other
+internal failures expose safe codes only. See the
+[worker runbook](../backend/docs/SEATING_WORKER.md) for the complete code list.
+Event/arrangement deletion removes its jobs. Results contain household IDs and
+reasons, never guest credentials/contact details or saved permission grants.
+
+Automatic planning supports at most 5,000 event guests, 500 arrangement tables
+and 5,000 arrangement seats. Capture/application transactions are limited to
+20 seconds each; bounded computation is limited to 30 seconds before applying.
+Manual seating still serializes with answer writes and remains available while
+a job is computing.
 
 Three things to know before you wire the button:
 
@@ -2034,7 +2079,8 @@ seats, orders, attendees and tables each, 50 venues, 200 custom questions and
 100,000 answers. Rendered sheets are limited to 20,000 rows, 256 columns,
 32,767 characters per cell and 2 million text characters; PDF also has a
 500-page/45-second rendering limit. Oversized jobs fail with bounded retries
-and safe failure codes. Background seating jobs remain pending, so F27 is open.
+and safe failure codes. Automatic seating also runs in its own worker; frontend
+job adoption and production worker acceptance remain F27 release gates.
 
 ### Suppression — who must not be contacted
 
@@ -3067,9 +3113,9 @@ So you can plan around them rather than discover them:
 - **One organization per account.** See §6.
 - **No block creation outside the arrangement call**, and no way to reorder
   custom RSVP questions once added.
-- **Background automatic seating.** All export formats run in the dedicated
-  worker, but automatic seating still runs in the request. Standard export
-  headings remain English pending F35; four-language frontend acceptance remains.
+- **Worker/frontend acceptance.** Automatic seating and all export formats run
+  in dedicated workers. Frontend job integration, standard heading/reason
+  translations (F35) and production rehearsal remain.
 - **A native email feedback adapter.** Normalized signed delivery/bounce/complaint
   ingestion is built; no provider has been selected or connected. Ordinary
   bounce emails arriving in a mailbox are still not parsed.

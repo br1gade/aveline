@@ -1,9 +1,10 @@
 # Pilot and P2 implementation plan
 
-Prepared 12 October 2026; revised 16 October 2026 (Asia/Yerevan).
+Prepared 12 October 2026; revised 18 October 2026 (Asia/Yerevan).
 **Status: product decisions confirmed; implementation plan ready.
 Readiness groundwork, F50 backend seating/attendance, F23 named attendees and
-private CSV/PDF/XLSX snapshot exports are implemented; feature milestones
+private CSV/PDF/XLSX exports and background automatic seating are implemented;
+feature milestones
 remain open until all of their acceptance checks pass.**
 
 Goal: deliver the requested pilot features while the frontend is being built,
@@ -84,7 +85,8 @@ Current limitations that drive the new plan:
 
 - The original one-seat/event layout has been replaced by separate venue
   arrangements, scoped assignment/release history and enforced venue capacity.
-  Attendance now supports both modes and reconfirmation; automatic seating still runs in the request.
+  Attendance supports both modes and reconfirmation. Automatic seating now
+  queues a revision-guarded worker job; frontend polling and production acceptance remain.
 - Legacy `/exports` CSV remains live; additive `/export-snapshots` jobs generate
   fixed private CSV/PDF/XLSX files for all seven kinds. Frontend adoption,
   standard heading translations and production acceptance remain.
@@ -202,8 +204,8 @@ guarded test stores; no development/production migration or deployment occurred.
 
 **B remains open for frontend acceptance:** mode selection/preview, household
 reconfirmation, reservation/history displays and four-language walkthroughs need
-the frontend team. F27's worker cutover, snapshot exports and personalized caching
-remain later milestones; their cross-request guards will use these revisions.
+the frontend team. The F27 worker cutover and snapshots are now implemented in
+the batches below. Personalized caching remains a later milestone.
 
 
 **Model and migration**
@@ -364,8 +366,8 @@ not snapshots. See [API.md](API.md) and
 [worker operations](../backend/docs/EXPORT_WORKER.md). The frontend still needs
 to adopt queue/status/regeneration behavior. Standard CSV headings remain
 English pending F35. Production worker/bucket recovery is still a rehearsal
-gate. The PDF/XLSX batch below extends this foundation. **F27 remains open**
-until background seating runs in a worker as well.
+gate. The PDF/XLSX and background-seating batches below complete F27's backend
+worker implementation; frontend adoption and production acceptance remain open.
 
 Verification: `npm run verify` passed lint, docs, OpenAPI, build, **1,049 unit,
 384 integration and 577 HTTP tests**. Snapshot coverage includes real worker
@@ -394,7 +396,7 @@ for versions, limits, measurements and repeatable commands.
 **F20/F49 backend work is implemented; their release gates remain open** for
 frontend adoption, translated standard headings (F35), native spreadsheet and
 physical printing acceptance, and production worker/private-store rehearsal.
-**F27 still needs background automatic seating.** No production deployment or
+The background seating batch below completes F27's worker implementation. No production deployment or
 frontend implementation is included in this backend batch.
 
 Verification: `npm run verify` passed lint, docs, OpenAPI, build, **1,062 unit,
@@ -445,7 +447,34 @@ upload/finalize; storage outages; erasure while a job runs; no orphan/public
 files. Visually inspect exported PDFs and open generated XLSX files with the
 four-language 400-person fixture.
 
-### Background seating (remaining F27)
+### Background seating backend delivered (18 October 2026)
+
+F27's remaining backend work is implemented. The confirmed frontend cutover
+changes `POST /seats/auto-assign` to a UUID-idempotent queued response. New
+history/status reads expose revisions, attempts and the committed result.
+Manual seating remains immediate. A dedicated process owns Postgres claims,
+90-second leases, bounded retries and graceful shutdown. Capture and computation
+are separated from an atomic revalidation/application transaction.
+
+Arrangement revisions cover all relevant writes through database triggers,
+including cancellation SQL, erasure and change/undo cycles. Changed inputs retry;
+permission loss/archive fail safely. Seat insertion and job completion share one
+transaction, so an old lease owner cannot leave seats behind. The 400-person,
+two-venue fixtures cover both attendance modes, including 400/200 eligibility,
+with no split households or overfull tables. Real process termination/replacement
+and graceful shutdown are exercised. See [API.md](API.md) and the
+[worker runbook](../backend/docs/SEATING_WORKER.md).
+
+F27 remains a release gate for queued frontend adoption and actual production
+worker/recovery acceptance. Reasons need F35 translation, and the final mixed
+write/load rehearsal remains milestone J. This batch does not deploy production.
+
+Verification on 18 October: `npm run verify` passed lint, docs, OpenAPI, build,
+**1,070 unit + 424 integration + 583 HTTP tests (2,077 total)**. All eight
+backup checks passed with both named workers included in capture/resume. Compose
+configuration validates with the separate seating worker.
+
+### Background seating acceptance requirements (F27)
 
 - Add start/status/result operations scoped to one arrangement. Keep manual
   assignments direct and atomic; coordinate retiring the synchronous planner

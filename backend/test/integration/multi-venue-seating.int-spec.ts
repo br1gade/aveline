@@ -1,3 +1,4 @@
+import { runAutomaticSeating } from '../fixtures/seating-job.fixture';
 import { PrismaClient } from '@prisma/client';
 import { SeatingService } from '../../src/modules/seating/seating.service';
 import { recordAnswer } from '../../src/modules/rsvp/answer-writes';
@@ -89,9 +90,9 @@ describe('Separate seating at multiple venues (integration)', () => {
     const { eventId, guest, dinner, church } = await seatedRooms();
     await seating.unassign(eventId, guest.id, church.arrangementId);
     await prisma.rsvp.update({ where: { guestId: guest.id }, data: { status: 'ATTENDING' } });
-    await expect(seating.autoAssign(eventId)).rejects.toThrow('arrangementId');
-    expect(await seating.autoAssign(eventId, church.arrangementId)).toMatchObject({ seated: 1 });
-    expect(await seating.autoAssign(eventId, church.arrangementId)).toMatchObject({ seated: 0 });
+    await expect(runAutomaticSeating(prisma, eventId)).rejects.toThrow('arrangementId');
+    expect(await runAutomaticSeating(prisma, eventId, church.arrangementId)).toMatchObject({ seated: 1 });
+    expect(await runAutomaticSeating(prisma, eventId, church.arrangementId)).toMatchObject({ seated: 0 });
     expect(await prisma.seat.count({ where: { guestId: guest.id, tableId: dinner.id } })).toBe(1);
   });
 

@@ -125,10 +125,6 @@ message is better than sending it twice.
 
 ### Intended, not yet built
 
-- **Background seating jobs.** CSV/PDF/XLSX exports now use a
-  dedicated Postgres queue. Image resizing still uses a sweep; its missing
-  variant is its work marker. No generic Redis queue is required for these
-  correctness-sensitive jobs.
 - **Throttle counts in Redis**, so several API instances share one limit
 
 ### Decided differently
@@ -271,6 +267,17 @@ is committed before upload. Publication checks standing and ownership again.
 Erasure fences capture/publication and revokes affected jobs; the cleanup ledger
 survives cascading event deletion. See [EXPORT_WORKER.md](EXPORT_WORKER.md).
 
-Not yet built: background seating jobs, translated standard export headings,
-and conversion of
+Not yet built: translated standard export headings and conversion of
 legacy live-CSV clients to the additive snapshot contract.
+
+### Automatic seating jobs
+
+`SeatingJob` uses its own durable Postgres claims/leases, independent of storage
+or Redis. A partial unique index permits one active job per arrangement. Database
+triggers maintain arrangement revisions across tables, seats, release flags,
+guests, RSVP/attendance, venue/timeline edits and policy/archive changes. The
+worker captures bounded repeatable-read inputs, computes outside transactions,
+and applies only after locking/revalidating current inputs and standing. Seats
+and completion commit together; stale owners roll back every seat. See
+[SEATING_WORKER.md](SEATING_WORKER.md). Frontend integration and actual production
+recovery/load acceptance remain open.

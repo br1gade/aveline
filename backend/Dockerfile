@@ -27,6 +27,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
+RUN test -f dist/seating-worker.js
 
 # Fails the build rather than shipping an image that cannot start. The entry
 # point went missing once already, when stale incremental build state was

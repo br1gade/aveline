@@ -54,9 +54,10 @@ lives outside Postgres.
 | `AttendancePolicy` · `AttendanceResponse` | Versioned attendance modes and person/venue answers; one active policy per event |
 | `Rsvp` · `RsvpQuestion` · `RsvpAnswer` | The response, and host-authored questions |
 | `GuestImport` | One upload, with per-row errors |
-| `SeatingArrangement` | A separately seated venue or the explicit unspecified legacy plan |
+| `SeatingArrangement` | A separately seated venue or the explicit unspecified legacy plan, with a trigger-maintained input revision |
 | `Table` · `Seat` | Furniture and one seat per guest per arrangement |
 | `SeatRelease` | Decline history retained independently for each arrangement |
+| `SeatingJob` | Durable automatic seating intent, lease/attempts, captured attendance/arrangement revisions, applied revision and committed counts/reasons |
 | `CheckIn` | Day-of arrival |
 
 ### Ticketing
@@ -80,7 +81,7 @@ lives outside Postgres.
 |---|---|
 | `Vendor` · `VendorBooking` | The partner network, with scoped brief access |
 | `Export` | Legacy live-download audit reference; no historical snapshot |
-| `ExportSnapshot` | Durable private CSV job: intent, claims, attempts, provenance, artifact reference, expiry and revocation |
+| `ExportSnapshot` | Durable private CSV/PDF/XLSX job: intent, claims, attempts, provenance, artifact reference, expiry and revocation |
 | `ExportArtifact` | Write-ahead private object ledger; survives event deletion, retries and delayed uploads |
 | `ExportSnapshotSubject` | Normalized email fingerprints that locate old snapshots during subject erasure |
 | `ExportPrivacyFence` | Shared/exclusive capture/erasure fence; repeatable-read conflicts retry |
@@ -154,6 +155,22 @@ write fields and enforce release-table scope, including bulk writes; their `NULL
 defaults are filled before NOT NULL checks. A conflicting explicit field is
 rejected. Keep triggers and partial indexes in SQL migrations; Prisma does not
 model them. Legacy release columns remain historical input, not current view data.
+
+### Durable automatic seating
+
+`SeatingJob` belongs to its event/arrangement and cascades on their deletion.
+A unique requester/event/UUID identifies an accepted intent; a partial unique
+index permits only one QUEUED/RUNNING job per arrangement. It stores no guest
+names, contacts, capability tokens or reusable permission grant. Results contain
+counts and unseated household IDs/sizes/reasons. Current standing is rechecked
+before applying; leases and revision guards prevent stale results from writing.
+Seat insertion, release dismissal and COMPLETED state commit atomically.
+
+Database triggers advance `SeatingArrangement.revision` for seating and relevant
+graph/attendance/venue/policy mutations, including bulk SQL, cancellation and
+erasure. They preserve change/undo detection. See
+[SEATING_WORKER.md](SEATING_WORKER.md) for bounds and recovery. Frontend adoption,
+translated reasons and production recovery/load rehearsal remain open.
 
 ## 5. Storage layout
 

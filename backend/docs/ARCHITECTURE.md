@@ -184,7 +184,10 @@ separate worker processes without duplicate publication. No Redis availability
 is required. CSV, PDF and XLSX render outside the capture transaction in this
 worker, with bounded inputs and bundled fonts. See
 [EXPORT_WORKER.md](EXPORT_WORKER.md) and [EXPORT_RENDERERS.md](EXPORT_RENDERERS.md).
-Background seating still runs in the API. Photo resizing remains a
+Automatic seating uses a separate `seating-worker.ts` process and Postgres
+`SeatingJob` queue. It captures revisioned inputs, computes outside transactions,
+then validates and applies seats with completion in one transaction. See
+[SEATING_WORKER.md](SEATING_WORKER.md). Photo resizing remains a
 cron sweep because its missing variant is already its work marker.
 
 ## 4. Degradation
@@ -256,9 +259,9 @@ failed open.
 
 ## 8. Still missing from the frame
 
-- **Background seating.** All export formats run in the dedicated durable
-  worker; automatic seating still runs in the API. Periodic sweeps keep their
-  Redis locks.
+- **Worker production acceptance.** Automatic seating and all export formats
+  run in dedicated durable workers. Frontend adoption and production recovery
+  rehearsal remain. Periodic sweeps keep their Redis locks.
 - **Metrics and tracing**
 - **Per-actor rate limits** — the throttle is global, not per account
 - **Outbound webhook signature verification**

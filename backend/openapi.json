@@ -3457,7 +3457,6 @@
     },
     "/api/v1/events/{eventId}/seats/auto-assign": {
       "post": {
-        "description": "Additive: guests already seated keep their places, so running it after a late RSVP fills gaps rather than rearranging a plan already adjusted by hand. Anything it cannot place is returned with a reason.",
         "operationId": "SeatingController_autoAssign",
         "parameters": [
           {
@@ -3478,12 +3477,78 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSeatingJobDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
           }
         },
-        "summary": "Seat everyone who has accepted, keeping households together",
+        "summary": "Queue additive automatic seating; poll seating/jobs/:jobId for the committed result",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seating/jobs": {
+      "get": {
+        "operationId": "SeatingController_listJobs",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Latest 50 automatic seating jobs for this event",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seating/jobs/{jobId}": {
+      "get": {
+        "operationId": "SeatingController_findJob",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Automatic seating status, revisions and committed result",
         "tags": [
           "seating"
         ]
@@ -6404,6 +6469,18 @@
         "required": [
           "guestId",
           "tableId"
+        ]
+      },
+      "CreateSeatingJobDto": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "description": "UUID v4; reuse only to retry this exact request"
+          }
+        },
+        "required": [
+          "idempotencyKey"
         ]
       },
       "CreateVendorDto": {

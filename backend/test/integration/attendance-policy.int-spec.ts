@@ -1,3 +1,4 @@
+import { runAutomaticSeating } from '../fixtures/seating-job.fixture';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
@@ -132,9 +133,9 @@ describe('Attendance policies and venue responses (integration)', () => {
     const event = await fixture();
     await change(event.eventId, 'PER_VENUE');
     await host.record(event.eventId, event.guest.id, { attendanceRevision: 2, venueAttendance: [{ venueId: event.hall.id, status: 'DECLINED' }, { venueId: event.church.id, status: 'ATTENDING' }] });
-    expect(await seating.autoAssign(event.eventId, event.tables[0].arrangementId)).toMatchObject({ seated: 0, attendanceRevision: 2 });
-    expect(await seating.autoAssign(event.eventId, event.tables[1].arrangementId)).toMatchObject({ seated: 1 });
-    expect(await seating.autoAssign(event.eventId, `legacy:${event.eventId}`)).toMatchObject({ seated: 0 });
+    expect(await runAutomaticSeating(prisma, event.eventId, event.tables[0].arrangementId)).toMatchObject({ seated: 0, attendanceRevision: 2 });
+    expect(await runAutomaticSeating(prisma, event.eventId, event.tables[1].arrangementId)).toMatchObject({ seated: 1 });
+    expect(await runAutomaticSeating(prisma, event.eventId, `legacy:${event.eventId}`)).toMatchObject({ seated: 0 });
   });
 
   it('adds pending attendance for a new venue and guards hiding/deleting answered venues', async () => {

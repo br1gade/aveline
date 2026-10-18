@@ -251,6 +251,8 @@ model Event {
   @@index([organizationId])
   @@index([startsAt])
   @@map("events")
+  seatingJobs SeatingJob[]
+
 }
 
 enum EventType {
@@ -739,6 +741,9 @@ model SeatingArrangement {
   venue    Venue?        @relation(fields: [venueId, eventId], references: [id, eventId], onDelete: NoAction)
   tables   Table[]
   releases SeatRelease[]
+  jobs     SeatingJob[]
+  /// Invalidated by every seating/eligibility write, including direct SQL and cascades.
+  revision Int @default(0)
 
   @@unique([id, eventId])
   @@unique([venueId, eventId])
@@ -2079,4 +2084,42 @@ model ExportPrivacyFence {
   id String @id
   revision Int @default(0)
   @@map("export_privacy_fences")
+}
+
+
+enum SeatingJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// Durable automatic seating. Application and completion commit together.
+model SeatingJob {
+  id String @id @default(cuid())
+  eventId String
+  arrangementId String
+  requestedByUserId String
+  idempotencyKey String
+  status SeatingJobStatus @default(QUEUED)
+  attempts Int @default(0)
+  leaseOwner String?
+  leaseUntil DateTime?
+  nextAttemptAt DateTime @default(now())
+  failureReason String?
+  snapshotAt DateTime?
+  attendanceRevision Int?
+  arrangementRevision Int?
+  appliedRevision Int?
+  result Json?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  arrangement SeatingArrangement @relation(fields: [arrangementId, eventId], references: [id, eventId], onDelete: Cascade)
+  @@unique([eventId, requestedByUserId, idempotencyKey])
+  @@index([eventId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseUntil])
+  @@index([arrangementId])
+  @@map("seating_jobs")
 }

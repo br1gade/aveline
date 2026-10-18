@@ -106,5 +106,6 @@ Frontend queue/status/regeneration/download screens, translated standard
 headings and wider F35 acceptance remain. Open representative files in the
 pilot's actual spreadsheet application and physically print at 100% scale
 before accepting venue documents. Run worker/private-bucket recovery, privacy
-and storage-outage drills on production infrastructure. Background seating and
-the final mixed-write/load rehearsal remain separate batches.
+and storage-outage drills on production infrastructure. Background seating is
+implemented in its [separate worker](SEATING_WORKER.md); the final mixed-write/load
+rehearsal remains a separate release gate.

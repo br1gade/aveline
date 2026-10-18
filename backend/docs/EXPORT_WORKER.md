@@ -79,7 +79,8 @@ cleanup warnings and ledger backlog; retaining tombstones is intentional.
 
 ## Not yet built / release checks
 
-Background seating, full translation of standard export headings, frontend
+The separate [seating worker](SEATING_WORKER.md) is implemented. Full translation
+of standard export headings, frontend
 adoption and production rehearsal remain. PDF/XLSX renderers and the synthetic
 four-script 400-person file acceptance are implemented; native spreadsheet
 viewer and physical printing checks remain part of pilot acceptance.

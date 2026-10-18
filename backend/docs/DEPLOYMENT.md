@@ -23,10 +23,20 @@ Seven long-running services on one host, plus one-shot migrations and backup tas
             │          └──▶ garage     media, exports  │
             │                                         │
             │        export-worker → postgres/garage   │
+            │        seating-worker → postgres         │
             │        backup      quiesced capture      │
             │        backup-check freshness and space  │
             └─────────────────────────────────────────┘
 ```
+
+The `seating-worker` service uses the API release image with a separate entry
+point, a 256 MiB JS heap/384 MiB container limit and no HTTP port. It requires
+Postgres only. Migrations must complete first; deploy API and both workers from
+the same release. Automatic seating now returns queued jobs, so coordinate the
+frontend polling cutover. Alert on its heartbeat and failed/stalled jobs; rehearse
+termination, lease recovery, concurrent manual edits and attendance changes on
+the real host. See [SEATING_WORKER.md](SEATING_WORKER.md). Production operation
+of the expanded worker stack remains unverified.
 
 The `export-worker` service is new in the CSV snapshot batch. Compose syntax
 and process recovery are tested locally, but the expanded production stack and

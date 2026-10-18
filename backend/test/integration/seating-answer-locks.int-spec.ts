@@ -1,3 +1,4 @@
+import { runAutomaticSeating, seatingTestJob } from '../fixtures/seating-job.fixture';
 import { PrismaClient } from '@prisma/client';
 import { recordAnswer } from '../../src/modules/rsvp/answer-writes';
 import { SeatingService } from '../../src/modules/seating/seating.service';
@@ -35,6 +36,7 @@ describe('Seating and answer lock ordering (integration)', () => {
     const guest = await prisma.guest.findUniqueOrThrow({ where: { token: primaryGuestToken } });
     await prisma.rsvp.update({ where: { guestId: guest.id }, data: { status: 'ATTENDING' } });
     const table = await prisma.table.create({ data: { eventId, name: 'Table', capacity: 2 } });
+    const worker = await seatingTestJob(prisma, eventId);
     let signalLocked!: () => void;
     let releaseHost!: () => void;
     const isLocked = new Promise<void>((resolve) => { signalLocked = resolve; });
@@ -47,16 +49,14 @@ describe('Seating and answer lock ordering (integration)', () => {
     });
     const settled = Promise.allSettled([host]);
     await isLocked;
-    const seating = new SeatingService(prisma as unknown as PrismaService);
     try {
-      const plan = await seating.autoAssign(eventId);
-      expect(plan).toMatchObject({ seated: 0, unseated: [{ householdId: guest.householdId, size: 1 }] });
-      expect(plan.unseated[0].reason).toContain('updated');
+      await worker.runner.runOne();
+      expect(await worker.jobs.findOne(eventId, worker.job.id)).toMatchObject({ status: 'QUEUED', failureReason: 'STATE_CHANGED', result: null });
     } finally {
       releaseHost();
       await settled;
     }
-    expect(await seating.autoAssign(eventId)).toMatchObject({ seated: 1 });
+    expect(await runAutomaticSeating(prisma, eventId)).toMatchObject({ seated: 1 });
     expect(await prisma.seat.count({ where: { tableId: table.id } })).toBe(1);
   });
 
@@ -68,6 +68,7 @@ describe('Seating and answer lock ordering (integration)', () => {
       data: { eventId, householdId, firstName: 'Member', token: `member-${eventId}`, rsvp: { create: { status: 'ATTENDING' } } },
     });
     await prisma.table.create({ data: { eventId, name: 'Table', capacity: 2 } });
+    const worker = await seatingTestJob(prisma, eventId);
     let signalLocked!: () => void;
     let releaseAnswer!: () => void;
     const isLocked = new Promise<void>((resolve) => { signalLocked = resolve; });
@@ -79,15 +80,15 @@ describe('Seating and answer lock ordering (integration)', () => {
     });
     const settled = Promise.allSettled([answer]);
     await isLocked;
-    const seating = new SeatingService(prisma as unknown as PrismaService);
     try {
-      expect(await seating.autoAssign(eventId)).toMatchObject({ seated: 0, unseated: [{ householdId, size: 2 }] });
+      await worker.runner.runOne();
+      expect(await worker.jobs.findOne(eventId, worker.job.id)).toMatchObject({ status: 'QUEUED', failureReason: 'STATE_CHANGED', result: null });
       expect(await prisma.seat.count({ where: { guest: { householdId } } })).toBe(0);
     } finally {
       releaseAnswer();
       await settled;
     }
-    expect(await seating.autoAssign(eventId)).toMatchObject({ seated: 2 });
+    expect(await runAutomaticSeating(prisma, eventId)).toMatchObject({ seated: 2 });
     const seats = await prisma.seat.findMany({ where: { guest: { householdId } } });
     expect(new Set(seats.map((seat) => seat.tableId)).size).toBe(1);
   });

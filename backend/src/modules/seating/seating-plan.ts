@@ -56,9 +56,8 @@ export interface SeatingPlan {
  *
  * Complexity is O(households × tables). At the scale this product targets —
  * a few hundred households across a few dozen tables — that is tens of
- * thousands of comparisons and runs in single-digit milliseconds, so it is
- * computed in the request. Anything that adds local-improvement passes
- * belongs in a job instead (CLAUDE.md §5).
+ * thousands of comparisons. It runs in the dedicated seating worker outside
+ * database transactions; manual seating stays an immediate write.
  */
 export function buildSeatingPlan(
   households: SeatableHousehold[],

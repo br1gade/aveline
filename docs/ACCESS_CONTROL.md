@@ -134,6 +134,12 @@ owner.
 | `directory:manage` | Add, correct and retire halls in the shared venue directory |
 | `concierge:manage` | Open an organization and its events for a customer, and invite them as owner |
 
+Automatic seating requires `seating:write` when queueing and again in the
+worker before application; current user/membership standing is locked during
+the final transaction. History/status/result reads require `seating:read`.
+A queued request never preserves an old permission grant after removal,
+downgrade or deactivation.
+
 Two permissions are split out from their obvious parents on purpose:
 `guest:contact:read` from `guest:read`, and `vendor:fee:read` from
 `vendor:read`. Both exist so a `DESIGNER` can be useful without being trusted

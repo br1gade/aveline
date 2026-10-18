@@ -301,7 +301,16 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `DELETE` | `/api/v1/events/:eventId/seats/:guestId` | Unseat one guest |
 | `POST` | `/api/v1/events/:eventId/seating/publish` | Let guests see their tables on their own link |
 | `POST` | `/api/v1/events/:eventId/seating/unpublish` | Take the tables off guests' pages |
-| `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Seat attendees in the selected arrangement; reports who did not fit |
+| `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Queue additive seating; UUID idempotency key required (breaking, 18 October) |
+| `GET` | `/api/v1/events/:eventId/seating/jobs` | Latest 50 job summaries, excluding result details |
+| `GET` | `/api/v1/events/:eventId/seating/jobs/:jobId` | Job status, revisions and committed result |
+
+Automatic seating now returns a queued resource, not immediate seat counts.
+Run `npm run start:seating-worker` separately after the build. Poll the job for
+`COMPLETED`/`FAILED`, then refresh tables; manual assignment remains immediate.
+The worker retries stale plans and recovers expired claims without replacing
+manual seats. See [SEATING_WORKER.md](docs/SEATING_WORKER.md) for limits, deployment
+and failure handling.
 
 #### Vendors and briefs
 
@@ -549,9 +558,9 @@ verified list, by priority; `docs/GAPS.md` is the backend's own.
    chosen until `SMS_PROVIDER` names an adapter; none is written yet.
 2. **Payments against a real sandbox.** No bank credentials yet, so no adapter
    has run against one. See `../docs/PAYMENTS.md` §6–7.
-3. **Background seating and integrated pilot acceptance.** All seven export
-   kinds now support private CSV/PDF/XLSX snapshots; frontend adoption, full
-   heading translations and production worker/storage rehearsal remain.
+3. **Integrated pilot acceptance.** Automatic seating and all seven export
+   kinds now run in dedicated workers. Frontend job adoption, translations and
+   production worker/storage rehearsal remain.
 
 `docs/GAPS.md` is the full list, prioritised.
 

@@ -1,13 +1,12 @@
 import { lockAttendancePolicy } from '../rsvp/attendance/attendance-context';
 import { ATTENDANCE_GUEST, isAttendanceReservation } from '../rsvp/attendance/attendance-view';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { isUniqueViolation } from '../../common/prisma-errors';
 import { PrismaService } from '../../prisma/prisma.service';
 import { clearRelease } from './released-seat';
-import { assertArrangement, lockArrangement, lockAttendingAnswers, lockGuestAnswer, resolveArrangement } from './seating-arrangements';
+import { assertArrangement, lockArrangement, lockGuestAnswer, resolveArrangement } from './seating-arrangements';
 import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto } from './dto/seating.dto';
-import { SeatableHousehold, SeatableTable, buildSeatingPlan } from './seating-plan';
 
 @Injectable()
 export class SeatingService {
@@ -67,21 +66,18 @@ export class SeatingService {
   }
 
   async createTable(eventId: string, dto: CreateTableDto) {
-    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
-    return this.prisma.table.create({
-      data: {
-        eventId,
-        name: dto.name,
-        capacity: dto.capacity,
-        zone: dto.zone ?? null,
-        venueId: dto.venueId ?? null,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
+      await assertVenueOnEvent(tx, eventId, dto.venueId);
+      return tx.table.create({ data: { eventId, name: dto.name, capacity: dto.capacity,
+        zone: dto.zone ?? null, venueId: dto.venueId ?? null } });
     }).catch((error: unknown) => rejectDuplicateName(error, dto.name));
   }
 
   /** Twenty tables of ten is one request, not twenty. */
   async createTables(eventId: string, dto: CreateTablesDto) {
     return this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
       await assertVenueOnEvent(tx, eventId, dto.venueId);
       const arrangement = await tx.seatingArrangement.findFirst({ where: { eventId, venueId: dto.venueId ?? null } });
       if (!arrangement) throw new NotFoundException('No such event or venue');
@@ -113,10 +109,10 @@ export class SeatingService {
    * a guest seated at the same moment is counted.
    */
   async updateTable(eventId: string, tableId: string, dto: UpdateTableDto) {
-    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
-
     return this.prisma
       .$transaction(async (tx) => {
+        await lockAttendancePolicy(tx, eventId);
+        await assertVenueOnEvent(tx, eventId, dto.venueId);
         const current = await lockTable(tx, eventId, tableId);
         await assertTableEdit(tx, current, dto);
         const { seated } = current;
@@ -145,6 +141,7 @@ export class SeatingService {
 
   async deleteTable(eventId: string, tableId: string) {
     await this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
       // Locked before counting, for the reason questions are: a guest seated
       // between the count and the delete was cascaded off the plan (B87).
       const locked = await tx.$queryRaw<{ id: string }[]>`
@@ -231,116 +228,12 @@ export class SeatingService {
     });
   }
 
-  /**
-   * Seats everyone who has accepted, keeping households together.
-   *
-   * Additive: guests already placed keep their seats and their tables count
-   * as partly occupied, so running this after a late RSVP fills the gaps
-   * rather than rearranging a plan a host has already adjusted by hand.
-   */
-  async autoAssign(eventId: string, arrangementId?: string) {
-    const plan = await this.prisma.$transaction(async (tx) => {
-      const policy = await lockAttendancePolicy(tx, eventId);
-      // Every table locked before the room is read: a planner seating someone
-      // by hand locks their table too, so they wait for this plan or it waits
-      // for them — never both planning from the same empty chair.
-      const arrangement = await resolveArrangement(tx, eventId, arrangementId);
-      const attending = await lockAttendingAnswers(tx, eventId, arrangement.id);
-      const room = await lockArrangement(tx, eventId, arrangement.id);
-      await tx.$queryRaw`SELECT id FROM tables WHERE "arrangementId" = ${arrangement.id} ORDER BY id FOR UPDATE`;
-      const [households, tables] = await Promise.all([
-        loadSeatableHouseholds(tx, eventId, arrangement.id, attending.guestIds),
-        loadSeatableTables(tx, arrangement.id),
-      ]);
-      const available = room.capacity === null ? undefined : Math.max(0, room.capacity - room.occupied);
-      const planned = buildSeatingPlan(households, tables, available);
-      const seats = planned.assignments.flatMap((assignment) =>
-        assignment.guestIds.map((guestId) => ({ guestId, tableId: assignment.tableId })),
-      );
-      await tx.seat.createMany({ data: seats });
-      await clearRelease(tx, seats.map((seat) => seat.guestId), arrangement.id);
-      return { attendanceRevision: policy.attendanceRevision, ...planned, unseated: [...planned.unseated, ...attending.deferred] };
-    });
-
-    return {
-      attendanceRevision: plan.attendanceRevision,
-      seated: plan.assignments.reduce((sum, a) => sum + a.guestIds.length, 0),
-      households: plan.assignments.length,
-      unseated: plan.unseated,
-    };
-  }
-}
-
-/**
- * Only households with someone attending and not yet seated — with where the
- * rest of each household already sits, so a late acceptor joins their family.
- */
-async function loadSeatableHouseholds(tx: Prisma.TransactionClient, eventId: string, arrangementId: string, attendingIds: string[]): Promise<SeatableHousehold[]> {
-  const guests = await tx.guest.findMany({
-    where: { eventId, id: { in: attendingIds }, rsvp: { status: RsvpStatus.ATTENDING }, seats: { none: { arrangementId } } },
-    select: { id: true, householdId: true, attribution: true },
-    orderBy: { householdId: 'asc' },
-  });
-  const householdIds = [...new Set(guests.map((guest) => guest.householdId))];
-  const seated = await tx.seat.findMany({
-    where: { arrangementId, guest: { householdId: { in: householdIds } } },
-    select: { tableId: true, guest: { select: { householdId: true } } },
-  });
-
-  const byHousehold = new Map<string, { guestIds: string[]; sides: GuestAttribution[] }>();
-  for (const guest of guests) {
-    const entry = byHousehold.get(guest.householdId) ?? { guestIds: [], sides: [] };
-    entry.guestIds.push(guest.id);
-    entry.sides.push(guest.attribution ?? GuestAttribution.UNKNOWN);
-    byHousehold.set(guest.householdId, entry);
-  }
-
-  return [...byHousehold.entries()].map(([householdId, entry]) => ({
-    householdId,
-    guestIds: entry.guestIds,
-    side: majoritySide(entry.sides),
-    seatedAt: [...new Set(seated.filter((seat) => seat.guest.householdId === householdId).map((seat) => seat.tableId))],
-  }));
-}
-
-/** The side most of a household belongs to — it was the first guest's. */
-function majoritySide(sides: GuestAttribution[]): GuestAttribution {
-  const counts = new Map<GuestAttribution, number>();
-  for (const side of sides) counts.set(side, (counts.get(side) ?? 0) + 1);
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? GuestAttribution.UNKNOWN;
-}
-
-async function loadSeatableTables(tx: Prisma.TransactionClient, arrangementId: string): Promise<SeatableTable[]> {
-  const tables = await tx.table.findMany({
-    where: { arrangementId },
-    include: { seats: { include: { guest: { select: { attribution: true } } } } },
-    orderBy: { name: 'asc' },
-  });
-
-  return tables.map((table) => ({
-    tableId: table.id,
-    capacity: table.capacity,
-    occupied: table.seats.length,
-    side: dominantSide(table.seats.map((seat) => seat.guest.attribution)),
-  }));
 }
 
 /** The number in "Table 12" for prefix "Table"; 0 for a name that is not one of the series. */
 function numberAfter(prefix: string, name: string): number {
   const suffix = name.slice(prefix.length + 1);
   return /^\d+$/.test(suffix) ? Number(suffix) : 0;
-}
-
-/** Which side a table already belongs to, if any clearly does. */
-function dominantSide(attributions: GuestAttribution[]): GuestAttribution | null {
-  const sides = attributions.filter(
-    (side) => side === GuestAttribution.SIDE_A || side === GuestAttribution.SIDE_B,
-  );
-  if (sides.length === 0) return null;
-
-  const a = sides.filter((side) => side === GuestAttribution.SIDE_A).length;
-  if (a === sides.length - a) return null;
-  return a > sides.length - a ? GuestAttribution.SIDE_A : GuestAttribution.SIDE_B;
 }
 
 /** One table, locked for the rest of the transaction, with how many sit at it. */

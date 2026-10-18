@@ -114,7 +114,7 @@ it needs a cancellation during the event itself, at the door.
 | F24 | Hero and share-preview images on event listings (§13.2) | S |
 | F25 | Guest signature capture (`SIGNATURE` question) | S–M |
 | F26 | Caching the personalised page — every link actually sent is personalised and uncached | M |
-| F27 | Seating and exports as background jobs, as §12 says | M |
+| F27 | Backend implemented: all exports and automatic seating use durable workers with bounded recovery and stale-plan guards. Queued frontend integration and production acceptance remain | M |
 | F28 | Template preview (layouts are now declared and validated — B46) | S |
 | F29 | Reordering custom RSVP questions | S |
 | F30 | Invitation expiry from the plan's lifetime (decided: indefinite paid, 3 months free) | S |
