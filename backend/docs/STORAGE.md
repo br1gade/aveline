@@ -39,6 +39,12 @@ MediaController → StorageService → StorageAdapter
 the same rules and a new backend cannot quietly relax them: a MIME allowlist
 (never a blocklist) and a 10 MB ceiling.
 
+Public upload `kind` is limited to PHOTO/COVER/LOGO images or AUDIO. It is
+validated against MIME type before storage, and defaults by type when omitted.
+DOCUMENT/SIGNATURE are excluded. Listing hero/share images are same-event
+public image assets; selection takes share locks, and removal refuses both
+listing and block references. Resizing treats LOGO and COVER like PHOTO.
+
 **Keys are generated**, never derived from the uploaded filename — a
 caller-supplied name is a path-traversal and overwrite risk.
 

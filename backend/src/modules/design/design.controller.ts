@@ -7,6 +7,7 @@ import { DesignService } from './design.service';
 import { DraftReaderService } from './draft-reader.service';
 import {
   ChooseTemplateDto,
+  ReorderQuestionsDto,
   CreateVenueDto,
   UpdateBlockDto,
   UpdateRsvpFieldsDto,
@@ -123,6 +124,14 @@ export class DesignController {
   @ApiOperation({ summary: 'Custom RSVP questions, in order' })
   listQuestions(@Param('slug') slug: string) {
     return this.design.listQuestions(slug);
+  }
+
+  @RequirePermission('invitation:design')
+  @EventScope('invitationSlug')
+  @Patch('invitations/:slug/question-order')
+  @ApiOperation({ summary: 'Reorder all custom questions atomically; stale expectedOrder returns 409' })
+  reorderQuestions(@Param('slug') slug: string, @Body() dto: ReorderQuestionsDto) {
+    return this.design.reorderQuestions(slug, dto);
   }
 
   @RequirePermission('invitation:design')

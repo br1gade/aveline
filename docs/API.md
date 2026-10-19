@@ -385,6 +385,26 @@ Block types you may receive: `HERO`, `STORY`, `COUNTDOWN`, `MUSIC`, `VENUE`,
 **Render unknown block types as nothing rather than crashing.** New types ship
 without a client release.
 
+### Correct your own name
+
+```http
+PATCH /api/v1/invitations/:slug/g/:guestToken/name
+      { "firstName": "Ani", "lastName": "Dupont" }
+```
+
+No account is required: the personal link identifies exactly one guest. Names
+are trimmed and limited to 100 characters; first name must be nonempty.
+Null characters are rejected as a field error before storage. Either
+field may be omitted; `lastName: null` (or empty text) clears the surname.
+The response is `{ id, firstName, lastName, name }`. No guest ID, household,
+contact, locale or RSVP fields may be supplied. Wrong/rotated links, erased
+guests, drafts and expired invitations return 404; a closed but readable
+invitation still permits correction. Existing credentials, household membership,
+answers and seats are preserved. Host/guest reads and new exports use the new
+name; previously generated files remain fixed snapshots. New ticket manifests
+use the current linked guest name (falling back to the captured holder for
+unlinked legacy tickets); original checkout attendee captures remain intact.
+
 ### Submit an RSVP
 
 ```http
@@ -717,7 +737,8 @@ that, `PATCH { "isActive": false }` stops selling it.
 PUT  /api/v1/events/:eventId/listing
      { "headline": { "en": "Autumn Jazz Night" }, "summary": {...}, "body": {...},
        "categories": ["concert"], "ogTitle": {...}, "ogDescription": {...},
-       "isIndexable": false, "slug": "autumn-jazz-night" }
+       "isIndexable": false, "slug": "autumn-jazz-night",
+       "heroAssetId": "<event image id>", "ogImageId": null }
 POST /api/v1/events/:eventId/listing/publish
 POST /api/v1/events/:eventId/listing/unpublish
 ```
@@ -729,6 +750,24 @@ generated from the title when omitted — an Armenian title becomes
 Publishing is refused for a private event, without a headline in any
 language, or once the event has started. Unpublishing does not affect tickets
 already sold.
+
+`heroAssetId` and `ogImageId` select existing PHOTO/COVER/LOGO assets belonging
+to this event. Omitted leaves the selection unchanged; null clears it. Invalid,
+missing, cross-event or non-image IDs reject the entire edit with 400. A selected
+image cannot be deleted until its listing references are cleared (409).
+
+Public browse cards and announcement detail include `heroImage`, or null:
+`{ id, url, kind, altText, width, height, variants }`. `altText` is resolved in
+the negotiated locale; build `srcset` from `variants` and fall back to `url`.
+Detail `metadata.image` has the same shape, preferring the share image and then
+the hero; `metadata.imageAssetId` identifies that resolved image. Invalid legacy
+references are ignored. Image hydration is batched across the browse page.
+Private, unpublished, future-published and archived listings return no public
+metadata. UNLISTED pages remain noindex and absent from browse.
+
+The frontend must put `metadata.image.url`, title and description into the
+actual HTML Open Graph tags served to link crawlers. The API supplies data;
+HTML previews still require frontend integration and acceptance.
 
 All of this needs `event:write` (reading, `event:read`).
 
@@ -2446,6 +2485,35 @@ venues only internal timeline entries use (decided 10 October 2026); timeline
 entries at the same minute follow `sortOrder`. On this call `variant: null`
 resets the layout to the template's default.
 
+### Previewing a template
+
+```http
+GET /api/v1/events/:eventId/design-templates/:templateKey/preview?locale=fr
+GET /api/v1/invitations/:slug/template-preview?templateKey=classic&locale=fr
+```
+
+Both require `invitation:read` for the event and return `Cache-Control: private,
+no-store`. Render these with the same frontend invitation renderer used for a
+live page. The response has the live page's content shape plus `isPreview: true`
+and `previewSource: "SYNTHETIC" | "EVENT"`; `guest` is null and
+`isAcceptingResponses` is always false. Disable response submission and guest
+tracking in the preview UI.
+
+The catalogue route uses only synthetic en/ru/fr/hy content, including sample
+venue/timeline data. It never copies customer data. The event route accepts
+drafts and defaults to the selected template when `templateKey` is omitted.
+Locale negotiation and fallbacks match a live page. Previewing the selected
+template retains the host's theme; another template starts from its defaults,
+matching a real template switch. Unsupported/disabled blocks are omitted and
+unoffered variants fall back to null. Only guest-facing venues/timeline and
+same-event public media are hydrated. Guest contacts, personal links,
+attendance, seating, answers and private signature assets are excluded.
+
+Preview reads never change the template, blocks, theme, publication or RSVP
+state, never use the public page cache, and do not record invitation views.
+Unknown/inactive templates return 404. Actual visual rendering and all-language
+browser acceptance remain frontend work.
+
 ### Publishing the invitation
 
 ```http
@@ -2784,7 +2852,23 @@ choice question with no choices cannot be answered, so it is a `400`. Every
 language must offer the **same number of choices**, since an answer is a
 position.
 
-New questions go last; `sortOrder` comes back on each.
+New questions go last; `sortOrder` comes back on each. At most 1000 questions
+are supported per invitation. To reorder them in one atomic call:
+
+```http
+PATCH /api/v1/invitations/:slug/question-order
+      { "questionIds": ["second-id", "first-id"],
+        "expectedOrder": ["first-id", "second-id"] }
+```
+
+Needs `invitation:design`. Send every current ID exactly once in `questionIds`,
+in display order; `expectedOrder` is the ID order originally read from the
+questions or design response. Duplicate, missing or foreign IDs return 400.
+If a question was added/removed or another organizer changed its order, return
+409 and reload before retrying. Rejection changes nothing. The response is the
+ordered question array with zero-based `sortOrder`. Answers retain their stable
+question IDs; option positions, required flags and copy are untouched.
+
 
 `PATCH` changes only the fields sent — `{ "required": false }` makes a question
 optional and leaves its wording and choices alone. The result must still be
@@ -2833,10 +2917,22 @@ the address on an invitation already sent.
 
 The directory itself is kept by Aveline staff (`directory:manage`):
 `POST /venue-profiles` adds a hall (`name`, `address`, `city?`, `latitude?`,
-`longitude?`, `capacity?`, `notes?`), and `PATCH /venue-profiles/:profileId`
+`longitude?`, `capacity?`, `notes?`, `vendorId?`), and `PATCH /venue-profiles/:profileId`
 corrects one or retires it with `isActive: false` — it disappears from the
 list hosts see, and venues already copied from it keep their copy. Hosts
 cannot write to it: every customer reads the same directory.
+
+A directory hall may link to one active **curated VENUE** vendor using
+`vendorId`; one vendor may operate several halls. `PATCH { "vendorId": null }`
+unlinks just that hall. Private organization vendors, inactive/wrong-category
+vendors and unknown IDs return 400. Event venue copies retain their data.
+Host directory reads include `vendorId` and `vendor: { id, name }` (both null
+when the linked operator is no longer eligible); private contacts/notes never
+appear there. Vendor directory entries add `venueProfiles: [{ id, name, city,
+capacity }]` for active halls. The former `venueProfile: { city, capacity }`
+remains as a compatibility summary of the first hall by name/id; new clients
+should use the collection.
+
 
 `DELETE` is refused with a `400` while timeline entries or tables still point
 at the venue, naming how many — the cascade would otherwise detach a running
@@ -2850,6 +2946,12 @@ Reading needs `event:read`; writing needs `event:write`. Design calls need
 ```http
 POST /api/v1/events/:eventId/media        # multipart/form-data, field "file"
 ```
+
+Optional multipart field `kind` is PHOTO, COVER, LOGO or AUDIO. Without it,
+images default to PHOTO and audio to AUDIO. Explicit kind is honored: LOGO and
+COVER are images; AUDIO must be audio. Type/kind mismatch, unknown kinds,
+DOCUMENT and SIGNATURE return 400 before storage. Attachment rules still apply:
+MUSIC accepts audio only; other blocks accept PHOTO/COVER/LOGO images only.
 
 JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. Wrong type → `415` — SVG
 included, since it can carry script (decided 10 October 2026) — too
@@ -2870,7 +2972,8 @@ DELETE /api/v1/events/:eventId/media/:assetId
 `GET` (needs `invitation:read`) lists the event's uploads newest first, each
 with `id`, `url`, `kind`, `mimeType`, `sizeBytes`, `altText` (keyed by
 language), `createdAt` and `usedBy` — the block types showing it, e.g.
-`["HERO"]`. Generated exports are not in it; they are under `/exports`.
+`["HERO"]`. `listingUses` lists `"HERO"` and/or `"SHARE"` when selected on the
+announcement (empty otherwise). Generated exports are not in it; they are under `/exports`.
 
 `PATCH` (needs `invitation:design`) sets alt text one language at a time: a
 language sent replaces that one, `null` removes it, the rest are kept. Each
@@ -2879,7 +2982,8 @@ Guests receive it already resolved to their language, as `media[].altText`.
 
 `DELETE` (needs `invitation:design`) removes the upload and its file. It is
 refused with `409` while a block shows it, naming the block — take it off
-there first, with `PATCH /invitations/:slug/blocks/:type`.
+there first, with `PATCH /invitations/:slug/blocks/:type`. Listing hero/share
+references also prevent deletion; clear them through the listing edit first.
 
 **Photos are resized after upload, in the background.** Within about a minute
 each JPEG, PNG, WebP or AVIF photo gains smaller WebP copies at 480, 960 and

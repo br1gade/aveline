@@ -1,3 +1,4 @@
+import { ListingImageMap, listingImage, loadListingImages } from './listing-images';
 import { checkoutMetadata } from '../ticketing/checkout-metadata';
 import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -52,8 +53,9 @@ export class PublicEventsService {
       this.prisma.eventListing.count({ where }),
     ]);
 
+    const images = await loadListingImages(this.prisma, listings);
     return toPage(
-      listings.map((listing) => this.summarize(listing, params.locale)),
+      listings.map((listing) => this.summarize(listing, params.locale, images)),
       total,
       paging,
     );
@@ -65,13 +67,14 @@ export class PublicEventsService {
       include: listingInclude,
     });
 
-    if (!listing?.publishedAt || listing.event.visibility === EventVisibility.PRIVATE) {
+    if (!listing?.publishedAt || listing.publishedAt > new Date() || listing.event.visibility === EventVisibility.PRIVATE || listing.event.status !== 'PUBLISHED') {
       throw new NotFoundException(`No published event at "${slug}"`);
     }
 
     const { event } = listing;
     const locale = negotiateLocale(requestedLocale, event.locales, event.defaultLocale);
     const t = <T>(c: unknown) => resolveTranslation<T>(c, locale, event.defaultLocale);
+    const images = await loadListingImages(this.prisma, [listing]);
 
     return {
       slug: listing.slug,
@@ -82,6 +85,7 @@ export class PublicEventsService {
       summary: t(listing.summary),
       body: t(listing.body),
       categories: listing.categories,
+      heroImage: listingImage(listing, images, listing.heroAssetId, locale),
       startsAt: event.startsAt,
       endsAt: event.endsAt,
       timezone: event.timezone,
@@ -106,7 +110,7 @@ export class PublicEventsService {
         salesEndAt: type.salesEndAt,
       })),
       /// Everything a client needs to render link previews and robots rules.
-      metadata: this.metadataFor(listing, locale),
+      metadata: this.metadataFor(listing, locale, images),
     };
   }
 
@@ -120,15 +124,18 @@ export class PublicEventsService {
   private metadataFor(
     listing: Prisma.EventListingGetPayload<{ include: typeof listingInclude }>,
     locale: string,
+    images: ListingImageMap,
   ) {
     const { event } = listing;
     const t = <T>(c: unknown) => resolveTranslation<T>(c, locale, event.defaultLocale);
     const isIndexable = listing.isIndexable && event.visibility === EventVisibility.PUBLIC;
+    const image = listingImage(listing, images, listing.ogImageId, locale) ?? listingImage(listing, images, listing.heroAssetId, locale);
 
     return {
       title: t(listing.ogTitle) ?? t(listing.headline),
       description: t(listing.ogDescription) ?? t(listing.summary),
-      imageAssetId: listing.ogImageId ?? listing.heroAssetId,
+      imageAssetId: image?.id ?? null,
+      image,
       locale,
       alternateLocales: event.locales.filter((candidate) => candidate !== locale),
       canonicalPath: `/events/${listing.slug}`,
@@ -139,6 +146,7 @@ export class PublicEventsService {
   summarize(
     listing: Prisma.EventListingGetPayload<{ include: typeof listingInclude }>,
     requestedLocale?: string,
+    images: ListingImageMap = new Map(),
   ) {
     const { event } = listing;
     const locale = negotiateLocale(requestedLocale, event.locales, event.defaultLocale);
@@ -154,6 +162,7 @@ export class PublicEventsService {
       headline: t(listing.headline),
       summary: t(listing.summary),
       categories: listing.categories,
+      heroImage: listingImage(listing, images, listing.heroAssetId, locale),
       startsAt: event.startsAt,
       venue: event.venues[0]?.name ?? null,
       fromPriceMinor: cheapest?.toString() ?? null,

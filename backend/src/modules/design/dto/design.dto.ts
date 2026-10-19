@@ -3,6 +3,7 @@ import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs
 import { BlockType, QuestionType } from '@prisma/client';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -176,6 +177,12 @@ export class UpdateVenueDto extends PartialType(OmitType(CreateVenueDto, ['profi
 
 /** A hall in the shared directory, which hosts copy from. */
 export class CreateVenueProfileDto {
+  @ApiPropertyOptional({ description: 'Active curated VENUE vendor operating this hall; null removes the link', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  vendorId?: string | null;
+
   @ApiProperty()
   @IsString()
   @MaxLength(160)
@@ -298,3 +305,22 @@ export class UpdateRsvpFieldsDto {
 export class UpdateTimelineEntryDto extends PartialType(UpsertTimelineEntryDto) {}
 
 export { BlockType };
+
+/** Complete intended order and the order the editor originally read. */
+export class ReorderQuestionsDto {
+  @ApiProperty({ type: [String], maxItems: 1000 })
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  questionIds!: string[];
+
+  @ApiProperty({ type: [String], maxItems: 1000 })
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  expectedOrder!: string[];
+}

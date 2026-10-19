@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 
 /** Tables whose rows are edited by merging into what is there. */
-type MergedTable = 'events' | 'venues' | 'invitations' | 'invitation_blocks' | 'rsvp_questions' | 'media_assets';
+type MergedTable = 'events' | 'venues' | 'invitations' | 'invitation_blocks' | 'rsvp_questions' | 'media_assets' | 'venue_profiles';
 
 /**
  * Locks one row for the rest of the transaction, before it is read.

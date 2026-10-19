@@ -257,3 +257,18 @@ Attendance policy preview/confirmation requires `event:write`. Attendance
 history requires `guest:read` and is event/person scoped; designers cannot
 read it. Guest capabilities permit current answers only for their own household,
 including venue attendance. No new role or permission was introduced.
+
+### Guest corrections and design previews
+
+The personal guest link permits correction of only that guest's first/last
+names, with no host session. The link is revalidated under lock; rotated links,
+erasure, draft and expiry close this write surface. Closed readable invitations
+still permit name correction. No household, contacts or answers can be edited
+through the name endpoint.
+
+Template catalogue/event previews require `invitation:read` for the event.
+Draft previews contain only renderer content, never guest contacts, capability
+links, attendance, seating, answers or private acknowledgements. They are served
+private/no-store and do not publish or collect responses. Question reordering
+requires `invitation:design`; directory operator assignment remains staff-only
+under `directory:manage`, and accepts active curated VENUE vendors only.

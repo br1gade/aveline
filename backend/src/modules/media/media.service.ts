@@ -1,3 +1,4 @@
+import { PUBLIC_UPLOAD_KINDS } from './dto/upload-media.dto';
 import { languageKeysProblem } from '../../common/field-translations';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MediaKind, Prisma } from '@prisma/client';
@@ -27,7 +28,11 @@ export class MediaService {
    * was never written is worse than an orphaned file, because the invitation
    * would render a broken image. An orphan costs disk and is reclaimable.
    */
-  async upload(eventId: string, file: Express.Multer.File) {
+  async upload(eventId: string, file: Express.Multer.File, requestedKind?: MediaKind) {
+    const kind = requestedKind ?? kindFor(file.mimetype);
+    if (!PUBLIC_UPLOAD_KINDS.includes(kind) || (kind === MediaKind.AUDIO) !== file.mimetype.startsWith('audio/')) {
+      throw new BadRequestException('kind: AUDIO requires audio; PHOTO, COVER and LOGO require an image');
+    }
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       select: { id: true },
@@ -47,7 +52,7 @@ export class MediaService {
       .create({
         data: {
           eventId,
-          kind: kindFor(file.mimetype),
+          kind,
           url: stored.url,
           sizeBytes: stored.sizeBytes,
           mimeType: stored.mimeType,
@@ -66,7 +71,7 @@ export class MediaService {
    * so a host can see what they have and what removing one would break.
    */
   async list(eventId: string) {
-    const [assets, blocks] = await Promise.all([
+    const [assets, blocks, listing] = await Promise.all([
       this.prisma.mediaAsset.findMany({
         where: { eventId, kind: { in: UPLOAD_KINDS } },
         orderBy: { createdAt: 'desc' },
@@ -85,10 +90,12 @@ export class MediaService {
         },
       }),
       this.blocksShowingMedia(eventId),
+      this.prisma.eventListing.findUnique({ where: { eventId }, select: { heroAssetId: true, ogImageId: true } }),
     ]);
 
     return assets.map((asset) => ({
       ...asset,
+      listingUses: [listing?.heroAssetId === asset.id ? 'HERO' : null, listing?.ogImageId === asset.id ? 'SHARE' : null].filter((use) => use !== null),
       usedBy: blocks.filter((block) => block.assetIds.includes(asset.id)).map((block) => block.type),
     }));
   }
@@ -138,6 +145,8 @@ export class MediaService {
       if (blocks.length > 0) {
         throw new ConflictException(`The ${blocks.map((block) => block.type).join(', ')} block shows this; take it off there first`);
       }
+      const listing = await tx.eventListing.findFirst({ where: { eventId, OR: [{ heroAssetId: assetId }, { ogImageId: assetId }] }, select: { id: true } });
+      if (listing) throw new ConflictException('The listing uses this image; clear heroAssetId and ogImageId first');
       await tx.mediaAsset.delete({ where: { id: assetId } });
       return found;
     });

@@ -34,7 +34,7 @@ effective theme = { ...template.defaultTheme, ...invitation.theme }
 ```
 
 A partially configured invitation therefore always has a complete token set.
-This happens in `InvitationsService.getPublicInvitation`.
+Live pages and preview payloads share `buildInvitationContent`.
 
 ---
 
@@ -76,9 +76,9 @@ invitation.
 
 | Kind | Used for |
 |---|---|
-| `PHOTO` | Every uploaded image — hero, gallery, story |
-| `COVER` | Reserved; uploads are recorded as `PHOTO` |
-| `SIGNATURE` | A captured signature |
+| `PHOTO` | Default image kind — hero, gallery, story |
+| `COVER` | Explicit cover image upload |
+| `SIGNATURE` | Reserved for private guest acknowledgement capture |
 | `LOGO` | Corporate events |
 | `AUDIO` | Background music |
 
@@ -185,7 +185,24 @@ nothing and the error names the offending block.
 **Uploads.** `POST /events/:eventId/media` accepts multipart, enforces a MIME
 allowlist and a 10 MB ceiling, and records a `MediaAsset` with its
 `sizeBytes`. Files are stored under a generated key, never the uploaded
-filename.
+filename. Optional `kind` is allowlisted to PHOTO/COVER/LOGO/AUDIO, defaults
+by MIME type and must agree with the type. SIGNATURE/DOCUMENT cannot enter the
+public upload route. Listing hero/share selections use same-event images and
+also prevent deletion while selected.
+
+**Question order.** `PATCH /invitations/:slug/question-order` supplies every
+stable question ID in the desired order, plus `expectedOrder` from the editor's
+read. Conflicting additions/removals/reorders return 409. Reordering preserves
+answers, required flags and option positions; invalid orders change nothing.
+
+**Previews.** Authorized catalogue and event-template preview routes return
+renderer payloads built by the same serializer as a live invitation. Catalogue
+content is synthetic in en/ru/fr/hy; event previews use only public-facing event
+content, including drafts, with no guest/household data. Target template support,
+variants, theme defaults and locale rules match live behavior. No state, cache
+or analytics are written and no RSVP can be collected through a preview route.
+The frontend uses its actual invitation renderer and disables submission;
+visual/browser acceptance remains pending.
 
 ## 7. Not yet built
 
@@ -193,11 +210,9 @@ filename.
    nothing crops them to a shape or records where the subject is.
 2. **Block creation outside the arrangement call.** Which blocks exist is
    decided there; there is no way to add one while editing its content.
-3. **Reordering custom RSVP questions.** They can be added, changed and
-   removed, but a question's `sortOrder` is assigned on creation and nothing
-   changes it.
-4. **Signature capture** on the client and its asset write path.
-5. **Template preview** rendering.
+3. **Signature capture** on the client and its private asset write path.
+4. **Frontend template preview rendering and visual acceptance.** The backend
+   renderer payloads are built; the frontend still has to render them.
 
 Theme validation, block content, template switching, RSVP questions and venue
 CRUD are built — see [API.md](API.md) §6.

@@ -111,16 +111,16 @@ it needs a cancellation during the event itself, at the door.
 | F21 | WhatsApp delivery receipts | S–M |
 | F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
 | F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
-| F24 | Hero and share-preview images on event listings (§13.2) | S |
+| F24 | Backend implemented: validated same-event hero/share selection, batched responsive images and privacy-aware metadata. Frontend HTML Open Graph tags and browser acceptance remain (§13.2) | S |
 | F25 | Guest signature capture (`SIGNATURE` question) | S–M |
 | F26 | Caching the personalised page — every link actually sent is personalised and uncached | M |
 | F27 | Backend implemented: all exports and automatic seating use durable workers with bounded recovery and stale-plan guards. Queued frontend integration and production acceptance remain | M |
-| F28 | Template preview (layouts are now declared and validated — B46) | S |
-| F29 | Reordering custom RSVP questions | S |
+| F28 | Backend implemented: synthetic en/ru/fr/hy and authorized event preview payloads share the live serializer. Frontend renderer integration and visual acceptance remain | S |
+| F29 | Backend implemented: atomic complete question ordering with stale-order conflicts; answered data preserved. Frontend editor acceptance remains | S |
 | F30 | Invitation expiry from the plan's lifetime (decided: indefinite paid, 3 months free) | S |
-| F46 | A guest correcting their own name on the RSVP form (§5.3 "Full name") | S |
-| F47 | Linking a directory venue to the vendor who runs it (VENUES §1) | S |
-| F48 | Logo uploads for corporate events (INVITATION_DESIGN §3) | S |
+| F46 | Backend implemented: personal-link self-name correction preserving identity links, answers and seats. Frontend form acceptance remains (§5.3) | S |
+| F47 | Backend implemented: curated VENUE operators may manage several directory halls; staff validation and private-link filtering. Frontend directory acceptance remains | S |
+| F48 | Backend implemented: allowlisted LOGO/COVER/PHOTO/AUDIO uploads honor kind and validate MIME/attachment compatibility. Frontend corporate logo acceptance remains | S |
 | F49 | Backend implemented: typed XLSX snapshots for all seven kinds; literal untrusted text and separate catering tabs. Frontend, translations and native-viewer acceptance remain | S |
 | F50 | **Backend implemented; acceptance pending:** separate venue seating, attendance modes, per-venue RSVP, preview/reconfirmation and history; frontend integration and four-language acceptance remain | L |
 

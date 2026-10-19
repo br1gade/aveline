@@ -19,7 +19,12 @@ VenueProfile  ──────────►  Venue  ────────
 Yerevan". It is shared across events and organizations, and links to a `Vendor`
 when the venue is also a booked partner. It exists so the hundredth wedding at
 a popular hall does not retype the address, and so we can answer "which venues
-do we work with".
+do we work with". One active curated VENUE vendor may operate several profiles;
+each profile has at most one operator. Staff (`directory:manage`) set, reassign
+or remove its `vendorId` independently. Organization-private vendors cannot be
+linked. Directory responses expose only an eligible operator's ID and name,
+never private contacts; retired/ineligible links are returned as null. Event
+venue copies retain their own details after operator or directory changes.
 
 **`Venue`** is *this event's* use of a place. It carries the role (`CEREMONY`,
 `RECEPTION`, `AFTER_PARTY`, `PREPARATION`), the arrival time, and the capacity

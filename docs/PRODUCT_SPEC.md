@@ -159,6 +159,12 @@ The RSVP is a configurable questionnaire, not a fixed form. Every question has a
 | Preferred language | single choice | per-guest invitation language |
 | Free message to the hosts | text | guest book |
 
+Guests can correct their own first/last names through their personal link.
+This changes identity display and future operational exports while retaining
+credentials, household membership, attendance and seating. Existing exported
+snapshots retain their captured names. Name correction cannot edit another
+household member or contact fields.
+
 **One link answers for the household.** Whoever opens it answers for every
 named member, each attending or not, in one submission — decided 8 October
 2026, because families split ("we're coming, grandma can't travel") and

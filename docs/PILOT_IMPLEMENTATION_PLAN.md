@@ -94,13 +94,14 @@ Current limitations that drive the new plan:
   guest-gallery originals still need to adopt protected storage.
 - Named ticket checkout, legacy registration and explicit invited-guest linking
   now write the guest graph and share admission/cancellation tracking. Frontend
-  attendee/reconciliation screens and language acceptance remain. Venue-profile
-  directory operator write flows are still missing.
-- The upload controller advertises `kind` but ignores it; uploaded images become
-  PHOTO. Signature questions are refused, and one RSVP signature field cannot
-  represent several separate acknowledgements.
-- Host draft data exists; rendered template previews, question reordering and
-  guest self-name editing do not.
+  attendee/reconciliation screens and language acceptance remain. Directory
+  operator writes now support one curated vendor operating several profiles.
+- Public uploads now honor validated PHOTO/COVER/LOGO/AUDIO kinds and listing
+  hero/share selectors are implemented. Signature questions remain refused; the
+  single RSVP signature field cannot represent separate acknowledgements.
+- Host draft data, safe template preview payloads, atomic question ordering
+  and guest self-name editing are implemented; frontend rendering and acceptance
+  remain.
 - Plan lifetime is modelled (the free seed uses 90 days), but publishing does not
   set expiry. Cached metadata does not currently enforce that future boundary.
 - WhatsApp transport accepts messages and saves its provider reference; delivery
@@ -365,7 +366,7 @@ Legacy `/exports` remains live during the frontend transition; old rows are
 not snapshots. See [API.md](API.md) and
 [worker operations](../backend/docs/EXPORT_WORKER.md). The frontend still needs
 to adopt queue/status/regeneration behavior. Standard CSV headings remain
-English pending F35. Production worker/bucket recovery is still a rehearsal
+English pending four-language localization. Production worker/bucket recovery is still a rehearsal
 gate. The PDF/XLSX and background-seating batches below complete F27's backend
 worker implementation; frontend adoption and production acceptance remain open.
 
@@ -394,7 +395,7 @@ visually inspected. See [renderer acceptance](../backend/docs/EXPORT_RENDERERS.m
 for versions, limits, measurements and repeatable commands.
 
 **F20/F49 backend work is implemented; their release gates remain open** for
-frontend adoption, translated standard headings (F35), native spreadsheet and
+frontend adoption, translated standard headings, native spreadsheet and
 physical printing acceptance, and production worker/private-store rehearsal.
 The background seating batch below completes F27's worker implementation. No production deployment or
 frontend implementation is included in this backend batch.
@@ -466,7 +467,7 @@ and graceful shutdown are exercised. See [API.md](API.md) and the
 [worker runbook](../backend/docs/SEATING_WORKER.md).
 
 F27 remains a release gate for queued frontend adoption and actual production
-worker/recovery acceptance. Reasons need F35 translation, and the final mixed
+worker/recovery acceptance. Reasons need four-language translation, and the final mixed
 write/load rehearsal remains milestone J. This batch does not deploy production.
 
 Verification on 18 October: `npm run verify` passed lint, docs, OpenAPI, build,
@@ -503,18 +504,50 @@ worker termination and lease recovery leave valid seats and bounded API latency.
 | F24 | Same-event listing hero selection, variants and privacy-aware preview metadata; bulk hydration in listing reads | Public listing cards and actual frontend HTML link previews use the chosen image; invalid/removed assets and private events do not leak guest information |
 | F28 | Synthetic catalog previews and authorized event-specific template previews using the real renderer/theme/locale rules | Previewing never changes the selected template, blocks or theme, never publishes a draft or collects an RSVP; all four languages render |
 
-For F47 the schema currently imposes one vendor per profile and one profile per
-vendor. Confirmed directory behavior permits one curated VENUE vendor to operate
-several profiles, with one operator per profile. Remove the vendor-link uniqueness
-restriction and expose the vendor's profile collection; preserve existing profile
-IDs and links in a populated-database migration. Validate each link independently
-and test assigning, reassigning and removing one profile without affecting the
-vendor's other venues. Organization-private vendors must remain outside shared
-directory responses.
+F47 now permits one curated VENUE vendor to operate several profiles, with one
+operator per profile. Migration `20261018143000_multiple_directory_venues`
+removes only the old vendor-link uniqueness index and preserves profile IDs,
+links and event copies. Vendor reads add a `venueProfiles` collection and retain
+the old `venueProfile` summary for compatibility. Staff writes reject inactive,
+wrong-category and organization-private operators; host reads hide ineligible
+legacy links.
 
 F28 uses the frontend invitation renderer rather than a second backend HTML
 renderer. Server preview payloads must exclude guest contacts, credentials and
 private acknowledgements even when a designer can preview an event.
+
+### Backend delivery — 18 October 2026
+
+All six feature paths are implemented with additive client contracts:
+
+- F46 personal-link name correction: only first/last name, bounded/trimmed;
+  locked credential/erasure/publication/expiry checks; answers, households and
+  seats retained; future exports (including linked ticket manifests) use corrected
+  names, old snapshots and original checkout captures stay fixed.
+- F29 one complete order plus `expectedOrder`: stale editor conflicts return
+  409; additions/removals serialize with ordering; only sort positions change.
+- F47 validated staff operator links and multiple profiles per curated vendor.
+- F48 allowlisted upload kind with MIME and existing block attachment checks.
+- F24 hero/share selectors, same-event validation and deletion protection;
+  batched image/variant/alt-text hydration and visibility-aware metadata.
+- F28 synthetic four-language and event-specific preview payloads share the live
+  serializer; target template/theme/variant behavior matches switching. Draft
+  preview reads expose no guest/household/attendance/answer/private-media data,
+  publish nothing, record no views and never accept an RSVP.
+
+Verification: the full `npm run verify` run passed lint, docs, OpenAPI, build,
+**1,070 unit, 432 integration and 619 HTTP tests**. Two additional null-character
+name-validation regressions were then verified with a complete unit rerun
+(**1,072 passing**), final lint/build and docs/OpenAPI checks. The final checked
+set is **2,123 tests**, including 46 added by this batch. The populated migration
+fixture preserved existing profile IDs/operator links; concurrent reorders,
+question additions, link revocation and image selection/removal passed. No
+frontend/browser or production acceptance is claimed by these backend tests.
+
+Frontend acceptance remains open for this milestone: name editing, question
+reordering/reload-on-conflict, operator collection UI, corporate logos, actual
+HTML social preview tags and rendering previews with the real invitation
+renderer. Four-language host/guest/browser acceptance is still a release gate.
 
 ## 8. Milestone G — acknowledgements and gallery
 

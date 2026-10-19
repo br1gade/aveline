@@ -200,6 +200,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 |---|---|---|
 | `GET` | `/api/v1/invitations/:slug` | Invitation payload, cached per slug and locale |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken` | Personalized for one guest |
+| `PATCH` | `/api/v1/invitations/:slug/g/:guestToken/name` | Correct only the link holder's first/last names |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Read current response |
 | `POST` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
 | `PATCH` | `/api/v1/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
@@ -239,6 +240,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/events/:eventId/design-templates/:templateKey/preview` | Synthetic four-language renderer preview; invitation:read |
+| `GET` | `/api/v1/invitations/:slug/template-preview` | Authorized event-content template preview; no publishing or RSVP |
+| `PATCH` | `/api/v1/invitations/:slug/question-order` | Atomic complete question order with expectedOrder conflict check |
 | `GET` | `/api/v1/events/:eventId/design-templates` | The template catalogue and its constraints |
 | `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
 | `POST` | `/api/v1/invitations/:slug/publish` | Make it live — needs an RSVP block, a venue and a future date |
@@ -442,7 +446,7 @@ its records are references to regenerate, never historical snapshots.
 ## Three design decisions worth knowing
 
 **Blocks are data-bound.** An `InvitationBlock` of type `VENUE`, `TIMELINE` or
-`COUNTDOWN` stores no copy of the event's data. `InvitationsService.hydrateBlock`
+`COUNTDOWN` stores no copy of the event's data. `invitation-content.ts`
 pulls it live from the Event at render time. This is what makes unlimited free
 revisions economically trivial — correcting a venue address is one UPDATE, not
 a re-edit of every block that mentions it.

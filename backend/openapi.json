@@ -927,6 +927,48 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/g/{guestToken}/name": {
+      "patch": {
+        "operationId": "GuestNameController_correct",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectNameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Correct only the personal link holder’s first and last names",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/guests": {
       "get": {
         "operationId": "GuestsController_list",
@@ -3013,10 +3055,8 @@
                     "enum": [
                       "PHOTO",
                       "COVER",
-                      "SIGNATURE",
                       "LOGO",
-                      "AUDIO",
-                      "DOCUMENT"
+                      "AUDIO"
                     ]
                   }
                 }
@@ -3979,6 +4019,79 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/design-templates/{templateKey}/preview": {
+      "get": {
+        "operationId": "TemplatePreviewsController_catalogue",
+        "parameters": [
+          {
+            "name": "templateKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Synthetic template preview payload for the invitation renderer",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/template-preview": {
+      "get": {
+        "operationId": "TemplatePreviewsController_forEvent",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateKey",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to the selected template",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Preview event content with a template without publishing or changing it",
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/v1/invitations/{slug}/design": {
       "get": {
         "description": "Drafts included; every block, switched on or not; every language of every block and question; settings, media, and what still blocks publishing. What an editor loads.",
@@ -4219,6 +4332,40 @@
           }
         },
         "summary": "Add a custom RSVP question",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/question-order": {
+      "patch": {
+        "operationId": "DesignController_reorderQuestions",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderQuestionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Reorder all custom questions atomically; stale expectedOrder returns 409",
         "tags": [
           "design"
         ]
@@ -5442,6 +5589,20 @@
           "transitionId"
         ]
       },
+      "CorrectNameDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "lastName": {
+            "type": "object",
+            "maxLength": 100,
+            "nullable": true
+          }
+        }
+      },
       "AddGuestDto": {
         "type": "object",
         "properties": {
@@ -6121,6 +6282,16 @@
       "UpsertListingDto": {
         "type": "object",
         "properties": {
+          "heroAssetId": {
+            "type": "object",
+            "description": "Same-event PHOTO, COVER or LOGO; null clears the listing hero",
+            "nullable": true
+          },
+          "ogImageId": {
+            "type": "object",
+            "description": "Same-event image for sharing; null falls back to the hero",
+            "nullable": true
+          },
           "slug": {
             "type": "string",
             "description": "Public URL segment. Generated from the headline if omitted."
@@ -6756,6 +6927,29 @@
           }
         }
       },
+      "ReorderQuestionsDto": {
+        "type": "object",
+        "properties": {
+          "questionIds": {
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedOrder": {
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "questionIds",
+          "expectedOrder"
+        ]
+      },
       "UpsertQuestionDto": {
         "type": "object",
         "properties": {
@@ -7004,6 +7198,11 @@
       "CreateVenueProfileDto": {
         "type": "object",
         "properties": {
+          "vendorId": {
+            "type": "object",
+            "description": "Active curated VENUE vendor operating this hall; null removes the link",
+            "nullable": true
+          },
           "name": {
             "type": "string"
           },
@@ -7040,6 +7239,11 @@
       "UpdateVenueProfileDto": {
         "type": "object",
         "properties": {
+          "vendorId": {
+            "type": "object",
+            "description": "Active curated VENUE vendor operating this hall; null removes the link",
+            "nullable": true
+          },
           "name": {
             "type": "string"
           },

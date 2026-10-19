@@ -109,6 +109,14 @@ Guests carry `consentAt` / `consentSource` and `anonymizedAt`; `User` and
 **Money is `BigInt` minor units.** Never a float, never a `Decimal` someone can
 round. AMD has no subunit: 25,000 dram is `25000`.
 
+**Venue operators are one-to-many.** `VenueProfile.vendorId` is nullable and
+indexed, with no uniqueness restriction; `Vendor.venueProfiles` is a collection.
+The populated migration drops only the old unique index and adds a lookup
+index, preserving profile IDs, operator links and event copies. The staff write
+surface accepts only active curated VENUE vendors; public directory reads hide
+ineligible legacy links. No new tables were needed for the guest/design batch:
+listing image selectors and stable question order were already modelled.
+
 **Translated content is `Json` keyed by locale**, not a translations table. A
 join per field, per block, per locale, on the hottest read in the product would
 cost more than it buys, and the content belongs to its aggregate.

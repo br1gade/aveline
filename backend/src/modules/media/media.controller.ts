@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { MediaKind } from '@prisma/client';
+import { PUBLIC_UPLOAD_KINDS, UploadMediaDto } from './dto/upload-media.dto';
 import { EventScope, RequirePermission } from '../../infra/auth/actor';
 import { MAX_UPLOAD_BYTES } from '../../infra/storage/storage.service';
 import { UpdateMediaDto } from './dto/update-media.dto';
@@ -40,13 +40,13 @@ export class MediaController {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary' },
-        kind: { type: 'string', enum: Object.values(MediaKind) },
+        kind: { type: 'string', enum: PUBLIC_UPLOAD_KINDS },
       },
     },
   })
-  upload(@Param('eventId') eventId: string, @UploadedFile() file?: Express.Multer.File) {
+  upload(@Param('eventId') eventId: string, @Body() dto: UploadMediaDto, @UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('A file is required');
-    return this.media.upload(eventId, file);
+    return this.media.upload(eventId, file, dto.kind);
   }
 
   @RequirePermission('invitation:read')

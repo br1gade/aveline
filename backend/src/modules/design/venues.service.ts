@@ -26,11 +26,16 @@ export class VenuesService {
   ) {}
 
   /** The reusable directory, so a popular hall is typed once per platform. */
-  listProfiles(city?: string) {
-    return this.prisma.venueProfile.findMany({
-      where: { isActive: true, city },
-      orderBy: [{ city: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true, address: true, city: true, capacity: true },
+  async listProfiles(city?: string) {
+    const profiles = await this.prisma.venueProfile.findMany({
+      where: { isActive: true, city }, orderBy: [{ city: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true, address: true, city: true, capacity: true,
+        vendor: { select: { id: true, name: true, organizationId: true, active: true, category: true } } },
+    });
+    return profiles.map(({ vendor, ...profile }) => {
+      const operator = vendor?.active && vendor.organizationId === null && vendor.category === 'VENUE'
+        ? { id: vendor.id, name: vendor.name } : null;
+      return { ...profile, vendorId: operator?.id ?? null, vendor: operator };
     });
   }
 
@@ -159,17 +164,25 @@ export class VenuesService {
   /** A hall in the directory every host copies from. Aveline staff only. */
   createProfile(dto: CreateVenueProfileDto) {
     assertCoordinatePair(dto.latitude, dto.longitude);
-    return this.prisma.venueProfile.create({ data: { ...dto } });
+    return this.prisma.$transaction(async (tx) => {
+      await assertDirectoryOperator(tx, dto.vendorId);
+      return tx.venueProfile.create({ data: { ...dto } });
+    });
   }
 
-  /** Corrects a hall, or retires it. Venues already copied from it keep their copy. */
+  /** Corrects a hall; event venues retain their own copy. */
   async updateProfile(profileId: string, dto: UpdateVenueProfileDto) {
-    const current = await this.requireProfile(profileId, { includeRetired: true });
-    assertCoordinatePair(
-      dto.latitude === undefined ? current.latitude : dto.latitude,
-      dto.longitude === undefined ? current.longitude : dto.longitude,
-    );
-    return this.prisma.venueProfile.update({ where: { id: profileId }, data: { ...dto } });
+    return this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'venue_profiles', profileId);
+      const current = await tx.venueProfile.findUnique({ where: { id: profileId } });
+      if (!current) throw new NotFoundException('No such venue in the directory');
+      assertCoordinatePair(
+        dto.latitude === undefined ? current.latitude : dto.latitude,
+        dto.longitude === undefined ? current.longitude : dto.longitude,
+      );
+      await assertDirectoryOperator(tx, dto.vendorId);
+      return tx.venueProfile.update({ where: { id: profileId }, data: { ...dto } });
+    });
   }
 
   /**
@@ -253,4 +266,11 @@ async function assertVenueCapacity(tx: Prisma.TransactionClient, venueId: string
   if (capacity === undefined || capacity === null) return;
   const seated = await tx.seat.count({ where: { table: { venueId } } });
   if (capacity < seated) throw new BadRequestException(`capacity: ${seated} guests are seated at this venue`);
+}
+
+async function assertDirectoryOperator(tx: Prisma.TransactionClient, vendorId: string | null | undefined): Promise<void> {
+  if (vendorId === undefined || vendorId === null) return;
+  await tx.$queryRaw`SELECT id FROM vendors WHERE id = ${vendorId} FOR SHARE`;
+  const vendor = await tx.vendor.findFirst({ where: { id: vendorId, organizationId: null, category: 'VENUE', active: true }, select: { id: true } });
+  if (!vendor) throw new BadRequestException('vendorId: choose an active curated VENUE vendor');
 }

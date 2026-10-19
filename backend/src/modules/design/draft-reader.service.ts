@@ -31,7 +31,7 @@ const draftSelect = {
     select: { type: true, sortOrder: true, enabled: true, variant: true, content: true, settings: true, assetIds: true },
   },
   questions: {
-    orderBy: { sortOrder: 'asc' },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     select: {
       id: true,
       type: true,

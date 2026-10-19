@@ -318,7 +318,7 @@ model Venue {
 /// Linked to a Vendor when the venue is also a booked partner (spec §7.3).
 model VenueProfile {
   id        String   @id @default(cuid())
-  vendorId  String?  @unique
+  vendorId  String?
   name      String
   address   String
   city      String?
@@ -335,6 +335,7 @@ model VenueProfile {
   venues Venue[]
 
   @@index([city])
+  @@index([vendorId])
   @@map("venue_profiles")
 }
 
@@ -848,7 +849,7 @@ model Vendor {
 
   organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bookings     VendorBooking[]
-  venueProfile VenueProfile?
+  venueProfiles VenueProfile[]
 
   @@index([organizationId])
   @@map("vendors")

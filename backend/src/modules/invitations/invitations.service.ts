@@ -1,21 +1,20 @@
+import { buildInvitationContent } from './invitation-content';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BlockType, EventVisibility, Prisma } from '@prisma/client';
+import { EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey, invitationMetaKey, invitationGenerationKey } from '../../infra/cache/cache.service';
-import { translatedField } from '../../common/field-translations';
 import { ATTENDANCE_GUEST, attendanceView } from '../rsvp/attendance/attendance-view';
 import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
 import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
-import { fieldsForPage } from '../rsvp/rsvp-fields';
-import { negotiateLocale, resolveTranslation } from '../../common/locale';
+import { negotiateLocale } from '../../common/locale';
 
-const invitationInclude = {
+export const invitationInclude = {
   template: true,
   blocks: { where: { enabled: true }, orderBy: { sortOrder: 'asc' } },
-  questions: { orderBy: { sortOrder: 'asc' } },
+  questions: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
   event: {
     include: {
       venues: { where: GUEST_FACING_VENUES, orderBy: { sortOrder: 'asc' } },
@@ -30,10 +29,8 @@ type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitation
   /** The uploads its enabled blocks show, by id. */
   media: Map<string, BlockMedia>;
 };
-type LoadedEvent = LoadedInvitation['event'];
-type LoadedBlock = LoadedInvitation['blocks'][number];
 
-const blockMediaSelect = {
+export const blockMediaSelect = {
   id: true,
   url: true,
   kind: true,
@@ -59,8 +56,6 @@ const GUEST_INCLUDE = {
 
 type LoadedGuest = Prisma.GuestGetPayload<{ include: typeof GUEST_INCLUDE }>;
 
-/** Resolves a translated field for one request's locale. */
-type Translate = <T>(content: unknown) => T | null;
 
 @Injectable()
 export class InvitationsService {
@@ -165,49 +160,8 @@ export class InvitationsService {
     guest: LoadedGuest | null,
     requestedLocale?: string,
   ) {
-    const { event } = invitation;
-    const locale = negotiateLocale(requestedLocale, event.locales, event.defaultLocale);
-    const translate: Translate = (content) => resolveTranslation(content, locale, event.defaultLocale);
-
-    return {
-      slug: invitation.slug,
-      // Whether to show the RSVP form at all. A closed invitation is still
-      // readable — the venue and time still matter to people who are coming —
-      // so the page needs to know not to offer a form that will be refused.
-      isAcceptingResponses: isAcceptingResponses(invitation, new Date()),
-      template: invitation.template.key,
-      // The host's choices layered over the template's defaults, so a partially
-      // configured invitation still renders with a complete token set.
-      theme: { ...asRecord(invitation.template.defaultTheme), ...asRecord(invitation.theme) },
-      allowedFonts: invitation.template.allowedFonts,
-      // Derived from the blocks rather than stored beside them, so there is
-      // one place a host sets each: the hero's first photo is the cover, and
-      // switching the music block off silences the page.
-      musicUrl: firstMediaUrl(invitation, BlockType.MUSIC),
-      coverUrl: firstMediaUrl(invitation, BlockType.HERO),
-      locale,
-      availableLocales: event.locales,
-      event: this.buildEventView(event, locale),
-      guest: guest ? this.buildGuestView(guest, event.seatingPublishedAt !== null, locale) : null,
-      blocks: invitation.blocks.map((block) => ({
-        type: block.type,
-        sortOrder: block.sortOrder,
-        variant: block.variant,
-        settings: block.settings,
-        content: translate(block.content) ?? {},
-        media: mediaFor(block, invitation.media, translate),
-        data: this.hydrateBlock(block.type, invitation, translate, locale),
-      })),
-      // How the built-in questions are asked: which to show, and fixed choices in this language.
-      rsvpFields: fieldsForPage(invitation.rsvpFields, locale, event.defaultLocale),
-      rsvpQuestions: invitation.questions.map((question) => ({
-        id: question.id,
-        type: question.type,
-        required: question.required,
-        prompt: translate(question.prompt),
-        options: translate(question.options) ?? [],
-      })),
-    };
+    const payload = buildInvitationContent(invitation, requestedLocale);
+    return { ...payload, guest: guest ? this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, payload.locale) : null };
   }
 
   private async loadPublished(slug: string): Promise<LoadedInvitation> {
@@ -246,18 +200,6 @@ export class InvitationsService {
     return new Map(assets.map((asset) => [asset.id, asset]));
   }
 
-  private buildEventView(event: LoadedEvent, locale: string) {
-    return {
-      type: event.type,
-      title: translatedField(event.translations, locale, 'title') ?? event.title,
-      hosts: translatedField(event.translations, locale, 'hostsLabel') ?? event.hostsLabel,
-      startsAt: event.startsAt,
-      endsAt: event.endsAt,
-      timezone: event.timezone,
-      sides: { a: event.sideALabel, b: event.sideBLabel },
-    };
-  }
-
   private buildGuestView(guest: LoadedGuest, isSeatingPublished: boolean, locale: string) {
     return {
       id: guest.id,
@@ -283,36 +225,6 @@ export class InvitationsService {
     };
   }
 
-  /** Pulls live Event data for the block types that must never duplicate it. */
-  private hydrateBlock(type: BlockType, invitation: LoadedInvitation, translate: Translate, locale: string): unknown {
-    const { event } = invitation;
-    switch (type) {
-      case BlockType.VENUE:
-      case BlockType.MAP:
-        return guestVenues(invitation).map((venue) => ({
-          // Timeline entries carry venueId; this is what they point at.
-          id: venue.id,
-          role: venue.role,
-          name: translatedField(venue.translations, locale, 'name') ?? venue.name,
-          address: translatedField(venue.translations, locale, 'address') ?? venue.address,
-          latitude: venue.latitude,
-          longitude: venue.longitude,
-          mapUrl: venue.mapUrl,
-          arriveAt: venue.arriveAt,
-        }));
-      case BlockType.TIMELINE:
-        return event.timeline.map((entry) => ({
-          label: translate(entry.label),
-          occursAt: entry.occursAt,
-          venueId: entry.venueId,
-        }));
-      case BlockType.COUNTDOWN:
-        return { target: event.startsAt, timezone: event.timezone };
-      default:
-        return null;
-    }
-  }
-
   private findGuest(token: string, eventId: string) {
     return this.prisma.guest.findFirst({
       where: { token, eventId },
@@ -321,57 +233,8 @@ export class InvitationsService {
   }
 }
 
-/** A block's uploads in the host's order, skipping any since removed. */
-function mediaFor(block: LoadedBlock, media: Map<string, BlockMedia>, translate: Translate) {
-  return block.assetIds.flatMap((id) => {
-    const asset = media.get(id);
-    if (!asset) return [];
-    return [
-      {
-        id: asset.id,
-        url: asset.url,
-        kind: asset.kind,
-        altText: translate<string>(asset.altText),
-        width: asset.width,
-        height: asset.height,
-        // Smaller copies, once the resizing job has made them; pick by width.
-        variants: asset.variants,
-      },
-    ];
-  });
-}
-
-/** The first upload on an enabled block of this type, or null. */
-function firstMediaUrl(invitation: LoadedInvitation, type: BlockType): string | null {
-  const block = invitation.blocks.find((candidate) => candidate.type === type);
-  const firstId = block?.assetIds.find((id) => invitation.media.has(id));
-  return firstId ? (invitation.media.get(firstId)?.url ?? null) : null;
-}
-
 function fullName(person: { firstName: string; lastName: string | null }): string {
   return [person.firstName, person.lastName].filter(Boolean).join(' ');
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-/**
- * Open for new answers: published, and not past its expiry.
- *
- * Computed into a cached payload, so an expiry passing mid-cache can briefly
- * show the form after it has closed. The RSVP endpoint enforces the same rule
- * independently, so the worst case is a form that says "this invitation has
- * closed" when submitted — never an answer accepted after the deadline.
- */
-function isAcceptingResponses(
-  invitation: { status: string; expiresAt: Date | null },
-  now: Date,
-): boolean {
-  if (invitation.status !== 'PUBLISHED') return false;
-  return invitation.expiresAt === null || invitation.expiresAt > now;
 }
 
 /** Where this guest and the people they came with are sitting; `null` for no table yet. */
@@ -389,13 +252,4 @@ function seatingFor(guest: LoadedGuest, locale: string) {
       id: member.id, name: fullName(member), table: tableOf(member), assignments: seatingAssignments(visibleSeats(member), locale),
     })),
   };
-}
-
-/**
- * The venues a guest should see (decided 10 October 2026, D17): not where the
- * couple gets ready — often a family home — and not a place only the crew's
- * internal entries use. The page used to show every venue on the event.
- */
-function guestVenues(invitation: LoadedInvitation) {
-  return invitation.event.venues;
 }

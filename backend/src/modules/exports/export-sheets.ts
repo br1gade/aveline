@@ -207,6 +207,7 @@ export class ExportSheets {
       where: { eventId, order: { status: TicketOrderStatus.PAID } },
       include: {
         ticketType: { select: { name: true } },
+        guest: { select: { firstName: true, lastName: true } },
         order: { select: { buyerName: true, buyerEmail: true } },
       },
       orderBy: { issuedAt: 'asc' },
@@ -217,7 +218,7 @@ export class ExportSheets {
       rows: tickets.map((ticket) => ({
         Code: ticket.code,
         Type: JSON.stringify(ticket.ticketType.name),
-        Holder: ticket.holderName,
+        Holder: ticket.guest ? fullName(ticket.guest) : ticket.holderName,
         Buyer: ticket.order.buyerName,
         'Buyer email': ticket.order.buyerEmail,
         Status: ticket.status,
