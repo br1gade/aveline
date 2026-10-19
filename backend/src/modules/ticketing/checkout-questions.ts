@@ -10,7 +10,8 @@ export async function lockCheckoutQuestions(tx: Prisma.TransactionClient, eventI
 /** Count each live answer or archived/pending checkout person once, without N+1 per roster. */
 export async function countQuestionAnswers(tx: Prisma.TransactionClient, questionId: string) {
   const [row] = await tx.$queryRaw<{ count: bigint }[]>`
-    SELECT (SELECT count(*) FROM rsvp_answers WHERE "questionId" = ${questionId}) +
+    SELECT (SELECT count(*) FROM (SELECT "subjectGuestId" AS id FROM guest_acknowledgements WHERE "questionId" = ${questionId}
+        UNION SELECT r."guestId" FROM rsvp_answers a JOIN rsvps r ON r.id = a."rsvpId" WHERE a."questionId" = ${questionId}) people) +
       (SELECT count(*) FROM order_attendees a JOIN invitations i ON i."eventId" = a."eventId"
        JOIN rsvp_questions q ON q."invitationId" = i.id AND q.id = ${questionId}
        WHERE (a.answers @> ${JSON.stringify([{ questionId }])}::jsonb

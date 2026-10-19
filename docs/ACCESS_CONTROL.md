@@ -239,6 +239,23 @@ Two supporting models complete the lifecycle: `VerificationToken` for password
 reset and email verification, and `OrganizationInvite` for adding a teammate —
 separate, because an invitee may not have an account yet.
 
+### Private acknowledgements and gallery
+
+Personal invitation capabilities authorize same-event guest contributions only
+while the invitation is readable and unexpired. A household representative may
+explicitly acknowledge current members; records identify signer and subject
+separately. Buyer order access never grants signing access. Guests can see their
+own signature previews, their signed records/current household subjects, their
+own gallery statuses and approved gallery photos. Only owners remove their own
+uploads; drawings attached to acknowledgements use verified privacy erasure.
+
+Host acknowledgement records/files require `guest:contact:read`. Gallery queue,
+approval/rejection/files/removal require `guest:write`. Designers gain neither.
+All list/file routes check the event and return no private storage keys or public
+original URLs. File authorization repeats after storage reads. Original DSAR
+attachments require platform `privacy:manage`, a verified EXPORT request and
+matching subject ownership. See [API.md](API.md) for the exact route contract.
+
 ## 6. Not yet built
 
 1. **Rotating guest links.** Vendor brief links can be rotated

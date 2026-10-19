@@ -11,7 +11,8 @@ export async function checkoutMetadata(tx: Prisma.TransactionClient, eventId: st
   const fields = fieldsForPage(event.invitation?.rsvpFields, locale, event.defaultLocale);
   return { attendanceMode: event.attendanceMode, attendanceRevision: event.attendanceRevision,
     rsvpFields: { dietary: fields.dietary, drinkPreference: fields.drinkPreference },
-    questions: (event.invitation?.questions ?? []).map((question) => ({ id: question.id, type: question.type, required: question.required,
+    acknowledgementsRequiredBeforeCheckIn: (event.invitation?.questions ?? []).filter((question) => question.type === 'SIGNATURE' && question.required).map((question) => ({ questionId: question.id, prompt: translate(question.prompt) })),
+    questions: (event.invitation?.questions ?? []).filter((question) => question.type !== 'SIGNATURE').map((question) => ({ id: question.id, type: question.type, required: question.required,
       prompt: translate(question.prompt), options: translate(question.options) ?? [] })),
   };
 }

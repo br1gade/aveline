@@ -1,3 +1,4 @@
+import { assertRequiredAcknowledgements } from '../guest-contributions/acknowledgement-writes';
 import { AttendanceContext, lockAttendancePolicy, normalizeHouseholdAttendance } from './attendance/attendance-context';
 import { attendanceView, ATTENDANCE_GUEST } from './attendance/attendance-view';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
@@ -78,9 +79,12 @@ export class RsvpService {
       await this.applyGuestChanges(tx, guest, dto);
       const before = members.find((member) => member.id === guest.id)?.rsvp?.status;
       const rsvp = await recordAnswer(tx, guest.id, respondentFields(dto), { policy, venueAttendance: dto.venueAttendance });
-      await this.saveCustomAnswers(tx, rsvp.id, dto);
-      await this.addPartyMembers(tx, guest, { ...dto, party }, policy);
-      await this.answerForMembers(tx, members, { respondentId: guest.id, before, policy }, dto);
+      await this.saveCustomAnswers(tx, rsvp.id, dto, guest.id);
+      const added = await this.addPartyMembers(tx, guest, { ...dto, party }, policy);
+      const followed = await this.answerForMembers(tx, members, { respondentId: guest.id, before, policy }, dto);
+      const affected = [guest.id, ...added, ...followed, ...(dto.members ?? []).map((member) => member.guestId)];
+      const attending = await tx.guest.findMany({ where: { id: { in: affected }, rsvp: { status: 'ATTENDING' } }, select: { id: true } });
+      await assertRequiredAcknowledgements(tx, guest.eventId, attending.map((person) => person.id));
 
       return {
         attendanceMode: policy.attendanceMode,
@@ -198,7 +202,7 @@ export class RsvpService {
     });
     const answered = new Set([...earlier, ...(dto.answers ?? [])].map((answer) => answer.questionId));
 
-    const missing = unansweredRequired(questions, answered, dto.status!);
+    const missing = unansweredRequired(questions.filter((question) => question.type !== 'SIGNATURE'), answered, dto.status!);
     if (missing) throw new BadRequestException(`answers: ${missing.id} is required for a guest who is coming`);
 
     await this.assertMembersAnsweredRequired(tx, questions, dto.members ?? []);
@@ -222,7 +226,7 @@ export class RsvpService {
         ...earlier.filter((answer) => answer.rsvp.guestId === member.guestId).map((answer) => answer.questionId),
         ...(member.answers ?? []).map((answer) => answer.questionId),
       ]);
-      const missing = unansweredRequired(questions, answered, member.status!);
+      const missing = unansweredRequired(questions.filter((question) => question.type !== 'SIGNATURE'), answered, member.status!);
       if (missing) {
         throw new BadRequestException(`members: ${member.guestId} must answer ${missing.id}, as they are coming`);
       }
@@ -255,7 +259,8 @@ export class RsvpService {
     guest: Guest,
     dto: SubmitRsvpDto,
     policy: AttendanceContext,
-  ): Promise<void> {
+  ): Promise<string[]> {
+    const added: string[] = [];
     for (const member of dto.party ?? []) {
       const created = await tx.guest.create({
         data: {
@@ -273,8 +278,10 @@ export class RsvpService {
       const rsvp = await recordAnswer(tx, created.id, withoutUndefined({
         status: partyStatus(member, dto.status!), dietary: member.dietary, dietaryNotes: member.dietaryNotes,
       }), { policy, venueAttendance: member.venueAttendance });
-      await saveAnswers(tx, rsvp.id, member.answers ?? []);
+      await saveAnswers(tx, rsvp.id, member.answers ?? [], guest.id);
+      added.push(created.id);
     }
+    return added;
   }
 
   /**
@@ -288,16 +295,16 @@ export class RsvpService {
     members: HouseholdMember[],
     respondent: { respondentId: string; before: RsvpStatus | undefined; policy: AttendanceContext },
     dto: SubmitRsvpDto,
-  ): Promise<void> {
+  ): Promise<string[]> {
     const { respondentId, before, policy } = respondent;
     const explicit = new Map((dto.members ?? []).map((answer) => [answer.guestId, answer]));
 
     for (const answer of explicit.values()) {
       const rsvp = await recordAnswer(tx, answer.guestId, memberFields(answer), { policy, venueAttendance: answer.venueAttendance });
-      await saveAnswers(tx, rsvp.id, answer.answers ?? []);
+      await saveAnswers(tx, rsvp.id, answer.answers ?? [], respondentId);
     }
 
-    if (policy.attendanceMode === 'PER_VENUE') return;
+    if (policy.attendanceMode === 'PER_VENUE') return [];
     const followers = members.filter(
       (member) =>
         member.addedByGuest &&
@@ -309,10 +316,11 @@ export class RsvpService {
     for (const follower of followers) {
       await recordAnswer(tx, follower.id, { status: dto.status! }, { policy });
     }
+    return followers.map((follower) => follower.id);
   }
 
-  private async saveCustomAnswers(tx: Tx, rsvpId: string, dto: SubmitRsvpDto): Promise<void> {
-    await saveAnswers(tx, rsvpId, dto.answers ?? []);
+  private async saveCustomAnswers(tx: Tx, rsvpId: string, dto: SubmitRsvpDto, signerGuestId: string): Promise<void> {
+    await saveAnswers(tx, rsvpId, dto.answers ?? [], signerGuestId);
   }
 }
 

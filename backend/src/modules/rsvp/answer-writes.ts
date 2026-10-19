@@ -1,3 +1,4 @@
+import { saveSignatureAnswer } from '../guest-contributions/acknowledgement-writes';
 import { BadRequestException } from '@nestjs/common';
 import { MessageStatus, Prisma, RsvpStatus } from '@prisma/client';
 import { REMINDER_TEMPLATE_KEY } from '../invitations/sending/reminder-schedule';
@@ -56,9 +57,13 @@ async function withdrawReminders(tx: Tx, guestId: string): Promise<void> {
   });
 }
 
-export async function saveAnswers(tx: Tx, rsvpId: string, answers: Answer[]): Promise<void> {
+export async function saveAnswers(tx: Tx, rsvpId: string, answers: Answer[], signerGuestId?: string): Promise<void> {
+  if (!answers.length) return;
+  const signatures = new Set((await tx.rsvpQuestion.findMany({ where: { id: { in: answers.map((answer) => answer.questionId) }, type: 'SIGNATURE' }, select: { id: true } })).map((question) => question.id));
   for (const answer of answers) {
-    const value = answer.value as Prisma.InputJsonValue;
+    const value = signatures.has(answer.questionId)
+      ? await saveSignatureAnswer(tx, rsvpId, answer, signerGuestId)
+      : answer.value as Prisma.InputJsonValue;
     await tx.rsvpAnswer.upsert({
       where: { rsvpId_questionId: { rsvpId, questionId: answer.questionId } },
       create: { rsvpId, questionId: answer.questionId, value },

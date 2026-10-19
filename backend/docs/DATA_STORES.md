@@ -281,3 +281,16 @@ and applies only after locking/revalidating current inputs and standing. Seats
 and completion commit together; stale owners roll back every seat. See
 [SEATING_WORKER.md](SEATING_WORKER.md). Frontend integration and actual production
 recovery/load acceptance remain open.
+
+
+## Private guest images and acknowledgements
+
+`QuestionStatement`, `GuestAcknowledgement` and `GuestMedia` live in Postgres.
+The private storage port holds raw/drawing/gallery files and processed variants;
+no raw key/public URL enters a media library or guest payload. Image processing
+uses a separate bounded worker with leases/claim tokens, not Redis correctness or
+inline decoding. Removed/orphaned tombstones survive event deletion and repeatedly
+reclaim late writes. Metadata/subject records follow verified privacy erasure;
+physical file cleanup is asynchronous and durable. See
+[GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md) for quotas, access and recovery.
+Production storage isolation/restore and frontend acceptance remain launch gates.

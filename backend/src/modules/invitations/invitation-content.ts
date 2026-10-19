@@ -15,7 +15,7 @@ export type InvitationContent = Pick<Invitation, 'slug' | 'status' | 'expiresAt'
   template: ContentTemplate;
   event: ContentEvent;
   blocks: ContentBlock[];
-  questions: Pick<RsvpQuestion, 'id' | 'type' | 'required' | 'prompt' | 'options'>[];
+  questions: Pick<RsvpQuestion, 'id' | 'type' | 'required' | 'prompt' | 'options' | 'statementVersionId'>[];
   media: Map<string, ContentMedia>;
 };
 type Translate = <T>(content: unknown) => T | null;
@@ -49,7 +49,7 @@ export function buildInvitationContent(invitation: InvitationContent, requestedL
     })),
     rsvpFields: fieldsForPage(invitation.rsvpFields, locale, event.defaultLocale),
     rsvpQuestions: invitation.questions.map((question) => ({
-      id: question.id, type: question.type, required: question.required,
+      id: question.id, type: question.type, required: question.required, statementVersionId: question.statementVersionId,
       prompt: translate(question.prompt), options: translate(question.options) ?? [],
     })),
   };

@@ -1,3 +1,4 @@
+import { versionStatement } from '../guest-contributions/statements';
 import { countQuestionAnswers } from '../ticketing/checkout-questions';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { BlockType, Prisma, QuestionType } from '@prisma/client';
@@ -217,6 +218,7 @@ export class DesignService {
       options: question.options,
       required: question.required,
       sortOrder: question.sortOrder,
+      statementVersionId: question.statementVersionId,
     }));
   }
 
@@ -228,11 +230,12 @@ export class DesignService {
       await lockRow(tx, 'invitations', invitation.id);
       const questions = await tx.rsvpQuestion.aggregate({ where: { invitationId: invitation.id }, _count: true, _max: { sortOrder: true } });
       if (questions._count >= 1000) throw new BadRequestException('questions: at most 1000 per invitation');
-      return tx.rsvpQuestion.create({ data: {
+      const created = await tx.rsvpQuestion.create({ data: {
         invitationId: invitation.id, type: dto.type, prompt: dto.prompt as Prisma.InputJsonValue,
         options: (dto.options ?? []) as Prisma.InputJsonValue, required: dto.required ?? false,
         sortOrder: (questions._max.sortOrder ?? 0) + 1,
       } });
+      return { ...created, statementVersionId: await versionStatement(tx, created) };
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -260,10 +263,10 @@ export class DesignService {
       const answers = await countQuestionAnswers(tx, id);
       assertAnsweredQuestionKeepsShape(answers, question, { type, options });
 
-      return tx.rsvpQuestion.update({
-        where: { id },
-        data: { type, prompt: prompt as Prisma.InputJsonValue, options, required: dto.required ?? question.required },
+      const changed = await tx.rsvpQuestion.update({
+        where: { id }, data: { type, prompt: prompt as Prisma.InputJsonValue, options, required: dto.required ?? question.required },
       });
+      return { ...changed, statementVersionId: await versionStatement(tx, changed) };
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -380,11 +383,6 @@ function assertQuestionIsAnswerable(dto: UpsertQuestionDto): void {
   assertLanguages(['prompt', dto.prompt], ['options', dto.options]);
   if (Object.keys(dto.prompt).length === 0) {
     throw new BadRequestException('prompt: give the question in at least one language');
-  }
-  // Nothing can capture a signature yet (F25). Allowed, a required one made
-  // every attending answer a 400, and an optional one could never be given.
-  if (dto.type === QuestionType.SIGNATURE) {
-    throw new BadRequestException('type: signature questions cannot be answered yet');
   }
 
   if (!CHOICE_TYPES.includes(dto.type)) return;

@@ -106,13 +106,13 @@ it needs a cancellation during the event itself, at the door.
 
 | # | Feature | Size |
 |---|---|---|
-| F19 | Shared post-event photo gallery guests can add to (§7.2) | M–L |
+| F19 | Backend implemented: private invited-guest uploads, bounded worker variants, host moderation, owner removal and durable privacy cleanup. Frontend and production acceptance remain (§7.2) | M–L |
 | F20 | Backend implemented: PDFs for all seven kinds, embedded four-script fonts and A4 flat place cards. Frontend, translated headings and pilot print acceptance remain | M |
 | F21 | WhatsApp delivery receipts | S–M |
 | F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
 | F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
 | F24 | Backend implemented: validated same-event hero/share selection, batched responsive images and privacy-aware metadata. Frontend HTML Open Graph tags and browser acceptance remain (§13.2) | S |
-| F25 | Guest signature capture (`SIGNATURE` question) | S–M |
+| F25 | Backend implemented: versioned typed/drawn acknowledgements, explicit household representation, RSVP/admission gates and attendee personal links. Frontend and production acceptance remain | S–M |
 | F26 | Caching the personalised page — every link actually sent is personalised and uncached | M |
 | F27 | Backend implemented: all exports and automatic seating use durable workers with bounded recovery and stale-plan guards. Queued frontend integration and production acceptance remain | M |
 | F28 | Backend implemented: synthetic en/ru/fr/hy and authorized event preview payloads share the live serializer. Frontend renderer integration and visual acceptance remain | S |

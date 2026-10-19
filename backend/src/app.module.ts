@@ -1,3 +1,4 @@
+import { GuestContributionsModule } from './modules/guest-contributions/guest-contributions.module';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
@@ -74,6 +75,7 @@ import { SeatingModule } from './modules/seating/seating.module';
     PublicEventsModule,
     CommunicationsModule,
     MediaModule,
+    GuestContributionsModule,
     DevicesModule,
     SeatingModule,
     BillingModule,

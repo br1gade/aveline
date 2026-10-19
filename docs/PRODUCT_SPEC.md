@@ -501,3 +501,17 @@ operations dashboard.
 6. **Price points.** §8 is structural only; the numbers are unset.
 7. **Vendor supply.** The network module is worthless without partners. Sequencing matters.
 8. **Page lifetime.** How long does a published invitation stay live after the event, and at what tier?
+
+
+### Guest contributions — pilot delivery (19 October 2026)
+
+The backend implements invited-guest gallery uploads with host approval,
+20 photos per guest, 1,000 and 2 GiB per event, 10 MiB per photo. Guests may
+remove their own approved photos. Originals remain private and processed copies
+lose metadata. Versioned acknowledgements support typed/drawn declarations and
+explicit household representation, with actual signer recorded separately.
+Ticket purchases collect all attendees but never substitute for acknowledgement;
+attendees use personal invitation links before admission. Host data survives guest
+access expiry. Verified privacy erasure revokes access and queues durable file
+deletion. Frontend capture/moderation in en/ru/fr/hy and production rehearsal
+remain required before enabling these capabilities in the pilot.

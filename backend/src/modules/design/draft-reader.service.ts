@@ -35,6 +35,7 @@ const draftSelect = {
     select: {
       id: true,
       type: true,
+      statementVersionId: true,
       required: true,
       sortOrder: true,
       prompt: true,

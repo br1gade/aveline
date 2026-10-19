@@ -126,7 +126,7 @@ options:
 | `TEXT`, `LONG_TEXT` | Free text |
 | `SINGLE_CHOICE`, `MULTI_CHOICE` | Selection from translated options |
 | `BOOLEAN` | Yes/no |
-| `SIGNATURE` | A drawn signature, stored as a `MediaAsset` |
+| `SIGNATURE` | Typed or drawn versioned acknowledgement in private guest storage |
 
 **A choice is stored by its position in the option list**, not its text. The
 options are translated and each guest sees them in their own language, so
@@ -140,7 +140,7 @@ binds every guest who is attending, plus-ones included.
 Ticket checkout locks question definitions before validating the complete roster.
 Pending and archived checkout answers also protect questions from deletion or
 shape changes, so later payment settlement cannot lose an answer or reference a
-deleted question. Host draft `answerCount` still counts live RSVP answers only.
+deleted question. Host draft `answerCount` still counts live RSVP answers only; deletion/shape guards also count acknowledgement history.
 
 The design rule: **a question with no downstream consumer does not get asked.**
 Collecting data nobody reads is how the rest of the category ends up with an
@@ -148,17 +148,29 @@ inbox full of unusable form notifications.
 
 ### Signatures
 
-Two distinct uses, both modelled; only the first can be used today:
+Two distinct uses:
 
 - **`BlockType.SIGNATURE`** — the hosts' own signature or monogram rendered on
   the invitation. Decorative.
-- **`QuestionType.SIGNATURE`** — the guest signs something. Stored on
-  `Rsvp.signatureAssetId`; nothing writes it yet, so a signature question
-  cannot be created until it does (see §7). Real uses: photo-and-video consent, a corporate
-  event waiver, acknowledging a venue's conditions.
+- **`QuestionType.SIGNATURE`** — typed or drawn guest acknowledgement, stored as
+  an immutable `GuestAcknowledgement` per statement version and subject. A
+  representative may explicitly acknowledge selected members of their household;
+  the actual signer stays distinct. Multiple questions have separate records.
+  Private drawn uploads use `GuestMedia`, processed by a dedicated worker, never
+  the public media library. Required current versions gate affected attending
+  RSVPs and check-in. Ticket buyers cannot sign for attendees via order access;
+  each attendee uses their personal invitation before admission. Wording edits
+  preserve old records and require fresh acknowledgement. The nullable legacy
+  `Rsvp.signatureAssetId` is retained for compatibility and receives no new writes.
 
-The second is why signatures are modelled at all. It is not needed for a
-family wedding; it is needed the first time a corporate client asks.
+The invited-guest gallery also uses `GuestMedia`. Hosts must approve a processed
+photo before other guests can see it; the uploader sees pending/rejected states
+and may remove their own photo after approval. Limits are 20 photos/guest,
+1,000/event, 2 GiB/event including derived files and 10 MiB/upload. The worker
+strips metadata, rejects animation and emits private variants. Host data remains
+when guest access expires. Privacy erasure revokes files immediately and queues
+durable deletion. Details: [API.md](API.md) and
+[worker/retention rules](../backend/docs/GUEST_CONTRIBUTIONS.md).
 
 ---
 
@@ -210,7 +222,7 @@ visual/browser acceptance remains pending.
    nothing crops them to a shape or records where the subject is.
 2. **Block creation outside the arrangement call.** Which blocks exist is
    decided there; there is no way to add one while editing its content.
-3. **Signature capture** on the client and its private asset write path.
+3. **Frontend signature capture and moderated gallery screens**, including four-language acceptance. Backend private storage, versioned records and moderation are implemented.
 4. **Frontend template preview rendering and visual acceptance.** The backend
    renderer payloads are built; the frontend still has to render them.
 

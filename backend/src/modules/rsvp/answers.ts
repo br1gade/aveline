@@ -1,3 +1,4 @@
+import { signatureAnswerProblem } from '../guest-contributions/acknowledgement-rules';
 import { QuestionType, RsvpStatus } from '@prisma/client';
 
 /**
@@ -14,6 +15,7 @@ export interface AnswerableQuestion {
   type: QuestionType;
   required: boolean;
   options: unknown;
+  statementVersionId?: string | null;
 }
 
 export interface Answer {
@@ -70,6 +72,8 @@ function valueProblem(question: AnswerableQuestion, value: unknown): string | nu
       return isChoice(value, optionCount(question.options)) ? null : 'must be the position of one of its options';
     case QuestionType.MULTI_CHOICE:
       return choicesProblem(value, optionCount(question.options));
+    case QuestionType.SIGNATURE:
+      return signatureAnswerProblem(value);
     default:
       return 'cannot be answered here yet';
   }

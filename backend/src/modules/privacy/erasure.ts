@@ -1,3 +1,4 @@
+import { eraseContributions } from '../guest-contributions/contribution-privacy';
 import { revokeSubjectExports } from '../exports/export-privacy';
 import { attendeeSubject, eraseAttendees, lockSubjectOrders } from '../ticketing/attendee-privacy';
 import { MessageChannel, MessageStatus, Prisma, SuppressionReason } from '@prisma/client';
@@ -64,6 +65,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date) {
 
   const ticketAttendeesAnonymised = await eraseAttendees(tx, { email, guestIds, now });
   if (guestIds.length) await tx.$queryRaw`SELECT id FROM households WHERE id IN (SELECT "householdId" FROM guests WHERE id IN (${Prisma.join(guestIds)})) ORDER BY id FOR UPDATE`;
+  const privateContributions = await eraseContributions(tx, guestIds, now);
   await eraseGuests(tx, guestIds, now);
   const householdsRenamed = await renameHouseholdsNamedAfter(tx, guests);
   const ticketOrdersAnonymised = await eraseTicketHolders(tx, email, guestIds);
@@ -75,6 +77,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date) {
 
   return {
     counts: {
+      ...privateContributions,
       guestsAnonymised: guestIds.length,
       ticketAttendeesAnonymised,
       householdsRenamed,

@@ -1,3 +1,5 @@
+import { GuestContributionsModule } from '../../modules/guest-contributions/guest-contributions.module';
+import { ContributionSweepService } from './contribution-sweep.service';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { InvitationsModule } from '../../modules/invitations/invitations.module';
@@ -16,8 +18,9 @@ import { PrivacySweepService } from './privacy-sweep.service';
 import { ReminderSweepService } from './reminder-sweep.service';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PaymentsModule, TicketingModule, BillingModule, InvitationsModule, PrivacyModule, MediaModule],
+  imports: [GuestContributionsModule, ScheduleModule.forRoot(), PaymentsModule, TicketingModule, BillingModule, InvitationsModule, PrivacyModule, MediaModule],
   providers: [
+    ContributionSweepService,
     JobLockService,
     JobsService,
     MoneySweepService,

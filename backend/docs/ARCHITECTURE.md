@@ -35,7 +35,8 @@ src/
     ticketing/      inventory, checkout, admission
     public-events/  announcements and listings
     communications/ outbox; channels/ holds one transport each
-    media/          uploads, recorded as MediaAsset
+    media/          public uploads, recorded as MediaAsset
+    guest-contributions/ versioned acknowledgements and moderated private gallery
     devices/        push registration tokens
   prisma/           PrismaService
 ```
@@ -187,8 +188,9 @@ worker, with bounded inputs and bundled fonts. See
 Automatic seating uses a separate `seating-worker.ts` process and Postgres
 `SeatingJob` queue. It captures revisioned inputs, computes outside transactions,
 then validates and applies seats with completion in one transaction. See
-[SEATING_WORKER.md](SEATING_WORKER.md). Photo resizing remains a
-cron sweep because its missing variant is already its work marker.
+[SEATING_WORKER.md](SEATING_WORKER.md). Public invitation photo resizing remains a cron sweep because its missing
+variant is already its work marker. Private guest images use the separate
+lease-based worker described below.
 
 ## 4. Degradation
 
@@ -268,3 +270,11 @@ failed open.
 - **API versioning** — the prefix is `/api` with no version in it
 
 See [BACKEND_GAPS.md](GAPS.md) for the product-level list.
+
+
+Guest drawings/gallery originals and variants use the private storage port and
+`GuestMedia` ledger. A separate `private-media-worker.ts` runs bounded raster
+processing and durable deletion, with Postgres leases and tombstones. CPU work
+never runs in the API. A minute contribution sweep recovers attendee personal-link
+outbox entries. See [GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md); frontend and
+actual production recovery acceptance remain open.

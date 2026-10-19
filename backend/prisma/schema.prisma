@@ -252,6 +252,8 @@ model Event {
   @@index([startsAt])
   @@map("events")
   seatingJobs SeatingJob[]
+  guestMedia GuestMedia[]
+  acknowledgements GuestAcknowledgement[]
 
 }
 
@@ -541,6 +543,9 @@ model Guest {
   ticket                Ticket?
   messages              Message[]
   deviceTokens          DeviceToken[]
+  guestMedia GuestMedia[]
+  acknowledgementsReceived GuestAcknowledgement[] @relation("AcknowledgementSubject")
+  acknowledgementsSigned GuestAcknowledgement[] @relation("AcknowledgementSigner")
 
   @@unique([id, eventId])
   @@index([eventId])
@@ -648,7 +653,11 @@ model RsvpQuestion {
   options      Json         @default("[]")
   required     Boolean      @default(false)
   sortOrder    Int          @default(0)
+  statementVersionId String? @unique
 
+  currentStatement QuestionStatement? @relation("CurrentStatement", fields: [statementVersionId], references: [id], onDelete: SetNull)
+  statements QuestionStatement[] @relation("QuestionStatements")
+  acknowledgements GuestAcknowledgement[]
   invitation Invitation   @relation(fields: [invitationId], references: [id], onDelete: Cascade)
   answers    RsvpAnswer[]
 
@@ -2123,4 +2132,113 @@ model SeatingJob {
   @@index([status, leaseUntil])
   @@index([arrangementId])
   @@map("seating_jobs")
+}
+
+
+/// Immutable wording. Translation edits also create a new version.
+model QuestionStatement {
+  id String @id @default(cuid())
+  questionId String
+  revision Int
+  prompt Json
+  createdAt DateTime @default(now())
+  question RsvpQuestion @relation("QuestionStatements", fields: [questionId], references: [id], onDelete: Cascade)
+  currentFor RsvpQuestion? @relation("CurrentStatement")
+  acknowledgements GuestAcknowledgement[]
+  @@unique([questionId, revision])
+  @@map("question_statements")
+}
+
+enum AcknowledgementMethod {
+  TYPED
+  DRAWN
+}
+
+model GuestAcknowledgement {
+  id String @id @default(uuid())
+  dedupeKey String @unique
+  eventId String
+  questionId String
+  statementVersionId String
+  subjectGuestId String
+  signerGuestId String
+  signerName String
+  method AcknowledgementMethod
+  isRepresentative Boolean @default(false)
+  locale String
+  statement String
+  mediaId String?
+  createdAt DateTime @default(now())
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  question RsvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  version QuestionStatement @relation(fields: [statementVersionId], references: [id], onDelete: Cascade)
+  subject Guest @relation("AcknowledgementSubject", fields: [subjectGuestId], references: [id], onDelete: Cascade)
+  signer Guest @relation("AcknowledgementSigner", fields: [signerGuestId], references: [id], onDelete: Cascade)
+  media GuestMedia? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  @@index([eventId, createdAt, id])
+  @@index([subjectGuestId, statementVersionId])
+  @@index([signerGuestId])
+  @@index([questionId])
+  @@index([statementVersionId])
+  @@index([mediaId])
+  @@map("guest_acknowledgements")
+}
+
+enum GuestMediaKind {
+  SIGNATURE
+  GALLERY
+}
+
+enum GuestMediaStatus {
+  STAGING
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+  REMOVED
+}
+
+enum GalleryModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A private file ledger survives event/guest deletion to reclaim late writes.
+model GuestMedia {
+  id String @id @default(uuid())
+  eventId String?
+  uploaderGuestId String?
+  kind GuestMediaKind
+  processingStatus GuestMediaStatus @default(STAGING)
+  moderationStatus GalleryModerationStatus @default(PENDING)
+  sourceKey String @unique
+  displayKey String? @unique
+  thumbnailKey String? @unique
+  mimeType String
+  sourceBytes Int
+  storedBytes Int
+  reservedBytes Int
+  width Int?
+  height Int?
+  caption String?
+  attempts Int @default(0)
+  claimToken String?
+  leaseUntil DateTime?
+  failureReason String?
+  moderatedBy String?
+  moderatedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  removedAt DateTime?
+  clearedAt DateTime?
+  cleanupAfter DateTime @default(now())
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  uploader Guest? @relation(fields: [uploaderGuestId], references: [id], onDelete: SetNull)
+  acknowledgements GuestAcknowledgement[]
+  @@index([eventId, kind, processingStatus, createdAt, id])
+  @@index([uploaderGuestId, kind, createdAt])
+  @@index([processingStatus, leaseUntil, createdAt])
+  @@index([cleanupAfter])
+  @@map("guest_media")
 }

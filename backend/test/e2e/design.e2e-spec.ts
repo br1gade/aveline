@@ -634,14 +634,13 @@ describe('Invitation design (e2e)', () => {
       });
     });
 
-    // B69: a required SIGNATURE question could be created, and then nobody
-    // attending could answer; choice lists could differ per language.
-    it('refuses a signature question until signatures can be captured', async () => {
+    // F25 supplies the private capture path; signature statements are versioned.
+    it('creates a signature question with an immutable statement version', async () => {
       const { slug, authorization } = await designer();
 
-      const { body } = await add(slug, authorization, { type: QuestionType.SIGNATURE, prompt: { en: 'Sign here' }, required: true }).expect(400);
+      const { body } = await add(slug, authorization, { type: QuestionType.SIGNATURE, prompt: { en: 'Sign here' }, required: true }).expect(201);
 
-      expect(body.message).toMatch(/^type:/);
+      expect(body.statementVersionId).toEqual(expect.any(String));
     });
 
     it('refuses choices that differ in number between languages', async () => {

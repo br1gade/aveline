@@ -81,7 +81,7 @@ async function coordinatorFixture() {
   const docker = `#!/bin/sh
 printf '%s\\n' "$*" >> "$COORDINATOR_LOG"
 case "$*" in
-  *"ps --services --status running") printf 'api\\nexport-worker\\nseating-worker\\ngarage\\n';;
+  *"ps --services --status running") printf 'api\\nexport-worker\\nseating-worker\\nprivate-media-worker\\ngarage\\n';;
   *"start "*) exit "\${RESUME_TEST_EXIT:-0}";;
   *"/scripts/backup.sh") exit "\${CAPTURE_TEST_EXIT:-0}";;
 esac
@@ -95,8 +95,8 @@ test('failed coordinated capture resumes writers and never uploads an incomplete
   try {
     await assert.rejects(execute('bash', [coordinator], { env: { ...env, CAPTURE_TEST_EXIT: '1' } }));
     const actions = await readFile(env.COORDINATOR_LOG, 'utf8');
-    assert.match(actions, /stop --timeout 60 api export-worker seating-worker garage/u);
-    assert.match(actions, /start api export-worker seating-worker garage/u);
+    assert.match(actions, /stop --timeout 60 api export-worker seating-worker private-media-worker garage/u);
+    assert.match(actions, /start api export-worker seating-worker private-media-worker garage/u);
     assert.doesNotMatch(actions, /backup-upload/u);
     await assert.rejects(readFile(join(root, '.backup', 'resume-services')), /ENOENT/u);
   } finally { await rm(root, { recursive: true, force: true }); }

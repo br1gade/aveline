@@ -38,7 +38,8 @@
     "openapi:check": "ts-node scripts/export-openapi.ts --check",
     "seed:production": "ts-node src/seed-production.ts",
     "start:export-worker": "node --max-old-space-size=384 dist/export-worker.js",
-    "start:seating-worker": "node --max-old-space-size=256 dist/seating-worker.js"
+    "start:seating-worker": "node --max-old-space-size=256 dist/seating-worker.js",
+    "start:private-media-worker": "node --max-old-space-size=256 dist/private-media-worker.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

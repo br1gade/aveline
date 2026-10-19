@@ -150,6 +150,12 @@ export const MESSAGE_COPY = [
     },
   },
   {
+    key: 'ticket.acknowledgement',
+    channel: MessageChannel.EMAIL,
+    subject: {"en": "Please acknowledge the event rules", "ru": "Пожалуйста, подтвердите ознакомление с правилами мероприятия", "fr": "Veuillez prendre connaissance des règles de l’événement", "hy": "Խնդրում ենք հաստատել միջոցառման կանոններին ծանոթանալը"},
+    body: {"en": "{{guestName}}, your ticket for {{eventTitle}} is ready. Before check-in, please read and acknowledge the required statements through your personal invitation:\n\n{{link}}\n\nKeep this link private.", "ru": "{{guestName}}, ваш билет на {{eventTitle}} готов. До регистрации на входе ознакомьтесь с обязательными условиями и подтвердите согласие в личном приглашении:\n\n{{link}}\n\nНе передавайте эту ссылку другим.", "fr": "{{guestName}}, votre billet pour {{eventTitle}} est prêt. Avant votre admission, veuillez lire et accepter les conditions requises dans votre invitation personnelle :\n\n{{link}}\n\nGardez ce lien confidentiel.", "hy": "{{guestName}}, Ձեր {{eventTitle}} միջոցառման տոմսը պատրաստ է։ Մուտքի գրանցումից առաջ խնդրում ենք կարդալ և հաստատել պարտադիր պայմանները Ձեր անձնական հրավերում՝\n\n{{link}}\n\nԱյս հղումը պահեք գաղտնի։"},
+  },
+  {
     key: 'ticket.issued',
     channel: MessageChannel.EMAIL,
     subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },

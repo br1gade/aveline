@@ -18,7 +18,7 @@ resume() {
 # invocation or via the boot recovery unit before taking another capture.
 if [ -f "$resume_file" ]; then
   while IFS= read -r service; do
-    case "$service" in api|garage|worker|export-worker|seating-worker) services+=("$service");; *) echo 'Invalid recovery journal' >&2; exit 1;; esac
+    case "$service" in api|garage|worker|export-worker|seating-worker|private-media-worker) services+=("$service");; *) echo 'Invalid recovery journal' >&2; exit 1;; esac
   done < "$resume_file"
   resume
   services=()
@@ -27,7 +27,7 @@ if [ "${1:-}" = --resume-only ]; then exit 0; fi
 release=$(git rev-parse HEAD 2>/dev/null || printf unknown)
 running_services=$("${compose[@]}" ps --services --status running)
 while IFS= read -r service; do
-  case "$service" in api|garage|worker|export-worker|seating-worker) services+=("$service");; esac
+  case "$service" in api|garage|worker|export-worker|seating-worker|private-media-worker) services+=("$service");; esac
 done <<< "$running_services"
 # Resume exactly the previously running services even when capture fails.
 if [ "${#services[@]}" -gt 0 ]; then printf '%s\n' "${services[@]}" > "$resume_file"; fi

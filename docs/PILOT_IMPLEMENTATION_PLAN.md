@@ -91,14 +91,14 @@ Current limitations that drive the new plan:
   fixed private CSV/PDF/XLSX files for all seven kinds. Frontend adoption,
   standard heading translations and production acceptance remain.
 - A separate private storage port now serves export artifacts. Signatures and
-  guest-gallery originals still need to adopt protected storage.
+  guest-gallery originals now share protected storage through a separate ledger and worker.
 - Named ticket checkout, legacy registration and explicit invited-guest linking
   now write the guest graph and share admission/cancellation tracking. Frontend
   attendee/reconciliation screens and language acceptance remain. Directory
   operator writes now support one curated vendor operating several profiles.
 - Public uploads now honor validated PHOTO/COVER/LOGO/AUDIO kinds and listing
-  hero/share selectors are implemented. Signature questions remain refused; the
-  single RSVP signature field cannot represent separate acknowledgements.
+  hero/share selectors are implemented. Versioned typed/drawn acknowledgements now use separate signer/subject records;
+  the legacy single RSVP signature field receives no new writes.
 - Host draft data, safe template preview payloads, atomic question ordering
   and guest self-name editing are implemented; frontend rendering and acceptance
   remain.
@@ -550,6 +550,15 @@ HTML social preview tags and rendering previews with the real invitation
 renderer. Four-language host/guest/browser acceptance is still a release gate.
 
 ## 8. Milestone G — acknowledgements and gallery
+
+**Backend implemented, 19 October 2026; acceptance open.** Private statement/record
+and upload APIs, durable image worker, moderation, quotas, privacy cleanup and
+personal attendee-link outbox recovery are delivered. Gallery: 20 photos/guest,
+1,000 and 2 GiB/event, 10 MiB/file; owners can remove approved photos. Checkout
+completes before signing; each attendee acknowledges via their personal invitation
+before admission. Buyer access cannot sign. Frontend en/ru/fr/hy capture/moderation,
+mail delivery and actual production/backup rehearsal remain gates. Operational
+contract: [GUEST_CONTRIBUTIONS.md](../backend/docs/GUEST_CONTRIBUTIONS.md).
 
 ### Typed/drawn acknowledgements (F25)
 

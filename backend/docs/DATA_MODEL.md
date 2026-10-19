@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 58 models across three
+The authoritative map of what is stored and where. 62 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 58 |
+| **PostgreSQL** | The entire domain. The only source of truth | 62 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -44,7 +44,9 @@ lives outside Postgres.
 | `DesignTemplate` | Fonts, palettes and blocks a template renders correctly |
 | `Invitation` | The published page |
 | `InvitationBlock` | One section, ordered, data-bound, toggleable |
-| `MediaAsset` | Every uploaded or generated file, scoped to an event |
+| `MediaAsset` | Public invitation uploads, scoped to an event |
+| `GuestMedia` | Private raw/derived keys, processing/moderation, reserved bytes and durable deletion tombstones |
+| `QuestionStatement` · `GuestAcknowledgement` | Immutable question versions and actual signer/represented subject evidence |
 
 ### Guest graph — the core asset
 | Model | Purpose |

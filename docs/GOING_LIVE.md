@@ -133,3 +133,18 @@ gates in the pilot plan. The separate seating worker is implemented; deploy it,
 verify health and termination/lease recovery, and integrate its queued response.
 See [seating operations](../backend/docs/SEATING_WORKER.md). PDF/XLSX backend rendering is implemented;
 see [renderer acceptance](../backend/docs/EXPORT_RENDERERS.md).
+
+
+### Guest acknowledgements and gallery gate
+
+- [ ] Accept en/ru/fr/hy typed/drawn/representative flows, revised statements,
+  attendee personal links before check-in, pending/error states and host moderation.
+- [ ] Run the private media worker, verify its heartbeat/restart policy and
+  768 MiB memory bound with maximum accepted images on the real host.
+- [ ] Verify private originals/variants cannot be fetched through the public edge.
+- [ ] Rehearse removal/DSAR/event deletion with interrupted workers and restore
+  both pending media and cleanup tombstones from backup.
+
+Backend contract and operational details are in
+[GUEST_CONTRIBUTIONS.md](../backend/docs/GUEST_CONTRIBUTIONS.md). These gates remain
+open until frontend and production evidence exists.

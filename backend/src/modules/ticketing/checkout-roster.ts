@@ -41,7 +41,7 @@ function validatePerson(person: OrderAttendeeDto & { status: import('@prisma/cli
   locales: string[]; invitation: { rsvpFields: unknown; questions: import('../rsvp/answers').AnswerableQuestion[] } | null;
 }, locale: string) {
   if (!event.locales.includes(locale)) throw new BadRequestException('attendees.locale: use one of the event languages');
-  const questions = event.invitation?.questions ?? [];
+  const questions = (event.invitation?.questions ?? []).filter((question) => question.type !== 'SIGNATURE');
   const supplied = person.answers ?? [];
   const error = answersProblem(questions, supplied) ?? builtInAnswerProblem(event.invitation?.rsvpFields, person);
   const missing = unansweredRequired(questions, new Set(supplied.map((answer) => answer.questionId)), person.status);

@@ -1,3 +1,4 @@
+import { exportContributions } from '../guest-contributions/contribution-privacy';
 import { attendeeSubject, exportAttendees } from '../ticketing/attendee-privacy';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
@@ -164,7 +165,7 @@ export class PrivacyService {
     const completion = { requestId, userId };
     const result =
       request.kind === DataSubjectRequestKind.EXPORT
-        ? await this.assembleExport(request.subjectEmail)
+        ? await this.assembleExport(request.subjectEmail, request.id)
         : await this.erase(request.subjectEmail, completion);
 
     if (request.kind === DataSubjectRequestKind.EXPORT) {
@@ -180,8 +181,8 @@ export class PrivacyService {
    * in object storage waiting to be collected is a second place it can leak
    * from.
    */
-  private async assembleExport(subjectEmail: string) {
-    const [user, guests, ticketOrders, messages, suppressions, ticketAttendees] = await Promise.all([
+  private async assembleExport(subjectEmail: string, requestId: string) {
+    const [user, guests, ticketOrders, messages, suppressions, ticketAttendees, contributions] = await Promise.all([
       this.prisma.user.findFirst({
         where: { email: sameAddress(subjectEmail) },
         select: { email: true, name: true, createdAt: true, lastLoginAt: true },
@@ -225,6 +226,7 @@ export class PrivacyService {
       }),
       this.suppressionsOf(subjectEmail),
       exportAttendees(this.prisma, subjectEmail),
+      exportContributions(this.prisma, subjectEmail, requestId),
     ]);
 
     return {
@@ -232,11 +234,9 @@ export class PrivacyService {
       assembledAt: new Date().toISOString(),
       account: user,
       guestRecords: guests,
+      contributions,
       ticketAttendees,
-      ticketOrders: ticketOrders.map((order) => ({
-        ...order,
-        totalMinor: order.totalMinor.toString(),
-      })),
+      ticketOrders: ticketOrders.map((order) => ({ ...order, totalMinor: order.totalMinor.toString() })),
       messagesSent: messages,
       suppressions,
     };

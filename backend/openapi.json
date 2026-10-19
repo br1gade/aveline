@@ -3171,6 +3171,744 @@
         ]
       }
     },
+    "/api/v1/privacy/requests/{requestId}/guest-media/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionPrivacyController_read",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Download an original private subject file for a verified export request",
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements": {
+      "get": {
+        "operationId": "ContributionsController_listAcknowledgements",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Current statements and this household’s acknowledgement history",
+        "tags": [
+          "guest-contributions"
+        ]
+      },
+      "post": {
+        "operationId": "ContributionsController_sign",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignAcknowledgementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Acknowledge a versioned statement for explicitly selected household members",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/signature-uploads": {
+      "post": {
+        "operationId": "ContributionsController_uploadSignature",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Stage a private drawn signature for background validation",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/signature-uploads/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionsController_signatureFile",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Preview your processed signature; credentials required",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/signature-uploads/{mediaId}": {
+      "delete": {
+        "operationId": "ContributionsController_removeSignature",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove your unclaimed signature upload",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements/{acknowledgementId}/file": {
+      "get": {
+        "operationId": "ContributionsController_acknowledgementFile",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acknowledgementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a drawn acknowledgement visible to this guest’s household",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/gallery": {
+      "get": {
+        "operationId": "ContributionsController_gallery",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Approved gallery photos plus your own pending uploads; private paginated view",
+        "tags": [
+          "guest-contributions"
+        ]
+      },
+      "post": {
+        "operationId": "ContributionsController_uploadGallery",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Upload a private gallery photo requiring host approval after processing",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/gallery/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionsController_galleryFile",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variant",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "display",
+                "thumbnail"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read an authorized processed gallery variant; originals are never served",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/gallery/{mediaId}": {
+      "delete": {
+        "operationId": "ContributionsController_removeGallery",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove your own gallery photo, including after approval",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/acknowledgements": {
+      "get": {
+        "operationId": "ContributionsHostController_acknowledgementsList",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Private acknowledgement records, including actual signer and represented subject",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/acknowledgements/{acknowledgementId}/file": {
+      "get": {
+        "operationId": "ContributionsHostController_acknowledgementFile",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acknowledgementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a private drawn acknowledgement image",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/gallery": {
+      "get": {
+        "operationId": "ContributionsHostController_gallery",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Gallery processing and moderation queue for this event",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/gallery/{mediaId}": {
+      "patch": {
+        "operationId": "ContributionsHostController_moderate",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerateGalleryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Approve or reject a processed gallery photo",
+        "tags": [
+          "guest-contributions"
+        ]
+      },
+      "delete": {
+        "operationId": "ContributionsHostController_remove",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a gallery photo and queue its private files for cleanup",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/gallery/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionsHostController_galleryFile",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variant",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "display",
+                "thumbnail"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a processed gallery photo for moderation",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
     "/api/v1/devices": {
       "post": {
         "description": "Idempotent by token — re-registering updates rather than duplicating.",
@@ -5793,7 +6531,7 @@
           },
           "value": {
             "type": "object",
-            "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions."
+            "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions. SIGNATURE: statementVersionId, method TYPED/DRAWN, signerName, isAcknowledged true, locale, optional isRepresentative and assetId."
           }
         },
         "required": [
@@ -6499,6 +7237,72 @@
         },
         "required": [
           "altText"
+        ]
+      },
+      "Object": {
+        "type": "object",
+        "properties": {}
+      },
+      "SignAcknowledgementDto": {
+        "type": "object",
+        "properties": {
+          "statementVersionId": {
+            "type": "string"
+          },
+          "subjectGuestIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "TYPED",
+              "DRAWN"
+            ]
+          },
+          "signerName": {
+            "type": "string"
+          },
+          "isAcknowledged": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "isRepresentative": {
+            "type": "boolean"
+          },
+          "assetId": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statementVersionId",
+          "subjectGuestIds",
+          "method",
+          "signerName",
+          "isAcknowledged",
+          "locale"
+        ]
+      },
+      "ModerateGalleryDto": {
+        "type": "object",
+        "properties": {
+          "moderationStatus": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ]
+          }
+        },
+        "required": [
+          "moderationStatus"
         ]
       },
       "RegisterDeviceDto": {

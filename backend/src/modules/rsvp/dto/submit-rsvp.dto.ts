@@ -28,7 +28,8 @@ export class CustomAnswerDto {
   @ApiProperty({
     description:
       'TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position ' +
-      'of the chosen option (0-based). MULTI_CHOICE: a list of positions.',
+      'of the chosen option (0-based). MULTI_CHOICE: a list of positions. SIGNATURE: ' +
+      'statementVersionId, method TYPED/DRAWN, signerName, isAcknowledged true, locale, optional isRepresentative and assetId.',
   })
   @IsDefined()
   value!: unknown;

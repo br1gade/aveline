@@ -591,3 +591,30 @@ See the shared API contract for payloads, stale-preview handling and frontend
 cutover. Apply both new migrations and rerun `seed:production` for the new
 four-language venue-response confirmation copy. Production deployment,
 frontend reconfirmation screens and language review remain acceptance gates.
+
+
+### Private guest contributions
+
+The API stages files; run `npm run start:private-media-worker` separately for
+raster validation and deletion. See [GUEST_CONTRIBUTIONS.md](docs/GUEST_CONTRIBUTIONS.md).
+Guest routes require their personal capability; host reads/moderation are permission checked.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/acknowledgements` | Current statements, signature upload states and private household history |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/acknowledgements` | Typed/drawn acknowledgement for explicit household subjects |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/signature-uploads` | Stage a private drawing |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file` | Owner's processed drawing preview |
+| `DELETE` | `/api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId` | Remove an unclaimed drawing |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/acknowledgements/:acknowledgementId/file` | Private acknowledgement image |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/gallery` | Approved photos and own pending statuses |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/gallery` | Stage a photo for validation/moderation |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId/file` | Authorized WebP variant |
+| `DELETE` | `/api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId` | Owner removes a photo, even after approval |
+| `GET` | `/api/v1/events/:eventId/acknowledgements` | Private host acknowledgement history |
+| `GET` | `/api/v1/events/:eventId/acknowledgements/:acknowledgementId/file` | Authorized host drawing read |
+| `GET` | `/api/v1/events/:eventId/gallery` | Host moderation queue |
+| `PATCH` | `/api/v1/events/:eventId/gallery/:mediaId` | Approve/reject a READY photo |
+| `GET` | `/api/v1/events/:eventId/gallery/:mediaId/file` | Host moderation image read |
+| `DELETE` | `/api/v1/events/:eventId/gallery/:mediaId` | Host removal and cleanup |
+| `GET` | `/api/v1/privacy/requests/:requestId/guest-media/:mediaId/file` | Verified subject export original attachment |

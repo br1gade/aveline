@@ -1,3 +1,4 @@
+import { assertRequiredAcknowledgements } from '../guest-contributions/acknowledgement-writes';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { lockAttendancePolicy } from '../rsvp/attendance/attendance-context';
@@ -11,6 +12,7 @@ export async function lockAdmission(tx: Prisma.TransactionClient, eventId: strin
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM guests WHERE id = ${personId} AND "eventId" = ${eventId} FOR UPDATE`;
     if (!rows.length) throw new NotFoundException('That guest is not on this event');
   }
+  await assertAcknowledgedAdmission(tx, eventId, personId);
   if (ticket) {
     await tx.$queryRaw`SELECT id FROM tickets WHERE id = ${ticket.id} FOR UPDATE`;
     const current = await tx.ticket.findUniqueOrThrow({ where: { id: ticket.id }, include: { order: { select: { status: true, cancellationStartedAt: true } } } });
@@ -51,4 +53,11 @@ export async function undoAdmission(tx: Prisma.TransactionClient, eventId: strin
   const removed = await tx.checkIn.deleteMany({ where: { guestId } });
   if (!removed.count) throw new NotFoundException('That guest is not checked in');
   if (ticket) await tx.ticket.updateMany({ where: { id: ticket.id, guestId, status: 'USED', order: { status: 'PAID', cancellationStartedAt: null } }, data: { status: 'VALID', usedAt: null } });
+}
+
+async function assertAcknowledgedAdmission(tx: Prisma.TransactionClient, eventId: string, personId: string | null | undefined) {
+  if (personId) return assertRequiredAcknowledgements(tx, eventId, [personId]);
+  if (await tx.rsvpQuestion.count({ where: { invitation: { eventId }, type: 'SIGNATURE', required: true } })) {
+    throw new BadRequestException('acknowledgements: register the ticket attendee and collect their acknowledgement before check-in');
+  }
 }

@@ -489,7 +489,7 @@ when the host has not set the guest's side; a side the host set stands.
   "Fish", "Рыба" and "Ձուկ". A question marked `required` must be answered by
   a guest who is `ATTENDING` — not by one who declines — and an answer given
   in an earlier submission counts. Any problem is a `400` whose message starts
-  `answers:`. `SIGNATURE` questions cannot be answered yet.
+  `answers:`. SIGNATURE takes a versioned typed/drawn acknowledgement object; see the private acknowledgements section.
 
 ```json
 { "status": "ATTENDING", "respondedAt": "...", "partyAdded": 1, "membersAnswered": 1,
@@ -2256,7 +2256,7 @@ token, which is itself identifying and would otherwise still open their RSVP
 from a group chat. An account with that address is closed: it can no longer
 sign in, its sessions are revoked and stripped of IP address and browser, and
 its name and email are replaced. Pending team invitations to the address are
-withdrawn. A drawn signature's file is deleted from storage, the address is
+withdrawn. Private drawings/gallery files are revoked and queued for durable physical cleanup; legacy signature files are deleted after commit. The address is
 dropped from the staff audit trail, and the guest's invitation views are
 unlinked from them — these three after the database has committed.
 
@@ -2843,9 +2843,7 @@ PATCH  /api/v1/invitations/:slug/questions/:questionId
 DELETE /api/v1/invitations/:slug/questions/:questionId
 ```
 
-`type` is `TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE` or `BOOLEAN`.
-`SIGNATURE` is refused (`400` starting `type:`) until signatures can be
-captured. `prompt` is translated (`{ "hy": "...", "en": "..." }`) and must
+`type` is `TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE`, `BOOLEAN` or `SIGNATURE`. SIGNATURE creates a current `statementVersionId` for private typed/drawn acknowledgements. `prompt` is translated (`{ "hy": "...", "en": "..." }`) and must
 carry at least one language. `options` is translated too
 (`{ "hy": ["Միս", "Ձուկ"] }`) and is **required for the choice types** — a
 choice question with no choices cannot be answered, so it is a `400`. Every
@@ -3215,8 +3213,7 @@ So you can plan around them rather than discover them:
 - **No renewal or dunning.** A subscription's period lapses and nothing
   charges again or moves it to `PAST_DUE`.
 - **One organization per account.** See §6.
-- **No block creation outside the arrangement call**, and no way to reorder
-  custom RSVP questions once added.
+- **No block creation outside the arrangement call.** Custom RSVP questions can be reordered atomically through the question-order route.
 - **Worker/frontend acceptance.** Automatic seating and all export formats run
   in dedicated workers. Frontend job integration, standard heading/reason
   translations (F35) and production rehearsal remain.
@@ -3226,3 +3223,139 @@ So you can plan around them rather than discover them:
 
 The authoritative list is [GAPS.md](../backend/docs/GAPS.md), and
 [GOING_LIVE.md](GOING_LIVE.md) is what blocks production.
+
+## 11. Private acknowledgements and guest gallery
+
+Guest routes require a personal invitation capability. Generic invitation,
+preview, buyer order and ticket-code links do not authorize them. Draft, erased,
+unknown and expired links return 404; CLOSED invitations remain readable.
+Keep capability URLs out of analytics and set `Referrer-Policy: no-referrer` on
+the frontend. File responses use `private, no-store` and `nosniff`. Processed image reads share the guest-page read allowance (50/second, 3,000/minute per caller/address), so a gallery page can load its thumbnails; handle 429 with a delayed retry. Uploads and other actions keep the normal mutation limits.
+
+```http
+GET  /api/v1/invitations/:slug/g/:guestToken/acknowledgements?limit=30&after=recordId
+POST /api/v1/invitations/:slug/g/:guestToken/acknowledgements
+```
+
+GET returns `{ statements, records, signatureUploads, nextCursor }`; `signatureUploads` contains up to 20 of your active signature uploads with processing status and fixed failure codes. Each current SIGNATURE statement
+contains `questionId`, `statementVersionId`, `required`, resolved `prompt` and
+`locale` (published language to send when signing), and `statementLocale` (the actual fallback text language); records contain the subject and actual signer IDs, `signerName`, method,
+representative declaration, exact rendered statement/locale, mediaId or null,
+version and server timestamp. History is limited to the guest's own signed records
+and subjects currently in their household. Each record is immutable; a retry of
+identical intent returns the same ID. Pagination is newest first, default 30,
+1–100; a cursor outside this visible collection returns 404.
+
+```json
+{ "statementVersionId": "current-version", "subjectGuestIds": ["self-id", "household-member-id"],
+  "method": "TYPED", "signerName": "Anna Example", "isAcknowledged": true,
+  "isRepresentative": true, "locale": "en" }
+```
+
+POST returns `{ records }` with status 201 and does not change attendance. Supply
+1–21 unique subjects from the signer's current household. A representative must
+explicitly set `isRepresentative: true` for other subjects; their names are never
+recorded as the actual signer. `signerName` is trimmed, 1–200 characters; locale
+must be an event language. No implied acknowledgement from a purchase or host
+RSVP entry. TYPED takes no image; DRAWN requires `assetId` from the signer's own
+READY signature upload on this event. Forged/unready assets or subjects return
+400. Old statement versions return 409: reread, display the current text and
+ask for a new acknowledgement. Prompt changes, including translations, create
+an immutable new version; old records keep the text and language actually used.
+
+The same object **without `subjectGuestIds`** can be a SIGNATURE custom answer in
+guest RSVP `answers`, `members[].answers` or `party[].answers`. The response stores
+an acknowledgement reference, rather than an image URL. Required statements must
+have current acknowledgements for every affected attending guest, including new
+plus-ones; an incomplete submission rolls back attendance and all its writes.
+Existing standalone acknowledgements count. Required current acknowledgements
+also gate both guest check-in and ticket admission, including legacy reconciliation.
+
+```http
+POST   /api/v1/invitations/:slug/g/:guestToken/signature-uploads
+GET    /api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file
+DELETE /api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId
+GET    /api/v1/invitations/:slug/g/:guestToken/acknowledgements/:acknowledgementId/file
+```
+
+Upload one multipart `file` (PNG/JPEG/WebP/AVIF, at most 1 MiB) and receive private
+media metadata in QUEUED state. Poll `acknowledgements.signatureUploads` for READY/FAILED, then fetch the preview; pending/failed/unavailable files return 404. The worker validates raster
+bytes, rejects animation/over 4 million pixels, strips metadata and emits PNG at
+most 2048px per side and 1 MiB. Preview is owner-only; acknowledgement file reads
+also permit the record's authorized household subjects. DELETE removes an unclaimed
+upload; a drawing used by an acknowledgement returns 409 and requires the privacy
+request process. Unclaimed drawings are reclaimed after 24 hours. Technical
+signature limits: 20 active uploads per guest, 5,000 per event and 2 GiB reserved
+storage per event, separate from gallery storage.
+
+Ticket checkout excludes SIGNATURE from the buyer's questions and returns
+`acknowledgementsRequiredBeforeCheckIn: [{ questionId, prompt }]` in checkout
+metadata. Checkout still collects every attendee and completes before signing.
+A minute sweep queues a personal-link email to each valid, paid ticket guest with
+an email address (four-language `ticket.acknowledgement` copy). It recovers missing
+outbox entries and deduplicates per ticket/person. It rechecks the recipient,
+paid/valid ticket and invitation availability immediately before dispatch. The
+buyer response never reveals attendee guest tokens. For attendees without email,
+failed/suppressed delivery or later statement/contact changes, the host must use
+the existing personal invitation send/share workflow; the door gate still applies.
+
+```http
+GET    /api/v1/invitations/:slug/g/:guestToken/gallery?limit=30&after=mediaId
+POST   /api/v1/invitations/:slug/g/:guestToken/gallery
+GET    /api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId/file?variant=thumbnail
+DELETE /api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId
+```
+
+Gallery POST accepts one multipart `file` and optional `caption` (trimmed, at most
+500 characters). Allowlisted PNG/JPEG/WebP/AVIF, maximum 10 MiB; SVG is refused
+and spoofed raster content fails in the worker. Limits: 20 active photos per guest,
+1,000 per event and 2 GiB per event, including originals and derived files.
+Reservations include worst-case derivative bytes (2.5 MiB per queued photo), so
+available capacity may be lower during processing. Count/storage contention returns
+409; oversized uploads return 413; unsupported MIME returns 415; storage outage
+returns 503. Removed bytes remain reserved until cleanup succeeds.
+
+GET returns `{ items, nextCursor, limits }`. Items contain `id`, kind,
+processing/moderation status, caption, dimensions, timestamps, fixed failure code
+or null, and `isOwn`. No storage keys, original filename, public URL or other
+guest's contacts/IDs. Guests see their own pending/rejected items and other
+READY+APPROVED photos only. JPEG orientation is applied; EXIF/other metadata is
+stripped. Maximum 40 million input pixels, static images only. The separate worker
+emits WebP display (2048px, at most 2 MiB) and thumbnail (480px, at most 512 KiB).
+`variant` is display (default) or thumbnail. Ordinary reads never return originals.
+A guest can DELETE only their own gallery photo, including after approval.
+Removal revokes access immediately; durable cleanup deletes physical files later.
+
+```http
+GET    /api/v1/events/:eventId/acknowledgements?limit=30&after=recordId
+GET    /api/v1/events/:eventId/acknowledgements/:acknowledgementId/file
+GET    /api/v1/events/:eventId/gallery?limit=30&after=mediaId
+PATCH  /api/v1/events/:eventId/gallery/:mediaId
+GET    /api/v1/events/:eventId/gallery/:mediaId/file?variant=display
+DELETE /api/v1/events/:eventId/gallery/:mediaId
+```
+
+Host acknowledgement history/files require `guest:contact:read`; gallery moderation,
+files/removal require `guest:write`. Designers have neither. Lists return
+`{ items, nextCursor }`; pagination is the same as guest lists. PATCH accepts
+`{ "moderationStatus": "APPROVED" }` or `REJECTED`; a photo must be READY and
+still present, otherwise 409. Approval is required before other guests can see it.
+Host data remains after guest expiry. Ordinary guest deletion refuses guests with
+acknowledgement evidence; use a verified privacy request to erase it.
+
+```http
+GET /api/v1/privacy/requests/:requestId/guest-media/:mediaId/file
+```
+
+Staff `privacy:manage` only, for an identity-verified EXPORT request in IN_PROGRESS
+or COMPLETED state and a file belonging to that subject (uploader, signer or
+acknowledged subject). Returns the original as an octet-stream attachment; callers
+must treat it as untrusted. Privacy JSON exports add `contributions` with records
+and media metadata plus protected `fileDownloadPath` values. Erasure removes records
+where the subject was signer or represented person, removes RSVP pointers, and
+revokes uploader media immediately. `acknowledgementsErased` and
+`privateMediaQueuedForDeletion` report the result; the durable media worker removes
+originals and variants asynchronously. Event deletion leaves cleanup tombstones,
+so interrupted workers cannot orphan private files. Pending frontend work includes
+the four-language capture, moderation, pending/error states and ticket pre-check-in
+flow; these backend endpoints alone do not satisfy pilot acceptance.

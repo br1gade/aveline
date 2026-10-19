@@ -1,3 +1,4 @@
+import { assertRequiredAcknowledgements } from '../guest-contributions/acknowledgement-writes';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma, Ticket } from '@prisma/client';
 import { LinkTicketGuestDto } from './dto/reconcile-attendee.dto';
@@ -31,7 +32,7 @@ async function archiveCheckoutGuest(tx: Prisma.TransactionClient, ticket: Ticket
     id: true, householdId: true, isPrimary: true, firstName: true, lastName: true, email: true, phone: true, locale: true,
     attribution: true, addedByGuest: true, consentAt: true, consentSource: true, createdAt: true, updatedAt: true,
     rsvp: { include: { answers: true } }, checkIn: true,
-    _count: { select: { seats: true, seatReleases: true, attendanceResponses: true, messages: true, channels: true, deviceTokens: true } },
+    _count: { select: { seats: true, seatReleases: true, attendanceResponses: true, messages: true, channels: true, deviceTokens: true, acknowledgementsReceived: true, acknowledgementsSigned: true, guestMedia: true } },
   } });
   assertSourceCanBeRemoved(source);
   if (source._count.attendanceResponses > 1000) throw new ConflictException('Attendance history is too large for automatic reconciliation');
@@ -56,14 +57,16 @@ export async function synchronizeAdmission(tx: Prisma.TransactionClient, ticket:
   if (ticket.status === 'USED' && !ticket.usedAt) throw new ConflictException('Used legacy ticket has no admission timestamp; staff review is required');
   assertMatchingAdmission(ticket, guest);
   if (ticket.status === 'USED' && !guest.checkIn) {
+    const linked = await tx.guest.findUniqueOrThrow({ where: { id: guest.id }, select: { eventId: true } });
+    await assertRequiredAcknowledgements(tx, linked.eventId, [guest.id]);
     await tx.checkIn.create({ data: { guestId: guest.id, arrivedAt: ticket.usedAt! } });
   } else if (guest.checkIn && ticket.status === 'VALID') {
     await tx.ticket.update({ where: { id: ticket.id }, data: { status: 'USED', usedAt: guest.checkIn.arrivedAt } });
   }
 }
 
-function assertSourceCanBeRemoved(source: { checkIn: unknown; rsvp: { signatureAssetId: string | null } | null; _count: { seats: number; seatReleases: number; messages: number; channels: number; deviceTokens: number } }) {
-  if (source.checkIn || source.rsvp?.signatureAssetId || [source._count.seats, source._count.seatReleases, source._count.messages, source._count.channels, source._count.deviceTokens].some((count) => count > 0)) {
+function assertSourceCanBeRemoved(source: { checkIn: unknown; rsvp: { signatureAssetId: string | null } | null; _count: { seats: number; seatReleases: number; messages: number; channels: number; deviceTokens: number; acknowledgementsReceived: number; acknowledgementsSigned: number; guestMedia: number } }) {
+  if (source.checkIn || source.rsvp?.signatureAssetId || [source._count.seats, source._count.seatReleases, source._count.messages, source._count.channels, source._count.deviceTokens, source._count.acknowledgementsReceived, source._count.acknowledgementsSigned, source._count.guestMedia].some((count) => count > 0)) {
     throw new ConflictException('Checkout guest has seats, admission, a signature or communication history; resolve those before linking');
   }
 }

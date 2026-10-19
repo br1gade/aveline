@@ -334,3 +334,15 @@ worse than knowing them now. Each is a row in
   and nothing is published except Caddy's ports.
 - **The image is ~960MB.** Mostly Prisma's engines and runtime plus Sentry.
   It costs a slower first pull, not money.
+
+
+## Private media worker
+
+Compose includes `private-media-worker` from the API image, with one CPU, 768 MiB
+process memory, private storage settings and heartbeat healthcheck. Start it for
+signatures/gallery; the API only stages uploads. Include it in release health,
+restart and backup/restore procedures. Capture stops it alongside other writers.
+Monitor queued/failed media and physical cleanup; verify private bucket isolation
+and actual image memory/recovery before pilot. See
+[GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md). No production deployment has been
+performed as part of the backend delivery.
