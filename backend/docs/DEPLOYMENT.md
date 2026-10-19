@@ -166,6 +166,15 @@ openssl rand -base64 48
 set: without it anyone who guessed a guest token could register their own chat
 against that guest and receive their invitation.
 
+Optional WhatsApp requires **all six** sender/receipt settings once any is
+configured in production: `WHATSAPP_ACCOUNT_ID`, `WHATSAPP_PHONE_NUMBER_ID`,
+`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_API_VERSION`, `WHATSAPP_APP_SECRET` and
+`WHATSAPP_WEBHOOK_VERIFY_TOKEN`. No API version is guessed. Leave them all
+unset until account/template setup is ready. The production compose API reads
+them from its existing private env file. Follow [WHATSAPP_SETUP.md](WHATSAPP_SETUP.md)
+for public HTTPS callback/subscription verification, raw-body proxy rules and
+real provider evidence. Monitor `whatsapp.receipts` and pending ledger lag.
+
 ## 4. Deploying a change
 
 ```bash

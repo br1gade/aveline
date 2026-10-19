@@ -420,9 +420,11 @@ describe('Invitation design (e2e)', () => {
       const page = await guestPage(slug);
       expect(page.coverUrl).toBe(second.url);
       const hero = page.blocks.find((block) => block.type === 'HERO');
+      // The background resize sweep may populate dimensions before this read.
+      // This case owns cover selection and order; resizing is tested below.
       expect(hero?.media).toEqual([
-        { id: second.id, url: second.url, kind: 'PHOTO', altText: null, width: null, height: null, variants: [] },
-        { id: first.id, url: first.url, kind: 'PHOTO', altText: null, width: null, height: null, variants: [] },
+        expect.objectContaining({ id: second.id, url: second.url, kind: 'PHOTO' }),
+        expect.objectContaining({ id: first.id, url: first.url, kind: 'PHOTO' }),
       ]);
     });
 

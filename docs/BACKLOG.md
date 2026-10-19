@@ -108,7 +108,7 @@ it needs a cancellation during the event itself, at the door.
 |---|---|---|
 | F19 | Backend implemented: private invited-guest uploads, bounded worker variants, host moderation, owner removal and durable privacy cleanup. Frontend and production acceptance remain (§7.2) | M–L |
 | F20 | Backend implemented: PDFs for all seven kinds, embedded four-script fonts and A4 flat place cards. Frontend, translated headings and pilot print acceptance remain | M |
-| F21 | WhatsApp delivery receipts | S–M |
+| F21 | WhatsApp delivery receipts: signed/scoped backend and host evidence fields built; real account/template/subscription/send proof and frontend acceptance remain | S–M |
 | F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
 | F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
 | F24 | Backend implemented: validated same-event hero/share selection, batched responsive images and privacy-aware metadata. Frontend HTML Open Graph tags and browser acceptance remain (§13.2) | S |

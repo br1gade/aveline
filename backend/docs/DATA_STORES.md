@@ -54,6 +54,21 @@ Unmatched receipts rotate by `lastCheckedAt` so fifty unknown ids cannot starve
 the rest, expire after seven days, and processed receipts expire after thirty.
 There is no native provider adapter yet.
 
+**WhatsApp receipts also live in Postgres.** A single atomic insert accepts up
+to 1,000 normalized outcomes after raw-byte authentication. `WhatsAppReceipt`
+retains scope/provider reference, outcome, error code and clocks, never contact
+numbers, raw descriptions or full payloads. Composite channel/account/sender/
+provider-reference uniqueness on Message prevents cross-sender correlation.
+A row-locked minute sweep processes at most 200 receipts, five at once, and
+rotates unmatched work by `lastCheckedAt`. Pending expires at seven days,
+processed at thirty. Early callbacks wait for scoped send acknowledgement;
+erased contacts are never mutated. Delivery/read evidence cannot be downgraded
+by sent/failure. Failures never automatically suppress or resend. Redis holds
+only the sweep lock; an outage delays application while accepted receipts
+remain durable. The `whatsapp.receipts` monitor must notice sweep failure and
+lag must be measured during real pilot acceptance.
+
+
 ---
 
 ## 2. Redis — speed, never truth

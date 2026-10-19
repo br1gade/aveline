@@ -171,9 +171,9 @@ describe('buildTransports', () => {
     expect(transports.get(MessageChannel.TELEGRAM)).toBeInstanceOf(TelegramTransport);
   });
 
-  it('uses the Cloud API for WhatsApp once both halves are configured', () => {
+  it('uses the Cloud API for WhatsApp once sender and receipt configuration is complete', () => {
     const transports = buildTransports(
-      configOf({ WHATSAPP_PHONE_NUMBER_ID: '123', WHATSAPP_ACCESS_TOKEN: 'tok' }),
+      configOf({ WHATSAPP_PHONE_NUMBER_ID: '123', WHATSAPP_ACCESS_TOKEN: 'tok', WHATSAPP_ACCOUNT_ID: '111', WHATSAPP_API_VERSION: 'v25.0', WHATSAPP_APP_SECRET: 'a'.repeat(32), WHATSAPP_WEBHOOK_VERIFY_TOKEN: 'b'.repeat(32) }),
     );
 
     expect(transports.get(MessageChannel.WHATSAPP)).toBeInstanceOf(WhatsAppTransport);
@@ -216,6 +216,7 @@ describe('deliverableChannels', () => {
           TELEGRAM_BOT_TOKEN: 'tok',
           WHATSAPP_PHONE_NUMBER_ID: '123',
           WHATSAPP_ACCESS_TOKEN: 'tok',
+          WHATSAPP_ACCOUNT_ID: '111', WHATSAPP_API_VERSION: 'v25.0', WHATSAPP_APP_SECRET: 'a'.repeat(32), WHATSAPP_WEBHOOK_VERIFY_TOKEN: 'b'.repeat(32),
         }),
       ),
     ).toHaveLength(3);

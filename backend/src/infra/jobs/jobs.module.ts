@@ -1,3 +1,4 @@
+import { WhatsAppReceiptSweepService } from './whatsapp-receipt-sweep.service';
 import { InvitationMaintenanceSweepService } from './invitation-maintenance-sweep.service';
 import { GuestContributionsModule } from '../../modules/guest-contributions/guest-contributions.module';
 import { ContributionSweepService } from './contribution-sweep.service';
@@ -30,6 +31,7 @@ import { ReminderSweepService } from './reminder-sweep.service';
     PrivacySweepService,
     ImageSweepService,
     EmailFeedbackSweepService,
+    WhatsAppReceiptSweepService,
     HealthWatchService,
   ],
   exports: [JobsService, MoneySweepService, ReminderSweepService, PrivacySweepService, HealthWatchService],

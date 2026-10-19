@@ -1,3 +1,5 @@
+import { WhatsAppReceiptsService } from './whatsapp/whatsapp-receipts.service';
+import { WhatsAppWebhookController } from './whatsapp/whatsapp-webhook.controller';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel } from '@prisma/client';
@@ -15,7 +17,7 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
 
 @Global()
 @Module({
-  controllers: [TelegramWebhookController, EmailFeedbackController],
+  controllers: [TelegramWebhookController, EmailFeedbackController, WhatsAppWebhookController],
   providers: [
     {
       provide: MESSAGE_TRANSPORTS,
@@ -24,6 +26,7 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
     },
     SuppressionService,
     EmailFeedbackService,
+    WhatsAppReceiptsService,
     GuestChannelsService,
     {
       provide: CommunicationsService,
@@ -35,6 +38,6 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
       ) => new CommunicationsService(prisma, transports, suppressions),
     },
   ],
-  exports: [CommunicationsService, SuppressionService, GuestChannelsService, EmailFeedbackService],
+  exports: [CommunicationsService, SuppressionService, GuestChannelsService, EmailFeedbackService, WhatsAppReceiptsService],
 })
 export class CommunicationsModule {}

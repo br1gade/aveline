@@ -29,6 +29,8 @@ export interface OutboundMessage {
 
 export interface DeliveryResult {
   providerRef?: string;
+  providerAccountId?: string;
+  providerSenderId?: string;
   /** Some providers confirm delivery synchronously; most only accept. */
   isDelivered: boolean;
 }

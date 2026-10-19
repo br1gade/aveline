@@ -49,7 +49,7 @@ Each replaces a process the incumbent market performs by hand.
 
 | # | Gap | Replaces |
 |---|---|---|
-| 6 | **WhatsApp delivery receipts** | Meta reports delivery and read status by webhook; nothing consumes it, so a WhatsApp message stays SENT and a failure after acceptance is never recorded. The same webhook is how a WhatsApp block would reach us |
+| 6 | **WhatsApp live acceptance** | Signed, scoped sent/delivered/read/failed receipts and host evidence fields are implemented. Account/app/test number, supported/approved templates, real subscription/send/receipt proof and frontend acceptance remain. See [setup checklist](WHATSAPP_SETUP.md); ambiguous failures never globally suppress a guest |
 | 7 | **Export pilot acceptance** | All seven kinds now have private CSV/PDF/XLSX worker snapshots and synthetic four-script file acceptance. Frontend adoption, translated headings, native spreadsheet/print checks and production worker/private-bucket rehearsal remain |
 | 8 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — backend private uploads, moderation, owner removal and durable cleanup are implemented; frontend and production acceptance remain |
 | 9 | **Disputed refunds** | A ticket order with any admitted ticket cannot be cancelled — refunding after attendance is a dispute with the buyer, not a cancellation, and voiding a used ticket would erase the record that they came. There is no flow for that dispute; it is handled outside the system |

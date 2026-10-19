@@ -105,8 +105,10 @@ Current limitations that drive the new plan:
 - Batch H captures lifetime at first publication, enforces live expiry on guest
   access and caches personal projections with durable revisions. Frontend
   expired-state handling and production performance acceptance remain.
-- WhatsApp transport accepts messages and saves its provider reference; delivery
-  and read callbacks are not consumed.
+- Batch I implements signed/scoped WhatsApp receipt ingestion, durable early
+  callback reconciliation, delivery/read/failure fields and safe error classes.
+  No Meta account/test number exists yet; real provider and frontend acceptance
+  remain launch gates.
 
 ## 3. Delivery order and dependencies
 
@@ -721,6 +723,34 @@ on both successful and expired generic/personal invitation responses.
 **Acceptance:** forged/duplicate/out-of-order/early callbacks, unknown references,
 erasure, temporary/configuration failures and controlled real delivery.
 The setup/review timeline is external and cannot be guaranteed by coding.
+
+### Batch I implementation (19 October 2026)
+
+The backend now has authenticated GET/POST webhook routes, 3 MiB/1,000-update
+bounds, exact-byte asynchronous HMAC, atomic normalized receipt acceptance,
+scoped Message correlation and minute reconciliation. It handles early,
+duplicate and out-of-order evidence, erasure and retention. Host delivery rows
+add delivered/read/failure clocks and numeric code/classification. No WhatsApp
+receipt globally suppresses guests; synchronous ambiguous rejections no longer
+map to a hard bounce, 131049 honors a 24-hour minimum delay, and explicit
+sender-block/marketing-stop rejections terminate only that message.
+
+A new additive migration leaves historical messages unscoped; they are not
+matched by guesswork. Production requires the complete sender/receipt settings
+and an explicitly selected API version. The operator confirmed there is still
+no account or test number. [WHATSAPP_SETUP.md](../backend/docs/WHATSAPP_SETUP.md)
+contains setup and acceptance steps; real subscription/send/callback evidence,
+four-language approved templates, frontend use and production capacity remain
+open.
+
+**Verification:** the final `npm run verify` passed lint, docs/OpenAPI checks,
+build, **1,160 unit, 500 integration and 651 HTTP tests**. Coverage includes
+forged/unsigned/raw-byte authentication, subscription challenges, body/batch
+limits, durable acknowledgement failures, duplicate/concurrent/out-of-order
+and early callbacks, scope isolation, erasure, fair reconciliation, retention
+and host report evidence. An existing media-order HTTP assertion now tolerates
+legitimate background dimension updates; the separate resizing assertions
+remain in place. No real Meta send or callback was performed.
 
 F22 remains provider-neutral: maintain its implemented quota, normalized signed
 feedback and suppression tests. Native email selection/correlation/webhook

@@ -46,6 +46,11 @@ describe('Sentry', () => {
       expect(scrubbed?.request?.url).toContain('[token]');
     });
 
+    it.each(['x-hub-signature-256', 'X-Hub-Signature-256'])('removes the Meta signature %s before sending incidents off-host', (header) => {
+      const scrubbed = eventWith({ headers: { [header]: 'sha256=synthetic' } });
+      expect(scrubbed?.request?.headers).not.toHaveProperty(header);
+    });
+
     it('drops the query string, which can carry a searched name', () => {
       const event = { request: { url: 'https://api.test/x', query_string: 'q=Armen' } } as ErrorEvent;
       expect(scrubEvent(event)?.request?.query_string).toBeUndefined();

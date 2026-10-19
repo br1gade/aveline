@@ -1,6 +1,6 @@
 import { hasInvitationExpired } from '../lifetime';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { InvitationStatus, MessageChannel, MessageStatus } from '@prisma/client';
+import { InvitationStatus, Message, MessageChannel, MessageStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { deliverableChannels } from '../../communications/channels/transport-registry';
 import { CommunicationsService, EnqueueParams } from '../../communications/communications.service';
@@ -153,6 +153,11 @@ export class InvitationSenderService implements OnModuleInit {
           attempts: true,
           failureReason: true,
           sentAt: true,
+          deliveredAt: true,
+          readAt: true,
+          deliveryFailedAt: true,
+          deliveryErrorCode: true,
+          deliveryFailureKind: true,
         },
       }),
       // Reminders that went, or are going, newest first — the report used to
@@ -323,7 +328,7 @@ class SendOutcome {
   }
 }
 
-interface RecordedAttempt extends PreviousAttempt {
+interface RecordedAttempt extends PreviousAttempt, Pick<Message, 'deliveredAt' | 'readAt' | 'deliveryFailedAt' | 'deliveryErrorCode' | 'deliveryFailureKind'> {
   attempts: number;
   failureReason: string | null;
   sentAt: Date | null;
@@ -345,6 +350,16 @@ function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[], canSeeCo
     attempts: latest?.attempts ?? 0,
     failureReason: latest?.failureReason ?? null,
     sentAt: latest?.sentAt ?? null,
+    ...deliveryEvidence(latest),
+  };
+}
+
+function deliveryEvidence(latest: RecordedAttempt | undefined) {
+  const evidence = latest ?? { deliveredAt: null, readAt: null, deliveryFailedAt: null, deliveryErrorCode: null, deliveryFailureKind: null };
+  return {
+    deliveredAt: evidence.deliveredAt, readAt: evidence.readAt,
+    deliveryFailedAt: evidence.deliveryFailedAt, deliveryErrorCode: evidence.deliveryErrorCode,
+    deliveryFailureKind: evidence.deliveryFailureKind,
   };
 }
 

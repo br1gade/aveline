@@ -36,6 +36,8 @@ export function initialiseSentry(env: NodeJS.ProcessEnv): boolean {
   return true;
 }
 
+const PRIVATE_HEADERS = new Set(['authorization', 'cookie', 'referer', 'x-api-key', 'x-telegram-bot-api-secret-token', 'x-aveline-feedback-signature', 'x-hub-signature-256']);
+
 /**
  * Strips what Sentry would otherwise carry off-site.
  *
@@ -45,15 +47,8 @@ export function initialiseSentry(env: NodeJS.ProcessEnv): boolean {
  */
 export function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
   if (event.request?.headers) {
-    for (const header of [
-      'authorization',
-      'cookie',
-      'referer',
-      'x-api-key',
-      'x-telegram-bot-api-secret-token',
-      'x-aveline-feedback-signature',
-    ]) {
-      delete event.request.headers[header];
+    for (const header of Object.keys(event.request.headers)) {
+      if (PRIVATE_HEADERS.has(header.toLowerCase())) delete event.request.headers[header];
     }
   }
 

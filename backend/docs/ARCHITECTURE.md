@@ -171,6 +171,7 @@ until `JobsService` existed:
 | `media.resize` (`ImageVariantsService`) | 1 min | Guests download every photo at its uploaded size |
 | `invitations.maintain-access` (`InvitationMaintenanceService`) | 1 min | Expiry reporting and revision compaction pause; access checks remain live |
 | `email.feedback` (`EmailFeedbackService`) | 1 min | Early delivery receipts remain pending; receipt retention does not run |
+| `whatsapp.receipts` (`WhatsAppReceiptsService`) | 1 min | Durable Meta outcomes remain pending and retention pauses; monitor and drain after recovery |
 
 Each takes a Redis lock with `SET NX EX` — one atomic operation, so exactly
 one instance runs it. The TTL is shorter than the interval and never extended:

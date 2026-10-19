@@ -6,6 +6,7 @@
  * production surfaces as "anyone can mint a staff token". Failing at startup
  * turns both into a deployment that visibly does not come up.
  */
+import { validateWhatsAppConfig } from './whatsapp-config';
 import { ENVIRONMENTS } from './environment';
 
 export interface ValidatedEnv extends Record<string, unknown> {
@@ -31,6 +32,7 @@ function asText(value: unknown): string | undefined {
 export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
   const nodeEnv = recognisedNodeEnv(raw.NODE_ENV);
   assertRequiredPresent(raw);
+  validateWhatsAppConfig(raw);
 
   assertWholeNumbers(raw, ['ACCESS_TOKEN_TTL_SECONDS', 'REFRESH_TOKEN_TTL_DAYS']);
   assertEmailQuotaSettings(raw);

@@ -335,6 +335,11 @@ export class CommunicationsService {
         templateKey: true,
         failureReason: true,
         sentAt: true,
+        deliveredAt: true,
+        readAt: true,
+        deliveryFailedAt: true,
+        deliveryErrorCode: true,
+        deliveryFailureKind: true,
       },
     });
   }
@@ -418,6 +423,8 @@ export class CommunicationsService {
     const data = {
       status: result.isDelivered ? MessageStatus.DELIVERED : MessageStatus.SENT,
       providerRef: result.providerRef ?? null,
+      providerAccountId: result.providerAccountId ?? null,
+      providerSenderId: result.providerSenderId ?? null,
       failureReason: null,
       sentAt: new Date(),
       deliveredAt: result.isDelivered ? new Date() : null,
@@ -429,7 +436,7 @@ export class CommunicationsService {
           // A callback may have already recorded delivery or a permanent
           // failure while SMTP acknowledgement was still returning.
           await tx.message.updateMany({ where: { id: messageId, status: MessageStatus.SENDING }, data });
-          await tx.message.updateMany({ where: { id: messageId, sentAt: null }, data: { sentAt: data.sentAt, providerRef: data.providerRef } });
+          await tx.message.updateMany({ where: { id: messageId, sentAt: null }, data: { sentAt: data.sentAt, providerRef: data.providerRef, providerAccountId: data.providerAccountId, providerSenderId: data.providerSenderId } });
         });
         return;
       } catch (error) {
@@ -440,17 +447,8 @@ export class CommunicationsService {
   }
 
   /**
-   * Decides what a failed send means.
-   *
-   * Three outcomes, because conflating them is how a product either loses mail
-   * or keeps writing to an address that will never accept it:
-   *
-   *   - the recipient refused it      → bounced, and the address is suppressed
-   *                                     platform-wide so no other host wastes
-   *                                     reputation on it
-   *   - the provider could not now    → back in the queue with a backoff
-   *   - our configuration is wrong    → back in the queue, logged as ours, and
-   *                                     never held against the recipient
+   * Recipient refusals may justify global suppression. Account faults and
+   * restrictions on one message must never poison the address for every host.
    */
   private async handleFailure(
     message: {
@@ -502,7 +500,7 @@ export class CommunicationsService {
         // fewer thing a future reader has to reason about.
         status: MessageStatus.QUEUED,
         failureReason: failure.reason,
-        scheduledFor: nextAttemptAt(message.attempts, new Date()),
+        scheduledFor: nextAttemptAt(message.attempts, new Date(), failure.retryAfterMs),
       },
     });
     return 'RETRYING';

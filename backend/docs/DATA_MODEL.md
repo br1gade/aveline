@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 64 models across three
+The authoritative map of what is stored and where. 65 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 64 |
+| **PostgreSQL** | The entire domain. The only source of truth | 65 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -93,9 +93,10 @@ lives outside Postgres.
 | Model | Purpose |
 |---|---|
 | `MessageTemplate` | Reusable copy, translated, overridable per organization |
-| `Message` | One message — an outbox. Carries `direction` and `threadKey` so inbound is additive later |
+| `Message` | One message — an outbox. Nullable account/sender scope plus provider ref uniquely correlate WhatsApp outcomes. Delivery/read/failure clocks and normalized failure kind/code complement the existing status |
 | `EmailSendQuota` | Persistent shared SMTP token bucket and UTC daily budget; survives deploys and Redis eviction |
 | `EmailFeedback` | Normalized, idempotent delivery outcomes keyed by an opaque receipt; no address or raw provider payload |
+| `WhatsAppReceipt` | Idempotent native status ledger with account/sender/provider reference, outcome, numeric error code and clocks; no contacts/raw payload. Pending seven days, processed thirty days |
 | `Suppression` | Who must not be contacted, and why |
 | `DeviceToken` | A phone or browser that can receive a push |
 

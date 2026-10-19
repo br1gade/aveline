@@ -301,3 +301,15 @@ refuse expired access and queued ones recheck before dispatch. Expiry preserves
 all host permissions and data; no new role or permission is introduced. Legacy
 published rows retain their existing deadline until reviewed. See
 [API.md](API.md#invitation-lifetime-and-expired-access).
+
+### Provider delivery evidence
+
+Meta WhatsApp callback routes are public only with provider authentication:
+subscription GET requires the configured verification token; POST requires
+HMAC-SHA256 over exact raw bytes using the app secret. Status correlation is
+limited to the configured account/sender plus WHATSAPP/provider reference.
+No tenant/user identity is taken from a callback, no raw contacts/bodies are
+retained, and no phone is globally suppressed based on an ambiguous delivery
+failure. Erased message recipients cannot be mutated by late receipts. Host
+delivery evidence retains the report's `guest:read` permission and existing
+`guest:contact:read` restriction for addresses; no new permission is added.

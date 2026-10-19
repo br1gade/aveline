@@ -1,3 +1,4 @@
+import { WHATSAPP_SETTINGS, validateWhatsAppConfig } from '../../../common/whatsapp-config';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { allowsDevelopmentShortcuts } from '../../../common/environment';
@@ -21,18 +22,9 @@ export type SmsProviderFactory = (config: ConfigService) => SmsProvider;
 export const SMS_PROVIDERS: Readonly<Record<string, SmsProviderFactory>> = {};
 
 /**
- * Which transport serves each channel.
- *
- * Email uses SMTP when it is configured and the console otherwise, so the
- * whole pipeline stays exercisable without a provider account. The other
- * channels have no implementation yet and fall back to the console, which
- * records them rather than dropping them.
- *
- * **In production the fallback is a startup error, not a fallback.** A console
- * transport in production means invitations, password resets and ticket
- * confirmations are written to a log file and nobody receives them — a failure
- * that looks exactly like success from the outside. Refusing to boot is the
- * only version of that which gets noticed.
+ * Production requires real SMTP and enables other channels only once their
+ * sender configuration is complete. Development can exercise console
+ * transports; planners still prefer channels that can actually deliver.
  */
 export function buildTransports(
   config: ConfigService,
@@ -112,17 +104,12 @@ export function telegramSettingsFrom(config: ConfigService): TelegramSettings | 
   return botToken ? { botToken } : null;
 }
 
-/**
- * WhatsApp needs both halves: the phone number id identifies which sender,
- * the token authorises it. One without the other is a configuration mistake
- * that would surface as a run of authentication failures.
- */
+/** Sending stays inert until the same account can also authenticate receipts. */
 export function whatsAppSettingsFrom(config: ConfigService): WhatsAppSettings | null {
-  const phoneNumberId = config.get<string>('WHATSAPP_PHONE_NUMBER_ID');
-  const accessToken = config.get<string>('WHATSAPP_ACCESS_TOKEN');
-  if (!phoneNumberId || !accessToken) return null;
-
-  return { phoneNumberId, accessToken };
+  const values = Object.fromEntries(WHATSAPP_SETTINGS.map((key) => [key, config.get<string>(key)]));
+  validateWhatsAppConfig({ ...values, NODE_ENV: config.get<string>('NODE_ENV') });
+  if (WHATSAPP_SETTINGS.some((key) => !values[key])) return null;
+  return { phoneNumberId: values.WHATSAPP_PHONE_NUMBER_ID!, accessToken: values.WHATSAPP_ACCESS_TOKEN!, accountId: values.WHATSAPP_ACCOUNT_ID!, apiVersion: values.WHATSAPP_API_VERSION! };
 }
 
 /**

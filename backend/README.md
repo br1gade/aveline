@@ -100,12 +100,22 @@ call that endpoint; production refuses to boot without it once a bot token is
 set, because otherwise anyone who guessed a guest token could register their
 own chat against that guest.
 
-**WhatsApp** can reach someone cold, which is why it exists here, but it is
-gated: a Meta Business account, a verified business, a dedicated number, and
-**message templates approved in advance**. It will not send free text at all,
-so a `MessageTemplate` used on WhatsApp needs `providerTemplate` (Meta's
-template name) and `providerParams` (the variable names in the order Meta
-expects them). Every delivered template is billed.
+**WhatsApp** sends business-initiated approved templates through Meta's Cloud
+API. Configure account/sender/token, an explicitly supported API version, app
+secret and webhook verification token together; see
+[the setup and live acceptance checklist](docs/WHATSAPP_SETUP.md). A
+`MessageTemplate` needs `providerTemplate` (Meta's approved name) and ordered
+`providerParams`. Guest consent, account/number eligibility, billing and template
+approval must be verified before enabling it. Localized copy alone does not
+prove Meta template/language support.
+
+`GET /communications/whatsapp-webhook` verifies the Meta subscription;
+`POST /communications/whatsapp-webhook` authenticates exact raw bytes and
+acknowledges durable normalized receipts. A minute sweep reconciles scoped
+sent/delivered/read/failed outcomes. Read is `DELIVERED` with `readAt`; no new
+Message status is introduced. Ambiguous WhatsApp failures never globally
+suppress guests. Receipt ingestion is implemented, but real Meta send/subscription
+acceptance remains open because there is no account/test number yet.
 
 A channel is only used when **both** its transport is configured and the
 organization has copy for it. An organization with no Telegram template keeps
@@ -441,6 +451,8 @@ its records are references to regenerate, never historical snapshots.
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/communications/whatsapp-webhook` | Meta subscription challenge; configured verification token required |
+| `POST` | `/api/v1/communications/whatsapp-webhook` | Native WhatsApp statuses; exact-byte app-secret HMAC and durable receipt acceptance |
 | `POST` | `/api/v1/communications/email-feedback` | Normalized email delivery feedback; public route requiring a trusted HMAC signature |
 
 ## Three design decisions worth knowing

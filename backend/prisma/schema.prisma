@@ -1354,6 +1354,38 @@ enum EmailFeedbackOutcome {
   COMPLAINT
 }
 
+/// Durable, scoped provider outcomes; never contacts, message bodies or raw payloads.
+model WhatsAppReceipt {
+  receiptKey    String @id
+  accountId     String
+  phoneNumberId String
+  providerRef   String
+  outcome       WhatsAppReceiptOutcome
+  occurredAt    DateTime
+  errorCode     Int?
+  receivedAt    DateTime @default(now())
+  lastCheckedAt DateTime?
+  processedAt   DateTime?
+
+  @@index([processedAt, lastCheckedAt, receivedAt])
+  @@index([processedAt, receivedAt])
+  @@map("whatsapp_receipts")
+}
+
+enum WhatsAppReceiptOutcome {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppDeliveryFailureKind {
+  CONFIGURATION
+  TRANSIENT
+  AMBIGUOUS
+  UNKNOWN
+}
+
 /// One outbound message. Written in the same transaction as the action that
 /// causes it and dispatched afterwards — an outbox — so a send can never be
 /// lost because the process died between committing and calling the provider.
@@ -1401,6 +1433,13 @@ model Message {
   priority      Int           @default(0)
   attempts      Int           @default(0)
   providerRef   String?
+  providerAccountId String?
+  providerSenderId  String?
+  providerStatusAt DateTime?
+  readAt DateTime?
+  deliveryFailedAt DateTime?
+  deliveryErrorCode Int?
+  deliveryFailureKind WhatsAppDeliveryFailureKind?
   failureReason String?
 
   scheduledFor DateTime  @default(now())
@@ -1418,6 +1457,8 @@ model Message {
   event        Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   guest        Guest?        @relation(fields: [guestId], references: [id], onDelete: SetNull)
 
+  // Null scope on historical/other-channel messages intentionally remains unmatched.
+  @@unique([channel, providerAccountId, providerSenderId, providerRef])
   /// The dispatcher claims due work highest priority first, then oldest.
   @@index([status, priority, scheduledFor])
   @@index([threadKey])

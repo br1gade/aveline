@@ -2821,7 +2821,9 @@ GET /api/v1/invitations/:slug/delivery
     "householdId": "clz...", "household": "Petrosyan family",
     "guest": "Armen Petrosyan", "toAddress": "armen@example.am",
     "status": "SENT", "attempts": 1, "failureReason": null,
-    "sentAt": "2026-10-05T18:02:11.000Z"
+    "sentAt": "2026-10-05T18:02:11.000Z",
+    "deliveredAt": null, "readAt": null, "deliveryFailedAt": null,
+    "deliveryErrorCode": null, "deliveryFailureKind": null
   }]
 }
 ```
@@ -2838,6 +2840,15 @@ malformed but never quotes the address.
 `status` is `NOT_SENT` (nothing has been sent to this address yet) or a
 `Message` status: `QUEUED`, `SENDING`, `SENT`, `DELIVERED`, `FAILED`,
 `BOUNCED`, `SUPPRESSED`, `CANCELLED` (withdrawn before sending).
+
+**Additive receipt fields (19 October 2026):** `deliveredAt`, `readAt`,
+`deliveryFailedAt`, `deliveryErrorCode` and `deliveryFailureKind` are nullable.
+WhatsApp reads keep `status: DELIVERED` and populate `readAt`; an absent read
+receipt is not proof the message was unread. Receipt failure classes are
+`CONFIGURATION`, `TRANSIENT`, `AMBIGUOUS`, `UNKNOWN`. Display localized labels
+for these classes; raw provider descriptions are never exposed. Delivery/read
+proof wins over late sent/failed callbacks. An asynchronous failure becomes
+`FAILED` and does not automatically resend or globally suppress the guest.
 
 Each row also has `reminders` — how many reminders the household has had —
 and `lastRemindedAt`.
@@ -3126,6 +3137,52 @@ for something to integrate with. It records a guest's opt-in when they tap the
 deep link, treats blocking the bot as an unsubscribe, and lifts that
 unsubscribe when the guest starts or unblocks the bot again.
 
+### Not for the browser: Meta WhatsApp receipts
+
+```http
+GET  /api/v1/communications/whatsapp-webhook
+POST /api/v1/communications/whatsapp-webhook
+```
+
+These public routes authenticate Meta, not a host session. Never expose their
+secrets in the frontend. GET requires `hub.mode=subscribe`, a matching
+`hub.verify_token`, and bounded `hub.challenge`; it echoes the challenge as
+plain text with `200` and `Cache-Control: no-store`. A wrong token is `401`;
+unconfigured verification is `503`.
+
+POST requires `X-Hub-Signature-256: sha256=<hex HMAC-SHA256>` of the exact raw
+request bytes keyed by the Meta app secret. It accepts native
+`whatsapp_business_account` JSON, scoped by `entry[].id` and
+`changes[].value.metadata.phone_number_id`, for `messages` statuses only.
+Supported outcomes: `sent`, `delivered`, `read`, `failed`. Inbound messages,
+other accounts/senders/fields and unknown future statuses are ignored. Limits
+are 3 MiB, 1,000 entries/total changes/total applicable statuses, and a 512
+character provider reference. Timestamps are Unix seconds; invalid or more
+than five minutes future times are rejected, but old retries remain valid.
+
+`200 { "accepted": true }` means normalized receipts committed to Postgres,
+not that application has finished. Forged signatures are `401`, malformed
+payloads/fields are `400`, oversized bodies are `413`, compressed bodies are
+`415`, absent signing/scope configuration is `503`, and database failures are
+non-200 so Meta can retry. Standard public throttling still applies. The
+route-specific larger body limit does not change other APIs.
+
+Normalized receipts contain only account/sender/provider IDs, status, clocks
+and numeric error code. Duplicate identities are idempotent. A minute sweep
+processes at most 200, five transactions at once; unknown references rotate
+fairly, waiting up to seven days for acknowledgement/correlation. Processed
+metadata expires after thirty days. Matching requires WHATSAPP, the recorded
+account, sender and provider reference; old unscoped messages stay unmatched.
+Late callbacks do not mutate erased contacts. No WhatsApp receipt creates a
+global suppression; account/template errors and ambiguous delivery are not
+proof of an address hard bounce or unsubscribe.
+
+All six WhatsApp settings are required together once any is enabled in
+production, including an explicitly selected API version. See
+[WHATSAPP_SETUP.md](../backend/docs/WHATSAPP_SETUP.md) for configuration,
+external approval and real provider acceptance gates. No Meta account/test
+number is available yet; local payload tests do not close the launch gate.
+
 ### Not for the browser: normalized email feedback
 
 ```http
@@ -3252,9 +3309,10 @@ So you can plan around them rather than discover them:
   guest with a phone and no other way in — but no provider is connected, so
   it is never chosen until one is. Email and Telegram are delivered; WhatsApp
   is built but has no approved templates yet, so it is never chosen.
-- **No WhatsApp delivery receipts.** Meta reports delivery and read status by
-  webhook; we do not consume it, so a WhatsApp message stays `SENT`. Email over SMTP is real, retries a temporary
-  failure and suppresses an address that hard-bounces.
+- **WhatsApp live acceptance.** Signed, scoped delivery/read/failure ingestion is
+  built. Account/app/test number, template approval, real callback/subscription
+  proof and frontend acceptance remain; see the
+  [setup checklist](../backend/docs/WHATSAPP_SETUP.md).
 - **Nothing enforces plan entitlements.** They are published on `/plans` and on
   the subscription, but the server will not refuse a fourth event on a
   three-event plan.

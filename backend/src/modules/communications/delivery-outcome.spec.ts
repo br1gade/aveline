@@ -171,3 +171,17 @@ describe('shouldSuppressAddress', () => {
     expect(shouldSuppressAddress(kind)).toBe(should);
   });
 });
+
+describe('provider-directed backoff', () => {
+  it('honors a bounded provider minimum delay over the ordinary retry schedule', () => {
+    const now = new Date();
+    expect(nextAttemptAt(1, now, 86400000).getTime()).toBe(now.getTime() + 86400000);
+    expect(nextAttemptAt(1, now, Number.NaN).getTime()).toBe(now.getTime() + 60000);
+    expect(nextAttemptAt(1, now, 999999999).getTime()).toBe(now.getTime() + 86400000);
+  });
+  it('does not retry an explicitly rejected message or suppress its address', () => {
+    expect(classifyDeliveryFailure(Object.assign(new Error('Restricted message'), { code: 'EREJECTED' })).kind).toBe('REJECTED');
+    expect(isWorthRetrying('REJECTED', 1)).toBe(false);
+    expect(shouldSuppressAddress('REJECTED')).toBe(false);
+  });
+});

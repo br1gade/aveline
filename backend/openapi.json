@@ -3062,6 +3062,64 @@
         ]
       }
     },
+    "/api/v1/communications/whatsapp-webhook": {
+      "get": {
+        "operationId": "WhatsAppWebhookController_verify",
+        "parameters": [
+          {
+            "name": "hub.challenge",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "hub.verify_token",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "hub.mode",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Verify Meta webhook subscription with a configured token",
+        "tags": [
+          "communications"
+        ]
+      },
+      "post": {
+        "description": "No user session; requires a valid Meta raw-byte signature. Batches up to 1000 statuses / 3 MiB. Outcomes reconcile asynchronously.",
+        "operationId": "WhatsAppWebhookController_receive",
+        "parameters": [
+          {
+            "name": "X-Hub-Signature-256",
+            "in": "header",
+            "description": "sha256= followed by HMAC-SHA256 of exact request bytes using the Meta app secret",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Durably accept scoped Meta WhatsApp message status receipts",
+        "tags": [
+          "communications"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/media": {
       "post": {
         "description": "Assets are scoped to an event, so deleting the event reclaims its storage and no asset is reachable from an unrelated invitation.",
