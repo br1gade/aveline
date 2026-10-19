@@ -72,7 +72,7 @@ date can move; full scope takes priority.
 | Item | Note |
 |---|---|
 | Orphan reclamation | Nothing deletes assets when an event is archived; usage only grows |
-| Invitation expiry | Decided (indefinite paid, 3 months free) and modelled; nothing sets `expiresAt` or sweeps |
+| Invitation expiry | Backend captures free 90 days after event end/start or plan lifetime; live guest checks and bounded monitored sweep built. Verify frontend expiry states, legacy review and actual-host sweep operation |
 | CDN | Garage serves media directly |
 | Shared rate limits | Limits are per account or per address, but counted in each instance's memory: a second API instance doubles them. `POST /privacy/requests` has only the general public limit |
 | Asynchronous bounce reports | Signed provider-neutral delivery/bounce/complaint ingestion is built. Native provider/mailbox integration stays deferred by D30; it is not connected to real delivery events |
@@ -148,3 +148,19 @@ see [renderer acceptance](../backend/docs/EXPORT_RENDERERS.md).
 Backend contract and operational details are in
 [GUEST_CONTRIBUTIONS.md](../backend/docs/GUEST_CONTRIBUTIONS.md). These gates remain
 open until frontend and production evidence exists.
+
+### Batch H acceptance on the pilot host
+
+- Review `INVITATION_LEGACY_LIFETIME_REVIEW` counts before launch; old published
+  invitations keep existing deadlines and must not be silently reassigned.
+- Prove a warm cached guest page, RSVP, gallery/signature file and Telegram
+  opt-in close at expiry while authorized host data/media remain readable.
+  Move the event date and verify finite expiry/processing state rearm; reopening
+  must not reset the captured clock.
+- Monitor `invitations.maintain-access` (minute, 55-second lock) and revision
+  ledger growth during Redis downtime. Recovery compacts bounded batches;
+  request access checks do not depend on sweep availability.
+- Repeat `npm run pilot:cache` as a local baseline, then the full production
+  workload with TLS/proxy, analytics and writes. Report warm/cold/degraded
+  percentiles separately. Rebuild/clear Redis when restoring older Postgres
+  backups so cache revisions cannot collide with restored history.

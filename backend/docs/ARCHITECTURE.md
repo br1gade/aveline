@@ -169,6 +169,7 @@ until `JobsService` existed:
 | `payments.reconcile` | 5 min | A paid order stays pending |
 | `ticketing.releaseExpiredReservations` | 5 min | Abandoned baskets hold seats forever |
 | `media.resize` (`ImageVariantsService`) | 1 min | Guests download every photo at its uploaded size |
+| `invitations.maintain-access` (`InvitationMaintenanceService`) | 1 min | Expiry reporting and revision compaction pause; access checks remain live |
 | `email.feedback` (`EmailFeedbackService`) | 1 min | Early delivery receipts remain pending; receipt retention does not run |
 
 Each takes a Redis lock with `SET NX EX` — one atomic operation, so exactly
@@ -192,6 +193,14 @@ then validates and applies seats with completion in one transaction. See
 variant is already its work marker. Private guest images use the separate
 lease-based worker described below.
 
+Invitation expiry is captured by publishing and recomputed on event-date changes
+by Postgres. A minute sweep marks up to 100 due expiries, identifies up to 100
+unknown published policies as LEGACY, reports legacy review counts, and compacts
+bounded revision metadata. No event/data purge occurs. Shared/personal invitation
+caches use database revisions and two live checks per request; see
+[DATA_STORES.md](DATA_STORES.md). Redis downtime grows metadata and slows reads
+but cannot extend guest access.
+
 ## 4. Degradation
 
 | Store | Unreachable | Effect |
@@ -201,8 +210,8 @@ lease-based worker described below.
 | **MongoDB** | Readiness still passes | Engagement reports zero |
 
 Only Postgres gates readiness. Taking an instance out of rotation for a Redis
-outage turns a slowdown into an outage. Measured: with Redis and Mongo both
-stopped, the invitation endpoint serves correct content in ~20 ms.
+outage turns a slowdown into an outage. The historical ~20 ms Redis/Mongo outage measurement predates personalized
+caching; repeat the current `pilot:cache` workload and production rehearsal.
 
 ## 5. Conventions a new module follows
 

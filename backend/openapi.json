@@ -1349,7 +1349,15 @@
         ],
         "responses": {
           "200": {
-            "description": "Hydrated, locale-resolved invitation"
+            "description": "Hydrated, locale-resolved invitation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "private, no-store"
+                }
+              }
+            }
           }
         },
         "summary": "Public invitation page payload (cached per slug and locale)",
@@ -1424,6 +1432,14 @@
         ],
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "private, no-store"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -1449,7 +1465,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationLifecycleDto"
+                }
+              }
+            }
           }
         },
         "summary": "Make the invitation live",
@@ -1460,7 +1483,7 @@
     },
     "/api/v1/invitations/{slug}/close": {
       "post": {
-        "description": "The page stays readable to guests; only new RSVPs are refused.",
+        "description": "The page stays readable until expiry; new RSVPs are refused.",
         "operationId": "InvitationLifecycleController_close",
         "parameters": [
           {
@@ -1474,7 +1497,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationLifecycleDto"
+                }
+              }
+            }
           }
         },
         "summary": "Stop accepting responses",
@@ -1498,7 +1528,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationLifecycleDto"
+                }
+              }
+            }
           }
         },
         "summary": "Accept responses again after closing",
@@ -1509,7 +1546,7 @@
     },
     "/api/v1/invitations/{slug}/send": {
       "post": {
-        "description": "Safe to press twice: a guest is only invited once per invitation. Refused while the invitation is a draft, because the link would 404.",
+        "description": "Safe to press twice: a guest is only invited once per invitation. Refused for draft or expired invitations, because the link would 404.",
         "operationId": "InvitationLifecycleController_send",
         "parameters": [
           {
@@ -6480,6 +6517,63 @@
         },
         "required": [
           "blocks"
+        ]
+      },
+      "InvitationLifecycleDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "CLOSED"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "firstPublishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lifetimeDays": {
+            "type": "number",
+            "nullable": true,
+            "description": "Captured duration; null may mean indefinite or uncaptured legacy history."
+          },
+          "lifetimeSource": {
+            "type": "string",
+            "enum": [
+              "FREE_DEFAULT",
+              "PLAN",
+              "LEGACY"
+            ],
+            "nullable": true
+          },
+          "lifetimePlanKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "isExpired": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "status",
+          "expiresAt",
+          "firstPublishedAt",
+          "lifetimeDays",
+          "lifetimeSource",
+          "lifetimePlanKey",
+          "isExpired"
         ]
       },
       "SendInvitationDto": {

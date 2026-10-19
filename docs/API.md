@@ -2550,6 +2550,55 @@ otherwise.
 
 Publishing the invitation also marks the event itself published.
 
+### Invitation lifetime and expired access
+
+First publication captures a lifetime policy. Without an ACTIVE
+subscription whose period end is still in the future, the free fallback is
+**90 elapsed UTC days after `endsAt`, or `startsAt` when no end is set**. An
+eligible subscription captures its plan's duration (`null` means indefinite).
+This does not activate paid billing. Later plan/catalogue changes and
+close/reopen preserve the captured policy; event-date corrections recompute a
+finite deadline from that policy.
+
+Publish/close/reopen results, the host event's `invitation`, and the authorized
+draft response's invitation metadata include:
+
+```json
+{
+  "expiresAt": "2027-01-23T16:00:00.000Z",
+  "firstPublishedAt": "2026-10-19T09:00:00.000Z",
+  "lifetimeDays": 90,
+  "lifetimeSource": "FREE_DEFAULT",
+  "lifetimePlanKey": null,
+  "isExpired": false
+}
+```
+
+All capture fields may be null before publication. `PLAN` records the captured
+plan key; `LEGACY` preserves a previously published invitation's existing expiry,
+including indefinite access, without inventing a first-publication date. Such
+rows require operator review. A null deadline means no scheduled expiry.
+
+At `now >= expiresAt`, generic/personal invitation pages, guest RSVP reads,
+name editing, gallery, acknowledgement and private guest file access return 404;
+RSVP submission returns 400. Telegram opt-in cannot reactivate an expired link.
+Sending or manually reminding an expired invitation returns 400; automatic
+reminders skip it, and queued invitations/reminders recheck availability before
+dispatch. Host event/draft access and retained RSVP, seating, signatures and
+photos remain authorized normally. Expiry neither deletes data nor archives the
+event. Reopening an expired invitation preserves the expired deadline.
+
+Both invitation GET routes return `Cache-Control: private, no-store`, including
+expired responses, so browser/proxy caching cannot bypass availability checks.
+Personalized pages cache their guest/household/attendance/seating projection
+separately from shared content on the server. Live Postgres checks before and after loading
+still enforce token validity, visibility, erasure, expiry and committed revisions.
+A concurrent edit triggers a retry; sustained changes may return 409 with
+`Invitation changed while loading; please retry`. Retry the read. Redis outage
+falls back to Postgres. Raw capabilities and generated token-bearing links are
+excluded from cache keys and projections. No frontend cache may bypass guest
+availability checks.
+
 ### Sending the invitation
 
 ```http
@@ -2608,7 +2657,7 @@ the household. Omitted, it invites every household on the event that has not
 been invited yet. An id that is not on the event is a `400`, not a silent
 no-op.
 
-**A draft is refused** with a `400` saying to publish first: the link resolves
+**A draft or expired invitation is refused** with a `400` (drafts must publish first): the link resolves
 to a page that 404s until then, and four hundred emails cannot be recalled.
 
 **Mail is queued, not sent during the request.** Four hundred SMTP

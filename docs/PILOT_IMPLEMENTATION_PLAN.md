@@ -46,7 +46,7 @@ prevent live charge initiation.
 | Gallery | Invited guests only; host approval before other guests see a photo |
 | Ticket attendee identity | Buyer supplies every attendee's name/details and own venue choices at checkout |
 | Guest acknowledgements | Both drawn and typed options; a representative may acknowledge for household members |
-| Free invitation expiry | Close guest access; retain host event data and media |
+| Free invitation expiry | 90 elapsed days after event end, or start if no end; close guest access and retain host data/media |
 | Email feedback | Keep provider-neutral; native F22 is an explicit release exception |
 | Scope versus date | Full scope takes priority; move the pilot date if needed |
 | WhatsApp setup | No Meta Business account/test number exists yet |
@@ -77,8 +77,8 @@ including disposable-container setup; that is not a production recovery estimate
 
 The 400-guest import and 200 personalized reads at 50-reader concurrency produced
 no unexpected responses. Latest p95 was **276ms** (initial run 336ms) on a shared
-16-CPU/31GiB development host while verification was running. The shared part of
-the invitation is already cached; personalized guest/household data is not.
+16-CPU/31GiB development host while verification was running. That baseline predates batch H: only shared content was cached then. Shared
+and personalized projections now use durable revisions with live access checks.
 This is baseline evidence, not final capacity proof.
 
 Current limitations that drive the new plan:
@@ -102,8 +102,9 @@ Current limitations that drive the new plan:
 - Host draft data, safe template preview payloads, atomic question ordering
   and guest self-name editing are implemented; frontend rendering and acceptance
   remain.
-- Plan lifetime is modelled (the free seed uses 90 days), but publishing does not
-  set expiry. Cached metadata does not currently enforce that future boundary.
+- Batch H captures lifetime at first publication, enforces live expiry on guest
+  access and caches personal projections with durable revisions. Frontend
+  expired-state handling and production performance acceptance remain.
 - WhatsApp transport accepts messages and saves its provider reference; delivery
   and read callbacks are not consumed.
 
@@ -615,7 +616,7 @@ before approval.
 - Record the applicable lifetime policy at first publication. Preserve the
   existing free-plan 90-day setting and paid indefinite setting without
   activating paid billing or unrelated plan limits.
-- Proposed anchor: `endsAt` when present, otherwise `startsAt`. Event date
+- Confirmed anchor: `endsAt` when present, otherwise `startsAt`. Event date
   corrections recompute expiry from the captured policy; closing/reopening does
   not reset the clock. Plan changes must not silently shorten an already
   published invitation's entitlement.
@@ -649,6 +650,52 @@ access. No data/media purge is introduced by this feature.
 population, cross-person isolation, erasure/revocation, expiry and Redis outage/
 recovery. Repeat the 50-reader measurement after these changes and report warm,
 cold and degraded results separately.
+
+### Backend delivery — 19 October 2026
+
+Implemented captured free/plan lifetime, finite date correction triggers,
+LEGACY preservation/reporting and host event/draft/publication metadata.
+Expired guest reads/writes, contribution files and Telegram opt-in close;
+expired sends/reminders are refused/skipped and queued sends recheck availability.
+A monitored minute sweep processes 100 invitations and compacts bounded
+revision metadata without deleting host data/media.
+
+Shared/personal payloads use a committed per-event transaction ledger plus
+base revision. Invitation HTTP responses use `private, no-store` so downstream
+caches cannot bypass live access checks. Two live Postgres checks surround
+cache use; old in-flight loads retry. Keys use ids/negotiated locales/revision, never raw capabilities;
+generated Telegram links are excluded from projections. Real database/Redis
+checks cover late commits, rollback, compaction, concurrent edit/erasure,
+identity/language isolation, expiry and disconnect/recovery. `pilot:cache`
+repeats the declared 400-person/two-venue HTTP profile; production proxy/TLS,
+real analytics, mixed-write performance and four-language frontend acceptance
+remain batch J gates. Native F22 stays deferred.
+
+**Local HTTP measurement (19 October):** full Nest app on loopback, standard
+throttles, logging silent, analytics stubbed, 400 named guests / 100 households /
+two venues / 800 published seats, four negotiated languages. One HTTP warm-up
+burst preceded 50 concurrent distinct guest/locale reads per phase. No unexpected
+responses. Latest milliseconds:
+
+| Phase | p50 | p95 | p99 |
+|---|---:|---:|---:|
+| Warm | 37.8 | 39.2 | 39.3 |
+| Cold (committed edit) | 99.9 | 103.7 | 104.3 |
+| Redis disconnected (reads/writes) | 114.1 | 116.7 | 116.8 |
+| Recovered | 60.7 | 63.2 | 64.6 |
+
+This is a local sample, not final capacity proof. Earlier runs ranged up to
+108 ms warm p95 (including first HTTP connection warm-up), so repeat on the
+actual host with proxy/TLS, analytics and writes before accepting the budget.
+The latest recovered phase exceeds the 50 ms warm target; investigate and
+rerun that scenario during batch J before production acceptance. The harness cleans up its own event without truncating the test database.
+
+**Verification:** the final consolidated `npm run verify` passed lint,
+documentation and OpenAPI checks, build, **1,102 unit, 484 integration and 642
+HTTP tests**. Eight backup checks also passed. The cache adapter's 11 unit tests
+were rerun after removing its unused metadata-key helper. HTTP coverage includes
+host lifetime metadata, expired guest reads/writes and private/no-store headers
+on both successful and expired generic/personal invitation responses.
 
 ## 10. Milestone I — WhatsApp receipts (F21)
 

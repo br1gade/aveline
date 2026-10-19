@@ -11,11 +11,6 @@ export function invitationCacheKey(slug: string, locale: string): string {
   return `${NAMESPACE}:invitation:${slug}:${locale}`;
 }
 
-/** Who may read the page, and in which languages — beside the payload, invalidated with it. */
-export function invitationMetaKey(slug: string): string {
-  return `${NAMESPACE}:invitation:${slug}:_meta`;
-}
-
 /**
  * How many times this invitation's cache has been invalidated. Outside the
  * pattern below on purpose: deleting it with the payloads would reset it,

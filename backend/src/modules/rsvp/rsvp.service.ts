@@ -1,3 +1,4 @@
+import { readGuestAccess } from '../guest-contributions/guest-access';
 import { assertRequiredAcknowledgements } from '../guest-contributions/acknowledgement-writes';
 import { AttendanceContext, lockAttendancePolicy, normalizeHouseholdAttendance } from './attendance/attendance-context';
 import { attendanceView, ATTENDANCE_GUEST } from './attendance/attendance-view';
@@ -47,10 +48,6 @@ export class RsvpService {
    */
   async submit(slug: string, token: string, submitted: SubmitRsvpDto) {
     const guest = await this.loadGuest(slug, token);
-    const { questions, rsvpFields, locales } = await this.loadAcceptingInvitation(slug);
-    if (submitted.locale !== undefined && !locales.includes(submitted.locale)) {
-      throw new BadRequestException(`locale: this invitation is in ${locales.join(', ')}, not "${submitted.locale}"`);
-    }
     const result = await this.prisma.$transaction(async (tx) => {
       const policy = await lockAttendancePolicy(tx, guest.eventId);
       // Counted under the household's lock, not from the guest loaded above:
@@ -59,6 +56,8 @@ export class RsvpService {
       await tx.$queryRaw`SELECT id FROM guests WHERE "householdId" = ${guest.householdId} ORDER BY id FOR UPDATE`;
       const current = await tx.guest.findUnique({ where: { id: guest.id }, select: { token: true, anonymizedAt: true } });
       if (current?.token !== token || current.anonymizedAt) throw new NotFoundException('Invitation link not recognised');
+      const { questions, rsvpFields, locales } = await this.loadAcceptingInvitation(slug, tx);
+      assertResponseLocale(submitted.locale, locales);
       const members = await tx.guest.findMany({
         where: { householdId: guest.householdId },
         select: { id: true, firstName: true, lastName: true, addedByGuest: true, anonymizedAt: true, rsvp: { select: { status: true } } },
@@ -85,6 +84,7 @@ export class RsvpService {
       const affected = [guest.id, ...added, ...followed, ...(dto.members ?? []).map((member) => member.guestId)];
       const attending = await tx.guest.findMany({ where: { id: { in: affected }, rsvp: { status: 'ATTENDING' } }, select: { id: true } });
       await assertRequiredAcknowledgements(tx, guest.eventId, attending.map((person) => person.id));
+      await this.loadAcceptingInvitation(slug, tx);
 
       return {
         attendanceMode: policy.attendanceMode,
@@ -105,8 +105,9 @@ export class RsvpService {
 
   /** The guest's answer, and everyone in the household they can answer for. */
   async getForGuest(slug: string, token: string) {
+    await readGuestAccess(this.prisma, slug, token);
     const guest = await this.prisma.guest.findFirst({
-      where: { token, event: { invitation: { slug } } },
+      where: { token, anonymizedAt: null, event: { invitation: { slug } } },
       include: {
         ...ATTENDANCE_GUEST,
         rsvp: { include: { answers: { select: { questionId: true, value: true } } } },
@@ -123,6 +124,7 @@ export class RsvpService {
       },
     });
     if (!guest) throw new NotFoundException('Invitation link not recognised');
+    await readGuestAccess(this.prisma, slug, token);
 
     return {
       guest: { id: guest.id, firstName: guest.firstName, lastName: guest.lastName },
@@ -160,7 +162,7 @@ export class RsvpService {
 
   private async loadGuest(slug: string, token: string): Promise<Guest> {
     const guest = await this.prisma.guest.findFirst({
-      where: { token, event: { invitation: { slug } } },
+      where: { token, anonymizedAt: null, event: { invitation: { slug } } },
     });
     if (!guest) throw new NotFoundException('Invitation link not recognised');
     return guest;
@@ -169,8 +171,9 @@ export class RsvpService {
   /** The invitation's questions and how it asks the built-in ones, if it is taking answers. */
   private async loadAcceptingInvitation(
     slug: string,
+    tx: Tx = this.prisma,
   ): Promise<{ questions: AnswerableQuestion[]; rsvpFields: unknown; locales: string[] }> {
-    const invitation = await this.prisma.invitation.findUnique({
+    const invitation = await tx.invitation.findUnique({
       where: { slug },
       select: {
         status: true,
@@ -184,7 +187,7 @@ export class RsvpService {
     if (invitation?.status !== 'PUBLISHED') {
       throw new BadRequestException('This invitation is not accepting responses');
     }
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
+    if (invitation.expiresAt && invitation.expiresAt <= new Date()) {
       throw new BadRequestException('This invitation has closed');
     }
     return { questions: invitation.questions, rsvpFields: invitation.rsvpFields, locales: invitation.event.locales };
@@ -380,4 +383,8 @@ function assertHouseholdCapacity(household: LockedHousehold, incoming: number): 
 /** The side a guest's answer may record: theirs only where the host left it unknown. */
 function sideToRecord(guest: Guest, dto: SubmitRsvpDto): GuestAttribution | undefined {
   return guest.attribution === GuestAttribution.UNKNOWN ? dto.attribution : undefined;
+}
+
+function assertResponseLocale(locale: string | undefined, locales: string[]) {
+  if (locale !== undefined && !locales.includes(locale)) throw new BadRequestException(`locale: this invitation is in ${locales.join(', ')}, not "${locale}"`);
 }

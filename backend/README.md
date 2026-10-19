@@ -198,7 +198,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/invitations/:slug` | Invitation payload, cached per slug and locale |
+| `GET` | `/api/v1/invitations/:slug` | Invitation payload, revisioned cache per slug and locale |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken` | Personalized for one guest |
 | `PATCH` | `/api/v1/invitations/:slug/g/:guestToken/name` | Correct only the link holder's first/last names |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Read current response |
@@ -618,3 +618,20 @@ Guest routes require their personal capability; host reads/moderation are permis
 | `GET` | `/api/v1/events/:eventId/gallery/:mediaId/file` | Host moderation image read |
 | `DELETE` | `/api/v1/events/:eventId/gallery/:mediaId` | Host removal and cleanup |
 | `GET` | `/api/v1/privacy/requests/:requestId/guest-media/:mediaId/file` | Verified subject export original attachment |
+
+### Invitation lifetime and cache rehearsal
+
+Publishing captures the free 90-day period after event end/start or an eligible
+subscription's plan lifetime. Host event/draft and publication responses expose
+captured policy and expiry. Guest access closes at the deadline; host data stays.
+Shared/personal caches perform live Postgres access/revision checks even when
+warm. The minute `invitations.maintain-access` sweep reports legacy policy rows
+and compacts revision metadata. See [API.md](../docs/API.md#invitation-lifetime-and-expired-access)
+and [DATA_STORES.md](docs/DATA_STORES.md).
+
+`npm run pilot:cache` profiles 50 simultaneous personalized HTTP readers against
+a synthetic 400-person, 100-household, two-venue/800-seat event using the guarded
+test database and local Redis. It never truncates tables, removes its event on
+exit, and reports warm/cold/disconnected/recovered percentiles without guest
+URLs. Run without other test suites (which truncate the shared test database).
+Production proxy/TLS, real analytics and mixed writes remain rehearsal gates.

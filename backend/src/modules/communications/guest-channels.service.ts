@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { MessageChannel } from '@prisma/client';
+import { lockGuestAccess, readGuestAccess } from '../guest-contributions/guest-access';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { MessageChannel, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GuestAddress } from '../invitations/sending/channel-preference';
 
@@ -57,10 +58,10 @@ export class GuestChannelsService {
    * An opt-in from a second device replaces the first rather than adding to
    * it, so a guest cannot end up receiving every message twice.
    */
-  async recordOptIn(guestId: string, channel: MessageChannel, address: string) {
+  async recordOptIn(guestId: string, channel: MessageChannel, address: string, tx: Prisma.TransactionClient = this.prisma) {
     const now = new Date();
 
-    const saved = await this.prisma.guestChannel.upsert({
+    const saved = await tx.guestChannel.upsert({
       where: { guestId_channel: { guestId, channel } },
       create: { guestId, channel, address, optedInAt: now },
       update: { address, optedInAt: now },
@@ -68,6 +69,23 @@ export class GuestChannelsService {
 
     this.logger.log(`guest ${guestId} opted into ${channel}`);
     return saved;
+  }
+
+  async recordOptInFromToken(token: string, channel: MessageChannel, address: string) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const person = await tx.guest.findUnique({ where: { token }, select: { event: { select: { invitation: { select: { slug: true } } } } } });
+        const slug = person?.event.invitation?.slug;
+        if (!slug) return null;
+        const guest = await lockGuestAccess(tx, slug, token);
+        await this.recordOptIn(guest.id, channel, address, tx);
+        await readGuestAccess(tx, slug, token);
+        return guest.id;
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) return null;
+      throw error;
+    }
   }
 
   /**

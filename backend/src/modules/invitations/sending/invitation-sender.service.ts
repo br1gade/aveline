@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { hasInvitationExpired } from '../lifetime';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InvitationStatus, MessageChannel, MessageStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { deliverableChannels } from '../../communications/channels/transport-registry';
@@ -20,7 +21,7 @@ import {
 const TEMPLATE_KEY = 'invitation.send';
 
 @Injectable()
-export class InvitationSenderService {
+export class InvitationSenderService implements OnModuleInit {
   private readonly logger = new Logger(InvitationSenderService.name);
   private readonly appUrl: string;
 
@@ -36,6 +37,15 @@ export class InvitationSenderService {
     this.appUrl = config.get<string>('PUBLIC_APP_URL') ?? 'http://localhost:5173';
     this.configuredChannels = deliverableChannels(config);
     this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
+  }
+
+  onModuleInit(): void {
+    this.communications.checkBeforeSending(TEMPLATE_KEY, async ({ guestId, eventId }) => {
+      if (!guestId || !eventId) return false;
+      return await this.prisma.guest.count({ where: { id: guestId, eventId, anonymizedAt: null,
+        event: { invitation: { status: 'PUBLISHED', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } },
+      } }) > 0;
+    });
   }
 
   /**
@@ -247,6 +257,7 @@ export class InvitationSenderService {
         id: true,
         slug: true,
         status: true,
+        expiresAt: true,
         eventId: true,
         event: {
           select: {
@@ -265,6 +276,7 @@ export class InvitationSenderService {
       id: invitation.id,
       slug: invitation.slug,
       status: invitation.status,
+      expiresAt: invitation.expiresAt,
       eventId: invitation.eventId,
       organizationId: invitation.event.organizationId,
       title: invitation.event.title,
@@ -290,6 +302,7 @@ export class InvitationSenderService {
           'or guests will receive a link to a page that is not there',
       );
     }
+    if (hasInvitationExpired(invitation)) throw new BadRequestException('This invitation has expired');
     return invitation;
   }
 

@@ -216,6 +216,17 @@ or analytics are written and no RSVP can be collected through a preview route.
 The frontend uses its actual invitation renderer and disables submission;
 visual/browser acceptance remains pending.
 
+### Page lifetime and freshness
+
+First publication captures 90 days after event end/start for the free fallback,
+or an eligible subscription's finite/indefinite plan lifetime. Date edits
+recompute finite expiry; reopening does not reset it. Expired guest pages and
+contribution access close while host drafts/data/media remain available.
+Previously published rows preserve their deadlines as LEGACY pending review.
+Shared and personal cached payloads use committed database revisions and live
+access checks, so design/venue/guest edits and erasure cannot revive stale pages
+after Redis recovers. See [API.md](API.md#invitation-lifetime-and-expired-access).
+
 ## 7. Not yet built
 
 1. **Cropping and focal points.** Photos get smaller WebP copies by width;

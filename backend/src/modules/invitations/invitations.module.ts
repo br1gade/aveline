@@ -1,3 +1,4 @@
+import { InvitationMaintenanceService } from './invitation-maintenance.service';
 import { Module } from '@nestjs/common';
 import { ArrangementService } from './arrangement.service';
 import { InvitationLifecycleController } from './invitation-lifecycle.controller';
@@ -11,6 +12,7 @@ import { RsvpConfirmerService } from './sending/rsvp-confirmer.service';
 @Module({
   controllers: [InvitationsController, InvitationLifecycleController],
   providers: [
+    InvitationMaintenanceService,
     InvitationsService,
     ArrangementService,
     PublishingService,
@@ -19,6 +21,7 @@ import { RsvpConfirmerService } from './sending/rsvp-confirmer.service';
     RsvpConfirmerService,
   ],
   exports: [
+    InvitationMaintenanceService,
     InvitationsService,
     ArrangementService,
     InvitationSenderService,

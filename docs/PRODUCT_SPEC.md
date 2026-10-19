@@ -81,7 +81,7 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 ## 4. Domain model
 
 The entities below are the ones the product argument rests on. The complete
-inventory — 54 models, what each is for, and the invariants the database
+inventory — 64 models, what each is for, and the invariants the database
 enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 
 | Entity | Purpose |
@@ -299,7 +299,7 @@ Tiers gate **capability**, never artificial scarcity. Revisions, languages and s
 | Post-event gallery & thank-yous | — | ✓ | ✓ |
 | Invitation stays live | 3 months | indefinitely | indefinitely |
 
-Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and entitlements are published but not enforced until real events show what to charge and which limits matter.
+Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and other entitlements are published but not enforced until real events show what to charge and which limits matter. Invitation lifetime is enforced independently; paid billing remains inactive.
 
 ---
 
@@ -398,13 +398,15 @@ between a tool someone reaches for and one they avoid.
 | Operations dashboard | < 500 ms | 6–18 ms |
 | Block arrangement | < 300 ms | ~25 ms |
 
-Measured on a small demo event, so these are a floor rather than a guarantee at
+These historical measurements predate batch H’s live access/revision checks.
+Measured on a small demo event, they are a floor rather than a guarantee at
 400 guests. The point of recording them is that a regression is visible.
 
-A **degraded** store must not break the budget either. With Redis and MongoDB
-both stopped, the invitation endpoint serves correct content in ~20 ms and the
-dashboard in ~6 ms — see [DATA_STORES.md](../backend/docs/DATA_STORES.md) for the two failures
-that had to be fixed to make that true.
+A **degraded** store must not break the budget either. The historical
+Redis/Mongo outage run measured ~20 ms for invitations and ~6 ms for the
+dashboard. Current personalized-page warm/cold/degraded measurements use
+`pilot:cache`; production capacity acceptance remains open. See
+[DATA_STORES.md](../backend/docs/DATA_STORES.md).
 
 Anything CPU-bound — seating computation, exports, image processing — runs as
 a job and never inside a request. See [DATA_STORES.md](../backend/docs/DATA_STORES.md).
@@ -500,7 +502,11 @@ operations dashboard.
 5. **Diaspora.** Launch market or expansion market?
 6. **Price points.** §8 is structural only; the numbers are unset.
 7. **Vendor supply.** The network module is worthless without partners. Sequencing matters.
-8. **Page lifetime.** How long does a published invitation stay live after the event, and at what tier?
+8. **Page lifetime — decided and implemented.** Free access closes 90 elapsed
+   days after event end (start when no end exists); paid plans may be indefinite.
+   Capture the policy at first publication. Date corrections move finite expiry;
+   plan changes and reopening do not reset it. Keep host data/media after expiry;
+   preserve and report ambiguous legacy publication history for operator review.
 
 
 ### Guest contributions — pilot delivery (19 October 2026)

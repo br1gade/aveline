@@ -289,3 +289,15 @@ links, attendance, seating, answers or private acknowledgements. They are served
 private/no-store and do not publish or collect responses. Question reordering
 requires `invitation:design`; directory operator assignment remains staff-only
 under `directory:manage`, and accepts active curated VENUE vendors only.
+
+### Invitation expiry and cached capabilities
+
+A page capability grants access only while the invitation is readable and
+unexpired, and the person is not erased. Generic/personal pages check Postgres
+before and after cached loads; the raw token never appears in a cache key or
+projection. Guest RSVP reads, gallery/acknowledgement files, self-name changes
+and Telegram opt-in also enforce availability. New invitation/reminder sends
+refuse expired access and queued ones recheck before dispatch. Expiry preserves
+all host permissions and data; no new role or permission is introduced. Legacy
+published rows retain their existing deadline until reviewed. See
+[API.md](API.md#invitation-lifetime-and-expired-access).

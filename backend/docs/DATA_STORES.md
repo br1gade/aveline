@@ -69,47 +69,63 @@ Redis fails immediately rather than queueing requests behind it.
 
 ### In use
 
-**Invitation payload cache.** The hottest read in the product: one link opened
-by every guest, usually within minutes of being sent, and the payload is
-identical for everyone reading the same language. Keyed by slug **and** locale
-so a cached Armenian page can never be served to a Russian reader. TTL is a
-backstop; any write that changes what the page renders invalidates immediately.
+**Shared and personalized invitation caches.** Shared payloads use
+`aveline:invitation:<slug>:<negotiatedLocale>:v2:<eventId>:<revision>`; personal
+projections use `aveline:personal:v1:<eventId>:<guestId>:<negotiatedLocale>:<revision>`.
+Shared TTL is `INVITATION_CACHE_TTL` (default 300 seconds); personal TTL is at
+most 300 seconds. Locale is negotiated against the event's published list,
+never an arbitrary query string. Old revisions expire naturally. Personal
+projections contain names, household, attendance, RSVP and authorized seating;
+they exclude raw capabilities, contacts, signature evidence and token-bearing
+links. Telegram links are generated only after final authorization.
 
-Beside each slug's payloads sits a small **page meta** entry — the event id,
-its languages and its visibility — so a hit is two Redis reads and no
-Postgres at all. (It used to load the invitation, blocks, event, venues and
-timeline first, only to choose the key.) Changing visibility invalidates both.
+Each request reads **Postgres before and after** retrieving/building the
+payload: publication, expiry, visibility, guest identity/erasure and revision
+are authoritative even on a warm hit. Missing/expired/revoked access returns
+404; a changed revision retries at most three times, then returns 409 for the
+client to retry. There is no Redis page-meta authorization shortcut. Both
+invitation GET routes return `Cache-Control: private, no-store`; Redis caching stays server-side.
 
-**Invalidation cannot be undone by a slow reader.** Each invitation has a
-generation counter (`aveline:invitation-generation:<slug>`, outside the
-payload pattern so deleting payloads never resets it). Invalidating bumps it
-before deleting; a miss reads it before loading and stores the result only if
-it has not moved — one Lua script, so the check and the write are atomic. A
-request that read the old row just before an edit used to store it back for
-the whole TTL.
+**Durable invalidation.** Row triggers on events, invitations, templates,
+blocks, questions, media, venues/timeline, guests/households, RSVP/attendance,
+seating, tickets and private contributions append one `GuestPageChange` per
+event/transaction. The revision is `GuestPageVersion.revision` plus the count
+of committed ledger rows, in one SQL snapshot. Counting rather than taking the
+largest transaction id handles older transactions committing last. Rollback
+also rolls back its invalidation. This covers raw SQL, imports, workers and
+erasure, including Redis downtime. An old in-flight reader may populate its
+old key, but the final revision check retries and future reads cannot use it.
 
-The **personalized** page is the cached shared payload plus one query for the
-guest, never cached itself — per-guest by definition, so caching it would
-multiply the keyspace by the guest count for no reuse.
+The minute `invitations.maintain-access` sweep locks up to 50 version scopes
+and atomically compacts at most 1,000 ledger rows into base counts without
+changing visible revisions. The append ledger deliberately has no event FK:
+writes must not acquire event locks after household/seating locks. Up to 1,000
+orphan metadata rows are reclaimed per run. Metadata contains only ids and
+transaction numbers. Redis failure pauses the sweep, so monitor ledger growth;
+request correctness does not depend on the sweep running. Restore Postgres
+with an empty/rebuilt Redis: restoring an older database can rewind revisions.
 
-Invalidation uses `SCAN`, never `KEYS`. `KEYS` blocks the Redis event loop
-across the whole keyspace and stalls every other client on a shared instance.
-
-**Every component of a cache key must be bounded.** The locale in the key comes
-from a public query parameter, and it was briefly taken at face value: 50
-requests with junk locales created 50 entries. On an unauthenticated endpoint
-with `allkeys-lru`, that lets anyone evict every real entry and send the load to
-Postgres. The locale is now negotiated against the event's published list, so
-the keyspace per invitation is bounded by the number of languages it offers.
-Measured after the fix: 100 junk requests, 1 key.
-
-Treat this as the general rule, not a one-off. Before any value becomes part of
-a cache key, ask what bounds it.
+Existing explicit invalidation uses `SCAN`, never `KEYS`, and retains the general
+cache adapter’s Redis generation guard. Invitation freshness now depends on the
+durable revision rather than successful Redis deletion. A cache outage falls
+back to Postgres for both layers, and recovery cannot revive stale access.
 
 ### Measured
 
-With Redis stopped mid-flight, the invitation endpoint keeps serving correct
-content in ~20 ms — the payload is simply rebuilt from Postgres each time.
+The earlier ~20 ms Redis-outage measurement predates personalized caching and
+live capability/revision checks. Use `npm run pilot:cache` for the current
+400-person, 100-household, two-venue/800-seat HTTP workload, with 50 concurrent
+distinct guest/locale reads in each warm, cold, disconnected and recovered phase.
+It uses the guarded test database without truncation and reports no capability
+URLs. Production proxy/TLS, analytics and mixed writes still require batch J.
+
+Latest local p95 (19 October): warm 39.2 ms, cold 103.7 ms, disconnected
+116.7 ms, recovered 63.2 ms; zero unexpected responses. Earlier warm bursts
+reached 108 ms; the latest recovered phase misses the 50 ms warm target.
+Production acceptance needs an actual-host rerun and remediation of missed
+budgets in batch J. The full
+workload and percentiles are recorded in
+[PILOT_IMPLEMENTATION_PLAN.md](../../docs/PILOT_IMPLEMENTATION_PLAN.md#9-milestone-h--lifetime-and-personalized-cache).
 
 ### Also in use
 

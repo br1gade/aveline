@@ -1,3 +1,4 @@
+import { InvitationMaintenanceSweepService } from './invitation-maintenance-sweep.service';
 import { GuestContributionsModule } from '../../modules/guest-contributions/guest-contributions.module';
 import { ContributionSweepService } from './contribution-sweep.service';
 import { Module } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { ReminderSweepService } from './reminder-sweep.service';
 @Module({
   imports: [GuestContributionsModule, ScheduleModule.forRoot(), PaymentsModule, TicketingModule, BillingModule, InvitationsModule, PrivacyModule, MediaModule],
   providers: [
+    InvitationMaintenanceSweepService,
     ContributionSweepService,
     JobLockService,
     JobsService,

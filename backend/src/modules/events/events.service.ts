@@ -1,3 +1,4 @@
+import { hasInvitationExpired } from '../invitations/lifetime';
 import {
   BadRequestException,
   ConflictException,
@@ -229,7 +230,7 @@ export class EventsService {
       },
     });
     if (!event) throw new NotFoundException(`No event ${id}`);
-    return event;
+    return { ...event, invitation: event.invitation ? { ...event.invitation, isExpired: hasInvitationExpired(event.invitation) } : null };
   }
   /**
    * Corrects an event's core details after it was created.

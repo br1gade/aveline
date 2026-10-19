@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 62 models across three
+The authoritative map of what is stored and where. 64 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 62 |
+| **PostgreSQL** | The entire domain. The only source of truth | 64 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -42,7 +42,8 @@ lives outside Postgres.
 | Model | Purpose |
 |---|---|
 | `DesignTemplate` | Fonts, palettes and blocks a template renders correctly |
-| `Invitation` | The published page |
+| `Invitation` | Published page; captured first publication, duration/source/plan key, expiry and processed marker |
+| `GuestPageVersion` · `GuestPageChange` | Durable base revision and committed per-event transaction ledger for shared/personal cache freshness |
 | `InvitationBlock` | One section, ordered, data-bound, toggleable |
 | `MediaAsset` | Public invitation uploads, scoped to an event |
 | `GuestMedia` | Private raw/derived keys, processing/moderation, reserved bytes and durable deletion tombstones |
@@ -107,6 +108,22 @@ Guests carry `consentAt` / `consentSource` and `anonymizedAt`; `User` and
 `Organization` carry `deletedAt`.
 
 ## 3. Decisions worth knowing before changing anything
+
+**Invitation lifetime is captured once.** `firstPublishedAt`, `lifetimeDays`,
+`lifetimeSource` (`FREE_DEFAULT`, `PLAN`, `LEGACY`) and `lifetimePlanKey` explain
+`expiresAt`. Free fallback is 90 elapsed days after event end/start; a valid
+ACTIVE subscription with a future period end captures its plan's
+positive days or null for indefinite. Event-date changes recompute finite
+captured deadlines; close/reopen and catalogue changes do not reset entitlement.
+Existing published history becomes LEGACY with its original deadline (including
+null) and no invented publication timestamp. `expiryProcessedAt` is an operational
+marker, rearmed when expiry changes; it does not archive or delete data.
+
+**Page revisions commit with domain writes.** Trigger-maintained change rows
+have no parent FK to avoid reversed event/household lock acquisition. Bounded
+compaction and orphan reclamation run every minute. The version base has an
+event FK/cascade. See [DATA_STORES.md](DATA_STORES.md) for cache/read semantics.
+
 
 **Money is `BigInt` minor units.** Never a float, never a `Decimal` someone can
 round. AMD has no subunit: 25,000 dram is `25000`.
@@ -207,7 +224,7 @@ Deliberate, with the reason.
 | `PrintOrder` | Same |
 | `ThankYou` | Post-event flow; the guest graph already holds who to thank |
 | Tax rates | Needed for corporate invoicing; `Invoice.taxMinor` holds the amount, nothing computes it |
-| Retention sweep | `Invitation.expiresAt` exists but nothing sets or sweeps it, so pages live forever and storage is never reclaimed (PRODUCT_SPEC §14) |
+| Host-data retention policy | Guest expiry is enforced and swept; it deliberately retains host data/media. Any future automatic deletion needs a separately agreed policy |
 | Inbound message ingestion | `direction` and `threadKey` are modelled; no provider webhook receives a reply |
 | `AuditLog` | Belongs in MongoDB — append-only, never joined |
 

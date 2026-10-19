@@ -254,6 +254,7 @@ model Event {
   seatingJobs SeatingJob[]
   guestMedia GuestMedia[]
   acknowledgements GuestAcknowledgement[]
+  guestPageVersion GuestPageVersion?
 
 }
 
@@ -370,6 +371,12 @@ model TimelineEntry {
 
 // ───────────────────────────── Invitation ──────────────────────────────
 
+enum InvitationLifetimeSource {
+  FREE_DEFAULT
+  PLAN
+  LEGACY
+}
+
 model Invitation {
   id         String           @id @default(cuid())
   eventId    String           @unique
@@ -387,6 +394,11 @@ model Invitation {
   status     InvitationStatus @default(DRAFT)
   /// Invitation stays reachable until this moment; null = indefinitely
   expiresAt  DateTime?
+  firstPublishedAt DateTime?
+  lifetimeDays Int?
+  lifetimeSource InvitationLifetimeSource?
+  lifetimePlanKey String?
+  expiryProcessedAt DateTime?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
@@ -396,6 +408,8 @@ model Invitation {
   questions RsvpQuestion[]
 
   @@index([templateId])
+  @@index([expiresAt, expiryProcessedAt])
+  @@index([lifetimeSource, status])
   @@map("invitations")
 }
 
@@ -1760,8 +1774,8 @@ model Plan {
   maxLocales             Int      @default(1)
   /// How long a published invitation stays reachable after its event.
   /// Null means indefinitely, which is what a paid tier buys; free tiers
-  /// carry a number and the retention sweep uses it to set
-  /// Invitation.expiresAt. See PRODUCT_SPEC §14.8.
+  /// carry a number captured at first publication to set
+  /// Invitation.expiresAt after event end/start. See PRODUCT_SPEC §14.8.
   invitationLifetimeDays Int?
   /// Capability flags, e.g. ["seating", "vendor-briefs", "check-in"].
   features               String[] @default([])
@@ -2241,4 +2255,19 @@ model GuestMedia {
   @@index([processingStatus, leaseUntil, createdAt])
   @@index([cleanupAfter])
   @@map("guest_media")
+}
+
+// Writers append one change per event/transaction, avoiding lock upgrades on
+// event rows and lock inversions with seating jobs. Compaction preserves totals.
+model GuestPageVersion {
+  eventId String @id
+  revision BigInt @default(0)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@map("guest_page_versions")
+}
+model GuestPageChange {
+  eventId String
+  transactionId BigInt
+  @@id([eventId, transactionId])
+  @@map("guest_page_changes")
 }

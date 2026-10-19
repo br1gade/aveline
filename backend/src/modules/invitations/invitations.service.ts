@@ -1,11 +1,13 @@
+import { GuestPageMeta, readGuestPageMeta } from './guest-page-version';
+import { hasInvitationExpired } from './lifetime';
 import { buildInvitationContent } from './invitation-content';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
-import { CacheService, invitationCacheKey, invitationMetaKey, invitationGenerationKey } from '../../infra/cache/cache.service';
+import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
 import { ATTENDANCE_GUEST, attendanceView } from '../rsvp/attendance/attendance-view';
 import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
 import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
@@ -40,21 +42,24 @@ export const blockMediaSelect = {
   variants: true,
 } satisfies Prisma.MediaAssetSelect;
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
-const GUEST_INCLUDE = {
+const GUEST_SELECT = {
+  id: true, firstName: true, lastName: true, locale: true,
   ...ATTENDANCE_GUEST,
-  rsvp: true,
+  rsvp: { select: { status: true, respondedAt: true } },
   event: { select: { seatingPublishedAt: true, ...ATTENDANCE_GUEST.event.select } },
   household: {
-    include: {
+    select: {
+      name: true, seatsAllotted: true,
       guests: {
+        where: { anonymizedAt: null },
         orderBy: { isPrimary: 'desc' },
-        include: { ...ATTENDANCE_GUEST, seats: { include: SEAT_DETAIL } },
+        select: { id: true, firstName: true, lastName: true, ...ATTENDANCE_GUEST, seats: { include: SEAT_DETAIL } },
       },
     },
   },
-} satisfies Prisma.GuestInclude;
+} satisfies Prisma.GuestSelect;
 
-type LoadedGuest = Prisma.GuestGetPayload<{ include: typeof GUEST_INCLUDE }>;
+type LoadedGuest = Prisma.GuestGetPayload<{ select: typeof GUEST_SELECT }>;
 
 
 @Injectable()
@@ -72,96 +77,49 @@ export class InvitationsService {
     this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
   }
 
-  /**
-   * The hot path. One invitation link is opened by every guest, often in the
-   * same few minutes after it is sent, and the payload is identical for every
-   * guest reading the same language. It is cached per slug and locale and
-   * dropped on any write that changes what the page renders.
-   *
-   * The personalized variant is NOT cached: it is per-guest by definition, and
-   * caching it would multiply the keyspace by the guest count for no reuse.
-   */
   async getCachedInvitation(slug: string, locale?: string) {
-    const meta = await this.pageMeta(slug);
-    // A PRIVATE event is reachable by personal link only (spec §13.1; D6,
-    // 9 October 2026). Changing visibility invalidates the cache, so making
-    // an event private closes its generic link at once.
-    if (meta.visibility === EventVisibility.PRIVATE) {
-      throw new NotFoundException(`Invitation "${slug}" is no longer available`);
-    }
-    // Bounds the cache keyspace to the locales this event publishes.
-    const effectiveLocale = negotiateLocale(locale, meta.locales, meta.defaultLocale);
-    const payload = await this.sharedPayload(slug, effectiveLocale);
-
-    // Fire and forget: a guest's page must never wait on analytics.
-    void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale: effectiveLocale });
-    return payload;
+    return this.servePage(slug, undefined, locale);
   }
 
-  /**
-   * The page personalized for one guest: greeted by name, in their language,
-   * with their household's real seat allowance (spec §5.4).
-   *
-   * Built from the cached shared page plus one query for the guest — the
-   * personal link is what every email carries, so it is most of the traffic,
-   * and rebuilding the whole page per guest cost some fourteen queries.
-   */
   async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string) {
-    const meta = await this.pageMeta(slug);
-    const guest = guestToken ? await this.findGuest(guestToken, meta.eventId) : null;
-    // A personal link must belong to a guest. Served with `guest: null`, any
-    // made-up token opened a PRIVATE event's page — its generic URL with
-    // extra steps. Same answer as an unknown slug, so a token is not probeable.
-    if (guestToken && !guest) throw new NotFoundException(`Invitation "${slug}" is no longer available`);
-    if (!guest) return this.getCachedInvitation(slug, requestedLocale);
-
-    // A language the guest picks on the page wins, if the event publishes it;
-    // otherwise their own. Picking one does not change their stored language.
-    // Negotiated like the shared page: `en-GB` reaches `en`.
-    const asked = requestedLocale ? negotiateLocale(requestedLocale, meta.locales, '') : '';
-    const locale = negotiateLocale(asked || (guest.locale ?? undefined), meta.locales, meta.defaultLocale);
-    const payload = await this.sharedPayload(slug, locale);
-
-    void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: guest.id });
-    return { ...payload, guest: this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, locale) };
+    return this.servePage(slug, guestToken, requestedLocale);
   }
 
-  /**
-   * Who may read the page and in which languages, cached beside it. A hit on
-   * the page used to load the invitation, its blocks, event, venues and
-   * timeline from Postgres first, only to decide the cache key.
-   */
-  private pageMeta(slug: string) {
-    return this.cache.readThrough(invitationMetaKey(slug), this.cacheTtlSeconds, async () => {
-      const invitation = await this.prisma.invitation.findUnique({
-        where: { slug },
-        select: { status: true, event: { select: { id: true, locales: true, defaultLocale: true, visibility: true } } },
-      });
-      if (!invitation || !isReadableByGuests(invitation.status)) {
-        throw new NotFoundException(`Invitation "${slug}" is no longer available`);
-      }
-      const { event } = invitation;
-      return { eventId: event.id, locales: event.locales, defaultLocale: event.defaultLocale, visibility: event.visibility };
-    }, invitationGenerationKey(slug));
+  private async servePage(slug: string, token?: string, requestedLocale?: string) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const meta = await this.pageMeta(slug, token);
+      const asked = requestedLocale ? negotiateLocale(requestedLocale, meta.locales, '') : '';
+      const locale = negotiateLocale(asked || (meta.guestLocale ?? undefined), meta.locales, meta.defaultLocale);
+      const [payload, guest] = await Promise.all([this.sharedPayload(slug, locale, meta),
+        meta.guestId ? this.personalPayload(meta, locale) : Promise.resolve(null)]);
+      const current = await this.pageMeta(slug, token);
+      if (!isSamePage(meta, current)) continue;
+      void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: meta.guestId ?? undefined });
+      return { ...payload, guest: guest ? { ...guest, telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${token!}` : null } : null };
+    }
+    throw new ConflictException('Invitation changed while loading; please retry');
   }
 
-  /** The page as every guest reading this language sees it, cached per slug and locale. */
-  private sharedPayload(slug: string, locale: string) {
-    return this.cache.readThrough(
-      invitationCacheKey(slug, locale),
-      this.cacheTtlSeconds,
-      async () => this.buildPayload(await this.loadPublished(slug), null, locale),
-      invitationGenerationKey(slug),
-    );
+  private async pageMeta(slug: string, token?: string) {
+    const [meta] = await readGuestPageMeta(this.prisma, slug, token);
+    const isDenied = !meta || !isReadableByGuests(meta.status) || hasInvitationExpired(meta)
+      || (token ? !meta.guestId : meta.visibility === EventVisibility.PRIVATE);
+    if (isDenied) throw new NotFoundException(`Invitation "${slug}" is no longer available`);
+    return meta;
   }
 
-  private buildPayload(
-    invitation: LoadedInvitation,
-    guest: LoadedGuest | null,
-    requestedLocale?: string,
-  ) {
-    const payload = buildInvitationContent(invitation, requestedLocale);
-    return { ...payload, guest: guest ? this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, payload.locale) : null };
+  private sharedPayload(slug: string, locale: string, meta: GuestPageMeta) {
+    return this.cache.readThrough(`${invitationCacheKey(slug, locale)}:v2:${meta.eventId}:${meta.revision}`, this.cacheTtlSeconds,
+      async () => buildInvitationContent(await this.loadPublished(slug), locale));
+  }
+
+  private personalPayload(meta: GuestPageMeta, locale: string) {
+    const key = `aveline:personal:v1:${meta.eventId}:${meta.guestId!}:${locale}:${meta.revision}`;
+    return this.cache.readThrough(key, Math.min(this.cacheTtlSeconds, 300), async () => {
+      const guest = await this.findGuest(meta.guestId!, meta.eventId);
+      if (!guest) throw new NotFoundException('Invitation is no longer available');
+      return this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, locale);
+    });
   }
 
   private async loadPublished(slug: string): Promise<LoadedInvitation> {
@@ -173,7 +131,7 @@ export class InvitationsService {
     if (!invitation || !isReadableByGuests(invitation.status)) {
       throw new NotFoundException(`No published invitation at "${slug}"`);
     }
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
+    if (invitation.expiresAt && invitation.expiresAt <= new Date()) {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
     const media = await this.loadBlockMedia(invitation);
@@ -219,16 +177,13 @@ export class InvitationsService {
       // Decision D4: their own household's tables, on their own link, once the
       // host publishes — never the room, never on the shared page.
       seating: isSeatingPublished ? seatingFor(guest, locale) : null,
-      // Opening the bot from here opts them in to reminders on Telegram. Their
-      // own token, so it links this guest; null when no bot is configured.
-      telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${guest.token}` : null,
     };
   }
 
-  private findGuest(token: string, eventId: string) {
+  private findGuest(id: string, eventId: string) {
     return this.prisma.guest.findFirst({
-      where: { token, eventId },
-      include: GUEST_INCLUDE,
+      where: { id, eventId, anonymizedAt: null },
+      select: GUEST_SELECT,
     });
   }
 }
@@ -252,4 +207,8 @@ function seatingFor(guest: LoadedGuest, locale: string) {
       id: member.id, name: fullName(member), table: tableOf(member), assignments: seatingAssignments(visibleSeats(member), locale),
     })),
   };
+}
+
+function isSamePage(before: GuestPageMeta, after: GuestPageMeta): boolean {
+  return before.eventId === after.eventId && before.guestId === after.guestId && before.revision === after.revision;
 }

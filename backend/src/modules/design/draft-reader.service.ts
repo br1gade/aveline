@@ -1,3 +1,4 @@
+import { hasInvitationExpired, LIFETIME_SELECT } from '../invitations/lifetime';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { BlockType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -5,6 +6,7 @@ import { publishBlockers } from '../invitations/publishing';
 import { BUILT_IN_FIELDS, fieldOf } from '../rsvp/rsvp-fields';
 
 const draftSelect = {
+  ...LIFETIME_SELECT,
   slug: true,
   status: true,
   theme: true,
@@ -85,6 +87,8 @@ export class DraftReaderService {
     return {
       slug: draft.slug,
       status: draft.status,
+      firstPublishedAt: draft.firstPublishedAt, lifetimeDays: draft.lifetimeDays, lifetimeSource: draft.lifetimeSource,
+      lifetimePlanKey: draft.lifetimePlanKey, expiresAt: draft.expiresAt, isExpired: hasInvitationExpired(draft),
       event: { ...draft.event, venues: undefined },
       template: { ...draft.template, defaultTheme: undefined },
       theme: draft.theme,

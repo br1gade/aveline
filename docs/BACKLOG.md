@@ -113,11 +113,11 @@ it needs a cancellation during the event itself, at the door.
 | F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
 | F24 | Backend implemented: validated same-event hero/share selection, batched responsive images and privacy-aware metadata. Frontend HTML Open Graph tags and browser acceptance remain (§13.2) | S |
 | F25 | Backend implemented: versioned typed/drawn acknowledgements, explicit household representation, RSVP/admission gates and attendee personal links. Frontend and production acceptance remain | S–M |
-| F26 | Caching the personalised page — every link actually sent is personalised and uncached | M |
+| F26 | Backend implemented: bounded personal projections, durable revisions, live capability/expiry checks and Redis fallback. Production load acceptance remains | M |
 | F27 | Backend implemented: all exports and automatic seating use durable workers with bounded recovery and stale-plan guards. Queued frontend integration and production acceptance remain | M |
 | F28 | Backend implemented: synthetic en/ru/fr/hy and authorized event preview payloads share the live serializer. Frontend renderer integration and visual acceptance remain | S |
 | F29 | Backend implemented: atomic complete question ordering with stale-order conflicts; answered data preserved. Frontend editor acceptance remains | S |
-| F30 | Invitation expiry from the plan's lifetime (decided: indefinite paid, 3 months free) | S |
+| F30 | Backend implemented: captured lifetime, free 90 days after event end/start, preserved legacy deadlines and bounded sweep. Frontend expiry state and production acceptance remain | S |
 | F46 | Backend implemented: personal-link self-name correction preserving identity links, answers and seats. Frontend form acceptance remains (§5.3) | S |
 | F47 | Backend implemented: curated VENUE operators may manage several directory halls; staff validation and private-link filtering. Frontend directory acceptance remains | S |
 | F48 | Backend implemented: allowlisted LOGO/COVER/PHOTO/AUDIO uploads honor kind and validate MIME/attachment compatibility. Frontend corporate logo acceptance remains | S |
