@@ -1,0 +1,124 @@
+{
+  "occasion": {
+    "WEDDING": "Свадьба",
+    "ENGAGEMENT": "Помолвка",
+    "BAPTISM": "Крестины",
+    "BIRTHDAY": "День рождения",
+    "ANNIVERSARY": "Годовщина",
+    "CORPORATE": "Корпоративное мероприятие",
+    "OTHER": "Праздник"
+  },
+  "timeZone": {
+    "yerevan": "по ереванскому времени",
+    "moscow": "по московскому времени"
+  },
+  "personal": {
+    "label": "Ваше приглашение",
+    "greeting": "{{name}},",
+    "welcome": "Будем счастливы разделить этот день с вами.",
+    "seats": "Забронировано мест: {{count}}",
+    "seatsToName": "Свободных мест: {{count}}",
+    "repliedOn": "Ответ отправлен {{date}}",
+    "reply": "Ответить",
+    "changeReply": "Изменить ответ"
+  },
+  "status": {
+    "ATTENDING": "Вы придёте",
+    "DECLINED": "Вы не придёте",
+    "UNDECIDED": "Пока не решено",
+    "withCount": "{{status}} · {{count}}"
+  },
+  "story": {
+    "label": "Наша история"
+  },
+  "countdown": {
+    "label": "До праздника",
+    "days_one": "день",
+    "days_few": "дня",
+    "days_many": "дней",
+    "days_other": "дня",
+    "hours_one": "час",
+    "hours_few": "часа",
+    "hours_many": "часов",
+    "hours_other": "часа",
+    "minutes_one": "минута",
+    "minutes_few": "минуты",
+    "minutes_many": "минут",
+    "minutes_other": "минуты",
+    "daysToGo_one": "Остался {{count}} день",
+    "daysToGo_few": "Осталось {{count}} дня",
+    "daysToGo_many": "Осталось {{count}} дней",
+    "daysToGo_other": "Осталось {{count}} дня"
+  },
+  "music": {
+    "label": "Музыка",
+    "on": "Музыка: вкл.",
+    "off": "Музыка: выкл.",
+    "pause": "Остановить музыку"
+  },
+  "venue": {
+    "label": "Места",
+    "heading": "Куда приехать",
+    "role": {
+      "CEREMONY": "Церемония",
+      "RECEPTION": "Банкет",
+      "AFTER_PARTY": "Афтепати",
+      "PREPARATION": "Сборы",
+      "OTHER": "Другое"
+    },
+    "arriveBy": "Прибыть к {{time}}",
+    "directions": "Как добраться",
+    "copyAddress": "Скопировать адрес",
+    "copied": "Адрес скопирован"
+  },
+  "map": {
+    "label": "Маршрут",
+    "heading": "Как добраться",
+    "open": "Открыть на карте"
+  },
+  "timeline": {
+    "label": "Программа",
+    "heading": "Программа дня"
+  },
+  "dressCode": {
+    "label": "Дресс-код",
+    "swatches": "Рекомендуемые цвета"
+  },
+  "notes": {
+    "label": "Заметки",
+    "heading": "Несколько пожеланий"
+  },
+  "gallery": {
+    "label": "Галерея",
+    "heading": "Моменты"
+  },
+  "reply": {
+    "label": "Пожалуйста, ответьте",
+    "heading": "Вы будете с нами?",
+    "closed": "Приём ответов завершён. Все подробности остаются здесь.",
+    "generic": "Чтобы ответить, откройте личную ссылку из приглашения.",
+    "skip": "Перейти к ответу"
+  },
+  "chat": {
+    "label": "Чат гостей",
+    "join": "Присоединиться к чату гостей"
+  },
+  "contact": {
+    "label": "Есть вопросы?",
+    "call": "Позвонить"
+  },
+  "notFound": {
+    "title": "Это приглашение недоступно",
+    "body": "Проверьте ссылку или обратитесь к тем, кто вас пригласил.",
+    "sentence": "Это приглашение недоступно. Проверьте ссылку или обратитесь к тем, кто вас пригласил."
+  },
+  "language": {
+    "label": "Язык",
+    "hy": "Հայերեն",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "footer": {
+    "logo": "Aveline Events"
+  }
+}

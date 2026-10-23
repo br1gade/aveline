@@ -1,0 +1,99 @@
+{
+  "answer": {
+    "legend": "Your answer",
+    "ATTENDING": "Joyfully attending",
+    "DECLINED": "Regretfully declining",
+    "UNDECIDED": "Not sure yet",
+    "undecidedNote": "You can change your reply later, when you know."
+  },
+  "household": {
+    "title": "Who’s coming",
+    "seats": "Seats reserved: {{count}}",
+    "ATTENDING": "Attending",
+    "DECLINED": "Not attending",
+    "UNDECIDED": "Not sure",
+    "dietaryFor": "Dietary needs for {{name}}"
+  },
+  "party": {
+    "title": "Add a guest",
+    "add": "Add a guest",
+    "remove": "Remove",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "remaining": "Seats remaining: {{count}}",
+    "guest": "Guest {{number}}"
+  },
+  "side": {
+    "title": "Who invited you?",
+    "both": "Both"
+  },
+  "dietary": {
+    "title": "Dietary requirements",
+    "notes": "Anything else we should know?",
+    "options": {
+      "vegetarian": "Vegetarian",
+      "vegan": "Vegan",
+      "gluten-free": "Gluten-free",
+      "lactose-free": "Lactose-free",
+      "nut-allergy": "Nut allergy"
+    }
+  },
+  "drink": {
+    "title": "Drink preference",
+    "options": {
+      "wine": "Wine",
+      "champagne": "Champagne",
+      "spirits": "Spirits",
+      "non-alcoholic": "Non-alcoholic"
+    }
+  },
+  "song": {
+    "title": "Your song",
+    "help": "Which song will get you dancing?"
+  },
+  "message": {
+    "title": "A message for the hosts"
+  },
+  "question": {
+    "required": "Required",
+    "optional": "Optional",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "counter": "{{count}} / {{limit}}",
+  "send": {
+    "button": "Send reply",
+    "sending": "Sending…",
+    "reassurance": "You can change your reply with this link while replies are open."
+  },
+  "summary": {
+    "label": "Your reply",
+    "attending_one": "Attending · {{count}} person",
+    "attending_other": "Attending · {{count}} people",
+    "DECLINED": "Not attending",
+    "UNDECIDED": "Not sure yet",
+    "sentOn": "Sent on {{date}}",
+    "change": "Change reply"
+  },
+  "sent": {
+    "heading": "Thank you",
+    "body": "Your reply has been received.",
+    "comingLabel": "Coming:"
+  },
+  "errors": {
+    "summaryTitle": "Please check your reply",
+    "chooseAnswer": "Choose an answer.",
+    "firstName": "Enter a first name.",
+    "tooLong": "This is too long.",
+    "required": "This question needs an answer.",
+    "invalidAnswer": "Check this answer.",
+    "members": "Check the answers for your household.",
+    "seats": "You have named more guests than your seats allow ({{count}}).",
+    "other": "Some answers could not be saved. Check them and try again.",
+    "rateLimited": "Too many attempts. Please wait a minute and try again.",
+    "failed": "We couldn’t send your reply. Check your connection and try again.",
+    "retry": "Try again",
+    "reference": "Reference: {{id}}",
+    "loadFailed": "We couldn’t load your reply. Please reload the page."
+  }
+}

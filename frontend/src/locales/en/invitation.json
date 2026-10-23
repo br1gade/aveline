@@ -1,0 +1,117 @@
+{
+  "occasion": {
+    "WEDDING": "Wedding",
+    "ENGAGEMENT": "Engagement",
+    "BAPTISM": "Baptism",
+    "BIRTHDAY": "Birthday",
+    "ANNIVERSARY": "Anniversary",
+    "CORPORATE": "Corporate event",
+    "OTHER": "Celebration"
+  },
+  "timeZone": {
+    "yerevan": "Yerevan time",
+    "moscow": "Moscow time"
+  },
+  "personal": {
+    "label": "Your invitation",
+    "greeting": "Dear {{name}},",
+    "welcome": "We would be honoured to celebrate this day with you.",
+    "seats": "Seats reserved: {{count}}",
+    "seatsToName_one": "{{count}} seat to name",
+    "seatsToName_other": "{{count}} seats to name",
+    "repliedOn": "Sent on {{date}}",
+    "reply": "Reply",
+    "changeReply": "Change reply"
+  },
+  "status": {
+    "ATTENDING": "You’re attending",
+    "DECLINED": "You’re not attending",
+    "UNDECIDED": "Not decided yet",
+    "withCount": "{{status}} · {{count}}"
+  },
+  "story": {
+    "label": "Our story"
+  },
+  "countdown": {
+    "label": "Until the celebration",
+    "days_one": "day",
+    "days_other": "days",
+    "hours_one": "hour",
+    "hours_other": "hours",
+    "minutes_one": "minute",
+    "minutes_other": "minutes",
+    "daysToGo_one": "{{count}} day to go",
+    "daysToGo_other": "{{count}} days to go"
+  },
+  "music": {
+    "label": "Music",
+    "on": "Music: on",
+    "off": "Music: off",
+    "pause": "Pause music"
+  },
+  "venue": {
+    "label": "Venues",
+    "heading": "Where to be",
+    "role": {
+      "CEREMONY": "Ceremony",
+      "RECEPTION": "Reception",
+      "AFTER_PARTY": "After-party",
+      "PREPARATION": "Getting ready",
+      "OTHER": "Other"
+    },
+    "arriveBy": "Arrive by {{time}}",
+    "directions": "Get directions",
+    "copyAddress": "Copy address",
+    "copied": "Address copied"
+  },
+  "map": {
+    "label": "Directions",
+    "heading": "How to get there",
+    "open": "Open in Maps"
+  },
+  "timeline": {
+    "label": "Programme",
+    "heading": "The day"
+  },
+  "dressCode": {
+    "label": "Dress code",
+    "swatches": "Suggested colours"
+  },
+  "notes": {
+    "label": "Notes",
+    "heading": "A few requests"
+  },
+  "gallery": {
+    "label": "Gallery",
+    "heading": "Moments"
+  },
+  "reply": {
+    "label": "Kindly reply",
+    "heading": "Will you join us?",
+    "closed": "Replies are closed. The details remain here for you.",
+    "generic": "To reply, open the personal link you received.",
+    "skip": "Skip to reply"
+  },
+  "chat": {
+    "label": "Guest chat",
+    "join": "Join the guest chat"
+  },
+  "contact": {
+    "label": "Questions?",
+    "call": "Call"
+  },
+  "notFound": {
+    "title": "This invitation isn’t available",
+    "body": "Check the link you received, or ask the person who invited you.",
+    "sentence": "This invitation isn’t available. Check the link you received, or ask the person who invited you."
+  },
+  "language": {
+    "label": "Language",
+    "hy": "Հայերեն",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "footer": {
+    "logo": "Aveline Events"
+  }
+}
