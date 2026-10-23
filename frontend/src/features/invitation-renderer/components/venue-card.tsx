@@ -49,8 +49,9 @@ function CopyAddress({ address }: { address: string }) {
 }
 
 /**
- * One place to be (spec §5, VENUE): the role, the name (never translated, F16), the address as
- * selectable text, the arrival time in the event's zone, and the actions.
+ * One place to be (spec §5, VENUE): the role, the name and address (in the page's language when
+ * the host translated them), the address as selectable text, the arrival time in the event's
+ * zone, and the actions.
  */
 export function VenueCard({ venue, className }: { venue: Venue; className?: string | undefined }) {
   const { t } = useTranslation('invitation');

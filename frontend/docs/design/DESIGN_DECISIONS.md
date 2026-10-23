@@ -133,9 +133,9 @@ Status: **proposed**, until accepted.
 | R-14 | A **sticky reply bar** on phones and tablets. It shows only while replies are open and the reply section is off screen, and it clears the safe area | Both references keep the main action within reach on phones; the guest's main task is to reply | [GUEST_INVITATION §4](GUEST_INVITATION.md#4-page-anatomy) |
 | R-15 | **Replying happens inline in the page, with progressive disclosure:** choose first, then the details appear; one submit | A modal on phones scrolls badly, and a short first step lowers the effort to reply | [GUEST_INVITATION §6](GUEST_INVITATION.md#6-replying-rsvp) |
 | R-16 | The invitation **keeps its own palette whatever the device's dark mode**, and declares `color-scheme: light` | It is a designed object; forced darkening breaks it | [DESIGN_SYSTEM §2](DESIGN_SYSTEM.md#2-colour) |
-| R-17 | The **language switcher** appears only where switching works: on a generic link with more than one language now, and on personalised links once F16 lands | Today a personalised link ignores `?locale` | [GUEST_INVITATION §9](GUEST_INVITATION.md#9-languages) |
+| R-17 | The **language switcher** appears only where switching works: wherever the event publishes more than one language. *23 October 2026: the backend built F16, so personal links have it too; switching does not change the guest's stored language* | A personalised link used to ignore `?locale` | [GUEST_INVITATION §9](GUEST_INVITATION.md#9-languages) |
 | R-18 | **No share button** on a personalised page | The link is the guest's credential; whoever holds it can answer for the household | [GUEST_INVITATION §12](GUEST_INVITATION.md#12-privacy) |
-| R-19 | **Maps are links** (`mapUrl`), opening in a new tab with no referrer. No embedded maps | Content-security policy and privacy (setup proposal §5.11); there are no coordinates yet (F9) | [GUEST_INVITATION §5](GUEST_INVITATION.md#5-blocks) |
+| R-19 | **Maps are links** (`mapUrl`), opening in a new tab with no referrer. No embedded maps | Content-security policy and privacy (setup proposal §5.11). Coordinates exist since 23 October 2026 (F9), and links still serve better | [GUEST_INVITATION §5](GUEST_INVITATION.md#5-blocks) |
 | R-20 | **Music** never plays on its own. One labelled control, off at first | Browsers block autoplay, and PRODUCT_SPEC asks for an explicit control | [GUEST_INVITATION §10](GUEST_INVITATION.md#10-motion-and-sound) |
 | R-21 | The **countdown** renders after hydration, does not announce itself to screen readers, and the date stays readable as plain text | It is time-dependent (setup proposal §5.2), and a ticking announcement is noise | [GUEST_INVITATION §5](GUEST_INVITATION.md#5-blocks) |
 | R-22 | Times carry a **time-zone label** such as "Yerevan time" | Diaspora guests are a primary segment (PRODUCT_SPEC §10) | [GUEST_INVITATION §9](GUEST_INVITATION.md#9-languages) |
@@ -208,9 +208,9 @@ blocks development. Some block launch ([README §6](README.md#6-launch-gates)).
 
 | ID | Question | Blocks |
 |---|---|---|
-| PQ-1 | Which **dietary options** do guests see? The API takes free strings, and the catering sheet counts whatever is sent, so the list must be fixed and translated | The RSVP form |
-| PQ-2 | Which **drink options** do guests see? The API takes one free string of up to 80 characters | The RSVP form |
-| PQ-3 | Which **well-known questions** does each invitation ask (side, dietary, drink, song, message), and does the host choose them? | The RSVP form, BQ-4 |
+| PQ-1 | Which **dietary options** do guests see? The API takes free strings, and the catering sheet counts whatever is sent, so the list must be fixed and translated. *23 October 2026: each invitation can now give its own choices (`rsvpFields`, BQ-9), and the form shows them. What is left for product: the default choices offered to a host* | The RSVP form |
+| PQ-2 | Which **drink options** do guests see? The API takes one free string of up to 80 characters. *23 October 2026: as PQ-1, the invitation gives the choices; the default ones are product's* | The RSVP form |
+| PQ-3 | Which **well-known questions** does each invitation ask (side, dietary, drink, song, message), and does the host choose them? *23 October 2026: the host chooses (BQ-4 answered). What is left for product: which are on by default* | The RSVP form, BQ-4 |
 | PQ-4 | **English date and time format:** day-month-year with a 24-hour clock (R-24), or US style? | Formatting |
 | PQ-5 | Offer **add to calendar** (R-31)? | n/a |
 | PQ-6 | Show the **guest's local time** (R-32)? | n/a |
@@ -228,12 +228,13 @@ These are candidates for `frontend/docs/BACKEND_REQUESTS.md` once that file exis
 | BQ-1 | **The guest payload carries the palette's name, never its colours** (`theme.palette`). Can the payload include the resolved colours or tokens? | Without it the renderer needs its own copy of every template's palettes, and "templates are data" stops being true. This is the same problem as FR-9 for fonts |
 | BQ-2 | **Palette colours have no roles,** and the two seeded templates order them differently: classic is background, accent, text; minimal is background, text, muted. Can palettes name their roles (R-28)? | A renderer cannot tell which colour is the text |
 | BQ-3 | A host's own `colors` (1 to 8 values) have the same problem | Host-tuned palettes cannot render |
-| BQ-4 | Nothing says **which well-known RSVP questions** an invitation asks. Could RSVP block `settings` carry it? | PQ-3 |
+| BQ-4 | Nothing says **which well-known RSVP questions** an invitation asks. Could RSVP block `settings` carry it? **Answered 23 October 2026:** the invitation carries `rsvpFields`, switching each on or off; a switched-off one is refused | PQ-3 |
 | BQ-5 | A **required SIGNATURE question** cannot be answered, but required questions bind attending guests, so every attending guest would be refused. Can creating one be refused, or the requirement skipped? | Guests unable to reply |
 | BQ-6 | API.md §6 says the public page leaves out `settings`, but the code returns each block's `settings`. The dress-code swatches need them. Which is right? | DRESS_CODE |
 | BQ-7 | There is **no reply-by date** in the payload, only `isAcceptingResponses`. A "please reply by" line is free text today. Should `expiresAt` be exposed? **Corrected on 18 October 2026:** `expiresAt` is the retention limit (C-22), so exposing it would not give a reply-by date. The question is whether an invitation should have a separate, optional reply-by date, and whether replies should close on it by themselves. Closing is manual today | The RSVP block's copy; the closed state |
 | BQ-8 | The development and production seeds name theme and palette fields differently (`font` and palette `key`, against `bodyFont` and palette `name`), and theme validation reads `name` | The renderer's theme parsing |
-| BQ-9 | If product chooses fixed dietary and drink options (PQ-1, PQ-2), can each invitation define its own, as custom questions do? Today `dietary[]` and `drinkPreference` are free strings with no option list. *Added 18 October 2026* | The RSVP form; the catering sheet |
+| BQ-9 | If product chooses fixed dietary and drink options (PQ-1, PQ-2), can each invitation define its own, as custom questions do? Today `dietary[]` and `drinkPreference` are free strings with no option list. *Added 18 October 2026.* **Answered 23 October 2026:** `rsvpFields` gives dietary and drink their own choices, a key with a label per language; without choices they stay free text | The RSVP form; the catering sheet |
+| BQ-11 | `guest.telegramLink` opens the event's Telegram bot with **the guest's own token** in the link (`?start=<token>`). The token is the guest's credential to their page and reply, so Telegram receives it, and so does anyone the link is forwarded to. Could the bot link carry a separate, single-purpose code instead? *Added 23 October 2026* | A "get reminders on Telegram" button; it is not shown until this is settled |
 | BQ-10 | Could dress-code colours carry optional names in each language, so that screen readers can say them (VR-35)? Low priority. *Added 18 October 2026* | DRESS_CODE |
 
 ### From the review page
@@ -252,17 +253,17 @@ questions Q1–Q11. They map to this register:
 
 **Existing backlog items the design depends on:**
 
-| Item | What the design waits for |
-|---|---|
-| F16 | Switching language on a personalised link; translatable host and venue names |
-| B33 | Matching a timeline entry to its venue |
-| B16 / D4 | Find your seat through the guest's link |
-| F9 | Venue coordinates |
-| F11 | Alt text on uploads |
-| F18 | Image resizing |
-| F28 | Variants declared in the template |
-| FR-9 | How template fonts reach the browser |
-| B49 | A private invitation readable through its generic URL |
+| Item | What the design waits for | State on 23 October 2026 |
+|---|---|---|
+| F16 | Switching language on a personalised link; translatable host and venue names | Built; the page uses it |
+| B33 | Matching a timeline entry to its venue | Built; the timeline names the venue |
+| B16 / D4 | Find your seat through the guest's link | Built (`guest.seating`); not designed yet |
+| F9 | Venue coordinates | Built; the page keeps map links (R-19) |
+| F11 | Alt text on uploads | Built; the page uses it |
+| F18 | Image resizing | Built; the page uses the smaller copies |
+| F28 | Variants declared in the template | Open: now only the template preview |
+| FR-9 | How template fonts reach the browser | Open |
+| B49 | A private invitation readable through its generic URL | Fixed: a private event's generic link is a 404 |
 
 ---
 
@@ -280,7 +281,7 @@ changes if the answer differs. The rules are in [§1.1](#11-while-questions-are-
 | PD-9 | Every Armenian and Russian string in `locales/`, and the Armenian date words in `lib/time` |
 | PD-10, PD-12 | `styles/app.css` (Armenian tracking) and the cover's date line (Russian in sentence case) |
 | PD-11 | `lib/time`: day, month, year; a 24-hour clock |
-| PD-15, PD-16 | `features/guest-reply/options.ts`: the sample lists, English keys, one switch per question |
+| PD-38 | `features/guest-reply/`: each attending member and added guest answers the host's questions under their name |
 | PD-21, PD-22 | `features/invitation-renderer/theme.ts`: bordeaux only, `theme.palette` only |
 | PD-23 | SIGNATURE questions are never shown (`guest-reply/form-model.ts`) |
 | PD-24, PD-26 | `schemas.ts` reads six-digit hex from `settings.palette`; the swatches are one labelled image |
@@ -320,8 +321,8 @@ changes if the answer differs. The rules are in [§1.1](#11-while-questions-are-
 
 | ID | Open item | Build on this meanwhile | If the answer differs |
 |---|---|---|---|
-| PD-15 | PQ-1, PQ-2, BQ-9: dietary and drink options | The sample lists already drawn, in one configuration file with their translations: dietary, several allowed (vegetarian, vegan, gluten-free, lactose-free, nut allergy, and "Anything else we should know?"); drink, one (wine, champagne, spirits, non-alcoholic). Send the **same English key in every language**, so the catering sheet doesn't count one option under three names. Demos label them as samples | Edit one file. Free text replaces two controls with fields |
-| PD-16 | PQ-3, BQ-4: which well-known questions an invitation asks | All of them, all optional: side (only when both side labels exist), dietary, drink, song, message. Each sits behind one renderer switch | Turn switches off, or read them from the RSVP block once BQ-4 is answered |
+| PD-15 | PQ-1, PQ-2, BQ-9: dietary and drink options | The sample lists already drawn, in one configuration file with their translations, sending the same English key in every language. **Closed 23 October 2026:** BQ-9 was answered. The form now shows the invitation's own choices (`rsvpFields`), sending their keys, and free text where it gives none; the sample lists are gone from the code | Nothing to undo |
+| PD-16 | PQ-3, BQ-4: which well-known questions an invitation asks | All of them, all optional, each behind one renderer switch. **Closed 23 October 2026:** BQ-4 was answered. The form asks exactly what `rsvpFields` switches on; the side also needs both side labels | Nothing to undo |
 | PD-17 | PQ-5, PQ-6: add to calendar; the guest's local time | Neither is built. Times show the event's zone with its label (R-22) | Nothing to undo |
 | PD-18 | PQ-7: replacement photography | Placeholders stay only on the private canvas. Code, fixtures and demos use no photographs: the typographic cover and plain `sand` blocks | Nothing to undo. Replacing the placeholders is a launch gate |
 | PD-19 | PQ-8: a link on the footer mark | The footer mark is not a link | One attribute |
@@ -356,6 +357,7 @@ designer answers DQ-12. None is applied to the artifacts yet.
 | PD-35 | VR-34, fix 13: the countdown ticks every second | The `numerals` countdown shows days, hours and minutes, and updates once a minute. This departs from spec §5's seconds, which carry a ⚠ marker | Add the seconds unit back |
 | PD-36 | VR-14, fix 14: the sent state | "Thank you" replaces "Kindly reply / Will you join us?" as the heading, with the confirmation sentence under it; focus moves to the heading (spec §6.2) | Heading text only |
 | PD-37 | VR-18, VR-25, VR-26, fix 15: states and sizes not drawn | The undrawn states are built from the spec's words (§6.2, §7) with the existing components, and drawn later. Until a 1,024 px board exists, the open card is checked at 1,024 px in a browser | Adjust to the drawings when they arrive |
+| PD-38 | The backend's rule of 23 October 2026 (docs/API.md §4): a required question binds every attending member and added guest, and each answers for themselves. Not drawn | Under each attending member's name, and each added guest's, their own copy of the host's questions, then their dietary needs folded away as spec §6.1d draws them. The respondent's own questions go under their name when anyone else is on the form. Members' earlier answers are not shown on an edit, since the API does not return them (FR-21) | Adjust to the drawing when the designer draws it |
 
 ---
 
@@ -367,7 +369,7 @@ Not designed now, each for the reason given:
 |---|---|
 | The organizer dashboard and app screens | C-7. [DESIGN_SYSTEM §12](DESIGN_SYSTEM.md#12-from-invitation-to-dashboard) maps the tokens for later |
 | Public event pages, ticketing, checkout | Not the first deliverable |
-| Find your seat | B16 and D4 |
+| Find your seat | B16 and D4 are built (`guest.seating`, 23 October 2026); where the table shows on the page is not designed yet |
 | Signature capture | Not built in the backend (INVITATION_DESIGN §7) |
 | Email, Telegram and WhatsApp message designs | A separate surface; the backend owns the copy |
 | Link-preview images | Invitation previews use `coverUrl` as it is. F24 concerns public events |

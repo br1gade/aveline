@@ -73,6 +73,8 @@ export function photos(block: InvitationBlock): BlockMedia[] {
 }
 
 const venue = z.object({
+  /** What a timeline entry's `venueId` points at. */
+  id: z.string().nullable().catch(null),
   role: z.string(),
   name: z.string(),
   address: z.string(),
@@ -89,8 +91,21 @@ export function venues(block: InvitationBlock): Venue[] {
 const timelineEntry = z.object({
   label: z.string().trim().min(1),
   occursAt: z.string(),
+  venueId: z.string().nullable().catch(null),
 });
 export type TimelineEntry = z.infer<typeof timelineEntry>;
+
+/** The name of each venue the page shows, by id: for naming a timeline entry's place. */
+export function venueNames(blocks: readonly InvitationBlock[]): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const block of blocks) {
+    if (block.type !== 'VENUE' && block.type !== 'MAP') continue;
+    for (const place of venues(block)) {
+      if (place.id) names.set(place.id, place.name);
+    }
+  }
+  return names;
+}
 
 /** TIMELINE data, in the order given. An entry with no label in this language is left out. */
 export function timelineEntries(block: InvitationBlock): TimelineEntry[] {

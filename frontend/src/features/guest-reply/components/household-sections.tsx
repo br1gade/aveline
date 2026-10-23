@@ -1,22 +1,23 @@
-import { Controller, useFieldArray } from 'react-hook-form';
+import { Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { Button, Icon } from '@/ui';
 import { ChoiceCard, Fieldset, Segmented, TextField } from '@/ui/form';
 
 import { fieldId } from '../fields';
+import { answerableQuestions, newPartyRow } from '../form-model';
 import { LIMITS } from '../options';
 import type { ReplyStatus } from '../types';
-import { DietaryChips } from './detail-sections';
+import { DietaryFields } from './detail-sections';
 import { useFieldError, useReplyForm } from './form-context';
+import { QuestionSection, type AnswerOwner } from './question-section';
 
 const STATUSES: readonly ReplyStatus[] = ['ATTENDING', 'DECLINED', 'UNDECIDED'];
 
 /** The three answers as choice cards, nothing chosen until the guest chooses (spec §6.1). */
 export function AnswerSection() {
   const { t } = useTranslation('reply');
-  const { form } = useReplyForm();
-  const error = useFieldError('status', form.formState.errors.status?.message);
+  const error = useFieldError('status');
   return (
     <Fieldset id={fieldId('status')} legend={t('answer.legend')} error={error}>
       {STATUSES.map((status) => (
@@ -35,13 +36,13 @@ function ChoiceCardFor({ status }: { status: ReplyStatus }) {
 /**
  * Everyone else in the household, each answered for apart (spec §6.1a, PD-28). A member starts on
  * the respondent's answer until changed, and the list stays visible so nobody is answered for
- * unseen. Attending members can be given their own dietary needs, folded away.
+ * unseen. Each member who is coming answers the host's questions for themselves (PD-38).
  */
 export function HouseholdSection() {
   const { t } = useTranslation('reply');
   const { form, record, status } = useReplyForm();
   const members = form.getValues('members');
-  const error = useFieldError('members', undefined);
+  const error = useFieldError('members');
   const options = STATUSES.map((value) => ({ value, label: t(`household.${value}`) }));
   return (
     <Fieldset id={fieldId('members')} legend={t('household.title')} error={error}>
@@ -65,7 +66,7 @@ export function HouseholdSection() {
                   onChange={field.onChange}
                 />
                 {effective === 'ATTENDING' ? (
-                  <MemberDietary index={index} name={member.name} />
+                  <PersonAnswers owner={{ kind: 'member', index }} name={member.name} />
                 ) : null}
               </div>
             );
@@ -76,46 +77,55 @@ export function HouseholdSection() {
   );
 }
 
-function MemberDietary({ index, name }: { index: number; name: string }) {
+/**
+ * Someone else's own answers (PD-38): the host's questions, which bind everyone who is coming
+ * (docs/API.md §4), then their dietary needs, folded away as spec §6.1d draws them.
+ */
+function PersonAnswers({
+  owner,
+  name,
+}: {
+  owner: Exclude<AnswerOwner, { kind: 'respondent' }>;
+  name: string;
+}) {
   const { t } = useTranslation('reply');
-  const { form, record } = useReplyForm();
-  const error = useFieldError(
-    `members.${index}.dietaryNotes`,
-    form.formState.errors.members?.[index]?.dietaryNotes?.message,
-  );
+  const { invitation, field } = useReplyForm();
+  const notesPath = `${owner.kind === 'member' ? 'members' : 'party'}.${owner.index}.dietaryNotes`;
+  const hasNotesError = Boolean(useFieldError(notesPath));
+  const hasQuestions = answerableQuestions(invitation.rsvpQuestions).length > 0;
+  const isDietaryAsked = field('dietary').isEnabled;
+  if (!hasQuestions && !isDietaryAsked) return null;
   return (
-    <details className="group" open={Boolean(error)}>
-      <summary className="text-action inline-flex min-h-(--target-min) cursor-pointer list-none items-center gap-2 text-sm underline underline-offset-3 [&::-webkit-details-marker]:hidden">
-        <Icon
-          name="chevron-down"
-          size={16}
-          className="transition-transform group-open:rotate-180"
-        />
-        {t('household.dietaryFor', { name })}
-      </summary>
-      <div className="grid gap-3 pt-2">
-        <DietaryChips
-          name={`members.${index}.dietary`}
-          saved={record.household.members[index]?.dietary ?? []}
-        />
-        <TextField
-          id={fieldId(`members.${index}.dietaryNotes`)}
-          label={t('dietary.notes')}
-          maxLength={LIMITS.dietaryNotes}
-          error={error}
-          {...form.register(`members.${index}.dietaryNotes`)}
-        />
-      </div>
-    </details>
+    <div className="border-hairline grid gap-6 border-l pl-4">
+      {hasQuestions ? <QuestionSection owner={owner} /> : null}
+      {isDietaryAsked ? (
+        <details className="group" open={hasNotesError || undefined}>
+          <summary className="text-action inline-flex min-h-(--target-min) cursor-pointer list-none items-center gap-2 text-sm underline underline-offset-3 [&::-webkit-details-marker]:hidden">
+            <Icon
+              name="chevron-down"
+              size={16}
+              className="transition-transform group-open:rotate-180"
+            />
+            {t('household.dietaryFor', { name })}
+          </summary>
+          <div className="pt-2">
+            <DietaryFields owner={owner} />
+          </div>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
-/** Guests to add while seats remain (spec §6.1b): a first name and an optional last name each. */
+/**
+ * Guests to add while seats remain (spec §6.1b): a first name, an optional last name, and their
+ * own answers. They come with the respondent, so they are asked what anyone coming is asked.
+ */
 export function PartySection({ seatsLeft }: { seatsLeft: number }) {
   const { t } = useTranslation('reply');
-  const { form } = useReplyForm();
+  const { form, invitation } = useReplyForm();
   const rows = useFieldArray({ control: form.control, name: 'party' });
-  const error = useFieldError('party', undefined);
+  const error = useFieldError('party');
   const remaining = seatsLeft - rows.fields.length;
   return (
     <Fieldset id={fieldId('party')} legend={t('party.title')} error={error}>
@@ -129,7 +139,7 @@ export function PartySection({ seatsLeft }: { seatsLeft: number }) {
         <Button
           variant="secondary"
           className="self-start"
-          onClick={() => rows.append({ firstName: '', lastName: '' })}
+          onClick={() => rows.append(newPartyRow(invitation.rsvpQuestions))}
         >
           <Icon name="plus" />
           {t('party.add')}
@@ -142,13 +152,12 @@ export function PartySection({ seatsLeft }: { seatsLeft: number }) {
 function PartyRow({ index, onRemove }: { index: number; onRemove: () => void }) {
   const { t } = useTranslation('reply');
   const { form } = useReplyForm();
-  const firstNameError = useFieldError(
-    `party.${index}.firstName`,
-    form.formState.errors.party?.[index]?.firstName?.message,
-  );
+  const firstNameError = useFieldError(`party.${index}.firstName`);
+  const firstName = useWatch({ control: form.control, name: `party.${index}.firstName` });
+  const label = t('party.guest', { number: index + 1 });
   return (
     <div className="border-hairline grid gap-3 border p-4">
-      <p className="text-ink m-0 text-sm font-medium">{t('party.guest', { number: index + 1 })}</p>
+      <p className="text-ink m-0 text-sm font-medium">{label}</p>
       <TextField
         id={fieldId(`party.${index}.firstName`)}
         label={t('party.firstName')}
@@ -165,6 +174,7 @@ function PartyRow({ index, onRemove }: { index: number; onRemove: () => void }) 
         maxLength={LIMITS.name}
         {...form.register(`party.${index}.lastName`)}
       />
+      <PersonAnswers owner={{ kind: 'party', index }} name={firstName.trim() || label} />
       <Button variant="quiet" className="self-start px-0" onClick={onRemove}>
         <Icon name="minus" />
         {t('party.remove')}

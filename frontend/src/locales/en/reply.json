@@ -29,23 +29,10 @@
   },
   "dietary": {
     "title": "Dietary requirements",
-    "notes": "Anything else we should know?",
-    "options": {
-      "vegetarian": "Vegetarian",
-      "vegan": "Vegan",
-      "gluten-free": "Gluten-free",
-      "lactose-free": "Lactose-free",
-      "nut-allergy": "Nut allergy"
-    }
+    "notes": "Anything else we should know?"
   },
   "drink": {
-    "title": "Drink preference",
-    "options": {
-      "wine": "Wine",
-      "champagne": "Champagne",
-      "spirits": "Spirits",
-      "non-alcoholic": "Non-alcoholic"
-    }
+    "title": "Drink preference"
   },
   "song": {
     "title": "Your song",
@@ -88,6 +75,7 @@
     "required": "This question needs an answer.",
     "invalidAnswer": "Check this answer.",
     "members": "Check the answers for your household.",
+    "party": "Check the guests you are adding.",
     "seats": "You have named more guests than your seats allow ({{count}}).",
     "other": "Some answers could not be saved. Check them and try again.",
     "rateLimited": "Too many attempts. Please wait a minute and try again.",

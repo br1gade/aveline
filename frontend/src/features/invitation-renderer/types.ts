@@ -3,7 +3,8 @@
  *
  * Interim until FR-1: the OpenAPI schema declares no response types yet, so these are written by
  * hand from docs/API.md §4 and checked against the backend's `InvitationsService.buildPayload`
- * (18 October 2026). The end-to-end tests catch drift.
+ * (re-checked 23 October 2026, after the backend's audit fixes). The end-to-end tests catch
+ * drift.
  */
 
 export const BLOCK_TYPES = [
@@ -53,13 +54,25 @@ export type RsvpStatus = 'PENDING' | 'ATTENDING' | 'DECLINED' | 'UNDECIDED';
 export type QuestionType =
   'TEXT' | 'LONG_TEXT' | 'SINGLE_CHOICE' | 'MULTI_CHOICE' | 'BOOLEAN' | 'SIGNATURE';
 
+/** A smaller copy of a photograph, made after upload (docs/API.md, "Uploading a file"). */
+export interface MediaVariant {
+  width: number;
+  height: number;
+  url: string;
+}
+
 export interface BlockMedia {
   id: string;
+  /** The original, as uploaded. */
   url: string;
   /** PHOTO, COVER, SIGNATURE, LOGO, AUDIO or DOCUMENT; new kinds may arrive. */
   kind: string;
-  /** Already in the page's language; `null` when the host gave none (F11). */
+  /** Already in the page's language; `null` when the host gave none. */
   altText: string | null;
+  width?: number | null;
+  height?: number | null;
+  /** Empty until the resizing job has run; the original is the fallback. */
+  variants?: MediaVariant[];
 }
 
 /**
@@ -82,7 +95,7 @@ export interface InvitationBlock {
 export interface InvitationEvent {
   type: string;
   title: string;
-  /** Not translated (F16). */
+  /** In the page's language when the host translated it, otherwise as entered. */
   hosts: string;
   startsAt: string;
   endsAt: string | null;
@@ -107,6 +120,33 @@ export interface InvitationGuest {
     members: HouseholdMemberName[];
   };
   rsvp: { status: RsvpStatus; respondedAt: string | null } | null;
+  /** The household's tables, once the host publishes the seating; `null` until then. */
+  seating?: {
+    table: string | null;
+    household: Array<{ id: string; name: string; table: string | null }>;
+  } | null;
+  /**
+   * Opens the event's Telegram bot and subscribes this guest to reminders. It carries the guest's
+   * token, so it is a credential like the page's own link. Not shown yet: it needs a design.
+   */
+  telegramLink?: string | null;
+}
+
+/** The built-in RSVP questions the backend knows (docs/API.md §4, `rsvpFields`). */
+export const BUILT_IN_FIELDS = [
+  'dietary',
+  'drinkPreference',
+  'songRequest',
+  'message',
+  'attribution',
+] as const;
+export type BuiltInField = (typeof BUILT_IN_FIELDS)[number];
+
+/** How the invitation asks one built-in question: whether at all, and with which choices. */
+export interface RsvpFieldConfig {
+  isEnabled: boolean;
+  /** Fixed choices, labels already in the page's language. `null` means free text. */
+  options: Array<{ key: string; label: string }> | null;
 }
 
 export interface RsvpQuestion {
@@ -133,5 +173,7 @@ export interface Invitation {
   /** `null` on the generic link. */
   guest: InvitationGuest | null;
   blocks: InvitationBlock[];
+  /** Which built-in questions the reply form asks. A disabled one must not be sent. */
+  rsvpFields?: Partial<Record<BuiltInField, RsvpFieldConfig>>;
   rsvpQuestions: RsvpQuestion[];
 }

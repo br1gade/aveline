@@ -10,6 +10,7 @@ const KEYS = {
   required: 'errors.required',
   invalidAnswer: 'errors.invalidAnswer',
   members: 'errors.members',
+  party: 'errors.party',
   seats: 'errors.seats',
 } as const satisfies Record<ErrorCode | FieldProblem['code'], string>;
 

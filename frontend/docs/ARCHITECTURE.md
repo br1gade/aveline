@@ -104,6 +104,11 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   into the RSVP block's slot through `renderReply`, so the renderer stays usable for a designer
   preview later. The route holds the saved reply and passes its summary (status, head count,
   household names) and, once sent, the "Thank you" heading back into the page.
+- **The reply follows the invitation's `rsvpFields`:** a built-in question shows only when it is
+  switched on, since sending a switched-off one is refused, and dietary and drink offer the host's
+  own choices. Every attending member and added guest answers the host's questions for
+  themselves (PD-38). `payload.ts` sends only what changed, and the page's language when it is
+  not the one stored for the guest, so their confirmation and reminders follow what they read.
 - **Provisional defaults** from `DESIGN_DECISIONS.md` §6 are followed in code, and named in a
   comment where the code departs from the canvas.
 
@@ -182,6 +187,8 @@ End-to-end data is created through the organizer API, because seed tokens change
 | 22 Oct 2026 | `@date-fns/tz` removed; the proposal named it for conversions | Nothing converts times yet: every display goes through `Intl` in the event's zone. It returns when a form takes times as input |
 | 22 Oct 2026 | Capability headers applied by path in `entry.server.tsx`, not per route | A failing loader renders the root error boundary and skips the route's `headers`, so a personal link's error page was cacheable and sent a referrer |
 | 22 Oct 2026 | The generic link is `private, max-age=60`, not `public` | Each page carries its own script nonce; a shared cache would hand one nonce to every visitor |
+| 23 Oct 2026 | The guest pages follow the backend's audit fixes: `rsvpFields`, per-person answers, `?locale` on personal links, venue ids on the timeline, resized photos | The pull of 23 October changed the guest contract; the old form would have been refused whenever an invitation had a required question or a switched-off one |
+| 23 Oct 2026 | The sample dietary and drink lists (PD-15) and the ask-everything switch (PD-16) are gone | The backend answered BQ-4 and BQ-9: each invitation says what it asks |
 
 ## 12. Not yet built
 
@@ -196,4 +203,6 @@ End-to-end data is created through the organizer API, because seed tokens change
 - The invitation's `full-bleed` cover variant: it falls back to the arch until it is built
   (PD-37). The load and scroll motion of GUEST_INVITATION §10, and remembering the music choice
   for the session, are not built either.
-- The language switcher on personal links (backend F16): only the generic link has it.
+- The guest's table (`guest.seating`) and the Telegram reminders link (`guest.telegramLink`): the
+  data exists since 23 October 2026, but neither is designed, and the link carries the guest's
+  token (BQ-11).

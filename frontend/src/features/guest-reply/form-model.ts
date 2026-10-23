@@ -3,21 +3,16 @@ import { z } from 'zod';
 import type { RsvpQuestion } from '@/features/invitation-renderer';
 
 import { LIMITS } from './options';
-import type {
-  AnswerPayload,
-  ReplyRecord,
-  ReplyStatus,
-  SavedStatus,
-  SubmitReplyBody,
-} from './types';
+import type { ReplyRecord, ReplyStatus, SavedStatus } from './types';
 
 /**
- * The reply form's values, how they start from the saved reply, how they are checked, and what is
- * sent. Kept apart from the components so the rules are tested on their own.
+ * The reply form's values, how they start from the saved reply, and how they are checked. What
+ * is sent is in payload.ts. Kept apart from the components so the rules are tested on their own.
  */
 
 /** Text, a position, or positions, as form inputs hold them: '' is unanswered. */
 export type AnswerValue = string | string[];
+export type Answers = Record<string, AnswerValue>;
 
 export interface MemberValues {
   guestId: string;
@@ -26,11 +21,17 @@ export interface MemberValues {
   status: ReplyStatus | '';
   dietary: string[];
   dietaryNotes: string;
+  /** Their own answers to the host's questions: each person chooses their own meal. */
+  answers: Answers;
 }
 
+/** Someone added on this reply. They answer for themselves, with the respondent's status. */
 export interface PartyValues {
   firstName: string;
   lastName: string;
+  dietary: string[];
+  dietaryNotes: string;
+  answers: Answers;
 }
 
 export type Attribution = '' | 'SIDE_A' | 'SIDE_B' | 'SHARED';
@@ -45,7 +46,7 @@ export interface ReplyFormValues {
   drinkPreference: string;
   songRequest: string;
   message: string;
-  answers: Record<string, AnswerValue>;
+  answers: Answers;
 }
 
 /** SIGNATURE questions cannot be answered yet, so they are never shown (PD-23). */
@@ -57,15 +58,14 @@ export function fullName(person: { firstName: string; lastName: string | null })
   return [person.firstName, person.lastName].filter(Boolean).join(' ');
 }
 
-const FORM_BOOLEAN: Readonly<Record<string, boolean>> = { yes: true, no: false };
-
 function booleanToForm(value: unknown): AnswerValue {
   if (value === true) return 'yes';
   if (value === false) return 'no';
   return '';
 }
 
-function savedToForm(question: RsvpQuestion, value: unknown): AnswerValue {
+/** A saved answer as its input holds it; `undefined` gives the question's empty value. */
+export function savedToForm(question: RsvpQuestion, value: unknown): AnswerValue {
   switch (question.type) {
     case 'BOOLEAN':
       return booleanToForm(value);
@@ -80,11 +80,38 @@ function savedToForm(question: RsvpQuestion, value: unknown): AnswerValue {
   }
 }
 
+function answersFrom(
+  questions: readonly RsvpQuestion[],
+  saved: ReadonlyMap<string, unknown>,
+): Answers {
+  return Object.fromEntries(
+    answerableQuestions(questions).map((question) => [
+      question.id,
+      savedToForm(question, saved.get(question.id)),
+    ]),
+  );
+}
+
+/** A new row in "Add a guest": a name, and their own answers, all empty. */
+export function newPartyRow(questions: readonly RsvpQuestion[]): PartyValues {
+  return {
+    firstName: '',
+    lastName: '',
+    dietary: [],
+    dietaryNotes: '',
+    answers: answersFrom(questions, new Map()),
+  };
+}
+
 function asFormStatus(status: SavedStatus): ReplyStatus | '' {
   return status === 'PENDING' ? '' : status;
 }
 
-/** The form as the saved reply leaves it. A first reply starts with nothing chosen. */
+/**
+ * The form as the saved reply leaves it. A first reply starts with nothing chosen. Members' own
+ * answers start empty: GET …/rsvp does not return them (FR-21), and an earlier answer still
+ * counts on the server, so leaving one empty changes nothing.
+ */
 export function initialValues(
   record: ReplyRecord,
   questions: readonly RsvpQuestion[],
@@ -99,6 +126,7 @@ export function initialValues(
       status: asFormStatus(member.status),
       dietary: member.dietary,
       dietaryNotes: member.dietaryNotes ?? '',
+      answers: answersFrom(questions, new Map()),
     })),
     party: [],
     attribution: '',
@@ -107,12 +135,7 @@ export function initialValues(
     drinkPreference: rsvp.drinkPreference ?? '',
     songRequest: rsvp.songRequest ?? '',
     message: rsvp.message ?? '',
-    answers: Object.fromEntries(
-      answerableQuestions(questions).map((question) => [
-        question.id,
-        savedToForm(question, saved.get(question.id)),
-      ]),
-    ),
+    answers: answersFrom(questions, saved),
   };
 }
 
@@ -124,6 +147,7 @@ export function isAnswered(value: AnswerValue | undefined): boolean {
 export type ErrorCode = 'chooseAnswer' | 'firstName' | 'tooLong' | 'required';
 
 const tooLong = (limit: number) => z.string().max(limit, { error: 'tooLong' satisfies ErrorCode });
+const answersShape = z.record(z.string(), z.union([z.string(), z.array(z.string())]));
 
 function questionLimit(question: RsvpQuestion): number | undefined {
   if (question.type === 'TEXT') return LIMITS.text;
@@ -131,171 +155,123 @@ function questionLimit(question: RsvpQuestion): number | undefined {
   return undefined;
 }
 
+interface AnswerCheck {
+  questions: readonly RsvpQuestion[];
+  answers: Answers;
+  path: Array<string | number>;
+  /** Whether this person must answer the required questions here. */
+  isBound: boolean;
+}
+
+function answerIssues({ questions, answers, path, isBound }: AnswerCheck) {
+  return questions.flatMap((question) => {
+    const value = answers[question.id];
+    const limit = questionLimit(question);
+    const at = [...path, 'answers', question.id];
+    if (isBound && question.required && !isAnswered(value)) {
+      return [{ path: at, message: 'required' satisfies ErrorCode }];
+    }
+    if (limit && typeof value === 'string' && value.length > limit) {
+      return [{ path: at, message: 'tooLong' satisfies ErrorCode }];
+    }
+    return [];
+  });
+}
+
+export interface SchemaContext {
+  questions: readonly RsvpQuestion[];
+  /**
+   * Members who have never answered. Only for them can the form know a required question is
+   * unanswered; for the rest the server checks, counting their earlier answers.
+   */
+  neverAnswered: ReadonlySet<string>;
+}
+
+const valuesShape = z.object({
+  // '' until the guest chooses, so the schema's input and output match the form's values.
+  status: z
+    .enum(['ATTENDING', 'DECLINED', 'UNDECIDED', ''])
+    .refine((status) => status !== '', { error: 'chooseAnswer' satisfies ErrorCode }),
+  members: z.array(
+    z.object({
+      guestId: z.string(),
+      name: z.string(),
+      status: z.enum(['ATTENDING', 'DECLINED', 'UNDECIDED', '']),
+      dietary: z.array(z.string()),
+      dietaryNotes: tooLong(LIMITS.dietaryNotes),
+      answers: answersShape,
+    }),
+  ),
+  party: z.array(
+    z.object({
+      firstName: tooLong(LIMITS.name),
+      lastName: tooLong(LIMITS.name),
+      dietary: z.array(z.string()),
+      dietaryNotes: tooLong(LIMITS.dietaryNotes),
+      answers: answersShape,
+    }),
+  ),
+  attribution: z.enum(['', 'SIDE_A', 'SIDE_B', 'SHARED']),
+  dietary: z.array(z.string()),
+  dietaryNotes: tooLong(LIMITS.dietaryNotes),
+  drinkPreference: tooLong(LIMITS.drink),
+  songRequest: tooLong(LIMITS.song),
+  message: tooLong(LIMITS.message),
+  answers: answersShape,
+});
+
+/**
+ * Every set of answers on the form: the respondent's, each member's and each added guest's. A
+ * required question binds everyone who is coming (docs/API.md §4); added guests come with the
+ * respondent, so they are bound when the respondent attends.
+ */
+function allAnswerIssues(values: z.infer<typeof valuesShape>, context: SchemaContext) {
+  const questions = answerableQuestions(context.questions);
+  const isAttending = values.status === 'ATTENDING';
+  const memberIssues = values.members.flatMap((member, index) =>
+    answerIssues({
+      questions,
+      answers: member.answers,
+      path: ['members', index],
+      isBound:
+        (member.status || values.status) === 'ATTENDING' &&
+        context.neverAnswered.has(member.guestId),
+    }),
+  );
+  // Added guests are shown, and sent, only while the respondent is coming: a row left behind by
+  // switching to "declining" must not block the reply from a field the guest can no longer see.
+  const partyIssues = isAttending
+    ? values.party.flatMap((row, index) => [
+        ...(row.firstName.trim()
+          ? []
+          : [{ path: ['party', index, 'firstName'], message: 'firstName' satisfies ErrorCode }]),
+        ...answerIssues({ questions, answers: row.answers, path: ['party', index], isBound: true }),
+      ])
+    : [];
+  return [
+    ...answerIssues({ questions, answers: values.answers, path: [], isBound: isAttending }),
+    ...memberIssues,
+    ...partyIssues,
+  ];
+}
+
 /**
  * The checks a guest can fix before sending. The server stays the authority: whatever it refuses
  * maps onto the same fields (server-errors.ts).
  */
-export function replySchema(questions: readonly RsvpQuestion[]) {
-  const answerable = answerableQuestions(questions);
-  return z
-    .object({
-      // '' until the guest chooses, so the schema's input and output match the form's values.
-      status: z
-        .enum(['ATTENDING', 'DECLINED', 'UNDECIDED', ''])
-        .refine((status) => status !== '', { error: 'chooseAnswer' satisfies ErrorCode }),
-      members: z.array(
-        z.object({
-          guestId: z.string(),
-          name: z.string(),
-          status: z.enum(['ATTENDING', 'DECLINED', 'UNDECIDED', '']),
-          dietary: z.array(z.string()),
-          dietaryNotes: tooLong(LIMITS.dietaryNotes),
-        }),
-      ),
-      party: z.array(
-        z.object({
-          firstName: tooLong(LIMITS.name).refine((name) => name.trim() !== '', {
-            error: 'firstName' satisfies ErrorCode,
-          }),
-          lastName: tooLong(LIMITS.name),
-        }),
-      ),
-      attribution: z.enum(['', 'SIDE_A', 'SIDE_B', 'SHARED']),
-      dietary: z.array(z.string()),
-      dietaryNotes: tooLong(LIMITS.dietaryNotes),
-      drinkPreference: z.string(),
-      songRequest: tooLong(LIMITS.song),
-      message: tooLong(LIMITS.message),
-      answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
-    })
-    .superRefine((values, context) => {
-      if (values.status !== 'ATTENDING') return;
-      for (const question of answerable) {
-        const value = values.answers[question.id];
-        const limit = questionLimit(question);
-        if (question.required && !isAnswered(value)) {
-          context.addIssue({
-            code: 'custom',
-            path: ['answers', question.id],
-            message: 'required' satisfies ErrorCode,
-          });
-        } else if (limit && typeof value === 'string' && value.length > limit) {
-          context.addIssue({
-            code: 'custom',
-            path: ['answers', question.id],
-            message: 'tooLong' satisfies ErrorCode,
-          });
-        }
-      }
-    });
-}
-
-function formToPayload(question: RsvpQuestion, value: AnswerValue): AnswerPayload | undefined {
-  switch (question.type) {
-    case 'BOOLEAN':
-      return typeof value === 'string' ? FORM_BOOLEAN[value] : undefined;
-    case 'SINGLE_CHOICE':
-      return typeof value === 'string' && value !== '' ? Number(value) : undefined;
-    case 'MULTI_CHOICE':
-      return Array.isArray(value) ? value.map(Number) : undefined;
-    default:
-      return typeof value === 'string' ? value : undefined;
-  }
-}
-
-function isSame(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
-/** Each household member whose answer, needs or notes changed; the rest keep theirs (API.md §4). */
-function memberAnswers(values: ReplyFormValues, initial: ReplyFormValues, status: ReplyStatus) {
-  return values.members.flatMap((member, index) => {
-    const before = initial.members[index];
-    const effective = member.status || status;
-    const isDietaryChanged = !isSame(member.dietary, before?.dietary);
-    const isNotesChanged = member.dietaryNotes !== before?.dietaryNotes;
-    if (effective === before?.status && !isDietaryChanged && !isNotesChanged) return [];
-    return [
-      {
-        guestId: member.guestId,
-        status: effective,
-        ...(isDietaryChanged ? { dietary: member.dietary } : {}),
-        ...(isNotesChanged ? { dietaryNotes: member.dietaryNotes } : {}),
-      },
-    ];
+export function replySchema(context: SchemaContext) {
+  return valuesShape.superRefine((values, refinement) => {
+    for (const issue of allAnswerIssues(values, context)) {
+      refinement.addIssue({ code: 'custom', ...issue });
+    }
   });
 }
 
-function changedAnswers(
-  values: ReplyFormValues,
-  initial: ReplyFormValues,
-  questions: readonly RsvpQuestion[],
-) {
-  return answerableQuestions(questions).flatMap((question) => {
-    const value = values.answers[question.id] ?? '';
-    if (isSame(value, initial.answers[question.id] ?? '')) return [];
-    const payload = formToPayload(question, value);
-    return payload === undefined ? [] : [{ questionId: question.id, value: payload }];
-  });
-}
-
-/** The respondent's own details: only when attending, and only what changed. */
-function attendingDetails(values: ReplyFormValues, initial: ReplyFormValues) {
-  const party = values.party
-    .filter((row) => row.firstName.trim())
-    .map((row) => ({
-      firstName: row.firstName.trim(),
-      ...(row.lastName.trim() ? { lastName: row.lastName.trim() } : {}),
-    }));
-  return {
-    ...(values.attribution ? { attribution: values.attribution } : {}),
-    ...(party.length > 0 ? { party } : {}),
-    ...(isSame(values.dietary, initial.dietary) ? {} : { dietary: values.dietary }),
-    ...(values.dietaryNotes === initial.dietaryNotes ? {} : { dietaryNotes: values.dietaryNotes }),
-    ...(values.drinkPreference === initial.drinkPreference
-      ? {}
-      : { drinkPreference: values.drinkPreference }),
-    ...(values.songRequest === initial.songRequest ? {} : { songRequest: values.songRequest }),
-  };
-}
-
-/**
- * What is sent: the answer always, and otherwise only what changed, because omitted fields keep
- * their value and a resubmission edits rather than duplicates (docs/API.md §4). Details asked only
- * of attending guests are sent only when attending.
- */
-export function buildPayload(
-  values: ReplyFormValues,
-  initial: ReplyFormValues,
-  questions: readonly RsvpQuestion[],
-): SubmitReplyBody {
-  if (!values.status) {
-    throw new Error('A reply needs an answer; the schema checks this first');
-  }
-  const status = values.status;
-  const members = memberAnswers(values, initial, status);
-  const answers = status === 'ATTENDING' ? changedAnswers(values, initial, questions) : [];
-  return {
-    status,
-    ...(status === 'ATTENDING' ? attendingDetails(values, initial) : {}),
-    ...(members.length > 0 ? { members } : {}),
-    ...(values.message === initial.message ? {} : { message: values.message }),
-    ...(answers.length > 0 ? { answers } : {}),
-  };
-}
-
-/** Everyone coming, the respondent first, from what the form will send. */
-export function attendingNames(values: ReplyFormValues, respondent: string): string[] {
-  if (!values.status) return [];
-  const status = values.status;
-  const members = values.members
-    .filter((member) => (member.status || status) === 'ATTENDING')
-    .map((member) => member.name);
-  const party =
-    status === 'ATTENDING'
-      ? values.party
-          .filter((row) => row.firstName.trim())
-          .map((row) => `${row.firstName.trim()} ${row.lastName.trim()}`.trim())
-      : [];
-  return [...(status === 'ATTENDING' ? [respondent] : []), ...members, ...party];
+/** Members who have never answered, from the saved reply. */
+export function neverAnswered(record: ReplyRecord): Set<string> {
+  return new Set(
+    record.household.members
+      .filter((member) => member.status === 'PENDING')
+      .map((member) => member.id),
+  );
 }

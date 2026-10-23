@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cx, Icon, SectionHeading } from '@/ui';
 
+import { imageSource } from '../components/image-source';
 import { useMusic } from '../components/music';
 import { Section, variantOf } from '../components/section';
 import { photos, titledContent } from '../schemas';
@@ -21,6 +22,16 @@ const ITEM: Record<GalleryVariant, (index: number) => string> = {
   carousel: () => 'aspect-[4/5] w-[80%] flex-none snap-start md:w-auto',
 };
 
+/**
+ * How wide each photograph shows on a phone, so the browser picks the right copy from `srcset`.
+ * From 768 px every layout is three columns of the letter column.
+ */
+const PHONE_WIDTH: Record<GalleryVariant, (index: number) => string> = {
+  editorial: (index) => (index % 3 === 0 ? '100vw' : '50vw'),
+  grid: () => '50vw',
+  carousel: () => '80vw',
+};
+
 const CONTAINER: Record<GalleryVariant, string> = {
   editorial: 'grid grid-cols-2 gap-2 md:grid-cols-3',
   grid: 'grid grid-cols-2 gap-2 md:grid-cols-3',
@@ -28,22 +39,28 @@ const CONTAINER: Record<GalleryVariant, string> = {
     'flex snap-x snap-mandatory gap-2 overflow-x-auto md:grid md:grid-cols-3 md:overflow-visible',
 };
 
-function Photo({ photo, className }: { photo: BlockMedia; className: string }) {
+interface PhotoProps {
+  photo: BlockMedia;
+  className: string;
+  phoneWidth: string;
+}
+
+function Photo({ photo, className, phoneWidth }: PhotoProps) {
   return (
     <img
-      src={photo.url}
+      {...imageSource(photo)}
       alt={photo.altText ?? ''}
       loading="lazy"
       decoding="async"
-      sizes="(min-width: 768px) 14rem, 50vw"
+      sizes={`(min-width: 768px) 14rem, ${phoneWidth}`}
       className={cx('bg-sand block w-full object-cover', className)}
     />
   );
 }
 
 /**
- * Photographs in the host's order. Alt text when the host gave it, empty otherwise (F11). Until
- * F18 they are served as uploaded, so every one loads lazily.
+ * Photographs in the host's order, as the smaller copies the backend makes. Alt text when the host
+ * gave it, empty otherwise. Every one loads lazily.
  */
 export function GalleryBlock({ block }: BlockProps) {
   const { t } = useTranslation('invitation');
@@ -60,7 +77,12 @@ export function GalleryBlock({ block }: BlockProps) {
       <SectionHeading label={t('gallery.label')} heading={heading} />
       <div className={CONTAINER[variant]} {...scroller}>
         {items.map((photo, index) => (
-          <Photo key={photo.id} photo={photo} className={ITEM[variant](index)} />
+          <Photo
+            key={photo.id}
+            photo={photo}
+            className={ITEM[variant](index)}
+            phoneWidth={PHONE_WIDTH[variant](index)}
+          />
         ))}
       </div>
     </Section>

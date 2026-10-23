@@ -152,4 +152,21 @@ describe('InvitationPage', () => {
     expect(screen.getByText('Забронировано мест: 3')).toBeInTheDocument();
     expect(screen.getAllByText('Суббота, 12 июня 2027 г.').length).toBeGreaterThan(0);
   });
+
+  it('names the venue of a timeline entry that has one', () => {
+    renderPage({ invitation: invitationFixture() });
+
+    const entry = screen.getByText('Ceremony', { selector: 'li span' });
+    expect(entry).toHaveTextContent('CeremonyChapel of the Garden');
+    expect(screen.getByText('Dinner', { selector: 'li span' })).toHaveTextContent(/^Dinner$/);
+  });
+
+  it('offers the event’s other languages on a personal link too', () => {
+    renderPage({
+      invitation: invitationFixture(),
+      languageHref: (language) => `?locale=${language}`,
+    });
+
+    expect(screen.getByRole('link', { name: 'Հայերեն' })).toHaveAttribute('href', '?locale=hy');
+  });
 });

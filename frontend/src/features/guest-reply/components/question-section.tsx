@@ -8,11 +8,29 @@ import { answerableQuestions } from '../form-model';
 import { LIMITS } from '../options';
 import { useFieldError, useReplyForm } from './form-context';
 
+/** Whose answers these are: the respondent's, a household member's, or a guest added here. */
+export type AnswerOwner =
+  { kind: 'respondent' } | { kind: 'member'; index: number } | { kind: 'party'; index: number };
+
+type AnswerPath =
+  `answers.${string}` | `members.${number}.answers.${string}` | `party.${number}.answers.${string}`;
+
+function answerPath(owner: AnswerOwner, questionId: string): AnswerPath {
+  switch (owner.kind) {
+    case 'member':
+      return `members.${owner.index}.answers.${questionId}`;
+    case 'party':
+      return `party.${owner.index}.answers.${questionId}`;
+    default:
+      return `answers.${questionId}`;
+  }
+}
+
 /** The control for one question type (spec §6.1g). Choices send their position, never their text. */
-function QuestionControl({ question }: { question: RsvpQuestion }) {
+function QuestionControl({ question, path }: { question: RsvpQuestion; path: AnswerPath }) {
   const { t } = useTranslation('reply');
   const { form } = useReplyForm();
-  const field = form.register(`answers.${question.id}`);
+  const field = form.register(path);
   switch (question.type) {
     case 'SINGLE_CHOICE':
       return question.options.map((option, position) => (
@@ -36,11 +54,11 @@ function QuestionControl({ question }: { question: RsvpQuestion }) {
 }
 
 /** Text questions are a field labelled by the prompt; the rest are a fieldset with a legend. */
-function Question({ question }: { question: RsvpQuestion }) {
+function Question({ question, owner }: { question: RsvpQuestion; owner: AnswerOwner }) {
   const { t } = useTranslation('reply');
   const { form } = useReplyForm();
-  const path = `answers.${question.id}`;
-  const error = useFieldError(path, form.formState.errors.answers?.[question.id]?.message);
+  const path = answerPath(owner, question.id);
+  const error = useFieldError(path);
   const marker = question.required ? t('question.required') : t('question.optional');
   const prompt = question.prompt ?? '';
   if (question.type === 'TEXT' || question.type === 'LONG_TEXT') {
@@ -52,21 +70,24 @@ function Question({ question }: { question: RsvpQuestion }) {
         optionalText={marker}
         error={error}
         maxLength={question.type === 'TEXT' ? LIMITS.text : LIMITS.longText}
-        {...form.register(`answers.${question.id}`)}
+        {...form.register(path)}
       />
     );
   }
   return (
     <Fieldset id={fieldId(path)} legend={prompt} marker={marker} error={error}>
-      <QuestionControl question={question} />
+      <QuestionControl question={question} path={path} />
     </Fieldset>
   );
 }
 
-/** The host's own questions, in their order. SIGNATURE is never shown (PD-23). */
-export function QuestionSection() {
+/**
+ * The host's own questions, in their order, for one person: each attending person answers for
+ * themselves, so each chooses their own meal. SIGNATURE is never shown (PD-23).
+ */
+export function QuestionSection({ owner = { kind: 'respondent' } }: { owner?: AnswerOwner }) {
   const { invitation } = useReplyForm();
   return answerableQuestions(invitation.rsvpQuestions).map((question) => (
-    <Question key={question.id} question={question} />
+    <Question key={question.id} question={question} owner={owner} />
   ));
 }

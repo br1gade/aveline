@@ -381,10 +381,10 @@ The Tailwind defaults, so the app's Tailwind 4 setup needs no custom screens.
 **Performance:**
 
 - `loading="lazy"` below the first screen; `sizes` on every image.
-- Until F18 there is no resizing, so large originals cost every guest. Hosts are asked to upload
-  photographs of 2–3 MB or less.
+- The backend makes smaller copies of each photograph after upload (F18, 23 October 2026); the
+  page offers them in `srcset`, and the original until they exist.
 
-**Alt text:** `altText` when there is one; empty when there is none (F11).
+**Alt text:** `altText` when the host gave one; empty otherwise.
 
 **Mockups:** use registered placeholders only ([PLACEHOLDER_IMAGES.md](PLACEHOLDER_IMAGES.md)).
 The design system itself contains no third-party photographs.

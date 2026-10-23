@@ -19,6 +19,7 @@ export function block(type: string, fields: Partial<InvitationBlock> = {}): Invi
 
 export const VENUES = [
   {
+    id: 'venue-chapel',
     role: 'CEREMONY',
     name: 'Chapel of the Garden',
     address: '12 Example Street, Yerevan',
@@ -28,6 +29,7 @@ export const VENUES = [
     arriveAt: '2027-06-12T09:45:00.000Z',
   },
   {
+    id: 'venue-maison',
     role: 'RECEPTION',
     name: 'Maison Lumière',
     address: '40 Example Avenue, Yerevan',
@@ -51,7 +53,7 @@ export const FIXTURE_BLOCKS: InvitationBlock[] = [
   block('MAP', { data: VENUES }),
   block('TIMELINE', {
     data: [
-      { label: 'Ceremony', occursAt: '2027-06-12T10:00:00.000Z', venueId: null },
+      { label: 'Ceremony', occursAt: '2027-06-12T10:00:00.000Z', venueId: 'venue-chapel' },
       { label: 'Dinner', occursAt: '2027-06-12T14:00:00.000Z', venueId: null },
     ],
   }),

@@ -37,6 +37,15 @@ const INVITATION: Invitation = {
   },
   guest: null,
   blocks: [],
+  rsvpFields: {
+    dietary: {
+      isEnabled: true,
+      options: [
+        { key: 'vegetarian', label: 'Vegetarian' },
+        { key: 'vegan', label: 'Vegan' },
+      ],
+    },
+  },
   rsvpQuestions: [
     {
       id: 'q-main',
@@ -114,6 +123,20 @@ function renderReply(overrides: Partial<GuestReplyProps> = {}) {
   return { props, user: userEvent.setup() };
 }
 
+/** Inside one field or fieldset, by its id: the same question appears once per person. */
+function inField(id: string) {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`No field ${id}`);
+  return within(element);
+}
+
+/** Every main course on the form, for the respondent and each person with them. */
+async function chooseMainCourses(user: ReturnType<typeof userEvent.setup>, ids: string[]) {
+  for (const id of ids) {
+    await user.click(inField(id).getByLabelText('Fish'));
+  }
+}
+
 const SENT = {
   status: 'ATTENDING',
   respondedAt: '2027-03-14T10:00:00.000Z',
@@ -130,10 +153,12 @@ describe('GuestReply', () => {
     await user.click(screen.getByLabelText('Joyfully attending'));
     await user.click(screen.getByRole('button', { name: 'Add a guest' }));
     await user.type(screen.getByLabelText('First name'), 'Narek');
-    await user.click(screen.getByLabelText('Fish'));
-    await user.click(
-      within(document.getElementById('reply-dietary')!).getByLabelText('Vegetarian'),
-    );
+    await chooseMainCourses(user, [
+      'reply-answers-q-main',
+      'reply-members-0-answers-q-main',
+      'reply-party-0-answers-q-main',
+    ]);
+    await user.click(inField('reply-dietary').getByLabelText('Vegetarian'));
     await user.click(screen.getByRole('button', { name: 'Send reply' }));
 
     expect(await screen.findByText('Your reply has been received.')).toBeInTheDocument();
@@ -144,9 +169,11 @@ describe('GuestReply', () => {
     expect(sent).toEqual([
       {
         status: 'ATTENDING',
-        party: [{ firstName: 'Narek' }],
+        party: [{ firstName: 'Narek', answers: [{ questionId: 'q-main', value: 1 }] }],
         dietary: ['vegetarian'],
-        members: [{ guestId: 'g2', status: 'ATTENDING' }],
+        members: [
+          { guestId: 'g2', status: 'ATTENDING', answers: [{ questionId: 'q-main', value: 1 }] },
+        ],
         answers: [{ questionId: 'q-main', value: 1 }],
       },
     ]);
@@ -168,15 +195,62 @@ describe('GuestReply', () => {
     expect(sent).toEqual([]);
   });
 
-  it('asks attending guests the host’s required question', async () => {
+  it('asks everyone coming the host’s required question, each for themselves', async () => {
     const { user } = renderReply();
 
     await user.click(screen.getByLabelText('Joyfully attending'));
     await user.click(screen.getByRole('button', { name: 'Send reply' }));
 
-    expect(
-      await screen.findByRole('link', { name: 'This question needs an answer.' }),
-    ).toHaveAttribute('href', '#reply-answers-q-main');
+    const links = await screen.findAllByRole('link', { name: 'This question needs an answer.' });
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '#reply-answers-q-main',
+      '#reply-members-0-answers-q-main',
+    ]);
+  });
+
+  it('asks only the built-in questions the invitation asks, with the host’s choices', async () => {
+    const { user } = renderReply({
+      invitation: {
+        ...INVITATION,
+        rsvpFields: {
+          drinkPreference: { isEnabled: true, options: [{ key: 'wine', label: 'Wine' }] },
+          songRequest: { isEnabled: false, options: null },
+          message: { isEnabled: false, options: null },
+        },
+      },
+    });
+
+    await user.click(screen.getByLabelText('Joyfully attending'));
+
+    expect(screen.getByRole('radio', { name: 'Wine' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Your song/)).toBeNull();
+    expect(screen.queryByLabelText(/A message for the hosts/)).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Vegetarian' })).toBeNull();
+  });
+
+  it('stores the language the guest switched the page to', async () => {
+    replyWith(() => HttpResponse.json({ ...SENT, status: 'UNDECIDED' }, { status: 201 }));
+    const { user } = renderReply({
+      invitation: {
+        ...INVITATION,
+        locale: 'en',
+        guest: {
+          id: 'g1',
+          name: 'Armen Petrosyan',
+          locale: 'hy',
+          household: { name: 'Petrosyan family', seatsAllotted: 3, members: [] },
+          rsvp: null,
+        },
+      },
+    });
+
+    await user.click(screen.getByLabelText('Not sure yet'));
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+    await screen.findByText('Your reply has been received.');
+    expect(sent).toEqual([
+      { status: 'UNDECIDED', members: [{ guestId: 'g2', status: 'UNDECIDED' }], locale: 'en' },
+    ]);
   });
 
   it('maps the server’s seat count onto the guests section', async () => {
@@ -194,7 +268,11 @@ describe('GuestReply', () => {
     await user.click(screen.getByLabelText('Joyfully attending'));
     await user.click(screen.getByRole('button', { name: 'Add a guest' }));
     await user.type(screen.getByLabelText('First name'), 'Narek');
-    await user.click(screen.getByLabelText('Fish'));
+    await chooseMainCourses(user, [
+      'reply-answers-q-main',
+      'reply-members-0-answers-q-main',
+      'reply-party-0-answers-q-main',
+    ]);
     await user.click(screen.getByRole('button', { name: 'Send reply' }));
 
     const message = 'You have named more guests than your seats allow (3).';
@@ -222,7 +300,7 @@ describe('GuestReply', () => {
     });
 
     await user.click(screen.getByLabelText('Joyfully attending'));
-    await user.click(screen.getByLabelText('Beef'));
+    await chooseMainCourses(user, ['reply-answers-q-main', 'reply-members-0-answers-q-main']);
     await user.click(screen.getByRole('button', { name: 'Send reply' }));
 
     expect(
@@ -296,7 +374,7 @@ describe('GuestReply', () => {
     await user.click(screen.getByRole('button', { name: 'Change reply' }));
 
     expect(screen.getByLabelText('Joyfully attending')).toBeChecked();
-    expect(screen.getByLabelText('Beef')).toBeChecked();
+    expect(inField('reply-answers-q-main').getByLabelText('Beef')).toBeChecked();
   });
 
   it('shows only the last reply once replies are closed', () => {

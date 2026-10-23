@@ -4,47 +4,82 @@ import { useTranslation } from 'react-i18next';
 import { ChoiceCard, Chip, Fieldset, TextArea, TextField } from '@/ui/form';
 
 import { fieldId } from '../fields';
-import { DIETARY_OPTIONS, DRINK_OPTIONS, isDietaryOption, isDrinkOption, LIMITS } from '../options';
+import { LIMITS } from '../options';
 import { useFieldError, useReplyForm } from './form-context';
+import type { AnswerOwner } from './question-section';
 
-type DietaryPath = 'dietary' | `members.${number}.dietary`;
+type DietaryPaths =
+  | { list: 'dietary'; notes: 'dietaryNotes' }
+  | { list: `members.${number}.dietary`; notes: `members.${number}.dietaryNotes` }
+  | { list: `party.${number}.dietary`; notes: `party.${number}.dietaryNotes` };
+
+function dietaryPaths(owner: AnswerOwner): DietaryPaths {
+  switch (owner.kind) {
+    case 'member':
+      return {
+        list: `members.${owner.index}.dietary`,
+        notes: `members.${owner.index}.dietaryNotes`,
+      };
+    case 'party':
+      return { list: `party.${owner.index}.dietary`, notes: `party.${owner.index}.dietaryNotes` };
+    default:
+      return { list: 'dietary', notes: 'dietaryNotes' };
+  }
+}
 
 /**
- * The sample options as chips (PD-15), sending the English key. A value saved some other way is
- * kept as a chip of its own, so an edit never drops it unseen.
+ * One person's dietary needs: the host's choices as chips, sending their keys, when the
+ * invitation gives choices; then a field for anything else. Without choices it is free text
+ * (docs/API.md §4, `rsvpFields`).
  */
-export function DietaryChips({ name, saved }: { name: DietaryPath; saved: readonly string[] }) {
+export function DietaryFields({ owner }: { owner: AnswerOwner }) {
   const { t } = useTranslation('reply');
-  const { form } = useReplyForm();
-  const extras = saved.filter((value) => !isDietaryOption(value));
+  const { form, field } = useReplyForm();
+  const paths = dietaryPaths(owner);
+  const { options } = field('dietary');
+  const error = useFieldError(paths.notes);
   return (
-    <div className="flex flex-wrap gap-2">
-      {DIETARY_OPTIONS.map((option) => (
-        <Chip
-          key={option}
-          label={t(`dietary.options.${option}`)}
-          value={option}
-          {...form.register(name)}
-        />
-      ))}
-      {extras.map((value) => (
-        <Chip key={value} label={value} value={value} {...form.register(name)} />
-      ))}
+    <div className="grid gap-3">
+      {options ? (
+        <div className="flex flex-wrap gap-2">
+          {options.map((option) => (
+            <Chip
+              key={option.key}
+              label={option.label}
+              value={option.key}
+              {...form.register(paths.list)}
+            />
+          ))}
+        </div>
+      ) : null}
+      <TextField
+        id={fieldId(paths.notes)}
+        label={t('dietary.notes')}
+        maxLength={LIMITS.dietaryNotes}
+        error={error}
+        {...form.register(paths.notes)}
+      />
     </div>
   );
 }
 
-/** Asked only when both side labels exist (spec §6.1c, PD-16). */
+/** Asked only when both side labels exist and the invitation asks it. */
 export function SideSection({ sides }: { sides: { a: string; b: string } }) {
   const { t } = useTranslation('reply');
   const { form } = useReplyForm();
+  const error = useFieldError('attribution');
   const choices = [
     { value: 'SIDE_A', label: sides.a },
     { value: 'SIDE_B', label: sides.b },
     { value: 'SHARED', label: t('side.both') },
   ];
   return (
-    <Fieldset id={fieldId('attribution')} legend={t('side.title')} marker={t('question.optional')}>
+    <Fieldset
+      id={fieldId('attribution')}
+      legend={t('side.title')}
+      marker={t('question.optional')}
+      error={error}
+    >
       {choices.map((choice) => (
         <ChoiceCard
           key={choice.value}
@@ -59,45 +94,55 @@ export function SideSection({ sides }: { sides: { a: string; b: string } }) {
 
 export function DietarySection() {
   const { t } = useTranslation('reply');
-  const { form, record } = useReplyForm();
-  const error = useFieldError('dietaryNotes', form.formState.errors.dietaryNotes?.message);
+  const error = useFieldError('dietary');
   return (
-    <Fieldset id={fieldId('dietary')} legend={t('dietary.title')} marker={t('question.optional')}>
-      <DietaryChips name="dietary" saved={record.rsvp.dietary ?? []} />
-      <TextField
-        id={fieldId('dietaryNotes')}
-        label={t('dietary.notes')}
-        maxLength={LIMITS.dietaryNotes}
-        error={error}
-        {...form.register('dietaryNotes')}
-      />
+    <Fieldset
+      id={fieldId('dietary')}
+      legend={t('dietary.title')}
+      marker={t('question.optional')}
+      error={error}
+    >
+      <DietaryFields owner={{ kind: 'respondent' }} />
     </Fieldset>
   );
 }
 
-/** One drink per reply, as radio cards: single choice never looks like chips (PD-32). */
+/**
+ * One drink per reply. The host's choices are radio cards, since single choice never looks like
+ * chips (PD-32); without choices it is a short text.
+ */
 export function DrinkSection() {
   const { t } = useTranslation('reply');
-  const { form, record } = useReplyForm();
-  const saved = record.rsvp.drinkPreference ?? '';
-  const extra = saved && !isDrinkOption(saved) ? saved : undefined;
+  const { form, field } = useReplyForm();
+  const { options } = field('drinkPreference');
+  const error = useFieldError('drinkPreference');
+  if (!options) {
+    return (
+      <TextField
+        id={fieldId('drinkPreference')}
+        label={t('drink.title')}
+        optionalText={t('question.optional')}
+        maxLength={LIMITS.drink}
+        error={error}
+        {...form.register('drinkPreference')}
+      />
+    );
+  }
   return (
     <Fieldset
       id={fieldId('drinkPreference')}
       legend={t('drink.title')}
       marker={t('question.optional')}
+      error={error}
     >
-      {DRINK_OPTIONS.map((option) => (
+      {options.map((option) => (
         <ChoiceCard
-          key={option}
-          label={t(`drink.options.${option}`)}
-          value={option}
+          key={option.key}
+          label={option.label}
+          value={option.key}
           {...form.register('drinkPreference')}
         />
       ))}
-      {extra ? (
-        <ChoiceCard label={extra} value={extra} {...form.register('drinkPreference')} />
-      ) : null}
     </Fieldset>
   );
 }
@@ -113,7 +158,7 @@ export function SongSection() {
   const { t } = useTranslation('reply');
   const { form } = useReplyForm();
   const counter = useCounter('songRequest', LIMITS.song);
-  const error = useFieldError('songRequest', form.formState.errors.songRequest?.message);
+  const error = useFieldError('songRequest');
   return (
     <TextField
       id={fieldId('songRequest')}
@@ -132,7 +177,7 @@ export function MessageSection() {
   const { t } = useTranslation('reply');
   const { form } = useReplyForm();
   const counter = useCounter('message', LIMITS.message);
-  const error = useFieldError('message', form.formState.errors.message?.message);
+  const error = useFieldError('message');
   return (
     <TextArea
       id={fieldId('message')}

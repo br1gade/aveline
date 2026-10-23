@@ -5,7 +5,9 @@ import { readPublicEnv } from '@/config/env';
 import { REPLY_HEADING_ID, type Invitation } from '@/features/invitation-renderer';
 
 import { fetchReply, submitReply, type ReplyLink } from '../api';
-import { attendingNames, buildPayload, fullName, type ReplyFormValues } from '../form-model';
+import { fullName, type ReplyFormValues } from '../form-model';
+import { fieldConfig } from '../options';
+import { attendingNames, buildPayload, type PayloadContext } from '../payload';
 import { classifySendError, type SendProblem } from '../server-errors';
 import type { ReplyRecord, SubmitResult } from '../types';
 import { ReplyForm } from './reply-form';
@@ -40,6 +42,20 @@ function withResult(record: ReplyRecord, result: SubmitResult): ReplyRecord {
   };
 }
 
+/**
+ * How the invitation asks its questions, and the page's language when it is not the one stored
+ * for the guest (they switched, or none was stored): replying stores it, so their confirmation and
+ * reminders come in the language they read.
+ */
+function payloadContext(invitation: Invitation): PayloadContext {
+  const isSwitched = invitation.guest !== null && invitation.locale !== invitation.guest.locale;
+  return {
+    questions: invitation.rsvpQuestions,
+    field: (name) => fieldConfig(invitation, name),
+    locale: isSwitched ? invitation.locale : undefined,
+  };
+}
+
 function useSend(
   props: GuestReplyProps,
   record: ReplyRecord,
@@ -48,13 +64,16 @@ function useSend(
   const api = useMemo(() => createPublicApi(readPublicEnv().VITE_API_BASE_URL), []);
   return async (values: ReplyFormValues, initial: ReplyFormValues): Promise<SendProblem | null> => {
     try {
-      const body = buildPayload(values, initial, props.invitation.rsvpQuestions);
+      const body = buildPayload(values, initial, payloadContext(props.invitation));
       const result = await submitReply(api, props.link, body);
       const fresh = await fetchReply(api, props.link).catch(() => withResult(record, result));
       onSaved(fresh, attendingNames(values, fullName(record.guest)));
       return null;
     } catch (error) {
-      return classifySendError(error);
+      return classifySendError(error, {
+        memberIds: values.members.map((member) => member.guestId),
+        partyFirstNames: values.party.map((row) => row.firstName),
+      });
     }
   };
 }

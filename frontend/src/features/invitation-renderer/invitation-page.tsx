@@ -32,7 +32,7 @@ export interface InvitationPageProps {
   reply?: ReplySummary | null | undefined;
   /** Fills the reply section on personal links. */
   renderReply?: ((block: InvitationBlock) => ReactNode) | undefined;
-  /** The page in another language, for the switcher on the generic link (R-17). */
+  /** The page in another language, for the switcher (R-17). */
   languageHref?: ((language: Language) => string) | undefined;
   /** Replaces the reply section's heading: "Thank you" once a reply is sent (PD-36). */
   replyHeading?: string | undefined;
@@ -40,10 +40,9 @@ export interface InvitationPageProps {
 
 function TopBar({ languageHref }: Pick<InvitationPageProps, 'languageHref'>) {
   const { invitation } = useInvitation();
-  const canSwitch = !invitation.guest && languageHref;
   return (
     <div className="flex h-11 items-center justify-between gap-3">
-      {canSwitch ? (
+      {languageHref ? (
         <LanguageSwitcher
           current={invitation.locale}
           available={invitation.availableLocales}

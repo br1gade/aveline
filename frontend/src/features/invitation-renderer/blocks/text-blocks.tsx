@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ButtonLink, cx, EXTERNAL_LINK, Icon, SectionHeading } from '@/ui';
 
 import { ArchFrame } from '../components/arch-frame';
+import { imageSource } from '../components/image-source';
 import { Section, variantOf } from '../components/section';
 import {
   bodyContent,
@@ -36,7 +37,7 @@ export function StoryBlock({ block }: BlockProps) {
     >
       {photo ? (
         <img
-          src={photo.url}
+          {...imageSource(photo)}
           alt={photo.altText ?? ''}
           loading="lazy"
           decoding="async"
@@ -103,8 +104,9 @@ export function SignatureBlock({ block }: BlockProps) {
       {closing ? <p className="type-heading-2 text-heading m-0">{closing}</p> : null}
       {image ? (
         <img
-          src={image.url}
+          {...imageSource(image)}
           alt={image.altText ?? ''}
+          sizes="240px"
           loading="lazy"
           decoding="async"
           className="h-auto w-full max-w-[240px]"

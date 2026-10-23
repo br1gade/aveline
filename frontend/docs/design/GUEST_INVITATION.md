@@ -73,7 +73,7 @@ Every element maps to a field the API returns. Nothing on the page comes from an
 | From the API | Where it appears | Notes |
 |---|---|---|
 | `event.type` | The cover's small label: "Wedding" | Translated from the enum in the interface strings: WEDDING, ENGAGEMENT, BAPTISM, BIRTHDAY, ANNIVERSARY, CORPORATE, OTHER |
-| HERO `content.title`, or else `event.hosts` | The cover's display line: "Anna & Davit" | `title` is translated per language. `event.hosts` is not (F16) |
+| HERO `content.title`, or else `event.hosts` | The cover's display line: "Anna & Davit" | `title` is translated per language; `event.hosts` too, when the host translated it |
 | `event.startsAt`, `endsAt`, `timezone` | The cover's date line, the countdown, the time-zone label | Formatted in `timezone` (C-16) |
 | `coverUrl`, the HERO's first photo | The arch photograph | Without one, the cover is typographic |
 | `guest.name` | The personal card's greeting | `guest` is `null` on the generic link, and then the card is left out |
@@ -84,18 +84,23 @@ Every element maps to a field the API returns. Nothing on the page comes from an
 | `musicUrl` | The music control | No control when it is `null` |
 | `blocks[]` | The sections of the letter, in the order given ([§5](#5-blocks)) | Never sorted. Unknown types render nothing (C-15) |
 | `rsvpQuestions[]` | The host's own questions in the reply form | In the order given |
-| `event.sides.a`, `event.sides.b` | The options for "Who invited you?" | Asked only when both labels exist, and if PQ-3 says to ask |
+| `event.sides.a`, `event.sides.b` | The options for "Who invited you?" | Asked only when both labels exist and `rsvpFields` asks it |
+| `rsvpFields` | Which built-in questions the reply form asks, and the host's own dietary and drink choices | Added by the backend on 23 October 2026 (BQ-4, BQ-9) |
 | `theme` (`palette`, `headingFont`, `bodyFont`) | The tokens ([DESIGN_SYSTEM §2](DESIGN_SYSTEM.md#2-colour)) | Palette colours are not in the payload (BQ-1) |
 | `template` | Which variant names apply ([§5](#5-blocks)) | Variants are free text until F28 |
 
-**Not available, so not designed:**
+**Available since the backend's changes of 23 October 2026, and used:** each timeline entry's venue
+(B33), the language switcher on personal links (F16), alt text (F11), and smaller copies of each
+photograph (F18).
 
-- seat lookup (B16 / D4);
-- which venue a timeline entry belongs to (B33);
-- map coordinates (F9);
-- alt text (F11);
-- switching language on a personal link (F16);
-- a reply-by date (BQ-7).
+**Available, but not designed yet, so not shown:**
+
+- the guest's table, in `guest.seating`, once the host publishes the seating (B16 / D4);
+- map coordinates (F9). The page keeps its links rather than an embedded map (R-19);
+- a link to get reminders on Telegram, `guest.telegramLink`, which carries the guest's token
+  (BQ-11).
+
+**Not available, so not designed:** a reply-by date (BQ-7).
 
 ## 4. Page anatomy
 
@@ -144,7 +149,9 @@ From top to bottom, phone first:
 
 **The generic link** (no guest token) shows the same page without the personal card or the reply
 bar. Its reply section shows one line: "To reply, open the personal link you received". Replying
-needs the guest's token.
+needs the guest's token. **It opens only for an `UNLISTED` or `PUBLIC` event:** a `PRIVATE` one,
+every wedding by default, is reached by personal link only, and its generic link shows the
+not-found page (docs/API.md §4).
 
 ## 5. Blocks
 
@@ -172,7 +179,7 @@ Fourteen types (C-15). For each:
 - **Edge cases:**
   - Long names wrap with `text-wrap: balance`, and the type steps down until they fit in three
     lines.
-  - Names in another script than the interface are expected (F16).
+  - Names in another script than the interface are expected, where the host has not translated them.
 
 ### STORY: the invitation text
 
@@ -214,7 +221,7 @@ Fourteen types (C-15). For each:
   - Phones stack the cards. Tablets show two side by side.
   - The desktop letter column shows two side by side when there are two venues, otherwise one.
 - **Role labels** are interface strings: CEREMONY, RECEPTION, AFTER_PARTY, PREPARATION, OTHER.
-  Venue names are not translatable (F16).
+  Venue names and addresses come in the page's language when the host translated them.
 
 ### MAP: directions
 
@@ -231,7 +238,7 @@ Fourteen types (C-15). For each:
   - **`vertical`:** the time in serif tabular numerals on the left and the label on the right,
     along a thin gold line with a small lozenge at each entry.
   - **`compact`:** a two-column list.
-- **The venue is not shown** per entry, because the page cannot match `venueId` to a venue (B33).
+- **The venue** of an entry is named in small text under its label, when the page shows that venue.
 - Entries spanning more than one day get a date heading for each day.
 
 ### DRESS_CODE
@@ -257,9 +264,9 @@ Fourteen types (C-15). For each:
     desktop, a mosaic.
   - **`grid`:** even squares, 2, 3 or 4 columns.
   - **`carousel`:** horizontal scrolling that snaps, on phones.
-- **Alt text:** `altText`, or empty when there is none, which is the norm until F11.
-- **Weight:** images load lazily with `sizes`. Until F18, originals are served as uploaded and can
-  weigh several megabytes each.
+- **Alt text:** `altText`, or empty when the host gave none.
+- **Weight:** images load lazily, with a `srcset` from the smaller copies the backend makes after
+  upload, and `sizes`. Until the copies exist, the original is served.
 
 ### RSVP
 
@@ -310,17 +317,20 @@ Personal link, replies open:
     "we're coming, grandma can't travel", and the list stays visible so nobody is answered for
     unseen.
 - **b. Add a guest.** While seats remain: a row with first name (required) and last name
-  (optional), repeatable, with "Seats remaining: 1". Added guests follow the respondent's answer
-  (API.md §4).
+  (optional), repeatable, with "Seats remaining: 1". Added guests come with the respondent's
+  answer and answer the host's questions for themselves (API.md §4, PD-38).
 - **c. Who invited you?** The two side labels and **Both**, only when both labels exist and the
-  invitation asks (PQ-3).
+  invitation asks (`rsvpFields`).
+
+Questions **d** to **f** and **h** are asked only when the invitation's `rsvpFields` switches them
+on; sending one it switches off is refused (docs/API.md §4).
+
 - **d. Dietary requirements.**
-  - Chips for the options (a sample list, PQ-1) and a field for "Anything else we should know?".
-  - Each other member has the same, folded away under "Dietary needs for Lusine".
-  - **Limit:** a guest added in this same submission cannot have dietary needs until the next edit.
-    `party` carries names only.
-- **e. Drink preference.** Single-choice chips (a sample list, PQ-2). One per reply, for the
-  respondent. **⚠** Chips read as multiple choice (VR-09); build the radio style of PD-32.
+  - Chips for the invitation's own choices, sending their keys, and a field for "Anything else we
+    should know?". Without choices, only the field: free text.
+  - Each other attending person has the same, folded away under "Dietary needs for Lusine".
+- **e. Drink preference.** The invitation's choices as radio cards (PD-32), or a short text field
+  when it gives none. One per reply, for the respondent.
 - **f. Song request.** A text field, up to 200 characters.
 - **g. The host's questions,** in order:
 
@@ -334,6 +344,11 @@ Personal link, replies open:
   | SIGNATURE | Not shown, because it cannot be answered (BQ-5) |
 
   "Required" is written as a word, never shown by colour alone.
+
+  **Everyone coming answers them** (PD-38): a required question binds each attending member and
+  added guest as it binds the respondent, so each has their own copy under their name, and each
+  chooses their own meal. The respondent's go under their name too when anyone else is on the
+  form.
 - **h. A message for the hosts.** A text area, up to 1000 characters, optional.
 
 **Other answers:**
@@ -376,7 +391,7 @@ Personal link, replies open:
 | **After the event** | The countdown is hidden. Replies close as the server says |
 | **No cover photograph** | The typographic cover |
 | **Very long names, venues or addresses** | Wrap and never truncate. The display size steps down past three lines |
-| **Mixed scripts** | Armenian interface with Latin venue names, and the reverse (F16), are expected and look intended |
+| **Mixed scripts** | Armenian interface with Latin venue names, and the reverse, are expected wherever the host has not translated a name, and look intended |
 | **One language** | No switcher |
 | **Only the default blocks** | HERO, VENUE, TIMELINE, COUNTDOWN and RSVP (`backend/src/modules/events/default-blocks.ts`) still make a complete page |
 | **No music** | No control |
@@ -542,10 +557,10 @@ The rules here are specific to this page; the system-wide rules are in
 | Name fields | First name · Last name (optional) | Անուն · Ազգանուն (ըստ ցանկության) | Имя · Фамилия (необязательно) |
 | Who invited you | Who invited you? · Both | Ո՞վ է Ձեզ հրավիրել · Երկուսն էլ | Кто вас пригласил? · Оба |
 | Dietary title | Dietary requirements | Սննդային պահանջներ | Особенности питания |
-| Dietary options (sample, PQ-1) | Vegetarian · Vegan · Gluten-free · Lactose-free · Nut allergy | Բուսակեր · Վեգան · Առանց գլյուտենի · Առանց լակտոզայի · Ընկույզի ալերգիա | Вегетарианское · Веганское · Без глютена · Без лактозы · Аллергия на орехи |
+| Dietary choices (a host's example, PQ-1) | Vegetarian · Vegan · Gluten-free · Lactose-free · Nut allergy | Բուսակեր · Վեգան · Առանց գլյուտենի · Առանց լակտոզայի · Ընկույզի ալերգիա | Вегетарианское · Веганское · Без глютена · Без лактозы · Аллергия на орехи |
 | Dietary notes | Anything else we should know? | Ուրիշ ի՞նչ պետք է իմանանք | Что ещё нам стоит знать? |
 | Drink title | Drink preference | Նախընտրած ըմպելիք | Предпочтения по напиткам |
-| Drink options (sample, PQ-2) | Wine · Champagne · Spirits · Non-alcoholic | Գինի · Շամպայն · Թունդ խմիչք · Ոչ ալկոհոլային | Вино · Шампанское · Крепкие напитки · Безалкогольные |
+| Drink choices (a host's example, PQ-2) | Wine · Champagne · Spirits · Non-alcoholic | Գինի · Շամպայն · Թունդ խմիչք · Ոչ ալկոհոլային | Вино · Шампанское · Крепкие напитки · Безалкогольные |
 | Song | Your song · Which song will get you dancing? | Ձեր երգը · Ո՞ր երգով կպարեք | Ваша песня · Под какую песню вы пойдёте танцевать? |
 | Message | A message for the hosts | Ձեր խոսքը հյուրընկալողներին | Сообщение для хозяев праздника |
 | Required · Optional | Required · Optional | Պարտադիր · Ըստ ցանկության | Обязательно · Необязательно |
@@ -591,7 +606,7 @@ canvas on claude.ai.
 | | `Reply-error` | 390 × 1500 | Error summary, a household member, too many guests, a required question unanswered |
 | | `Reply-sent` | 390 × 900 | The confirmation and what was sent |
 | | `Reply-closed` | 390 × 760 | Replies closed; the last reply shown |
-| Languages | `Armenian` | 390 × 2000 | Cover, personal card, timeline and venue in Armenian. The Latin venue name shows F16 |
+| Languages | `Armenian` | 390 × 2000 | Cover, personal card, timeline and venue in Armenian. The Latin venue name shows one the host has not translated |
 | | `Russian` | 390 × 2000 | Cover, personal card in the answered state, countdown with Russian plurals, venue, dress code |
 | Tablet and desktop | `Tablet` | 768 × 2300 | One column, venues in pairs, a three-column gallery, the reply bar |
 | | `Desktop` | 1440 × 900 | The open card: the cover pinned left with Reply, the letter on the right |
@@ -619,12 +634,12 @@ comment changes the design, update this file in the same change.
 - **The template "Maison"** as a database row: palettes, variants and fonts (R-27 to R-29). The
   backend inserts it.
 - **What the backend has to answer or build:** palette colours and roles in the guest payload
-  (BQ-1 to BQ-3), a choice of well-known questions (BQ-4), the signature-question guard (BQ-5) and
-  a reply-by date (BQ-7).
-- **Backlog items the design waits for:** language switching on personal links (F16), timeline
-  venues (B33), find your seat (B16 / D4), coordinates (F9), alt text (F11) and image resizing
-  (F18).
-- **Product decisions:** the dietary and drink option lists (PQ-1, PQ-2).
+  (BQ-1 to BQ-3), the signature-question guard (BQ-5), a reply-by date (BQ-7), a safe Telegram link
+  (BQ-11), and members' earlier answers on an edit (FR-21).
+- **Designs the backend's new data waits for:** the guest's table (`guest.seating`), map
+  coordinates and the Telegram link (§3).
+- **Product decisions:** the default dietary and drink choices offered to hosts, and which
+  built-in questions are on by default (PQ-1 to PQ-3).
 - **Copy review:** all Armenian and Russian copy by a native reader (DQ-9).
 - **The review's fixes** ([DESIGN_REVIEW §5](DESIGN_REVIEW.md#5-fixes)): all nine
   frontend-owned ones were applied on 18 October. The fourteen owned by others are not.

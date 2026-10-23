@@ -1,6 +1,6 @@
 import { useInvitation } from '../context';
 import { dayKey, displayDay, displayTime } from '../format';
-import type { TimelineEntry } from '../schemas';
+import { venueNames, type TimelineEntry } from '../schemas';
 import { cx, Lozenge } from '@/ui';
 
 interface Day {
@@ -23,8 +23,15 @@ function byDay(entries: TimelineEntry[], timeZone: string): Day[] {
   return days;
 }
 
+/** Where an entry happens, under its label, when the page shows that venue. */
+function VenueName({ name }: { name: string | undefined }) {
+  if (!name) return null;
+  return <span className="text-text-muted block text-sm leading-[22px]">{name}</span>;
+}
+
 function Entries({ entries, isCompact }: { entries: TimelineEntry[]; isCompact: boolean }) {
-  const { zone } = useInvitation();
+  const { zone, invitation } = useInvitation();
+  const places = venueNames(invitation.blocks);
   return (
     <div className="relative">
       {isCompact ? null : (
@@ -43,7 +50,10 @@ function Entries({ entries, isCompact }: { entries: TimelineEntry[]; isCompact: 
           >
             <span className="type-numeral-m text-heading">{displayTime(entry.occursAt, zone)}</span>
             {isCompact ? null : <Lozenge className="justify-self-center" />}
-            <span className="[overflow-wrap:anywhere]">{entry.label}</span>
+            <span className="[overflow-wrap:anywhere]">
+              {entry.label}
+              <VenueName name={entry.venueId ? places.get(entry.venueId) : undefined} />
+            </span>
           </li>
         ))}
       </ol>
@@ -53,7 +63,7 @@ function Entries({ entries, isCompact }: { entries: TimelineEntry[]; isCompact: 
 
 /**
  * The running order (spec §5, TIMELINE): `vertical` along a gold line, or `compact`. Entries on
- * more than one day get a heading per day. No venue per entry: the page cannot match one (B33).
+ * more than one day get a heading per day. An entry at a venue the page shows names it.
  */
 export function Timeline({ entries, isCompact }: { entries: TimelineEntry[]; isCompact: boolean }) {
   const { zone } = useInvitation();

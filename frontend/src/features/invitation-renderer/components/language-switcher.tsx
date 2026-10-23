@@ -12,8 +12,8 @@ interface LanguageSwitcherProps {
 
 /**
  * Each language named in itself, never a flag (design R-17). A native disclosure, so it works
- * before the page hydrates. Shown only where switching works: the generic link, with more than one
- * language. Personal links wait for backend item F16.
+ * before the page hydrates. Shown when the event publishes more than one language, on the generic
+ * and the personal link alike; switching does not change the guest's stored language.
  */
 export function LanguageSwitcher({ current, available, hrefFor }: LanguageSwitcherProps) {
   const { t } = useTranslation('invitation');

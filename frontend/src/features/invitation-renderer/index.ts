@@ -18,10 +18,12 @@ export {
 } from './page-data';
 export { invitationPalette } from './theme';
 export type {
+  BuiltInField,
   Invitation,
   InvitationBlock,
   InvitationGuest,
   QuestionType,
+  RsvpFieldConfig,
   RsvpQuestion,
   RsvpStatus,
 } from './types';

@@ -93,7 +93,7 @@ In canvas order. A finding seen on several boards is listed once.
 | VR-07 | Reply-attending, Reply-declined | Rendering | "Not attending" wraps to two lines in the per-person status control at 390 px | Open |
 | VR-08 | Reply-attending | Inconsistency | Three option cards are selected; only the attendance card shows the check mark (the side and arrival cards don't) | Open |
 | VR-09 | Reply-attending | Inconsistency | The drink options are radio buttons, but they are drawn exactly like the multi-select dietary chips, check mark included, so they look multi-select. Spec §6.1e asks for "single-choice chips"; the design system's Chip is multi-choice only. *Corrected on 18 October (§2)* | Open |
-| VR-10 | Reply-attending | Decision | The dietary and drink options look final. They are samples (PQ-1, PQ-2, AS-7), and the contract has free strings with no option lists. The design system's Chip preview says "sample options"; the board doesn't | Open |
+| VR-10 | Reply-attending | Decision | The dietary and drink options look final. They are samples (PQ-1, PQ-2, AS-7), and the contract has free strings with no option lists. The design system's Chip preview says "sample options"; the board doesn't. *23 October 2026: each invitation now gives its own choices (`rsvpFields`), so the board's options read as one host's; what stays open is product's default list (PQ-1, PQ-2)* | Open |
 | VR-11 | Reply-error | Inconsistency | The board shows no household member rows, unlike Reply-attending and Reply-declined, so a per-person error cannot be shown. The design system's ErrorSummary sample ("Choose an answer for Lusine Petrosyan") describes exactly that case. *Corrected on 18 October (§2)* | **Fixed** 18 Oct (fix 8): Lusine’s row added, with "Guests you added" above the party |
 | VR-12 | Reply-error, and every reply board | Inconsistency | Attendance cards are 48 px on Reply-error and 56 px on Main, Reply-attending, Reply-declined and Desktop-reply. Custom-question cards are 48 px everywhere; the design system's ChoiceCard is 56 px. *Refined on 18 October (§2)* | **Partly fixed** 18 Oct (fix 8): attendance cards 56 px everywhere. The custom-question cards stay open (fix 9, PD-33) |
 | VR-13 | Reply-error | Accessibility | The error-summary links are 42 px and 20 px tall, under the system's 44 px target. They pass WCAG 2.2's 24 px minimum through its spacing exception | **Fixed** 18 Oct (fix 8): both links 44 px tall |
@@ -181,7 +181,7 @@ In the suggested order. **Nine are applied** (18 October); the rest are not star
 | 23 | P3 | Fix the indent of a wrapped Copy address | Frontend | VR-30 | **Done** 18 Oct | n/a |
 
 Findings without a fix of their own are covered by a decision: VR-02 (PQ-9, PD-20), VR-10 (PQ-1,
-PQ-2, PD-15), VR-22 (DQ-2, PD-4), VR-24 (DQ-11, PD-8) and VR-35 (BQ-10, PD-26).
+PQ-2; PD-15 closed on 23 October, when `rsvpFields` arrived), VR-22 (DQ-2, PD-4), VR-24 (DQ-11, PD-8) and VR-35 (BQ-10, PD-26).
 
 ## 6. Reply states
 

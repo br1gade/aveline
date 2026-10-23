@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import type { Invitation } from '@/features/invitation-renderer';
@@ -10,11 +10,12 @@ import { ErrorSummary } from '@/ui/form';
 import { fieldId, flattenErrors } from '../fields';
 import {
   answerableQuestions,
+  fullName,
   initialValues,
+  neverAnswered,
   replySchema,
   type ReplyFormValues,
 } from '../form-model';
-import { WELL_KNOWN_QUESTIONS } from '../options';
 import type { FieldProblem, SendProblem } from '../server-errors';
 import type { ReplyRecord } from '../types';
 import { useErrorText } from '../use-error-text';
@@ -29,27 +30,49 @@ import { ReplyFormProvider, useReplyForm } from './form-context';
 import { AnswerSection, HouseholdSection, PartySection } from './household-sections';
 import { QuestionSection } from './question-section';
 
-/** What only an attending guest is asked (spec §6.1b–g), each behind its switch (PD-16). */
+/**
+ * The respondent's own answers to the host's questions. When others on the form answer the same
+ * questions, these go under the respondent's name too, so it is clear whose they are (PD-38).
+ */
+function OwnQuestions() {
+  const { form, record, invitation } = useReplyForm();
+  const party = useWatch({ control: form.control, name: 'party' });
+  const hasOthers = record.household.members.length > 0 || party.length > 0;
+  if (!hasOthers || answerableQuestions(invitation.rsvpQuestions).length === 0) {
+    return <QuestionSection />;
+  }
+  return (
+    <div className="border-hairline grid gap-6 border-l pl-4">
+      <p className="text-ink m-0 text-base leading-6 font-medium">{fullName(record.guest)}</p>
+      <QuestionSection />
+    </div>
+  );
+}
+
+/**
+ * What only an attending guest is asked (spec §6.1b–g). A built-in question shows only when the
+ * invitation asks it (`rsvpFields`); the side, only when both side labels exist too.
+ */
 function AttendingSections() {
-  const { invitation, record } = useReplyForm();
+  const { invitation, record, field } = useReplyForm();
   const { household } = record;
   const seatsLeft = household.seatsAllotted - 1 - household.members.length;
   const { a, b } = invitation.event.sides;
   return (
     <>
       {seatsLeft > 0 ? <PartySection seatsLeft={seatsLeft} /> : null}
-      {WELL_KNOWN_QUESTIONS.side && a && b ? <SideSection sides={{ a, b }} /> : null}
-      {WELL_KNOWN_QUESTIONS.dietary ? <DietarySection /> : null}
-      {WELL_KNOWN_QUESTIONS.drink ? <DrinkSection /> : null}
-      {WELL_KNOWN_QUESTIONS.song ? <SongSection /> : null}
-      <QuestionSection />
+      {field('attribution').isEnabled && a && b ? <SideSection sides={{ a, b }} /> : null}
+      {field('dietary').isEnabled ? <DietarySection /> : null}
+      {field('drinkPreference').isEnabled ? <DrinkSection /> : null}
+      {field('songRequest').isEnabled ? <SongSection /> : null}
+      <OwnQuestions />
     </>
   );
 }
 
 function Sections() {
   const { t } = useTranslation('reply');
-  const { status, record } = useReplyForm();
+  const { status, record, field } = useReplyForm();
   return (
     <>
       <AnswerSection />
@@ -58,7 +81,7 @@ function Sections() {
       {status === 'UNDECIDED' ? (
         <p className="text-ink-muted m-0">{t('answer.undecidedNote')}</p>
       ) : null}
-      {status && WELL_KNOWN_QUESTIONS.message ? <MessageSection /> : null}
+      {status && field('message').isEnabled ? <MessageSection /> : null}
     </>
   );
 }
@@ -98,8 +121,8 @@ function ProblemNotice({ problem }: { problem: SendProblem }) {
  * SIGNATURE (BQ-5, PD-23), has no field, so its link goes to the top of the form.
  */
 function problemTarget(problem: FieldProblem, shown: ReadonlySet<string>): string {
-  const isHiddenQuestion =
-    problem.field.startsWith('answers.') && !shown.has(problem.field.slice('answers.'.length));
+  const question = /(?:^|\.)answers\.(.+)$/.exec(problem.field)?.[1];
+  const isHiddenQuestion = question !== undefined && !shown.has(question);
   return fieldId(isHiddenQuestion ? 'status' : problem.field);
 }
 
@@ -174,7 +197,10 @@ interface ReplyFormProps {
 export function ReplyForm({ invitation, record, onSend }: ReplyFormProps) {
   const questions = invitation.rsvpQuestions;
   const initial = useMemo(() => initialValues(record, questions), [record, questions]);
-  const resolver = useMemo(() => zodResolver(replySchema(questions)), [questions]);
+  const resolver = useMemo(
+    () => zodResolver(replySchema({ questions, neverAnswered: neverAnswered(record) })),
+    [questions, record],
+  );
   // Focus goes to the error summary, not the first field (spec §11), so the guest hears every
   // problem first.
   const form = useForm<ReplyFormValues>({
