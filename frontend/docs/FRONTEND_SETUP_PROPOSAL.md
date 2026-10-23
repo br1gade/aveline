@@ -6,6 +6,11 @@
 > Branch `frontend/setup` · 9 October 2026 · based on `main` at `521d4fc`. Backend facts re-checked
 > against `origin/main` at `2040a17`.
 >
+> *23 October 2026:* the backend's fixes up to `d23ff2d` fixed or built every item §16.1 lists,
+> except F24 and F26; F28 is now only the template preview, since B46 built its variants. The
+> passages that depended on them carry a dated note. The live register of
+> requests is [BACKEND_REQUESTS.md](BACKEND_REQUESTS.md), not §16.2.
+>
 > **Readers.** The frontend lead owns the decision record. The backend developer is asked to read
 > §3, §4, §13, §16 and §17.3, which change shared process or need backend work.
 >
@@ -60,7 +65,7 @@ the sections it names have been updated to match it.
 
 **Why not either extreme.** Designing everything first delays a pilot that is blocked only on the
 client (BACKLOG F1), and produces mockups of screens the API cannot support yet — team management,
-F5, for one. Building everything first and designing afterwards turns the invitation, the one
+F5, for one (*built by 23 October 2026*). Building everything first and designing afterwards turns the invitation, the one
 screen where looks are the product, into rework.
 
 ---
@@ -149,7 +154,7 @@ Each row is a fact from the contract or the product, and what it forces on the c
 | R14 | Lists use an envelope, `limit` is 1–100 or a 400; some endpoints return bare arrays | Pagination per endpoint; never assume an envelope |
 | R15 | 10 requests a second and 100 a minute, per IP (API.md §1) | Deduplicated, cached requests and gentle polling. A real risk at venues where staff share one IP (FR-7) |
 | R16 | Polling, no push (arrivals) | Query polling that pauses in background tabs |
-| R17 | Uploads up to 10 MB; no server-side resizing (API.md §6) | Downscale images in the browser before upload until F18 |
+| R17 | Uploads up to 10 MB; no server-side resizing (API.md §6) | Downscale images in the browser before upload until F18. *F18 was built by 23 October 2026: the backend makes smaller copies* |
 | R18 | Templates are data; "adding a template is an INSERT" (INVITATION_DESIGN §1) | The renderer is driven by tokens and variants, with no per-template code. Fonts need a delivery answer (FR-9) |
 | R19 | The editor loads from `GET /invitations/:slug/design`, never the public page; each language is edited on its own (API.md §6) | The designer and the guest page share the renderer but not the data source |
 | R20 | Mail is real in development (Mailpit on `:8025`); `devLink` exists only in development (API.md §9) | Flows read tokens from the URL; end-to-end tests read mail from Mailpit |
@@ -567,6 +572,7 @@ payments.
 - A pagination helper handles the list envelope. Endpoints that return bare arrays are typed as
   bare arrays.
 - Uploads use `FormData`. Images are downscaled in the browser before upload until F18 lands.
+  *F18 landed by 23 October 2026.*
 
 ### 5.5 Session and authentication
 
@@ -582,10 +588,13 @@ payments.
   Within a tab, the in-flight promise from API.md §2 still applies, and a proactive refresh runs
   shortly before `expiresIn` elapses. Without this, two tabs sharing one refresh token present it
   together: one gets a 401 and signs the user out, and B53 means the backend may even issue two
-  live sessions.
+  live sessions. *23 October 2026: B53 is fixed. Instead, a refresh token presented more than a
+  minute after it was replaced or revoked is treated as theft and ends every session of the
+  account (`docs/ACCESS_CONTROL.md` §5, FR-22), so the lock matters more.*
 - **Logout** calls `POST /auth/logout`, clears storage, and broadcasts on a `BroadcastChannel` so
   every tab signs out. "Sign out everywhere" calls `logout-everywhere`.
-- **Onboarding.** Register, then create the organization, then enter the app. Until `GET /me` exists
+- **Onboarding.** Register, then create the organization, then enter the app. *23 October 2026:
+  register no longer signs in (D16), so the client logs in after registering.* Until `GET /me` exists
   (FR-5), "no organization" is detected from `GET /organizations/current` answering 403, which
   API.md documents. This interim is flagged.
 - **Permission-aware UI** waits for FR-6. Until then actions are shown and a 403 gets a clear
@@ -674,6 +683,8 @@ There are two visual systems.
   - There are no floats anywhere, and `parseFloat` or `Number()` on money fails lint.
   - BigInt arithmetic is used only where unavoidable; the API returns totals.
   - The vendor `feeAmount` is a decimal string (B51) and is handled as an exception until fixed.
+    *23 October 2026: B51 is fixed. The field is `feeMinor`, in minor units like every other
+    amount, so there is no exception.*
 
 ### 5.10 Errors and observability
 
@@ -713,6 +724,7 @@ There are two visual systems.
 
   HSTS stays with Caddy. A test asserts the headers (an idea taken from geaclient).
 - **Uploaded SVGs stay on the media origin**, never the app origin, because an SVG can carry script.
+  *23 October 2026: the backend now refuses SVG uploads (D18).*
 
 ### 5.12 Environment configuration
 
@@ -1259,6 +1271,9 @@ A12 — are tracked in the decision record. The questions below are the remainin
 
 ### 16.1 Already in BACKLOG.md, and blocking client screens
 
+*23 October 2026: every item below is fixed or built at `d23ff2d`, except F24 and F26, which stay
+P2 in BACKLOG.md. F28 stays open only for the template preview: its variants were built with B46.*
+
 | Screen | BACKLOG items |
 |---|---|
 | Guest page and RSVP | B16 with D4 (find-your-seat through the guest's link), B33 (timeline entries cannot be matched to venues on the page), B49 (a private invitation readable by its generic URL), F16 (switching language on a personalised page), F26 (caching personalised pages) |
@@ -1365,7 +1380,7 @@ Taken on 9 October 2026. The outcomes, and the options still open, are in the
 | No `GET /me` or permissions (FR-5, FR-6): no permission-aware UI, and onboarding detection is a heuristic | High | Show actions and handle 403; detect "no organization" from the documented 403 |
 | Per-IP rate limits at venues and behind a rendering server (FR-7) | High | Deduplicated queries, gentle polling; FR-7 before the pilot |
 | The client is the only P0 for the pilot: pressure to skip setup | High | A deliberately small setup (§0); heavy gates deferred |
-| Bugs that expose data (B11, B49): screens can make them more visible | High | Never treat UI hiding as protection; track the fixes |
+| Bugs that expose data (B11, B49): screens can make them more visible | High | Never treat UI hiding as protection; track the fixes. *Both fixed by 23 October 2026* |
 | The frontend stays off `main`, possibly until launch (A6): a long-lived integration branch, ending in one large merge | Medium | The workflow in §3.8: weekly syncs by merge commit, written triggers for joining `main` (before any deployment at the latest), and the full risk table in §3.8.6 |
 | Toolchain peer ranges: `openapi-typescript` (TypeScript ^5), `eslint-plugin-jsx-a11y` (ESLint ≤9) | Medium | Verify at scaffold; `overrides`, the ESLint 10 fork, or ESLint 9 |
 | On the frontend lead's machine the default shell Node is 16.20, and Volta and nvm coexist | Medium | `.nvmrc`, `engine-strict`, README setup steps |

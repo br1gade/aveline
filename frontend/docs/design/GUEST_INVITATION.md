@@ -341,7 +341,7 @@ on; sending one it switches off is refused (docs/API.md §4).
   | SINGLE_CHOICE | A radio list |
   | MULTI_CHOICE | Chips |
   | BOOLEAN | A yes / no control |
-  | SIGNATURE | Not shown, because it cannot be answered (BQ-5) |
+  | SIGNATURE | Not shown: nothing can capture a signature yet (F25), and the backend refuses to create one (BQ-5) |
 
   "Required" is written as a word, never shown by colour alone.
 
@@ -634,7 +634,7 @@ comment changes the design, update this file in the same change.
 - **The template "Maison"** as a database row: palettes, variants and fonts (R-27 to R-29). The
   backend inserts it.
 - **What the backend has to answer or build:** palette colours and roles in the guest payload
-  (BQ-1 to BQ-3), the signature-question guard (BQ-5), a reply-by date (BQ-7), a safe Telegram link
+  (BQ-1 to BQ-3), a reply-by date (BQ-7), a safe Telegram link
   (BQ-11), and members' earlier answers on an edit (FR-21).
 - **Designs the backend's new data waits for:** the guest's table (`guest.seating`), map
   coordinates and the Telegram link (§3).

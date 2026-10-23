@@ -63,8 +63,8 @@ with them, the spec and the code govern and the difference is a review finding
 | **Confirmed** | C-1 to C-22 | [DESIGN_DECISIONS §2](DESIGN_DECISIONS.md#2-confirmed) | Binding. C-21 and C-22 were verified in the backend code on 18 October |
 | **Recommendations** | R-1 to R-33 | [DESIGN_DECISIONS §3](DESIGN_DECISIONS.md#3-recommendations) | None accepted yet |
 | **Assumptions** | AS-1 to AS-12 | [DESIGN_DECISIONS §4](DESIGN_DECISIONS.md#4-assumptions) | Unverified |
-| **Open questions** | DQ-1 to DQ-12 (designer), PQ-1 to PQ-9 (product and the frontend lead), BQ-1 to BQ-11 (backend) | [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) | 30 open. The review's Q10 was answered by the code (C-21); BQ-4 and BQ-9 by the backend on 23 October |
-| **Provisional defaults** | PD-1 to PD-38 | [DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults) | What to build on while the questions stay open. PD-13 closed on 18 October; PD-15 and PD-16 on 23 October, when the backend answered BQ-4 and BQ-9 |
+| **Open questions** | DQ-1 to DQ-12 (designer), PQ-1 to PQ-9 (product and the frontend lead), BQ-1 to BQ-11 (backend) | [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) | 28 open. The review's Q10 was answered by the code (C-21); BQ-4, BQ-5, BQ-8 and BQ-9 by the backend on 23 October |
+| **Provisional defaults** | PD-1 to PD-38 | [DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults) | What to build on while the questions stay open. PD-13 closed on 18 October; PD-15, PD-16, PD-22 and PD-23 on 23 October, when the backend answered BQ-4, BQ-9, BQ-8 and BQ-5 |
 | **Review findings** | VR-01 to VR-36; 23 fixes | [DESIGN_REVIEW.md](DESIGN_REVIEW.md) | 9 fixes done; 11 findings fixed and 1 partly; the rest open |
 
 **How to tell them apart in practice:** a statement backed by a C- item is a decision. One backed
@@ -87,7 +87,8 @@ the specs is a recommendation.
 - **The designer's fixes and decisions** (DQ-1 to DQ-12). Until then, work follows PD-1 to PD-14
   and PD-27 to PD-38.
 - **Product decisions** (PQ-1 to PQ-9), on PD-17 to PD-20. PD-15 and PD-16 closed on 23 October.
-- **Backend changes** (BQ-1 to BQ-3, BQ-5 to BQ-8, BQ-10, BQ-11), on PD-21 to PD-26.
+- **Backend changes** (BQ-1 to BQ-3, BQ-6, BQ-7, BQ-10, BQ-11), on PD-21 and PD-24 to PD-26.
+  PD-22 and PD-23 closed on 23 October.
   - The frontend never changes backend code.
   - A need becomes a backend question, not a lasting workaround
     ([DESIGN_DECISIONS §1.1](DESIGN_DECISIONS.md#11-while-questions-are-open), rule 5).
@@ -103,7 +104,7 @@ invitation is sent:
 | Native readers have checked the Armenian and Russian copy | Every string in both languages is a draft | DQ-9, PD-9 |
 | The designer has approved or corrected the visual system | Unapproved recommendations shown to guests would become the brand by default | DQ-2, DQ-6, DQ-7, DQ-10, DQ-12 |
 | Product has set the default dietary and drink choices offered to hosts, and which questions are on by default | Hosts now choose per invitation, but a host who changes nothing gets free text, which the catering sheet cannot count | PQ-1 to PQ-3 |
-| A required SIGNATURE question can no longer block attending guests | Those guests could not reply at all | BQ-5, PD-23 |
+| ~~A required SIGNATURE question can no longer block attending guests~~ **Met 23 October 2026:** the backend refuses to create one (B69) | Those guests could not reply at all | BQ-5 (answered), PD-23 (closed) |
 | The palette stand-in is replaced, or accepted in writing for launch | No permanent client workaround | BQ-1, BQ-2, PD-21 |
 | The review's P1 and P2 fixes are applied (fixes 1, 4, 8 and 11 are done; the reply line was corrected on 18 October) | Rendering and accessibility problems | [DESIGN_REVIEW §5](DESIGN_REVIEW.md#5-fixes) |
 
@@ -126,7 +127,7 @@ shared-document process, with the backend developer's review. This work did not 
   reader.
 - **The published review page is not corrected.** It stays a snapshot.
 - **The backend questions are not yet sent.** They are listed in
-  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-21, BQ-1 to BQ-11), and
+  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-22, BQ-1 to BQ-11), and
   [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) still holds their reasoning.
 - **The launch gates are not yet in `docs/GOING_LIVE.md`** (§6).
 - **The guest pages have not run against the real backend.** They were checked against a mock

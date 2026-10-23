@@ -44,7 +44,9 @@ Rules:
 The backend builds links to client paths from `PUBLIC_APP_URL` (default `http://localhost:5173`).
 They are defined once in `ROUTE_PATHS` (`src/route-paths.ts`), used by `src/routes.ts`, and pinned
 by a test that reads the backend's sources. Renaming one is a
-breaking change for the backend's emails (FR-8 asks for the table in `docs/API.md`).
+breaking change for the backend's emails (FR-8 asks for the table in `docs/API.md`). Four paths
+the backend builds since 23 October 2026 are not in `ROUTE_PATHS` yet: `/sign-in`,
+`/accept-event-invite`, and the bank's default returns `/tickets/return` and `/billing/return`.
 
 ## 4. The API layer (`src/api/`)
 
@@ -57,7 +59,8 @@ breaking change for the backend's emails (FR-8 asks for the table in `docs/API.m
   - every failure becomes one `ApiError { status, messages, fieldErrors, requestId, path }`.
 - **Base URL:** in the browser, the same origin; the Vite proxy sends `/api` to
   `API_INTERNAL_URL` (default `http://localhost:3000`) in development. On the server,
-  `API_INTERNAL_URL` directly.
+  `API_INTERNAL_URL` directly. Production is not agreed (FR-11): the backend's production template
+  puts the API on its own origin, which would make every browser call cross-origin.
 - **Response types are interim and hand-written** per feature (`types.ts`) until FR-1.
 
 ## 5. Session (`src/api/session/`)
@@ -66,6 +69,20 @@ The access token in memory, the refresh token in `localStorage` behind `tokenSto
 moving it to an httpOnly cookie (FR-12) changes one module. Refresh is single-flight within a tab
 and across tabs through a Web Lock; logout broadcasts on a `BroadcastChannel`. **Skeleton only**
 until the sign-in screens exist.
+
+What the backend does since 23 October 2026 (`docs/API.md` §2, `docs/ACCESS_CONTROL.md` §5):
+
+- **Register does not sign in.** It answers `202` whether or not the address has an account, so
+  the client logs in next.
+- **A refresh token presented more than a minute after it was revoked is treated as theft:**
+  every session the account has ends. Within the minute it is only refused. ACCESS_CONTROL §5
+  says this of a *replaced* token; the code applies it to any revoked one, including those a
+  password reset or "sign out everywhere" revoked (FR-22). The cross-tab lock, which re-reads the
+  stored token, is what keeps a second tab from presenting a stale one. Where Web Locks are
+  missing, a refused refresh still clears the store, even when another tab has just saved a newer
+  token.
+- **A password reset or "sign out everywhere" ends sessions at once:** access tokens already
+  issued answer `401`, and the refresh that follows is refused.
 
 ## 6. Language, time and money
 
@@ -151,7 +168,9 @@ Pure, safe to render on the server, light on JavaScript. Specified by
 - **Not found:** a guest link that opens nothing (wrong, a draft, past its retention date) is a
   404 with the invitation's own not-found page, in all three languages.
 - **Capability links** are redacted with the patterns of `backend/src/common/redact-url.ts`
-  before anything is logged.
+  before anything is logged. The two the backend added on 23 October 2026, a payment's order
+  number and an invitee's address in the path, are not copied yet; no client code calls those
+  routes today.
 - **Sentry and analytics:** none yet.
 
 ## 10. Testing
@@ -192,9 +211,14 @@ End-to-end data is created through the organizer API, because seed tokens change
 
 ## 12. Not yet built
 
-- The organizer app: sign-in, onboarding, events, guests, design, seating, door, billing.
-- Session screens; the session module is a skeleton.
-- Capability pages: tickets and briefs.
+- The organizer app: sign-in, onboarding, events, guests, design, seating, door, billing (with
+  the bank's return page, `/billing/return`), and the event team.
+- Session screens; the session module is a skeleton. Among them, the pages the backend already
+  links to: `/sign-in`, and `/accept-event-invite` for team invitations (FR-8).
+- Capability pages: tickets and briefs, and the ticket buyer's return from the bank,
+  `/tickets/return`.
+- Media in development when the backend stores uploads on its own disk (no S3 configured): it
+  serves them at `/files/…`, and the Vite proxy forwards only `/api`, so they do not display.
 - Our own production server, Docker image and deployment (A7, FR-11).
 - CI (BA-3), Sentry, Storybook (A10).
 - Font preloading and bundle budgets for the guest page.
