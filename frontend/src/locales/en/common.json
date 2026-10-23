@@ -1,0 +1,16 @@
+{
+  "appName": "Aveline",
+  "home": {
+    "title": "Aveline",
+    "body": "Invitations for the days that matter. Open the personal link you received to see your invitation."
+  },
+  "notFound": {
+    "title": "This page isn’t available",
+    "body": "Check the link you received."
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "Please try again in a moment.",
+    "reference": "Reference: {{requestId}}"
+  }
+}

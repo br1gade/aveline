@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+/* The four Noto families, self-hosted as variable fonts (design C-6). Each package splits by
+   unicode-range, so a page downloads only the scripts it uses. The stacks in tokens.css put the
+   Armenian family first: it supplies Armenian, Latin and digits, and base Noto the rest, such as
+   Cyrillic (ARCHITECTURE §8). */
+@import '@fontsource-variable/noto-serif-armenian/wght.css';
+@import '@fontsource-variable/noto-serif/wght.css';
+@import '@fontsource-variable/noto-sans-armenian/wght.css';
+@import '@fontsource-variable/noto-sans/wght.css';
+
+/* Generated from tokens.json: never edit these two by hand (npm run tokens). */
+@import './tokens.css';
+@import './theme.css';
+
+@layer base {
+  html {
+    /* The invitation keeps its palette whatever the device's dark mode (design R-16). */
+    color-scheme: light;
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--family-sans);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-size: 16px;
+    line-height: 26px;
+  }
+
+  :where(h1, h2, h3, h4) {
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: var(--focus-width) solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* Armenian lowercase is shorter and descends deeper: more line height, half the tracking on
+     capitals, none on display type (design R-11, PD-10). */
+  :lang(hy) body {
+    line-height: 27px;
+  }
+
+  /* "Reply" scrolls to the reply section rather than jumping; reduced motion turns it off below. */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Armenian adjustments to the generated type styles (DESIGN_SYSTEM §3.3; PD-10): half the
+   tracking on capitals, none on display type, and a taller body line. In the utilities layer, so
+   they win over the styles they adjust. */
+@layer utilities {
+  :lang(hy) .type-eyebrow {
+    letter-spacing: 0.08em;
+  }
+
+  :lang(hy) .type-button-text {
+    letter-spacing: 0.06em;
+  }
+
+  :lang(hy) :is(.type-display-xl, .type-display-l) {
+    letter-spacing: 0;
+  }
+
+  :lang(hy) .type-body {
+    line-height: 1.7;
+  }
+}

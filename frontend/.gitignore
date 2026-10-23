@@ -9,3 +9,15 @@ coverage/
 # Generated from backend/openapi.json — regenerate rather than commit, so the
 # types cannot drift from the server they describe.
 src/api/schema.ts
+
+# React Router's generated route types
+.react-router/
+
+# Playwright output
+test-results/
+playwright-report/
+
+# Personal agent settings. The root ignore rule for settings.local.json is
+# anchored to the root .claude/, so frontend sessions need their own.
+.claude/settings.local.json
+CLAUDE.local.md

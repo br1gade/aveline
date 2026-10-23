@@ -1,0 +1,151 @@
+/* Aveline Events — generated from tokens.json by scripts/tokens-to-css.mjs. Do not edit. */
+
+@theme inline {
+  --color-brand-burgundy: var(--brand-burgundy);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-taupe: var(--brand-taupe);
+  --color-brand-blush: var(--brand-blush);
+  --color-ivory: var(--ivory);
+  --color-porcelain: var(--porcelain);
+  --color-linen: var(--linen);
+  --color-sand: var(--sand);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-gold-ink: var(--gold-ink);
+  --color-taupe-ink: var(--taupe-ink);
+  --color-line: var(--line);
+  --color-burgundy-hover: var(--burgundy-hover);
+  --color-burgundy-deep: var(--burgundy-deep);
+  --color-burgundy-raised: var(--burgundy-raised);
+  --color-selected-tint: var(--selected-tint);
+  --color-error-ink: var(--error-ink);
+  --color-error-ink-hover: var(--error-ink-hover);
+  --color-error-tint: var(--error-tint);
+  --color-success-ink: var(--success-ink);
+  --color-success-tint: var(--success-tint);
+  --color-error-on-dark: var(--error-on-dark);
+  --color-success-on-dark: var(--success-on-dark);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-heading: var(--heading);
+  --color-label: var(--label);
+  --color-ornament: var(--ornament);
+  --color-hairline: var(--hairline);
+  --color-control-edge: var(--control-edge);
+  --color-action: var(--action);
+  --color-action-text: var(--action-text);
+  --color-action-hover: var(--action-hover);
+  --color-action-pressed: var(--action-pressed);
+  --color-focus: var(--focus);
+  --color-selected: var(--selected);
+  --color-error: var(--error);
+  --color-success: var(--success);
+  --font-serif: var(--family-serif);
+  --font-sans: var(--family-sans);
+}
+
+@utility type-display-xl {
+  font-family: var(--family-serif);
+  font-size: clamp(2.75rem, 2rem + 3.3333vw, 5rem);
+  line-height: clamp(3rem, 2.25rem + 3.3333vw, 5.25rem);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+@utility type-display-l {
+  font-family: var(--family-serif);
+  font-size: clamp(2.25rem, 1.8333rem + 1.8519vw, 3.5rem);
+  line-height: clamp(2.625rem, 2.2083rem + 1.8519vw, 3.875rem);
+  font-weight: 300;
+  letter-spacing: -0.005em;
+}
+
+@utility type-numeral-l {
+  font-family: var(--family-serif);
+  font-size: clamp(2.75rem, 2.3333rem + 1.8519vw, 4rem);
+  line-height: clamp(2.75rem, 2.3333rem + 1.8519vw, 4rem);
+  font-weight: 300;
+}
+
+@utility type-heading-1 {
+  font-family: var(--family-serif);
+  font-size: clamp(1.75rem, 1.5rem + 1.1111vw, 2.5rem);
+  line-height: clamp(2.125rem, 1.875rem + 1.1111vw, 2.875rem);
+  font-weight: 400;
+}
+
+@utility type-heading-2 {
+  font-family: var(--family-serif);
+  font-size: clamp(1.375rem, 1.25rem + 0.5556vw, 1.75rem);
+  line-height: clamp(1.75rem, 1.625rem + 0.5556vw, 2.125rem);
+  font-weight: 400;
+}
+
+@utility type-heading-3 {
+  font-family: var(--family-serif);
+  font-size: clamp(1.125rem, 1.0833rem + 0.1852vw, 1.25rem);
+  line-height: clamp(1.5rem, 1.4583rem + 0.1852vw, 1.625rem);
+  font-weight: 500;
+}
+
+@utility type-numeral-m {
+  font-family: var(--family-serif);
+  font-size: clamp(1.25rem, 1.2083rem + 0.1852vw, 1.375rem);
+  line-height: clamp(1.5rem, 1.4583rem + 0.1852vw, 1.625rem);
+  font-weight: 400;
+}
+
+@utility type-lead {
+  font-family: var(--family-sans);
+  font-size: clamp(1.125rem, 1.0833rem + 0.1852vw, 1.25rem);
+  line-height: clamp(1.875rem, 1.8333rem + 0.1852vw, 2rem);
+  font-weight: 400;
+}
+
+@utility type-body {
+  font-family: var(--family-sans);
+  font-size: clamp(1rem, 0.9792rem + 0.0926vw, 1.0625rem);
+  line-height: clamp(1.625rem, 1.5833rem + 0.1852vw, 1.75rem);
+  font-weight: 400;
+}
+
+@utility type-small {
+  font-family: var(--family-sans);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+}
+
+@utility type-caption {
+  font-family: var(--family-sans);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+@utility type-eyebrow {
+  font-family: var(--family-sans);
+  font-size: clamp(0.75rem, 0.7292rem + 0.0926vw, 0.8125rem);
+  line-height: clamp(1rem, 0.9583rem + 0.1852vw, 1.125rem);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+}
+
+@utility type-button-text {
+  font-family: var(--family-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
+@utility type-field-text {
+  font-family: var(--family-sans);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
