@@ -32,7 +32,7 @@ the sections it names have been updated to match it.
 | A9 | Claude Code's sandbox | **Open — decide later.** Options: a trial after the scaffold, from day one, or never (§10.4) | Rules, hooks and CI apply meanwhile |
 | A10 | When to add Storybook | **Open.** Options: during setup, or together with the invitation renderer | — |
 | A11 | This proposal | **Delete it once ARCHITECTURE.md and WORKFLOW.md absorb these decisions**, as recommended | Git history keeps it |
-| A12 | Design first, or features first? | **Recommendation, at the frontend lead's request:** design the invitation and a small set of tokens first, with Claude Design; build the organizer app's features first. Confirm or change | Below |
+| A12 | Design first, or features first? | **Recommendation, at the frontend lead's request:** design the invitation and a small set of tokens first, with Claude Design; build the organizer app's features first. Confirm or change | Below. The invitation design and tokens are in [design/](design/BRAND_BRIEF.md) (12 October 2026) |
 
 ### A12 — design first, or features first?
 
@@ -1229,6 +1229,8 @@ A12 — are tracked in the decision record. The questions below are the remainin
 1. **Hosting.** The production domain(s), and who operates deployment (A7 decides the layout).
 2. **Brand.** Is there an existing brand (logo, colours, fonts) for the Claude Design work in A12 to
    start from? Who approves a template's design, given that templates are data rows?
+   *Partly answered on 12 October 2026:* the designer supplied the brand. See
+   [design/BRAND_BRIEF.md](design/BRAND_BRIEF.md). Who approves a template's design is still open.
 3. **Languages.** Which UI languages ship for the pilot, and who translates Armenian and Russian?
 4. **Browsers.** The support matrix, including the in-app browsers of Telegram, WhatsApp, Instagram
    and Facebook, where many invitation links will open.
@@ -1243,7 +1245,10 @@ A12 — are tracked in the decision record. The questions below are the remainin
    7. `frontend/operations` (dashboard, check-in);
    8. `frontend/seating`.
 7. **Offline door.** Does the door need offline check-in? Venue connectivity is often poor.
-8. **Font licences** for the template fonts and the UI font.
+8. **Font licences** for the template fonts and the UI font. *Partly answered:* the brand's four
+   Noto families are OFL, verified on 12 October 2026
+   ([design/BRAND_BRIEF.md](design/BRAND_BRIEF.md#61-verified-font-facts-12-october-2026)). Fonts
+   that other templates name are still open.
 9. **GitHub usernames** for `CODEOWNERS`.
 
 ---
