@@ -105,12 +105,6 @@
     "body": "Check the link you received, or ask the person who invited you.",
     "sentence": "This invitation isn’t available. Check the link you received, or ask the person who invited you."
   },
-  "language": {
-    "label": "Language",
-    "hy": "Հայերեն",
-    "ru": "Русский",
-    "en": "English"
-  },
   "footer": {
     "logo": "Aveline Events"
   }

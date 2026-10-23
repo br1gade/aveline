@@ -13,6 +13,9 @@
 @import './tokens.css';
 @import './theme.css';
 
+/* The app's shadcn/ui kit: its theme mapping and animations. */
+@import './app-kit.css';
+
 @layer base {
   html {
     /* The invitation keeps its palette whatever the device's dark mode (design R-16). */

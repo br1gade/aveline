@@ -1,1 +1,1 @@
-export { isCapabilityPath, redactText, redactUrl } from './redact';
+export { carriesCapability, isCapabilityPath, redactText, redactUrl } from './redact';

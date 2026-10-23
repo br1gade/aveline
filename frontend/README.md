@@ -1,6 +1,7 @@
 # Aveline frontend
 
-The web client for Aveline: the guest invitation first, the organizer app later. React Router 8
+The web client for Aveline: the guest invitation first, then the organizer app, whose way in
+(sign-in and onboarding) exists. React Router 8
 with server rendering, on Vite. How it is built: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 How we work: [docs/WORKFLOW.md](docs/WORKFLOW.md). Agent rules: [CLAUDE.md](CLAUDE.md). The
 design: [docs/design/](docs/design/README.md).
@@ -32,11 +33,15 @@ Open a guest link printed by `db:seed`, without its `/api` prefix:
 `http://localhost:5173/invitations/anna-davit/g/<token>`. The generic page is
 `http://localhost:5173/invitations/anna-davit`.
 
+The organizer app starts at `http://localhost:5173/sign-in`. The seeded accounts have no password
+(FR-14), so create one at `/register`; the emails it sends land in the backend's dev inbox,
+`http://localhost:8025`.
+
 ## Scripts
 
 | Script | Does |
 |---|---|
-| `dev` | The development server on port 5173, with `/api` proxied to the backend |
+| `dev` | The development server on port 5173, with `/api` and `/files` (uploads on the backend's disk) proxied to the backend |
 | `build`, `start` | A production build, and `react-router-serve` for local use |
 | `typecheck`, `lint`, `lint:fix`, `format`, `format:check` | Types, ESLint (zero warnings), Prettier |
 | `test`, `test:e2e` | Vitest; Playwright against the running backend (no end-to-end tests are written yet) |

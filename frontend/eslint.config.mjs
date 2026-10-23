@@ -66,6 +66,13 @@ export default defineConfig(
         },
       ],
 
+      // Only errors are thrown, except a Response: a loader redirects by throwing `redirect()`,
+      // as React Router documents. Nothing else may be thrown.
+      '@typescript-eslint/only-throw-error': [
+        'error',
+        { allow: [{ from: 'lib', name: 'Response' }] },
+      ],
+
       // ── Async correctness ──
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': [

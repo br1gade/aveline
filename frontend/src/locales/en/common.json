@@ -12,5 +12,11 @@
     "title": "Something went wrong",
     "body": "Please try again in a moment.",
     "reference": "Reference: {{requestId}}"
+  },
+  "language": {
+    "label": "Language",
+    "hy": "Հայերեն",
+    "ru": "Русский",
+    "en": "English"
   }
 }

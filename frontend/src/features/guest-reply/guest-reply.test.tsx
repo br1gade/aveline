@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import type { ReactNode } from 'react';
+import { renderToString } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -385,5 +386,28 @@ describe('GuestReply', () => {
 
     expect(screen.getByText('Not attending')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Change reply' })).toBeNull();
+  });
+});
+
+describe('before hydration', () => {
+  it('posts, and keeps Send disabled, so a reply never lands in the link’s address', () => {
+    const html = renderToString(
+      <I18nextProvider i18n={createI18n('en')}>
+        <GuestReply
+          invitation={INVITATION}
+          link={LINK}
+          record={recordWith()}
+          onReplied={vi.fn()}
+          onSentChange={vi.fn()}
+        />
+      </I18nextProvider>,
+    );
+    expect(html).toMatch(/<form[^>]*method="post"/);
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*disabled=""[^>]*>[^<]*Send reply/);
+  });
+
+  it('enables Send once the page runs in the browser', () => {
+    renderReply();
+    expect(screen.getByRole('button', { name: 'Send reply' })).toBeEnabled();
   });
 });

@@ -10,14 +10,18 @@ const backendSource = join(import.meta.dirname, '..', '..', 'backend', 'src');
 const backend = (path: string) => readFileSync(join(backendSource, path), 'utf8');
 
 describe('the route contract', () => {
-  it('pins every path the backend emails', () => {
+  it('pins every path the backend builds', () => {
     expect(ROUTE_PATHS).toEqual({
       guestInvitation: '/invitations/:slug/g/:guestToken',
       genericInvitation: '/invitations/:slug',
+      signIn: '/sign-in',
       resetPassword: '/reset-password',
       verifyEmail: '/verify-email',
       acceptInvite: '/accept-invite',
+      acceptEventInvite: '/accept-event-invite',
       ticket: '/tickets/:accessToken',
+      ticketPaymentReturn: '/tickets/return',
+      billingPaymentReturn: '/billing/return',
       brief: '/briefs/:briefToken',
     });
   });
@@ -25,15 +29,23 @@ describe('the route contract', () => {
   it('matches the paths the backend actually builds', () => {
     const account = backend('infra/auth/account.service.ts');
     for (const path of [
+      ROUTE_PATHS.signIn,
       ROUTE_PATHS.resetPassword,
       ROUTE_PATHS.verifyEmail,
       ROUTE_PATHS.acceptInvite,
+      ROUTE_PATHS.acceptEventInvite,
     ]) {
       expect(account).toContain(path);
     }
     expect(backend('modules/ticketing/ticket-notifier.service.ts')).toContain('/tickets/');
     expect(backend('modules/invitations/sending/invitation-sender.service.ts')).toContain(
       '/invitations/${slug}/g/${token}',
+    );
+    expect(backend('modules/ticketing/ticketing.service.ts')).toContain(
+      `appPage('${ROUTE_PATHS.ticketPaymentReturn}')`,
+    );
+    expect(backend('modules/billing/subscriptions.service.ts')).toContain(
+      `appPage('${ROUTE_PATHS.billingPaymentReturn}')`,
     );
   });
 });

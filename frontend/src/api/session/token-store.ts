@@ -7,6 +7,8 @@
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+  /** Seconds until the access token expires, when the server said. Not stored. */
+  expiresIn?: number;
 }
 
 export interface TokenStore {

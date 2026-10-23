@@ -68,7 +68,10 @@ From the template; getting them wrong breaks users.
 - **Features own their UI and data:** `src/features/<capability>/` with `api.ts`, `components/`,
   `types.ts`, `schemas.ts` and an `index.ts` public surface, plus `index.server.ts` for server-only
   loaders. A feature imports another only through those two; `api/`, `lib/` and `ui/` never import
-  from `features/`. Shared form controls are in `src/ui/form/`.
+  from `features/`. The invitation's form controls are in `src/ui/form/`; the app's shadcn/ui kit
+  is in `src/ui/kit/`, mapped onto the tokens in `src/styles/app-kit.css`, never the CLI's palette.
+- **A form that submits from JavaScript** has `method="post"` and a submit button disabled until
+  hydration (`useIsHydrated`), so nothing typed reaches the address bar before React runs.
 - **Server state** through route loaders now, TanStack Query when the app needs caching; filters
   and tabs in the URL.
 - **Forms:** React Hook Form with Zod. The server stays the authority; a `400` maps onto fields.

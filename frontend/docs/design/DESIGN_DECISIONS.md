@@ -203,6 +203,8 @@ blocks development. Some block launch ([README §6](README.md#6-launch-gates)).
 | DQ-10 | Please approve or change **square corners** (R-4), **capitals for labels and buttons** (R-8, R-12) and the concept's working name, **"Maison"** (R-13, R-27). *Added 18 October 2026* | The visual language; the template's name |
 | DQ-11 | Is a **second palette, champagne,** wanted? *Added 18 October 2026* | R-28, the Cover-champagne board |
 | DQ-12 | The review's design fixes (2, 3, 5–7, 9, 12–14, 17 and 21 in [DESIGN_REVIEW §5](DESIGN_REVIEW.md#5-fixes)): accept the directions in PD-14 and PD-27 to PD-37, or redraw? *Added 18 October 2026* | Those fixes |
+| DQ-13 | Please design the **account pages** (sign-in, register, password reset, email check, accepting an invitation) and the app's first screens (creating the organization, the events home, the header with signing out). Built meanwhile on PD-39, with the app's kit mapped as DESIGN_SYSTEM §12 says. *Added 23 October 2026* | The way into the organizer app |
+| DQ-14 | How should a **submit button look in the moment before the page is ready**? Until the page's JavaScript runs, a press would make the browser send the form itself, putting what was typed into the address. Built meanwhile on PD-41: disabled, without words. *Added 23 October 2026* | Send reply; every account form |
 
 ### For product and the frontend lead
 
@@ -217,6 +219,7 @@ blocks development. Some block launch ([README §6](README.md#6-launch-gates)).
 | PQ-7 | Who supplies the replacement **photography**, and when? | Launch (C-10) |
 | PQ-8 | Should the footer mark **link to an Aveline website**? Capability pages strip the referrer, so a link is safe | The footer |
 | PQ-9 | May the contact block name **Aveline** when Aveline itself organises the event? C-12 allows one appearance, the footer mark, and the sample content names Aveline as organiser (VR-02). *Added 18 October 2026* | The contact block |
+| PQ-10 | Which **language** do the account and app pages show when nothing has chosen one? An invitation shows its event's; these pages have no event. *Added 23 October 2026* | Every account and app page (PD-40) |
 
 ### For the backend team
 
@@ -283,6 +286,9 @@ changes if the answer differs. The rules are in [§1.1](#11-while-questions-are-
 | PD-11 | `lib/time`: day, month, year; a 24-hour clock |
 | PD-38 | `features/guest-reply/`: each attending member and added guest answers the host's questions under their name |
 | PD-21 | `features/invitation-renderer/theme.ts`: bordeaux only |
+| PD-39 | `features/account/components/account-layout.tsx` and `app-shell.tsx`; the radius in `styles/app-kit.css` |
+| PD-40 | `lib/i18n/negotiate.ts`, read by the account routes and the `/app` layout |
+| PD-41 | `ui/use-is-hydrated.ts`, read by Send reply (`guest-reply/components/reply-form.tsx`) and the account forms' `SubmitButton` |
 | PD-24, PD-26 | `schemas.ts` reads six-digit hex from `settings.palette`; the swatches are one labelled image |
 | PD-25 | No deadline is computed; `isAcceptingResponses` alone decides |
 | PD-27, PD-31 | The reply bar (`components/reply-bar.tsx`) and the cover's Reply on desktop |
@@ -358,6 +364,19 @@ designer answers DQ-12. None is applied to the artifacts yet.
 | PD-37 | VR-18, VR-25, VR-26, fix 15: states and sizes not drawn | The undrawn states are built from the spec's words (§6.2, §7) with the existing components, and drawn later. Until a 1,024 px board exists, the open card is checked at 1,024 px in a browser | Adjust to the drawings when they arrive |
 | PD-38 | The backend's rule of 23 October 2026 (docs/API.md §4): a required question binds every attending member and added guest, and each answers for themselves. Not drawn | Under each attending member's name, and each added guest's, their own copy of the host's questions, then their dietary needs folded away as spec §6.1d draws them. The respondent's own questions go under their name when anyone else is on the form. Members' earlier answers are not shown on an edit, since the API does not return them (FR-21) | Adjust to the drawing when the designer draws it |
 
+### Account and app pages
+
+| ID | Open item | Build on this meanwhile | If the answer differs |
+|---|---|---|---|
+| PD-39 | DQ-13: the account and app pages are not designed | One centred column on `ivory`, at most 26 rem wide: the wordmark in serif capitals and the language switcher, then a card with a serif title. The app has a header with the wordmark, the switcher and signing out. Built from the shadcn/ui kit (C-14) mapped onto the tokens exactly as [DESIGN_SYSTEM §12](DESIGN_SYSTEM.md#12-from-invitation-to-dashboard) tabulates, at the app's density: 14–15 px text, 40 px controls, 44 px on touch. Square corners, since §12 allows 0 or 2 px; radio buttons stay round | The layout lives in `AccountLayout` and `AppShell`, and the radius in `src/styles/app-kit.css` |
+| PD-40 | PQ-10: the language of the account and app pages | `?lang=` when the switcher sets it, remembered in an `aveline-lang` cookie; otherwise the browser's `Accept-Language` among hy, ru and en; otherwise English. The cookie is not a credential. Invitations ignore it and keep their event's `locale` | One function, `src/lib/i18n/negotiate.ts` |
+
+### Forms before the page is ready
+
+| ID | Open item | Build on this meanwhile | If the answer differs |
+|---|---|---|---|
+| PD-41 | DQ-14: a submit button before the page is ready | Send reply and every account form's submit button are disabled until the page's JavaScript runs, usually well under a second, and the form posts. No words explain it, since the state clears itself. This departs from DESIGN_SYSTEM §10 ("the reason is given in text nearby"), which carries a ⚠ marker | Add a line under the button, or the button's normal look, in `useIsHydrated`'s two users; the button stays disabled either way |
+
 ---
 
 ## 7. Out of scope
@@ -366,7 +385,7 @@ Not designed now, each for the reason given:
 
 | Not designed | Why |
 |---|---|
-| The organizer dashboard and app screens | C-7. [DESIGN_SYSTEM §12](DESIGN_SYSTEM.md#12-from-invitation-to-dashboard) maps the tokens for later |
+| The organizer dashboard and app screens beyond the way in | C-7. [DESIGN_SYSTEM §12](DESIGN_SYSTEM.md#12-from-invitation-to-dashboard) maps the tokens. The account pages and the app's first screens are built on PD-39 since 23 October 2026, and wait for DQ-13 |
 | Public event pages, ticketing, checkout | Not the first deliverable |
 | Find your seat | B16 and D4 are built (`guest.seating`, 23 October 2026); where the table shows on the page is not designed yet |
 | Signature capture | Not built in the backend (INVITATION_DESIGN §7) |

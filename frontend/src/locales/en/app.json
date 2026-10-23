@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "home": "Your events · Aveline",
+    "welcome": "Set up your organization · Aveline"
+  },
+  "shell": {
+    "loading": "Loading…",
+    "signOut": "Sign out",
+    "signOutEverywhere": "Sign out on every device",
+    "confirm": {
+      "title": "Sign out on every device?",
+      "body": "Every browser and phone signed in to your account will need to sign in again, this one included.",
+      "action": "Sign out everywhere",
+      "cancel": "Cancel"
+    },
+    "signOutFailed": "We couldn’t sign out your other devices. Please try again."
+  },
+  "home": {
+    "title": "Your events",
+    "empty": "Your events will appear here."
+  },
+  "welcome": {
+    "title": "Set up your organization",
+    "lead": "Your events, guests and team live in it.",
+    "name": "Name",
+    "nameHelp": "A couple’s names, or your business’s.",
+    "kind": {
+      "legend": "Who is it for?",
+      "HOST": "A couple or a family",
+      "PLANNER": "A planner or an agency",
+      "CORPORATE": "A company"
+    },
+    "submit": "Continue",
+    "submitting": "Setting up…"
+  }
+}

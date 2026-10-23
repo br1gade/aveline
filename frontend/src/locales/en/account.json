@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "signIn": "Sign in · Aveline",
+    "register": "Create an account · Aveline",
+    "resetPassword": "Reset your password · Aveline",
+    "verifyEmail": "Confirm your email · Aveline",
+    "invite": "Accept an invitation · Aveline"
+  },
+  "fields": {
+    "email": "Email",
+    "password": "Password",
+    "newPassword": "New password",
+    "name": "Your name",
+    "passwordHelp": "At least 10 characters.",
+    "errors": {
+      "required": "Fill this in.",
+      "email": "Enter an email address, like name@example.com.",
+      "passwordShort": "Use at least 10 characters.",
+      "nameShort": "Use at least 2 characters.",
+      "tooLong": "This is too long.",
+      "other": "Check this field."
+    }
+  },
+  "problems": {
+    "rate-limited": "Too many attempts. Wait a minute, then try again.",
+    "unreachable": "We couldn’t reach Aveline. Check your connection and try again.",
+    "server": "Something went wrong on our side. Please try again in a moment.",
+    "check": "Some details weren’t accepted. Check them and try again."
+  },
+  "links": {
+    "signIn": "Sign in",
+    "register": "Create an account",
+    "forgotPassword": "Forgot your password?",
+    "requestNewLink": "Ask for a new link"
+  },
+  "signIn": {
+    "title": "Sign in",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "refused": "That email and password don’t match an account."
+  },
+  "register": {
+    "title": "Create your account",
+    "lead": "Then set up your organization and your first event.",
+    "submit": "Create account",
+    "submitting": "Creating your account…",
+    "checkEmail": {
+      "title": "Check your email",
+      "body": "We’ve sent a message to this address explaining how to sign in."
+    }
+  },
+  "resetPassword": {
+    "title": "Reset your password",
+    "lead": "We’ll email you a link to choose a new one.",
+    "submit": "Send the link",
+    "submitting": "Sending…",
+    "sent": {
+      "title": "Check your email",
+      "body": "If an account uses this address, we’ve sent it a link to choose a new password. Only the newest link works, and only once."
+    },
+    "choose": {
+      "title": "Choose a new password",
+      "lead": "Every device signed in to your account will be signed out.",
+      "submit": "Save the new password",
+      "submitting": "Saving…"
+    },
+    "linkInvalid": "This link has expired, was already used, or a newer one was sent.",
+    "done": {
+      "title": "Password changed",
+      "body": "Every device was signed out. Sign in with your new password."
+    }
+  },
+  "verifyEmail": {
+    "title": "Confirm your email",
+    "pending": "Confirming your email address…",
+    "done": "Your email address is confirmed.",
+    "invalid": "This link has expired or was already used.",
+    "missing": "This link is incomplete. Open it again from your email."
+  },
+  "invite": {
+    "title": {
+      "organization": "Join your team on Aveline",
+      "event": "Join an event on Aveline"
+    },
+    "lead": "Choose a password. If this address already has an Aveline account, use its password instead.",
+    "submit": "Accept the invitation",
+    "submitting": "Accepting…",
+    "invalid": "This invitation is no longer valid. Ask whoever invited you for a new one.",
+    "accountExists": "This address already has an account and that isn’t its password, or the account already belongs to another organization. Sign in with its password, or reset it first.",
+    "missing": "This invitation link is incomplete. Open it again from your email.",
+    "done": {
+      "title": "You’re in",
+      "created": "Your account is ready. Sign in with this email address and the password you chose.",
+      "existing": "The invitation is now part of your account. Sign in to continue."
+    }
+  }
+}

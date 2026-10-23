@@ -11,7 +11,7 @@ import {
 } from 'react-router';
 
 import { readPublicEnv } from '@/config/env';
-import { isCapabilityPath, redactText } from '@/lib/capability-links';
+import { carriesCapability, redactText } from '@/lib/capability-links';
 import { applySecurityHeaders, capabilityPageHeaders, createNonce } from '@/lib/security/headers';
 
 /**
@@ -25,7 +25,7 @@ export const streamTimeout = 5_000;
  * boundary's included: when a loader fails, React Router skips the route's own `headers`.
  */
 function protectCapabilityPage(request: Request, headers: Headers): void {
-  if (isCapabilityPath(new URL(request.url).pathname)) {
+  if (carriesCapability(new URL(request.url))) {
     for (const [name, value] of Object.entries(capabilityPageHeaders())) {
       headers.set(name, value);
     }

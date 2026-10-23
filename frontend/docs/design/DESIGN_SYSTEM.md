@@ -479,7 +479,7 @@ both themes.
 | **Focus** (keyboard) | A 2 px `focus` ring, offset 2 px, never removed. Shown with `:focus-visible` | Everything interactive |
 | **Pressed** | Primary goes to `action-pressed`. Nothing moves | Buttons, chips, choice cards |
 | **Selected** | A 2 px `action` edge, the `selected` ground and a check mark. Chips fill with `action` | Choice cards, chips, segments |
-| **Disabled** | A `sand` ground with `ink-muted` text (4.85). No hover. The reason is given in text nearby | Buttons, fields |
+| **Disabled** | A `sand` ground with `ink-muted` text (4.85). No hover. The reason is given in text nearby. **⚠** A submit button before the page is ready is disabled without words (PD-41) | Buttons, fields |
 | **Loading** | The label reads "Sending…" with a turning `loader` icon. The width stays fixed. `aria-busy="true"`; repeat presses are ignored | Primary buttons |
 | **Error** | A 1 px `error` edge, an icon and a message below, linked with `aria-describedby` | Fields, groups |
 | **Success** | A `success` icon and words in a notice. Focus moves to its heading | The reply confirmation |
@@ -518,8 +518,8 @@ both themes.
 
 ## 12. From invitation to dashboard
 
-The same tokens will serve the organiser app, which uses shadcn/ui (C-14). Its CSS variables map
-like this:
+The same tokens serve the organiser app, which uses shadcn/ui (C-14). Its CSS variables map like
+this, in code since 23 October 2026 (`src/styles/app-kit.css`, square corners per PD-39):
 
 | shadcn/ui variable | Aveline token |
 |---|---|

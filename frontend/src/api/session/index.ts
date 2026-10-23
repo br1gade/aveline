@@ -1,5 +1,8 @@
-// The session skeleton. Nothing signs in yet: these pieces are wired when the sign-in screens are
-// built (docs/ARCHITECTURE.md §5).
+// The browser session (docs/ARCHITECTURE.md §5): the store, the refresher and the channel, wired to
+// the API by browser-session.ts.
+export { logIn, type Credentials, type SessionTokens } from './auth-calls';
+export { browserSession, createBrowserSession } from './browser-session';
+export type { BrowserSession, BrowserSessionDependencies } from './browser-session';
 export { createSessionChannel } from './channel';
 export type { SessionChannel } from './channel';
 export { createSessionRefresher, REFRESH_LOCK } from './refresh';

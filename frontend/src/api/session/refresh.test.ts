@@ -80,6 +80,33 @@ describe('createSessionRefresher', () => {
     expect(callRefresh.mock.calls.map(([token]) => token)).toEqual(['r0', 'r1']);
   });
 
+  it('signs neither tab out when two race without Web Locks', async () => {
+    const callRefresh = rotatingServer();
+    const shared = memoryStore('r0');
+
+    const outcomes = await Promise.all([
+      createSessionRefresher({ store: shared, callRefresh })(),
+      createSessionRefresher({ store: shared, callRefresh })(),
+    ]);
+
+    // The second tab presented r0 after the first had replaced it, was refused, and then used
+    // the token the first tab stored instead of clearing it.
+    expect(outcomes).toEqual([true, true]);
+    expect(callRefresh.mock.calls.map(([token]) => token)).toEqual(['r0', 'r0', 'r1']);
+    expect(shared.getRefreshToken()).toBe('r2');
+  });
+
+  it('keeps the session when the server cannot be reached', async () => {
+    const store = memoryStore('r0');
+    const refresh = createSessionRefresher({
+      store,
+      callRefresh: () => Promise.reject(new TypeError('Failed to fetch')),
+    });
+
+    await expect(refresh()).rejects.toThrow('Failed to fetch');
+    expect(store.getRefreshToken()).toBe('r0');
+  });
+
   it('clears the session when the server refuses the token', async () => {
     const store = memoryStore('revoked');
     const refresh = createSessionRefresher({

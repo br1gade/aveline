@@ -4,7 +4,7 @@ import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import type { Invitation } from '@/features/invitation-renderer';
-import { Button, Icon, Notice } from '@/ui';
+import { Button, Icon, Notice, useIsHydrated } from '@/ui';
 import { ErrorSummary } from '@/ui/form';
 
 import { fieldId, flattenErrors } from '../fields';
@@ -168,11 +168,23 @@ function Alerts({ problem, attempt }: { problem: SendProblem | null; attempt: nu
   );
 }
 
+/**
+ * Disabled until the page is hydrated (design PD-41): before then the browser would send the form
+ * itself, and the reply would land in the personal link's address. A disabled default button also
+ * stops Enter from submitting. While sending it stays pressable, and a second press is ignored.
+ */
 function SendArea({ isSending }: { isSending: boolean }) {
   const { t } = useTranslation('reply');
+  const isHydrated = useIsHydrated();
   return (
     <div className="grid gap-3">
-      <Button type="submit" isBlock aria-busy={isSending} aria-disabled={isSending || undefined}>
+      <Button
+        type="submit"
+        isBlock
+        disabled={!isHydrated}
+        aria-busy={isSending}
+        aria-disabled={isSending || undefined}
+      >
         {isSending ? (
           <Icon name="loader" className="animate-spin motion-reduce:animate-none" />
         ) : null}
@@ -236,7 +248,9 @@ export function ReplyForm({ invitation, record, onSend }: ReplyFormProps) {
   return (
     <FormProvider {...form}>
       <ReplyFormProvider value={{ invitation, record, serverProblems, errorText }}>
-        <form noValidate onSubmit={submit} className="grid gap-8">
+        {/* `method="post"`: were the browser ever to send it itself, the reply goes in a body,
+            never into the personal link's address (ARCHITECTURE §2). */}
+        <form method="post" noValidate onSubmit={submit} className="grid gap-8">
           <Alerts problem={problem} attempt={attempt} />
           <fieldset
             disabled={problem?.kind === 'closed'}

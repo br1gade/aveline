@@ -1,0 +1,36 @@
+/* The app's shadcn/ui kit (design C-14), mapped onto Aveline's tokens exactly as DESIGN_SYSTEM §12
+   tabulates. The CLI's own palette is not used. The kit's components in src/ui/kit/ are the only
+   users of these names: the invitation keeps its own token classes. */
+@import 'tw-animate-css';
+
+/* No dark mode is designed yet (DESIGN_SYSTEM §12), so the kit's dark: classes stay off until one
+   is, rather than following the device's setting on a page that stays light. */
+@custom-variant dark (&:where([data-color-scheme='dark'], [data-color-scheme='dark'] *));
+
+@theme inline {
+  --color-background: var(--ivory);
+  --color-foreground: var(--ink);
+  --color-card: var(--porcelain);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--porcelain);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--brand-burgundy);
+  --color-primary-foreground: var(--ivory);
+  --color-secondary: var(--linen);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--linen);
+  --color-muted-foreground: var(--ink-muted);
+  --color-accent: var(--selected-tint);
+  --color-accent-foreground: var(--brand-burgundy);
+  --color-destructive: var(--error-ink);
+  /* Decorative separators; control edges use --color-input, which keeps 3:1. */
+  --color-border: var(--sand);
+  --color-input: var(--line);
+  --color-ring: var(--brand-burgundy);
+
+  /* Square corners (design PD-39; §12 allows 0 or 2px). Only the kit uses these sizes. */
+  --radius-sm: var(--radius-none);
+  --radius-md: var(--radius-none);
+  --radius-lg: var(--radius-none);
+  --radius-xl: var(--radius-none);
+}

@@ -514,6 +514,10 @@ React Router (A1).
 | Auth | `/login`, `/register`, `/reset-password`, `/verify-email`, `/accept-invite` | Server shell | Browser actions |
 | App | `/app/**`: events, guests, design, seating, door, billing, settings | Browser only | `clientLoader` with TanStack Query; the server renders `HydrateFallback` |
 
+*23 October 2026: sign-in is built at `/sign-in`, the path the backend emails, with
+`/accept-event-invite` for team invitations, and without TanStack Query so far. ARCHITECTURE §2
+describes what the code does.*
+
 Rules that keep this safe:
 
 - **Share previews never name a guest.** A personalised link's preview is built from the event and

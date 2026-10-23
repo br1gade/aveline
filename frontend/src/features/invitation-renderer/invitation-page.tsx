@@ -2,13 +2,12 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { Language } from '@/lib/i18n';
-import { ButtonLink, cx, StatusChip } from '@/ui';
+import { ButtonLink, cx, LanguageSwitcher, StatusChip } from '@/ui';
 
 import { blockComponent } from './blocks/registry';
 import { InvitationProvider, useInvitation } from './context';
 import { Cover } from './components/cover';
 import { FooterMark } from './components/footer-mark';
-import { LanguageSwitcher } from './components/language-switcher';
 import { FloatingPause, MusicControl, MusicProvider } from './components/music';
 import { PersonalCard } from './components/personal-card';
 import { ReplyBar, useVisibility } from './components/reply-bar';
