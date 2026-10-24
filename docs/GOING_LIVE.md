@@ -8,6 +8,9 @@ This is what has to be true before that changes. Nothing here is a
 nice-to-have — each item is either a way to lose money, lose data, or lose a
 customer's trust.
 
+Use [TODO.md](TODO.md) for the remaining pilot tasks, required inputs, owners and
+proposed post-pilot batches. This document remains the release requirements checklist.
+
 ---
 
 ## 1. Blocking — cannot go live without these

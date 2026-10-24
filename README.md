@@ -36,6 +36,7 @@ npx openapi-typescript backend/openapi.json -o src/api/schema.ts
 | [`docs/VENUES_AND_SEATING.md`](docs/VENUES_AND_SEATING.md) | Venues, tables, seats, seating constraints |
 | [`docs/PAYMENTS.md`](docs/PAYMENTS.md) | Armenian card acquiring and the redirect flow |
 | [`docs/GOING_LIVE.md`](docs/GOING_LIVE.md) | What blocks production, and what is already ready |
+| [`docs/TODO.md`](docs/TODO.md) | Remaining pilot tasks, prerequisites and proposed post-pilot batches |
 
 ## Backend
 

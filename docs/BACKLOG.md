@@ -26,7 +26,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 0 open | 0 open | — |
-| Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
+| Features | 1 open (F1, frontend integration) | 0 open | 16 backend features implemented, acceptance open; native F22 deferred | 14 revenue and services (F31–F44); F45 is now a pilot gate |
 | Decisions | 38 decided (D1–D38) | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -43,6 +43,11 @@ the frontend and the external launch checks. Attendance, export, gallery,
 signature, language and directory choices are recorded in D23–D38 and the
 [implementation plan](PILOT_IMPLEMENTATION_PLAN.md). The tentative 25 October
 date can move; full scope takes priority.
+
+Current execution tasks, prerequisites and proposed post-pilot batches are in
+[TODO.md](TODO.md). Backend translations and local performance/recovery rehearsals
+are implemented and verified; human review, frontend and actual-host/provider
+acceptance remain. Post-pilot batch groupings are proposals, not committed dates.
 
 Infrastructure and accounts (bank, domain, mail DNS, server) are not here;
 they are in [GOING_LIVE.md](GOING_LIVE.md). The long-range view of the
@@ -89,13 +94,13 @@ it needs a cancellation during the event itself, at the door.
 
 ---
 
-## 2. Features — not built
+## 2. Features — implementation and acceptance
 
 ### P0
 
 | # | Feature | Why | Size |
 |---|---|---|---|
-| F1 | **The client** | `frontend/` is a scaffold. No host or guest can use anything until it exists. Built against [API.md](API.md) and `backend/openapi.json` | L |
+| F1 | **The client** | Frontend work exists on a separate branch; integration and full host/guest acceptance remain. Build against [API.md](API.md) and `backend/openapi.json` | L |
 
 ### P1
 
@@ -107,7 +112,7 @@ it needs a cancellation during the event itself, at the door.
 | # | Feature | Size |
 |---|---|---|
 | F19 | Backend implemented: private invited-guest uploads, bounded worker variants, host moderation, owner removal and durable privacy cleanup. Frontend and production acceptance remain (§7.2) | M–L |
-| F20 | Backend implemented: PDFs for all seven kinds, embedded four-script fonts and A4 flat place cards. Frontend, translated headings and pilot print acceptance remain | M |
+| F20 | Backend implemented: PDFs for all seven kinds, translated standard headings, embedded four-script fonts and A4 flat place cards. Frontend, human language review and pilot print acceptance remain | M |
 | F21 | WhatsApp delivery receipts: signed/scoped backend and host evidence fields built; real account/template/subscription/send proof and frontend acceptance remain | S–M |
 | F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
 | F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
@@ -121,8 +126,14 @@ it needs a cancellation during the event itself, at the door.
 | F46 | Backend implemented: personal-link self-name correction preserving identity links, answers and seats. Frontend form acceptance remains (§5.3) | S |
 | F47 | Backend implemented: curated VENUE operators may manage several directory halls; staff validation and private-link filtering. Frontend directory acceptance remains | S |
 | F48 | Backend implemented: allowlisted LOGO/COVER/PHOTO/AUDIO uploads honor kind and validate MIME/attachment compatibility. Frontend corporate logo acceptance remains | S |
-| F49 | Backend implemented: typed XLSX snapshots for all seven kinds; literal untrusted text and separate catering tabs. Frontend, translations and native-viewer acceptance remain | S |
+| F49 | Backend implemented: typed XLSX snapshots for all seven kinds, translated labels, literal untrusted text and separate catering tabs. Frontend, human language review and native-viewer acceptance remain | S |
 | F50 | **Backend implemented; acceptance pending:** separate venue seating, attendance modes, per-venue RSVP, preview/reconfirmation and history; frontend integration and four-language acceptance remain | L |
+
+### Pilot rehearsal — promoted from the post-pilot list
+
+| # | Feature | Size |
+|---|---|---|
+| F45 | **Required before pilot:** local mixed-load, venue seating, PDF and outage/worker recovery rehearsals pass. Frontend, real-provider, production-host and off-host recovery acceptance remain | S–M |
 
 ### Revenue and services — after the pilot
 
@@ -142,7 +153,6 @@ it needs a cancellation during the event itself, at the door.
 | F42 | Logistics, print orders, on-site staff, paper ticket fallback | GAPS #24–27 | L |
 | F43 | Vendor listing fees — §9.3 names "margin or listing fee"; F36 covers only the margin | §7.3, §9.3 | M |
 | F44 | Template authoring for the Production tier's custom design — templates exist only as seed data, with no way to make one | §8 | M–L |
-| F45 | Complete the §12 load/outage rehearsal. A disposable 400-guest import and 50-reader personalized-page baseline exist; mixed writes, venue seating, PDFs and production-host measurements remain | §12 | S–M |
 | — | **Deferred:** enforcing plan limits — decided 8 October 2026, until after the pilot | §8 | — |
 
 ---

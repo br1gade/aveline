@@ -1,11 +1,12 @@
 # Pilot and P2 implementation plan
 
-Prepared 12 October 2026; revised 18 October 2026 (Asia/Yerevan).
-**Status: product decisions confirmed; implementation plan ready.
-Readiness groundwork, F50 backend seating/attendance, F23 named attendees and
-private CSV/PDF/XLSX exports and background automatic seating are implemented;
-feature milestones
-remain open until all of their acceptance checks pass.**
+Prepared 12 October 2026; status updated 25 October 2026 (Asia/Yerevan).
+**Status: agreed backend pilot features and local rehearsals implemented and
+verified. Frontend, real-provider and production-environment acceptance remain
+open; feature milestones close only when all of their acceptance checks pass.**
+
+The current execution checklist, external inputs and proposed post-pilot batches
+are in [TODO.md](TODO.md). The original A–J delivery plan is retained below.
 
 Goal: deliver the requested pilot features while the frontend is being built,
 then verify them together on production infrastructure. The pilot remains free.
