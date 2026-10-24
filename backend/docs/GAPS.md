@@ -43,6 +43,10 @@ human retyping something another human already typed.
 |---|---|---|
 | 5 | **An SMS provider** | The SMS channel is built provider-neutral (decided 9 October 2026): chosen last, numbers normalised, failures classified, copy written. What remains is choosing a provider and writing its adapter — one class implementing `SmsProvider` and a row in `SMS_PROVIDERS` |
 
+The selected pilot also requires performance and four-language acceptance.
+The [local rehearsal](PILOT_REHEARSAL.md) passed functional checks but missed
+invitation/RSVP latency budgets; frontend and actual-host acceptance remain.
+
 ## 3. High value — the actual digitalisation
 
 Each replaces a process the incumbent market performs by hand.

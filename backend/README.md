@@ -647,3 +647,11 @@ test database and local Redis. It never truncates tables, removes its event on
 exit, and reports warm/cold/disconnected/recovered percentiles without guest
 URLs. Run without other test suites (which truncate the shared test database).
 Production proxy/TLS, real analytics and mixed writes remain rehearsal gates.
+
+### Batch J disposable backend rehearsal
+
+Build `aveline-api:pilot-j-local`, then run `npm run pilot:production-rehearsal`.
+It owns its stores/workers and preserves checkpoint reports under `test-results/pilot/` plus synthetic export
+artifacts. `npm run test:pilot` validates rehearsal guards and measurement policy
+and is included in `npm run verify`. See [PILOT_REHEARSAL.md](docs/PILOT_REHEARSAL.md)
+for the workload, interpretation and remaining external launch gates.

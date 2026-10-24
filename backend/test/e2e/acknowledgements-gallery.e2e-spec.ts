@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { SerializeInterceptor } from '../../src/common/interceptors/serialize';
 import { PrivateMediaRunner } from '../../src/modules/guest-contributions/private-media-runner';
 import { PrivateStorageService } from '../../src/infra/storage/private/private-storage';
 import { ticketEvent } from '../fixtures/tickets.fixture';
@@ -28,6 +29,7 @@ describe('Acknowledgements and gallery (HTTP)', () => {
     const storage = buildPrivateStorage(new ConfigService({ S3_ENDPOINT: '', STORAGE_ROOT: join(root, 'public'), PRIVATE_STORAGE_ROOT: join(root, 'private') }));
     const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(PRIVATE_STORAGE).useValue(storage).compile();
     app = module.createNestApplication(); app.setGlobalPrefix('api/v1');
+    app.useGlobalInterceptors(new SerializeInterceptor());
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })); await app.init();
   });
   beforeEach(() => resetTestDatabase());
@@ -115,6 +117,7 @@ describe('Acknowledgements and gallery (HTTP)', () => {
     const upload = await http().post(`${event.base}/signature-uploads`).attach('file', png, { filename: 'signature.png', contentType: 'image/png' }).expect(201);
     const runner = new PrivateMediaRunner(prisma as unknown as PrismaService, app.get(PrivateStorageService)); await runner.runOne();
     const preview = await http().get(`${event.base}/signature-uploads/${upload.body.id}/file`).expect(200);
+    expect((preview.body as Buffer).subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
     expect(preview.headers['cache-control']).toContain('no-store'); expect(preview.headers['content-type']).toContain('image/png');
     const ack = await http().post(`${event.base}/acknowledgements`).send({ ...typed(statement.statementVersionId, event.guest.id), method: 'DRAWN', assetId: upload.body.id }).expect(201);
     await http().get(`${event.base}/acknowledgements/${ack.body.records[0].id}/file`).expect(200);

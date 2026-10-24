@@ -33,6 +33,10 @@ describe('Meta webhook HTTP boundary', () => {
     await app.close(); await disconnectTestDatabase();
   });
 
+  it('parses ordinary JSON authentication requests alongside the larger webhook parser', async () => {
+    await http().post('/api/v1/auth/login').send({ email: 'unknown@example.test', password: 'Synthetic-password' }).expect(401);
+  });
+
   it('echoes a verified subscription challenge verbatim with no session or cache', async () => {
     const response = await http().get(path).query({ 'hub.mode': 'subscribe', 'hub.verify_token': settings.WHATSAPP_WEBHOOK_VERIFY_TOKEN, 'hub.challenge': '001234' }).expect(200);
     expect(response.text).toBe('001234'); expect(response.headers['cache-control']).toBe('no-store');

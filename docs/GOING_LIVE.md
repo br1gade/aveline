@@ -24,6 +24,12 @@ explicit exception. Repeat the complete host/guest walkthrough in English, Russi
 French and Armenian after frontend integration. The tentative 25 October 2026
 date can move; full scope takes priority.
 
+The 24 October disposable backend rehearsal passed functional workflows, real
+worker lease recovery and local privacy cleanup. Its isolated invitation/RSVP
+load measurements missed the required budgets. Performance remediation, required
+export/recovery-message translations and external/frontend acceptance still
+block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
+
 ### Money
 
 | # | Blocker | Why |

@@ -26,3 +26,6 @@ Dockerfile
 
 private-storage
 storage
+
+# Local rehearsal evidence is retained outside source and runtime images.
+test-results

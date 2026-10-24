@@ -325,3 +325,12 @@ reclaim late writes. Metadata/subject records follow verified privacy erasure;
 physical file cleanup is asynchronous and durable. See
 [GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md) for quotas, access and recovery.
 Production storage isolation/restore and frontend acceptance remain launch gates.
+
+### Local rehearsal diagnostics
+
+The disposable J runner uses `scripts/pilot/serve.mjs` with the shared application
+factory. A local-only OpenTelemetry processor aggregates Prisma connection
+acquisition durations; it stores no span attributes or SQL and has no network
+exporter. Private sampler files also capture RSS/event-loop delay. This adds no
+production HTTP diagnostic endpoint or correctness dependency; see
+[PILOT_REHEARSAL.md](PILOT_REHEARSAL.md). Production acceptance remains open.

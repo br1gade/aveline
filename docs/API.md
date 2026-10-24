@@ -2056,7 +2056,7 @@ Create with `{ "kind": "GUEST_LIST", "idempotencyKey": "<new UUID v4>",
 "format": "PDF", "locale": "en", "includesContacts": false }`. Format defaults
 to `CSV`; accepted values are `CSV`, `PDF`, `XLSX`. Locale defaults to the event language and accepts
 `en`, `ru`, `fr`, `hy`. Translated question/choice labels use it; standard sheet
-headings remain English until F35. `includesContacts` defaults to the caller's
+headings remain English pending four-language acceptance. `includesContacts` defaults to the caller's
 current contact permission. A viewer can request redacted sheets; a contact
 holder can also explicitly request them. Manifests always require contact
 permission and cannot be redacted. The existing CSV columns and formula
@@ -2101,7 +2101,8 @@ returns `403` after contact permission is lost; request a redacted regeneration.
 A queued/running/failed job returns `409` on download. Revoked or expired files
 return `410`; cross-event snapshot IDs return `404` to an authorized event
 caller. A missing/offline object returns `503`. Fetch with authorization and
-use the returned blob, as for legacy exports; responses use `Cache-Control:
+use the returned blob, as for legacy exports. The body contains the raw artifact
+bytes; read it with `blob()` or `arrayBuffer()`. Responses use `Cache-Control:
 no-store`. MIME types are `text/csv; charset=utf-8`, `application/pdf`, or
 `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, with matching
 `.csv`/`.pdf`/`.xlsx` filenames in `Content-Disposition`. Do not render a public
@@ -3323,7 +3324,7 @@ So you can plan around them rather than discover them:
 - **No block creation outside the arrangement call.** Custom RSVP questions can be reordered atomically through the question-order route.
 - **Worker/frontend acceptance.** Automatic seating and all export formats run
   in dedicated workers. Frontend job integration, standard heading/reason
-  translations (F35) and production rehearsal remain.
+  translations and production rehearsal remain.
 - **A native email feedback adapter.** Normalized signed delivery/bounce/complaint
   ingestion is built; no provider has been selected or connected. Ordinary
   bounce emails arriving in a mailbox are still not parsed.

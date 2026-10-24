@@ -1,3 +1,4 @@
+import { SerializeInterceptor } from '../../src/common/interceptors/serialize';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
@@ -28,6 +29,7 @@ describe('Snapshot contract (HTTP)', () => {
       .overrideProvider(PrismaService).useValue(prisma).overrideProvider(PRIVATE_STORAGE).useValue(storage).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');
+    app.useGlobalInterceptors(new SerializeInterceptor());
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
   });
@@ -47,7 +49,16 @@ describe('Snapshot contract (HTTP)', () => {
     await http().get(`${event.base}/${id}/download`).set('Authorization', event.authorization).expect(409);
     await app.get(ExportRunner).runOne();
     await http().get(`${event.base}/${id}`).set('Authorization', event.authorization).expect(200).expect(({ body }: { body: { status: string } }) => { expect(body.status).toBe('COMPLETED'); });
-    const file = await http().get(`${event.base}/${id}/download`).set('Authorization', event.authorization).expect(200).expect('Cache-Control', 'no-store').expect('Content-Type', ({ CSV: /text\/csv/, PDF: /application\/pdf/, XLSX: /spreadsheetml/ })[format]);
+    const file = await http().get(`${event.base}/${id}/download`).set('Authorization', event.authorization).buffer(true).parse((response, done) => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => chunks.push(chunk));
+      response.on('end', () => done(null, Buffer.concat(chunks)));
+      response.on('error', done);
+    }).expect(200).expect('Cache-Control', 'no-store').expect('Content-Type', ({ CSV: /text\/csv/, PDF: /application\/pdf/, XLSX: /spreadsheetml/ })[format]);
+    const bytes = file.body as Buffer;
+    expect(Buffer.isBuffer(bytes)).toBe(true);
+    const prefix = { CSV: Buffer.from([0xef, 0xbb, 0xbf]), PDF: Buffer.from('%PDF-'), XLSX: Buffer.from('PK') }[format];
+    expect(bytes.subarray(0, prefix.length)).toEqual(prefix);
     expect(file.headers['content-disposition']).toContain(`.${format.toLowerCase()}`);
     expect(file.headers['content-length']).toBeDefined();
     await http().get(`${event.base}/${id}/download`).expect(401);

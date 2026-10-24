@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor, StreamableFile } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 
 /**
@@ -14,7 +14,7 @@ import { Observable, map } from 'rxjs';
 export function serializeBigInts(value: unknown): unknown {
   if (typeof value === 'bigint') return value.toString();
   if (value === null || typeof value !== 'object') return value;
-  if (value instanceof Date) return value;
+  if (value instanceof Date || value instanceof StreamableFile) return value;
 
   if (Array.isArray(value)) return value.map(serializeBigInts);
 

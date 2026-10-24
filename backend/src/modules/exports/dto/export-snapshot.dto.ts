@@ -16,7 +16,7 @@ export class CreateExportSnapshotDto {
   @IsEnum(ExportFormat)
   format?: ExportFormat;
 
-  @ApiPropertyOptional({ enum: ['en', 'ru', 'fr', 'hy'], description: 'Defaults to the event language; headings remain English until F35.' })
+  @ApiPropertyOptional({ enum: ['en', 'ru', 'fr', 'hy'], description: 'Defaults to the event language; standard headings remain English pending four-language acceptance.' })
   @IsOptional()
   @IsIn(['en', 'ru', 'fr', 'hy'])
   locale?: string;

@@ -1,3 +1,4 @@
+import { StreamableFile } from '@nestjs/common';
 import { serializeBigInts } from './serialize';
 
 /**
@@ -43,6 +44,11 @@ describe('serializeBigInts', () => {
   it('leaves Date objects intact so they still serialise as ISO strings', () => {
     const date = new Date('2026-01-01T00:00:00.000Z');
     expect(serializeBigInts({ at: date })).toEqual({ at: date });
+  });
+
+  it('preserves streamed binary files for the HTTP adapter instead of serializing their internals', () => {
+    const file = new StreamableFile(Buffer.from('%PDF-synthetic'), { type: 'application/pdf' });
+    expect(serializeBigInts(file)).toBe(file);
   });
 
   it('produces output JSON.stringify accepts', () => {

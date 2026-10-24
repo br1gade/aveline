@@ -759,6 +759,21 @@ Actual pilot email sending/domain configuration still needs verification.
 
 ## 11. Milestone J — final production rehearsal (F45)
 
+**20 October direction:** the frontend is still being implemented; prepare and
+run the backend rehearsal in a disposable local environment. The runnable local
+procedure and its evidence limits are in
+[backend/docs/PILOT_REHEARSAL.md](../backend/docs/PILOT_REHEARSAL.md). J remains
+open until the external, frontend, language and recovery gates below are accepted.
+
+**24 October execution:** the disposable runner now checkpoints evidence under
+ignored test results and has uncovered/fixed production JSON parsing and binary
+stream serialization regressions. The isolated 50-reader/10-writer workload
+returned no unexpected statuses but missed invitation/RSVP latency budgets.
+These misses and standard export translations remain open backend launch work;
+a successful functional rehearsal cannot close them. See the recorded local
+evidence and explicit remaining gates in the rehearsal document.
+
+
 Build one realistic synthetic fixture using all required surfaces:
 
 - 400 named people, mixed households, multilingual names and late/declined RSVPs.

@@ -8298,7 +8298,7 @@
               "fr",
               "hy"
             ],
-            "description": "Defaults to the event language; headings remain English until F35."
+            "description": "Defaults to the event language; standard headings remain English pending four-language acceptance."
           },
           "includesContacts": {
             "type": "boolean",

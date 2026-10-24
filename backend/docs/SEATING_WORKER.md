@@ -115,7 +115,7 @@ Verification on 18 October: `npm run verify` passed lint, docs, OpenAPI, build,
 backup/coordinator checks passed; Compose configuration validates without
 loading service environment files.
 
-Frontend polling/result displays, translations of reasons (F35), actual production
+Frontend polling/result displays, translations of reasons, actual production
 worker health/recovery and the mixed-write/load rehearsal remain launch gates.
 More sophisticated zone/adjacency preferences and non-additive re-planning stay
 outside this batch; manual corrections remain available.

@@ -288,3 +288,12 @@ processing and durable deletion, with Postgres leases and tombstones. CPU work
 never runs in the API. A minute contribution sweep recovers attendee personal-link
 outbox entries. See [GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md); frontend and
 actual production recovery acceptance remain open.
+
+### Shared HTTP application setup
+
+`src/application.ts` exports the application factory used by `src/main.ts` and
+the disposable batch J server. Prefix, validation, serialization, route body
+parsing, static files, CORS, proxy trust and shutdown hooks have one definition.
+The normal entry point still initializes Sentry before importing the application.
+The rehearsal adds only private local timing diagnostics; see
+[PILOT_REHEARSAL.md](PILOT_REHEARSAL.md).
