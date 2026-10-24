@@ -1,0 +1,117 @@
+{
+  "types": {
+    "choose": "Choose…",
+    "WEDDING": "Wedding",
+    "ENGAGEMENT": "Engagement",
+    "BAPTISM": "Baptism",
+    "BIRTHDAY": "Birthday",
+    "ANNIVERSARY": "Anniversary",
+    "CORPORATE": "Corporate event",
+    "OTHER": "Other"
+  },
+  "fields": {
+    "type": "Kind of event",
+    "title": "Title",
+    "titleHelp": "For you and your team, such as “Anna and Davit’s wedding”.",
+    "hostsLabel": "Hosts",
+    "hostsHelpNew": "Shown on the invitation, such as “Anna & Davit”. Leave it empty to use the title.",
+    "hostsHelp": "Shown on the invitation.",
+    "date": "Date",
+    "time": "Time",
+    "timezone": "Time zone",
+    "timezoneHelp": "The date and time are in this zone, wherever your guests are.",
+    "languages": "Languages",
+    "languagesHelp": "The languages the invitation is written in.",
+    "defaultLanguage": "Default language",
+    "defaultLanguageHelp": "Shown to guests whose language the invitation doesn’t have.",
+    "errors": {
+      "required": "Fill this in.",
+      "choose": "Choose one.",
+      "tooLong": "This is too long.",
+      "titleShort": "Use at least 2 characters.",
+      "dateInvalid": "Enter a real date.",
+      "timeSkipped": "The clocks go forward at this time, so it doesn’t exist on that day in this time zone. Choose another time.",
+      "languages": "Tick at least one language.",
+      "defaultLanguage": "Choose one of the ticked languages.",
+      "timezone": "Choose a time zone from the list.",
+      "endsBefore": "The event’s end time is earlier than this, and it can’t be changed here yet.",
+      "refused": "This wasn’t accepted. Check it.",
+      "other": "Check this field."
+    }
+  },
+  "problems": {
+    "conflict": "That can’t be done in the event’s current state. Reload the page to see it as it is now.",
+    "createForbidden": "This account can’t create events: its role in the organization is read-only, or it isn’t in an organization yet. Ask the organization’s owner.",
+    "editForbidden": "Your role on this event can’t change its details.",
+    "notifyForbidden": "Your role on this event can’t message its guests.",
+    "notifyDraft": "This invitation isn’t published yet, so no guest has it."
+  },
+  "create": {
+    "title": "Create an event",
+    "lead": "You can change all of this later. The invitation starts as a draft that only you can see.",
+    "submit": "Create the event",
+    "submitting": "Creating…"
+  },
+  "overview": {
+    "back": "Your events",
+    "edit": "Edit details",
+    "type": "Kind",
+    "hosts": "Hosts",
+    "when": "When",
+    "whenValue": "{{date}}, {{time}} ({{timeZone}})",
+    "languages": "Languages",
+    "defaultMark": "{{language}} (default)",
+    "invitation": "Invitation",
+    "slug": "Link name",
+    "noInvitation": "No invitation yet.",
+    "status": {
+      "DRAFT": "Draft: guests can’t open it yet",
+      "PUBLISHED": "Published",
+      "CLOSED": "Closed: replies are no longer taken"
+    }
+  },
+  "headcount": {
+    "title": "Guests",
+    "invited": "On the list",
+    "households": "Households",
+    "attending": "Coming",
+    "declined": "Not coming",
+    "undecided": "Not sure yet",
+    "pending": "Not answered",
+    "responseRate": "Answered",
+    "empty": "No guests on the list yet.",
+    "refused": "The guest numbers aren’t available to your role on this event.",
+    "failed": "The guest numbers couldn’t be loaded. Reload the page to try again."
+  },
+  "edit": {
+    "title": "Edit the details",
+    "lead": "Guests who open the invitation see a change at once.",
+    "submit": "Save changes",
+    "submitting": "Saving…",
+    "cancel": "Cancel"
+  },
+  "notify": {
+    "title": "Your changes are saved",
+    "body_one": "{{count}} household already has the invitation. Guests aren’t told about changes automatically.",
+    "body_other": "{{count}} households already have the invitation. Guests aren’t told about changes automatically.",
+    "note": "A note for your guests (optional)",
+    "noteHelp": "Added to the message, such as “We have moved to the garden.”",
+    "send": "Let your guests know",
+    "sending": "Sending…",
+    "later": "Not now",
+    "sent_one": "The update is on its way to {{count}} household.",
+    "sent_other": "The update is on its way to {{count}} households.",
+    "already_one": "{{count}} household was told in the last minute, so it isn’t told again.",
+    "already_other": "{{count}} households were told in the last minute, so they aren’t told again.",
+    "unreachable_one": "{{count}} household couldn’t be reached.",
+    "unreachable_other": "{{count}} households couldn’t be reached.",
+    "nobody": "There was nobody to tell.",
+    "back": "Back to the event"
+  },
+  "unavailable": {
+    "title": "This event isn’t available",
+    "body": "It may not exist, or your account isn’t on it.",
+    "failed": "The event couldn’t be loaded. Please try again in a moment.",
+    "back": "Your events"
+  }
+}

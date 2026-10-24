@@ -34,6 +34,9 @@ export default [
     layout('routes/app/layout.tsx', [
       index('routes/app/home.tsx'),
       route(underApp(APP_PATHS.welcome), 'routes/app/welcome.tsx'),
+      route(underApp(APP_PATHS.newEvent), 'routes/app/new-event.tsx'),
+      route(underApp(APP_PATHS.event), 'routes/app/event.tsx'),
+      route(underApp(APP_PATHS.editEvent), 'routes/app/event-edit.tsx'),
     ]),
   ]),
 

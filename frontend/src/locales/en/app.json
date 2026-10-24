@@ -1,7 +1,11 @@
 {
   "meta": {
     "home": "Your events · Aveline",
-    "welcome": "Set up your organization · Aveline"
+    "welcome": "Set up your organization · Aveline",
+    "newEvent": "Create an event · Aveline",
+    "event": "Your event · Aveline",
+    "editEvent": "Edit the details · Aveline",
+    "named": "{{title}} · Aveline"
   },
   "shell": {
     "loading": "Loading…",
@@ -17,7 +21,9 @@
   },
   "home": {
     "title": "Your events",
-    "empty": "Your events will appear here."
+    "empty": "Your events will appear here.",
+    "create": "Create an event",
+    "createFirst": "Create your first event"
   },
   "welcome": {
     "title": "Set up your organization",

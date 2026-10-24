@@ -1,6 +1,9 @@
 import { expectData, type ApiClient } from '@/api/client';
+import type { components } from '@/api/schema';
 
-import type { EventSummary } from './types';
+import type { Dashboard, EventDetail, EventSummary, EventUpdated, NotifyResult } from './types';
+
+type Schemas = components['schemas'];
 
 /**
  * The schema declares `archived`, `limit` and `offset` required on this list, though the backend
@@ -14,4 +17,40 @@ const NO_DECLARED_QUERY = { query: {} } as {
 /** Every event the caller can reach, soonest first: a plain array, not an envelope. */
 export function listEvents(api: ApiClient): Promise<EventSummary[]> {
   return expectData<EventSummary[]>(api.GET('/api/v1/events', { params: NO_DECLARED_QUERY }));
+}
+
+/** Creates the event, its draft invitation and the caller's place on it, in one request. */
+export function createEvent(api: ApiClient, body: Schemas['CreateEventDto']): Promise<EventDetail> {
+  return expectData<EventDetail>(api.POST('/api/v1/events', { body }));
+}
+
+/** A 403 also means the event does not exist: the backend answers the same for both. */
+export function getEvent(api: ApiClient, id: string): Promise<EventDetail> {
+  return expectData<EventDetail>(api.GET('/api/v1/events/{id}', { params: { path: { id } } }));
+}
+
+/** Omitted fields are unchanged. The response carries `notice`, which the host acts on, or not. */
+export function updateEvent(
+  api: ApiClient,
+  id: string,
+  body: Schemas['UpdateEventDto'],
+): Promise<EventUpdated> {
+  return expectData<EventUpdated>(
+    api.PATCH('/api/v1/events/{id}', { params: { path: { id } }, body }),
+  );
+}
+
+/** Needs `operations:read`, which an event's designer does not hold. */
+export function getDashboard(api: ApiClient, eventId: string): Promise<Dashboard> {
+  return expectData<Dashboard>(
+    api.GET('/api/v1/events/{eventId}/dashboard', { params: { path: { eventId } } }),
+  );
+}
+
+/** Only ever on the host's request (docs/API.md §6, "Telling guests the details changed"). */
+export function notifyChanges(api: ApiClient, slug: string, note: string): Promise<NotifyResult> {
+  const body = note ? { note } : {};
+  return expectData<NotifyResult>(
+    api.POST('/api/v1/invitations/{slug}/notify-changes', { params: { path: { slug } }, body }),
+  );
 }

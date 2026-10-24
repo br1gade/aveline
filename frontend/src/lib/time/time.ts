@@ -29,7 +29,8 @@ interface ZonedParts {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function zonedParts(iso: string, timeZone: string): ZonedParts {
+/** For this module and `zoned-input.ts`; the instant is an ISO string or epoch milliseconds. */
+export function zonedParts(instant: string | number, timeZone: string): ZonedParts {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
     year: 'numeric',
@@ -39,7 +40,7 @@ function zonedParts(iso: string, timeZone: string): ZonedParts {
     hour: 'numeric',
     minute: 'numeric',
     hourCycle: 'h23',
-  }).formatToParts(new Date(iso));
+  }).formatToParts(new Date(instant));
   const field = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? '';
   return {

@@ -6,7 +6,8 @@
 > describes what the code does; the decision log (§11) says why.
 >
 > The first surface is the guest invitation. The organizer app comes later (design decision C-7);
-> since 23 October 2026 its way in exists: the account pages and the app's first screens.
+> since 23 October 2026 its way in exists: the account pages and the app's first screens, then
+> creating an event, opening it and correcting its details.
 
 ## 1. Stack
 
@@ -20,7 +21,7 @@
 | Styling | Tailwind CSS 4, with tokens generated from the design system's `tokens.json` |
 | App UI kit | shadcn/ui on Radix (C-14), in `src/ui/kit/`, mapped onto the tokens (§8) |
 | Languages | i18next with react-i18next (A2): hy, ru, en |
-| Time | `Intl` in the event's time zone (`src/lib/time`); no date library yet |
+| Time | `Intl` in the event's time zone (`src/lib/time`), both ways: what is shown, and what a host types; no date library |
 | Money | Our own `src/lib/money`, on strings and `BigInt` |
 | Tests | Vitest 5 with Testing Library and MSW; Playwright against the real local backend; axe |
 | Lint and format | ESLint 10 with type-checked `typescript-eslint`, react-hooks, jsx-a11y (the ESLint 10 fork); Prettier with the backend's settings |
@@ -33,7 +34,7 @@
 | Public: `/invitations/:slug`, `/invitations/:slug/g/:guestToken` | Server | A server `loader` against the public API; `meta` from the response |
 | Capability, later: `/tickets/:accessToken`, `/briefs/:briefToken` | Server shell | Fetched in the browser; `noindex`; `no-referrer` |
 | Account: `/sign-in`, `/register`, `/reset-password`, `/verify-email`, `/accept-invite`, `/accept-event-invite` | Server, the form included | A server `loader` for the language only; forms submit from the browser. Sign-in and register skip to the app when a session is stored (`clientLoader`) |
-| App: `/app`, `/app/welcome` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API |
+| App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame |
 
 Rules:
 
@@ -42,7 +43,8 @@ Rules:
 - **Time-dependent UI renders after hydration** (the countdown).
 - **A form that submits from JavaScript** has `method="post"` and a submit button disabled until
   hydration (`useIsHydrated`), so nothing typed, a password above all, can reach the address bar
-  before React runs. The account forms and the guest reply form do (design PD-41).
+  before React runs. The account forms, the event forms and the guest reply form do (design
+  PD-41).
 - **No browser globals at module scope.**
 
 ## 3. The route contract
@@ -53,11 +55,14 @@ by a test that reads the backend's sources. Renaming one is a
 breaking change for the backend's emails (FR-8 asks for the table in `docs/API.md`). They include
 the bank's default return pages, `/tickets/return` and `/billing/return`; React Router ranks the
 static `/tickets/return` above `/tickets/:accessToken`. The client's own paths, which nothing
-outside links to, are in `APP_PATHS` beside them.
+outside links to, are in `APP_PATHS` beside them: registering, the app's home, onboarding and the
+event pages. The static `/app/events/new` ranks above `/app/events/:eventId`.
 
 ## 4. The API layer (`src/api/`)
 
-- `npm run api:generate` writes `src/api/schema.ts` (gitignored) from `../backend/openapi.json`.
+- `npm run api:generate` writes `src/api/schema.ts` (gitignored) from `../backend/openapi.json`,
+  with `--default-non-nullable false`: a request field the server defaults stays optional, as the
+  API reads it. The schema declares no responses yet (FR-1); revisit the flag when it does.
 - **Two clients:** `publicApi` without credentials (guest pages), `appApi` with the bearer token
   and refresh (later screens).
 - **One `fetch` underneath both:**
@@ -124,6 +129,12 @@ What the backend does since 23 October 2026 (`docs/API.md` §2, `docs/ACCESS_CON
   ("շաբաթ, 12 հունիսի 2027 թ.") and **times are built from numeric parts** in every language,
   because the server's and the browser's ICU disagree: Chrome ships no Armenian date data and
   falls back to US English. Anything the two runtimes format differently breaks hydration.
+- **Typed times** (`src/lib/time/zoned-input.ts`): a host types a date and a time in the event's
+  zone, in the browser's own inputs. `instantFromWallTime` finds the instant from the zone's
+  offsets through `Intl`, never the device's zone. A time the clocks skip is refused on the time
+  field, and one they repeat is the earlier (design PD-43). The zones offered are the browser's
+  `Intl.supportedValuesOf('timeZone')` plus the event's own, since browsers name some zones
+  differently and an edit must not change one silently.
 - **Money** (`src/lib/money`) works on minor-unit strings; `parseFloat` fails lint.
 
 ## 7. The invitation renderer (`src/features/invitation-renderer/`)
@@ -172,10 +183,12 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   the renderer.
 - **The app's kit** is shadcn/ui (C-14) in `src/ui/kit/`, added with the CLI from
   `components.json` and then owned by us: it passes our lint and imports our `cn` (`src/ui/cn.ts`,
-  clsx with tailwind-merge). It never imports `lucide-react`: the radio's dot is drawn in CSS. `src/styles/app-kit.css` maps
-  its variables onto the tokens exactly as DESIGN_SYSTEM §12 tabulates; the CLI's own palette is
-  not used. Its `dark:` classes stay off until a dark mode is designed, and its corners are
-  square (PD-39). The invitation does not use the kit.
+  clsx with tailwind-merge). The native select, checkbox and textarea were written by hand in the
+  same form, since the CLI would add `lucide-react`. The kit never imports it: the radio's dot is
+  drawn in CSS, and the select's chevron and the checkbox's check come from `src/ui/icon.tsx`.
+  `src/styles/app-kit.css` maps its variables onto the tokens exactly as DESIGN_SYSTEM §12
+  tabulates; the CLI's own palette is not used. Its `dark:` classes stay off until a dark mode is
+  designed, and its corners are square (PD-39). The invitation does not use the kit.
 - **Icons** are Lucide path data copied into `src/ui/icon.tsx` with Lucide's ISC notice, rather
   than the `lucide-react` dependency, for the dozen the guest page uses.
 - **Fonts:** the four Noto families as variable WOFF2, self-hosted through `@fontsource-variable`
@@ -190,6 +203,9 @@ Pure, safe to render on the server, light on JavaScript. Specified by
 - **Errors by status:** 400 maps to fields and the form; 401 refreshes once; 403 never retries;
   404 shows the not-found page; 409 and 429 are handled where they happen; 5xx and network errors
   show the route's error state with the request id as a reference.
+- **An event the account cannot see answers 403, not 404** (`docs/BACKLOG.md` §4), so the event
+  pages say "not available" for both. With no permissions endpoint (FR-6), every action is offered
+  and a 403 is explained when it happens.
 - **Headers** (`src/entry.server.tsx`, `src/lib/security`): a nonce-based Content Security Policy
   in production, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`. Every response for a
   path that carries a capability token (a personal invitation today), or a `?token=` query (the
@@ -215,8 +231,8 @@ Pure, safe to render on the server, light on JavaScript. Specified by
 
 | Layer | Tool | What |
 |---|---|---|
-| Unit | Vitest | `lib/` (money, time, redaction and its parity with the backend's, language negotiation), the API error mapping, the session (refresh races, the browser session against MSW), the route contract, `safeNext`, the account schemas, block order and fallbacks, the theme stand-in, tokens and contrast, i18n key parity |
-| Component | Vitest, Testing Library, MSW | The invitation page (order, unknown types, personal and generic links, closed, zones, countdown); the reply form's states: sent, client checks, 400 mapped to fields, 429, 5xx with a reference, closed mid-send, and posting with Send disabled before hydration; every account page and its refusals, the token taken out of the address and kept across a language switch, the email check sent once under StrictMode, creating the organization; the app's header signing out, here and on every device; the events list in each event's time zone |
+| Unit | Vitest | `lib/` (money, time, redaction and its parity with the backend's, language negotiation), the API error mapping, the session (refresh races, the browser session against MSW), the route contract, `safeNext`, the account schemas, block order and fallbacks, the theme stand-in, tokens and contrast, i18n key parity; typed times to UTC (Yerevan, clocks skipping and repeating in London, Los Angeles and Sydney, zones off the hour, impossible input, the device's own zone), the event form's checks, payloads that send only what changed, a 400's messages mapped to fields, the overview's loader |
+| Component | Vitest, Testing Library, MSW | The invitation page (order, unknown types, personal and generic links, closed, zones, countdown); the reply form's states: sent, client checks, 400 mapped to fields, 429, 5xx with a reference, closed mid-send, and posting with Send disabled before hydration; every account page and its refusals, the token taken out of the address and kept across a language switch, the email check sent once under StrictMode, creating the organization; the app's header signing out, here and on every device; the events list in each event's time zone, linked to each overview, and creating the first from an empty list; creating an event (its defaults, the checks, the UTC body, a skipped time, a 400 on its field, 403, 429, 5xx with a reference, and posting with the submit disabled before hydration); the overview (the event's zone, its languages and invitation, the headcount, and the headcount refused, failed or empty); an event that cannot be opened; correcting one (prefilled in its zone, only what changed, nothing when nothing did, the form's baseline kept when the page's data reloads, "let your guests know" sent only when pressed, with or without a note, "Not now", the draft refusal, 403, the end-time refusal); 409 on create; the app's frame saying "Loading…" while a click waits for the next page |
 | End-to-end | Playwright against the local backend | A guest opens a personal link, replies for the household, edits, sees the closed state; raw server HTML carries the right meta and no guest name. **Not written yet:** the local backend needs Docker |
 | Accessibility | `@axe-core/playwright` | Guest pages, the account pages and the app's screens; serious and critical violations fail |
 
@@ -227,6 +243,15 @@ Chromium against a mock of the API: register, create the organization, reload, s
 language, sign out, the `next` redirect, a wrong then a right password, a reset link and
 "sign out on every device". An axe pass on each page and its error states, with the dialog
 audited once its fade-in had finished, found no violation.
+The same day a second throwaway script walked the event screens the same way. It covered the
+empty home, client checks, a skipped London time, each refusal on create (400 under its fields,
+403, 429, 500 with a reference), the new event's overview, and Back, which goes home. It then
+covered the headcount refused, failed and empty; editing the title, then nothing, then a 403;
+moving the date with the offer and sending it (one request, carrying the note); and "Not now"
+(none). The home, create, overview and edit pages were opened in Armenian and Russian, and the
+last three at 360 px, without horizontal scroll.
+axe found no violation. The headless browser showed the native time input on a 12-hour clock
+whatever the page's language; its value stays 24-hour (PD-42).
 The real end-to-end tests still wait for the backend.
 
 ## 11. Decision log
@@ -262,12 +287,24 @@ The real end-to-end tests still wait for the backend.
 | 23 Oct 2026 | Casts for FR-3 (`user-agent` on login and refresh) and FR-17 (`GET /events` query) | The schema declares parameters required that the backend reads as optional; each cast is in one place and names its request |
 | 23 Oct 2026 | The `/app` segment's language and its session check are two routes | A route that runs its `clientLoader` on hydration has no loader data in the server render, so the loading state came out in English with `<html lang="en">` whatever the language |
 | 23 Oct 2026 | Vitest gets a `ResizeObserver` stub in `test/setup.ts` | jsdom has none, and Radix measures with it; every browser has it |
+| 23 Oct 2026 | Typed times are converted to UTC in `src/lib/time` with `Intl`; `@date-fns/tz` stays out | About forty lines that also say when a typed time is skipped or repeated by the clocks, which the form must refuse or settle (PD-43). No dependency to ask for |
+| 23 Oct 2026 | `api:generate` runs with `--default-non-nullable false` | openapi-typescript made every field with a default required, so `POST /events` demanded `visibility`, which the API defaults. Eight request fields change; no response is declared yet (FR-1) |
+| 23 Oct 2026 | The event screens use the account feature's form pieces (`AccountForm`, `SubmitButton`, `TextInputField`, `ProblemAlert`, `problemFrom`) through its `index.ts` | One implementation of the PD-41 guard and of the problem alert. They move to `src/ui/` when a third feature needs them |
+| 23 Oct 2026 | The kit's native select, checkbox and textarea are written by hand in shadcn's form | The CLI would add `lucide-react`; the icons come from `src/ui/icon.tsx`, and the checkbox is Radix's from the installed `radix-ui` |
+| 23 Oct 2026 | The time zones offered are the browser's, plus the event's own | Browsers name some zones differently (`Asia/Calcutta`, `Asia/Kolkata`) and the backend accepts any name `Intl` knows; without the event's own, an edit could change it silently |
+| 23 Oct 2026 | "Let your guests know" lives in the edit page's state, never in history | A reload or Back would offer it again after the server's one-minute de-duplication, and a second press would message every household again |
+| 23 Oct 2026 | The app's frame shows "Loading…" while a click loads the next app page | The first load has `AppLoading`; between app pages nothing showed until the next page's data arrived |
 
 ## 12. Not yet built
 
-- The organizer app beyond its way in: creating and editing events, guests, design, seating,
-  door, billing (with the bank's return page, `/billing/return`), and the event team. The events
-  home lists events without opening them.
+- The organizer app beyond its way in and an event's details: guests, design, seating, door,
+  billing (with the bank's return page, `/billing/return`), the event team, and **archiving and
+  deleting events**.
+- Of an event's details: venues and the running order; its end time, side labels and per-language
+  title and hosts (`translations`, FR-24); adding an invitation to an event that has none
+  (`POST /events/:id/invitation`); a custom slug (no endpoint exists). Of the dashboard: catering,
+  bar, playlist and engagement. A link to a published invitation from the overview: a private
+  event's generic link is a 404.
 - A "verify your email" banner and a way to ask for the email again: nothing says whether an
   address is verified (FR-5).
 - Capability pages: tickets and briefs, and the ticket buyer's return from the bank,

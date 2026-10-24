@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { redirect } from 'react-router';
+import { Link, redirect } from 'react-router';
 
 import {
   appMeta,
@@ -10,6 +10,7 @@ import {
 import { EventList, listEvents } from '@/features/events';
 import { languageOfMatches } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
+import { Button } from '@/ui/kit/button';
 
 import type { Route } from './+types/home';
 
@@ -32,9 +33,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const { organization, events } = loaderData;
   return (
     <section className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('home.title')}</h1>
-        {organization ? <p className="text-muted-foreground m-0">{organization.name}</p> : null}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">
+            {t('home.title')}
+          </h1>
+          {organization ? <p className="text-muted-foreground m-0">{organization.name}</p> : null}
+        </div>
+        {/* The empty list offers its own; every role sees it, and a 403 is explained (FR-6). */}
+        {events.length > 0 ? (
+          <Button asChild variant="outline">
+            <Link to={APP_PATHS.newEvent}>{t('home.create')}</Link>
+          </Button>
+        ) : null}
       </div>
       <EventList events={events} />
     </section>

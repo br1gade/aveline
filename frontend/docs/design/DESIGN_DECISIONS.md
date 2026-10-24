@@ -204,7 +204,8 @@ blocks development. Some block launch ([README §6](README.md#6-launch-gates)).
 | DQ-11 | Is a **second palette, champagne,** wanted? *Added 18 October 2026* | R-28, the Cover-champagne board |
 | DQ-12 | The review's design fixes (2, 3, 5–7, 9, 12–14, 17 and 21 in [DESIGN_REVIEW §5](DESIGN_REVIEW.md#5-fixes)): accept the directions in PD-14 and PD-27 to PD-37, or redraw? *Added 18 October 2026* | Those fixes |
 | DQ-13 | Please design the **account pages** (sign-in, register, password reset, email check, accepting an invitation) and the app's first screens (creating the organization, the events home, the header with signing out). Built meanwhile on PD-39, with the app's kit mapped as DESIGN_SYSTEM §12 says. *Added 23 October 2026* | The way into the organizer app |
-| DQ-14 | How should a **submit button look in the moment before the page is ready**? Until the page's JavaScript runs, a press would make the browser send the form itself, putting what was typed into the address. Built meanwhile on PD-41: disabled, without words. *Added 23 October 2026* | Send reply; every account form |
+| DQ-14 | How should a **submit button look in the moment before the page is ready**? Until the page's JavaScript runs, a press would make the browser send the form itself, putting what was typed into the address. Built meanwhile on PD-41: disabled, without words. *Added 23 October 2026* | Send reply; every account form; the event forms |
+| DQ-15 | Please design the **event screens**: creating an event, its overview with the guest numbers, correcting its details, and offering to tell guests about a change. Built meanwhile on PD-42. *Added 23 October 2026* | Creating, opening and correcting an event |
 
 ### For product and the frontend lead
 
@@ -220,6 +221,7 @@ blocks development. Some block launch ([README §6](README.md#6-launch-gates)).
 | PQ-8 | Should the footer mark **link to an Aveline website**? Capability pages strip the referrer, so a link is safe | The footer |
 | PQ-9 | May the contact block name **Aveline** when Aveline itself organises the event? C-12 allows one appearance, the footer mark, and the sample content names Aveline as organiser (VR-02). *Added 18 October 2026* | The contact block |
 | PQ-10 | Which **language** do the account and app pages show when nothing has chosen one? An invitation shows its event's; these pages have no event. *Added 23 October 2026* | Every account and app page (PD-40) |
+| PQ-11 | When a host types a time that **does not exist** in the event's zone (the clocks go forward over it), or one that **happens twice** (they go back), what should happen? *Added 23 October 2026* | Events outside Armenia (PD-43) |
 
 ### For the backend team
 
@@ -288,7 +290,9 @@ changes if the answer differs. The rules are in [§1.1](#11-while-questions-are-
 | PD-21 | `features/invitation-renderer/theme.ts`: bordeaux only |
 | PD-39 | `features/account/components/account-layout.tsx` and `app-shell.tsx`; the radius in `styles/app-kit.css` |
 | PD-40 | `lib/i18n/negotiate.ts`, read by the account routes and the `/app` layout |
-| PD-41 | `ui/use-is-hydrated.ts`, read by Send reply (`guest-reply/components/reply-form.tsx`) and the account forms' `SubmitButton` |
+| PD-41 | `ui/use-is-hydrated.ts`, read by Send reply (`guest-reply/components/reply-form.tsx`) and the account forms' `SubmitButton`, which the event forms use too |
+| PD-42 | `features/events/components/`, and the kit's `native-select.tsx`, `checkbox.tsx` and `textarea.tsx` |
+| PD-43 | `lib/time/zoned-input.ts`: `instantFromWallTime` |
 | PD-24, PD-26 | `schemas.ts` reads six-digit hex from `settings.palette`; the swatches are one labelled image |
 | PD-25 | No deadline is computed; `isAcceptingResponses` alone decides |
 | PD-27, PD-31 | The reply bar (`components/reply-bar.tsx`) and the cover's Reply on desktop |
@@ -375,7 +379,14 @@ designer answers DQ-12. None is applied to the artifacts yet.
 
 | ID | Open item | Build on this meanwhile | If the answer differs |
 |---|---|---|---|
-| PD-41 | DQ-14: a submit button before the page is ready | Send reply and every account form's submit button are disabled until the page's JavaScript runs, usually well under a second, and the form posts. No words explain it, since the state clears itself. This departs from DESIGN_SYSTEM §10 ("the reason is given in text nearby"), which carries a ⚠ marker | Add a line under the button, or the button's normal look, in `useIsHydrated`'s two users; the button stays disabled either way |
+| PD-41 | DQ-14: a submit button before the page is ready | Send reply and the submit buttons of every account form and event form are disabled until the page's JavaScript runs, usually well under a second, and the form posts. No words explain it, since the state clears itself. This departs from DESIGN_SYSTEM §10 ("the reason is given in text nearby"), which carries a ⚠ marker | Add a line under the button, or the button's normal look, in `useIsHydrated`'s two users; the button stays disabled either way |
+
+### Event screens
+
+| ID | Open item | Build on this meanwhile | If the answer differs |
+|---|---|---|---|
+| PD-42 | DQ-15: the event screens are not designed | Built on PD-39, in the app's frame. **Forms** for creating and correcting, at most 30 rem wide, in this order: the kind of event, a native select with no default ("Choose…"); the title; the hosts, optional when creating, where the title stands in; the date and the time, the browser's own inputs, side by side from 480 px; the time zone, a native select of IANA names as the API stores them (an underscore shown as a space), preselected on Asia/Yerevan; the languages, checkboxes for hy, ru and en in their own names, plus any other the event already has; the default language, radios among the ticked ones. **The overview:** the title and "Edit details", then the details (kind, hosts, the start in the event's zone with the zone named, the languages with the default marked, the invitation's status and link name), then the headcount as seven numbers, without a chart. **Home:** each event's title links to its overview; "Create an event" sits by the heading once there are events, and an empty list offers "Create your first event". **"Let your guests know"** replaces the edit form once a save suggests it, with an optional note and "Not now". Every action is shown to every role, and a 403 is explained (FR-6). The native time input is drawn by the browser: one set to US English shows a 12-hour clock, unlike PD-11. Its value is always 24-hour | Adjust the components in `src/features/events/components/` to the drawings. A drawn date or time picker replaces the native inputs in `event-fields.tsx` only |
+| PD-43 | PQ-11: a typed time the clocks skip or repeat in the event's zone | A time the clocks skip, when they go forward, is refused on the time field, which says why. One they repeat, when they go back, is the earlier of the two. Asia/Yerevan has had no clock change since 2012, so Armenian events never meet either | One function: `instantFromWallTime` in `src/lib/time/zoned-input.ts` |
 
 ---
 
@@ -385,7 +396,7 @@ Not designed now, each for the reason given:
 
 | Not designed | Why |
 |---|---|
-| The organizer dashboard and app screens beyond the way in | C-7. [DESIGN_SYSTEM §12](DESIGN_SYSTEM.md#12-from-invitation-to-dashboard) maps the tokens. The account pages and the app's first screens are built on PD-39 since 23 October 2026, and wait for DQ-13 |
+| The organizer dashboard and app screens beyond the way in and an event's details | C-7. [DESIGN_SYSTEM §12](DESIGN_SYSTEM.md#12-from-invitation-to-dashboard) maps the tokens. The account pages and the app's first screens are built on PD-39 since 23 October 2026, and wait for DQ-13. Creating, opening and correcting an event are built on PD-42 the same day, and wait for DQ-15 |
 | Public event pages, ticketing, checkout | Not the first deliverable |
 | Find your seat | B16 and D4 are built (`guest.seating`, 23 October 2026); where the table shows on the page is not designed yet |
 | Signature capture | Not built in the backend (INVITATION_DESIGN §7) |

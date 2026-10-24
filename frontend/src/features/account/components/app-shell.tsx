@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useNavigation } from 'react-router';
 
 import { browserSession } from '@/api/session';
 import { LANGUAGES, type Language } from '@/lib/i18n';
@@ -59,6 +59,23 @@ function SignOutEverywhere({ onFailed }: { onFailed: () => void }) {
   );
 }
 
+/**
+ * While the next page loads after a click. The first load shows `AppLoading` instead. The status is
+ * always there, empty when idle, so a screen reader announces it when it fills.
+ */
+function NavigationStatus() {
+  const { t } = useTranslation('app');
+  const isLoading = useNavigation().state === 'loading';
+  return (
+    <p
+      role="status"
+      className="text-muted-foreground absolute top-2 right-4 m-0 text-sm sm:right-8"
+    >
+      {isLoading ? t('shell.loading') : ''}
+    </p>
+  );
+}
+
 /** The signed-in app's frame: the wordmark, the language, and signing out (design PD-39). */
 export function AppShell({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation('app');
@@ -88,7 +105,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-[56rem] flex-col gap-6 px-4 py-8 sm:px-8">
+      <main className="relative mx-auto flex w-full max-w-[56rem] flex-col gap-6 px-4 py-8 sm:px-8">
+        <NavigationStatus />
         {hasSignOutFailed ? (
           <Alert variant="destructive">
             <Icon name="circle-alert" size={16} />

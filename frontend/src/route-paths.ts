@@ -28,4 +28,8 @@ export const APP_PATHS = {
   register: '/register',
   app: '/app',
   welcome: '/app/welcome',
+  /** Static, so it ranks above `event`'s `:eventId`. */
+  newEvent: '/app/events/new',
+  event: '/app/events/:eventId',
+  editEvent: '/app/events/:eventId/edit',
 } as const;

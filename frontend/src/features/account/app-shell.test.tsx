@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { I18nextProvider } from 'react-i18next';
-import { createRoutesStub } from 'react-router';
+import { createRoutesStub, Link } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, type BrowserSession, type TokenStore } from '@/api/session';
@@ -66,6 +66,40 @@ function renderShell() {
 }
 
 describe('AppShell', () => {
+  it('says the next page is loading while a click waits for its data', async () => {
+    let release: () => void = () => undefined;
+    const Stub = createRoutesStub([
+      {
+        path: '/app',
+        Component: () => (
+          <AppShell>
+            <Link to="/app/events/e1">Open the event</Link>
+          </AppShell>
+        ),
+      },
+      {
+        path: '/app/events/e1',
+        loader: () =>
+          new Promise<null>((resolve) => {
+            release = () => resolve(null);
+          }),
+        Component: () => <p>Event page</p>,
+      },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub initialEntries={['/app']} />
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent('');
+    await user.click(screen.getByRole('link', { name: 'Open the event' }));
+    expect(await screen.findByText('Loading…')).toBe(status);
+    release();
+    expect(await screen.findByText('Event page')).toBeInTheDocument();
+  });
+
   it('signs out here and goes to sign in', async () => {
     const sent: unknown[] = [];
     server.use(

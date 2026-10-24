@@ -18,7 +18,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "api:generate": "openapi-typescript ../backend/openapi.json -o src/api/schema.ts",
+    "api:generate": "openapi-typescript ../backend/openapi.json -o src/api/schema.ts --default-non-nullable false",
     "tokens": "node scripts/tokens-to-css.mjs",
     "tokens:check": "node scripts/tokens-to-css.mjs --check",
     "check:boundaries": "node scripts/check-boundaries.mjs",
