@@ -206,7 +206,7 @@ export class ExportSheets {
     const tickets = await this.prisma.ticket.findMany({
       where: { eventId, order: { status: TicketOrderStatus.PAID } },
       include: {
-        ticketType: { select: { name: true } },
+        ticketType: { select: { name: true, event: { select: { defaultLocale: true } } } },
         guest: { select: { firstName: true, lastName: true } },
         order: { select: { buyerName: true, buyerEmail: true } },
       },
@@ -217,7 +217,7 @@ export class ExportSheets {
       columns: ['Code', 'Type', 'Holder', 'Buyer', 'Buyer email', 'Status', 'Used at'],
       rows: tickets.map((ticket) => ({
         Code: ticket.code,
-        Type: JSON.stringify(ticket.ticketType.name),
+        Type: this.locale ? resolveTranslation<string>(ticket.ticketType.name, this.locale, ticket.ticketType.event.defaultLocale) : JSON.stringify(ticket.ticketType.name),
         Holder: ticket.guest ? fullName(ticket.guest) : ticket.holderName,
         Buyer: ticket.order.buyerName,
         'Buyer email': ticket.order.buyerEmail,

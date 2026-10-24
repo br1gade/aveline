@@ -1,6 +1,7 @@
 import { readGuestPageMeta } from '../../src/modules/invitations/guest-page-version';
+import { GuestProjectionReader } from '../../src/modules/invitations/guest-projection';
 import { ConfigService } from '@nestjs/config';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import Redis from 'ioredis';
 import { CacheService } from '../../src/infra/cache/cache.service';
@@ -8,7 +9,7 @@ import { AnalyticsService } from '../../src/infra/analytics/analytics.service';
 import { InvitationsService } from '../../src/modules/invitations/invitations.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { seedEvent } from '../fixtures/event.fixture';
-import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
+import { disconnectTestDatabase, resetTestDatabase, testPrisma, TEST_DATABASE_URL } from '../setup/test-database';
 
 describe('Authoritative personalized cache (integration)', () => {
   let prisma: PrismaClient; let redis: Redis; let cache: CacheService; let invitations: InvitationsService;
@@ -28,6 +29,91 @@ describe('Authoritative personalized cache (integration)', () => {
     const guest = await prisma.guest.findUniqueOrThrow({ where: { token: event.primaryGuestToken } });
     return { ...event, guest };
   };
+  it('reuses the actual projection snapshot when RSVP commits between the initial check and projection load', async () => {
+    const event = await setup();
+    const second = await prisma.guest.create({ data: { eventId: event.eventId, householdId: event.householdId, firstName: 'Second', token: randomUUID(), rsvp: { create: {} } } });
+    jest.spyOn(redis, 'get').mockResolvedValue(null);
+    const raw = prisma.$queryRaw.bind(prisma);
+    let projections = 0;
+    jest.spyOn(prisma, '$queryRaw').mockImplementation((query: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => {
+      const text = Array.isArray(query) ? query.join('') : (query as { sql: string }).sql;
+      return (async () => {
+        if (text.includes('WITH event_scope AS MATERIALIZED')) {
+          projections += 1;
+          if (projections === 1) await prisma.rsvp.update({ where: { guestId: event.guest.id }, data: { status: 'ATTENDING' } });
+        }
+        return raw(query, ...values);
+      })() as never;
+    });
+    const [first, other] = await Promise.all([
+      invitations.getPublicInvitation(event.slug, event.primaryGuestToken), invitations.getPublicInvitation(event.slug, second.token),
+    ]);
+    expect(first.guest?.rsvp?.status).toBe('ATTENDING'); expect(other.guest?.id).toBe(second.id);
+    expect(projections).toBe(1);
+  });
+  it('stamps batched household data with its committed revisions and preserves UTC history', async () => {
+    const event = await setup();
+    const timestamp = new Date('2026-10-24T12:34:56.000Z');
+    const second = await prisma.guest.create({ data: { eventId: event.eventId, householdId: event.householdId, firstName: 'Second', token: randomUUID() } });
+    const erased = await prisma.guest.create({ data: { eventId: event.eventId, householdId: event.householdId, firstName: 'Erased', token: randomUUID(), anonymizedAt: timestamp } });
+    const unrelated = await seedEvent(prisma);
+    const outsider = await prisma.guest.findUniqueOrThrow({ where: { token: unrelated.primaryGuestToken } });
+    const preparation = await prisma.venue.create({ data: { eventId: event.eventId, role: 'PREPARATION', name: 'Private preparation', address: 'Internal' } });
+    const internal = await prisma.venue.create({ data: { eventId: event.eventId, role: 'OTHER', name: 'Internal only', address: 'Internal' } });
+    await prisma.timelineEntry.create({ data: { eventId: event.eventId, venueId: internal.id, label: { en: 'Internal' }, occursAt: timestamp, isInternal: true } });
+    await prisma.event.update({ where: { id: event.eventId }, data: { seatingPublishedAt: timestamp } });
+    await prisma.rsvp.update({ where: { guestId: event.guest.id }, data: { status: 'ATTENDING', respondedAt: timestamp } });
+    await prisma.attendanceResponse.create({ data: { eventId: event.eventId, guestId: event.guest.id, revision: 1, scopeId: 'event', status: 'ATTENDING', respondedAt: timestamp } });
+    const reader = new GuestProjectionReader(prisma);
+    const loaded = await Promise.all([event.guest, second, erased, outsider].map((member) => reader.read(event.eventId, member.id)));
+    const [meta] = await readGuestPageMeta(prisma, event.slug, event.primaryGuestToken);
+    const own = loaded.find((guest) => guest?.id === event.guest.id)!;
+    expect(own.payloadRevision).toBe(`${meta.sharedRevision}:${event.householdId}:${meta.personalRevision}`);
+    expect(own.rsvp?.respondedAt).toEqual(timestamp);
+    expect(own.attendanceResponses[0].respondedAt).toEqual(timestamp);
+    expect(own.event.seatingPublishedAt).toEqual(timestamp);
+    expect(own.event.venues.map((venue) => venue.id)).not.toEqual(expect.arrayContaining([preparation.id, internal.id]));
+    expect(own.event.venues).toHaveLength(1);
+    expect(loaded.slice(2)).toEqual([null, null]);
+    expect(own.household.guests).toHaveLength(2);
+    expect(own.household.guests.every((member) => !Object.hasOwn(member, 'token') && !Object.hasOwn(member, 'email'))).toBe(true);
+  });
+  it('does not reuse a former household when a move lands on an equal counter value', async () => {
+    const event = await setup();
+    const household = await prisma.household.create({ data: { eventId: event.eventId, name: 'New household', seatsAllotted: 1 } });
+    const before = await invitations.getPublicInvitation(event.slug, event.primaryGuestToken);
+    expect(before.guest?.household.name).toBe('Fixture Household');
+    await prisma.guest.update({ where: { id: event.guest.id }, data: { householdId: household.id } });
+    const after = await invitations.getPublicInvitation(event.slug, event.primaryGuestToken);
+    expect(after.guest?.household.name).toBe('New household');
+    expect(after.guest?.household.members.map((member) => member.id)).toEqual([event.guest.id]);
+  });
+  it('keeps unrelated households and shared content warm when another household answers', async () => {
+    const event = await setup();
+    const household = await prisma.household.create({ data: { eventId: event.eventId, name: 'Unrelated', seatsAllotted: 1 } });
+    const other = await prisma.guest.create({ data: { eventId: event.eventId, householdId: household.id, firstName: 'Other', token: randomUUID() } });
+    await invitations.getPublicInvitation(event.slug, event.primaryGuestToken);
+    await invitations.getPublicInvitation(event.slug, other.token);
+    const shared = jest.spyOn(prisma.invitation, 'findUnique');
+    const personal = jest.spyOn(prisma.guest, 'findFirst');
+    await prisma.rsvp.update({ where: { guestId: event.guest.id }, data: { status: 'DECLINED' } });
+    expect((await invitations.getPublicInvitation(event.slug, other.token)).guest?.id).toBe(other.id);
+    expect(shared).not.toHaveBeenCalled(); expect(personal).not.toHaveBeenCalled();
+    expect((await invitations.getPublicInvitation(event.slug, event.primaryGuestToken)).guest?.rsvp?.status).toBe('DECLINED');
+  });
+  it('loads a cold personalized screen in four database statements rather than relation round trips', async () => {
+    const event = await setup();
+    const reader = new PrismaClient({ datasources: { db: { url: TEST_DATABASE_URL } }, log: [{ emit: 'event', level: 'query' }] });
+    await reader.$connect();
+    let statements = 0;
+    reader.$on('query', () => { statements += 1; });
+    const service = new InvitationsService(reader as unknown as PrismaService, cache, { recordInvitationView: jest.fn() } as unknown as AnalyticsService, new ConfigService({}));
+    try {
+      const page = await service.getPublicInvitation(event.slug, event.primaryGuestToken);
+      expect(page.guest?.id).toBe(event.guest.id);
+      expect(statements).toBeLessThanOrEqual(4);
+    } finally { await reader.$disconnect(); }
+  });
   it('reuses the expensive personal projection while validating the capability on every read', async () => {
     const event = await setup(); const reads = jest.spyOn(prisma.guest, 'findFirst');
     await invitations.getPublicInvitation(event.slug, event.primaryGuestToken);
@@ -79,8 +165,12 @@ describe('Authoritative personalized cache (integration)', () => {
   it('isolates people and negotiated languages and removes erased household members', async () => {
     const event = await setup();
     const other = await prisma.guest.create({ data: { eventId: event.eventId, householdId: event.householdId, firstName: 'Other', token: randomUUID() } });
-    const primary = await invitations.getPublicInvitation(event.slug, event.primaryGuestToken, 'en');
-    const translated = await invitations.getPublicInvitation(event.slug, other.token, 'hy');
+    const unrelated = await seedEvent(prisma);
+    const [primary, translated] = await Promise.all([
+      invitations.getPublicInvitation(event.slug, event.primaryGuestToken, 'en'),
+      invitations.getPublicInvitation(event.slug, other.token, 'hy'),
+      expect(invitations.getPublicInvitation(event.slug, unrelated.primaryGuestToken)).rejects.toThrow('available'),
+    ]);
     expect(primary.locale).toBe('en'); expect(translated.locale).toBe('hy');
     expect(primary.guest?.name).toBe('Primary Guest'); expect(translated.guest?.name).toBe('Other');
     expect(primary.guest?.household.members).toHaveLength(2);

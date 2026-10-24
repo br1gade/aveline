@@ -6,6 +6,7 @@ import type { RenderInput } from './export-document';
 import { MAX_EXPORT_BYTES } from './export-document';
 import { PdfReport } from './pdf-report';
 import { drawPlaceCards } from './pdf-cards';
+import { exportValue } from './export-copy';
 
 let fonts: Promise<Buffer[]> | undefined;
 function loadFonts(): Promise<Buffer[]> {
@@ -50,9 +51,9 @@ function drawReport(report: PdfReport, input: RenderInput): void {
   const bands = columnBands(columns);
   bands.forEach((band, index) => {
     if (index > 0) report.addPage();
-    const rows = input.sheet.rows.map((row) => band.map((column) => String(row[column] ?? '')));
+    const rows = input.sheet.rows.map((row) => band.map((column) => String(exportValue(input.locale, column, row[column]) ?? '')));
     const labels = band.filter((column) => /^Q\d+:/.test(column));
-    const group = bands.length > 1 ? `Column group ${index + 1} of ${bands.length}` : '';
+    const group = bands.length > 1 ? `${report.label('Column group')} ${index + 1} ${report.label('of')} ${bands.length}` : '';
     const headings = band.map((column) => /^Q\d+:/.test(column) ? column.split(':')[0] : column);
     report.table(headings, rows, [group, ...labels].filter(Boolean).join('\n'));
   });
@@ -81,7 +82,8 @@ function drawSeating(report: PdfReport, rows: CsvRow[]): void {
   if (!groups.size) { report.table(['Venue', 'Table', 'Guest'], []); return; }
   for (const group of groups.values()) {
     const first = group[0];
-    const label = `${String(first.Venue ?? 'Unspecified')} / ${String(first.Table ?? '')}\nCapacity ${String(first.Capacity ?? '')} - Seated ${String(first.Seated ?? 0)}`;
+    const venue = first.Venue === 'Unspecified' ? report.label('Unspecified') : String(first.Venue ?? report.label('Unspecified'));
+    const label = `${venue} / ${String(first.Table ?? '')}\n${report.label('Capacity')} ${String(first.Capacity ?? '')} - ${report.label('Seated')} ${String(first.Seated ?? 0)}`;
     report.table(['Guest'], group.map((row) => [String(row.Guest ?? '')]), label);
   }
 }
@@ -97,5 +99,5 @@ function drawVenueOperations(report: PdfReport, input: RenderInput): void {
   }
   const columns = input.sheet.columns.filter((column) => column !== 'Venue');
   if (!groups.size) { report.table(columns, []); return; }
-  for (const [venue, rows] of groups) report.table(columns, rows.map((row) => columns.map((column) => String(row[column] ?? ''))), venue);
+  for (const [venue, rows] of groups) report.table(columns, rows.map((row) => columns.map((column) => String(exportValue(input.locale, column, row[column]) ?? ''))), venue === 'Unspecified' ? report.label('Unspecified') : venue);
 }

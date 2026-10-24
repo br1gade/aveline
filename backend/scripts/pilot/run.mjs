@@ -12,11 +12,13 @@ import { checkWorkerLeases } from './worker-recovery.mjs';
 import { checkMailAndStorage } from './mail-recovery.mjs';
 import { checkMessages } from './messages.mjs';
 import { checkTickets } from './ticketing.mjs';
+import { checkManualSeatingConflict, checkImageWorkerLease } from './conflicts.mjs';
 
 const isFunctionalOnly = process.argv.includes('--functional-only');
-assert.ok(process.argv.slice(2).every((argument) => argument === '--functional-only'), 'Unknown rehearsal option');
+const isLoadOnly = process.argv.includes('--load-only');
+assert.ok(process.argv.slice(2).every((argument) => ['--functional-only', '--load-only'].includes(argument)) && !(isFunctionalOnly && isLoadOnly), 'Unknown or incompatible rehearsal option');
 const environment = await createEnvironment();
-const report = { scope: 'disposable-local-backend', mode: isFunctionalOnly ? 'functional-only' : 'full', startedAt: new Date().toISOString(), image: environment.image, isRunning: true, isLocalPerformancePassed: null, isAcceptedForProduction: false, phases: {} };
+const report = { scope: 'disposable-local-backend', mode: isLoadOnly ? 'load-only' : isFunctionalOnly ? 'functional-only' : 'full', startedAt: new Date().toISOString(), image: environment.image, isRunning: true, isLocalPerformancePassed: null, isAcceptedForProduction: false, phases: {} };
 let stage = 'setup';
 let client;
 try {
@@ -37,6 +39,7 @@ try {
     report.phases.load = await checkLoad(context, client, environment, report.phases.attendanceRevision);
     report.isLocalPerformancePassed = report.phases.load.budgets.isPassed;
   }
+  if (!isLoadOnly) {
   await startStage('named ticket checkout and listing media');
   report.phases.tickets = await checkTickets(context, client, report.phases.attendanceRevision);
   await startStage('private guest contributions');
@@ -47,6 +50,9 @@ try {
   report.phases.recovery = await checkRecovery(context, client, environment);
   await startStage('in-flight worker lease recovery');
   report.phases.workerLeases = await checkWorkerLeases(context, environment);
+  await startStage('manual seating conflict and image lease recovery');
+  report.phases.manualSeatingConflict = await checkManualSeatingConflict(context, environment);
+  report.phases.imageWorkerLease = await checkImageWorkerLease(context, client, environment);
   await startStage('mail and private storage recovery');
   report.phases.mailAndStorage = await checkMailAndStorage(context, environment, report.phases.exports);
   await startStage('reverse attendance transition');
@@ -77,10 +83,12 @@ try {
   assert.equal((await fetch(`${environment.origin}/docs`)).status, 404);
   report.telemetry = await environment.read('telemetry');
   report.isLocalFunctionalPassed = true;
+  }
   report.isLocalPerformancePassed = report.phases.load?.budgets.isPassed ?? null;
   if (report.isLocalPerformancePassed === false) { console.error('J: performance budgets missed; inspect the sanitized report'); process.exitCode = 1; }
 } catch (error) {
   report.isLocalFunctionalPassed = false;
+  report.serverFailureTypes = await environment.failureSummary().catch(() => []);
   report.partialProfiles = client?.profiles();
   report.failure = { stage, message: error instanceof assert.AssertionError ? error.message : `${error?.name ?? 'Error'}: stage failed; command arguments and response bodies withheld` };
   console.error(`J failed: ${stage}. ${report.failure.message}`);

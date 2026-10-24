@@ -1,4 +1,4 @@
-import { Prisma, RsvpStatus } from '@prisma/client';
+import { Prisma, Rsvp, RsvpStatus } from '@prisma/client';
 import { AttendanceContext } from './attendance-context';
 import { VenueAttendanceDto } from '../dto/attendance.dto';
 import { releaseSeat } from '../../seating/released-seat';
@@ -13,21 +13,16 @@ export async function writeAttendance(tx: Prisma.TransactionClient, guestId: str
   const answers = policy.attendanceMode === 'EVENT_WIDE'
     ? [{ scopeId: 'event', venueId: null, status }]
     : (attendance.venueAttendance ?? []).map((answer) => ({ ...answer, scopeId: answer.venueId }));
-  const now = new Date();
-  // DTO bounds the venue set to 100; one bulk upsert also keeps the lock order stable.
-  if (answers.length > 0) await tx.$executeRaw`
-    INSERT INTO attendance_responses (id, "eventId", "guestId", revision, "scopeId", "venueId", status, "respondedAt", "updatedAt")
-    VALUES ${Prisma.join(answers.map((answer) => Prisma.sql`(
-      ${`${guestId}:${policy.attendanceRevision}:${answer.scopeId}`}, ${policy.id}, ${guestId}, ${policy.attendanceRevision},
-      ${answer.scopeId}, ${answer.venueId}, ${answer.status}::"RsvpStatus", ${now}, ${now})`))}
-    ON CONFLICT ("guestId", revision, "scopeId") DO UPDATE SET status = EXCLUDED.status, "updatedAt" = EXCLUDED."updatedAt"`;
+  const payload = JSON.stringify({ revision: policy.attendanceRevision, mode: policy.attendanceMode, answeredAt: new Date(), answers });
+  const [rsvp] = await tx.$queryRaw<Rsvp[]>`SELECT * FROM save_guest_attendance(${policy.id}, ${guestId}, ${payload}::jsonb)`;
+  if (!rsvp) throw new Error('Attendance write did not return its RSVP');
   if (policy.attendanceMode === 'EVENT_WIDE') {
     if (status === 'DECLINED') await releaseSeat(tx, guestId);
-    return;
+    return rsvp;
   }
   const declined = answers.filter((answer) => answer.status === 'DECLINED').map((answer) => answer.venueId!);
   if (declined.length) await releaseSeat(tx, guestId, declined);
-  await tx.$executeRaw`SELECT refresh_venue_attendance(${policy.id}, ${guestId})`;
+  return rsvp;
 }
 
 /** Called inside the same policy-locked transaction as a venue/timeline edit. */

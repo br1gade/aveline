@@ -19,7 +19,7 @@ export function drawPlaceCards(report: PdfReport, rows: CsvRow[]): void {
 function drawCard(report: PdfReport, row: CsvRow, origin: { x: number; y: number }): void {
   const document = report.document;
   const name = String(row.Name ?? '');
-  const context = [row.Table, row.Venue].filter((value) => value !== null && value !== undefined && value !== '').join('\n');
+  const context = [row.Table, row.Venue === 'Unspecified' ? report.label('Unspecified') : row.Venue].filter((value) => value !== null && value !== undefined && value !== '').join('\n');
   const layout = fitCard(document, name, context);
   document.save().strokeColor('#9aa79f').lineWidth(0.4).dash(2, { space: 3 }).rect(origin.x, origin.y, WIDTH, HEIGHT).stroke().undash().restore();
   const nameHeight = layout.names.length * layout.nameSize * 1.2;

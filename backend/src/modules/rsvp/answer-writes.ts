@@ -1,6 +1,6 @@
 import { saveSignatureAnswer } from '../guest-contributions/acknowledgement-writes';
 import { BadRequestException } from '@nestjs/common';
-import { MessageStatus, Prisma, RsvpStatus } from '@prisma/client';
+import { Prisma, Rsvp, RsvpStatus } from '@prisma/client';
 import { REMINDER_TEMPLATE_KEY } from '../invitations/sending/reminder-schedule';
 import { releaseSeat } from '../seating/released-seat';
 import { AttendanceWrite, writeAttendance } from './attendance/attendance-writes';
@@ -27,19 +27,29 @@ export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields, 
   if (fields.status === 'ATTENDING' && await tx.ticket.count({ where: { guestId, status: { in: ['VOID', 'REFUNDED'] } } })) {
     throw new BadRequestException('Ticket is no longer valid; attendance cannot be reconfirmed');
   }
-  const existing = await tx.rsvp.findUnique({ where: { guestId }, select: { respondedAt: true } });
-  const respondedAt = existing?.respondedAt ?? new Date();
-
-  const rsvp = await tx.rsvp.upsert({
-    where: { guestId },
-    create: { guestId, ...fields, respondedAt },
-    update: { ...fields, respondedAt },
-  });
+  const rsvp = await saveResponse(tx, guestId, fields, attendance);
+  let answered = rsvp;
   // A guest who is not coming should not hold a chair someone else could use.
-  if (attendance) await writeAttendance(tx, guestId, fields.status, attendance);
+  if (attendance) answered = await writeAttendance(tx, guestId, fields.status, attendance);
   else if (fields.status === RsvpStatus.DECLINED) await releaseSeat(tx, guestId);
   if (fields.status !== RsvpStatus.PENDING) await withdrawReminders(tx, guestId);
-  return attendance ? tx.rsvp.findUniqueOrThrow({ where: { guestId } }) : rsvp;
+  return answered;
+}
+
+async function saveResponse(tx: Tx, guestId: string, fields: RsvpFields, attendance?: AttendanceWrite) {
+  const existing = await tx.rsvp.findUnique({ where: { guestId } });
+  if (existing && !hasResponseChanges(existing, fields, attendance)) return existing;
+  const respondedAt = existing?.respondedAt ?? new Date();
+  return tx.rsvp.upsert({ where: { guestId }, create: { guestId, ...fields, respondedAt }, update: { ...fields, respondedAt } });
+}
+
+function hasResponseChanges(existing: Rsvp, fields: RsvpFields, attendance?: AttendanceWrite): boolean {
+  // Per-venue time is derived from attendance history, which deliberately
+  // retains unknown imported timestamps. Never repeatedly invent an aggregate
+  // time that refresh_venue_attendance immediately restores to null.
+  if (!existing.respondedAt && attendance?.policy.attendanceMode !== 'PER_VENUE') return true;
+  return Object.entries(fields).some(([key, value]) =>
+    value !== undefined && JSON.stringify(existing[key as keyof Rsvp]) !== JSON.stringify(value));
 }
 
 /**
@@ -49,12 +59,11 @@ export async function recordAnswer(tx: Tx, guestId: string, fields: RsvpFields, 
  * claims only QUEUED messages, so a withdrawn one can never be sent.
  */
 async function withdrawReminders(tx: Tx, guestId: string): Promise<void> {
-  const guest = await tx.guest.findUnique({ where: { id: guestId }, select: { householdId: true } });
-  if (!guest) return;
-  await tx.message.updateMany({
-    where: { templateKey: REMINDER_TEMPLATE_KEY, status: MessageStatus.QUEUED, guest: { householdId: guest.householdId } },
-    data: { status: MessageStatus.CANCELLED, failureReason: 'The household answered before it was sent' },
-  });
+  await tx.$executeRaw`UPDATE messages m SET status = 'CANCELLED'::"MessageStatus",
+    "failureReason" = 'The household answered before it was sent', "updatedAt" = statement_timestamp()
+    FROM guests respondent, guests recipient WHERE respondent.id = ${guestId}
+      AND recipient."householdId" = respondent."householdId" AND m."guestId" = recipient.id
+      AND m."templateKey" = ${REMINDER_TEMPLATE_KEY} AND m.status = 'QUEUED'::"MessageStatus"`;
 }
 
 export async function saveAnswers(tx: Tx, rsvpId: string, answers: Answer[], signerGuestId?: string): Promise<void> {

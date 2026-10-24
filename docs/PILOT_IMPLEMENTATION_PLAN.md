@@ -89,7 +89,7 @@ Current limitations that drive the new plan:
   queues a revision-guarded worker job; frontend polling and production acceptance remain.
 - Legacy `/exports` CSV remains live; additive `/export-snapshots` jobs generate
   fixed private CSV/PDF/XLSX files for all seven kinds. Frontend adoption,
-  standard heading translations and production acceptance remain.
+  human review of translated standard headings and production acceptance remain.
 - A separate private storage port now serves export artifacts. Signatures and
   guest-gallery originals now share protected storage through a separate ledger and worker.
 - Named ticket checkout, legacy registration and explicit invited-guest linking
@@ -368,8 +368,8 @@ revocation/cleanup are implemented on additive `/export-snapshots` routes.
 Legacy `/exports` remains live during the frontend transition; old rows are
 not snapshots. See [API.md](API.md) and
 [worker operations](../backend/docs/EXPORT_WORKER.md). The frontend still needs
-to adopt queue/status/regeneration behavior. Standard CSV headings remain
-English pending four-language localization. Production worker/bucket recovery is still a rehearsal
+to adopt queue/status/regeneration behavior. Snapshot standard headings now support
+all four languages; legacy live CSV columns stay stable. Production worker/bucket recovery is still a rehearsal
 gate. The PDF/XLSX and background-seating batches below complete F27's backend
 worker implementation; frontend adoption and production acceptance remain open.
 
@@ -398,7 +398,7 @@ visually inspected. See [renderer acceptance](../backend/docs/EXPORT_RENDERERS.m
 for versions, limits, measurements and repeatable commands.
 
 **F20/F49 backend work is implemented; their release gates remain open** for
-frontend adoption, translated standard headings, native spreadsheet and
+frontend adoption, human review of translated standard headings, native spreadsheet and
 physical printing acceptance, and production worker/private-store rehearsal.
 The background seating batch below completes F27's worker implementation. No production deployment or
 frontend implementation is included in this backend batch.
@@ -769,8 +769,15 @@ open until the external, frontend, language and recovery gates below are accepte
 ignored test results and has uncovered/fixed production JSON parsing and binary
 stream serialization regressions. The isolated 50-reader/10-writer workload
 returned no unexpected statuses but missed invitation/RSVP latency budgets.
-These misses and standard export translations remain open backend launch work;
-a successful functional rehearsal cannot close them. See the recorded local
+Subsequent backend remediation adds batched live capability/projection reads,
+coalesced cache misses, commit-time seating invalidation and unchanged-answer
+write suppression. Standard snapshot labels and additive validation/recovery
+copy now support all four languages. The expanded local restore and focused
+manual-seating/image-worker recovery checks pass. The latest production-configuration
+load run passes all eight local gates: RSVP 277.4 ms, warm reads 43.2 ms,
+cold reads 80.3 ms and mixed reads 163.8 ms p95. Actual-host performance acceptance
+remains open; it cannot be inferred from functional success or the best values
+from separate runs. See the recorded local
 evidence and explicit remaining gates in the rehearsal document.
 
 

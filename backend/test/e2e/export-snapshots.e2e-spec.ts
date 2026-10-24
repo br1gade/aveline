@@ -41,6 +41,15 @@ describe('Snapshot contract (HTTP)', () => {
     const actor = await authenticateAs(app, prisma, { eventId: event.eventId, role: 'OWNER' });
     return { ...event, ...actor, base: `/api/v1/events/${event.eventId}/export-snapshots` };
   };
+  it.each(['en', 'ru', 'fr', 'hy'])('adds localized recovery for a revoked snapshot in %s', async (locale) => {
+    const event = await setup();
+    const created = await http().post(event.base).set('Authorization', event.authorization).send({ kind: 'GUEST_LIST', idempotencyKey: randomUUID() }).expect(201);
+    const id = (created.body as { id: string }).id;
+    await prisma.exportSnapshot.update({ where: { id }, data: { status: 'FAILED', failureReason: 'SUBJECT_ERASED', revokedAt: new Date() } });
+    const response = await http().get(`${event.base}/${id}`).set('Authorization', event.authorization).set('Accept-Language', locale).expect(200);
+    expect(response.body).toMatchObject({ failureReason: 'SUBJECT_ERASED', recovery: { locale, code: 'REGENERATE', action: 'REGENERATE' } });
+    expect(response.body.recovery.userMessage).toBeTruthy();
+  });
   it.each(['CSV', 'PDF', 'XLSX'] as const)('returns queued %s metadata, then authenticated bytes with the correct MIME type', async (format) => {
     const event = await setup();
     const response = await http().post(event.base).set('Authorization', event.authorization).send({ kind: 'GUEST_LIST', format, locale: 'en', idempotencyKey: randomUUID() }).expect(201);

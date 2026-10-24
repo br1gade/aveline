@@ -8,6 +8,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -2311,4 +2312,22 @@ model GuestPageChange {
   transactionId BigInt
   @@id([eventId, transactionId])
   @@map("guest_page_changes")
+}
+
+/// Independent payload counters: an RSVP invalidates its household, not every
+/// guest's shared invitation. No parent FKs; maintenance reclaims orphan scopes.
+model GuestPayloadVersion {
+  eventId String
+  scope String
+  revision BigInt @default(0)
+  @@id([eventId, scope])
+  @@map("guest_payload_versions")
+}
+
+model GuestPayloadChange {
+  eventId String
+  scope String
+  transactionId BigInt
+  @@id([eventId, scope, transactionId])
+  @@map("guest_payload_changes")
 }

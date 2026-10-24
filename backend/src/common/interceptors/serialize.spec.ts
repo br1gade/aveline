@@ -7,6 +7,13 @@ import { serializeBigInts } from './serialize';
  * amount had to remember — and the one that forgot would 500 at runtime.
  */
 describe('serializeBigInts', () => {
+  it('reuses ordinary JSON payloads without allocating a second object graph', () => {
+    const payload = { blocks: [{ title: 'Հրավեր' }], guest: { members: [{ name: 'Émilie' }] } };
+    expect(serializeBigInts(payload)).toBe(payload);
+    const mixed = { payload, order: { amount: 100n } };
+    expect(serializeBigInts(mixed)).toEqual({ payload, order: { amount: '100' } });
+    expect(mixed.order.amount).toBe(100n);
+  });
   it('converts a bigint to a string, preserving precision beyond a float', () => {
     expect(serializeBigInts(9007199254740993n)).toBe('9007199254740993');
   });

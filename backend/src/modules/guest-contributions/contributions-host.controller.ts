@@ -1,6 +1,7 @@
 import { Throttle } from '@nestjs/throttler';
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
-import { Body, Controller, Delete, Get, Header, NotFoundException, Param, Patch, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, NotFoundException, Param, Patch, Query, Res, UseInterceptors } from '@nestjs/common';
+import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.interceptor';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
@@ -11,6 +12,7 @@ import { GuestMediaService } from './guest-media.service';
 import { sendPrivateImage } from './contributions.controller';
 
 @ApiTags('guest-contributions')
+@UseInterceptors(JobRecoveryInterceptor)
 @Controller('events/:eventId')
 export class ContributionsHostController {
   constructor(private readonly acknowledgements: AcknowledgementsService, private readonly media: GuestMediaService, private readonly prisma: PrismaService) {}

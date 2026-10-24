@@ -43,7 +43,8 @@ lives outside Postgres.
 |---|---|
 | `DesignTemplate` | Fonts, palettes and blocks a template renders correctly |
 | `Invitation` | Published page; captured first publication, duration/source/plan key, expiry and processed marker |
-| `GuestPageVersion` · `GuestPageChange` | Durable base revision and committed per-event transaction ledger for shared/personal cache freshness |
+| `GuestPageVersion` · `GuestPageChange` | Coarse compatibility revision and committed per-event transaction ledger |
+| `GuestPayloadVersion` · `GuestPayloadChange` | Independent shared-content and household payload counters; append-only writes, bounded atomic compaction, no parent FKs to preserve domain lock order |
 | `InvitationBlock` | One section, ordered, data-bound, toggleable |
 | `MediaAsset` | Public invitation uploads, scoped to an event |
 | `GuestMedia` | Private raw/derived keys, processing/moderation, reserved bytes and durable deletion tombstones |

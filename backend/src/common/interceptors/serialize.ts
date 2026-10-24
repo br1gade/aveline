@@ -16,14 +16,30 @@ export function serializeBigInts(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
   if (value instanceof Date || value instanceof StreamableFile) return value;
 
-  if (Array.isArray(value)) return value.map(serializeBigInts);
+  if (Array.isArray(value)) return serializeArray(value);
+  return serializeObject(value as Record<string, unknown>);
+}
 
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
-      key,
-      serializeBigInts(nested),
-    ]),
-  );
+function serializeArray(value: unknown[]): unknown[] {
+  let result: unknown[] | null = null;
+  value.forEach((item, index) => {
+    const serialized = serializeBigInts(item);
+    if (serialized === item) return;
+    result ??= [...value];
+    result[index] = serialized;
+  });
+  return result ?? value;
+}
+
+function serializeObject(value: Record<string, unknown>): Record<string, unknown> {
+  // Preserve the previous plain-object conversion for uncommon class instances.
+  let result: Record<string, unknown> | null = Object.getPrototypeOf(value) === Object.prototype ? null : {};
+  for (const key of Object.keys(value)) {
+    const serialized = serializeBigInts(value[key]);
+    if (serialized !== value[key]) result ??= { ...value };
+    if (result) result[key] = serialized;
+  }
+  return result ?? value;
 }
 
 @Injectable()

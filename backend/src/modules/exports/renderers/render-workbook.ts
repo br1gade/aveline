@@ -2,14 +2,14 @@ import writeExcelFile, { Cell, CellObject, Sheet as WorkbookSheet } from 'write-
 import { CsvRow } from '../csv';
 import { Sheet } from '../export-sheets';
 import type { RenderInput } from './export-document';
-import { EXPORT_TITLES } from './export-document';
+import { exportText, exportTitle, exportValue } from './export-copy';
 
 export function renderWorkbook(input: RenderInput): Promise<Buffer> {
   return writeExcelFile(workbookSheets(input), { fontFamily: 'DejaVu Sans', fontSize: 10 }).toBuffer();
 }
 
 function workbookSheets(input: RenderInput): WorkbookSheet<never>[] {
-  if (input.kind !== 'CATERING_SHEET') return [makeSheet(input, input.sheet, EXPORT_TITLES[input.kind])];
+  if (input.kind !== 'CATERING_SHEET') return [makeSheet(input, input.sheet, exportTitle(input.locale, input.kind))];
   const isNote = (row: CsvRow) => row.Requirement === 'Dietary note';
   return [
     makeSheet(input, { columns: ['Venue', 'Requirement', 'Guests'], rows: input.sheet.rows.filter((row) => !isNote(row)) }, 'Requirements'),
@@ -19,14 +19,15 @@ function workbookSheets(input: RenderInput): WorkbookSheet<never>[] {
 
 function makeSheet(input: RenderInput, sheet: Sheet, name: string): WorkbookSheet<never> {
   const widths = sheet.columns.map(columnWidth);
-  const heading = sheet.columns.map((column): CellObject => ({ value: column, type: String, fontWeight: 'bold', textColor: '#FFFFFF',
-    backgroundColor: '#34483b', align: 'center', alignVertical: 'center', wrap: true, height: Math.min(409, Math.max(32, Math.ceil(column.length / widths[sheet.columns.indexOf(column)]) * 15 + 8)) }));
-  return { sheet: name, showGridLines: false, stickyRowsCount: 8, stickyColumnsCount: Math.min(3, sheet.columns.length),
-    columns: widths.map((width) => ({ width })), data: [[], [{ value: EXPORT_TITLES[input.kind], type: String, fontSize: 16, fontWeight: 'bold', height: 24 }],
-      [textCell(input.title)], [textCell('Generated (UTC)'), { value: input.snapshotAt, type: Date, format: 'yyyy-mm-dd hh:mm:ss "UTC"' }],
-      [textCell('Event timezone'), textCell(input.timezone)],
-      [textCell(input.includesContacts ? 'Includes contact details' : 'Contact columns omitted')], [], heading,
-      ...sheet.rows.map((row) => sheet.columns.map((column, index) => dataCell(column, row[column], widths[index]))),
+  const copy = (text: string) => exportText(input.locale, text);
+  const heading = sheet.columns.map((column): CellObject => ({ value: copy(column), type: String, fontWeight: 'bold', textColor: '#FFFFFF',
+    backgroundColor: '#34483b', align: 'center', alignVertical: 'center', wrap: true, height: Math.min(409, Math.max(32, Math.ceil(copy(column).length / widths[sheet.columns.indexOf(column)]) * 15 + 8)) }));
+  return { sheet: copy(name), showGridLines: false, stickyRowsCount: 8, stickyColumnsCount: Math.min(3, sheet.columns.length),
+    columns: widths.map((width) => ({ width })), data: [[], [{ value: exportTitle(input.locale, input.kind), type: String, fontSize: 16, fontWeight: 'bold', height: 24 }],
+      [textCell(input.title)], [textCell(copy('Generated (UTC)')), { value: input.snapshotAt, type: Date, format: 'yyyy-mm-dd hh:mm:ss "UTC"' }],
+      [textCell(copy('Event timezone')), textCell(input.timezone)],
+      [textCell(copy(input.includesContacts ? 'Includes contact details' : 'Contact columns omitted'))], [], heading,
+      ...sheet.rows.map((row) => sheet.columns.map((column, index) => dataCell(column, exportValue(input.locale, column, row[column]), widths[index]))),
     ] };
 }
 

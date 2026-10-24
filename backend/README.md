@@ -361,7 +361,8 @@ See [EXPORT_WORKER.md](docs/EXPORT_WORKER.md) for recovery and cleanup, and
 [EXPORT_RENDERERS.md](docs/EXPORT_RENDERERS.md) for fonts, layouts, limits and
 the database-free 400-person file rehearsal. PDF place cards are six flat
 90 × 70 mm cut cards per A4. Snapshot catering/bar totals are venue-specific.
-Standard headings remain English until F35.
+Snapshot headings, titles, metadata and standard status labels support English,
+Russian, French and Armenian; human language/print acceptance remains.
 The existing `/exports` API remains live CSV during frontend migration;
 its records are references to regenerate, never historical snapshots.
 
@@ -535,6 +536,11 @@ LOG_LEVEL=warn npm run start:dev    # trace|debug|info|warn|error|fatal
 
 Health checks are not logged. 4xx logs as `warn`, 5xx as `error`.
 
+Errors retain `message` and add localized `code`, `locale`, `userMessage`,
+`action` and field `details`. Job/media summaries add `recovery`; unseated
+households add `explanation`. Request interface copy with `Accept-Language`.
+See the shared [API contract](../docs/API.md#errors-have-one-shape).
+
 Sentry also watches service health without tracing: each scheduled sweep
 reports a cron check-in, so one that stops running is noticed, and dependency
 outages alert once on failure and once on recovery rather than every minute.
@@ -575,7 +581,7 @@ verified list, by priority; `docs/GAPS.md` is the backend's own.
 2. **Payments against a real sandbox.** No bank credentials yet, so no adapter
    has run against one. See `../docs/PAYMENTS.md` §6–7.
 3. **Integrated pilot acceptance.** Automatic seating and all seven export
-   kinds now run in dedicated workers. Frontend job adoption, translations and
+   kinds now run in dedicated workers. Frontend job adoption, human language review and
    production worker/storage rehearsal remain.
 
 `docs/GAPS.md` is the full list, prioritised.
@@ -655,3 +661,8 @@ It owns its stores/workers and preserves checkpoint reports under `test-results/
 artifacts. `npm run test:pilot` validates rehearsal guards and measurement policy
 and is included in `npm run verify`. See [PILOT_REHEARSAL.md](docs/PILOT_REHEARSAL.md)
 for the workload, interpretation and remaining external launch gates.
+Use `-- --functional-only` to skip load or `-- --load-only` for an isolated
+performance run. Do not measure load alongside verification/builds. Local
+`npm run backup:rehearsal` now verifies the 400-person graph and approximately
+251 MB of private/public files through encrypted fresh-store restoration;
+the off-host destination remains an operator gate.

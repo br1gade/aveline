@@ -2,6 +2,7 @@
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { writeFile, readFile } from 'node:fs/promises';
+import { runConflictFixture } from './conflict-fixture.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { hash } = require('bcrypt');
@@ -10,7 +11,9 @@ const prisma = new PrismaClient();
 const state = process.env.REHEARSAL_STATE_ROOT;
 const action = process.argv[2];
 try {
-  if (action === 'owner') {
+  if (['hold-image', 'release-image', 'image-recovery-report'].includes(action)) {
+    await runConflictFixture(prisma, action, state);
+  } else if (action === 'owner') {
     const email = `owner-${randomUUID()}@example.test`; const password = `Pilot-${randomUUID()}`;
     const user = await prisma.user.create({ data: { email, name: 'Synthetic pilot owner', passwordHash: await hash(password, 12) } });
     await writeFile(`${state}/owner.json`, JSON.stringify({ userId: user.id, email, password }), { mode: 0o600 });

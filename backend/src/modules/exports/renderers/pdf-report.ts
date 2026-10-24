@@ -1,5 +1,5 @@
 import type { RenderInput } from './export-document';
-import { EXPORT_TITLES } from './export-document';
+import { exportText, exportTitle } from './export-copy';
 import { wrapText } from './pdf-text';
 
 const MARGIN = 36;
@@ -14,6 +14,7 @@ export class PdfReport {
   constructor(readonly document: PDFKit.PDFDocument, private readonly input: RenderInput) {}
   get contentStart() { return this.contentTop; }
   get width() { return this.document.page.width - MARGIN * 2; }
+  label(value: string) { return exportText(this.input.locale, value); }
   private get bottom() { return this.document.page.height - 40; }
 
   addPage(): void {
@@ -21,19 +22,19 @@ export class PdfReport {
     this.document.addPage();
     this.pages += 1;
     this.document.font('Bold').fontSize(16).fillColor('#27342f');
-    this.text(EXPORT_TITLES[this.input.kind], MARGIN, 30);
+    this.text(exportTitle(this.input.locale, this.input.kind), MARGIN, 30);
     this.document.font('Body').fontSize(10);
     const titleLines = wrapText(this.document, this.input.title.replace(/\s+/gu, ' '), this.width);
     titleLines.forEach((line, index) => this.text(line, MARGIN, 53 + index * 12));
     const metadataY = 57 + titleLines.length * 12;
     this.document.fontSize(8).fillColor('#535f59');
     const at = new Intl.DateTimeFormat(this.input.locale, { dateStyle: 'medium', timeStyle: 'medium', timeZone: this.input.timezone }).format(this.input.snapshotAt);
-    this.text(`Generated ${at} (${this.input.timezone})`, MARGIN, metadataY);
-    this.text(this.input.includesContacts ? 'Includes contact details' : 'Contact columns omitted', MARGIN, metadataY + 14);
+    this.text(`${this.label('Generated')} ${at} (${this.input.timezone})`, MARGIN, metadataY);
+    this.text(this.label(this.input.includesContacts ? 'Includes contact details' : 'Contact columns omitted'), MARGIN, metadataY + 14);
     this.contentTop = metadataY + 37;
     this.document.strokeColor('#cbd3ce').lineWidth(0.5).moveTo(MARGIN, this.contentTop - 11).lineTo(MARGIN + this.width, this.contentTop - 11).stroke();
     this.document.fontSize(8);
-    this.text(`Page ${this.pages}`, MARGIN, this.document.page.height - 25);
+    this.text(`${this.label('Page')} ${this.pages}`, MARGIN, this.document.page.height - 25);
     this.document.font('Body').fontSize(9).fillColor('#202823');
     this.y = this.contentTop;
   }
@@ -42,9 +43,9 @@ export class PdfReport {
 
   table(columns: string[], rows: string[][], label = ''): void {
     const widths = columns.map(() => this.width / columns.length);
-    const header = () => this.drawHeader(columns, widths, label);
+    const header = () => this.drawHeader(columns.map((column) => this.label(column)), widths, label);
     header();
-    if (!rows.length) this.drawRow([['No records']], [this.width], false);
+    if (!rows.length) this.drawRow([[this.label('No records')]], [this.width], false);
     for (const row of rows) this.paginateRow(row, widths, header);
     this.y += 16;
   }

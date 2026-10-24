@@ -9,6 +9,7 @@ test('local trace evidence stores only bounded connection timing, never SQL or i
   const report = summary.snapshot();
   assert.equal(report.connectionAcquisitions, 5); assert.equal(report.totalMs, 10);
   assert.equal(report.maxMs, 4); assert.equal(report.sampled, 3);
+  assert.equal(report.databaseQueries.totalMs, 1000);
   assert.ok(!JSON.stringify(report).includes('private'));
 });
 test('missing pool tracing is reported as unavailable rather than a zero-wait success', () => {

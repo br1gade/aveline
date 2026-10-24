@@ -3,6 +3,7 @@ import { Sheet } from '../export-sheets';
 import { toCsv } from '../csv';
 import { renderPdf } from './render-pdf';
 import { renderWorkbook } from './render-workbook';
+import { translateSheet } from './export-copy';
 
 import { RenderInput, RenderedFile, EXPORT_TYPES, MAX_EXPORT_BYTES } from './export-document';
 export type { RenderInput } from './export-document';
@@ -10,7 +11,7 @@ export type { RenderInput } from './export-document';
 export async function renderExport(input: RenderInput): Promise<RenderedFile> {
   assertRenderBounds(input.sheet);
   const renderers: Record<ExportFormat, () => Buffer | Promise<Buffer>> = {
-    CSV: () => Buffer.from(toCsv(input.sheet.columns, input.sheet.rows), 'utf8'),
+    CSV: () => { const sheet = translateSheet(input.sheet, input.locale); return Buffer.from(toCsv(sheet.columns, sheet.rows), 'utf8'); },
     PDF: () => renderPdf(input), XLSX: () => renderWorkbook(input),
   };
   const buffer = await renderers[input.format]();

@@ -70,7 +70,7 @@ node --max-old-space-size=384 scripts/export-render-rehearsal.mjs
 The script uses synthetic data only and writes to `/tmp/aveline-render-rehearsal`
 (or its first argument). It creates **84 files**: 7 kinds × 3 formats × 4 locales,
 plus metrics and the fixture roster. No database, network, credentials or customer
-data are needed. Standard headings remain English pending four-language acceptance; requested locales
+data are needed. Standard headings now support all four pilot languages; requested locales
 select translated question labels and format PDF generation dates. The fixture
 includes all four scripts, two venues, a long unbroken Armenian name, combining
 accents, formula-like text, leading-zero ticket codes and attendance timestamps.
@@ -102,8 +102,8 @@ build, **1,062 unit + 400 integration + 578 HTTP tests = 2,040 tests**.
 
 ## Not yet built / release acceptance
 
-Frontend queue/status/regeneration/download screens, translated standard
-headings and wider four-language acceptance remain. Open representative files in the
+Frontend queue/status/regeneration/download screens and human four-language
+acceptance remain. Open representative files in the
 pilot's actual spreadsheet application and physically print at 100% scale
 before accepting venue documents. Run worker/private-bucket recovery, privacy
 and storage-outage drills on production infrastructure. Background seating is

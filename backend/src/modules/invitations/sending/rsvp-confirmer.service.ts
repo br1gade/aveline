@@ -80,6 +80,12 @@ export class RsvpConfirmerService {
     const { event } = guest;
     if (!event.invitation) return;
 
+    const now = new Date();
+    const dedupeKey = templateKey === VENUE_CONFIRMATION_TEMPLATE_KEY
+      ? await venueConfirmationDedupe(this.prisma, guest.householdId, now)
+      : confirmationDedupeKey(guest.householdId, status, now, await this.confirmedThisMinute(guest.householdId, now, event.attendanceRevision));
+    if (dedupeKey === null) return;
+
     const [households, available] = await Promise.all([
       loadSendableHouseholds(this.prisma, this.guestChannels, { id: guest.householdId }),
       channelsWithCopy(this.prisma, event.organizationId, templateKey, this.configuredChannels),
@@ -89,12 +95,6 @@ export class RsvpConfirmerService {
     // Nobody in the household can be reached: they answered from a link
     // someone forwarded, and there is no address on file. Nothing to send.
     if (!recipient) return;
-
-    const now = new Date();
-    const dedupeKey = templateKey === VENUE_CONFIRMATION_TEMPLATE_KEY
-      ? await venueConfirmationDedupe(this.prisma, guest.householdId, now)
-      : confirmationDedupeKey(guest.householdId, status, now, await this.confirmedThisMinute(guest.householdId, now, event.attendanceRevision));
-    if (dedupeKey === null) return;
 
     await this.communications.enqueue({
       organizationId: event.organizationId,

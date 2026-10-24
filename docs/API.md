@@ -46,6 +46,34 @@ Authorization: Bearer <accessToken>
 `message` is a **string or an array of strings** — validation failures return
 an array, one entry per bad field. Handle both.
 
+Errors also include additive display fields: `code`, `locale`, `userMessage`,
+`action` and `details: [{field, code, userMessage}]`. Send `Accept-Language`
+(`en`, `ru`, `fr`, `hy`; region tags and weighted preferences supported) for
+host or guest interface copy. A supported `?locale=` takes precedence; otherwise
+the fallback is English. These UI strings do not change the event's published
+content language. Keep using the original `message` and status for compatibility.
+Field paths identify invalid inputs; an unidentifiable business error has a null
+field. Details are bounded to 100 entries. Display the translated `userMessage`
+and map field paths to the form's translated labels.
+
+`attendanceRevision:` conflicts have code `ATTENDANCE_CHANGED` and action
+`RELOAD`: fetch the latest invitation and reconfirm. Other actions are `EDIT`,
+`SIGN_IN`, `REQUEST_ACCESS`, `CONTACT_HOST`, `REGENERATE`, `WAIT`, `REUPLOAD`,
+`CONTACT_SUPPORT` or `RETRY`. A retry is a user choice; never automatically repeat
+a non-idempotent purchase based only on this guidance. Readiness failures retain
+their structured report in `message`.
+
+Export snapshot, seating job and private-media summaries retain `failureReason`
+and add `recovery: {code, locale, userMessage, action}` (null without a failure).
+Queued/running retries say `WAIT`; exhausted state-change failures say `RETRY`
+without promising another automatic attempt. Subject-erased exports say `REGENERATE`. Send the
+same language preference when polling. Common display types are included as
+`HttpErrorDto`, `FieldFeedbackDto` and `JobRecoveryDto` in OpenAPI.
+Completed seating results retain each unseated household's original `reason`
+and add an `explanation` with the same display shape and action `EDIT`. This
+also translates older saved planner results; unknown historical text gets safe
+generic guidance, with the original reason preserved.
+
 `path` has its credential replaced: a guest's link comes back as
 `/invitations/:slug/g/[token]`, an invite's address as `[email]`, a payment's
 order number as `[order]`. An error report or a screenshot of one is not a
@@ -2055,8 +2083,9 @@ available until the frontend migrates. Snapshot jobs appear only in the new hist
 Create with `{ "kind": "GUEST_LIST", "idempotencyKey": "<new UUID v4>",
 "format": "PDF", "locale": "en", "includesContacts": false }`. Format defaults
 to `CSV`; accepted values are `CSV`, `PDF`, `XLSX`. Locale defaults to the event language and accepts
-`en`, `ru`, `fr`, `hy`. Translated question/choice labels use it; standard sheet
-headings remain English pending four-language acceptance. `includesContacts` defaults to the caller's
+`en`, `ru`, `fr`, `hy`. Snapshot titles, standard headings, metadata, status/side
+labels and translated question/choice and ticket-type labels use it. Host-authored
+names, answers and notes remain literal. `includesContacts` defaults to the caller's
 current contact permission. A viewer can request redacted sheets; a contact
 holder can also explicitly request them. Manifests always require contact
 permission and cannot be redacted. The existing CSV columns and formula

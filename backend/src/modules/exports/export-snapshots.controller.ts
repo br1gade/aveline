@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Header, Param, Post, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post, StreamableFile, UseInterceptors } from '@nestjs/common';
+import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.interceptor';
 import { ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { CreateExportSnapshotDto } from './dto/export-snapshot.dto';
 import { ExportSnapshotsService } from './export-snapshots.service';
 
 @ApiTags('exports')
+@UseInterceptors(JobRecoveryInterceptor)
 @Controller('events/:eventId/export-snapshots')
 export class ExportSnapshotsController {
   constructor(private readonly snapshots: ExportSnapshotsService) {}

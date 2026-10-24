@@ -44,8 +44,10 @@ human retyping something another human already typed.
 | 5 | **An SMS provider** | The SMS channel is built provider-neutral (decided 9 October 2026): chosen last, numbers normalised, failures classified, copy written. What remains is choosing a provider and writing its adapter — one class implementing `SmsProvider` and a row in `SMS_PROVIDERS` |
 
 The selected pilot also requires performance and four-language acceptance.
-The [local rehearsal](PILOT_REHEARSAL.md) passed functional checks but missed
-invitation/RSVP latency budgets; frontend and actual-host acceptance remain.
+The [local rehearsal](PILOT_REHEARSAL.md) passed functional checks and all eight
+latency gates in its latest primary run; frontend, human language review and
+actual-host acceptance remain. Earlier misses and local variability are retained
+in its evidence rather than treated as production capacity proof.
 
 ## 3. High value — the actual digitalisation
 
@@ -54,7 +56,7 @@ Each replaces a process the incumbent market performs by hand.
 | # | Gap | Replaces |
 |---|---|---|
 | 6 | **WhatsApp live acceptance** | Signed, scoped sent/delivered/read/failed receipts and host evidence fields are implemented. Account/app/test number, supported/approved templates, real subscription/send/receipt proof and frontend acceptance remain. See [setup checklist](WHATSAPP_SETUP.md); ambiguous failures never globally suppress a guest |
-| 7 | **Export pilot acceptance** | All seven kinds now have private CSV/PDF/XLSX worker snapshots and synthetic four-script file acceptance. Frontend adoption, translated headings, native spreadsheet/print checks and production worker/private-bucket rehearsal remain |
+| 7 | **Export pilot acceptance** | All seven kinds now have private CSV/PDF/XLSX worker snapshots, translated standard labels in four languages and synthetic four-script file acceptance. Frontend adoption, human translation review, native spreadsheet/print checks and production worker/private-bucket rehearsal remain |
 | 8 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — backend private uploads, moderation, owner removal and durable cleanup are implemented; frontend and production acceptance remain |
 | 9 | **Disputed refunds** | A ticket order with any admitted ticket cannot be cancelled — refunding after attendance is a dispute with the buyer, not a cancellation, and voiding a used ticket would erase the record that they came. There is no flow for that dispute; it is handled outside the system |
 | 10 | **Partial ticket cancellation** | **Decided (8 October 2026): whole orders only.** A buyer who can bring three of four is refunded and buys again. Revisit if hosts ask |

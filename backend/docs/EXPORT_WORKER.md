@@ -33,7 +33,9 @@ transaction. Output is capped at 20,000 rows, 256 columns, 32,767 characters
 per cell, 2 million text characters and 10 MiB. PDF has an additional
 500-page/45-second rendering limit. One job runs at a time per process.
 Attempts that exceed limits fail rather than consuming unbounded API resources.
-Standard headings remain English until the four-language export rollout.
+Snapshot standard headings, titles, metadata and status labels now use the
+requested English, Russian, French or Armenian locale. Legacy live CSV keeps
+its existing column contract. Human translation review remains a release gate.
 All seven kinds support all three formats; the Docker runtime includes
 licensed DejaVu fonts under `assets/fonts`. Preserve that directory in custom
 images. No system font download is needed. See
@@ -79,9 +81,8 @@ cleanup warnings and ledger backlog; retaining tombstones is intentional.
 
 ## Not yet built / release checks
 
-The separate [seating worker](SEATING_WORKER.md) is implemented. Full translation
-of standard export headings, frontend
-adoption and production rehearsal remain. PDF/XLSX renderers and the synthetic
+The separate [seating worker](SEATING_WORKER.md) is implemented. Human language
+review, frontend adoption and production rehearsal remain. PDF/XLSX renderers and the synthetic
 four-script 400-person file acceptance are implemented; native spreadsheet
 viewer and physical printing checks remain part of pilot acceptance.
 Legacy `/exports` CSV routes still build live data; their audit rows are not

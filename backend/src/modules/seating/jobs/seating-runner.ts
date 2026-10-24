@@ -57,6 +57,7 @@ export class SeatingRunner {
       const seats = plan.assignments.flatMap((assignment) => assignment.guestIds.map((guestId) => ({ guestId, tableId: assignment.tableId })));
       await tx.seat.createMany({ data: seats });
       await clearRelease(tx, seats.map((seat) => seat.guestId), job.arrangementId);
+      await tx.$executeRaw`SET CONSTRAINTS seating_seats_revision, seating_releases_revision IMMEDIATE`;
       const revision = await tx.seatingArrangement.findUniqueOrThrow({ where: { id: job.arrangementId }, select: { revision: true } });
       const completed = await tx.seatingJob.updateMany({ where: ownedSeating(job), data: {
         status: 'COMPLETED', result: { seated: seats.length, households: plan.assignments.length, unseated: plan.unseated }, appliedRevision: revision.revision,

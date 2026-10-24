@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { Sentry } from '../../infra/observability/sentry';
 import type { Request, Response } from 'express';
 import { redactUrl } from '../redact-url';
+import { localizeHttpError, requestLanguage } from '../localized-feedback';
 
 /**
  * One error shape for every failure, and one place that decides what a client
@@ -47,6 +48,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       message,
+      ...localizeHttpError(status, message, requestLanguage(request)),
       requestId: request.requestId,
       path: redactUrl(request.url),
       at: new Date().toISOString(),

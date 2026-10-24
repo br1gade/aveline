@@ -53,9 +53,10 @@ export class RsvpService {
       // Counted under the household's lock, not from the guest loaded above:
       // the host may be adding someone to this household at the same moment.
       const household = await lockHousehold(tx, guest.eventId, guest.householdId);
-      await tx.$queryRaw`SELECT id FROM guests WHERE "householdId" = ${guest.householdId} ORDER BY id FOR UPDATE`;
-      const current = await tx.guest.findUnique({ where: { id: guest.id }, select: { token: true, anonymizedAt: true } });
-      if (current?.token !== token || current.anonymizedAt) throw new NotFoundException('Invitation link not recognised');
+      const locked = await tx.$queryRaw<{ canRespond: boolean }[]>`SELECT
+        (id = ${guest.id} AND token = ${token} AND "anonymizedAt" IS NULL) AS "canRespond"
+        FROM guests WHERE "householdId" = ${guest.householdId} AND "eventId" = ${guest.eventId} ORDER BY id FOR UPDATE`;
+      if (!locked.some((person) => person.canRespond)) throw new NotFoundException('Invitation link not recognised');
       const { questions, rsvpFields, locales } = await this.loadAcceptingInvitation(slug, tx);
       assertResponseLocale(submitted.locale, locales);
       const members = await tx.guest.findMany({
@@ -82,9 +83,9 @@ export class RsvpService {
       const added = await this.addPartyMembers(tx, guest, { ...dto, party }, policy);
       const followed = await this.answerForMembers(tx, members, { respondentId: guest.id, before, policy }, dto);
       const affected = [guest.id, ...added, ...followed, ...(dto.members ?? []).map((member) => member.guestId)];
-      const attending = await tx.guest.findMany({ where: { id: { in: affected }, rsvp: { status: 'ATTENDING' } }, select: { id: true } });
+      const attending = await loadAttendingPeople(tx, affected, rsvp);
       await assertRequiredAcknowledgements(tx, guest.eventId, attending.map((person) => person.id));
-      await this.loadAcceptingInvitation(slug, tx);
+      await this.assertStillAccepting(slug, tx);
 
       return {
         attendanceMode: policy.attendanceMode,
@@ -184,13 +185,13 @@ export class RsvpService {
       },
     });
 
-    if (invitation?.status !== 'PUBLISHED') {
-      throw new BadRequestException('This invitation is not accepting responses');
-    }
-    if (invitation.expiresAt && invitation.expiresAt <= new Date()) {
-      throw new BadRequestException('This invitation has closed');
-    }
+    assertAcceptingInvitation(invitation);
     return { questions: invitation.questions, rsvpFields: invitation.rsvpFields, locales: invitation.event.locales };
+  }
+
+  private async assertStillAccepting(slug: string, tx: Tx): Promise<void> {
+    const invitation = await tx.invitation.findUnique({ where: { slug }, select: { status: true, expiresAt: true } });
+    assertAcceptingInvitation(invitation);
   }
 
   private async assertRequiredAnswered(
@@ -199,6 +200,7 @@ export class RsvpService {
     questions: AnswerableQuestion[],
     dto: SubmitRsvpDto,
   ): Promise<void> {
+    if (!questions.some((question) => question.required && question.type !== 'SIGNATURE')) return;
     const earlier = await tx.rsvpAnswer.findMany({
       where: { rsvp: { guestId } },
       select: { questionId: true },
@@ -325,6 +327,16 @@ export class RsvpService {
   private async saveCustomAnswers(tx: Tx, rsvpId: string, dto: SubmitRsvpDto, signerGuestId: string): Promise<void> {
     await saveAnswers(tx, rsvpId, dto.answers ?? [], signerGuestId);
   }
+}
+
+function assertAcceptingInvitation(invitation: { status: string; expiresAt: Date | null } | null): asserts invitation {
+  if (invitation?.status !== 'PUBLISHED') throw new BadRequestException('This invitation is not accepting responses');
+  if (invitation.expiresAt && invitation.expiresAt <= new Date()) throw new BadRequestException('This invitation has closed');
+}
+
+async function loadAttendingPeople(tx: Tx, affected: string[], rsvp: { guestId: string; status: RsvpStatus }) {
+  if (affected.length === 1) return rsvp.status === 'ATTENDING' ? [{ id: rsvp.guestId }] : [];
+  return tx.guest.findMany({ where: { id: { in: affected }, rsvp: { status: 'ATTENDING' } }, select: { id: true } });
 }
 
 /** A member's dietary choices, held to the invitation's list as the respondent's are. */

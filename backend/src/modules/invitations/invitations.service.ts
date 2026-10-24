@@ -1,4 +1,6 @@
-import { GuestPageMeta, readGuestPageMeta } from './guest-page-version';
+import { GuestProjectionReader, LoadedGuest } from './guest-projection';
+import { GuestPageMeta } from './guest-page-version';
+import { GuestPageReader } from './guest-page-reader';
 import { hasInvitationExpired } from './lifetime';
 import { buildInvitationContent } from './invitation-content';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -8,9 +10,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
-import { ATTENDANCE_GUEST, attendanceView } from '../rsvp/attendance/attendance-view';
+import { attendanceView } from '../rsvp/attendance/attendance-view';
 import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
-import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
+import { seatingAssignments, singleTable } from '../seating/seat-view';
 import { negotiateLocale } from '../../common/locale';
 
 export const invitationInclude = {
@@ -42,30 +44,15 @@ export const blockMediaSelect = {
   variants: true,
 } satisfies Prisma.MediaAssetSelect;
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
-const GUEST_SELECT = {
-  id: true, firstName: true, lastName: true, locale: true,
-  ...ATTENDANCE_GUEST,
-  rsvp: { select: { status: true, respondedAt: true } },
-  event: { select: { seatingPublishedAt: true, ...ATTENDANCE_GUEST.event.select } },
-  household: {
-    select: {
-      name: true, seatsAllotted: true,
-      guests: {
-        where: { anonymizedAt: null },
-        orderBy: { isPrimary: 'desc' },
-        select: { id: true, firstName: true, lastName: true, ...ATTENDANCE_GUEST, seats: { include: SEAT_DETAIL } },
-      },
-    },
-  },
-} satisfies Prisma.GuestSelect;
 
-type LoadedGuest = Prisma.GuestGetPayload<{ select: typeof GUEST_SELECT }>;
 
 
 @Injectable()
 export class InvitationsService {
   private readonly cacheTtlSeconds: number;
   private readonly botUsername: string;
+  private readonly pageReader: GuestPageReader;
+  private readonly projectionReader: GuestProjectionReader;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -75,6 +62,8 @@ export class InvitationsService {
   ) {
     this.cacheTtlSeconds = Number(config.get<string>('INVITATION_CACHE_TTL') ?? 300);
     this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
+    this.pageReader = new GuestPageReader(prisma);
+    this.projectionReader = new GuestProjectionReader(prisma);
   }
 
   async getCachedInvitation(slug: string, locale?: string) {
@@ -101,7 +90,7 @@ export class InvitationsService {
   }
 
   private async pageMeta(slug: string, token?: string) {
-    const [meta] = await readGuestPageMeta(this.prisma, slug, token);
+    const [meta] = await this.pageReader.read(slug, token);
     const isDenied = !meta || !isReadableByGuests(meta.status) || hasInvitationExpired(meta)
       || (token ? !meta.guestId : meta.visibility === EventVisibility.PRIVATE);
     if (isDenied) throw new NotFoundException(`Invitation "${slug}" is no longer available`);
@@ -109,16 +98,20 @@ export class InvitationsService {
   }
 
   private sharedPayload(slug: string, locale: string, meta: GuestPageMeta) {
-    return this.cache.readThrough(`${invitationCacheKey(slug, locale)}:v2:${meta.eventId}:${meta.revision}`, this.cacheTtlSeconds,
-      async () => buildInvitationContent(await this.loadPublished(slug), locale));
+    return this.cache.readVersioned(`${invitationCacheKey(slug, locale)}:v3:${meta.eventId}`, String(meta.sharedRevision ?? meta.revision), this.cacheTtlSeconds,
+      async () => buildInvitationContent(await this.cache.shareLoad(`publication:${meta.eventId}:${meta.sharedRevision ?? meta.revision}`,
+        () => this.loadPublished(slug)), locale));
   }
 
   private personalPayload(meta: GuestPageMeta, locale: string) {
-    const key = `aveline:personal:v1:${meta.eventId}:${meta.guestId!}:${locale}:${meta.revision}`;
-    return this.cache.readThrough(key, Math.min(this.cacheTtlSeconds, 300), async () => {
-      const guest = await this.findGuest(meta.guestId!, meta.eventId);
+    const key = `aveline:personal:v2:${meta.eventId}:${meta.guestId!}:${locale}`;
+    const revision = pageRevision(meta); const ttl = Math.min(this.cacheTtlSeconds, 300);
+    return this.cache.readVersioned(key, revision, ttl, async () => {
+      const guest = await this.projectionReader.read(meta.eventId, meta.guestId!);
       if (!guest) throw new NotFoundException('Invitation is no longer available');
-      return this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, locale);
+      const value = this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, locale);
+      if (guest.payloadRevision && guest.payloadRevision !== revision) this.cache.rememberVersioned(key, guest.payloadRevision, ttl, value);
+      return value;
     });
   }
 
@@ -169,7 +162,7 @@ export class InvitationsService {
         members: guest.household.guests.map((member) => ({
           id: member.id,
           name: fullName(member),
-          attendance: attendanceView(member, locale),
+          attendance: attendanceView({ ...member, event: guest.event }, locale),
         })),
       },
       attendance: attendanceView(guest, locale),
@@ -180,12 +173,7 @@ export class InvitationsService {
     };
   }
 
-  private findGuest(id: string, eventId: string) {
-    return this.prisma.guest.findFirst({
-      where: { id, eventId, anonymizedAt: null },
-      select: GUEST_SELECT,
-    });
-  }
+
 }
 
 function fullName(person: { firstName: string; lastName: string | null }): string {
@@ -199,16 +187,22 @@ function seatingFor(guest: LoadedGuest, locale: string) {
     (seat) => seat.table.venueId === null || visibleVenueIds.has(seat.table.venueId),
   );
   const tableOf = (member: LoadedGuest['household']['guests'][number]) => singleTable(visibleSeats(member));
+  const assignmentsOf = (member: LoadedGuest['household']['guests'][number]) => seatingAssignments(
+    visibleSeats(member).map((seat) => ({ ...seat, guest: { ...member, event: guest.event } })), locale);
   const own = guest.household.guests.find((member) => member.id === guest.id);
   return {
     table: own ? tableOf(own) : null,
-    assignments: own ? seatingAssignments(visibleSeats(own), locale) : [],
+    assignments: own ? assignmentsOf(own) : [],
     household: guest.household.guests.map((member) => ({
-      id: member.id, name: fullName(member), table: tableOf(member), assignments: seatingAssignments(visibleSeats(member), locale),
+      id: member.id, name: fullName(member), table: tableOf(member), assignments: assignmentsOf(member),
     })),
   };
 }
 
 function isSamePage(before: GuestPageMeta, after: GuestPageMeta): boolean {
-  return before.eventId === after.eventId && before.guestId === after.guestId && before.revision === after.revision;
+  return before.eventId === after.eventId && before.guestId === after.guestId && pageRevision(before) === pageRevision(after);
+}
+
+function pageRevision(meta: GuestPageMeta): string {
+  return meta.sharedRevision === undefined ? String(meta.revision) : `${meta.sharedRevision}:${meta.guestHouseholdId ?? ''}:${meta.personalRevision ?? 0n}`;
 }

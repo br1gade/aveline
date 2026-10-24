@@ -1,4 +1,5 @@
 import { Throttle } from '@nestjs/throttler';
+import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.interceptor';
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { BadRequestException, Body, Controller, Delete, Get, Header, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -10,6 +11,7 @@ import { ContributionPageDto, GalleryUploadDto, PrivateImageQuery, SignAcknowled
 import { GALLERY_UPLOAD_LIMIT, GuestMediaService, SIGNATURE_UPLOAD_LIMIT } from './guest-media.service';
 
 @ApiTags('guest-contributions')
+@UseInterceptors(JobRecoveryInterceptor)
 @Controller('invitations/:slug/g/:guestToken')
 export class ContributionsController {
   constructor(private readonly acknowledgements: AcknowledgementsService, private readonly media: GuestMediaService) {}

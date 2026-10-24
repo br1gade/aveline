@@ -14,7 +14,7 @@ export function createClient(origin) {
     const response = await fetch(new URL(`/api/v1${path}`, base), { method, headers, body: isForm ? payload : payload ? JSON.stringify(payload) : undefined, signal: AbortSignal.timeout(options.timeoutMs ?? 20000) });
     const expected = options.expected ?? (method === 'POST' ? 201 : 200);
     const buffer = Buffer.from(await response.arrayBuffer());
-    if (options.profile) (samples[options.profile] ??= []).push({ milliseconds: performance.now() - started, status: response.status, expected });
+    if (options.profile) (samples[options.profile] ??= []).push({ milliseconds: performance.now() - started, status: response.status, expected, wave: options.wave });
     const accepted = Array.isArray(expected) ? expected : [expected];
     const hints = response.status === 400 ? validationFields(buffer) : '';
     assert.ok(accepted.includes(response.status), `Rehearsal ${options.stage ?? method} request ${requestNumber} returned ${response.status}; expected ${accepted.join('/')} ${hints}`);
@@ -22,7 +22,18 @@ export function createClient(origin) {
     if (response.status === 204) return null;
     return JSON.parse(buffer.toString());
   }
-  return { request, profiles: () => Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, summarizeSamples(values)])) };
+  return { request, profiles: () => Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, summarizeSamples(values)])),
+    profileWaves: () => Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, summarizeWaves(values)])) };
+}
+
+function summarizeWaves(samples) {
+  const waves = new Map();
+  for (const sample of samples) {
+    if (!Number.isInteger(sample.wave)) continue;
+    const wave = waves.get(sample.wave) ?? [];
+    wave.push(sample); waves.set(sample.wave, wave);
+  }
+  return Object.fromEntries([...waves].map(([wave, values]) => [wave, summarizeSamples(values)]));
 }
 
 export async function poll(load, isDone, label, { timeoutMs = 120000, intervalMs = 1000 } = {}) {

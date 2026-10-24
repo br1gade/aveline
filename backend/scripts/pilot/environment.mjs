@@ -8,6 +8,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { poll } from './client.mjs';
 
 const execute = promisify(execFile);
+const DATABASE_CONNECTION_LIMIT = 20;
 export async function createEnvironment() {
   const root = await mkdtemp(join(tmpdir(), 'aveline-j-'));
   const outputRoot = resolve('test-results/pilot', basename(root));
@@ -44,7 +45,10 @@ export async function createEnvironment() {
     await run('node', 'scripts/pilot/fixture.mjs', 'owner');
     await start('api', image, [...settings, ...mounts, '-p', `127.0.0.1:${port}:3000`], ['node', 'scripts/pilot/serve.mjs']);
     await poll(() => fetch(`${env.PUBLIC_APP_URL}/api/v1/health/ready`).then((r) => r.ok).catch(() => false), Boolean, 'API readiness');
-    for (const name of ['export', 'seating', 'private-media']) await start(`${name}-worker`, image, [...settings, ...mounts], ['node', `--max-old-space-size=${name === 'export' ? 384 : 256}`, `dist/${name}-worker.js`]);
+    for (const name of ['export', 'seating', 'private-media']) {
+      const health = ['--health-cmd', `node scripts/check-${name}-worker.mjs`, '--health-interval', '15s', '--health-timeout', '5s', '--health-start-period', '120s', '--health-retries', '3'];
+      await start(`${name}-worker`, image, [...settings, ...mounts, ...health], ['node', `--max-old-space-size=${name === 'export' ? 384 : 256}`, name === 'seating' ? 'scripts/pilot/seating-worker.mjs' : `dist/${name}-worker.js`]);
+    }
   }
   async function control(command) {
     const id = randomUUID();
@@ -57,16 +61,26 @@ export async function createEnvironment() {
   const fixture = (action) => run('node', 'scripts/pilot/fixture.mjs', action);
   const holdWorkers = () => start('lease-lock', image, [...settings, ...mounts], ['node', 'scripts/pilot/fixture.mjs', 'hold-workers']);
   const privateStorageMode = (mode) => docker('run', '--rm', '--user', '0:0', '-v', `${root}/private:/private`, image, 'chmod', mode, '/private');
-  const clearCache = () => docker('exec', `${scope}-redis`, 'redis-cli', 'FLUSHDB');
+  const clearMemoryCache = () => control('cache-clear');
+  const clearCache = async () => { await clearMemoryCache(); await docker('exec', `${scope}-redis`, 'redis-cli', 'FLUSHDB'); };
   const interrupt = (action, service) => docker(action, `${scope}-${service}`);
+  async function failureSummary() {
+    const logs = await docker('logs', '--tail', '150', `${scope}-api`);
+    const entries = `${logs.stdout}\n${logs.stderr}`.split('\n').flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } });
+    return entries.filter((entry) => entry.level >= 50).map((entry) => {
+      const text = JSON.stringify(entry);
+      return { codes: [...new Set(text.match(/\bP\d{4}\b/g) ?? [])], postgresCodes: [...new Set(text.match(/\b(?:23503|23505|23514|40001|40P01|57014|57P01)\b/g) ?? [])],
+        types: [...new Set(text.match(/\b(?:PrismaClient[A-Za-z]+Error|SeatingJobError|TypeError|ReferenceError)\b/g) ?? [])] };
+    });
+  }
   async function cleanup() {
     await Promise.all(containers.map((name) => docker('rm', '-f', name).catch(() => undefined)));
     await docker('network', 'rm', scope).catch(() => undefined);
     await docker('run', '--rm', '--user', '0:0', '-v', `${root}:/rehearsal`, image, 'chown', '-R', `${process.getuid()}:${process.getgid()}`, '/rehearsal').catch(() => undefined);
     await rm(root, { recursive: true, force: true });
   }
-  return { root, outputRoot, image, origin: env.PUBLIC_APP_URL, setup, cleanup, read, save, fixture, control, interrupt, clearCache, holdWorkers, privateStorageMode,
-    describe: async () => ({ resourcePrefix: scope, imageId: (await docker('image', 'inspect', image, '--format', '{{.Id}}')).stdout.trim(), postgresConnectionLimit: 10, apiProcesses: 1, workerProcesses: 3, storage: 'filesystem' }) };
+  return { root, outputRoot, image, origin: env.PUBLIC_APP_URL, setup, cleanup, read, save, fixture, control, interrupt, clearCache, clearMemoryCache, holdWorkers, privateStorageMode, failureSummary,
+    describe: async () => ({ resourcePrefix: scope, imageId: (await docker('image', 'inspect', image, '--format', '{{.Id}}')).stdout.trim(), postgresConnectionLimit: DATABASE_CONNECTION_LIMIT, apiProcesses: 1, workerProcesses: 3, workerHealth: 'production heartbeat scripts', storage: 'filesystem' }) };
 }
 
 async function reservePort() {
@@ -80,12 +94,13 @@ async function reservePort() {
 function createSettings(scope, port) {
   const password = randomBytes(24).toString('hex');
   const env = { NODE_ENV: 'production', PILOT_MODE: 'true',
-    DATABASE_URL: `postgresql://aveline:${password}@${scope}-postgres:5432/aveline_rehearsal_test?schema=public&connection_limit=10`,
+    DATABASE_URL: `postgresql://aveline:${password}@${scope}-postgres:5432/aveline_rehearsal_test?schema=public&connection_limit=${DATABASE_CONNECTION_LIMIT}`,
     REDIS_URL: `redis://${scope}-redis:6379`,
     MONGO_URL: `mongodb://aveline:${password}@${scope}-mongo:27017/aveline_rehearsal_test?authSource=admin`,
     SMTP_HOST: `${scope}-mailpit`, SMTP_PORT: '1025', MAIL_FROM: 'pilot@example.test',
     PUBLIC_APP_URL: `http://127.0.0.1:${port}`, CORS_ORIGINS: `http://127.0.0.1:${port}`,
     JWT_SECRET: randomBytes(48).toString('base64'), STORAGE_ROOT: '/app/storage', PRIVATE_STORAGE_ROOT: '/app/private-storage',
-    REHEARSAL_STATE_ROOT: '/app/rehearsal-state' };
+    REHEARSAL_STATE_ROOT: '/app/rehearsal-state', REHEARSAL_TRACE_DB: String(process.env.PILOT_TRACE_DB === 'true'),
+    REHEARSAL_METHOD_TIMINGS: String(process.env.PILOT_METHOD_TIMINGS === 'true') };
   return env;
 }

@@ -102,12 +102,10 @@ export class CommunicationsService {
       if (existing) return existing;
     }
 
-    const isSuppressed = await this.suppressions.isSuppressed(
-      params.channel,
-      params.toAddress,
-      params.organizationId,
-    );
-    const template = await this.loadTemplate(params.organizationId, params.templateKey, params.channel);
+    const [isSuppressed, template] = await Promise.all([
+      this.suppressions.isSuppressed(params.channel, params.toAddress, params.organizationId),
+      this.loadTemplate(params.organizationId, params.templateKey, params.channel),
+    ]);
     return this.createOnce(params.dedupeKey, messageData(params, template, isSuppressed));
   }
 

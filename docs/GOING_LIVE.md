@@ -25,9 +25,9 @@ French and Armenian after frontend integration. The tentative 25 October 2026
 date can move; full scope takes priority.
 
 The 24 October disposable backend rehearsal passed functional workflows, real
-worker lease recovery and local privacy cleanup. Its isolated invitation/RSVP
-load measurements missed the required budgets. Performance remediation, required
-export/recovery-message translations and external/frontend acceptance still
+worker lease recovery and local privacy cleanup. The latest isolated load run passes
+all eight local latency gates. Actual-host performance acceptance, required
+human review of export/recovery-message translations and external/frontend acceptance still
 block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 
 ### Money
@@ -134,7 +134,7 @@ and verify anonymous reads fail. Deploy the dedicated export worker, check its
 heartbeat/failed queue state, exercise termination/lease recovery and a storage
 outage, and prove expiry, event deletion and subject erasure clean up stored
 bytes. See [worker runbook](../backend/docs/EXPORT_WORKER.md). Frontend adoption,
-translated headings and native spreadsheet/printing acceptance remain release
+human review of translated headings and native spreadsheet/printing acceptance remain release
 gates in the pilot plan. The separate seating worker is implemented; deploy it,
 verify health and termination/lease recovery, and integrate its queued response.
 See [seating operations](../backend/docs/SEATING_WORKER.md). PDF/XLSX backend rendering is implemented;

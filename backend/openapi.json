@@ -8298,7 +8298,7 @@
               "fr",
               "hy"
             ],
-            "description": "Defaults to the event language; standard headings remain English pending four-language acceptance."
+            "description": "Defaults to the event language; snapshot headings, document labels and standard status values use this language."
           },
           "includesContacts": {
             "type": "boolean",
@@ -8356,6 +8356,214 @@
       "SuppressDto": {
         "type": "object",
         "properties": {}
+      },
+      "FieldFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "nullable": true,
+            "description": "DTO field path when identifiable; otherwise null."
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable validation classification, such as INVALID_EMAIL or REQUIRED_FIELD."
+          },
+          "userMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "code",
+          "userMessage"
+        ]
+      },
+      "JobRecoveryDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "SEATING_VENUE_CAPACITY",
+              "SEATING_FAMILY_TABLE_FULL",
+              "SEATING_NO_TABLES",
+              "SEATING_TABLES_FULL",
+              "SEATING_NO_TABLE_FITS",
+              "SEATING_UNAVAILABLE",
+              "VALIDATION_FAILED",
+              "INVALID_FIELD",
+              "INVALID_STRING",
+              "INVALID_EMAIL",
+              "INVALID_NUMBER",
+              "INVALID_CHOICE",
+              "INVALID_LENGTH",
+              "REQUIRED_FIELD",
+              "SIGN_IN_REQUIRED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "CONFLICT",
+              "ATTENDANCE_CHANGED",
+              "EXPIRED",
+              "UPLOAD_TOO_LARGE",
+              "RATE_LIMITED",
+              "SERVICE_UNAVAILABLE",
+              "INTERNAL_ERROR",
+              "STATE_CHANGED",
+              "REGENERATE",
+              "INVALID_IMAGE",
+              "JOB_LIMIT",
+              "JOB_FAILED"
+            ]
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ru",
+              "fr",
+              "hy"
+            ]
+          },
+          "userMessage": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "EDIT",
+              "SIGN_IN",
+              "REQUEST_ACCESS",
+              "CONTACT_HOST",
+              "RELOAD",
+              "REGENERATE",
+              "WAIT",
+              "REUPLOAD",
+              "CONTACT_SUPPORT",
+              "RETRY"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "locale",
+          "userMessage",
+          "action"
+        ]
+      },
+      "HttpErrorDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "SEATING_VENUE_CAPACITY",
+              "SEATING_FAMILY_TABLE_FULL",
+              "SEATING_NO_TABLES",
+              "SEATING_TABLES_FULL",
+              "SEATING_NO_TABLE_FITS",
+              "SEATING_UNAVAILABLE",
+              "VALIDATION_FAILED",
+              "INVALID_FIELD",
+              "INVALID_STRING",
+              "INVALID_EMAIL",
+              "INVALID_NUMBER",
+              "INVALID_CHOICE",
+              "INVALID_LENGTH",
+              "REQUIRED_FIELD",
+              "SIGN_IN_REQUIRED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "CONFLICT",
+              "ATTENDANCE_CHANGED",
+              "EXPIRED",
+              "UPLOAD_TOO_LARGE",
+              "RATE_LIMITED",
+              "SERVICE_UNAVAILABLE",
+              "INTERNAL_ERROR",
+              "STATE_CHANGED",
+              "REGENERATE",
+              "INVALID_IMAGE",
+              "JOB_LIMIT",
+              "JOB_FAILED"
+            ]
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ru",
+              "fr",
+              "hy"
+            ]
+          },
+          "userMessage": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "EDIT",
+              "SIGN_IN",
+              "REQUEST_ACCESS",
+              "CONTACT_HOST",
+              "RELOAD",
+              "REGENERATE",
+              "WAIT",
+              "REUPLOAD",
+              "CONTACT_SUPPORT",
+              "RETRY"
+            ]
+          },
+          "statusCode": {
+            "type": "number"
+          },
+          "message": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "details": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldFeedbackDto"
+            }
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "code",
+          "locale",
+          "userMessage",
+          "action",
+          "statusCode",
+          "message",
+          "details",
+          "path",
+          "at"
+        ]
       }
     }
   }

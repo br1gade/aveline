@@ -115,7 +115,13 @@ Verification on 18 October: `npm run verify` passed lint, docs, OpenAPI, build,
 backup/coordinator checks passed; Compose configuration validates without
 loading service environment files.
 
-Frontend polling/result displays, translations of reasons, actual production
+Job HTTP summaries now add localized `recovery` copy and actions while retaining
+machine `failureReason` values. Deferred invalidation advances each arrangement
+once per transaction at completion; the worker flushes its seat/release triggers
+before recording `appliedRevision`. This shortens cross-household revision locks
+without allowing a stale captured plan to apply.
+
+Frontend polling/result displays, human translation review, actual production
 worker health/recovery and the mixed-write/load rehearsal remain launch gates.
 More sophisticated zone/adjacency preferences and non-additive re-planning stay
 outside this batch; manual corrections remain available.

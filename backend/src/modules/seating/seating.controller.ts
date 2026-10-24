@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
+import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.interceptor';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto, SeatingSelectionDto } from './dto/seating.dto';
@@ -7,6 +8,7 @@ import { CreateSeatingJobDto } from './dto/seating-job.dto';
 import { SeatingService } from './seating.service';
 
 @ApiTags('seating')
+@UseInterceptors(JobRecoveryInterceptor)
 @Controller('events/:eventId')
 export class SeatingController {
   constructor(private readonly seating: SeatingService, private readonly jobs: SeatingJobsService) {}

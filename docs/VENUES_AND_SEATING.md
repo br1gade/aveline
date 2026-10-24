@@ -210,7 +210,8 @@ remain untouched. See [worker operations](../backend/docs/SEATING_WORKER.md).
    non-table objects.
 4. **Print acceptance.** Snapshot PDFs include venue/table rosters with counts
    and six 90 × 70 mm flat place cards per A4; synthetic layout checks pass.
-   Verify physical venue printouts and translated headings before the pilot.
+   Four-language snapshot headings are implemented; human language review and
+   physical venue printouts remain pilot acceptance work.
 5. **Worker pilot acceptance.** Automatic seating now uses durable worker jobs.
-   Frontend polling, translated reasons and production recovery/load rehearsal
+   Frontend polling and production recovery/load rehearsal
    remain; manual assignment stays immediate.

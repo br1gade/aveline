@@ -34,6 +34,18 @@ describe('Queued seating contract (HTTP)', () => {
     await prisma.table.create({ data: { eventId: event.eventId, name: 'One', capacity: 4 } });
     return { ...event, ...actor, base: `/api/v1/events/${event.eventId}` };
   };
+  it('localizes actionable unseated explanations while retaining the stored reason', async () => {
+    const event = await setup();
+    await prisma.table.deleteMany({ where: { eventId: event.eventId } });
+    const accepted = await http().post(`${event.base}/seats/auto-assign`).set('Authorization', event.authorization).send({ idempotencyKey: randomUUID() }).expect(201);
+    const id = (accepted.body as { id: string }).id;
+    await app.get(SeatingRunner).runOne();
+    const response = await http().get(`${event.base}/seating/jobs/${id}`).set('Authorization', event.authorization).set('Accept-Language', 'fr').expect(200);
+    expect(response.body).toMatchObject({ status: 'COMPLETED', result: { unseated: [{
+      reason: 'No tables have been created for this seating arrangement',
+      explanation: { code: 'SEATING_NO_TABLES', locale: 'fr', action: 'EDIT' },
+    }] } });
+  });
   it('returns a queued resource without running the planner, then exposes its committed result', async () => {
     const event = await setup();
     const plan = jest.spyOn(app.get(SeatingPlanner), 'plan');

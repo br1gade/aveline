@@ -1,5 +1,6 @@
 import { configureWhatsAppBodyParser } from './modules/communications/whatsapp/whatsapp-body-parser';
 import { ValidationPipe } from '@nestjs/common';
+import { FEEDBACK_MODELS } from './common/feedback.dto';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { StorageService } from './infra/storage/storage.service';
@@ -72,6 +73,6 @@ function configureSchema(app: NestExpressApplication, canUseShortcuts: boolean):
       .setVersion('0.1.0')
       .addBearerAuth()
       .build();
-    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config, { extraModels: FEEDBACK_MODELS }));
   }
 }
