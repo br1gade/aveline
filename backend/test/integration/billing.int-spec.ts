@@ -97,6 +97,39 @@ describe('billing (integration)', () => {
   });
 
   describe('subscribing', () => {
+    it.each([PaymentProvider.AMERIABANK, PaymentProvider.INECOBANK, PaymentProvider.IDBANK])(
+      'refuses unconfigured %s before issuing a first invoice or consuming a number',
+      async (provider) => {
+        await plan({ key: 'managed', priceMinor: 25_000n });
+        await expect(subscriptions.subscribe(organizationId, { planKey: 'managed', provider }))
+          .rejects.toThrow(`${provider} is not configured`);
+        expect(await prisma.invoice.count()).toBe(0);
+        expect(await prisma.invoiceCounter.count()).toBe(0);
+        expect(await prisma.subscription.count()).toBe(0);
+        expect(await prisma.payment.count()).toBe(0);
+      },
+    );
+
+    it.each([PaymentProvider.AMERIABANK, PaymentProvider.INECOBANK, PaymentProvider.IDBANK])(
+      'keeps the current subscription and payable invoice when %s is unconfigured',
+      async (provider) => {
+        await plan({ key: 'free', priceMinor: 0n });
+        await plan({ key: 'managed', priceMinor: 25_000n });
+        await plan({ key: 'production', priceMinor: 50_000n });
+        await subscriptions.subscribe(organizationId, { planKey: 'free' });
+        await subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
+        const subscription = await prisma.subscription.findUniqueOrThrow({ where: { organizationId } });
+        const invoice = await prisma.invoice.findFirstOrThrow({ where: { organizationId } });
+        const counters = await prisma.invoiceCounter.findMany();
+        await expect(subscriptions.subscribe(organizationId, { planKey: 'production', provider }))
+          .rejects.toThrow(`${provider} is not configured`);
+        expect(await prisma.subscription.findUniqueOrThrow({ where: { organizationId } })).toEqual(subscription);
+        expect(await prisma.invoice.findMany({ where: { organizationId } })).toEqual([invoice]);
+        expect(await prisma.invoiceCounter.findMany()).toEqual(counters);
+        expect(await prisma.payment.count()).toBe(1);
+      },
+    );
+
     it('refuses paid pilot plans before issuing an invoice and still permits a free plan', async () => {
       await plan({ key: 'paid', priceMinor: 25_000n });
       await plan({ key: 'free', priceMinor: 0n });

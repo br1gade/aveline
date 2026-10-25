@@ -65,10 +65,16 @@ differ.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/payments/:orderNumber` | Current state |
-| `POST` | `/api/payments/:orderNumber/confirm` | Ask the bank what happened |
-| `POST` | `/api/payments/:orderNumber/refund` | Full or partial refund |
-| `POST` | `/api/payments/reconcile` | Sweep everything unresolved |
+| `GET` | `/api/v1/payments/:orderNumber` | Current state |
+| `POST` | `/api/v1/payments/:orderNumber/confirm` | Ask the bank what happened |
+| `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |
+| `POST` | `/api/v1/payments/reconcile` | Sweep everything unresolved |
+
+Paid subscription selection validates local provider registration before issuing
+or replacing an invoice. An unconfigured provider returns `404` without consuming
+a number or changing an existing invoice/subscription. Registration is not bank
+certification or a network/credential probe; bank failures after registration keep
+the existing reconciliation behavior. Pilot refusal remains `403` before this check.
 
 There is no endpoint to start a payment. Ticket checkout and subscriptions
 start their own, deciding organization, purpose and amount themselves; a
@@ -296,9 +302,10 @@ See [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §13.
 
 ## 8. Not yet built
 
-- **Subscriptions.** `Plan`, `Subscription` and `Invoice` are modelled, and
-  `Subscription.bindingRef` is where a stored-card token goes. Nothing charges
-  or renews yet. Recurring charges on these gateways mean **card binding** —
+- **Subscription renewal and dunning.** Plan selection, first-period invoice
+  charging and settlement are built outside pilot mode; automatic renewal and
+  dunning are not. `Subscription.bindingRef` is reserved for a stored-card token;
+  no flow obtains one yet. Recurring charges on these gateways mean **card binding** —
   the bank holds the card and returns a token — which is a different API
   surface and usually a separate authorization from the bank.
 - **Deposits wired to the booking flow.** The payment core supports it; nothing

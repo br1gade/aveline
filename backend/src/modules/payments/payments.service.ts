@@ -9,6 +9,7 @@ import {
 import {
   PaymentEventSource,
   PaymentPurpose,
+  PaymentProvider,
   PaymentStatus,
   Prisma,
   RefundStatus,
@@ -51,6 +52,11 @@ export class PaymentsService {
    */
   onRefunded(purpose: PaymentPurpose, listener: RefundListener): void {
     this.refundListeners.set(purpose, listener);
+  }
+
+  /** Validate local configuration before a caller commits its financial intent. */
+  assertProviderConfigured(provider: PaymentProvider): void {
+    this.gateways.get(provider);
   }
 
   /**

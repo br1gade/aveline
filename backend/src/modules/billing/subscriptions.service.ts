@@ -102,6 +102,7 @@ export class SubscriptionsService implements OnModuleInit {
     if (!dto.provider) {
       throw new BadRequestException('This plan is paid; choose a provider');
     }
+    this.payments.assertProviderConfigured(dto.provider);
 
     // The subscription and its invoice are one unit: an invoice with no
     // subscription is a charge for nothing. An existing subscription is left

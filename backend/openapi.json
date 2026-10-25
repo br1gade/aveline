@@ -2811,7 +2811,7 @@
         ]
       },
       "post": {
-        "description": "A free plan takes effect at once. A paid one issues an invoice and returns a bank form URL; access begins when that payment confirms.",
+        "description": "A free plan takes effect at once. A paid one issues an invoice and returns a bank form URL; access begins when that payment confirms. An unconfigured provider returns 404 before billing records change.",
         "operationId": "SubscriptionsController_subscribe",
         "parameters": [],
         "requestBody": {

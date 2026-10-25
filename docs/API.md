@@ -1790,6 +1790,11 @@ bank URL:
 }
 ```
 
+For a paid plan, an unconfigured `provider` returns `404` before issuing or
+replacing an invoice, allocating its number or changing the current subscription.
+Free plans do not require a provider. `PILOT_MODE=true` still refuses paid plans
+with `403` first. Local provider registration does not prove bank readiness.
+
 **Access begins when the payment confirms, not when this call returns.** A
 first paid plan has **no subscription until it is paid** — `subscription` is
 `null` here and on `GET /subscription` — and a plan change leaves the current

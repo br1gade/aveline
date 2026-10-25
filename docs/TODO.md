@@ -201,8 +201,16 @@ product rules, owner, acceptance criteria and dependencies. None is silently add
 to the free-pilot release gate. F45 remains T8 above, despite its historical
 placement in the backlog's revenue/services table.
 
+The [post-pilot delivery plan](POST_PILOT_IMPLEMENTATION_PLAN.md) records the
+25 October implementation audit, unresolved decisions and slice dependencies.
+Bank and tax choices remain undecided; PP1a local validation is implemented and
+verified. Commercial features remain open.
+
 ### PP1 — Paid-launch readiness and invoice tax (F35)
 
+- [x] Validate local provider registration before issuing/replacing subscription
+  invoices; preserve payable invoices and numbering on refusal. Verified 25 October;
+  this does not certify a bank or implement tax. See the delivery plan for evidence.
 - [ ] Choose the bank/provider; obtain the actual integration specification,
   merchant/sandbox access and required certification before enabling live charges.
 - [ ] Verify amounts/status mappings, payment/refund/reconciliation behavior and

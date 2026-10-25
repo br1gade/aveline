@@ -5,6 +5,8 @@ import { DiscountKind, EventRole, PlanTier, PrismaClient } from '@prisma/client'
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
+import { FakeGateway } from '../../src/modules/payments/providers/fake.gateway';
 import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
@@ -26,6 +28,8 @@ describe('Billing (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(prisma)
+      .overrideProvider(PaymentGatewayRegistry)
+      .useValue(new PaymentGatewayRegistry([new FakeGateway()]))
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -108,6 +112,19 @@ describe('Billing (e2e)', () => {
   });
 
   describe('plans and subscriptions', () => {
+    it('returns 404 for an unconfigured provider without creating billing records', async () => {
+      const { authorization, organizationId } = await owner();
+      await plan('managed', 25_000n);
+      const { body } = await http().post('/api/v1/subscription')
+        .set('Authorization', authorization)
+        .send({ planKey: 'managed', provider: 'AMERIABANK' })
+        .expect(404);
+      expect(body.message).toContain('AMERIABANK is not configured');
+      expect(await prisma.invoice.count({ where: { organizationId } })).toBe(0);
+      expect(await prisma.subscription.count({ where: { organizationId } })).toBe(0);
+      expect(await prisma.payment.count({ where: { organizationId } })).toBe(0);
+    });
+
     it('serves the price list without a session', async () => {
       await plan('managed', 25_000n);
 

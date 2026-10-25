@@ -399,6 +399,12 @@ its records are references to regenerate, never historical snapshots.
 | `PATCH` | `/api/v1/promo-codes/:codeId` | Change its limits |
 | `DELETE` | `/api/v1/promo-codes/:codeId` | Deactivate it |
 
+Paid subscription selection rejects an unconfigured provider with `404` before
+creating/replacing an invoice or allocating its number. Existing invoices and
+subscriptions are preserved. Free plans need no provider; the free-pilot paid
+charge refusal (`403`) still takes precedence. This check validates local adapter
+registration, not bank certification or credentials.
+
 ### Privacy
 
 | Method | Path | Purpose |

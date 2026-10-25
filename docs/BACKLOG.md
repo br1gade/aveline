@@ -161,8 +161,11 @@ it needs a cancellation during the event itself, at the door.
 
 D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D22 on 10 October.
 D23–D38 were decided on 13 October while planning the expanded pilot scope.
-All recorded product questions have answers; implementation details and external
-launch inputs are tracked in the implementation plan.
+All recorded pilot product questions have answers; implementation details and
+external launch inputs are tracked in the implementation plan. Unresolved
+post-pilot commercial decisions are recorded in the
+[post-pilot delivery plan](POST_PILOT_IMPLEMENTATION_PLAN.md); bank choice and
+tax treatment remain undecided as of 25 October 2026.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
