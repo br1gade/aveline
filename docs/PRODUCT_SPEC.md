@@ -495,6 +495,14 @@ operations dashboard.
 
 ## 14. Open decisions
 
+The **25 October post-pilot initial-workflow review is complete**, with
+[PP-D01–58](post-pilot/DECISIONS.md) defining planned F31–F44 behavior. Read that
+register alongside this specification when implementing the new commercial,
+organization, template and operational workflows. These are agreed requirements,
+not implemented APIs. Bank/tax/protected-evidence inputs and paid-operation
+acceptance remain open; actual ADMIN-configured prices/terms are not hard-coded
+by the review. Existing pilot scope, lifetime and retention decisions still apply.
+
 1. **Build order.** Invitation + guest graph + headcount is the minimum coherent product. Seating is the most compelling demonstration but the largest build.
 2. **Concierge capacity.** §11 assumes we can staff manual intake at launch.
 3. **Planner subscription timing.** Best long-term business, different sales motion and product surface. Early or late?

@@ -1,7 +1,7 @@
 # Post-pilot backend delivery plan
 
 Prepared **25 October 2026** (Asia/Yerevan), against `eb77cd4` with verified
-pilot backend `99121d2`. This session starts the implementation work requested
+pilot backend `99121d2`. **Updated after completed PP-D01–58 review.** This session starts the implementation work requested
 for F31–F44. It does not approve paid operation or close pilot acceptance.
 [TODO.md](TODO.md) remains the execution handoff; [BACKLOG.md](BACKLOG.md)
 retains feature IDs. The groupings below refine PP1–PP7 without assigning dates.
@@ -50,28 +50,36 @@ first-period subscription charging already works outside pilot mode. That
 section is corrected with this batch. This plan describes proposals, not new
 HTTP endpoints.
 
-## 2. Decisions still required
+## 2. Confirmed policy and remaining inputs
 
-The user confirmed on **25 October** that **bank choice and tax treatment are
-undecided**. Keep them open. Credentials belong in private deployment settings.
+The interactive review is complete: [PP-D01–58](post-pilot/DECISIONS.md) records
+all 58 initial-workflow decisions, including the delegated enquiry-retention
+default. That register is authoritative over unresolved alternatives in the
+three design proposals. These are requirements for future implementation, not
+claims that new endpoints or permissions already exist.
 
-| Decision | Input needed before dependent implementation |
+The confirmed scope covers staff intake/assigned access and privacy; reviewed
+AMD quotes and named acceptance; charged fixed deposits, deadlines, balance,
+refund and amendment behavior; versioned packages/add-ons; opt-in renewals;
+explicit per-tab organization selection; one-organization corporate contracts;
+private versioned template authoring; exclusive resource calendars; online paper
+tickets; manual logistics/staff/print operations; directional vendor agreements;
+manual-renewal listings; and classified operational retention.
+
+| Still needed | Kind / when required |
 |---|---|
-| Bank/provider | Actual specification, merchant/test access, amount/status mapping, refund uncertainty handling, callback authentication and certification; one-step/two-step and card-binding authority |
-| Tax and invoices | Jurisdiction/seller identity, accountant-reviewed inclusive/exclusive examples, exemptions, rounding level/rule, required buyer/seller fields, numbering, credit/void/refund and retention treatment |
-| Packages/add-ons | Catalogue and prices/currencies, per-event ownership, quantities, upgrades, fulfilment and refunds; relation to organization subscriptions and captured invitation lifetime |
-| Renewals | Explicit billing consent and evidence, method binding/revocation, billing anchor/proration, retry schedule, grace period, cancellation/reactivation, notifications and failed-payment recovery |
-| Intake and quotes | Required fields/contact channels and consent, spam/access controls, staff ownership/statuses, component catalogue/prices, revision/expiry/approval and acceptance evidence |
-| Deposits | Full charge versus authorization, fixed/percentage calculation, what is reserved and when, partial payments/balance, expiry/late payment, cancellation/refund/reschedule policy |
-| Vendor revenue | Who owes whom, accrual trigger, margin basis, tax, payout timing/approval/rail, failed/unknown transfers, reversals/refunds and listing-fee terms |
-| Corporate/multiple organizations | Contract examples, signers/roles, term/renewal, event allowances/branding, payer and invoice allocation, membership/switching/invitation/default-organization behavior |
-| Authoring | Author/reviewer roles, template examples, supported rendering/assets/fonts, draft/review/publication/version behavior and opt-in upgrades for existing events |
-| Physical operations | Calendar ownership/timezone, holds/conflicts, fulfilment partners/states, print approval, staff roles, paper credential handling and offline scan/conflict reconciliation |
+| Bank choice, actual specification/access and certification; required one-step/recurring capabilities | External evidence before live payments; provider choice remains undecided |
+| Separate transfer provider and beneficiary/reconciliation procedure | External evidence before outbound vendor transfers; not implied by acquiring |
+| Seller/jurisdiction, accountant-reviewed tax/rounding/invoice/correction examples and protected-record retention | Expert input before dependent fiscal behavior/production use; tax treatment remains undecided |
+| Actual catalogue prices/terms, retry/grace values, quote deadlines/deposits, contract schedules, vendor rates/triggers and listing terms | ADMIN configuration through the approved workflows before sale/consent, not hard-coded guesses |
+| Actual resources, buffers, partners, staffing and print specifications | Operator configuration before taking the corresponding commitment |
+| Organization-context transport, renderer capability manifest and four-language integration | Engineering/frontend coordination; chosen user-facing rules no longer need reapproval |
+| Existing pilot/frontend/provider/hosting/backup/alert acceptance | Release gates in TODO; this interview does not close them |
 
-These are unanswered post-pilot questions, in addition to the already decided
-D1–D38 pilot decisions. The session also asked which commercial workflow should
-follow groundwork; no answer is recorded yet. Do not infer consent or financial
-policy from published tier descriptions or an enum.
+Core implementation can proceed where these inputs are irrelevant or against
+approved policy and fake providers. Unresolved tax/certification/retention rules
+remain explicit gates; do not label historical zero tax as exemption or invent
+law, consent, rates or banking guarantees. Preserve D1–D38 pilot behavior.
 
 ## 3. Dependency-aware implementation order
 
@@ -88,15 +96,15 @@ policy from published tier descriptions or an enum.
 | PP4a — referral accounting | Existing vendor bookings and vendor agreements; PP3 linkage only if agreed accrual terms require it | Ledger/accrual/approval/reversal before disbursement; immutable settlement evidence and restricted fee reads |
 | PP4b — listing fees / payout execution | Listing fees need inbound billing/tax contracts and listing terms, independently of PP4a. Referral payouts need PP4a and a separately supported payout rail | Separate listing purchase lifecycle from referral money; idempotent claims, reconciliation and unknown payout handling before external transfers |
 | PP5a — multiple organizations | Explicit switching/membership contract | Additive scope selection, tenant isolation, invitations and safe legacy defaults before removing the single-membership constraint |
-| PP5b — corporate contracts | Corporate examples; multi-organization access integrates after PP5a, fiscal billing after PP1c | Versioned accepted terms, branding and event/billing allocations with contract-scoped permissions |
+| PP5b — corporate contracts | PP-D47–48 initial one-organization scope; configured accepted terms and fiscal integration for billing. Future multi-org access alone would join PP5a | Versioned accepted terms, branding and event/billing allocations with contract-scoped permissions |
 | PP6 — template authoring | Authoring/version decisions | Reuse existing validation and preview; drafts/review/published versions; existing invitations remain deterministic under the chosen upgrade policy |
 | PP7a — availability | Calendar owner/conflict policy; PP3 when service holds share the same calendar | Timezone-aware intervals, transactional conflict/hold handling and scoped vendor access |
 | PP7b — physical fulfilment | Operator examples; calendar conflicts integrate with PP7a only where shared resources apply; paid orders integrate with agreed quote/package billing | Delivery/print/staff state machines; snapshot approvals and scoped briefs; paper/QR fallback builds on existing admission and privacy rules |
 
-Independent lanes after their decisions: PP3a, PP5a and PP6 can proceed while
-bank/accountant work remains open. PP7 workflow design can proceed independently;
-financial fulfilment depends on its quote/booking contract. Corporate terms may
-be designed before PP5a, but multi-tenant implementation must follow PP5a.
+With PP-D01–58 recorded, independent intake, organization and template lanes
+can proceed while bank/accountant work remains open. PP7 workflow design can proceed independently;
+financial fulfilment depends on its quote/booking contract. Initial one-organization corporate contracts can proceed independently of PP5a;
+only a future cross-organization contract extension would join PP5a.
 Prioritize the next lane with the product owner; do not force every nonfinancial
 slice to wait for bank certification. No delivery dates are committed before
 these decisions and the first end-to-end slice in the chosen lane.
@@ -113,8 +121,8 @@ Refined **25 October 2026** after reviewing the existing modules. Distinguish
 three kinds of dependency: a prerequisite needed to finish an integrated flow,
 a shared contract that can be agreed before either side is implemented, and a
 commercial gate needed before real-money use. None makes an unrelated feature
-wait for an entire batch to finish. All new workflow/financial rules in §2 still
-need decisions; independence does not resolve those decisions.
+wait for an entire batch to finish. PP-D01–58 now supplies the agreed initial
+workflow policies; §2 lists only external inputs and ADMIN/operator configuration.
 
 | Feature | Implementation / integration dependency | Can develop in parallel with |
 |---|---|---|
@@ -123,10 +131,10 @@ need decisions; independence does not resolve those decisions.
 | F33 — deposits confirm bookings | Accepted quote for the quoted-engagement flow, booking transition contract and payment settlement; final fiscal integration with F35 | Quote/payment-independent booking validation can be prepared earlier; completed flow joins F40 and payments |
 | F35 — invoice tax | Accountant-approved rules/examples and invoice snapshot/correction contract | Bank adapter acceptance, intake, quotes, tenancy, design and operations |
 | F31 — event package purchases | Agreed catalogue/order/settlement contract, existing event/payment core and fiscal integration | F32, F34 and sales; no dependency on enquiry intake |
-| F32 — add-ons | Same agreed commerce contract; item/quantity/fulfilment/refund rules | F31; package linkage is conditional on whether add-ons require a package, which is undecided |
+| F32 — add-ons | Same agreed commerce contract; item/quantity/fulfilment/refund rules | F31; PP-D36 makes a package prerequisite an explicit per-add-on catalogue rule |
 | F34 — renewal/dunning | Existing subscriptions plus consent, binding, renewal invoice and retry rules | F31/F32; event packages are not a prerequisite |
 | F38 — multiple organizations | Explicit organization selection, membership/invitation and legacy-default contract | All feature engines; agree selection early so new org-scoped APIs do not need redesign |
-| F37 — corporate contracts | Contract/version rules; F38 for multi-organization access and agreed fiscal contract for billing | F38 for contract drafting/storage; complete multi-org integration follows F38 |
+| F37 — corporate contracts | PP-D47–48 single-organization contract/version rules and agreed fiscal contract for billing | F38 and all independent engines; only a future cross-organization extension would join F38 |
 | F44 — template authoring | Existing template constraints/preview; author/reviewer and immutable-version/upgrade rules | All other features; print integration may consume its versioned designs later |
 | F41 — vendor availability | Existing vendor bookings; calendar ownership/timezones, holds/conflicts | Intake, quotes, billing, tenancy, design and vendor accounting |
 | F42 — logistics/print/staff/paper tickets | Split into independent subfeatures below | Other lanes and its own subfeatures after their interfaces are agreed |
@@ -225,6 +233,8 @@ accounts, real sends, live charges or external deployment are authorized here.
 
 ## 6. Three-agent production implementation design
 
+Subsequent [PP-D47](post-pilot/DECISIONS.md) narrows initial corporate contracts to one payer organization and its own events. Initial F37 can therefore ship without F38; cross-organization contract access remains a future conditional join.
+
 The user requested three parallel planning agents on 25 October 2026. The
 resulting documents are implementation proposals, not shipped API contracts or
 approval of unresolved policy. They cover all fourteen F31–F44 features:
@@ -236,8 +246,9 @@ approval of unresolved policy. They cover all fourteen F31–F44 features:
 | Organizations, design and operations | F38, F37, F44, F41, F42 | [Organizations, design and operations](post-pilot/ORGANIZATIONS_DESIGN_AND_OPERATIONS.md) |
 
 Each design separates existing code, proposed engineering and undecided product
-rules. Schema names, routes, states, error codes and delivery slices are proposals
-until implemented, reviewed and reflected in API.md/OpenAPI. The plans preserve
+rules. Schema/enum names, routes, error codes and delivery slices remain engineering
+proposals until implemented, reviewed and reflected in API.md/OpenAPI; the
+initial business workflows are now governed by confirmed PP-D01–58. The plans preserve
 the pilot and its outstanding external/frontend acceptance work.
 
 ### Shared contracts and ownership
@@ -251,10 +262,11 @@ the pilot and its outstanding external/frontend acceptance work.
 | Template/design/print snapshot | Design owns versions/capabilities; print consumes approved snapshots | Templates may select only layouts the renderer actually supports. Published versions and print approvals retain exact inputs; current invitation lifetime/export snapshots must not be silently rewritten |
 | Durable notification intent | Domain owner writes intent; communications delivers | Current enqueue API is not caller-transaction-aware. Persist recoverable intent with business writes, then enqueue using a stable dedupe key and repair scan, or first implement/review a transaction-aware enqueue boundary. No provider call while domain locks are held |
 
-The proposed organization selector in the platform plan is optional
+PP-D45 confirms explicit per-tab organization selection. Its proposed transport
+in the platform plan is optional
 `X-Aveline-Organization-Id`: validate membership each request, retain the single-
 membership fallback, and reject ambiguous multi-membership requests without
-a selector. This is a concrete frontend/product proposal awaiting a decision,
+a selector. The transport is a concrete engineering/frontend proposal awaiting integration review,
 not a header already accepted by the API. Event tenancy remains resource-derived.
 
 Commerce's concrete proposed exchange contracts are `IssueInvoiceFromSource`,
@@ -339,27 +351,15 @@ parallel integration/HTTP runs against shared `aveline_test`; use separately
 configured guarded stores or serialize them. Run measured load separately from
 builds/tests. Native F22 and entitlement enforcement remain deferred.
 
-### Decision review batches
+### Completed decision review
 
-Resolve these in small workstream-specific batches, before their dependent
-implementation, rather than asking for every roadmap decision at once:
-
-- **Sales first slice:** staff visibility/financial separation, required intake
-  fields and retention. Then catalogue/pricing, quote authority/acceptance and
-  deposit/change/refund examples before those flows become payable.
-- **Commerce:** accountant-reviewed fiscal examples and bank capability evidence;
-  catalogue fulfilment/refund rules; renewal consent/retry rules; vendor accrual,
-  listing and payout terms. These financial decisions remain undecided.
-- **Organizations/design:** selector/invitation/owner behavior, corporate parties/
-  signers, private/global templates, author/reviewer publication and version
-  adoption. The proposed header contract is ready for review.
-- **Operations:** actual resources/calendar owners/conflict rules; independent
-  paper distribution and online/offline admission choice; staff/logistics access
-  and print proof/production-release policy.
-
-The detailed plans include the full decision registers. No unresolved tax rate,
-retention duration, billing consent, refund promise or vendor entitlement is
-made a default by this design package.
+[PP-D01–58](post-pilot/DECISIONS.md) replaces the former open question batches.
+The first implementation can begin with staff intake (fields, access, assignment,
+stages, consultation conflict, conversion and retention now agreed), invoice-term
+snapshot groundwork, organization-context compatibility or pinned template
+versions. Coordinate common interfaces and migrations; do not seek approval again
+for already recorded policy. Actual fiscal/provider/contract wording and runtime
+commercial values remain the inputs listed in §2.
 
 ### Safest first implementation candidates
 
@@ -367,10 +367,10 @@ made a default by this design package.
   interval/source terms and tests a catalogue interval edit between issue and
   settlement. Historical unknown terms stay unknown. C2 then strengthens payment
   ownership/evidence/uncertainty before the new paid flows depend on it.
-- **After minimum intake decisions:** sales S1 implements staff-only enquiry
+- **With intake decisions now confirmed:** sales S1 implements staff-only enquiry
   queue/edit/assignment with privacy support. Draft quote catalogue work can run
   alongside it once the shared link contract and catalogue rules are agreed.
-- **After selector/version decisions:** platform F38 starts selector compatibility
+- **With selector/version policy confirmed:** platform F38 starts selector compatibility
   while the current membership constraint remains; F44 can start legacy version
   pinning and private draft preview. Neither needs live banking.
 

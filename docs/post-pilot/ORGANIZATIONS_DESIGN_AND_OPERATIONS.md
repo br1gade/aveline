@@ -1,5 +1,7 @@
 # Organizations, corporate contracts, template authoring and operations
 
+**Decision precedence:** confirmed choices and explicitly delegated defaults in [DECISIONS.md](DECISIONS.md) supersede unresolved alternatives in this proposal. All other options remain proposals until answered.
+
 Production implementation proposal for F38, F37, F44, F41 and F42. Prepared 25 October 2026 against `eb1b6e2` and the dependency refinement in the parent delivery plan. **Planning only; none of the models, operations or routes proposed below is implemented by this document.** Names and state machines are engineering proposals, not approved product policy. No code, database, branch, deployment or provider action was performed for this plan.
 
 Read alongside [delivery plan](../POST_PILOT_IMPLEMENTATION_PLAN.md), [product](../PRODUCT_SPEC.md), [access](../ACCESS_CONTROL.md), [design](../INVITATION_DESIGN.md), [venues](../VENUES_AND_SEATING.md), [API](../API.md), [TODO](../TODO.md) and [backlog](../BACKLOG.md). The local feature workflow and backend engineering rules govern implementation. All money remains integer minor-unit strings; timestamps UTC with explicit IANA timezone where local scheduling matters. `en/ru/fr/hy`, free-pilot payment guards, existing attendance/reconfirmation, snapshot exports, privacy and captured invitation lifetime remain unchanged. Native F22 and entitlement enforcement stay deferred.
@@ -34,7 +36,7 @@ Do not treat proposed new permission names or a selected organization ID as auth
 
 ### Confirmed scope and proposed selection contract
 
-Confirmed: multiple memberships, explicit switching/invitations and tenant isolation are required. Existing single-org clients and event-only invitees must remain usable. **The following request contract needs product/frontend approval before implementation:**
+Confirmed: multiple memberships, explicit switching/invitations and tenant isolation are required. Existing single-org clients and event-only invitees must remain usable. **PP-D45 confirms the explicit per-tab selection UX and ambiguity handling. The concrete header/route contract below remains an engineering/frontend integration proposal:**
 
 - New authenticated membership-list operation returns only the caller's organizations, roles and explicitly permitted summary fields. Proposed route: `GET /api/v1/me/organizations`.
 - Use optional `X-Aveline-Organization-Id` on organization-scoped operations; validate bounded opaque ID and membership per request. No header with exactly one membership preserves today's behavior. No header with more than one returns `409 ORGANIZATION_SELECTION_REQUIRED` and no financial/domain write. No memberships retains existing denial on organization-scoped operations. This does not reveal other tenants to an arbitrary supplied ID.
@@ -46,14 +48,14 @@ Confirmed: multiple memberships, explicit switching/invitations and tenant isola
 
 Retain membership primary IDs and `(userId, organizationId)` uniqueness; remove `userId` uniqueness only after application cutover. Add a user lookup index before removal if the old unique index provided it. Organization identity remains stable for every existing event/invoice/message/vendor. Existing one-subscription-per-organization remains unchanged.
 
-`OrganizationInvite` stays keyed by target organization/email and stores a hash, expiry, revocation and one-time acceptance. Existing-account acceptance still proves ownership with the account's password/current authenticated acceptance contract; receiving an invite does not join unrelated tenants. Creating additional organizations needs an agreed owner/onboarding policy and idempotency key scoped to actor plus request fingerprint. Proposed optional `OrganizationSelectionPreference(userId, organizationId)` is only a UI hint and must never be trusted by authorization.
+`OrganizationInvite` stays keyed by target organization/email and stores a hash, expiry, revocation and one-time acceptance. Existing-account acceptance still proves ownership with the account's password/current authenticated acceptance contract; receiving an invite does not join unrelated tenants. [PP-D44](DECISIONS.md) permits any signed-in customer to create an additional organization as its OWNER. Use an idempotency key scoped to actor plus request fingerprint; do not inherit privileges from another tenant. Remaining selection/leave policies are still pending. Proposed optional `OrganizationSelectionPreference(userId, organizationId)` is only a UI hint and must never be trusted by authorization.
 
 Audit every single-membership assumption with a tracked inventory: guard, organization create/current/rename, account invite accept, concierge resolution, event list and `creatorRole`, billing, promos, vendor/private directory, suppressions, memberships, privacy account closure, staff tools, workers and exports. Change `creatorRole(tx, userId, organizationId)` to exact membership lookup before enabling a second membership. An organization-less event invitee still gets only that event's standing.
 
 ### Atomicity, rollout and recovery
 
 - Membership changes, invite claim and new-account creation are transactional. Re-evaluate invite validity and intended role under the lock; stale acceptance must not overwrite a role changed since invitation without an agreed rule.
-- Decide and enforce owner handover/last-organization-owner/leave/closure policy. Preserve the existing last-event-owner invariant. Do not allow a new destructive owner-removal operation before that policy exists.
+- PP-D46 permits member self-leaving and requires last-OWNER handover or ADMIN-reviewed closure. PP-D49 also revokes event roles within that organization on leave/removal, with required handover first. Preserve the existing last-event-owner invariant and do not leave an event-role access gap during revocation. Do not allow a new destructive owner-removal operation before that policy exists.
 - Define one membership-write lock order across invite acceptance, create, remove and closure (e.g. user then affected organizations sorted, then membership/invite); audit against event jobs before adopting it. Role removal must conflict with worker authorization locks so an accepted mutation cannot commit after permission is revoked. Do not add a late user lock inside the established policy/order/guest/ticket admission lock chain.
 - Deploy compatible readers/selector support while uniqueness remains, add indexes, then remove unique user constraint, then separately enable multiple-membership creation/acceptance. No backfill creates extra memberships or guesses a default. Concierge must explicitly select an existing customer organization when there is more than one; preserve D8 for the unambiguous existing-organization case.
 - Rollback while only single memberships exist may restore the old constraint after proof. After multiple memberships exist, old code is unsafe: disable additional joins/creates and roll forward; never delete memberships merely to fit the old schema. Ensure all running API/worker versions understand scope before activation.
@@ -68,11 +70,13 @@ First slice: approved selector contract + exhaustive resolver/HTTP regressions u
 
 ## 4. F37 — branded corporate contracts
 
+[PP-D47](DECISIONS.md) confirms one payer organization and only its own events in the initial contract. Cross-organization parties/allocations below are deferred expansion proposals; initial F37 does not require F38 completion. PP-D48 confirms ADMIN-issued versioned terms, named-approver authenticated acceptance and accepted amendments, with explicit billing/activation conditions.
+
 ### Aggregate and lifecycle proposal
 
 Introduce a separate `CorporateContract` rather than overloading `Subscription`: owning organization, customer/seller reference, lifecycle revision, responsible operator and stable key. `CorporateContractVersion` captures exact approved wording/attachments, currency, agreed billing schedule/terms, branding configuration references and relevant offer/fiscal snapshot references. `ContractAcceptance` records who accepted which version, authority evidence and server clock; this is not automatically a legal electronic-signature service. Legal/signatory requirements and evidence/retention policy need user direction.
 
-Proposed lifecycle is draft → offered → accepted → active → completed/terminated, with expiry/withdrawal where agreed. A later amendment is a new version with new acceptance; never patch accepted commercial terms. Separate factual acceptance, financial settlement and service eligibility so an accepted annual contract cannot be mistaken for paid service. Whether advance payment is required to activate and how termination/renewal works are blocking policy decisions, not default state transitions.
+Proposed lifecycle is draft → offered → accepted → active → completed/terminated, with expiry/withdrawal where agreed. A later amendment is a new version with new acceptance; never patch accepted commercial terms. Separate factual acceptance, financial settlement and service eligibility so an accepted annual contract cannot be mistaken for paid service. PP-D48 requires billing schedules and activation conditions explicitly in each ADMIN-issued accepted contract. Renewal/termination follow those captured terms and an accepted amendment/new version where changed; no automatic renewal debit is inferred.
 
 `ContractEventAllocation` associates an eligible event/organization with an accepted version, reference and allocation revision. Composite tenant relationships prevent linking another tenant's event. If one contract spans several organizations, model explicit contract parties/access grants; do not make organization memberships transitively inherit one another. Contract allowance counts may be recorded, but do not silently enforce plan entitlements while that policy remains deferred.
 
@@ -98,6 +102,8 @@ Unit: transition matrix, scope/party permissions, immutable version references, 
 
 ## 5. F44 — controlled template authoring
 
+[PP-D50](DECISIONS.md) confirms ADMIN-owned shared catalogue, organization-private custom templates, explicitly assigned SUPPORT draft authors, ADMIN-only publication and immutable published versions. Template/brand upgrades for existing events require explicit preview/confirmation; event DESIGNER grants do not imply authoring.
+
 ### Versioned catalogue design
 
 Recommended proposal: keep `DesignTemplate` as stable catalogue identity/key and add immutable `DesignTemplateVersion` containing the current renderable fields (`allowedFonts`, palettes, supportedBlocks, blockVariants, defaultTheme), schema/renderer capability version, asset manifest/content hash and publication metadata. A template can have mutable drafts and a pointer to the active published version; each invitation pins a published version. Draft revisions use optimistic expected revision. Publishing creates/freezes a version; retiring prevents new selection but existing pinned invitations continue to render under the agreed retirement policy. Existing catalogue key remains stable in payloads and gains additive version identity.
@@ -106,7 +112,7 @@ No arbitrary JavaScript/HTML/CSS, executable SVG or unreviewed remote URLs are i
 
 Reuse `validateTheme`, `assertBlockEdit`, `languageKeysProblem`, `TemplatePreviewsService` and `buildInvitationContent` through a version-shaped DTO/adapter. Do not duplicate their rules in a new authoring-only path. Bound arrays/JSON depth/text/assets; validate defaults are a subset of supported values; verify approved fonts support required scripts and are licensed/distributable through the chosen asset process. Font/language compatibility acceptance needs human/browser rendering; naming a family alone is not proof.
 
-`TemplateAsset` belongs to the template/version owner, not an arbitrary event. Public decorative assets may be copied/materialized into version-owned public storage only after review; proof/upload staging remains private. Never take a customer's uploaded photo, signature or gallery image as a shared template asset. Use durable reference/cleanup ledgers and content hashes; deletion refuses referenced published assets or follows explicit retirement policy. Template permission grants are distinct from event `invitation:design`: a freelance event DESIGNER must not gain global catalogue publication. Proposed author/reviewer/publisher roles and separation of duties need approval.
+`TemplateAsset` belongs to the template/version owner, not an arbitrary event. Public decorative assets may be copied/materialized into version-owned public storage only after review; proof/upload staging remains private. Never take a customer's uploaded photo, signature or gallery image as a shared template asset. Use durable reference/cleanup ledgers and content hashes; deletion refuses referenced published assets or follows explicit retirement policy. Template permission grants are distinct from event `invitation:design`: a freelance event DESIGNER must not gain global catalogue publication. PP-D50 assigns shared catalogue/publication to ADMIN and permits explicitly assigned SUPPORT draft work; do not invent broader author/reviewer grants or mandatory two-person approval.
 
 ### Legacy-safe migration and switching
 
@@ -127,13 +133,15 @@ Rollback keeps pinned published versions and all referenced assets. Turning auth
 
 Unit: schema/theme/block/default validation, publish transition matrix and renderer capability mismatches. Integration: pinned legacy events retain identical serialized design, publish/edit races, publication numbering/idempotency, cross-owner asset refusal, concurrent asset removal and safe cleanup, rollback of rejected whole publication. HTTP: author vs event DESIGNER boundary, foreign draft/event preview isolation, stale revisions, invalid asset and bounds errors. Browser fixtures: en/ru/fr/hy, long text, font fallbacks, unsupported variants and responsive layouts. Measure existing invitation warm/cold budgets independently after the read-model change; do not accept success based only on request status. Existing snapshot exports remain fixed.
 
-F44 is independent of F38/F37/payment work. Its organization-private/custom-template ownership model must be chosen first if that is required; otherwise do not implement speculative marketplace/multi-tenant catalogue rights.
+F44 is independent of F38/F37/payment work. PP-D50 chooses organization-private custom templates alongside ADMIN-managed shared templates; implement that explicit scope without speculative marketplace rights.
 
 ## 6. F41 — vendor availability and reservation conflicts
 
+[PP-D51](DECISIONS.md) confirms ADMIN-managed explicit exclusive resources, ADMIN-configured buffers, assigned-SUPPORT event reservations, expiring manual holds, safe customer availability and deferral of vendor self-service/recurrence. PP-D24 still prohibits automatic holds from quote acceptance. Capacity-based inventory is not part of the initial model.
+
 ### Calendar model and access
 
-Do not infer inventory from a vendor or one hall per vendor. Introduce explicit `VendorResource` for the thing reservable (a directory hall, crew or service slot), with calendar owner and visibility scope. `ResourceCalendarEntry` records unavailable interval or reservation/hold with source booking/event ID where authorized, start/end UTC, source timezone/local input, status/revision and optional hold expiry. Whether resources are exclusive or capacity-based, all-day/multi-day, include setup/travel/teardown buffers, have recurring rules and allow staff overrides are decisions; start with the approved concrete resource type rather than a generic recurrence engine.
+Do not infer inventory from a vendor or one hall per vendor. Introduce explicit `VendorResource` for the thing reservable (a directory hall, crew or service slot), with calendar owner and visibility scope. `ResourceCalendarEntry` records unavailable interval or reservation/hold with source booking/event ID where authorized, start/end UTC, source timezone/local input, status/revision and optional hold expiry. PP-D51 chooses exclusive resources, ADMIN-configured buffers and no initial recurrence/vendor self-service. Use explicitly configured intervals/timezone; no conflict-bypass or capacity-sharing override is implied.
 
 A curated vendor resource may be shared across tenants while each reservation remains private. Tenant clients see authorized availability/busy intervals only; never return another customer's event ID/title/contact/fee in a conflict or list. Private organization resources remain invisible outside their tenant. Existing brief tokens authorize one event's declared sections, not a vendor-wide calendar. Vendor self-service editing, if desired, requires a new authenticated/scoped access design with revocation; do not silently broaden brief capabilities.
 
@@ -165,17 +173,21 @@ First deliver explicit resource/calendar ownership and read-only availability wi
 
 ### A. Paper/QR ticket distribution
 
+[PP-D52](DECISIONS.md) confirms private printed PDFs for contact-authorized event staff, reuse of existing codes on reprint, mandatory online admission checks and ADMIN review of lost/reissue cases. Offline admission is explicitly deferred; its design below is a future dependency analysis, not initial scope.
+
 Reuse paid/free-issued tickets and unified online admission; printing does not issue another ticket or reset its status. Design a minimal private per-attendee/authorized batch ticket artifact, not a public ticket URL or a copy of the contact-heavy manifest. `TicketPrintRequest` records event, requester, idempotency/fingerprint, selected ticket IDs/order revision, locale, proof/artifact job and optional issuance/distribution audit. `TicketPrintItem` links the existing ticket to its captured printable holder label and opaque code, with bounded batches. Reprints retain the same admission credential unless a separate revocation/reissue policy is explicitly approved. Protect object keys and QR/codes from logs, analytics, error bodies and shared previews.
 
 Choose the exact QR payload with the frontend scanner: proposed minimal existing opaque ticket code, not a guest capability or buyer access token. Include a human-readable fallback and event discriminator without embedding contact details. Confirm QR symbology, print dimensions and scanner compatibility by actual printer/phone tests in four scripts. Per-attendee PDFs should omit buyer contact data and dietary/acknowledgement data. Existing manifest download still requires contact permission and is not weakened. Design batch/private-file permissions explicitly rather than granting arbitrary door staff access to every code.
 
 Generate artifacts through the existing bounded private-worker pattern, rechecking current requester/event/ticket standing at capture and download. If a ticket is cancelled after printing, the paper cannot be recalled: online scan must still consult current `assertTicketAdmits` and acknowledgement gate. DSAR invalidates stored artifacts using subject provenance/cleanup ledgers; record that already-distributed paper needs operator handling under an agreed policy. No retention duration is invented. Printing does not refresh free invitation expiry or sign acknowledgements for the attendee.
 
-**Offline admission is a separate undecided feature.** A downloaded manifest cannot guarantee exactly-once admission across disconnected doors or learn a new cancellation. If required, first agree device registration, encrypted/minimized manifest, offline expiry/revocation expectations, event partitions, duplicate conflict policy and explicit scan reconciliation. Model append-only `OfflineScanBatch/OfflineScan` with device sequence/idempotent identity and captured server-manifest revision; ingestion must report accepted/duplicate/conflicting/stale outcomes and preserve facts rather than overwrite admissions. Never implement offline admission by setting all scanned tickets USED without running the established admission/acknowledgement/cancellation policy. A scoped single-door/event partition may be proposed, but is not an approved operating assumption.
+**Offline admission is explicitly deferred by PP-D52. The following is future design analysis, not initial scope.** A downloaded manifest cannot guarantee exactly-once admission across disconnected doors or learn a new cancellation. If required, first agree device registration, encrypted/minimized manifest, offline expiry/revocation expectations, event partitions, duplicate conflict policy and explicit scan reconciliation. Model append-only `OfflineScanBatch/OfflineScan` with device sequence/idempotent identity and captured server-manifest revision; ingestion must report accepted/duplicate/conflicting/stale outcomes and preserve facts rather than overwrite admissions. Never implement offline admission by setting all scanned tickets USED without running the established admission/acknowledgement/cancellation policy. A scoped single-door/event partition may be proposed, but is not an approved operating assumption.
 
 Proposed unimplemented API: request private ticket print job, poll, download, record handoff; offline batch issue/sync only after policy. TDD unit-tests QR payload/format policy and exact reprint behavior; integration tests duplicate generation, ticket/guest scanner race unchanged (`backend/test/integration/ticket-admission.int-spec.ts`), cancellation during capture/download, permission loss, revocation and DSAR; HTTP tests no public file/code exposure, valid selection scope and bounded output. Physical print/scanner acceptance is required. This slice does not depend on F41, F44 or new commerce: existing issued tickets suffice.
 
 ### B. Logistics and delivery tracking
+
+[PP-D53](DECISIONS.md) confirms ADMIN/assigned SUPPORT event tasks, Planned/In progress/Completed/Cancelled states, factual actor/time/handoff evidence, minimal assigned-worker access, calendar-backed conflicts and manual partner coordination. No initial carrier API integration.
 
 `LogisticsTask` is event-owned with vendor/venue/order links where applicable, pickup/dropoff or service window, responsible party, bounded instructions and revision. `LogisticsTransition` records factual handoff/status actor/time and immutable evidence attachment references. Proposed states such as planned → ready → dispatched → delivered, with failed/cancelled branches, must be adapted to the operator's real workflow. Do not auto-claim delivery merely because a scheduled time passed. Vendor access uses explicit event/task scope, exposes necessary addresses/contact only and never another vendor's fees or the guest list by default.
 
@@ -185,6 +197,8 @@ Tests cover duplicate handoffs, stale transitions, recipient/vendor scope, conta
 
 ### C. On-site staff assignment
 
+PP-D53 also confirms the staff-shift access/calendar/manual-coordination model; assignment never grants broader guest/billing rights. Payroll is outside the initial scope.
+
 `EventStaffAssignment` holds event, real user or approved external person record, role/task, shift interval/timezone, assignment lifecycle and acceptance evidence if required. Scheduling a person does not grant `COORDINATOR`, guest-contact or billing access. Event access is separately invited/accepted through the existing `AccountService.inviteToEvent` contract, or a new narrow role/permission approved for the job. External workers must not be forced into full account/guest records as a shortcut.
 
 Assignments check event and staff eligibility within the target scope. Shift acceptance/decline is factual; rescheduling creates a revision/renewed acknowledgement under the chosen policy. If cross-event double-booking matters, use a staff resource or dedicated person calendar with the same deterministic interval lock discipline as F41; do not expose another customer's schedule details. Cancel/remove access by an explicit coordinated workflow and preserve attendance/check-in facts. Employment/payroll/wage/contractor settlement are outside this feature unless separately agreed; no pay rules are invented.
@@ -193,9 +207,11 @@ Tests cover person/role scope, simultaneous shift claims, conflicting edits, inv
 
 ### D. Print companion production orders
 
+[PP-D54](DECISIONS.md) confirms immutable source specifications/design, named-approver signed-in proof approval, new approval for changes, ADMIN production release after verified accepted payment conditions and manual printer handoff/delivery tracking. No automatic printer order follows from approval/payment.
+
 `PrintOrder` references an immutable accepted quote line or package/add-on order line from the chosen commerce model. It captures quantity, materials/dimensions/options, source design version, requested delivery window/address and approved price/currency snapshot reference. `PrintProofVersion` stores private proof artifact hash and exact design/source revision. `PrintApproval` records approver/authority, proof hash and timestamp. `PrintFulfilmentTransition` records partner handoff, production/shipping/delivery and failure/rework evidence. Separate commercial payment state, customer proof approval and production state.
 
-Proposed flow: draft specification → proof queued/ready → exact proof approved → eligible for production → in production → handed off/delivered, with agreed cancellation/rework branches. Customer edits after approval create a new proof and invalidate pending production eligibility; they do not quietly change the file at the print partner. The condition allowing production (deposit/paid/manual release) is a user decision. Approval of a live invitation URL is insufficient because event edits would change the printed content.
+Proposed flow: draft specification → proof queued/ready → exact proof approved → eligible for production → in production → handed off/delivered, with agreed cancellation/rework branches. Customer edits after approval create a new proof and invalidate pending production eligibility; they do not quietly change the file at the print partner. PP-D54 requires ADMIN release after the accepted source payment conditions are verified; actual conditions are configured in the accepted order/quote terms, not guessed by the renderer. Approval of a live invitation URL is insufficient because event edits would change the printed content.
 
 Generate one fixed proof with captured inputs using bounded worker jobs outside DB locks, reuse private storage/download checks, and send only the scoped partner artifact needed. Production release atomically claims the approved version and writes durable partner-handoff intent. A printer timeout/unknown acknowledgement is not retried as a second purchase/production order; reconcile stable partner order IDs where supported or put it in operator review. No printer integration or physical spend is authorized by this plan. Quoted costs, tax, refunds and cancellation charges are owned by commerce and require policy/examples.
 
@@ -238,12 +254,27 @@ These are per-aggregate proposals, not a proven global hierarchy. Before impleme
 
 Recommended first design contracts: choose explicit organization selection before new org-scoped APIs; agree immutable template/version and renderer capability; agree sales/commerce order/quote reference envelope; separate paper distribution from offline admission. These decisions unblock production-oriented vertical slices without waiting for a bank to finish certification.
 
-Blocking questions for the user/product owner:
+### Confirmed policy and remaining inputs
 
-1. F38: selector contract, no-selector multi-org behavior, event-header mismatch behavior, cross-org event listing, who may create/join/leave organizations and owner transfer/closure.
-2. F37: examples, legal parties/signers/authority, term/amendment/termination/renewal, service activation, payer allocations, brand adoption and document/data retention.
-3. F44: global vs organization-private catalogue, author/reviewer/publisher roles, existing-event version upgrades/retirement, allowed renderer capabilities/fonts/assets and approval examples.
-4. F41: calendar owner/readers, resource identity, exclusive vs capacity model, buffers/holds/expiry/timezone/recurrence, operator overrides and which booking/deposit facts reserve it.
-5. F42: print/distribution/reprint and lost-paper policy, whether online door scanning is acceptable or offline is required, logistics/staff states and access, print partners/materials/approvers, handoff/unknown-outcome handling, production payment/cancellation/refund policy, and privacy/retention for new records.
+The interview is complete. [PP-D44–49](DECISIONS.md) governs organization and
+single-organization corporate workflows, PP-D50 templates/brand versioning,
+PP-D51 exclusive calendars, PP-D52 online paper tickets, PP-D53 tasks/shifts,
+PP-D54 print proofs/release and PP-D58 operational retention.
 
-Unimplemented: every new feature in this document. Existing foundations and known open pilot acceptance remain as recorded in TODO. No proposed deadline, legal term, tax rate, consent rule, retention period or paid-operation approval is implied.
+- Initial F37 contracts have one payer organization and only its own events;
+  F38 is independent rather than a prerequisite for this initial contract scope.
+- Exact header/route transport, actor resolution and migration order require
+  engineering/frontend agreement, not a new product choice between per-tab and
+  account-wide selection; PP-D45 already chooses explicit per-tab behavior.
+- ADMIN/operator configures real resources/buffers, authors, approvers, brand/
+  renderer-approved assets, shifts, partner instructions, proofs and accepted
+  contract/production conditions. No default workload, wage or physical spend
+  is invented. Supported renderer code/font assets still need team evidence.
+- Expert-reviewed accepted contract/proof/financial retention, and any real
+  provider/fiscal use, remain production gates. New operational notes/contacts
+  follow PP-D58; existing pilot media/data retention remains unchanged.
+- Offline admission, capacity-sharing/recurring calendars, vendor calendar
+  self-service, payroll/carrier/printer APIs and cross-organization contracts are
+  outside the initial scope unless the user later reopens them.
+
+Unimplemented: every new feature in this document. Existing foundations and known open pilot acceptance remain as recorded in TODO. The register supplies approved initial policies; no extra deadline, legal term, tax rate, consent grant, retention duration or paid-operation approval is implied beyond those decisions.

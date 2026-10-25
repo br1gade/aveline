@@ -1,5 +1,7 @@
 # Commerce and vendor revenue — implementation design
 
+**Decision precedence:** confirmed choices and explicitly delegated defaults in [DECISIONS.md](DECISIONS.md) supersede unresolved alternatives in this proposal. All other options remain proposals until answered.
+
 Planning proposal prepared **25 October 2026** against `eb1b6e2` on
 `codex/post-pilot-backend`. Covers **F35, F31, F32, F34, F36 and F43**.
 Nothing in this document is a shipped API, a tax determination, an approved
@@ -20,7 +22,7 @@ The governing sources are [product](../PRODUCT_SPEC.md),
 | `backend/src/modules/payments/providers/payment-provider.ts`: `PaymentGateway` | Hosted register/status/refund/cancel boundary and integer money conversion | There is no capture command, stored-card binding API, recurring debit API, merchant-reference lookup or payout API |
 | `backend/src/modules/billing/subscriptions.service.ts`: `subscribe`, `issueInvoice`, `markInvoicePaid`, `applyPaidPlan`, `endRefundedPlan` | Free plan, first paid period, delayed plan application, cancellation/resume and D19 full-refund behavior | Organization subscription only; tax is zero, invoice creation privately embedded, no renewal scheduler/consent flow |
 | `backend/src/modules/billing/invoice-number.ts`: `nextInvoiceSequence` | Counter update and invoice issuance in one transaction | Existing annual series is application behavior, not accountant approval for every future legal document |
-| `backend/src/modules/billing/billing-period.ts`: `periodAfter` | UTC month-length clamping and existing first-period behavior | `PER_EVENT` becomes an indefinite subscription period, not an event purchase; renewal anchors/catch-up rules remain undecided |
+| `backend/src/modules/billing/billing-period.ts`: `periodAfter` | UTC month-length clamping and existing first-period behavior | `PER_EVENT` becomes an indefinite subscription period, not an event purchase; PP-D40 now defines period-end anchoring and no automatic backlog catch-up |
 | `backend/src/infra/jobs/money-sweep.service.ts`: `reconcilePayments` | Reconcile then settle the owning domain | It explicitly settles only ticket orders and subscriptions; new purposes will not fulfil themselves |
 | `backend/src/modules/communications/communications.service.ts`: `enqueue`, `enqueueMany`, `checkBeforeSending` | Durable messages, deterministic dedupe keys, suppression/quota and last-minute applicability checks | `enqueue` uses injected PrismaService, not a caller's TransactionClient; current method cannot promise atomicity with a billing transaction |
 | `backend/src/modules/exports/export-queue.ts`: `claim`, `ownedExport`, `renew`, `fail` | Reference for Postgres claim/lease/fencing and bounded attempts | Reuse the pattern, not export tables or export-specific retry counts for money movement |
@@ -219,11 +221,19 @@ necessary before paid launch.
 
 ## 4. F31/F32 — event packages and add-ons
 
+PP-D57 additionally resolves free published catalogue claims, reviewed downgrades/post-delivery changes, no automatic proration and uncertain-refund reservation/affected-fulfilment behavior.
+
+Confirmed in [PP-D34–37](DECISIONS.md): OWNER/ADMIN catalogue purchases in AMD;
+one base package per event; explicitly priced ADMIN-approved upgrades; per-add-on
+prerequisites/standalone eligibility; ADMIN-reviewed whole/line/amount refunds
+under pre-purchase terms. Catalogue/prices/terms are versioned, with actual values
+configured later. The unresolved alternatives below are narrowed by that register.
+
 **Delivery:** one targeted CommerceOrder aggregate for these concrete purchases,
 not an organization subscription with a PER_EVENT interval. Event remains owned
 by its organization. A package purchase records the event and purchased tier/
 service terms; an add-on line records actual quantity and delivery requirements.
-Whether an add-on requires a package or may stand alone remains a product choice.
+PP-D36 makes this an explicit per-add-on ADMIN catalogue rule.
 
 **Proposed states:** DRAFT/PRICED → AWAITING_PAYMENT → PAID, with CANCELLED/EXPIRED
 for unpaid intents and separate fulfilment/correction/refund progress. State
@@ -253,8 +263,9 @@ plan change cannot void package invoices.
 **Refund/cancellation:** order-level command owns payment and service effects;
 prevent generic finance refunds from bypassing required service reconciliation.
 No assumed 'whole order only' rule: current ticket whole-order policy does not
-automatically govern add-ons. Agree partial line refunds, tax correction,
-completed service treatment and upgrade/downgrade policy first. Freeze conflicting
+automatically govern add-ons. PP-D37 approves reviewed whole/line/amount refunds, and PP-D35 approves explicitly
+priced ADMIN-reviewed upgrades. Agree tax correction, completed-service treatment
+and any downgrade rules before those transitions are enabled. Freeze conflicting
 fulfilment/financial actions while a refund has unknown outcome; do not assert
 refund completion until evidence exists. Scope that freeze to the relevant
 financial/service intent, not unrelated event operations.
@@ -274,6 +285,12 @@ approved cancellation/refund integration → real provider acceptance. F31/F32
 can run together against the agreed order contract; F39 and F34 are independent.
 
 ## 5. F34 — renewal and dunning
+
+Confirmed in [PP-D39–43](DECISIONS.md): OWNER opt-in only, period-end anchoring,
+no automatic missed-period backlog charges, ADMIN-configured bounded retry/grace
+terms before consent, exhausted attempts stop in PAST_DUE with ADMIN review,
+preserved guest access/captured lifetime, and fresh consent for changed prices
+or material terms. Existing cancel-at-period-end and D19 behavior remain.
 
 **Delivery:** extend existing organization Subscription rather than routing
 renewals through event packages. Existing subscriptions must not silently
@@ -307,8 +324,9 @@ PER_EVENT must never renew merely because its synthetic end date changes.
 
 For definite declines, persist outcome and next attempt from the approved
 retry/grace policy. Proposed lifecycle ACTIVE → PAST_DUE → ACTIVE after recovery,
-or approved terminal cancellation/expiry. Exact grace duration, access effects,
-retry count/timing, notifications and final transition remain product decisions.
+or approved terminal cancellation/expiry. PP-D41–42 resolve a configurable bounded retry/grace policy and exhausted
+PAST_DUE/ADMIN-review outcome without automatic guest-access restrictions; actual
+retry/grace values must be configured before opt-in and live debit.
 Unknown outcomes pause new debit attempts pending reconciliation. A technical
 worker retry is not a business payment retry; never let a queue's maxAttempts
 multiply charges.
@@ -340,11 +358,13 @@ acceptance. No dependency on F31/F32, F36 or template authoring.
 
 ## 6. F36 — referral accounting and payout execution
 
+[PP-D55](DECISIONS.md) confirms both receivable vendor fees and vendor payables, explicitly directed per ADMIN-approved versioned agreement. ADMIN controls settlement, commercial data stays private and outbound transfers remain disabled pending verified provider support. Actual fee/trigger/settlement values are configured per agreement.
+
 **Delivery:** a vendor payable subledger for actual referral agreements, separate
 from the mutable booking fee. First establish who owes whom; a referral margin
 could be receivable from a vendor rather than payable to one. The backlog's
-'payouts' label must not silently choose the direction. Build only the agreed
-receivable/payable workflow; no general-purpose ledger engine is required.
+'payouts' label must not silently choose the direction. PP-D55 approves both explicit directional workflows; no general-purpose
+accounting engine or implicit netting/transfer policy is required.
 
 **Proposed records:** `VendorCommercialAgreementVersion` captures direction,
 basis/rate or fixed fee, currency, accrual/eligibility/cancellation evidence and
@@ -376,7 +396,7 @@ reversal basis requiring money returned.
 settlement; conditional claim prevents concurrent payout batches using them
 twice. Provider call occurs after claim commit. Proposed evidence states are
 PREPARED → APPROVED → SUBMITTED → CONFIRMED, with explicit REJECTED and UNKNOWN;
-approval policy/state is configurable only once specified. UNKNOWN does not
+PP-D55 gives ADMIN approval/settlement authority under versioned agreement terms. UNKNOWN does not
 release entries or allow a fresh transfer. Reconcile against the original
 transfer identity; actual returned transfers create reversal evidence. Keep
 inbound acquiring and outbound transfer ports separate.
@@ -394,6 +414,8 @@ F43 listing fees can proceed independently. No gateway payout capability is
 assumed from Visa/ArCa acquiring credentials.
 
 ## 7. F43 — vendor listing fees
+
+[PP-D56](DECISIONS.md) confirms ADMIN-managed AMD agreements, explicit payer/term/placement/refund terms, named-representative signed-in acceptance, activation of only the approved listing service, manual renewal and safe expiry that preserves bookings/briefs. No initial vendor-specific billing portal; automatic listing renewal is a deferred expansion.
 
 **Delivery:** a listing commercial lifecycle attached to a vendor/directory
 listing, separate from referral debt and existing `Vendor.active` eligibility.
@@ -417,7 +439,7 @@ Use the shared CommerceOrder/fiscal service with LISTING lines, or the same
 narrow checkout contract if the final aggregate naming differs. Payment evidence
 activates only the purchased term/placement. Keep public publication separately
 approved/moderated if that is chosen; do not promise directory promotion simply
-because payment succeeded. Exact ranking/placement policy remains undecided.
+because payment succeeded. PP-D56 makes purchased placement/term explicit in the ADMIN-approved agreement; no new ranking algorithm is implied.
 
 Expiry processing is bounded, checks captured term/version and changes only
 paid visibility rights. Cancellation/refunds preserve history and follow the
@@ -567,18 +589,26 @@ legacy behavior explicitly. If the business does not want that immutable-term
 meaning, flag the conflict before implementation; do not silently reinterpret
 old invoices. C2 is the next common prerequisite for production paid flows.
 
-Critical decisions to request together, without requesting credentials in chat:
+### Completed policy review and remaining configuration
 
-- **Finance:** bank/provider specification/access/capabilities; accountant examples,
-  seller/buyer fields, rates/rounding/retention and correction rules.
-- **Packages/add-ons:** offers/prices/currencies, upgrade rules, package dependency,
-  free order handling, delivery/cancellation and line/partial refund behavior.
-- **Renewal:** consent statement/evidence, supported binding, anchor/catch-up,
-  retries/grace/access and cancellation/revocation treatment.
-- **Vendor referrals:** who owes whom, basis/trigger, eligibility, reversals,
-  approvals, payout timing/destination verification and transfer provider.
-- **Listing fees:** payer identity/account model, paid placement/term, moderation,
-  expiry, refunds and whether renewal is manual or automatically consented.
+Use [PP-D34–43](DECISIONS.md) for catalogue sales and renewals, PP-D55–57 for
+vendor direction/listings/order exceptions and PP-D58 for retention classes.
+The initial product interview is complete; broader historical alternatives in
+this design do not require the user to approve the same policies again.
+
+- **External finance inputs:** selected acquiring/recurring provider specs and
+  certification; separate outbound transfer support; seller/jurisdiction and
+  accountant-reviewed tax, corrections and financial/evidence retention.
+- **ADMIN configuration:** actual offers/prices/prerequisites and versioned
+  cancellation/upgrade terms, bounded retry/grace values and consent text,
+  vendor fees/direction/accrual/settlement terms, listing payer/placement/term.
+  Missing mandatory values block the affected sale/debit; do not invent defaults.
+- **Engineering coordination:** transaction-aware payment claim/evidence/source
+  settlement interfaces, finite money/quantity bounds, compatible enum rollout,
+  deterministic workers and proof of recovered uncertainty.
+- **Initial scope:** OWNER opt-in renewals only, no automatic backlog debit or
+  unconsented price changes; listings renew manually; no automatic netting or
+  transfer is inferred. General entitlement enforcement remains deferred.
 
 Still not built: all six commercial features, their new models/APIs/workers,
 the shared contracts proposed above and actual provider/accountant acceptance.

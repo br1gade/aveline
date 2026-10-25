@@ -5,6 +5,14 @@ account holders — guests and vendors — reach what they need.
 
 Implemented in [`backend/src/modules/access/access-policy.ts`](../backend/src/modules/access/access-policy.ts).
 
+**Planned post-pilot permissions:** [PP-D01–58](post-pilot/DECISIONS.md) records
+the agreed future access rules, including assigned enquiry/quote access for
+SUPPORT, ADMIN financial/publication controls, explicit organization selection,
+revocation and named customer approvers. Those new features are not implemented;
+this document's existing role table remains the current policy until each slice
+ships with its tests and permission/API updates. Quote drafting is a specific
+future grant, not general SUPPORT billing access.
+
 ---
 
 ## 1. Four kinds of actor
