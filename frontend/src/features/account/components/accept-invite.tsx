@@ -3,21 +3,18 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
+import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { ROUTE_PATHS } from '@/route-paths';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
 
 import { acceptInvite } from '../api';
-import { problemFrom, type Problem } from '../problems';
 import { acceptInviteSchema, type AcceptInviteValues } from '../schemas';
 import type { InviteAccepted, InviteKind } from '../types';
 import { useFieldText } from '../use-field-text';
 import { useLinkToken } from '../use-link-token';
-import { AccountForm } from './account-form';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
-import { ProblemAlert } from './problem-alert';
-import { SubmitButton } from './submit-button';
-import { TextInputField } from './text-input-field';
 
 const signInLink = (label: string) => <AccountLink to={ROUTE_PATHS.signIn}>{label}</AccountLink>;
 
@@ -94,7 +91,7 @@ function AcceptForm({ kind, token, onAccepted }: AcceptFormProps) {
   return (
     <>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
-      <AccountForm onSubmit={form.handleSubmit(onSubmit)}>
+      <AppForm onSubmit={form.handleSubmit(onSubmit)}>
         <TextInputField
           label={t('fields.name')}
           autoComplete="name"
@@ -112,7 +109,7 @@ function AcceptForm({ kind, token, onAccepted }: AcceptFormProps) {
         <SubmitButton isSubmitting={isSubmitting}>
           {isSubmitting ? t('invite.submitting') : t('invite.submit')}
         </SubmitButton>
-      </AccountForm>
+      </AppForm>
     </>
   );
 }

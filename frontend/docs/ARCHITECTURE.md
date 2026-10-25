@@ -7,7 +7,8 @@
 >
 > The first surface is the guest invitation. The organizer app comes later (design decision C-7);
 > since 23 October 2026 its way in exists: the account pages and the app's first screens, then
-> creating an event, opening it and correcting its details.
+> creating an event, opening it and correcting its details. Since 24 October an event has its
+> guest list: reading it, importing a spreadsheet, and keeping it right.
 
 ## 1. Stack
 
@@ -34,7 +35,7 @@
 | Public: `/invitations/:slug`, `/invitations/:slug/g/:guestToken` | Server | A server `loader` against the public API; `meta` from the response |
 | Capability, later: `/tickets/:accessToken`, `/briefs/:briefToken` | Server shell | Fetched in the browser; `noindex`; `no-referrer` |
 | Account: `/sign-in`, `/register`, `/reset-password`, `/verify-email`, `/accept-invite`, `/accept-event-invite` | Server, the form included | A server `loader` for the language only; forms submit from the browser. Sign-in and register skip to the app when a session is stored (`clientLoader`) |
-| App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame |
+| App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit`, `/app/events/:eventId/guests`, `/app/events/:eventId/guests/import` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame. A change of query alone (the guest list's search and filter) reloads nothing: the root, the layout and the guest list skip it, and the `/app` segment reloads only when `?lang=` changes (`src/lib/routing`) |
 
 Rules:
 
@@ -43,9 +44,13 @@ Rules:
 - **Time-dependent UI renders after hydration** (the countdown).
 - **A form that submits from JavaScript** has `method="post"` and a submit button disabled until
   hydration (`useIsHydrated`), so nothing typed, a password above all, can reach the address bar
-  before React runs. The account forms, the event forms and the guest reply form do (design
-  PD-41).
+  before React runs. The account forms, the event forms, the guest list's dialogs, the import
+  form and the guest reply form do (design PD-41).
 - **No browser globals at module scope.**
+- **Filters live in the address,** written in place (`replace`) and without a scroll jump, so a
+  reload or a shared link keeps them. The guest list's search box holds its own text and the
+  address catches up 300 ms after typing stops; a change of address it did not write itself
+  (Back, a link) replaces what is in the box.
 
 ## 3. The route contract
 
@@ -55,8 +60,9 @@ by a test that reads the backend's sources. Renaming one is a
 breaking change for the backend's emails (FR-8 asks for the table in `docs/API.md`). They include
 the bank's default return pages, `/tickets/return` and `/billing/return`; React Router ranks the
 static `/tickets/return` above `/tickets/:accessToken`. The client's own paths, which nothing
-outside links to, are in `APP_PATHS` beside them: registering, the app's home, onboarding and the
-event pages. The static `/app/events/new` ranks above `/app/events/:eventId`.
+outside links to, are in `APP_PATHS` beside them: registering, the app's home, onboarding, the
+event pages and an event's guest list and import. The static `/app/events/new` ranks above
+`/app/events/:eventId`, and `/guests/import` would rank above a `/guests/:guestId`.
 
 ## 4. The API layer (`src/api/`)
 
@@ -123,7 +129,9 @@ What the backend does since 23 October 2026 (`docs/API.md` §2, `docs/ACCESS_CON
 - **Interface strings** live in `src/locales/<hy|ru|en>/<namespace>.json`. English is the source;
   Armenian and Russian are drafts until a native reader checks them (design PD-9). A test checks
   that every language has the same keys.
-- **Plurals** use `Intl.PluralRules`, which covers Russian's four categories.
+- **Plurals** use `Intl.PluralRules`, which covers Russian's four categories. Counts in sentences
+  ("2,000 guests") go through i18next's `number` format, on `Intl.NumberFormat`; the app pages
+  that use it render in the browser only, so the server's ICU never formats them.
 - **Time** (`src/lib/time`) formats in `event.timezone`. English and Russian dates use
   `Intl.DateTimeFormat`. **Armenian dates are composed by hand** in the design's form
   ("շաբաթ, 12 հունիսի 2027 թ.") and **times are built from numeric parts** in every language,
@@ -180,11 +188,14 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   Armenian adjustments (tracking, body line height) are in `src/styles/app.css`.
 - **Components** use semantic tokens through Tailwind classes. Shared, presentational ones live
   in `src/ui/` (buttons, links, notices, form controls in `src/ui/form/`); the invitation's own in
-  the renderer.
+  the renderer. The account and app forms' pieces are in `src/ui/app-form/`: `AppForm`, which
+  posts (PD-41), `SubmitButton`, `TextInputField`, `SelectField` and `ProblemAlert`, with
+  `problemFrom` in `src/api/problems.ts`.
 - **The app's kit** is shadcn/ui (C-14) in `src/ui/kit/`, added with the CLI from
   `components.json` and then owned by us: it passes our lint and imports our `cn` (`src/ui/cn.ts`,
   clsx with tailwind-merge). The native select, checkbox and textarea were written by hand in the
-  same form, since the CLI would add `lucide-react`. The kit never imports it: the radio's dot is
+  same form, since the CLI would add `lucide-react`, and so was the dialog, which has no close icon:
+  Cancel and Escape close it. The kit never imports it: the radio's dot is
   drawn in CSS, and the select's chevron and the checkbox's check come from `src/ui/icon.tsx`.
   `src/styles/app-kit.css` maps its variables onto the tokens exactly as DESIGN_SYSTEM §12
   tabulates; the CLI's own palette is not used. Its `dark:` classes stay off until a dark mode is
@@ -201,8 +212,9 @@ Pure, safe to render on the server, light on JavaScript. Specified by
 ## 9. Errors, headers and observability
 
 - **Errors by status:** 400 maps to fields and the form; 401 refreshes once; 403 never retries;
-  404 shows the not-found page; 409 and 429 are handled where they happen; 5xx and network errors
-  show the route's error state with the request id as a reference.
+  404 shows the not-found page; 409, 413 and 429 are handled where they happen; 5xx and network
+  errors show the route's error state with the request id as a reference. On the guest list a 404
+  or a conflict on a write reloads the list behind the message, since it is out of date.
 - **An event the account cannot see answers 403, not 404** (`docs/BACKLOG.md` §4), so the event
   pages say "not available" for both. With no permissions endpoint (FR-6), every action is offered
   and a 403 is explained when it happens.
@@ -220,6 +232,11 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   server's HTML does not hold it.
 - **Not found:** a guest link that opens nothing (wrong, a draft, past its retention date) is a
   404 with the invitation's own not-found page, in all three languages.
+- **A guest's token** (their personal link segment) arrives in `GET /events/:eventId/guests` and
+  in the answers to adding and correcting a guest (FR-29). It stops where the response arrives:
+  `features/guests/read.ts` builds every object by naming its fields, and the write calls resolve
+  to nothing. It is never rendered, stored, logged or put in an address, and no test fixture holds
+  one: the tests make theirs at run time and check it went nowhere.
 - **Capability links** are redacted with the patterns of `backend/src/common/redact-url.ts`
   before anything is logged, and a test reads that file so the copy cannot drift. A payment's
   order number and an invitee's address are redacted too, though they make no page a capability
@@ -231,8 +248,8 @@ Pure, safe to render on the server, light on JavaScript. Specified by
 
 | Layer | Tool | What |
 |---|---|---|
-| Unit | Vitest | `lib/` (money, time, redaction and its parity with the backend's, language negotiation), the API error mapping, the session (refresh races, the browser session against MSW), the route contract, `safeNext`, the account schemas, block order and fallbacks, the theme stand-in, tokens and contrast, i18n key parity; typed times to UTC (Yerevan, clocks skipping and repeating in London, Los Angeles and Sydney, zones off the hour, impossible input, the device's own zone), the event form's checks, payloads that send only what changed, a 400's messages mapped to fields, the overview's loader |
-| Component | Vitest, Testing Library, MSW | The invitation page (order, unknown types, personal and generic links, closed, zones, countdown); the reply form's states: sent, client checks, 400 mapped to fields, 429, 5xx with a reference, closed mid-send, and posting with Send disabled before hydration; every account page and its refusals, the token taken out of the address and kept across a language switch, the email check sent once under StrictMode, creating the organization; the app's header signing out, here and on every device; the events list in each event's time zone, linked to each overview, and creating the first from an empty list; creating an event (its defaults, the checks, the UTC body, a skipped time, a 400 on its field, 403, 429, 5xx with a reference, and posting with the submit disabled before hydration); the overview (the event's zone, its languages and invitation, the headcount, and the headcount refused, failed or empty); an event that cannot be opened; correcting one (prefilled in its zone, only what changed, nothing when nothing did, the form's baseline kept when the page's data reloads, "let your guests know" sent only when pressed, with or without a note, "Not now", the draft refusal, 403, the end-time refusal); 409 on create; the app's frame saying "Loading…" while a click waits for the next page |
+| Unit | Vitest | `lib/` (money, time, redaction and its parity with the backend's, language negotiation), the API error mapping, the session (refresh races, the browser session against MSW), the route contract, `safeNext`, the account schemas, block order and fallbacks, the theme stand-in, tokens and contrast, i18n key parity; typed times to UTC (Yerevan, clocks skipping and repeating in London, Los Angeles and Sydney, zones off the hour, impossible input, the device's own zone), the event form's checks, payloads that send only what changed, a 400's messages mapped to fields, the overview's loader; the guest list's readers (no token gets through, a missing contact field is not an empty one), its payloads (only what changed, `""` to clear, never an email or phone it did not receive), its 400s mapped to fields, its search and filter in the address, its forms' limits, and the revalidation guards. The multipart upload runs under Node (`api.test.ts`, `@vitest-environment node`), since jsdom's `File` and `FormData` are not the ones Node's fetch sends |
+| Component | Vitest, Testing Library, MSW | The invitation page (order, unknown types, personal and generic links, closed, zones, countdown); the reply form's states: sent, client checks, 400 mapped to fields, 429, 5xx with a reference, closed mid-send, and posting with Send disabled before hydration; every account page and its refusals, the token taken out of the address and kept across a language switch, the email check sent once under StrictMode, creating the organization; the app's header signing out, here and on every device; the events list in each event's time zone, linked to each overview, and creating the first from an empty list; creating an event (its defaults, the checks, the UTC body, a skipped time, a 400 on its field, 403, 429, 5xx with a reference, and posting with the submit disabled before hydration); the overview (the event's zone, its languages and invitation, the headcount, and the headcount refused, failed or empty); an event that cannot be opened; correcting one (prefilled in its zone, only what changed, nothing when nothing did, the form's baseline kept when the page's data reloads, "let your guests know" sent only when pressed, with or without a note, "Not now", the draft refusal, 403, the end-time refusal); 409 on create; the app's frame saying "Loading…" while a click waits for the next page; the guest list (households in order with seats, answers, sides and tables; no token on the page or in the console; without contact access; the filter from and to the address without reloading, and following the address on Back; adding, correcting, clearing an email, moving and removing, each reloading the list; nothing sent when nothing changed; the focus after an edit, a move and a removal; a 400 under its field, an erased guest, a check-in, 403, 404, 409 on an edit and on a removal, 429, 5xx; the designer's 403); the import (a partial result by its own row numbers beside the upload, row 0 as the file, a file refused whole, English reasons marked, the 2 MB check before sending, 409, 413, 400, 403, 429, 5xx, the history, posting with the submit disabled before hydration) |
 | End-to-end | Playwright against the local backend | A guest opens a personal link, replies for the household, edits, sees the closed state; raw server HTML carries the right meta and no guest name. **Not written yet:** the local backend needs Docker |
 | Accessibility | `@axe-core/playwright` | Guest pages, the account pages and the app's screens; serious and critical violations fail |
 
@@ -252,6 +269,21 @@ moving the date with the offer and sending it (one request, carrying the note); 
 last three at 360 px, without horizontal scroll.
 axe found no violation. The headless browser showed the native time input on a 12-hour clock
 whatever the page's language; its value stays 24-hour (PD-42).
+On 24 October 2026 a third throwaway script walked the guest list the same way, against a mock
+serving 2,000 guests in 800 households with tokens made at run time. The list appeared 809 ms
+after the click on "Guest list" (the development build, the network local); while a name was
+typed the slowest input event took 24 ms, and the search and filter reached the address without
+a single reload of the list or `.data` request; the toolbar stayed in view far down the list. It
+covered adding, correcting, clearing an email, moving (the request bodies checked: only what
+changed), removing after the confirmation, a
+checked-in guest, a household's seats refused before and after sending, an edit refused with 400
+(under its field, and naming none), 403, 404, 409, 429 and 500, a partial import (the multipart
+field `file`, each refused row by its own number, the result taking the focus), a file over 2 MB
+refused before sending, an import refused with 400, 403, 409 and 413, the history, a role without
+contact access, a designer's 403, Armenian and Russian with the search kept across a language
+switch and restored by Back, and 360 px in all three languages without horizontal scroll. axe found no serious or
+critical violation on any page, state or open dialog. None of the 2,001 tokens appeared in the
+page, the address, the console, browser storage or any request's address.
 The real end-to-end tests still wait for the backend.
 
 ## 11. Decision log
@@ -294,12 +326,28 @@ The real end-to-end tests still wait for the backend.
 | 23 Oct 2026 | The time zones offered are the browser's, plus the event's own | Browsers name some zones differently (`Asia/Calcutta`, `Asia/Kolkata`) and the backend accepts any name `Intl` knows; without the event's own, an edit could change it silently |
 | 23 Oct 2026 | "Let your guests know" lives in the edit page's state, never in history | A reload or Back would offer it again after the server's one-minute de-duplication, and a second press would message every household again |
 | 23 Oct 2026 | The app's frame shows "Loading…" while a click loads the next app page | The first load has `AppLoading`; between app pages nothing showed until the next page's data arrived |
+| 24 Oct 2026 | **The account feature's form pieces moved to `src/ui/app-form/`**: `AccountForm` (now `AppForm`), `SubmitButton`, `TextInputField`, `ProblemAlert`, and the events feature's `SelectField`; `problemFrom` to `src/api/problems.ts`; its three generic messages to the `common` namespace | The guest list is the third feature to use them, as the entry of 23 October foresaw. No behaviour changed; every test passed before and after the move |
+| 24 Oct 2026 | Guest writes give the page nothing back, and the list reloads after every one | The answers to adding and correcting carry the guest's token (FR-29); not reading them keeps it out of the app's state. A reload also shows what the server stored, and two households change on a move (docs/API.md §6). One `GET /guests` per save is the cost |
+| 24 Oct 2026 | A change of query alone reloads nothing: `shouldRevalidate` on the root, the `/app` layout and the guest list, and on the `/app` segment except for `?lang=` (`src/lib/routing`) | React Router reloads every loader when the query changes, so each search would have fetched 2,000 guests again and asked the server for a new nonce and the language |
+| 24 Oct 2026 | The language switcher's link keeps the rest of the query | Switching language dropped the guest list's search and filter |
+| 24 Oct 2026 | **No virtualization** for 2,000 guests: `content-visibility: auto` on each household, memoized households, a search index built once per load, and the search deferred | Measured in headless Chromium (§10): 809 ms to the list, 24 ms for the slowest input event while typing. No dependency to ask for; one returns to the question if a larger list arrives |
+| 24 Oct 2026 | shadcn's Dialog written by hand in `src/ui/kit/dialog.tsx`, on the installed `radix-ui` | The CLI's adds `lucide-react` for a close icon. The guest list opens its dialogs from rows, not from a Radix trigger, so it puts the focus back itself, and closes a dialog only in the render that shows the reloaded list, when it can tell whether the row that opened it is still there |
+| 24 Oct 2026 | The import refuses a file over 2 MB before sending it | The backend's own limit, which answers 413 only once the bytes have travelled. The server stays the authority: its 413 is handled too |
+| 24 Oct 2026 | The multipart upload is tested under Node (`@vitest-environment node`); the import page's tests stub that one call | jsdom's `File` and `FormData` are not Node's, and Node's fetch refuses to send them. The walkthrough checked the real upload in Chromium |
+| 24 Oct 2026 | `EventUnavailable` says "too many requests" for a 429 | Every event page had shown a 429 as a failure with a reference |
 
 ## 12. Not yet built
 
-- The organizer app beyond its way in and an event's details: guests, design, seating, door,
-  billing (with the bank's return page, `/billing/return`), the event team, and **archiving and
-  deleting events**.
+- The organizer app beyond its way in, an event's details and its guest list: design, seating,
+  door, billing (with the bank's return page, `/billing/return`), the event team, and **archiving
+  and deleting events**.
+- Of the guest list: recording an answer for a guest (`PATCH …/guests/:guestId/rsvp`); sending
+  the invitation and reminders; seating, and the note that a decline freed a seat
+  (`seatReleased`); check-in and undoing it; the export; the guest's personal link, whose token is
+  never shown; moving a guest into a household of their own (FR-30); clearing a guest's language
+  (FR-31); a household's notes, which no endpoint writes; and a household picker better than a
+  native select (DQ-16). The single-guest read (`GET …/guests/:guestId`) is not used: the list
+  holds everything the forms show.
 - Of an event's details: venues and the running order; its end time, side labels and per-language
   title and hosts (`translations`, FR-24); adding an invitation to an event that has none
   (`POST /events/:id/invitation`); a custom slug (no endpoint exists). Of the dashboard: catering,

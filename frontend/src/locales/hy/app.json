@@ -5,6 +5,8 @@
     "newEvent": "Միջոցառման ստեղծում · Aveline",
     "event": "Ձեր միջոցառումը · Aveline",
     "editEvent": "Տվյալների խմբագրում · Aveline",
+    "guests": "Հյուրեր · Aveline",
+    "importGuests": "Հյուրերի ներմուծում · Aveline",
     "named": "{{title}} · Aveline"
   },
   "shell": {

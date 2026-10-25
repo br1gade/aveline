@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { ROUTE_PATHS } from '@/route-paths';
+import { ProblemAlert } from '@/ui/app-form';
 
 import { confirmEmail } from '../api';
-import { problemFrom, type Problem } from '../problems';
 import { useLinkToken } from '../use-link-token';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
-import { ProblemAlert } from './problem-alert';
 
 type Outcome = 'pending' | 'done' | Problem;
 

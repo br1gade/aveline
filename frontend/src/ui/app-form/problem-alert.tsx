@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/ui';
 import { Alert, AlertDescription } from '@/ui/kit/alert';
 
-import type { Problem } from '../problems';
+import type { Problem } from '@/api/problems';
 
 interface ProblemAlertProps {
   problem: Problem;
@@ -18,8 +18,7 @@ interface ProblemAlertProps {
  * maps a report to the exact request (docs/API.md §1).
  */
 export function ProblemAlert({ problem, refused }: ProblemAlertProps) {
-  const { t } = useTranslation('account');
-  const { t: common } = useTranslation('common');
+  const { t } = useTranslation('common');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => ref.current?.focus(), [problem]);
 
@@ -29,9 +28,7 @@ export function ProblemAlert({ problem, refused }: ProblemAlertProps) {
       <AlertDescription>
         {problem.code === 'refused' ? refused(problem.status) : t(`problems.${problem.code}`)}
         {problem.code === 'server' && problem.requestId ? (
-          <span className="block">
-            {common('error.reference', { requestId: problem.requestId })}
-          </span>
+          <span className="block">{t('error.reference', { requestId: problem.requestId })}</span>
         ) : null}
       </AlertDescription>
     </Alert>

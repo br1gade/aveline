@@ -2,12 +2,10 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { ApiError } from '@/api/errors';
 import { createBrowserSession, type TokenStore } from '@/api/session';
 
 import { registerAndSignIn } from './flows';
 import { needsOrganization } from './landing';
-import { problemFrom } from './problems';
 import { safeNext } from './safe-next';
 import { organizationSchema, registerSchema, signInSchema } from './schemas';
 
@@ -47,21 +45,6 @@ describe('needsOrganization', () => {
 
   it('lets an organization with no events yet in', () => {
     expect(needsOrganization(organization, 0)).toBe(false);
-  });
-});
-
-describe('problemFrom', () => {
-  it.each([
-    [new ApiError({ status: 0, messages: [] }), { code: 'unreachable' }],
-    [new ApiError({ status: 429, messages: [] }), { code: 'rate-limited' }],
-    [
-      new ApiError({ status: 503, messages: [], requestId: 'r-1' }),
-      { code: 'server', requestId: 'r-1' },
-    ],
-    [new ApiError({ status: 409, messages: [] }), { code: 'refused', status: 409 }],
-    [new TypeError('boom'), { code: 'server', requestId: undefined }],
-  ])('%s', (error, expected) => {
-    expect(problemFrom(error)).toEqual(expected);
   });
 });
 

@@ -15,6 +15,8 @@ const event: EventDetail = {
   timezone: 'Asia/Yerevan',
   locales: ['en', 'hy'],
   defaultLocale: 'hy',
+  sideALabel: null,
+  sideBLabel: null,
   invitation: { slug: 'anna-davit-3f8a1c20', status: 'DRAFT' },
 };
 

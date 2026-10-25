@@ -4,20 +4,17 @@ import { Controller, useForm, type Control } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { APP_PATHS } from '@/route-paths';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
 import { FieldLegend, FieldSet } from '@/ui/kit/field';
 import { Label } from '@/ui/kit/label';
 import { RadioGroup, RadioGroupItem } from '@/ui/kit/radio-group';
 
 import { createOrganization } from '../api';
-import { problemFrom, type Problem } from '../problems';
 import { organizationSchema, type OrganizationValues } from '../schemas';
 import { useFieldText } from '../use-field-text';
-import { AccountForm } from './account-form';
-import { ProblemAlert } from './problem-alert';
-import { SubmitButton } from './submit-button';
-import { TextInputField } from './text-input-field';
 
 const KINDS = ['HOST', 'PLANNER', 'CORPORATE'] as const;
 
@@ -85,7 +82,7 @@ export function CreateOrganization() {
       {problem ? (
         <ProblemAlert problem={problem} refused={() => account('problems.check')} />
       ) : null}
-      <AccountForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
+      <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
         <TextInputField
           label={t('welcome.name')}
           help={t('welcome.nameHelp')}
@@ -97,7 +94,7 @@ export function CreateOrganization() {
         <SubmitButton isSubmitting={isSubmitting} className="w-auto self-start">
           {isSubmitting ? t('welcome.submitting') : t('welcome.submit')}
         </SubmitButton>
-      </AccountForm>
+      </AppForm>
     </section>
   );
 }

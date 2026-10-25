@@ -100,6 +100,24 @@ describe('AppShell', () => {
     expect(await screen.findByText('Event page')).toBeInTheDocument();
   });
 
+  it('keeps the page’s search and filter when the language changes', () => {
+    const Stub = createRoutesStub([
+      {
+        path: '/app/events/:eventId/guests',
+        Component: () => <AppShell>{<p>Guests</p>}</AppShell>,
+      },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub initialEntries={['/app/events/e1/guests?lang=hy&q=Ani&answer=pending']} />
+      </I18nextProvider>,
+    );
+    expect(screen.getByRole('link', { name: 'Русский', hidden: true })).toHaveAttribute(
+      'href',
+      '/app/events/e1/guests?lang=ru&q=Ani&answer=pending',
+    );
+  });
+
   it('signs out here and goes to sign in', async () => {
     const sent: unknown[] = [];
     server.use(

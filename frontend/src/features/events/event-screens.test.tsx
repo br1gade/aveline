@@ -53,6 +53,8 @@ const EVENT: EventDetail = {
   timezone: 'America/Los_Angeles',
   locales: ['en', 'hy'],
   defaultLocale: 'hy',
+  sideALabel: null,
+  sideBLabel: null,
   invitation: { slug: 'anna-davit-3f8a1c20', status: 'DRAFT' },
 };
 
@@ -267,6 +269,14 @@ describe('EventOverview', () => {
     );
   });
 
+  it('links to the guest list', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Guest list' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/guests',
+    );
+  });
+
   it('shows the headcount', async () => {
     overview();
     const numbers = await screen.findByRole('region', { name: 'Guests' });
@@ -326,6 +336,14 @@ describe('EventUnavailable', () => {
   it.each([403, 404])('reads the same for %i: missing and not yours look alike', (status) => {
     show(new ApiError({ status, messages: [], requestId: 'req-2' }));
     expect(screen.getByRole('heading', { name: 'This event isn’t available' })).toBeInTheDocument();
+    expect(screen.queryByText(/Reference/)).not.toBeInTheDocument();
+  });
+
+  it('asks to wait a moment when there were too many requests', () => {
+    show(new ApiError({ status: 429, messages: [], requestId: 'req-4' }));
+    expect(
+      screen.getByText('Too many requests just now. Wait a minute, then reload the page.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Reference/)).not.toBeInTheDocument();
   });
 

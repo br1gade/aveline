@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
+import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { ROUTE_PATHS } from '@/route-paths';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
 
 import { confirmPasswordReset, requestPasswordReset } from '../api';
-import { problemFrom, type Problem } from '../problems';
 import {
   newPasswordSchema,
   resetRequestSchema,
@@ -16,12 +17,8 @@ import {
 } from '../schemas';
 import { useFieldText } from '../use-field-text';
 import { useLinkToken } from '../use-link-token';
-import { AccountForm } from './account-form';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
-import { ProblemAlert } from './problem-alert';
-import { SubmitButton } from './submit-button';
-import { TextInputField } from './text-input-field';
 
 /** Without a token: ask for a link. With the token from the email: choose the new password. */
 export function ResetPassword() {
@@ -73,7 +70,7 @@ function RequestLink() {
       footer={<AccountLink to={ROUTE_PATHS.signIn}>{t('links.signIn')}</AccountLink>}
     >
       {problem ? <ProblemAlert problem={problem} refused={() => t('problems.check')} /> : null}
-      <AccountForm onSubmit={form.handleSubmit(onSubmit)}>
+      <AppForm onSubmit={form.handleSubmit(onSubmit)}>
         <TextInputField
           label={t('fields.email')}
           type="email"
@@ -84,7 +81,7 @@ function RequestLink() {
         <SubmitButton isSubmitting={isSubmitting}>
           {isSubmitting ? t('resetPassword.submitting') : t('resetPassword.submit')}
         </SubmitButton>
-      </AccountForm>
+      </AppForm>
     </AccountLayout>
   );
 }
@@ -138,7 +135,7 @@ function ChooseNewPassword({ token }: { token: string }) {
           }
         />
       ) : null}
-      <AccountForm onSubmit={form.handleSubmit(onSubmit)}>
+      <AppForm onSubmit={form.handleSubmit(onSubmit)}>
         <TextInputField
           label={t('fields.newPassword')}
           type="password"
@@ -150,7 +147,7 @@ function ChooseNewPassword({ token }: { token: string }) {
         <SubmitButton isSubmitting={isSubmitting}>
           {isSubmitting ? t('resetPassword.choose.submitting') : t('resetPassword.choose.submit')}
         </SubmitButton>
-      </AccountForm>
+      </AppForm>
     </AccountLayout>
   );
 }

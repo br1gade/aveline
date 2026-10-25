@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router';
 
 import { negotiatedLanguageData, negotiatedLanguageHandle, passLoaderHeaders } from '@/lib/i18n';
+import { revalidateOnLanguage } from '@/lib/routing';
 
 import type { Route } from './+types/route';
 
@@ -14,6 +15,8 @@ export function loader({ request }: Route.LoaderArgs) {
 }
 
 export const headers = passLoaderHeaders;
+/** A search on an app page must not ask the server for the language again. */
+export const shouldRevalidate = revalidateOnLanguage;
 export const handle = negotiatedLanguageHandle;
 
 export default function AppSegment() {

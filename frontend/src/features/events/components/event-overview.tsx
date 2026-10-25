@@ -8,7 +8,7 @@ import { APP_PATHS } from '@/route-paths';
 import { Button } from '@/ui/kit/button';
 
 import type { EventOverviewData } from '../load';
-import { editEventPath } from '../paths';
+import { editEventPath, guestListPath } from '../paths';
 import type { EventDetail } from '../types';
 import { HeadcountSummary } from './headcount-summary';
 
@@ -64,8 +64,8 @@ function EventDetails({ event }: { event: EventDetail }) {
 }
 
 /**
- * One event: its details and its headcount (design PD-42). "Edit details" is offered to every
- * role; one that may not edit is told so when it tries (FR-6).
+ * One event: its details and its headcount (design PD-42), and the way to its guest list (PD-44).
+ * "Edit details" is offered to every role; one that may not edit is told so when it tries (FR-6).
  */
 export function EventOverview({ data }: { data: EventOverviewData }) {
   const { t } = useTranslation('events');
@@ -80,9 +80,14 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
       </Link>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{event.title}</h1>
-        <Button asChild variant="outline">
-          <Link to={editEventPath(event.id)}>{t('overview.edit')}</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link to={guestListPath(event.id)}>{t('overview.guests')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={editEventPath(event.id)}>{t('overview.edit')}</Link>
+          </Button>
+        </div>
       </div>
       <EventDetails event={event} />
       <HeadcountSummary result={data.headcount} />

@@ -4,19 +4,16 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 
+import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession, logIn } from '@/api/session';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
 
-import { problemFrom, type Problem } from '../problems';
 import { safeNext } from '../safe-next';
 import { signInSchema, type SignInValues } from '../schemas';
 import { useFieldText } from '../use-field-text';
-import { AccountForm } from './account-form';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
-import { ProblemAlert } from './problem-alert';
-import { SubmitButton } from './submit-button';
-import { TextInputField } from './text-input-field';
 
 /** A wrong password and an unknown address are the same 401, and say the same thing (API.md §2). */
 export function SignIn() {
@@ -57,7 +54,7 @@ export function SignIn() {
           refused={(status) => (status === 401 ? t('signIn.refused') : t('problems.check'))}
         />
       ) : null}
-      <AccountForm onSubmit={form.handleSubmit(onSubmit)}>
+      <AppForm onSubmit={form.handleSubmit(onSubmit)}>
         <TextInputField
           label={t('fields.email')}
           type="email"
@@ -75,7 +72,7 @@ export function SignIn() {
         <SubmitButton isSubmitting={isSubmitting}>
           {isSubmitting ? t('signIn.submitting') : t('signIn.submit')}
         </SubmitButton>
-      </AccountForm>
+      </AppForm>
     </AccountLayout>
   );
 }

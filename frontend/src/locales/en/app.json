@@ -5,6 +5,8 @@
     "newEvent": "Create an event · Aveline",
     "event": "Your event · Aveline",
     "editEvent": "Edit the details · Aveline",
+    "guests": "Guests · Aveline",
+    "importGuests": "Import guests · Aveline",
     "named": "{{title}} · Aveline"
   },
   "shell": {

@@ -5,4 +5,5 @@ export { EventList } from './components/event-list';
 export { EventOverview } from './components/event-overview';
 export { EventUnavailable } from './components/event-unavailable';
 export { loadEventOverview } from './load';
-export type { EventSummary } from './types';
+export { eventPath } from './paths';
+export type { EventDetail, EventSummary } from './types';

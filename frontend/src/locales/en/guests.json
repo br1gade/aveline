@@ -1,0 +1,181 @@
+{
+  "count": {
+    "guests_one": "{{count, number}} guest",
+    "guests_other": "{{count, number}} guests",
+    "households_one": "{{count, number}} household",
+    "households_other": "{{count, number}} households",
+    "rows_one": "{{count, number}} row",
+    "rows_other": "{{count, number}} rows"
+  },
+  "list": {
+    "back": "Back to the event",
+    "title": "Guests",
+    "totals": "{{guests}} in {{households}}",
+    "showing": "Showing {{guests}} in {{households}}",
+    "add": "Add a guest",
+    "import": "Import a spreadsheet",
+    "contactHidden": "Email addresses and phone numbers aren’t shown to your role on this event.",
+    "empty": "No guests yet. Import a spreadsheet, or add guests one at a time.",
+    "noMatch": "No guests match.",
+    "clear": "Clear the search and filter",
+    "refused": "The guest list isn’t available to your role on this event."
+  },
+  "toolbar": {
+    "label": "Find guests",
+    "search": "Search by name",
+    "answer": "Answer",
+    "anyAnswer": "Any answer"
+  },
+  "answer": {
+    "ATTENDING": "Coming",
+    "DECLINED": "Not coming",
+    "UNDECIDED": "Not sure yet",
+    "PENDING": "Not answered"
+  },
+  "side": {
+    "SIDE_A": "Side A",
+    "SIDE_B": "Side B",
+    "SHARED": "Both sides",
+    "UNKNOWN": "Not set"
+  },
+  "household": {
+    "seats_one": "{{named}} of {{count}} seat named",
+    "seats_other": "{{named}} of {{count}} seats named",
+    "edit": "Edit household",
+    "addHere": "Add a guest here"
+  },
+  "actionFor": "{{action}}: {{name}}",
+  "row": {
+    "primary": "Receives the invitation",
+    "addedByGuest": "Added by their household",
+    "checkedIn": "Checked in",
+    "erased": "Details erased at their request",
+    "table": "Seated at {{table}}",
+    "edit": "Edit",
+    "remove": "Remove"
+  },
+  "fields": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "language": "Language",
+    "noLanguage": "Not set",
+    "side": "Side",
+    "household": "Household",
+    "newHousehold": "A new household of their own",
+    "householdOption_one": "{{name}} ({{count}} seat free)",
+    "householdOption_other": "{{name}} ({{count}} seats free)",
+    "currentHousehold": "{{name}} (their household now)",
+    "moveHelp": "Choosing another household moves them there.",
+    "seats": "Seats",
+    "seatsHelp": "For them and anyone they may bring, from 1 to 20.",
+    "householdName": "Name",
+    "householdSeats": "Seats",
+    "householdSeatsHelp_one": "At least {{count}}, for the guest already named, and at most 20.",
+    "householdSeatsHelp_other": "At least {{count}}, for the guests already named, and at most 20.",
+    "file": "Spreadsheet (CSV)",
+    "errors": {
+      "required": "Fill this in.",
+      "tooLong": "This is too long.",
+      "seats": "Enter a whole number from 1 to 20.",
+      "seatsBelowNamed": "It can’t have fewer seats than the guests already named in it. Remove or move some first.",
+      "tooLarge": "This file is over 2 MB.",
+      "householdFull": "That household has no free seat left. Give it another seat first, or choose another household.",
+      "email": "This doesn’t look like an email address.",
+      "phone": "This doesn’t look like a phone number.",
+      "refused": "This wasn’t accepted. Check it and try again.",
+      "chooseFile": "Choose a CSV file.",
+      "other": "Check this field."
+    }
+  },
+  "dialog": {
+    "addTitle": "Add a guest",
+    "addSubmit": "Add the guest",
+    "adding": "Adding…",
+    "editTitle": "Edit {{name}}",
+    "editSubmit": "Save changes",
+    "householdTitle": "Edit {{name}}",
+    "householdSubmit": "Save changes",
+    "saving": "Saving…",
+    "cancel": "Cancel"
+  },
+  "remove": {
+    "title": "Remove {{name}}?",
+    "body": "Their answer and their seat go with them, and the headcount stops counting them.",
+    "lastInHousehold": "Nobody else is in “{{household}}”, so the household is removed too.",
+    "handOver": "Someone else in their household will receive the invitation instead.",
+    "confirm": "Remove",
+    "removing": "Removing…",
+    "cancel": "Cancel",
+    "checkedInTitle": "{{name}} can’t be removed",
+    "checkedInBody": "They were checked in at the door, which is the record that they came.",
+    "close": "Close"
+  },
+  "status": {
+    "added": "{{name}} was added.",
+    "saved": "Changes to {{name}} were saved.",
+    "householdSaved": "{{name}} was saved.",
+    "removed": "{{name}} was removed.",
+    "removedWithHousehold": "{{name}} was removed, and so was their household."
+  },
+  "problems": {
+    "check": "Some details weren’t accepted. Check them and try again.",
+    "addForbidden": "Your role on this event lets you see the guest list but not add to it. The event’s owner can change your role.",
+    "editForbidden": "Your role on this event lets you see the guest list but not change it. The event’s owner can change your role.",
+    "householdForbidden": "Your role on this event lets you see the guest list but not change it. The event’s owner can change your role.",
+    "removeForbidden": "Your role on this event lets you see the guest list but not remove guests. The event’s owner can change your role.",
+    "importForbidden": "Your role on this event doesn’t allow importing guests. The event’s owner can change your role.",
+    "addMissing": "That household is no longer on the list. The list has been reloaded.",
+    "editMissing": "This guest, or the household you chose, is no longer on the list. The list has been reloaded.",
+    "householdMissing": "This household is no longer on the list. The list has been reloaded.",
+    "removeMissing": "This guest is no longer on the list. The list has been reloaded.",
+    "importMissing": "This event is no longer available.",
+    "editErased": "This guest’s details can no longer be changed. They may have been erased at their request. The list has been reloaded.",
+    "checkedIn": "This guest was checked in at the door, which is the record that they came, so they can’t be removed. The list has been reloaded.",
+    "moved": "Someone moved this guest to another household just now. The list has been reloaded; try again.",
+    "importRunning": "An import of this list is already running. Try again when it has finished.",
+    "tooLarge": "This file is over 2 MB. A guest list fits well under that, so check it is the right file.",
+    "tooManyRows": "This file has more than 2,000 guests. Split it, and import each part.",
+    "other": "This wasn’t accepted. Try again."
+  },
+  "import": {
+    "title": "Import guests",
+    "back": "Back to the guest list",
+    "lead": "Upload a CSV file of up to 2 MB and 2,000 guests. Each row is a guest, and a first name is all a row needs.",
+    "columns": "Columns are found by their heading: first name, last name, email, phone, household, seats, side and language. Guests who share a household name are invited together.",
+    "excel": "From Excel or Google Sheets, save the file as “CSV UTF-8 (comma delimited)”. A file saved another way may not be read.",
+    "again": "Uploading a corrected file again updates the guests already there rather than adding them twice.",
+    "submit": "Import",
+    "submitAgain": "Import the corrected file",
+    "importing": "Importing…",
+    "result": {
+      "COMPLETED": "Every row was imported: {{guests}}.",
+      "PARTIAL": "{{guests}} imported. {{rows}} could not be imported.",
+      "FAILED": "Nothing was imported. {{rows}} could not be imported.",
+      "PROCESSING": "The import has not finished yet.",
+      "fileRefused": "Nothing was imported."
+    },
+    "refusedTitle": "Not imported",
+    "inEnglish": "The reasons are given in English for now.",
+    "row": "Row {{row}}",
+    "file": "The file",
+    "value": "“{{value}}”",
+    "guestList": "See the guest list",
+    "history": {
+      "title": "Past imports",
+      "empty": "Nothing has been imported yet.",
+      "refused": "Past imports aren’t available to your role on this event.",
+      "when": "{{date}}, {{time}}",
+      "counts": "{{imported}} imported, {{refused}} not imported",
+      "status": {
+        "COMPLETED": "Complete",
+        "PARTIAL": "Some rows not imported",
+        "FAILED": "Nothing imported",
+        "PROCESSING": "Running, or did not finish"
+      },
+      "showRows_one": "Show the row not imported",
+      "showRows_other": "Show the {{count}} rows not imported"
+    }
+  }
+}

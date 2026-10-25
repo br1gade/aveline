@@ -3,6 +3,7 @@ import { useController } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { isLanguage } from '@/lib/i18n';
+import { ErrorLine } from '@/ui/app-form';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { FieldDescription, FieldLegend, FieldSet } from '@/ui/kit/field';
 import { Label } from '@/ui/kit/label';
@@ -11,7 +12,6 @@ import { RadioGroup, RadioGroupItem } from '@/ui/kit/radio-group';
 import { toggleLanguage } from '../form-model';
 import { useEventFieldText } from '../use-field-text';
 import type { EventForm } from './event-fields';
-import { ErrorLine } from './select-field';
 
 /** A language in its own name; a code Aveline does not offer is shown as the code. */
 function useLanguageName(): (code: string) => string {

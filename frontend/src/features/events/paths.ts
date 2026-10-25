@@ -9,3 +9,7 @@ export function eventPath(eventId: string): string {
 export function editEventPath(eventId: string): string {
   return generatePath(APP_PATHS.editEvent, { eventId });
 }
+
+export function guestListPath(eventId: string): string {
+  return generatePath(APP_PATHS.guests, { eventId });
+}

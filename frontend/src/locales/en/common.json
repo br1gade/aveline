@@ -18,5 +18,10 @@
     "hy": "Հայերեն",
     "ru": "Русский",
     "en": "English"
+  },
+  "problems": {
+    "rate-limited": "Too many attempts. Wait a minute, then try again.",
+    "unreachable": "We couldn’t reach Aveline. Check your connection and try again.",
+    "server": "Something went wrong on our side. Please try again in a moment."
   }
 }

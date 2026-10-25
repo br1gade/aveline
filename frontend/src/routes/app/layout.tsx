@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router';
 
 import { AppLoading, AppShell, requireSignedIn } from '@/features/account';
+import { revalidateUnlessQueryOnly } from '@/lib/routing';
 
 import type { Route } from './+types/layout';
 
@@ -14,6 +15,9 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   return null;
 }
 clientLoader.hydrate = true as const;
+
+/** A search or a filter on the same page needs no new session check. */
+export const shouldRevalidate = revalidateUnlessQueryOnly;
 
 export function HydrateFallback() {
   return <AppLoading />;

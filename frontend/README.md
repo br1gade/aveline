@@ -1,8 +1,8 @@
 # Aveline frontend
 
 The web client for Aveline: the guest invitation first, then the organizer app, whose way in
-(sign-in and onboarding) and first event screens (creating, opening and correcting an event)
-exist. React Router 8 with server rendering, on Vite. How it is built:
+(sign-in and onboarding), first event screens (creating, opening and correcting an event) and an
+event's guest list (reading, importing and keeping it) exist. React Router 8 with server rendering, on Vite. How it is built:
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). How we work: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 Agent rules: [CLAUDE.md](CLAUDE.md). The design: [docs/design/](docs/design/README.md).
 

@@ -4,9 +4,10 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import { AccountForm, ProblemAlert, SubmitButton, type Problem } from '@/features/account';
 import { timeZoneOptions } from '@/lib/time';
+import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
 
 import { createEvent } from '../api';
 import { DEFAULT_TIME_ZONE, languageOptions, NEW_EVENT_VALUES } from '../form-model';
@@ -50,12 +51,12 @@ export function CreateEvent() {
       <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('create.title')}</h1>
       <p className="text-muted-foreground m-0">{t('create.lead')}</p>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
-      <AccountForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
+      <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
         <EventFields form={form} mode="create" zones={zones} languages={languageOptions()} />
         <SubmitButton isSubmitting={isSubmitting} className="w-auto self-start">
           {isSubmitting ? t('create.submitting') : t('create.submit')}
         </SubmitButton>
-      </AccountForm>
+      </AppForm>
     </section>
   );
 }

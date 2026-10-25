@@ -1,14 +1,13 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-import { TextInputField } from '@/features/account';
+import { SelectField, TextInputField } from '@/ui/app-form';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
 import type { EventFormInput, EventFormValues } from '../schemas';
 import { EVENT_TYPES } from '../types';
 import { useEventFieldText } from '../use-field-text';
 import { LanguageFields } from './language-fields';
-import { SelectField } from './select-field';
 
 export type EventForm = UseFormReturn<EventFormInput, unknown, EventFormValues>;
 

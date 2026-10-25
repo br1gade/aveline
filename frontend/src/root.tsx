@@ -12,6 +12,7 @@ import {
 
 import { isApiError } from '@/api/errors';
 import { createI18n, usePageLanguage } from '@/lib/i18n';
+import { revalidateUnlessQueryOnly } from '@/lib/routing';
 import { createNonce } from '@/lib/security/headers';
 
 import type { Route } from './+types/root';
@@ -30,6 +31,9 @@ export function links() {
 export function loader() {
   return { nonce: createNonce() };
 }
+
+/** A search or a filter typed on a page needs no new nonce, which only a document response uses. */
+export const shouldRevalidate = revalidateUnlessQueryOnly;
 
 export function Layout({ children }: { children: ReactNode }) {
   const data = useRouteLoaderData<typeof loader>('root');

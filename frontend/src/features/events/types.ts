@@ -33,6 +33,9 @@ export interface EventDetail extends EventSummary {
   endsAt: string | null;
   locales: string[];
   defaultLocale: string;
+  /** The host's names for the two sides, the guest list's `SIDE_A` and `SIDE_B`; `null` when unset. */
+  sideALabel: string | null;
+  sideBLabel: string | null;
   /** `null` when no design template existed as the event was created (docs/API.md §6). */
   invitation: { slug: string; status: InvitationStatus } | null;
 }

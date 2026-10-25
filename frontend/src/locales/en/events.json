@@ -55,6 +55,7 @@
   "overview": {
     "back": "Your events",
     "edit": "Edit details",
+    "guests": "Guest list",
     "type": "Kind",
     "hosts": "Hosts",
     "when": "When",
@@ -112,6 +113,7 @@
     "title": "This event isn’t available",
     "body": "It may not exist, or your account isn’t on it.",
     "failed": "The event couldn’t be loaded. Please try again in a moment.",
+    "rateLimited": "Too many requests just now. Wait a minute, then reload the page.",
     "back": "Your events"
   }
 }

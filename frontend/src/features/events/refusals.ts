@@ -2,7 +2,7 @@ import type { UseFormSetError } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { isApiError } from '@/api/errors';
-import { problemFrom, type Problem } from '@/features/account';
+import { problemFrom, type Problem } from '@/api/problems';
 
 import type { EventFormInput } from './schemas';
 import { refusedFields } from './server-errors';

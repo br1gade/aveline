@@ -4,9 +4,10 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
+import { type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import { AccountForm, ProblemAlert, SubmitButton, type Problem } from '@/features/account';
 import { timeZoneOptions } from '@/lib/time';
+import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { updateEvent } from '../api';
@@ -70,7 +71,7 @@ function EditForm({ event, onSuggested }: EditFormProps) {
       </div>
       <p className="m-0">{t('edit.lead')}</p>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
-      <AccountForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
+      <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
         <EventFields
           form={form}
           mode="edit"
@@ -85,7 +86,7 @@ function EditForm({ event, onSuggested }: EditFormProps) {
             <Link to={eventPath(event.id)}>{t('edit.cancel')}</Link>
           </Button>
         </div>
-      </AccountForm>
+      </AppForm>
     </section>
   );
 }

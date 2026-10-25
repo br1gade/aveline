@@ -4,7 +4,7 @@ import { createI18n, SOURCE_LANGUAGE, type Language } from '@/lib/i18n';
 const NOINDEX = { name: 'robots', content: 'noindex' } as const;
 
 type AccountPage = 'signIn' | 'register' | 'resetPassword' | 'verifyEmail' | 'invite';
-type AppPage = 'home' | 'welcome' | 'newEvent' | 'event' | 'editEvent';
+type AppPage = 'home' | 'welcome' | 'newEvent' | 'event' | 'editEvent' | 'guests' | 'importGuests';
 
 export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
   const t = createI18n(language).getFixedT(language, 'account');

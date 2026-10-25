@@ -2,14 +2,9 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import {
-  AccountForm,
-  ProblemAlert,
-  problemFrom,
-  SubmitButton,
-  type Problem,
-} from '@/features/account';
+import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Field, FieldDescription, FieldLabel } from '@/ui/kit/field';
 import { Textarea } from '@/ui/kit/textarea';
@@ -111,7 +106,7 @@ export function NotifyGuests({ eventId, offer }: { eventId: string; offer: Notif
       {result ? (
         <NotifySent result={result} eventId={eventId} />
       ) : (
-        <AccountForm
+        <AppForm
           onSubmit={(submit) => {
             submit.preventDefault();
             void send();
@@ -127,7 +122,7 @@ export function NotifyGuests({ eventId, offer }: { eventId: string; offer: Notif
               <Link to={eventPath(eventId)}>{t('notify.later')}</Link>
             </Button>
           </div>
-        </AccountForm>
+        </AppForm>
       )}
     </section>
   );

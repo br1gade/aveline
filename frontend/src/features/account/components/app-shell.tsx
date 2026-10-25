@@ -83,7 +83,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [hasSignOutFailed, setHasSignOutFailed] = useState(false);
   useSignInWhenSignedOut();
-  const hrefFor = (language: Language) => `${location.pathname}?lang=${language}`;
+  // The rest of the query stays, so a language switch keeps the guest list's search and filter.
+  const hrefFor = (language: Language) => {
+    const query = new URLSearchParams(location.search);
+    query.set('lang', language);
+    return `${location.pathname}?${query.toString()}`;
+  };
 
   return (
     <div className="bg-background text-foreground min-h-svh text-[15px] leading-[22px]">

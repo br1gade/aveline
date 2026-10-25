@@ -1,4 +1,4 @@
-import { isApiError } from '@/api/errors';
+import { isApiError } from './errors';
 
 /**
  * What went wrong with a submission, in the client's terms. The backend's messages are English
