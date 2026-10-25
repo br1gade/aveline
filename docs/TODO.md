@@ -204,7 +204,12 @@ placement in the backlog's revenue/services table.
 The [post-pilot delivery plan](POST_PILOT_IMPLEMENTATION_PLAN.md) records the
 25 October implementation audit, unresolved decisions and slice dependencies.
 Bank and tax choices remain undecided; PP1a local validation is implemented and
-verified. Commercial features remain open.
+verified. Commercial features remain open. The plan now also distinguishes
+[feature dependencies and parallel lanes](POST_PILOT_IMPLEMENTATION_PLAN.md#dependency-map-and-parallel-delivery),
+including independent F36/F43 and the separate F42 workflows. Three detailed
+[production implementation designs](POST_PILOT_IMPLEMENTATION_PLAN.md#6-three-agent-production-implementation-design)
+now cover all fourteen features, with shared contracts, delivery waves and
+feature-specific decision gates. These are plans, not completed features.
 
 ### PP1 — Paid-launch readiness and invoice tax (F35)
 
