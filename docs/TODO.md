@@ -212,7 +212,9 @@ including independent F36/F43 and the separate F42 workflows. Three detailed
 now cover all fourteen features, with shared contracts, delivery waves and
 feature-specific gates. Product-policy interview complete; bank/tax/protected-
 record retention remain external inputs, and actual commercial/operator values
-are ADMIN configuration before use. These are plans, not completed features.
+are ADMIN configuration before use. These are plans, not completed features. The next [execution wave](post-pilot/execution/README.md)
+provides file-level blueprints for F39 intake, F38 organizations and F44 templates,
+including migration sequencing, first failing tests and rollout/recovery gates.
 
 ### PP1 — Paid-launch readiness and invoice tax (F35)
 

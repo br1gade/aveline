@@ -379,3 +379,33 @@ and wrote design artifacts; no product code, migration, provider call, database
 write, real send, charge or deployment was performed. Documentation consistency,
 relative links and Git whitespace are checked after assembling the package;
 functional suites are not rerun for unchanged product code.
+
+
+## 7. First execution wave — three implementation blueprints
+
+The next parallel planning wave narrows the broad designs to F39, F38 and F44.
+[Execution coordination](post-pilot/execution/README.md) defines their shared
+interfaces, migration ownership, integration order and evidence gates:
+
+- [Staff enquiries and consultations — F39](post-pilot/execution/INTAKE.md):
+  assigned staff access, bounded case workflow, operator conflict exclusion,
+  atomic draft setup, verified privacy handling and retention/restore safety.
+- [Multiple organizations — F38](post-pilot/execution/ORGANIZATIONS.md):
+  exact per-tab context, compatible readers before constraint removal, atomic
+  leave/removal, ownership protection and worker access revocation.
+- [Template authoring — F44](post-pilot/execution/TEMPLATES.md): immutable
+  baseline/version pins, private drafts and assets, ADMIN publication and explicit
+  event adoption, with renderer capabilities verified before new publication.
+
+Each blueprint identifies source touchpoints, proposed schema and HTTP contracts,
+red-first tests, concurrency cases, small commits and rollout/recovery evidence.
+All proposed behavior remains unimplemented. These plans do not modify the live
+API contract or close backlog features. Source review found renderer/seed and
+French-support mismatches in the locally available frontend snapshot; the F44
+plan records that evidence without claiming it represents the latest remote work.
+
+The current branch remains `codex/post-pilot-backend`. Future implementation
+branches in the coordination document are proposals; this planning pass creates
+no feature branch, applies no migration and executes no functional test suite.
+Documentation checks, relative links, whitespace and repository-required lint
+are validated for this documentation change.
