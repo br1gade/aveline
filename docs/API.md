@@ -3501,3 +3501,60 @@ originals and variants asynchronously. Event deletion leaves cleanup tombstones,
 so interrupted workers cannot orphan private files. Pending frontend work includes
 the four-language capture, moderation, pending/error states and ticket pre-check-in
 flow; these backend endpoints alone do not satisfy pilot acceptance.
+
+### Immutable invitation templates and controlled authoring
+
+`GET /events/:eventId/design-templates` retains its array shape and legacy fields,
+scoped to active shared and same-organization private versions. Entries add
+`versionId`, `versionNumber`, `rendererKey`, `capabilityVersion`, `contentHash` and
+`scope`. Existing event-only DESIGNER permissions remain valid. Current selected
+retired versions remain readable through the design/current-preview routes.
+`GET /invitations/:slug/design` adds `designRevision` as a decimal string and its
+template contains the exact immutable `versionId`/`versionNumber`. Public legacy
+invitation fields/values remain unchanged; no template catalogue edit upgrades an
+event or changes its captured lifetime, attendance or acknowledgement history.
+
+`POST /invitations/:slug/template-upgrade-preview` accepts
+`{targetVersionId,expectedDesignRevision}` (revision is a decimal string), and
+returns an expiring requester-bound `previewId`, source/target version/hash,
+`changes` and synthetic-guest event `payloads` for event locales. It performs no
+invitation mutation. Confirmation uses the existing `POST /invitations/:slug/template`
+with `{templateKey,templateVersionId,previewId,expectedTemplateVersionId,
+expectedDesignRevision,idempotencyKey}`; idempotency keys are UUIDs. Stale design,
+expired preview, wrong requester or changed source pin returns 409. Confirmation
+applies exactly the previewed version and transforms blocks atomically: unsupported
+blocks are disabled with content retained; invalid variants reset to null; theme
+resets only for a different immutable version. Event uploads are retained.
+Legacy key-only selection remains available only for legacy baselines; repeating
+the current key preserves its pin and never upgrades it. Authored selection needs
+explicit preview/confirmation. Artwork-dependent adoption refuses unprepared
+private artwork instead of returning broken or public source URLs.
+
+Platform author API (`private, no-store`; no event membership is granted):
+
+| Method | Endpoint | Request/result |
+|---|---|---|
+| POST | `/design-templates` | ADMIN: `{organizationId?,key?,definition}`; shared requires key, private forbids it and generates opaque key; inactive identity+first draft |
+| GET | `/design-templates/:templateId` | ADMIN or assigned active SUPPORT: versions/open draft/asset status |
+| POST | `/design-templates/:templateId/drafts` | `{expectedRevision}` opens one draft |
+| PATCH | `/design-templates/:templateId/drafts/:draftId` | `{expectedRevision,definition}` merges only supplied definition fields |
+| POST | `/design-templates/:templateId/drafts/:draftId/validate` | Field errors and `canPublish`/renderer acceptance status |
+| POST | `/design-templates/:templateId/drafts/:draftId/preview` | Four-locale en/ru/fr/hy payload-only synthetic fixture and 15-minute receipt |
+| POST | `/design-templates/:templateId/drafts/:draftId/publish` | ADMIN: `{expectedRevision,previewId,contentHash,idempotencyKey}` atomically allocates immutable version+receipt+active pointer |
+| POST | `/design-templates/:templateId/retire` | ADMIN: `{expectedRevision}` disables future selection |
+| POST | `/design-templates/:templateId/assignments` | ADMIN: `{expectedRevision,userId}` assigns active SUPPORT |
+| POST | `/design-templates/:templateId/assignments/revoke` | ADMIN: `{expectedRevision,userId}` revokes assignment |
+| POST | `/design-templates/:templateId/drafts/:draftId/assets` | Multipart: one raster file≤5MiB, PHOTO/COVER kind, expectedRevision, UUID idempotencyKey; 202 processing |
+| GET | `/design-templates/:templateId/assets/:assetId/file` | Current authorized sanitized bytes; no redirects or storage URLs |
+| DELETE | `/design-templates/:templateId/drafts/:draftId/assets/:assetId` | `{expectedRevision}` retires unreferenced artwork |
+
+`definition` contains only `name`, `allowedFonts`, `palettes`, `supportedBlocks`,
+`blockVariants`, `defaultTheme`, `rendererKey`. Arrays, strings, palettes and
+nested keys are bounded; aggregate ≤64KiB. Unknown fields, remote fonts/URLs,
+CSS/HTML/script/layout code are rejected. Published versions and frozen drafts
+cannot be mutated. The backend seed ceiling is not renderer evidence. No
+production manifest is approved yet, so publication fails closed with 503 even
+when the publication flag is enabled. Renderer integration, named palette roles,
+bundled fonts, all four languages, inert preview and mobile/desktop visual
+acceptance remain a frontend release gate. See the
+[capability contract](contracts/invitation-renderer-capabilities/README.md).

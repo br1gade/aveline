@@ -321,3 +321,13 @@ retained, and no phone is globally suppressed based on an ambiguous delivery
 failure. Erased message recipients cannot be mutated by late receipts. Host
 delivery evidence retains the report's `guest:read` permission and existing
 `guest:contact:read` restriction for addresses; no new permission is added.
+
+### Template platform authority
+
+`template:author`, `template:publish` and `template:assign` are platform-only.
+ADMIN has all three; SUPPORT has coarse author access and must also hold an
+active explicit template assignment checked under the template lock. Only ADMIN
+creates identities, assigns/revokes SUPPORT, publishes or retires. Organization
+OWNER and event DESIGNER do not inherit these permissions. Author file reads
+recheck live account/assignment authority after private storage reads. Assignment
+never grants a customer membership.

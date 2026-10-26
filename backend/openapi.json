@@ -4852,10 +4852,382 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/template-upgrade-preview": {
+      "post": {
+        "operationId": "TemplateAdoptionController_preview",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpgradePreviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Preview an exact immutable version against a fenced event design before explicit confirmation",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/assets": {
+      "post": {
+        "operationId": "TemplateAssetsController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateAssetUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "summary": "Stage private raster artwork for background sanitization; no public source URL",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/assets/{assetId}/file": {
+      "get": {
+        "operationId": "TemplateAssetsController_file",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read sanitized artwork with current assignment checked before and after storage IO",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/assets/{assetId}": {
+      "delete": {
+        "operationId": "TemplateAssetsController_remove",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Retire unreferenced draft artwork with durable object cleanup tombstones",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates": {
+      "post": {
+        "operationId": "TemplateAuthoringController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN creates an inactive shared or organization-private template with its first draft",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}": {
+      "get": {
+        "operationId": "TemplateAuthoringController_read",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read template history and open draft; SUPPORT requires an active assignment",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts": {
+      "post": {
+        "operationId": "TemplateAuthoringController_openDraft",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Open a draft from the immutable selected version",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}": {
+      "patch": {
+        "operationId": "TemplateAuthoringController_patch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTemplateDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Merge renderer definition fields with revision checking",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/validate": {
+      "post": {
+        "operationId": "TemplateAuthoringController_validate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Validate backend structure; publication remains closed until tested frontend capabilities are deployed",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/preview": {
+      "post": {
+        "operationId": "TemplateAuthoringController_preview",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Produce inert synthetic en/ru/fr/hy JSON fixtures without guest data",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/publish": {
+      "post": {
+        "operationId": "TemplateAuthoringController_publish",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN publication gate; returns 503 until reviewed renderer acceptance exists",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/retire": {
+      "post": {
+        "operationId": "TemplateAuthoringController_retire",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN retires future selection while preserving every existing version pin",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/assignments": {
+      "post": {
+        "operationId": "TemplateAuthoringController_assign",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN assigns active SUPPORT without creating customer membership",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/assignments/revoke": {
+      "post": {
+        "operationId": "TemplateAuthoringController_revoke",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN revokes SUPPORT access atomically",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/design-templates/{templateKey}/preview": {
       "get": {
         "operationId": "TemplatePreviewsController_catalogue",
         "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "templateKey",
             "required": true,
@@ -4954,7 +5326,16 @@
       "get": {
         "description": "Each entry declares the fonts, palettes and blocks it supports.",
         "operationId": "DesignController_listTemplates",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -7770,6 +8151,125 @@
         "required": [
           "name",
           "ownerEmail"
+        ]
+      },
+      "TemplateUpgradePreviewDto": {
+        "type": "object",
+        "properties": {
+          "targetVersionId": {
+            "type": "string"
+          },
+          "expectedDesignRevision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetVersionId",
+          "expectedDesignRevision"
+        ]
+      },
+      "TemplateAssetUploadDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PHOTO",
+              "COVER"
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "idempotencyKey",
+          "kind"
+        ]
+      },
+      "TemplateRevisionDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ]
+      },
+      "CreateTemplateDto": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "definition": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "definition"
+        ]
+      },
+      "PatchTemplateDraftDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "definition": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "definition"
+        ]
+      },
+      "PublishTemplateDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "previewId": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "idempotencyKey",
+          "previewId",
+          "contentHash"
+        ]
+      },
+      "TemplateAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "userId"
         ]
       },
       "ChooseTemplateDto": {

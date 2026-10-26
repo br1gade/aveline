@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -46,7 +47,7 @@ describe('The running order (e2e)', () => {
   const runningOrder = async () => {
     const seeded = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
     const { authorization } = await authenticateAs(app, prisma, { eventId: seeded.eventId, role: EventRole.COORDINATOR });
-    await prisma.designTemplate.update({
+    await reviseTemplateFixture(prisma, {
       where: { key: 'test-template' },
       data: { supportedBlocks: ['HERO', 'TIMELINE', 'RSVP'] },
     });
@@ -178,7 +179,7 @@ describe('The running order (e2e)', () => {
   // where the bride gets ready and places only the crew's entries use.
   it('shows guests only the venues meant for them', async () => {
     const { eventId, slug, authorization } = await runningOrder();
-    await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'VENUE', 'TIMELINE', 'RSVP'] } });
+    await reviseTemplateFixture(prisma, { where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'VENUE', 'TIMELINE', 'RSVP'] } });
     await http().patch(`/api/v1/invitations/${slug}/arrangement`).set('Authorization', authorization).send({ blocks: [{ type: 'HERO' }, { type: 'VENUE' }, { type: 'TIMELINE' }, { type: 'RSVP' }] }).expect(200);
     const venue = (role: string, name: string) =>
       http().post(`/api/v1/events/${eventId}/venues`).set('Authorization', authorization).send({ role, name, address: 'Yerevan' }).expect(201);

@@ -12,6 +12,8 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -82,6 +84,12 @@ export class ChooseTemplateDto {
   @IsString()
   @MaxLength(64)
   templateKey!: string;
+  @IsOptional() @IsString() @MaxLength(128) templateVersionId?: string;
+  @IsOptional() @IsString() @MaxLength(128) previewId?: string;
+  @IsOptional() @IsString() @MaxLength(128) expectedTemplateVersionId?: string;
+  @IsOptional() @IsString() @Matches(/^[1-9][0-9]{0,18}$/) expectedDesignRevision?: string;
+  @IsOptional() @IsUUID() idempotencyKey?: string;
+
 }
 
 export class UpsertQuestionDto {

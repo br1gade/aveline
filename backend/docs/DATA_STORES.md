@@ -384,3 +384,12 @@ acquisition durations; it stores no span attributes or SQL and has no network
 exporter. Private sampler files also capture RSS/event-loop delay. This adds no
 production HTTP diagnostic endpoint or correctness dependency; see
 [PILOT_REHEARSAL.md](PILOT_REHEARSAL.md). Production acceptance remains open.
+
+Template versions, drafts, assignments, audits, preview/transition receipts and
+private artwork object tombstones live in PostgreSQL. The template asset worker
+uses SKIP LOCKED/leases and bounded sharp decoding outside request transactions;
+private source/sanitized bytes use the separate private storage adapter. Template
+publication/retirement does not invalidate consuming event caches: those read
+immutable pins. Explicit adoption advances durable invitation design/shared page
+revisions; Redis failure remains a cache miss. No guest credentials/source object
+URLs enter template catalogues or shared cached payloads.

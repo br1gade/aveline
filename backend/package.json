@@ -39,6 +39,7 @@
     "seed:production": "ts-node src/seed-production.ts",
     "start:export-worker": "node --max-old-space-size=384 dist/export-worker.js",
     "start:seating-worker": "node --max-old-space-size=256 dist/seating-worker.js",
+    "start:template-asset-worker": "node --max-old-space-size=256 dist/template-asset-worker.js",
     "start:private-media-worker": "node --max-old-space-size=256 dist/private-media-worker.js",
     "pilot:cache": "ts-node scripts/personalized-cache-rehearsal.ts",
     "test:pilot": "node --test --test-isolation=none scripts/pilot/*.test.mjs",

@@ -36,6 +36,7 @@ export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
 
   assertWholeNumbers(raw, ['ACCESS_TOKEN_TTL_SECONDS', 'REFRESH_TOKEN_TTL_DAYS']);
   assertEmailQuotaSettings(raw);
+  assertTemplateFlags(raw);
   assertExportRetention(raw);
   const feedbackSecret = asText(raw.EMAIL_FEEDBACK_SECRET);
   if (feedbackSecret && feedbackSecret.length < 32) throw new Error('EMAIL_FEEDBACK_SECRET must have at least 32 characters');
@@ -121,4 +122,10 @@ function assertExportRetention(raw: Record<string, unknown>): void {
   if (raw.EXPORT_RETENTION_DAYS === undefined) return;
   const value = asText(raw.EXPORT_RETENTION_DAYS) ?? '';
   if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 30) throw new Error('EXPORT_RETENTION_DAYS must be a whole number between 1 and 30');
+}
+
+function assertTemplateFlags(raw: Record<string, unknown>): void {
+  for (const flag of ['TEMPLATE_AUTHORING_ENABLED', 'TEMPLATE_PUBLISH_ENABLED', 'TEMPLATE_ADOPTION_ENABLED', 'TEMPLATE_ASSETS_ENABLED']) {
+    if (raw[flag] !== undefined && !['true', 'false'].includes(asText(raw[flag]) ?? '')) throw new Error(`${flag} must be true or false`);
+  }
 }
