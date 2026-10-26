@@ -107,7 +107,9 @@ numbers, nor see what the caterer is charging. The role grants
 **Whoever creates an event becomes its OWNER only if they own the
 organization.** A `MANAGER` who creates one becomes its `COORDINATOR`: they
 run it fully, but deleting it and managing its team stay with the
-organization's owner (decided 10 October 2026).
+organization's owner (decided 10 October 2026). The creator role is resolved
+from membership in that event's exact organization; an OWNER role in another
+organization cannot make them OWNER here.
 
 **Event roles are granted by invitation.** An event `OWNER` holds
 `member:manage` for that event: they invite someone by email with a role,

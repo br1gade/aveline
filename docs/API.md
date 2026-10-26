@@ -2353,6 +2353,9 @@ a custom slug yet.
 **`403` means the account has no organization, or its role there cannot
 write events** — an organization `MEMBER` or `VIEWER` is read-only.
 
+Event creator ownership uses the membership in the event's organization only;
+roles elsewhere never grant ownership here.
+
 **An account belongs to one organization, for now.** A second
 `POST /organizations` is a `409`, and so is accepting an invitation into a
 second organization — the message names the one the account is already in.
