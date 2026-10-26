@@ -249,6 +249,7 @@ model Event {
   payments            Payment[]
   vendorBookings      VendorBooking[]
 
+  @@unique([id, organizationId])
   @@index([organizationId])
   @@index([startsAt])
   @@map("events")

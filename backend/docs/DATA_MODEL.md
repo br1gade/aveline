@@ -38,6 +38,10 @@ lives outside Postgres.
 | `TimelineEntry` | A moment with a time and a place |
 | `EventListing` | The public face of a PUBLIC or UNLISTED event |
 
+Event `(id, organizationId)` is also a unique reference key. Tenant-scoped
+child records can reference both values together so an event ID cannot be paired
+with a different organization. This adds no event-transfer behavior.
+
 ### Invitation and design
 | Model | Purpose |
 |---|---|
