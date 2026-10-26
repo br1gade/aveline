@@ -17,7 +17,7 @@ export class JobRecoveryDto {
   locale!: string;
   @ApiProperty()
   userMessage!: string;
-  @ApiProperty({ enum: ['EDIT', 'SIGN_IN', 'REQUEST_ACCESS', 'CONTACT_HOST', 'RELOAD', 'REGENERATE', 'WAIT', 'REUPLOAD', 'CONTACT_SUPPORT', 'RETRY'] })
+  @ApiProperty({ enum: ['EDIT', 'SIGN_IN', 'REQUEST_ACCESS', 'CONTACT_HOST', 'RELOAD', 'REGENERATE', 'WAIT', 'REUPLOAD', 'CONTACT_SUPPORT', 'RETRY', 'SELECT_ORGANIZATION', 'HAND_OVER_OWNERSHIP'] })
   action!: string;
 }
 

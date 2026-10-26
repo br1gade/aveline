@@ -1,3 +1,6 @@
+import { lockOwnerAddress, lockOrganizationStanding, lockEventOrganization, requireCurrentOrganizationPermission, requireCurrentEventPermission } from './access-locks';
+import { canAddOrganizationMembership } from './organization-write-gate';
+import { incrementOrganizationRevision } from '../../modules/organizations/organization-membership';
 import {
   BadRequestException,
   ConflictException,
@@ -241,53 +244,34 @@ export class AccountService {
    * person expects after asking for the email again.
    */
   async inviteMember(organizationId: string, invitedByUserId: string, dto: InviteMemberDto) {
-    const organization = await this.prisma.organization.findUniqueOrThrow({
-      where: { id: organizationId },
-      select: { name: true },
-    });
-    const alreadyMember = await this.prisma.organizationMembership.findFirst({
-      where: { organizationId, user: { email: dto.email } },
-    });
-    if (alreadyMember) throw new BadRequestException('That person is already a member');
+    return this.prisma.$transaction((tx) => this.inviteMemberInTransaction(tx, { organizationId, invitedByUserId, dto }), { timeout: 10_000, maxWait: 5000 });
+  }
 
+  async inviteMemberInTransaction(tx: Prisma.TransactionClient, input: { organizationId: string; invitedByUserId: string; dto: InviteMemberDto; reusePendingOwner?: boolean; isConcierge?: boolean }) {
+    const { organizationId, invitedByUserId, dto } = input;
+    const email = dto.email.trim().toLowerCase();
+    await lockOrganizationStanding(tx, { organizationId, mode: 'update' });
+    await tx.$queryRaw`SELECT id FROM organization_invites WHERE "organizationId" = ${organizationId} AND email = ${email} FOR UPDATE`;
+    await requireCurrentOrganizationPermission(tx, { actor: { userId: invitedByUserId, email: '', platformRole: 'NONE' }, organizationId, permission: input.isConcierge ? 'concierge:manage' : 'member:manage' });
+    const organization = await tx.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { name: true } });
+    if (await tx.organizationMembership.findFirst({ where: { organizationId, user: { email: { equals: email, mode: 'insensitive' } } }, select: { id: true } })) throw new BadRequestException('That person is already a member');
+    const previous = await tx.organizationInvite.findUnique({ where: { organizationId_email: { organizationId, email } } });
+    if (previous && input.reusePendingOwner && isPendingOwnerInvite(previous)) {
+      const message = await tx.message.findUnique({ where: { dedupeKey: `organization.invite:${previous.tokenHash}` }, select: { id: true, status: true } });
+      return { sent: true as const, email, role: previous.role, invitationId: previous.id, messageId: message?.id ?? null, messageStatus: message?.status ?? null, devLink: undefined as string | undefined };
+    }
     const token = newRefreshToken();
-    await this.prisma.organizationInvite.upsert({
-      where: { organizationId_email: { organizationId, email: dto.email } },
-      create: {
-        organizationId,
-        email: dto.email,
-        role: dto.role,
-        invitedByUserId,
-        tokenHash: hashRefreshToken(token),
-        expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS),
-      },
-      update: {
-        role: dto.role,
-        invitedByUserId,
-        tokenHash: hashRefreshToken(token),
-        expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS),
-        acceptedAt: null,
-        revokedAt: null,
-      },
+    const fresh = { role: dto.role, invitedByUserId, tokenHash: hashRefreshToken(token), expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS) };
+    const invitation = await tx.organizationInvite.upsert({
+      where: { organizationId_email: { organizationId, email } }, create: { organizationId, email, ...fresh },
+      update: { ...fresh, acceptedAt: null, acceptedByUserId: null, revokedAt: null },
     });
-
-    await this.mail({
-      templateKey: 'organization.invite',
-      toAddress: dto.email,
-      organizationId,
-      variables: {
-        organizationName: organization.name,
-        role: dto.role,
-        link: this.linkFor('/accept-invite', token),
-      },
+    const message = await this.communications.enqueueInTransaction(tx, { organizationId, channel: MessageChannel.EMAIL,
+      templateKey: 'organization.invite', toAddress: email, locale: this.defaultLocale,
+      variables: { organizationName: organization.name, role: dto.role, link: this.linkFor('/accept-invite', token) },
+      dedupeKey: `organization.invite:${fresh.tokenHash}`,
     });
-
-    return {
-      sent: true as const,
-      email: dto.email,
-      role: dto.role,
-      ...this.devLink('/accept-invite', token),
-    };
+    return { sent: true as const, email, role: dto.role, invitationId: invitation.id, messageId: message.id, messageStatus: message.status, ...this.devLink('/accept-invite', token) };
   }
 
   /**
@@ -304,34 +288,30 @@ export class AccountService {
    * every other session out — and then accepts.
    */
   async acceptInvite(dto: AcceptInviteDto) {
-    const invite = await this.prisma.organizationInvite.findUnique({
-      where: { tokenHash: hashRefreshToken(dto.token) },
-    });
-
-    if (!invite || invite.revokedAt || invite.acceptedAt || isExpired(invite.expiresAt)) {
-      throw new BadRequestException('This invitation is no longer valid');
-    }
-
-    const admit = await this.prepareInvitee(invite.email, dto);
-    await this.assertNoOtherOrganization(invite.email, invite.organizationId);
-
-    const membership = await this.prisma.$transaction(async (tx) => {
-      assertClaimed(await tx.organizationInvite.updateMany({ where: liveInvite(invite.id), data: { acceptedAt: new Date() } }));
-      const user = await admit(tx);
-
-      return tx.organizationMembership.upsert({
-        where: { userId_organizationId: { userId: user.id, organizationId: invite.organizationId } },
-        create: { userId: user.id, organizationId: invite.organizationId, role: invite.role },
-        update: { role: invite.role },
-      });
-    });
-
-    return {
-      ok: true as const,
-      organizationId: membership.organizationId,
-      role: membership.role,
-      accountCreated: admit.isNewAccount,
-    };
+    const tokenHash = hashRefreshToken(dto.token);
+    const initial = await this.prisma.organizationInvite.findUnique({ where: { tokenHash } });
+    assertValidInvitation(initial);
+    const admit = await this.prepareInvitee(initial.email, dto);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockOwnerAddress(tx, initial.email);
+      await lockOrganizationStanding(tx, { organizationId: initial.organizationId, mode: 'update' });
+      await tx.$queryRaw`SELECT id FROM organization_invites WHERE id = ${initial.id} FOR UPDATE`;
+      const invite = await tx.organizationInvite.findUnique({ where: { id: initial.id } });
+      assertValidInvitation(invite, tokenHash);
+      const canAddMembership = await canAddOrganizationMembership(tx);
+      const user = await admit(tx, !canAddMembership);
+      const current = await tx.organizationMembership.findUnique({ where: { userId_organizationId: { userId: user.id, organizationId: invite.organizationId } } });
+      if (invite.acceptedAt) {
+        if (invite.acceptedByUserId !== user.id || !current) throw invalidInvitation();
+        return { membership: current, accountCreated: false };
+      }
+      if (!canAddMembership) await this.assertNoOtherOrganization(tx, user.id, invite.organizationId);
+      assertClaimed(await tx.organizationInvite.updateMany({ where: { ...liveInvite(invite.id), tokenHash }, data: { acceptedAt: new Date(), acceptedByUserId: user.id } }));
+      const membership = current ?? await tx.organizationMembership.create({ data: { userId: user.id, organizationId: invite.organizationId, role: invite.role } });
+      if (!current) await incrementOrganizationRevision(tx, invite.organizationId);
+      return { membership, accountCreated: admit.isNewAccount };
+    }, { timeout: 10_000, maxWait: 5000 });
+    return { ok: true as const, organizationId: result.membership.organizationId, role: result.membership.role, accountCreated: result.accountCreated };
   }
 
   /**
@@ -341,69 +321,61 @@ export class AccountService {
    */
   async inviteToEvent(eventId: string, invitedByUserId: string, dto: InviteToEventDto) {
     const email = dto.email.trim().toLowerCase();
-    const event = await this.prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { title: true, organizationId: true },
-    });
-    const alreadyOnTeam = await this.prisma.eventMembership.findFirst({
-      where: { eventId, user: { email: { equals: email, mode: 'insensitive' } } },
-    });
-    if (alreadyOnTeam) throw new BadRequestException("That person is already on this event's team");
-
     const token = newRefreshToken();
-    const fresh = {
-      role: dto.role,
-      invitedByUserId,
-      tokenHash: hashRefreshToken(token),
-      expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS),
-    };
-    await this.prisma.eventInvite.upsert({
-      where: { eventId_email: { eventId, email } },
-      create: { eventId, email, ...fresh },
-      update: { ...fresh, acceptedAt: null, revokedAt: null },
-    });
-
-    await this.mail({
-      templateKey: 'event.invite',
-      toAddress: email,
-      organizationId: event.organizationId,
-      variables: { eventTitle: event.title, role: dto.role, link: this.linkFor('/accept-event-invite', token) },
-    });
-
+    await this.prisma.$transaction(async (tx) => {
+      const organizationId = await lockEventOrganization(tx, eventId);
+      await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM event_invites WHERE "eventId" = ${eventId} AND email = ${email} FOR UPDATE`;
+      await requireCurrentEventPermission(tx, { actor: { userId: invitedByUserId }, eventId, permission: 'member:manage' });
+      const event = await tx.event.findUniqueOrThrow({ where: { id: eventId }, select: { title: true } });
+      const existing = await tx.eventMembership.findFirst({ where: { eventId, user: { email: { equals: email, mode: 'insensitive' } } }, select: { id: true } });
+      if (existing) throw new BadRequestException("That person is already on this event's team");
+      const fresh = { role: dto.role, invitedByUserId, tokenHash: hashRefreshToken(token), expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS) };
+      await tx.eventInvite.upsert({ where: { eventId_email: { eventId, email } }, create: { eventId, email, ...fresh }, update: { ...fresh, acceptedAt: null, acceptedByUserId: null, revokedAt: null } });
+      await this.communications.enqueueInTransaction(tx, { organizationId, eventId, channel: MessageChannel.EMAIL,
+        templateKey: 'event.invite', toAddress: email, locale: this.defaultLocale,
+        variables: { eventTitle: event.title, role: dto.role, link: this.linkFor('/accept-event-invite', token) }, dedupeKey: `event.invite:${fresh.tokenHash}` });
+    }, { timeout: 10_000, maxWait: 5000 });
     return { sent: true as const, email, role: dto.role, ...this.devLink('/accept-event-invite', token) };
   }
 
   /** Accepts an event invitation, creating the account if needed — the same rules as joining an organization. */
   async acceptEventInvite(dto: AcceptInviteDto) {
-    const invite = await this.prisma.eventInvite.findUnique({
-      where: { tokenHash: hashRefreshToken(dto.token) },
-    });
-    if (!invite || invite.revokedAt || invite.acceptedAt || isExpired(invite.expiresAt)) {
-      throw new BadRequestException('This invitation is no longer valid');
-    }
-
-    const admit = await this.prepareInvitee(invite.email, dto);
-
-    const membership = await this.prisma.$transaction(async (tx) => {
-      assertClaimed(await tx.eventInvite.updateMany({ where: liveInvite(invite.id), data: { acceptedAt: new Date() } }));
+    const tokenHash = hashRefreshToken(dto.token);
+    const initial = await this.prisma.eventInvite.findUnique({ where: { tokenHash } });
+    assertValidInvitation(initial);
+    const admit = await this.prepareInvitee(initial.email, dto);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockOwnerAddress(tx, initial.email);
+      await lockEventOrganization(tx, initial.eventId);
+      await tx.$queryRaw`SELECT id FROM events WHERE id = ${initial.eventId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM event_invites WHERE id = ${initial.id} FOR UPDATE`;
+      const invite = await tx.eventInvite.findUnique({ where: { id: initial.id } });
+      assertValidInvitation(invite, tokenHash);
       const user = await admit(tx);
-      return tx.eventMembership.upsert({
-        where: { userId_eventId: { userId: user.id, eventId: invite.eventId } },
-        create: { userId: user.id, eventId: invite.eventId, role: invite.role },
-        update: { role: invite.role },
-      });
-    });
-
-    return { ok: true as const, eventId: membership.eventId, role: membership.role, accountCreated: admit.isNewAccount };
+      const current = await tx.eventMembership.findUnique({ where: { userId_eventId: { userId: user.id, eventId: invite.eventId } } });
+      if (invite.acceptedAt) {
+        if (invite.acceptedByUserId !== user.id || !current) throw invalidInvitation();
+        return { membership: current, accountCreated: false };
+      }
+      assertClaimed(await tx.eventInvite.updateMany({ where: { ...liveInvite(invite.id), tokenHash }, data: { acceptedAt: new Date(), acceptedByUserId: user.id } }));
+      const membership = current ?? await tx.eventMembership.create({ data: { userId: user.id, eventId: invite.eventId, role: invite.role } });
+      return { membership, accountCreated: admit.isNewAccount };
+    }, { timeout: 10_000, maxWait: 5000 });
+    return { ok: true as const, eventId: result.membership.eventId, role: result.membership.role, accountCreated: result.accountCreated };
   }
 
-  async revokeEventInvite(eventId: string, email: string) {
-    const revoked = await this.prisma.eventInvite.updateMany({
-      where: { eventId, email: email.trim().toLowerCase(), acceptedAt: null, revokedAt: null },
-      data: { revokedAt: new Date() },
+  async revokeEventInvite(eventId: string, email: string, actorUserId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockEventOrganization(tx, eventId);
+      await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
+      const address = email.trim().toLowerCase();
+      await tx.$queryRaw`SELECT id FROM event_invites WHERE "eventId" = ${eventId} AND email = ${address} FOR UPDATE`;
+      if (actorUserId) await requireCurrentEventPermission(tx, { actor: { userId: actorUserId }, eventId, permission: 'member:manage' });
+      const revoked = await tx.eventInvite.updateMany({ where: { eventId, email: address, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
+      if (!revoked.count) throw new NotFoundException('No pending invitation for that address');
+      return { ok: true as const };
     });
-    if (revoked.count === 0) throw new NotFoundException('No pending invitation for that address');
-    return { ok: true as const };
   }
 
   /**
@@ -411,16 +383,9 @@ export class AccountService {
    * second one used to add a second membership, after which the guard picked
    * either organization arbitrarily on every request.
    */
-  private async assertNoOtherOrganization(email: string, organizationId: string): Promise<void> {
-    const other = await this.prisma.organizationMembership.findFirst({
-      where: { user: { email: { equals: email, mode: 'insensitive' } }, organizationId: { not: organizationId } },
-      select: { organization: { select: { name: true } } },
-    });
-    if (other) {
-      throw new ConflictException(
-        `This account already belongs to "${other.organization.name}"; one organization per account for now`,
-      );
-    }
+  private async assertNoOtherOrganization(tx: Prisma.TransactionClient, userId: string, organizationId: string): Promise<void> {
+    const other = await tx.organizationMembership.findFirst({ where: { userId, organizationId: { not: organizationId } }, select: { id: true } });
+    if (other) throw new ConflictException('This account already belongs to an organization; one organization per account for now');
   }
 
   /**
@@ -438,19 +403,27 @@ export class AccountService {
     if (existing) await assertOwnPassword(existing, dto.password);
     const passwordHash = existing ? null : await hash(dto.password, BCRYPT_ROUNDS);
 
-    const admit = async (tx: Prisma.TransactionClient) =>
-      existing ?? tx.user.create({ data: { email, name: dto.name, passwordHash } });
+    const admit = async (tx: Prisma.TransactionClient, shouldLockUpdate = false) => {
+      if (!existing) return tx.user.create({ data: { email, name: dto.name, passwordHash } });
+      const lock = shouldLockUpdate ? Prisma.sql`FOR UPDATE` : Prisma.sql`FOR SHARE`;
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${existing.id} ${lock}`;
+      const current = await tx.user.findUnique({ where: { id: existing.id } });
+      if (!current?.isActive || current.passwordHash !== existing.passwordHash || current.sessionGeneration !== existing.sessionGeneration) throw invalidInvitation();
+      return current;
+    };
     return Object.assign(admit, { isNewAccount: existing === null });
   }
 
-  async revokeInvite(organizationId: string, email: string) {
-    // Invites are stored lower-cased; the address in the URL may not be.
-    const revoked = await this.prisma.organizationInvite.updateMany({
-      where: { organizationId, email: email.trim().toLowerCase(), acceptedAt: null, revokedAt: null },
-      data: { revokedAt: new Date() },
+  async revokeInvite(organizationId: string, email: string, actorUserId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockOrganizationStanding(tx, { organizationId, mode: 'update' });
+      const address = email.trim().toLowerCase();
+      await tx.$queryRaw`SELECT id FROM organization_invites WHERE "organizationId" = ${organizationId} AND email = ${address} FOR UPDATE`;
+      if (actorUserId) await requireCurrentOrganizationPermission(tx, { actor: { userId: actorUserId, email: '', platformRole: 'NONE' }, organizationId, permission: 'member:manage' });
+      const revoked = await tx.organizationInvite.updateMany({ where: { organizationId, email: address, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
+      if (!revoked.count) throw new NotFoundException('No pending invitation for that address');
+      return { ok: true as const };
     });
-    if (revoked.count === 0) throw new NotFoundException('No pending invitation for that address');
-    return { ok: true as const };
   }
 
   listInvites(organizationId: string) {
@@ -535,4 +508,14 @@ function assertClaimed(claim: { count: number }): void {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function invalidInvitation() { return new BadRequestException('This invitation is no longer valid'); }
+function assertValidInvitation<T extends { tokenHash: string; revokedAt: Date | null; expiresAt: Date }>(invite: T | null, tokenHash?: string): asserts invite is T {
+  if (!invite || invite.revokedAt || isExpired(invite.expiresAt)) throw invalidInvitation();
+  if (tokenHash && invite.tokenHash !== tokenHash) throw invalidInvitation();
+}
+
+function isPendingOwnerInvite(invite: { role: string; acceptedAt: Date | null; revokedAt: Date | null; expiresAt: Date } | null): boolean {
+  return Boolean(invite && invite.role === 'OWNER' && !invite.acceptedAt && !invite.revokedAt && !isExpired(invite.expiresAt));
 }

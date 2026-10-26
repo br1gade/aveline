@@ -45,6 +45,7 @@ export async function resetTestDatabase(): Promise<void> {
 
   const list = tables.map((t) => `"public"."${t.tablename}"`).join(', ');
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
+  await prisma.runtimeCompatibility.create({ data: { id: 'organization-context' } });
 }
 
 export async function disconnectTestDatabase(): Promise<void> {

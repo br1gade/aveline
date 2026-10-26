@@ -26,6 +26,7 @@ model Organization {
   /// Tenant closure. Soft, because the events and payments it owns are still
   /// referenced by records that must survive.
   deletedAt DateTime?
+  accessRevision Int @default(0)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -40,6 +41,8 @@ model Organization {
   subscription     Subscription?
   invoices         Invoice[]
   promoCodes       PromoCode[]
+  createIntents OrganizationCreateIntent[]
+  accessReviews OrganizationAccessReview[]
 
   @@map("organizations")
 }
@@ -79,6 +82,7 @@ model User {
   sessions                Session[]
   verificationTokens      VerificationToken[]
   deviceTokens            DeviceToken[]
+  organizationCreateIntents OrganizationCreateIntent[]
 
   @@map("users")
 }
@@ -138,6 +142,8 @@ model OrganizationMembership {
 
   @@unique([userId, organizationId])
   @@index([organizationId])
+  @@index([organizationId, role, userId])
+  @@index([userId, createdAt, id])
   @@map("organization_memberships")
 }
 
@@ -1717,6 +1723,7 @@ model EventInvite {
 
   expiresAt  DateTime
   acceptedAt DateTime?
+  acceptedByUserId String?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
@@ -1739,6 +1746,7 @@ model OrganizationInvite {
 
   expiresAt  DateTime
   acceptedAt DateTime?
+  acceptedByUserId String?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
@@ -2330,4 +2338,39 @@ model GuestPayloadChange {
   transactionId BigInt
   @@id([eventId, scope, transactionId])
   @@map("guest_payload_changes")
+}
+
+model RuntimeCompatibility {
+  id String @id
+  minimumRevision Int @default(2)
+  multiOrganizationWrites Boolean @default(false)
+  @@map("runtime_compatibility")
+}
+
+model OrganizationCreateIntent {
+  id String @id @default(cuid())
+  actorUserId String
+  key String
+  fingerprint String
+  organizationId String
+  createdAt DateTime @default(now())
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  @@unique([actorUserId, key])
+  @@map("organization_create_intents")
+}
+
+model OrganizationAccessReview {
+  id String @id @default(cuid())
+  organizationId String
+  status String @default("OPEN")
+  revision Int @default(0)
+  reason String
+  openedAt DateTime @default(now())
+  resolvedAt DateTime?
+  resolvedByUserId String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  @@unique([organizationId])
+  @@index([status, openedAt, id])
+  @@map("organization_access_reviews")
 }

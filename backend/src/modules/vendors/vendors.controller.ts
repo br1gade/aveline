@@ -4,6 +4,7 @@ import { VendorCategory } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
 import {
   CurrentActor,
+  EventScope,
   OrganizationScope,
   Public,
   RequestActor,
@@ -29,7 +30,7 @@ export class VendorsController {
   ) {}
 
   @RequirePermission('vendor:read')
-  @OrganizationScope()
+  @OrganizationScope({ mode: 'optional', permission: 'vendor:write' })
   @Get('vendors')
   @ApiOperation({
     summary: "This organization's vendors and Aveline's curated list, optionally by category",
@@ -39,7 +40,7 @@ export class VendorsController {
   }
 
   @RequirePermission('vendor:write')
-  @OrganizationScope()
+  @OrganizationScope({ mode: 'optional', permission: 'vendor:write' })
   @Post('vendors')
   @ApiOperation({
     summary: 'Add a vendor',
@@ -50,6 +51,7 @@ export class VendorsController {
   }
 
   @RequirePermission('vendor:read')
+  @EventScope('eventId')
   @Get('events/:eventId/vendors')
   @ApiOperation({
     summary: "This event's vendors",
@@ -62,6 +64,7 @@ export class VendorsController {
   }
 
   @RequirePermission('vendor:write')
+  @EventScope('eventId')
   @Post('events/:eventId/vendors')
   @ApiOperation({
     summary: 'Engage a vendor and mint their brief link',
@@ -74,6 +77,7 @@ export class VendorsController {
   }
 
   @RequirePermission('vendor:write')
+  @EventScope('eventId')
   @Patch('events/:eventId/vendors/:bookingId')
   @ApiOperation({ summary: 'Change a booking’s status, scopes or fee' })
   updateBooking(
@@ -85,6 +89,7 @@ export class VendorsController {
   }
 
   @RequirePermission('vendor:write')
+  @EventScope('eventId')
   @Post('events/:eventId/vendors/:bookingId/rotate-brief')
   @ApiOperation({
     summary: 'Replace the brief link',
@@ -95,6 +100,7 @@ export class VendorsController {
   }
 
   @RequirePermission('vendor:write')
+  @EventScope('eventId')
   @Delete('events/:eventId/vendors/:bookingId')
   @ApiOperation({
     summary: 'Cancel an engagement',

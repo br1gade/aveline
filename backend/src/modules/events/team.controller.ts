@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AccountService } from '../../infra/auth/account.service';
@@ -8,6 +9,7 @@ import { TeamService } from './team.service';
 
 /** Bringing people onto one event — a coordinator, a designer, someone on the door. */
 @ApiTags('events')
+@EventScope('eventId')
 @Controller('events/:eventId/team')
 export class TeamController {
   constructor(
@@ -35,21 +37,21 @@ export class TeamController {
   @RequirePermission('member:manage')
   @Delete('invites/:email')
   @ApiOperation({ summary: 'Withdraw an invitation that has not been accepted' })
-  revokeInvite(@Param('eventId') eventId: string, @Param('email') email: string) {
-    return this.accounts.revokeEventInvite(eventId, email);
+  revokeInvite(@Param('eventId') eventId: string, @Param('email') email: string, @CurrentActor() actor: RequestActor) {
+    return this.accounts.revokeEventInvite(eventId, email, actor.userId);
   }
 
   @RequirePermission('member:manage')
   @Patch(':userId')
   @ApiOperation({ summary: "Change someone's role", description: 'Takes effect on their next request.' })
-  changeRole(@Param('eventId') eventId: string, @Param('userId') userId: string, @Body() dto: ChangeRoleDto) {
-    return this.team.changeRole(eventId, userId, dto.role);
+  changeRole(@Param('eventId') eventId: string, @Param('userId') userId: string, @Body() dto: ChangeRoleDto, @CurrentActor() actor: RequestActor) {
+    return this.team.changeRole(eventId, userId, dto.role, actor);
   }
 
   @RequirePermission('member:manage')
   @Delete(':userId')
   @ApiOperation({ summary: 'Take someone off the team', description: 'They lose access at once.' })
-  remove(@Param('eventId') eventId: string, @Param('userId') userId: string) {
-    return this.team.remove(eventId, userId);
+  remove(@Param('eventId') eventId: string, @Param('userId') userId: string, @CurrentActor() actor: RequestActor) {
+    return this.team.remove(eventId, userId, actor);
   }
 }

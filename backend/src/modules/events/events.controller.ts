@@ -7,6 +7,7 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { EventsService } from './events.service';
 import {
   CurrentActor,
+  EventScope,
   OrganizationScope,
   RequestActor,
   RequirePermission,
@@ -34,7 +35,7 @@ export class EventsController {
 
   // No permission check of its own: everyone signed in may ask, and the
   // answer is scoped to what they can reach.
-  @OrganizationScope()
+  @OrganizationScope({ mode: 'event-list', permission: 'event:read' })
   @Get()
   @ApiOperation({
     summary: "List the signed-in account's events",
@@ -52,6 +53,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:delete')
+  @EventScope('id')
   @Post(':id/archive')
   @ApiOperation({
     summary: 'Put the event away',
@@ -63,6 +65,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:delete')
+  @EventScope('id')
   @Post(':id/unarchive')
   @ApiOperation({ summary: 'Bring an archived event back as it was' })
   unarchive(@Param('id') id: string) {
@@ -70,6 +73,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:delete')
+  @EventScope('id')
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete the event for good',
@@ -96,6 +100,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:write')
+  @EventScope('id')
   @Post(':id/invitation')
   @ApiOperation({
     summary: 'Add an invitation to an event that has none',
@@ -106,6 +111,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:read')
+  @EventScope('id')
   @Get(':id')
   @ApiOperation({ summary: 'Event detail with venues and timeline' })
   findOne(@Param('id') id: string) {
@@ -113,6 +119,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:write')
+  @EventScope('id')
   @Patch(':id')
   @ApiOperation({
     summary: "Correct the event's details",
@@ -126,6 +133,7 @@ export class EventsController {
   }
 
   @RequirePermission('member:manage')
+  @EventScope('id')
   @Get(':id/audit-trail')
   @ApiOperation({
     summary: 'Who changed what on this event',
@@ -139,6 +147,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:write')
+  @EventScope('id')
   @Patch(':id/settings')
   @ApiOperation({
     summary: 'Change the settings a host flips themselves',

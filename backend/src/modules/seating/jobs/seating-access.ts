@@ -1,9 +1,11 @@
+import { lockEventOrganization } from '../../../infra/auth/access-locks';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { actorCan } from '../../../infra/auth/actor';
 
 /** Locked standing cannot be revoked between the apply check and seat commit. */
 export async function requireSeatingAccess(tx: Prisma.TransactionClient, eventId: string, userId: string) {
+  await lockEventOrganization(tx, eventId);
   const event = await tx.event.findUnique({ where: { id: eventId }, select: { organizationId: true, status: true } });
   if (!event) throw new ForbiddenException('Seating permission is no longer available');
   if (event.status === 'ARCHIVED') throw new ConflictException('Archived events cannot start or apply automatic seating');
@@ -22,6 +24,7 @@ export async function requireSeatingAccess(tx: Prisma.TransactionClient, eventId
 
 /** Same exclusive policy fence, without fetching the unused guest-facing venue list. */
 export async function lockSeatingEvent(tx: Prisma.TransactionClient, eventId: string): Promise<void> {
+  await lockEventOrganization(tx, eventId);
   const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
   if (!rows.length) throw new NotFoundException('No such event');
 }

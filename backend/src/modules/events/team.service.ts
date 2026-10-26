@@ -1,3 +1,5 @@
+import { RequestActor } from '../../infra/auth/actor';
+import { lockCurrentUsers, lockEventOrganization, requireCurrentEventPermission } from '../../infra/auth/access-locks';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -40,10 +42,11 @@ export class TeamService {
     };
   }
 
-  async changeRole(eventId: string, userId: string, role: EventRole) {
+  async changeRole(eventId: string, userId: string, role: EventRole, actor?: RequestActor) {
     return this.prisma.$transaction(async (tx) => {
       const member = await lockedMember(tx, eventId, userId);
-      if (member.role === EventRole.OWNER && role !== EventRole.OWNER) await assertAnotherOwner(tx, eventId);
+      if (actor) await requireCurrentEventPermission(tx, { actor, eventId, permission: 'member:manage' });
+      if (member.role === EventRole.OWNER && role !== EventRole.OWNER) await assertAnotherOwner(tx, eventId, userId);
 
       const updated = await tx.eventMembership.update({
         where: { userId_eventId: { userId, eventId } },
@@ -53,10 +56,11 @@ export class TeamService {
     });
   }
 
-  async remove(eventId: string, userId: string) {
+  async remove(eventId: string, userId: string, actor?: RequestActor) {
     return this.prisma.$transaction(async (tx) => {
       const member = await lockedMember(tx, eventId, userId);
-      if (member.role === EventRole.OWNER) await assertAnotherOwner(tx, eventId);
+      if (actor) await requireCurrentEventPermission(tx, { actor, eventId, permission: 'member:manage' });
+      if (member.role === EventRole.OWNER) await assertAnotherOwner(tx, eventId, userId);
 
       await tx.eventMembership.delete({ where: { userId_eventId: { userId, eventId } } });
       return { removed: userId };
@@ -70,15 +74,17 @@ export class TeamService {
  * the event with none.
  */
 async function lockedMember(tx: Prisma.TransactionClient, eventId: string, userId: string) {
+  await lockEventOrganization(tx, eventId);
   await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
   const member = await tx.eventMembership.findUnique({ where: { userId_eventId: { userId, eventId } } });
   if (!member) throw new NotFoundException("That person is not on this event's team");
   return member;
 }
 
-async function assertAnotherOwner(tx: Prisma.TransactionClient, eventId: string): Promise<void> {
-  const owners = await tx.eventMembership.count({ where: { eventId, role: EventRole.OWNER } });
-  if (owners <= 1) {
-    throw new BadRequestException('An event needs an owner; make someone else an owner first');
-  }
+async function assertAnotherOwner(tx: Prisma.TransactionClient, eventId: string, userId: string): Promise<void> {
+  const successor = await tx.eventMembership.findFirst({ where: { eventId, role: EventRole.OWNER, userId: { not: userId }, user: { isActive: true } }, select: { userId: true } });
+  if (!successor) throw new BadRequestException('An event needs an owner; make someone else an owner first');
+  await lockCurrentUsers(tx, [successor.userId]);
+  const user = await tx.user.findUnique({ where: { id: successor.userId }, select: { isActive: true } });
+  if (!user?.isActive) throw new BadRequestException('An event needs an active owner; make someone else an owner first');
 }

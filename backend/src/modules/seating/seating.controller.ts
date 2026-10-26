@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
 import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.interceptor';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -9,6 +10,7 @@ import { SeatingService } from './seating.service';
 
 @ApiTags('seating')
 @UseInterceptors(JobRecoveryInterceptor)
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class SeatingController {
   constructor(private readonly seating: SeatingService, private readonly jobs: SeatingJobsService) {}

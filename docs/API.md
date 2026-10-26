@@ -1092,7 +1092,9 @@ GET /api/v1/events
 Every event the caller can reach: their organization's, if their role there
 can read events, plus any event they were brought onto directly through a
 team invitation. An account with neither gets `[]`. **Do not pass an
-organizationId** — it is ignored. Platform staff see everything.
+organizationId** — it is ignored. Use the organization header. Platform staff
+without a header retain the paginated platform list; an explicit header narrows
+to that tenant plus their direct event grants.
 
 Optional `?limit=` (1–500) and `?offset=` page the list, soonest event first.
 A customer's list is whole unless they ask; **platform staff get 100 at a
@@ -1722,10 +1724,50 @@ organization.
 The caller becomes `OWNER`. `kind` is `HOST` for a couple or `AGENCY` for a
 planner, and only affects presentation today.
 
-**One organization per account.** A second call returns `409` naming the one
-that exists. This is a current limitation, not a product decision: the server
-resolves "your organization" from your single membership, and allowing two
-would make every organization-scoped route act on whichever came back first.
+Organization selection uses optional `X-Aveline-Organization-Id` on scoped calls.
+It is a single 1–64 character ASCII ID (`[A-Za-z0-9_-]`), never a role grant.
+Without it, one live membership remains the default; several return localized
+`409 ORGANIZATION_SELECTION_REQUIRED` with `SELECT_ORGANIZATION`. Unknown,
+foreign, revoked or closed selections return `403 ORGANIZATION_ACCESS_DENIED`.
+Event and invitation links derive their actual tenant; an authorized mismatching
+selection returns `409 ORGANIZATION_CONTEXT_MISMATCH`. Store selection per tab.
+Session-only create, own memberships and invite-token acceptance ignore selection.
+
+`POST /organizations` accepts optional `Idempotency-Key` (1–120 ASCII letters,
+digits, `_` or `-`). Same actor/key/body replays the existing organization while
+access remains; a different body returns `409 IDEMPOTENCY_KEY_REUSED`.
+Additional memberships remain disabled by the shared database compatibility gate
+and existing single-membership index until the controlled cutover. No environment
+flag enables them. Organization descriptions add `accessRevision`.
+
+```http
+GET /api/v1/me/organizations?limit=50&cursor=<opaque>
+GET /api/v1/organizations/current/members?limit=50&cursor=<opaque>
+PATCH /api/v1/organizations/current/members/:userId { "role":"MANAGER", "expectedRevision":0 }
+DELETE /api/v1/organizations/current/members/:userId?expectedRevision=0
+POST /api/v1/organizations/current/leave { "expectedRevision":0 }
+POST /api/v1/organizations/current/owner-transfers { "successorUserId":"...", "expectedRevision":0 }
+POST /api/v1/organizations/current/closure-reviews { "expectedRevision":0 }
+GET /api/v1/admin/organization-access-reviews?limit=50
+POST /api/v1/admin/organization-access-reviews/:reviewId/resolve { "decision":"HANDOVER", "successorUserId":"...", "expectedRevision":0 }
+```
+
+Own memberships return `{items:[{organizationId,name,kind,role,joinedAt}],nextCursor}`;
+no contacts, billing or other accounts. Membership lists return user ID, name,
+role and joinedAt plus accessRevision; member management needs `member:manage`.
+Both lists default to 50, max 100, cursor max 256. Self-leave is available to every
+member. Revision mismatches return `409 REVISION_CHANGED`; last active organization
+or direct-event owners require a handover (`409 OWNER_HANDOVER_REQUIRED`).
+Promotion leaves the caller OWNER. Departure atomically removes every direct role
+and pending invite in this tenant and revokes their unfinished seating/export jobs;
+unrelated organizations, direct event grants and independent staff permissions remain.
+Closure reviews remove nothing until an ADMIN resolves HANDOVER, CLOSE or DECLINE.
+CLOSE preserves events and financial history, soft-closes the tenant and revokes its
+customer memberships/invites/jobs. SUPPORT and customers cannot resolve reviews.
+
+Invite issue and protected Message outbox now commit together. Correct-password
+same-user replay returns the current role without restoring a departed membership;
+rotated/revoked/expired tokens keep the existing 400 invalid-invitation contract.
 
 ```http
 GET   /api/v1/organizations/current
@@ -2353,9 +2395,9 @@ a custom slug yet.
 **`403` means the account has no organization, or its role there cannot
 write events** — an organization `MEMBER` or `VIEWER` is read-only.
 
-**An account belongs to one organization, for now.** A second
-`POST /organizations` is a `409`, and so is accepting an invitation into a
-second organization — the message names the one the account is already in.
+Additional organization create/join writes remain disabled until the controlled
+compatibility cutover. Explicit selection is already supported; see organization
+selection above.
 
 **Email addresses are compared without regard to capitals**: `Ani@X.am` and
 `ani@x.am` are the same account, and signing in works with either. `defaultLocale` must be one of `locales` — a `400` naming it otherwise.
@@ -3354,7 +3396,7 @@ So you can plan around them rather than discover them:
 - **No tax on invoices.** `taxMinor` is always `"0"`.
 - **No renewal or dunning.** A subscription's period lapses and nothing
   charges again or moves it to `PAST_DUE`.
-- **One organization per account.** See §6.
+- Additional memberships require the controlled schema/runtime cutover and shared write gate. See organization selection.
 - **No block creation outside the arrangement call.** Custom RSVP questions can be reordered atomically through the question-order route.
 - **Worker/frontend acceptance.** Automatic seating and all export formats run
   in dedicated workers. Frontend job integration, standard heading/reason

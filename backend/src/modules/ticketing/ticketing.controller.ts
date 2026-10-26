@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
@@ -57,6 +58,7 @@ export class TicketingController {
   // Door staff, not the public: possession of a code must not admit itself.
   // Under the event, so the event's own team can scan, and only its tickets.
   @RequirePermission('guest:write')
+  @EventScope('eventId')
   @Post('events/:eventId/tickets/:code/admit')
   @ApiOperation({
     summary: 'Admit a ticket at the door',

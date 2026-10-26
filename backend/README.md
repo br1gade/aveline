@@ -386,6 +386,15 @@ its records are references to regenerate, never historical snapshots.
 | `POST` | `/api/v1/organizations` | Create your organization; the caller becomes OWNER |
 | `GET` | `/api/v1/organizations/current` | Your organization, its plan and its counts |
 | `PATCH` | `/api/v1/organizations/current` | Rename it |
+| `GET` | `/api/v1/me/organizations` | Bounded own membership selector |
+| `GET` | `/api/v1/organizations/current/members` | Bounded member list without contacts |
+| `PATCH` | `/api/v1/organizations/current/members/:userId` | Revision-safe role change |
+| `DELETE` | `/api/v1/organizations/current/members/:userId` | Revoke all target customer access in this tenant |
+| `POST` | `/api/v1/organizations/current/leave` | Self-leave after ownership handover |
+| `POST` | `/api/v1/organizations/current/owner-transfers` | Promote an active member; caller stays owner |
+| `POST` | `/api/v1/organizations/current/closure-reviews` | Request ADMIN review without removing access |
+| `GET` | `/api/v1/admin/organization-access-reviews` | ADMIN review queue |
+| `POST` | `/api/v1/admin/organization-access-reviews/:reviewId/resolve` | ADMIN reviewed recovery or soft closure |
 | `GET` | `/api/v1/plans` | The price list with entitlements (**public**) |
 | `GET` | `/api/v1/subscription` | Your subscription, or `{ "subscription": null }` |
 | `POST` | `/api/v1/subscription` | Start or change a plan |
@@ -672,3 +681,15 @@ performance run. Do not measure load alongside verification/builds. Local
 `npm run backup:rehearsal` now verifies the 400-person graph and approximately
 251 MB of private/public files through encrypted fresh-store restoration;
 the off-host destination remains an operator gate.
+
+### Organization compatibility cutover
+
+Scoped calls accept `X-Aveline-Organization-Id`; one membership defaults as before,
+multiple require explicit selection. Additional writes are off by default in
+`runtime_compatibility`, checked under a transaction lock for create/join. API and
+standalone workers refuse schema revisions newer than 2 at startup. The migration
+retains the user-only unique index; automatic deploy never drops it. See
+[organization cutover](docs/ORGANIZATION_CUTOVER.md) for the explicit operator command.
+
+Not yet accepted: deployed-process exclusion, restore/performance evidence and
+four-language multi-tab frontend acceptance. No production cutover was run.

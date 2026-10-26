@@ -384,3 +384,7 @@ acquisition durations; it stores no span attributes or SQL and has no network
 exporter. Private sampler files also capture RSS/event-loop delay. This adds no
 production HTTP diagnostic endpoint or correctness dependency; see
 [PILOT_REHEARSAL.md](PILOT_REHEARSAL.md). Production acceptance remains open.
+
+Organization compatibility, idempotency intents and access reviews live in PostgreSQL.
+Credential invitations enqueue their protected Message in the same transaction;
+provider dispatch remains after commit. No credential enters an access-review row.

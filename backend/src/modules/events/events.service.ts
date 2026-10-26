@@ -1,3 +1,4 @@
+import { lockOrganizationStanding, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
 import { hasInvitationExpired } from '../invitations/lifetime';
 import {
   BadRequestException,
@@ -85,6 +86,9 @@ export class EventsService {
     const hostsLabel = dto.hostsLabel ?? dto.title;
 
     const event = await this.prisma.$transaction(async (tx) => {
+      await lockOrganizationStanding(tx, { organizationId });
+      await requireCurrentOrganizationPermission(tx, { actor: { userId, email: '', platformRole: 'NONE' }, organizationId,
+        permission: options.isOnBehalf ? 'concierge:manage' : 'event:write' });
       const created = await tx.event.create({
         data: {
           organizationId,
@@ -109,7 +113,7 @@ export class EventsService {
       // their platform role, and the customer becomes its owner.
       if (!options.isOnBehalf) {
         await tx.eventMembership.create({
-          data: { eventId: created.id, userId, role: await creatorRole(tx, userId) },
+          data: { eventId: created.id, userId, role: await creatorRole(tx, userId, organizationId) },
         });
       }
 
@@ -203,13 +207,14 @@ export class EventsService {
     const reach: Prisma.EventWhereInput[] = [{ memberships: { some: { userId: actor.userId } } }];
     if (actor.organizationId && actorCan(actor, 'event:read')) reach.push({ organizationId: actor.organizationId });
     const isStaff = actor.platformRole !== PlatformRole.NONE;
+    const hasGlobalScope = hasGlobalEventScope(actor);
     // Archived events are put away: listed only when asked for.
     const archive: Prisma.EventWhereInput = isArchiveWanted
       ? { status: EventStatus.ARCHIVED }
       : { status: { not: EventStatus.ARCHIVED } };
 
     return this.prisma.event.findMany({
-      where: isStaff ? archive : { AND: [archive, { OR: reach }] },
+      where: hasGlobalScope ? archive : { AND: [archive, { OR: reach }] },
       include: { invitation: { select: { slug: true, status: true } }, _count: { select: { guests: true } } },
       orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
       // Staff see every customer's events, so their list is paged by default;
@@ -454,7 +459,11 @@ function assertDeletable(event: {
  * ACCESS_CONTROL says they do not hold: they could invite an outsider as
  * owner, with guest contacts and vendor fees.
  */
-async function creatorRole(tx: Prisma.TransactionClient, userId: string): Promise<EventRole> {
-  const membership = await tx.organizationMembership.findFirst({ where: { userId }, select: { role: true } });
+async function creatorRole(tx: Prisma.TransactionClient, userId: string, organizationId: string): Promise<EventRole> {
+  const membership = await tx.organizationMembership.findUnique({ where: { userId_organizationId: { userId, organizationId } }, select: { role: true } });
   return membership?.role === OrganizationRole.OWNER ? EventRole.OWNER : EventRole.COORDINATOR;
+}
+
+function hasGlobalEventScope(actor: RequestActor): boolean {
+  return actor.platformRole !== PlatformRole.NONE && !actor.organizationContext;
 }

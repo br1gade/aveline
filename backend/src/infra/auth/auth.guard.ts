@@ -17,8 +17,10 @@ import {
   ORGANIZATION_SCOPE,
   REQUIRED_PERMISSION,
   RequestActor,
+  OrganizationScopeOptions,
   actorCan,
 } from './actor';
+import { parseOrganizationSelector, resolveOrganizationContext } from './organization-context';
 import { AccessTokenClaims } from './auth.service';
 
 /**
@@ -53,6 +55,7 @@ export class AuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest & {
       headers: Record<string, string | undefined>;
+      rawHeaders?: string[];
       params: Record<string, string | undefined>;
     }>();
 
@@ -61,13 +64,14 @@ export class AuthGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    const isOrganizationScoped = this.reflector.getAllAndOverride<boolean>(ORGANIZATION_SCOPE, [
+    const isOrganizationScoped = this.reflector.getAllAndOverride<OrganizationScopeOptions>(ORGANIZATION_SCOPE, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     const claims = await this.verifyToken(request.headers.authorization);
-    const actor = await this.resolveActor(claims, request.params, scope, isOrganizationScoped);
+    const selector = scope || isOrganizationScoped ? parseOrganizationSelector(request.headers, request.rawHeaders) : undefined;
+    const actor = await this.resolveActor(claims, request.params, { scope, organization: isOrganizationScoped, selector });
     request.actor = actor;
 
     const required = this.reflector.getAllAndOverride<Permission | undefined>(
@@ -103,8 +107,7 @@ export class AuthGuard implements CanActivate {
   private async resolveActor(
     claims: AccessTokenClaims,
     params: Record<string, string | undefined>,
-    scope: EventScopeSource | undefined,
-    isOrganizationScoped = false,
+    selection: { scope?: EventScopeSource; organization?: OrganizationScopeOptions; selector?: string },
   ): Promise<RequestActor> {
     const user = await this.prisma.user.findUnique({
       where: { id: claims.sub },
@@ -115,53 +118,30 @@ export class AuthGuard implements CanActivate {
     // not when its minutes run out.
     if ((claims.gen ?? 0) !== user.sessionGeneration) throw new UnauthorizedException('Session has ended');
 
-    const eventId = await this.eventIdFrom(params, scope);
-    const { eventRole, organizationRole, organizationId } = await this.standingOf(
-      user.id,
-      eventId,
-      isOrganizationScoped,
-    );
+    const eventId = await this.eventIdFrom(params, selection.scope);
+    const organizationContext = await this.organizationContextOf(user, eventId, selection);
+    const eventMembership = eventId ? await this.prisma.eventMembership.findUnique({
+      where: { userId_eventId: { userId: user.id, eventId } }, select: { role: true },
+    }) : null;
 
     return {
       userId: user.id,
       email: user.email,
       platformRole: user.platformRole,
-      eventRole,
-      organizationRole,
-      organizationId,
+      ...standingFields(organizationContext, eventMembership),
+      organizationContext,
       eventId: eventId ?? null,
     };
   }
 
-  /**
-   * What this actor's standing is, by how the route is scoped: on one event,
-   * on their own organization, or — for a route scoped to neither — nothing,
-   * leaving only their platform role to grant anything.
-   */
-  private async standingOf(userId: string, eventId: string | undefined, isOrganizationScoped: boolean) {
-    if (eventId) return this.rolesOn(userId, eventId);
-    if (isOrganizationScoped) return this.organizationRoleOf(userId);
-    return { eventRole: null, organizationRole: null, organizationId: null };
-  }
-
-  /**
-   * The actor's own organization, for routes not scoped to one event.
-   *
-   * Read from their membership rather than a request parameter: taking an
-   * organization id from the caller would let any authenticated account name
-   * someone else's tenant.
-   */
-  private async organizationRoleOf(userId: string) {
-    const membership = await this.prisma.organizationMembership.findFirst({
-      where: { userId },
-      select: { role: true, organizationId: true },
+  private organizationContextOf(user: { id: string; platformRole: RequestActor['platformRole'] }, eventId: string | undefined,
+    selection: { organization?: OrganizationScopeOptions; selector?: string }) {
+    if (!eventId && !selection.organization) return null;
+    return resolveOrganizationContext(this.prisma, {
+      userId: user.id, platformRole: user.platformRole, eventId, selector: selection.selector,
+      mode: eventId ? 'event' : selection.organization?.mode ?? 'required',
+      platformPermission: selection.organization?.permission,
     });
-
-    return {
-      eventRole: null,
-      organizationRole: membership?.role ?? null,
-      organizationId: membership?.organizationId ?? null,
-    };
   }
 
   /** Resolves the event a route acts on, however that route names it. */
@@ -185,43 +165,13 @@ export class AuthGuard implements CanActivate {
       return listing?.eventId;
     }
 
-    return params.eventId ?? params.id;
+    if (scope === 'eventId') return params.eventId;
+    if (scope === 'id') return params.id;
+    return undefined;
   }
 
-  /** The roles this user holds on one event and its owning organization. */
-  private async rolesOn(userId: string, eventId: string | undefined) {
-    const empty = { eventRole: null, organizationRole: null, organizationId: null };
-    if (!eventId) return empty;
-
-    const organizationId = await this.organizationOf(eventId);
-
-    const [eventMembership, organizationMembership] = await Promise.all([
-      this.prisma.eventMembership.findUnique({
-        where: { userId_eventId: { userId, eventId } },
-        select: { role: true },
-      }),
-      organizationId
-        ? this.prisma.organizationMembership.findUnique({
-            where: { userId_organizationId: { userId, organizationId } },
-            select: { role: true },
-          })
-        : null,
-    ]);
-
-    return {
-      eventRole: eventMembership?.role ?? null,
-      organizationRole: organizationMembership?.role ?? null,
-      organizationId,
-    };
-  }
-
-  private async organizationOf(eventId: string): Promise<string | null> {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      select: { organizationId: true },
-    });
-    return event?.organizationId ?? null;
-  }
 }
 
-
+function standingFields(context: RequestActor['organizationContext'], eventMembership: { role: NonNullable<RequestActor['eventRole']> } | null) {
+  return { eventRole: eventMembership?.role ?? null, organizationRole: context?.organizationRole ?? null, organizationId: context?.organizationId ?? null };
+}

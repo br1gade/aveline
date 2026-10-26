@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RequirePermission } from '../../infra/auth/actor';
@@ -5,6 +6,7 @@ import { AttendancePolicyService } from './attendance-policy.service';
 import { ChangeAttendancePolicyDto, PreviewAttendancePolicyDto } from './dto/attendance-policy.dto';
 
 @ApiTags('events')
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class AttendancePolicyController {
   constructor(private readonly attendance: AttendancePolicyService) {}
