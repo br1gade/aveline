@@ -3501,3 +3501,19 @@ originals and variants asynchronously. Event deletion leaves cleanup tombstones,
 so interrupted workers cannot orphan private files. Pending frontend work includes
 the four-language capture, moderation, pending/error states and ticket pre-check-in
 flow; these backend endpoints alone do not satisfy pilot acceptance.
+
+### Staff enquiry privacy substrate
+
+Privacy request list entries may now have `subjectEmail:null` for a staff-recorded,
+manually verified phone-only prospect; this is an intentional internal-console
+contract change. Public request submission still requires a valid email and
+remains non-enumerating. A verified privacy export adds `enquiries`; legacy
+sections are empty for an email-less subject rather than querying a fabricated
+address. Historical contact-address matches require staff-reviewed contact ID
+binding before fulfilment. Erasure adds `enquiriesCleared` and
+`enquiryNotesRedacted`; `recoveryPending:true` means redaction has committed but
+protected journal acknowledgement remains pending and the request stays
+IN_PROGRESS. Retrying fulfilment resumes the recorded checkpoint safely.
+
+The F39 storage/service substrate is present behind disabled intake gates;
+staff intake routes and conversion release are not yet exposed by this batch.

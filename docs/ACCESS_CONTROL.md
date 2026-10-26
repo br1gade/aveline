@@ -321,3 +321,13 @@ retained, and no phone is globally suppressed based on an ambiguous delivery
 failure. Erased message recipients cannot be mutated by late receipts. Host
 delivery evidence retains the report's `guest:read` permission and existing
 `guest:contact:read` restriction for addresses; no new permission is added.
+
+### Staff enquiry substrate (F39, disabled pending rollout)
+
+`enquiry:manage` belongs only to active ADMIN and SUPPORT staff;
+`enquiry:assign` belongs only to ADMIN. No organization/event role or vendor
+scope grants either. SUPPORT standing is the current enquiry assignment, checked
+under the case lock on every read, write and receipt replay. Assignment does not
+change appointment operators and never grants customer organization membership.
+New contacts remain behind the disabled intake gate until independent protected
+journal restore and frontend acceptance evidence is recorded.

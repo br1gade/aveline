@@ -297,3 +297,15 @@ parsing, static files, CORS, proxy trust and shutdown hooks have one definition.
 The normal entry point still initializes Sentry before importing the application.
 The rehearsal adds only private local timing diagnostics; see
 [PILOT_REHEARSAL.md](PILOT_REHEARSAL.md).
+
+### Staff intake substrate
+
+`modules/sales/` contains bounded staff enquiry commands, current-assignment
+projection, consultation exclusion, retention and privacy helpers.
+`SalesPrivacyModule` is consumed by privacy even while intake writes are off.
+Enquiry root locks serialize reassignment, revisions and spent command receipts;
+a dedicated privacy fence prevents contact insertion during verified erasure.
+The signed filesystem redaction journal is independent recovery evidence, with
+async fsync/atomic replacement and contiguous sequence verification. Missing or
+invalid latest evidence blocks offline replay. Production storage and frontend
+acceptance remain rollout gates; no provider or consultation messages are added.

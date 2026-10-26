@@ -145,3 +145,21 @@ describe('access policy', () => {
     });
   });
 });
+
+
+describe('staff enquiry permissions', () => {
+  const permissions = ['enquiry:manage', 'enquiry:assign'] as const;
+  const customers = [
+    ...Object.values(OrganizationRole).map((role) => member(role)),
+    ...Object.values(EventRole).map((role) => member(null, role)),
+    member(OrganizationRole.OWNER, EventRole.OWNER), guest(), vendor([...permissions]),
+  ];
+  it.each(permissions)('keeps %s out of every customer and capability actor', (permission) => {
+    for (const actor of customers) expect(permissionsFor(actor)).not.toContain(permission);
+    expect(permissionsFor(staff(PlatformRole.ADMIN))).toContain(permission);
+  });
+  it('lets support manage assigned cases without assigning them', () => {
+    expect(permissionsFor(staff(PlatformRole.SUPPORT))).toContain('enquiry:manage');
+    expect(permissionsFor(staff(PlatformRole.SUPPORT))).not.toContain('enquiry:assign');
+  });
+});

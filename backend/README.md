@@ -672,3 +672,14 @@ performance run. Do not measure load alongside verification/builds. Local
 `npm run backup:rehearsal` now verifies the 400-person graph and approximately
 251 MB of private/public files through encrypted fresh-store restoration;
 the off-host destination remains an operator gate.
+
+F39 staff enquiry services and privacy substrate are additive and disabled by
+default. `SALES_INTAKE_ENABLED`, `SALES_INTAKE_SUPPORT_ENABLED`,
+`SALES_ENQUIRY_CONVERSION_ENABLED` and `SALES_ENQUIRY_RETENTION_DRY_RUN` accept
+literal true/false. Enabling contacts requires `SALES_INTENT_HMAC_KEY_ID`, JSON
+`SALES_INTENT_HMAC_KEYS`, an absolute independently protected
+`SALES_PRIVACY_JOURNAL_DIR` and a >=32-character `SALES_PRIVACY_JOURNAL_KEY`.
+Production also requires explicit `SALES_INTAKE_OPERATIONAL_ACCEPTANCE=true`
+after restore/frontend acceptance; local implementation is not that evidence.
+Never rotate away intent verification keys while receipts exist. Privacy and
+retention processing must continue when write flags are switched off.

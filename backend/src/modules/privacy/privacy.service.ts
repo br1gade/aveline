@@ -1,6 +1,8 @@
+import { EnquiryPrivacyService } from '../sales/enquiry-privacy.service';
+import { EnquiryPrivacySubject } from '../sales/enquiry-privacy';
 import { exportContributions } from '../guest-contributions/contribution-privacy';
 import { attendeeSubject, exportAttendees } from '../ticketing/attendee-privacy';
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import {
   DataSubjectRequestKind,
   DataSubjectRequestStatus,
@@ -44,6 +46,9 @@ function completedBy(userId: string) {
 @Injectable()
 export class PrivacyService {
   private readonly logger = new Logger(PrivacyService.name);
+
+  @Inject(EnquiryPrivacyService)
+  private readonly enquiryPrivacy?: EnquiryPrivacyService;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -162,11 +167,12 @@ export class PrivacyService {
       );
     }
 
+    const subject = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveSubject(requestId) : { email: request.subjectEmail, verifiedContactIds: [] };
     const completion = { requestId, userId };
     const result =
       request.kind === DataSubjectRequestKind.EXPORT
-        ? await this.assembleExport(request.subjectEmail, request.id)
-        : await this.erase(request.subjectEmail, completion);
+        ? await this.assembleExport(subject, request.id)
+        : await this.erase(subject, completion);
 
     if (request.kind === DataSubjectRequestKind.EXPORT) {
       await this.prisma.dataSubjectRequest.updateMany({ where: { id: requestId }, data: completedBy(userId) });
@@ -181,7 +187,16 @@ export class PrivacyService {
    * in object storage waiting to be collected is a second place it can leak
    * from.
    */
-  private async assembleExport(subjectEmail: string, requestId: string) {
+  private async assembleExport(subject: EnquiryPrivacySubject, requestId: string) {
+    const legacy = subject.email ? await this.assembleEmailExport(subject.email, requestId) : {
+      subjectEmail: null, assembledAt: new Date().toISOString(), account: null, guestRecords: [],
+      contributions: [], ticketAttendees: [], ticketOrders: [], messagesSent: [], suppressions: [],
+    };
+    const enquiries = this.enquiryPrivacy ? await this.enquiryPrivacy.exportSubject(subject) : [];
+    return { ...legacy, enquiries };
+  }
+
+  private async assembleEmailExport(subjectEmail: string, requestId: string) {
     const [user, guests, ticketOrders, messages, suppressions, ticketAttendees, contributions] = await Promise.all([
       this.prisma.user.findFirst({
         where: { email: sameAddress(subjectEmail) },
@@ -265,27 +280,39 @@ export class PrivacyService {
    * Mongo are cleared only once Postgres has committed, so a rollback never
    * leaves a guest whose signature is already gone.
    */
-  private async erase(subjectEmail: string, completion: { requestId: string; userId: string }) {
-    const { counts, afterwards } = await this.prisma.$transaction(
-      async (tx) => {
-        // The request is claimed in the same transaction, first: two staff
-        // pressing fulfil together both ran the erasure (B87). A failed
-        // erasure rolls the claim back with it.
-        const claimed = await tx.dataSubjectRequest.updateMany({
-          where: { id: completion.requestId, status: DataSubjectRequestStatus.IN_PROGRESS },
-          data: completedBy(completion.userId),
-        });
-        if (claimed.count === 0) throw new ConflictException('This request is being carried out by someone else, or already was');
-        return eraseSubject(tx, subjectEmail, new Date());
-      },
-      { timeout: ERASURE_TIMEOUT_MS },
-    );
-    await Promise.all([
-      Promise.allSettled(afterwards.fileUrls.map((url) => this.storage.removeByUrl(url))),
-      this.audit.forgetPerson({ email: subjectEmail, userId: afterwards.userId }),
-      this.analytics.forgetGuests(afterwards.guestIds),
+  private async erase(subject: EnquiryPrivacySubject, completion: { requestId: string; userId: string }) {
+    const applied = await this.applyErasure(subject, completion);
+    const request = await this.prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: completion.requestId } });
+    if (!request.erasureAppliedAt) return applied.counts;
+    try { if (this.enquiryPrivacy) await this.enquiryPrivacy.checkpoint(); }
+    catch { this.logger.error('Intake erasure applied; protected journal checkpoint recovery is pending'); return { ...applied.counts, recoveryPending: true }; }
+    const outstanding = await this.prisma.enquiryPrivacyRedaction.count({ where: { contactId: { in: subject.verifiedContactIds }, checkpointedAt: null } });
+    if (outstanding) return { ...applied.counts, recoveryPending: true };
+    await this.prisma.dataSubjectRequest.updateMany({ where: { id: completion.requestId, status: 'IN_PROGRESS', erasureAppliedAt: { not: null } }, data: completedBy(completion.userId) });
+    return applied.counts;
+  }
+
+  private async applyErasure(subject: EnquiryPrivacySubject, completion: { requestId: string; userId: string }) {
+    const applied = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id=${completion.requestId} FOR UPDATE`;
+      const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: completion.requestId } });
+      if (request.status !== 'IN_PROGRESS') throw new ConflictException('This request is being carried out by someone else, or already was');
+      if (request.erasureAppliedAt) return { counts: request.erasureResult as Record<string, number>, afterwards: null };
+      const erased = subject.email
+        ? await eraseSubject(tx, subject.email, new Date(), subject)
+        : { counts: await this.enquiryPrivacy!.eraseInTransaction(tx, { subject, now: new Date(), requestId: request.id }), afterwards: null };
+      const hasIntakeRedactions = erased.counts.enquiriesCleared > 0;
+      await tx.dataSubjectRequest.update({ where: { id: request.id }, data: hasIntakeRedactions
+        ? { erasureAppliedAt: new Date(), erasureCheckpointId: request.id, erasureResult: erased.counts, handledByUserId: completion.userId }
+        : completedBy(completion.userId) });
+      return erased;
+    }, { timeout: ERASURE_TIMEOUT_MS });
+    if (applied.afterwards && subject.email) await Promise.all([
+      Promise.allSettled(applied.afterwards.fileUrls.map((url) => this.storage.removeByUrl(url))),
+      this.audit.forgetPerson({ email: subject.email, userId: applied.afterwards.userId }),
+      this.analytics.forgetGuests(applied.afterwards.guestIds),
     ]);
-    return counts;
+    return applied;
   }
 
   /**

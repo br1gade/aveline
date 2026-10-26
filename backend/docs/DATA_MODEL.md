@@ -280,3 +280,36 @@ Ticket attendee erasure clears the captured roster and reconciliation snapshot
 independently of buyer details and invalidates the checkout fingerprint. Issuance
 re-reads the roster after claiming the order, so delayed settlement cannot
 restore erased data. Existing guest/ticket links are retained for headcounts.
+
+### F39 staff enquiry storage
+
+Additive empty tables `sales_enquiries`, `enquiry_contacts`,
+`enquiry_contact_addresses`, `enquiry_notes`, `consultations`,
+`enquiry_activities`, `enquiry_commands`, `enquiry_conversions`,
+`owner_invite_deliveries`, `enquiry_privacy_fences`,
+`enquiry_erasure_tombstones`, `enquiry_privacy_redactions` and
+`data_subject_request_enquiry_subjects` hold staff intake independently of
+customer membership and financial records. Activity/command metadata contains
+IDs and state only; no contact snapshots or note bodies. Receipt intents use a
+versioned dedicated HMAC keyring and are permanently spent after redaction.
+
+Database checks enforce contact/redaction/closure/lifecycle shape. Tenant
+composite foreign keys prevent event mismatches; deferred linkage checks require
+conversion and enquiry targets to agree. Consultation scheduling uses timestamp
+with time zone and a GiST exclusion for each operator's scheduled `[start,end)`
+interval. Assignment/admin queues, contact exact/prefix lookup, bounded sections,
+operator calendars and due cleanup have corresponding indexes. No enquiry
+email uniqueness or automatic subject merge exists.
+
+`DataSubjectRequest.subjectEmail` is nullable for manually reviewed staff enquiry
+subjects; existing rows remain EMAIL sources and public submission still requires
+an email. Reviewed bindings contain contact IDs. Enquiry erasure is applied under
+an exclusive intake fence before legacy household/account locks and completes a
+request only after its minimal receipts reach the independently preserved signed
+journal. Latest closure anchors six UTC calendar months with month-end clamping;
+reopen clears the deadline but never restores cleared data. Retention never
+creates a global suppression or deletes finance/account records.
+
+Not yet enabled: intake HTTP/conversion rollout, independent production journal
+storage acceptance and four-language frontend acceptance. No historical enquiry
+rows are inferred during migration.

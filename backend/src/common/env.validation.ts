@@ -1,3 +1,4 @@
+import { validateSalesConfig } from './sales-config';
 /**
  * Validates configuration at boot.
  *
@@ -33,6 +34,7 @@ export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
   const nodeEnv = recognisedNodeEnv(raw.NODE_ENV);
   assertRequiredPresent(raw);
   validateWhatsAppConfig(raw);
+  validateSalesConfig(raw);
 
   assertWholeNumbers(raw, ['ACCESS_TOKEN_TTL_SECONDS', 'REFRESH_TOKEN_TTL_DAYS']);
   assertEmailQuotaSettings(raw);
