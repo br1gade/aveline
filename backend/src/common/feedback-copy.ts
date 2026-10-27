@@ -1,4 +1,9 @@
 export const FEEDBACK = {
+  ENQUIRY_CHANGED: ['Reload the current enquiry before trying again.', 'Обновите обращение перед повтором.', 'Rechargez la demande avant de réessayer.', 'Կրկին փորձելուց առաջ թարմացրեք հարցումը։'],
+  CONSULTATION_CONFLICT: ['Choose another consultation interval for this operator.', 'Выберите другое время консультации для этого оператора.', 'Choisissez un autre créneau pour cet opérateur.', 'Այս օպերատորի համար ընտրեք խորհրդատվության այլ ժամանակահատված։'],
+  IDEMPOTENCY_CONFLICT: ['This key was used for a different enquiry command.', 'Этот ключ использован для другой команды обращения.', 'Cette clé a déjà servi à une autre opération.', 'Այս բանալին օգտագործվել է հարցման այլ գործողության համար։'],
+  SUBJECT_ERASED: ['This enquiry’s personal data was cleared. Request privacy review.', 'Персональные данные обращения удалены. Запросите проверку конфиденциальности.', 'Les données personnelles ont été effacées. Demandez une vérification.', 'Այս հարցման անձնական տվյալները ջնջվել են։ Պահանջեք գաղտնիության ստուգում։'],
+  NO_CHANGE: ['Choose a different value to apply a change.', 'Выберите другое значение для изменения.', 'Choisissez une autre valeur pour modifier.', 'Փոփոխելու համար ընտրեք այլ արժեք։'],
   TEMPLATE_VALIDATION_FAILED: ['Review the template fields.', 'Проверьте поля шаблона.', 'Vérifiez les champs du modèle.', 'Ստուգեք ձևանմուշի դաշտերը։'],
   TEMPLATE_CAPABILITY_REQUIRED: ['This design needs verified renderer support.', 'Для дизайна нужна проверенная поддержка отображения.', 'Ce design nécessite une prise en charge vérifiée du rendu.', 'Այս դիզայնի համար անհրաժեշտ է ցուցադրման հաստատված աջակցություն։'],
   TEMPLATE_STATE_CHANGED: ['Reload the latest design state.', 'Обновите состояние дизайна.', 'Rechargez le dernier état du design.', 'Թարմացրեք դիզայնի վերջին վիճակը։'],

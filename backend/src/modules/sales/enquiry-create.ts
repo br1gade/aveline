@@ -30,16 +30,16 @@ export async function createEnquiry(tx: Prisma.TransactionClient, input: { userI
   const previous = await tx.enquiryCommand.findUnique({ where: { actorUserId_operation_idempotencyKey: { actorUserId: input.userId, operation: 'CREATE', idempotencyKey: input.key } } });
   if (previous?.enquiryId) {
     await authorizeCase(tx, { userId: input.userId, enquiryId: previous.enquiryId }, config);
-    return (await replayCommand(tx, { userId: input.userId, enquiryId: previous.enquiryId, operation: 'CREATE', key: input.key, intent }, config))!;
+    return { ...(await replayCommand(tx, { userId: input.userId, enquiryId: previous.enquiryId, operation: 'CREATE', key: input.key, intent }, config))!, wasReplayed: true };
   }
   const actor = await lockStaff(tx, input.userId);
   if (actor.platformRole === 'SUPPORT' && config.get<string>('SALES_INTAKE_SUPPORT_ENABLED') !== 'true') throw new ForbiddenException('Staff intake support is not enabled');
-  if (actor.platformRole === 'SUPPORT' && Object.hasOwn(input.dto, 'assignedUserId')) throw new BadRequestException('assignedUserId is ADMIN-only');
+  if (actor.platformRole === 'SUPPORT' && input.dto.assignedUserId !== undefined) throw new BadRequestException('assignedUserId is ADMIN-only');
   const assignedUserId = actor.platformRole === 'SUPPORT' ? actor.id : input.dto.assignedUserId ?? null;
   if (assignedUserId) await lockOperators(tx, [assignedUserId]);
   const enquiry = await tx.salesEnquiry.create({ data: { ...requirements, preferredLocale: input.dto.preferredLocale, source: input.dto.source, assignedUserId, createdByUserId: actor.id, contact: { create: contact } }, select: { id: true, contact: { select: { id: true } } } });
   await rememberAddresses(tx, enquiry.contact!.id, contact);
   await tx.enquiryActivity.create({ data: { enquiryId: enquiry.id, enquiryRevision: 1, actorUserId: actor.id, kind: 'CREATE' } });
   const command = await tx.enquiryCommand.create({ data: { actorUserId: actor.id, operation: 'CREATE', idempotencyKey: input.key, requestFingerprint: intentFingerprint(intent, intakeKeys(config)), enquiryId: enquiry.id, appliedRevision: 1, responseStatus: 201 } });
-  return { commandId: command.id, appliedRevision: 1, resultId: null, enquiry: await projectEnquiry(tx, enquiry.id) };
+  return { wasReplayed: false, commandId: command.id, appliedRevision: 1, resultId: null, enquiry: await projectEnquiry(tx, enquiry.id) };
 }

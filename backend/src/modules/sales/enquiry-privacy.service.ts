@@ -1,16 +1,20 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSubjectRequestKind, Prisma, MessageChannel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { addressFingerprint } from '../communications/address-form';
 import { lockStaff } from './enquiry-access';
-import { EnquiryJournal, RedactionReceipt } from './enquiry-journal';
+import { EnquiryJournal, ReplayedRedactionReceipt } from './enquiry-journal';
 import { lockIntake } from './enquiry-lock';
 import { EnquiryPrivacySubject, eraseEnquirySubjects, redactDerivedInvites } from './enquiry-privacy';
 
 @Injectable()
-export class EnquiryPrivacyService {
+export class EnquiryPrivacyService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService, private readonly config: ConfigService) {}
+
+  async onModuleInit(): Promise<void> {
+    if (this.config.get<string>('SALES_INTAKE_ENABLED') === 'true') await this.journal().append([], 0);
+  }
 
   private journal(): EnquiryJournal {
     return new EnquiryJournal(this.config.get<string>('SALES_PRIVACY_JOURNAL_DIR') ?? '', this.config.get<string>('SALES_PRIVACY_JOURNAL_KEY') ?? '');
@@ -41,7 +45,9 @@ export class EnquiryPrivacyService {
     const channel = input.email ? MessageChannel.EMAIL : MessageChannel.SMS;
     const address = input.email ?? input.phone;
     if (!address) throw new BadRequestException('email or phone is required');
-    return this.prisma.enquiryContact.findMany({ where: { addresses: { some: { kind: input.email ? 'EMAIL' : 'PHONE', fingerprint: addressFingerprint(channel, address) } } }, select: { id: true, enquiryId: true, name: true, email: true, phone: true, redactedAt: true }, take: 100 });
+    const candidates = await this.prisma.enquiryContact.findMany({ where: { addresses: { some: { kind: input.email ? 'EMAIL' : 'PHONE', fingerprint: addressFingerprint(channel, address) } } }, select: { id: true, enquiryId: true, name: true, email: true, phone: true, redactedAt: true }, take: 101 });
+    if (candidates.length > 100) throw new BadRequestException('More than 100 subject candidates require manual privacy review');
+    return candidates;
   }
 
   async resolveSubject(requestId: string): Promise<EnquiryPrivacySubject> {
@@ -67,17 +73,30 @@ export class EnquiryPrivacyService {
   }
 
   async checkpoint(): Promise<number> {
+    const [pending, acknowledged] = await Promise.all([
+      this.prisma.enquiryPrivacyRedaction.findMany({ where: { checkpointedAt: null }, orderBy: [{ redactedAt: 'asc' }, { id: 'asc' }], take: 100 }),
+      this.prisma.enquiryPrivacyRedaction.aggregate({ _max: { checkpointSequence: true } }),
+    ]);
+    if (!pending.length) return 0;
+    const receipts = pending.map((receipt) => ({ id: receipt.id, enquiryId: receipt.enquiryId, contactId: receipt.contactId, reason: receipt.reason, privacyRevision: receipt.privacyRevision, redactedAt: receipt.redactedAt.toISOString() }));
+    const results = await this.journal().append(receipts, Number(acknowledged._max.checkpointSequence ?? 0));
+    await this.prisma.$transaction(async (tx) => {
+      // A batch is at most 100 receipts; each acknowledgement remains tied to its stable journal sequence.
+      for (const result of results) await tx.enquiryPrivacyRedaction.updateMany({ where: { id: result.id, checkpointedAt: null }, data: { checkpointSequence: BigInt(result.sequence), checkpointedAt: new Date() } });
+    });
+    return results.length;
+  }
+
+  async finalizeCheckpointedRequests(): Promise<number> {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('intake:journal-checkpoint',0))`;
-      const pending = await tx.enquiryPrivacyRedaction.findMany({ where: { checkpointedAt: null }, orderBy: [{ redactedAt: 'asc' }, { id: 'asc' }], take: 100 });
-      if (!pending.length) return 0;
-      const journal = this.journal();
-      for (const receipt of pending) {
-        const sequence = await journal.append({ id: receipt.id, enquiryId: receipt.enquiryId, contactId: receipt.contactId, reason: receipt.reason, privacyRevision: receipt.privacyRevision, redactedAt: receipt.redactedAt.toISOString() });
-        await tx.enquiryPrivacyRedaction.update({ where: { id: receipt.id }, data: { checkpointSequence: BigInt(sequence), checkpointedAt: new Date() } });
-      }
-      return pending.length;
-    }, { timeout: 60000 });
+      const requests = await tx.dataSubjectRequest.findMany({ where: { kind: 'ERASURE', status: 'IN_PROGRESS', erasureAppliedAt: { not: null } }, select: { id: true, enquirySubjects: { select: { contactId: true } } }, take: 100, orderBy: { requestedAt: 'asc' } });
+      const contactIds = requests.flatMap((request) => request.enquirySubjects.map((subject) => subject.contactId));
+      const pending = await tx.enquiryPrivacyRedaction.findMany({ where: { contactId: { in: contactIds }, checkpointedAt: null }, select: { contactId: true } });
+      const pendingIds = new Set(pending.map((receipt) => receipt.contactId));
+      const completedIds = requests.filter((request) => request.enquirySubjects.length && request.enquirySubjects.every((subject) => !pendingIds.has(subject.contactId))).map((request) => request.id);
+      const result = await tx.dataSubjectRequest.updateMany({ where: { id: { in: completedIds }, status: 'IN_PROGRESS', erasureAppliedAt: { not: null } }, data: { status: 'COMPLETED', completedAt: new Date() } });
+      return result.count;
+    });
   }
 
   async replayJournal(): Promise<number> {
@@ -100,7 +119,7 @@ export class EnquiryPrivacyService {
   }
 }
 
-async function replayRedactions(tx: Prisma.TransactionClient, receipts: RedactionReceipt[]): Promise<void> {
+async function replayRedactions(tx: Prisma.TransactionClient, receipts: ReplayedRedactionReceipt[]): Promise<void> {
   await lockIntake(tx, true);
   const ids = receipts.map((receipt) => receipt.enquiryId).sort();
   await tx.$queryRaw`SELECT id FROM sales_enquiries WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`;
@@ -111,6 +130,8 @@ async function replayRedactions(tx: Prisma.TransactionClient, receipts: Redactio
   await tx.enquiryNote.updateMany({ where: { enquiryId: { in: ids } }, data: { body: null, redactedAt: now } });
   await tx.enquiryCommand.updateMany({ where: { enquiryId: { in: ids } }, data: { requestFingerprint: null, invalidatedAt: now } });
   await tx.enquiryContactAddress.deleteMany({ where: { contactId: { in: contactIds } } });
+  await tx.enquiryPrivacyRedaction.createMany({ data: receipts.map((receipt) => ({ id: receipt.id, enquiryId: receipt.enquiryId, contactId: receipt.contactId, reason: receipt.reason, privacyRevision: receipt.privacyRevision, redactedAt: new Date(receipt.redactedAt), checkpointSequence: BigInt(receipt.sequence), checkpointedAt: now })), skipDuplicates: true });
+  await tx.$executeRaw`UPDATE enquiry_privacy_redactions r SET "checkpointSequence"=v.sequence,"checkpointedAt"=${now} FROM (VALUES ${Prisma.join(receipts.map((receipt) => Prisma.sql`(${receipt.id},${BigInt(receipt.sequence)}::bigint)`))}) AS v(id,sequence) WHERE r.id=v.id`;
   await tx.enquiryErasureTombstone.createMany({ data: receipts.map((receipt) => ({ enquiryId: receipt.enquiryId, contactId: receipt.contactId, privacyRevision: receipt.privacyRevision })), skipDuplicates: true });
   await tx.$executeRaw`UPDATE sales_enquiries s SET "closureNote"=NULL,"personalDataClearedAt"=COALESCE(s."personalDataClearedAt",r."redactedAt"),"privacyRevision"=GREATEST(s."privacyRevision",r.revision),"clearanceReason"=r.reason::"EnquiryClearanceReason" FROM (VALUES ${Prisma.join(receipts.map((receipt) => Prisma.sql`(${receipt.enquiryId},${new Date(receipt.redactedAt)}::timestamp,${receipt.privacyRevision}::integer,${receipt.reason})`))}) AS r(id,"redactedAt",revision,reason) WHERE s.id=r.id`;
 }

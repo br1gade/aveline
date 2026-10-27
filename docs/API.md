@@ -3569,9 +3569,6 @@ binding before fulfilment. Erasure adds `enquiriesCleared` and
 protected journal acknowledgement remains pending and the request stays
 IN_PROGRESS. Retrying fulfilment resumes the recorded checkpoint safely.
 
-The F39 storage/service substrate is present behind disabled intake gates;
-staff intake routes and conversion release are not yet exposed by this batch.
-
 ### Immutable invitation templates and controlled authoring
 
 `GET /events/:eventId/design-templates` retains its array shape and legacy fields,
@@ -3628,3 +3625,92 @@ when the publication flag is enabled. Renderer integration, named palette roles,
 bundled fonts, all four languages, inert preview and mobile/desktop visual
 acceptance remain a frontend release gate. See the
 [capability contract](contracts/invitation-renderer-capabilities/README.md).
+
+Staff intake routes are implemented under disabled rollout gates. Conversion
+remains separately gated. All intake responses use `Cache-Control: private,
+no-store`; command headers are redacted from request logging.
+
+
+### Staff enquiries and consultation appointments
+
+`POST /sales/enquiries` takes `{contact:{name,email?,phone?},requirements?:{
+eventType?,approximateLocalDate?,approximateTimezone?,estimatedGuestCount?},
+preferredLocale?,source?,assignedUserId?}`. Name and at least one email/explicit
+E.164 phone are required. SUPPORT must omit assignment and becomes assignee;
+ADMIN may supply an active staff ID or null. Phone-only contact is valid.
+
+All writes require an 8–128 printable-ASCII `Idempotency-Key`. Existing-case
+writes include positive `expectedRevision`. A successful command returns
+`{commandId,appliedRevision,resultId?,enquiry}` with the *current authorized*
+projection; replay never returns a stored old response. Same key with changed
+intent gives `IDEMPOTENCY_CONFLICT`; stale revision gives `ENQUIRY_CHANGED`.
+Current assignment is checked before replay, so former assignees receive 404.
+Cleared command intents stay spent with `SUBJECT_ERASED`.
+
+`GET /sales/enquiries` supports stage, search (exact normalized email/phone or
+case-insensitive name prefix), limit 1–100 (default 50) and opaque cursor bound
+to filters and actor. It returns `{items,nextCursor}`. Detail
+`GET /sales/enquiries/:enquiryId` includes contact, linkage, latest 20 notes,
+activities and consultations with each section's continuation cursor, recovery
+states and permissions. Section GET suffixes `/notes`, `/activities`,
+`/consultations` accept the same bounded limit/cursor convention. All reads are
+staff-only; customer membership in a linked organization grants no case access.
+
+`PATCH /sales/enquiries/:enquiryId` accepts contact/requirements/preferredLocale/
+source plus expectedRevision; omitted fields remain unchanged and explicit null
+clears optional fields only. `POST .../assignment` is ADMIN-only with
+`{expectedRevision,assignedUserId:null|staffId}`. Existing consultation operators
+remain booked after reassignment; the activity records appointments needing
+review. `POST .../stage` takes `{expectedRevision,stage,closureReason?,closureNote?}`;
+any stage may be skipped, CLOSED requires a reason, and same stage yields
+`NO_CHANGE`. Reopening pauses six-calendar-month cleanup; it never restores
+cleared data. `POST .../notes` takes `{expectedRevision,body,consultationId?}` and
+appends a note (1–10000 characters); corrections are new notes. All such commands
+return 200; create returns 201.
+
+`POST /sales/enquiries/:enquiryId/consultations` takes expectedRevision,
+operatorUserId, startsAt, endsAt and timezone. UTC timestamps require an offset;
+duration is 5 minutes–8 hours. SUPPORT schedules only themselves, ADMIN any
+active staff operator. PATCH at `.../consultations/:consultationId` additionally
+requires expectedConsultationRevision and accepts omitted unchanged scheduling
+fields or status COMPLETED/CANCELLED; terminal appointments require a new row.
+Atomic same-operator overlap gives safe `CONSULTATION_CONFLICT` (409), without
+another case's identity. Adjacent intervals are allowed. `GET
+/sales/consultation-availability?operatorUserId=...&from=...&to=...` allows <=31
+days and returns `{operatorUserId,busy:[{startsAt,endsAt}]}` with no enquiry IDs.
+It is advisory; writes enforce PostgreSQL exclusion. Consultation transitions
+send no automatic messages.
+
+`POST /privacy/enquiry-requests` is ADMIN-only and records `{kind,contactIds,
+notes?}` (1–100 distinct IDs) with null email and unverified candidate subjects.
+After the existing identity verification status workflow, `PUT
+/privacy/requests/:requestId/enquiry-subjects` takes reviewed contactIds and a
+verificationNote (evidence reference, no copied phone). Exact candidates are
+obtained by ADMIN-only `POST /privacy/enquiry-subject-candidates` with email or
+E.164 phone in the body. Binding requires verified IN_PROGRESS and cannot change
+a request once erasure is applied. No public phone search exists.
+
+`POST /sales/enquiries/:enquiryId/conversion` requires expectedRevision, an
+explicit `organization:{existingId}` or `organization:{create:{name,kind?,
+ownerEmail,ownerEmailSource?}}`, and optional `event:{existingId}` or
+`event:{create:<CreateEventDto>}`. Exactly one target form is accepted for each.
+Owner email is explicitly supplied; `ownerEmailSource:PRIMARY_CONTACT` additionally
+requires it to match the current primary contact and records erasure provenance.
+Omitted source means independent owner data. Phone-only enquiries need no
+fabricated event time or owner email until staff explicitly request new setup.
+Existing events must be DRAFT and belong to the selected organization; their
+fields are unchanged. A selected organization header must agree with the body.
+
+Conversion creates no payment, booking confirmation or staff membership. It
+returns the normal command envelope plus `conversion` linkage IDs. First setup
+returns 201; an existing-link replay or explicit later add-event returns 200.
+An organization-only link may gain one event later; an existing event link
+cannot be replaced. Concurrent retries produce one setup and one owner
+invitation. Existing memberships and valid pending owner invitations are reused;
+ambiguous or expired pending setup requires explicit organization selection and
+staff review. An expired/lost invitation is never silently rotated by replay.
+Account invitation hash and rendered Message commit together; missing message
+template rolls the complete setup back. Detail recovery states distinguish
+QUEUED/NEEDS_REVIEW/CANCELLED without exposing invitation credentials. The
+organization-invitation pre-send check rejects withdrawn, expired, accepted or
+privacy-invalid source invitations. Consultation messages remain manual.

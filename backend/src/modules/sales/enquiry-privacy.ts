@@ -7,11 +7,12 @@ export interface ClearanceInput { contactIds: string[]; now: Date; reason: 'RETE
 
 export async function redactEnquiries(tx: Prisma.TransactionClient, input: ClearanceInput) {
   const contacts = await tx.enquiryContact.findMany({ where: { id: { in: input.contactIds } }, select: { id: true, enquiryId: true, email: true, phone: true, enquiry: { select: { organizationId: true, privacyRevision: true, personalDataClearedAt: true } } } });
+  const roots = contacts.map((contact) => contact.enquiryId).sort();
+  if (roots.length) await tx.$queryRaw`SELECT id FROM sales_enquiries WHERE id IN (${Prisma.join(roots)}) ORDER BY id FOR UPDATE`;
+  if (input.reason === 'VERIFIED_ERASURE') await redactDerivedInvites(tx, contacts.map((contact) => contact.id), input.now);
   const active = contacts.filter((contact) => !contact.enquiry.personalDataClearedAt);
   const ids = active.map((contact) => contact.enquiryId).sort();
   if (!ids.length) return { enquiriesCleared: 0, enquiryNotesRedacted: 0 };
-  await tx.$queryRaw`SELECT id FROM sales_enquiries WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`;
-  if (input.reason === 'VERIFIED_ERASURE') await redactDerivedInvites(tx, active.map((contact) => contact.id), input.now);
   await tx.enquiryContact.updateMany({ where: { enquiryId: { in: ids } }, data: { name: null, email: null, phone: null, redactedAt: input.now, revision: { increment: 1 } } });
   const notes = await tx.enquiryNote.updateMany({ where: { enquiryId: { in: ids }, redactedAt: null }, data: { body: null, redactedAt: input.now } });
   await tx.enquiryContactAddress.deleteMany({ where: { contactId: { in: active.map((contact) => contact.id) } } });
@@ -38,7 +39,10 @@ export async function eraseEnquirySubjects(tx: Prisma.TransactionClient, input: 
 }
 
 export async function redactDerivedInvites(tx: Prisma.TransactionClient, contactIds: string[], now: Date): Promise<void> {
-  const deliveries = await tx.ownerInviteDelivery.findMany({ where: { sourceContactId: { in: contactIds } }, select: { id: true, organizationInviteId: true, messageId: true } });
+  const contacts = await tx.enquiryContact.findMany({ where: { id: { in: contactIds } }, select: { email: true, enquiry: { select: { conversion: { select: { ownerInviteId: true } } } } } });
+  const matchedOwners = contacts.flatMap((contact) => contact.email && contact.enquiry.conversion?.ownerInviteId ? [{ id: contact.enquiry.conversion.ownerInviteId, email: contact.email }] : []);
+  const invites = matchedOwners.length ? await tx.organizationInvite.findMany({ where: { OR: matchedOwners }, select: { id: true } }) : [];
+  const deliveries = await tx.ownerInviteDelivery.findMany({ where: { OR: [{ sourceContactId: { in: contactIds } }, { organizationInviteId: { in: invites.map((invite) => invite.id) } }] }, select: { id: true, organizationInviteId: true, messageId: true } });
   if (!deliveries.length) return;
   await tx.message.updateMany({ where: { id: { in: deliveries.flatMap((delivery) => delivery.messageId ? [delivery.messageId] : []) } }, data: { subject: null, body: '[erased]', toAddress: '[erased]', providerParams: [], status: MessageStatus.FAILED, failureReason: 'Recipient data erased' } });
   await tx.organizationInvite.deleteMany({ where: { id: { in: deliveries.map((delivery) => delivery.organizationInviteId) } } });

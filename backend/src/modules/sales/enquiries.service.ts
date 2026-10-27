@@ -1,3 +1,4 @@
+import { runEnquiryTransaction } from './enquiry-transaction';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,11 +14,11 @@ export class EnquiriesService {
   constructor(private readonly prisma: PrismaService, private readonly config: ConfigService) {}
 
   create(userId: string, key: string, dto: CreateEnquiryDto) {
-    return this.prisma.$transaction((tx) => createEnquiry(tx, { userId, key, dto }, this.config));
+    return runEnquiryTransaction(this.prisma, (tx) => createEnquiry(tx, { userId, key, dto }, this.config));
   }
 
   command(userId: string, enquiryId: string, input: EnquiryCommandInput) {
-    return this.prisma.$transaction((tx) => applyCommand(tx, { userId, enquiryId }, input, this.config));
+    return runEnquiryTransaction(this.prisma, (tx) => applyCommand(tx, { userId, enquiryId }, input, this.config));
   }
 
   update(userId: string, enquiryId: string, input: { key: string; dto: UpdateEnquiryDto }) {

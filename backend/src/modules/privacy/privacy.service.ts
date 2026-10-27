@@ -302,7 +302,8 @@ export class PrivacyService {
       const erased = subject.email
         ? await eraseSubject(tx, subject.email, new Date(), subject)
         : { counts: await this.enquiryPrivacy!.eraseInTransaction(tx, { subject, now: new Date(), requestId: request.id }), afterwards: null };
-      const hasIntakeRedactions = erased.counts.enquiriesCleared > 0;
+      const pending = await tx.enquiryPrivacyRedaction.count({ where: { contactId: { in: subject.verifiedContactIds }, checkpointedAt: null } });
+      const hasIntakeRedactions = erased.counts.enquiriesCleared > 0 || pending > 0;
       await tx.dataSubjectRequest.update({ where: { id: request.id }, data: hasIntakeRedactions
         ? { erasureAppliedAt: new Date(), erasureCheckpointId: request.id, erasureResult: erased.counts, handledByUserId: completion.userId }
         : completedBy(completion.userId) });

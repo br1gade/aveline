@@ -1,6 +1,11 @@
 import { HttpException } from '@nestjs/common';
 
 export const DOMAIN_ERRORS = {
+  ENQUIRY_CHANGED: { status: 409, action: 'RELOAD' },
+  CONSULTATION_CONFLICT: { status: 409, action: 'EDIT' },
+  IDEMPOTENCY_CONFLICT: { status: 409, action: 'RELOAD' },
+  SUBJECT_ERASED: { status: 409, action: 'CONTACT_SUPPORT' },
+  NO_CHANGE: { status: 409, action: 'EDIT' },
   TEMPLATE_VALIDATION_FAILED: { status: 400, action: 'EDIT' },
   TEMPLATE_CAPABILITY_REQUIRED: { status: 409, action: 'CONTACT_SUPPORT' },
   TEMPLATE_STATE_CHANGED: { status: 409, action: 'RELOAD' },

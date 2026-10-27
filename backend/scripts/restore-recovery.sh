@@ -51,4 +51,4 @@ PGPASSWORD="${POSTGRES_PASSWORD:-}" psql --host="$POSTGRES_HOST" --port="$POSTGR
   --command="SELECT 'events: ' || count(*) FROM events" \
   --command="SELECT 'guests: ' || count(*) FROM guests" \
   --command="SELECT 'migrations: ' || count(*) FROM _prisma_migrations"
-echo 'Paired restore finished. Install the protected config from the recovery set, start Garage, then the API; run pilot:smoke and verify existing guest/media links.'
+echo 'Paired restore finished. Keep API and outbound workers stopped. Apply current migrations, then run node dist/intake-privacy-recovery.js against the latest independently preserved protected journal with SALES_PRIVACY_JOURNAL_LATEST_VERIFIED=true and SALES_PRIVACY_RESTORE_SEQUENCE. Missing/latest/gap/signature failures keep recovery offline; only zero-outstanding replay permits the documented restart and pilot:smoke procedure.'

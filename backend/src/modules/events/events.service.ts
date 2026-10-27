@@ -74,6 +74,14 @@ export class EventsService {
       );
     }
 
+    const event = await this.prisma.$transaction((tx) => this.createInTransaction(tx, { organizationId, userId, dto, options }));
+
+    this.logger.log(`event ${event.id} created in organization ${organizationId}`);
+    return this.findOne(event.id);
+  }
+
+  async prepareCreation(tx: Prisma.TransactionClient, input: { organizationId: string; dto: CreateEventDto }) {
+    const { dto } = input;
     const startsAt = new Date(dto.startsAt);
     const endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
     const locales = dto.locales ?? ['hy'];
@@ -83,59 +91,60 @@ export class EventsService {
     const problem = detailsProblem({ startsAt, endsAt, timezone, locales, defaultLocale });
     if (problem) throw new BadRequestException(problem);
 
-    const template = await this.pickTemplate(dto.templateKey);
+    const template = await this.pickTemplate(dto.templateKey, tx);
     const hostsLabel = dto.hostsLabel ?? dto.title;
 
-    const event = await this.prisma.$transaction(async (tx) => {
-      await lockOrganizationStanding(tx, { organizationId });
-      await requireCurrentOrganizationPermission(tx, { actor: { userId, email: '', platformRole: 'NONE' }, organizationId,
-        permission: options.isOnBehalf ? 'concierge:manage' : 'event:write' });
-      const created = await tx.event.create({
-        data: {
-          organizationId,
-          type: dto.type,
-          title: dto.title,
-          hostsLabel,
-          startsAt,
-          endsAt,
-          timezone,
-          locales,
-          defaultLocale,
-          sideALabel: dto.sideALabel ?? null,
-          sideBLabel: dto.sideBLabel ?? null,
-          visibility: dto.visibility ?? undefined,
-          status: EventStatus.DRAFT,
-        },
-      });
+    return { startsAt, endsAt, locales, timezone, defaultLocale, template, hostsLabel };
+  }
 
-      // The creator owns it. Without this the event exists and its creator
-      // cannot read it back, because the guard resolves access from membership.
-      // Not when Aveline staff set it up for a customer: they act through
-      // their platform role, and the customer becomes its owner.
-      if (!options.isOnBehalf) {
-        await tx.eventMembership.create({
-          data: { eventId: created.id, userId, role: await resolveEventCreatorRole(tx, { userId, organizationId }) },
-        });
-      }
-
-      if (template) {
-        await tx.invitation.create({
-          data: {
-            eventId: created.id,
-            slug: invitationSlug(hostsLabel, randomBytes(4).toString('hex')),
-            templateId: template.id,
-            theme: template.defaultTheme as Prisma.InputJsonValue,
-            // Without these the host opens a blank page and can publish it.
-            blocks: { create: defaultBlocksFor(template.supportedBlocks) },
-          },
-        });
-      }
-
-      return created;
+  async createInTransaction(tx: Prisma.TransactionClient, input: { organizationId: string; userId: string; dto: CreateEventDto; options: { isOnBehalf: boolean }; prepared?: Awaited<ReturnType<EventsService['prepareCreation']>> }) {
+    const { organizationId, userId, dto, options } = input;
+    await lockOrganizationStanding(tx, { organizationId });
+    const prepared = input.prepared ?? await this.prepareCreation(tx, { organizationId, dto });
+    const { startsAt, endsAt, locales, timezone, defaultLocale, template, hostsLabel } = prepared;
+    await requireCurrentOrganizationPermission(tx, { actor: { userId, email: '', platformRole: 'NONE' }, organizationId,
+      permission: options.isOnBehalf ? 'concierge:manage' : 'event:write' });
+    const created = await tx.event.create({
+      data: {
+        organizationId,
+        type: dto.type,
+        title: dto.title,
+        hostsLabel,
+        startsAt,
+        endsAt,
+        timezone,
+        locales,
+        defaultLocale,
+        sideALabel: dto.sideALabel ?? null,
+        sideBLabel: dto.sideBLabel ?? null,
+        visibility: dto.visibility ?? undefined,
+        status: EventStatus.DRAFT,
+      },
     });
 
-    this.logger.log(`event ${event.id} created in organization ${organizationId}`);
-    return this.findOne(event.id);
+    // The creator owns it. Without this the event exists and its creator
+    // cannot read it back, because the guard resolves access from membership.
+    // Not when Aveline staff set it up for a customer: they act through
+    // their platform role, and the customer becomes its owner.
+    if (!options.isOnBehalf) {
+      await tx.eventMembership.create({
+        data: { eventId: created.id, userId, role: await resolveEventCreatorRole(tx, { userId, organizationId }) },
+      });
+    }
+
+    if (template) {
+      await tx.invitation.create({
+        data: {
+          eventId: created.id,
+          slug: invitationSlug(hostsLabel, randomBytes(4).toString('hex')),
+          templateId: template.id,
+          theme: template.defaultTheme as Prisma.InputJsonValue,
+          // Without these the host opens a blank page and can publish it.
+          blocks: { create: defaultBlocksFor(template.supportedBlocks) },
+        },
+      });
+    }
+    return created;
   }
 
   /**
@@ -182,16 +191,16 @@ export class EventsService {
    * not seen the catalogue yet, and an event with a draft invitation they can
    * restyle is more useful than a form that refuses to submit.
    */
-  private async pickTemplate(templateKey?: string) {
+  private async pickTemplate(templateKey?: string, tx: Prisma.TransactionClient = this.prisma) {
     if (templateKey) {
-      const named = await this.prisma.designTemplate.findFirst({
+      const named = await tx.designTemplate.findFirst({
         where: { key: templateKey, isActive: true },
       });
       if (!named) throw new NotFoundException(`No template "${templateKey}" is available`);
       return named;
     }
 
-    return this.prisma.designTemplate.findFirst({
+    return tx.designTemplate.findFirst({
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
@@ -452,6 +461,7 @@ function assertDeletable(event: {
     throw new ConflictException('Money has moved through this event, and those records are kept; archive it instead');
   }
 }
+
 
 function hasGlobalEventScope(actor: RequestActor): boolean {
   return actor.platformRole !== PlatformRole.NONE && !actor.organizationContext;

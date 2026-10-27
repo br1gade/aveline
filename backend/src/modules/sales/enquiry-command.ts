@@ -1,4 +1,5 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { DomainHttpException } from '../../common/domain-http.exception';
+import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, SalesEnquiry } from '@prisma/client';
 import { assertEnquiryAccess, lockStaff } from './enquiry-access';
@@ -30,9 +31,9 @@ export async function authorizeCase(tx: Prisma.TransactionClient, input: { userI
 export async function replayCommand(tx: Prisma.TransactionClient, input: { userId: string; enquiryId: string; operation: string; key: string; intent: object }, config: ConfigService) {
   const receipt = await tx.enquiryCommand.findUnique({ where: { actorUserId_operation_idempotencyKey: { actorUserId: input.userId, operation: input.operation, idempotencyKey: input.key } } });
   if (!receipt) return null;
-  if (receipt.enquiryId !== input.enquiryId) throw new ConflictException('IDEMPOTENCY_CONFLICT');
-  if (receipt.invalidatedAt || !receipt.requestFingerprint) throw new ConflictException('SUBJECT_ERASED');
-  if (!sameIntent(receipt.requestFingerprint, input.intent, intakeKeys(config))) throw new ConflictException('IDEMPOTENCY_CONFLICT');
+  if (receipt.enquiryId !== input.enquiryId) throw new DomainHttpException('IDEMPOTENCY_CONFLICT', 'IDEMPOTENCY_CONFLICT');
+  if (receipt.invalidatedAt || !receipt.requestFingerprint) throw new DomainHttpException('SUBJECT_ERASED', 'SUBJECT_ERASED');
+  if (!sameIntent(receipt.requestFingerprint, input.intent, intakeKeys(config))) throw new DomainHttpException('IDEMPOTENCY_CONFLICT', 'IDEMPOTENCY_CONFLICT');
   return { commandId: receipt.id, appliedRevision: receipt.appliedRevision, resultId: receipt.resultId, enquiry: await projectEnquiry(tx, input.enquiryId) };
 }
 
@@ -42,8 +43,8 @@ export async function applyCommand(tx: Prisma.TransactionClient, target: { userI
   const intent = { ...input.intent, userId: target.userId, enquiryId: target.enquiryId, operation: input.operation };
   const replay = await replayCommand(tx, { ...target, ...input, intent }, config);
   if (replay) return replay;
-  if (root.revision !== input.expectedRevision) throw new ConflictException('ENQUIRY_CHANGED');
-  if (root.personalDataClearedAt && !input.canWriteCleared) throw new ConflictException('SUBJECT_ERASED');
+  if (root.revision !== input.expectedRevision) throw new DomainHttpException('ENQUIRY_CHANGED', 'ENQUIRY_CHANGED');
+  if (root.personalDataClearedAt && !input.canWriteCleared) throw new DomainHttpException('SUBJECT_ERASED', 'SUBJECT_ERASED');
   const result = await input.apply(tx, root);
   const revision = root.revision + 1;
   await tx.salesEnquiry.update({ where: { id: root.id }, data: { revision } });

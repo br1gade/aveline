@@ -7,7 +7,7 @@ export function exportSubjectFingerprint(email: string): string {
 }
 
 export async function lockExportPrivacy(tx: Prisma.TransactionClient): Promise<void> {
-  await tx.exportPrivacyFence.upsert({ where: { id: 'exports' }, create: { id: 'exports' }, update: {} });
+  await tx.$executeRaw`INSERT INTO export_privacy_fences (id,revision) VALUES ('exports',0) ON CONFLICT DO NOTHING`;
   // REPEATABLE READ rejects a row changed while waiting: retry with fresh inputs.
   await tx.$queryRaw`SELECT id FROM export_privacy_fences WHERE id = 'exports' FOR SHARE`;
 }

@@ -6727,6 +6727,687 @@
           "privacy"
         ]
       }
+    },
+    "/api/v1/privacy/enquiry-requests": {
+      "post": {
+        "operationId": "EnquiryPrivacyController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEnquiryPrivacyRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/privacy/requests/{requestId}/enquiry-subjects": {
+      "put": {
+        "operationId": "EnquiryPrivacyController_bind",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindEnquirySubjectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/privacy/enquiry-subject-candidates": {
+      "post": {
+        "operationId": "EnquiryPrivacyController_candidates",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnquirySubjectCandidatesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/conversion": {
+      "post": {
+        "operationId": "EnquiryConversionController_convert",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries": {
+      "post": {
+        "operationId": "EnquiriesController_create",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "get": {
+        "operationId": "EnquiriesController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NEW",
+                "CONTACTED",
+                "CONSULTATION",
+                "READY_FOR_QUOTE",
+                "CLOSED"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}": {
+      "get": {
+        "operationId": "EnquiriesController_detail",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "patch": {
+        "operationId": "EnquiriesController_update",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/assignment": {
+      "post": {
+        "operationId": "EnquiriesController_assign",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/stage": {
+      "post": {
+        "operationId": "EnquiriesController_stage",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StageEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/notes": {
+      "post": {
+        "operationId": "EnquiriesController_note",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnquiryNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "get": {
+        "operationId": "EnquiriesController_notes",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/activities": {
+      "get": {
+        "operationId": "EnquiriesController_activities",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/consultations": {
+      "get": {
+        "operationId": "EnquiriesController_consultations",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "post": {
+        "operationId": "ConsultationsController_create",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConsultationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/consultations/{consultationId}": {
+      "patch": {
+        "operationId": "ConsultationsController_update",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConsultationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/consultation-availability": {
+      "get": {
+        "operationId": "ConsultationsController_availability",
+        "parameters": [
+          {
+            "name": "operatorUserId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
     }
   },
   "info": {
@@ -9293,6 +9974,376 @@
         "type": "object",
         "properties": {}
       },
+      "CreateEnquiryPrivacyRequestDto": {
+        "type": "object",
+        "properties": {
+          "contactIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "EXPORT",
+              "ERASURE",
+              "RECTIFICATION"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contactIds",
+          "kind"
+        ]
+      },
+      "BindEnquirySubjectsDto": {
+        "type": "object",
+        "properties": {
+          "contactIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "verificationNote": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contactIds",
+          "verificationNote"
+        ]
+      },
+      "EnquirySubjectCandidatesDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "EnquiryOwnerSetupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Petrosyan Wedding"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "PLANNER",
+              "CORPORATE"
+            ],
+            "description": "HOST for a couple, AGENCY for a planner"
+          },
+          "ownerEmail": {
+            "type": "string"
+          },
+          "ownerEmailSource": {
+            "type": "string",
+            "enum": [
+              "INDEPENDENT",
+              "PRIMARY_CONTACT"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "ownerEmail"
+        ]
+      },
+      "EnquiryOrganizationTargetDto": {
+        "type": "object",
+        "properties": {
+          "existingId": {
+            "type": "string"
+          },
+          "create": {
+            "$ref": "#/components/schemas/EnquiryOwnerSetupDto"
+          }
+        }
+      },
+      "EnquiryEventTargetDto": {
+        "type": "object",
+        "properties": {
+          "existingId": {
+            "type": "string"
+          },
+          "create": {
+            "$ref": "#/components/schemas/CreateEventDto"
+          }
+        }
+      },
+      "ConvertEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/EnquiryOrganizationTargetDto"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EnquiryEventTargetDto"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "organization"
+        ]
+      },
+      "EnquiryContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EnquiryRequirementsDto": {
+        "type": "object",
+        "properties": {
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "WEDDING",
+              "ENGAGEMENT",
+              "BAPTISM",
+              "BIRTHDAY",
+              "ANNIVERSARY",
+              "CORPORATE",
+              "OTHER"
+            ],
+            "nullable": true
+          },
+          "approximateLocalDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "approximateTimezone": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedGuestCount": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "CreateEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/EnquiryContactDto"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/EnquiryRequirementsDto"
+          },
+          "preferredLocale": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "PHONE",
+              "MESSAGING",
+              "IN_PERSON",
+              "EMAIL",
+              "OTHER"
+            ],
+            "nullable": true
+          },
+          "assignedUserId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "contact"
+        ]
+      },
+      "UpdateEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/EnquiryContactDto"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/EnquiryRequirementsDto"
+          },
+          "preferredLocale": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "PHONE",
+              "MESSAGING",
+              "IN_PERSON",
+              "EMAIL",
+              "OTHER"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ]
+      },
+      "AssignEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "assignedUserId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "assignedUserId"
+        ]
+      },
+      "StageEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "CONSULTATION",
+              "READY_FOR_QUOTE",
+              "CLOSED"
+            ]
+          },
+          "closureReason": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER_DECLINED",
+              "UNREACHABLE",
+              "DUPLICATE",
+              "OTHER"
+            ]
+          },
+          "closureNote": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "stage"
+        ]
+      },
+      "EnquiryNoteDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "body": {
+            "type": "string"
+          },
+          "consultationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "body"
+        ]
+      },
+      "CreateConsultationDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "operatorUserId": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "operatorUserId",
+          "startsAt",
+          "endsAt",
+          "timezone"
+        ]
+      },
+      "UpdateConsultationDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "expectedConsultationRevision": {
+            "type": "number"
+          },
+          "operatorUserId": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "expectedConsultationRevision"
+        ]
+      },
       "FieldFeedbackDto": {
         "type": "object",
         "properties": {
@@ -9321,6 +10372,11 @@
           "code": {
             "type": "string",
             "enum": [
+              "ENQUIRY_CHANGED",
+              "CONSULTATION_CONFLICT",
+              "IDEMPOTENCY_CONFLICT",
+              "SUBJECT_ERASED",
+              "NO_CHANGE",
               "TEMPLATE_VALIDATION_FAILED",
               "TEMPLATE_CAPABILITY_REQUIRED",
               "TEMPLATE_STATE_CHANGED",
@@ -9407,6 +10463,11 @@
           "code": {
             "type": "string",
             "enum": [
+              "ENQUIRY_CHANGED",
+              "CONSULTATION_CONFLICT",
+              "IDEMPOTENCY_CONFLICT",
+              "SUBJECT_ERASED",
+              "NO_CHANGE",
               "TEMPLATE_VALIDATION_FAILED",
               "TEMPLATE_CAPABILITY_REQUIRED",
               "TEMPLATE_STATE_CHANGED",

@@ -756,3 +756,26 @@ declares tested slots; adoption refuses a version needing unprepared private art
 Not yet built: real frontend capability/visual acceptance and production private
 artwork materialization acceptance. These are explicit rollout gates, not evidence
 that the backend fixture manifests constitute frontend support.
+
+
+Staff intake routes (default disabled; active ADMIN or assigned SUPPORT):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/sales/enquiries` | Create contact and case atomically |
+| `GET` | `/api/v1/sales/enquiries` | Assignment-scoped bounded queue |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId` | Current case and bounded sections |
+| `PATCH` | `/api/v1/sales/enquiries/:enquiryId` | Update merged contact/requirements |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/assignment` | ADMIN assignment |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/stage` | Close/reopen or change stage |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/notes` | Append internal note |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId/notes` | Page notes |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId/activities` | Page safe history |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId/consultations` | Page consultations |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/consultations` | Schedule operator appointment |
+| `PATCH` | `/api/v1/sales/enquiries/:enquiryId/consultations/:consultationId` | Edit/cancel/complete appointment |
+| `GET` | `/api/v1/sales/consultation-availability` | Own operator occupied intervals only |
+| `POST` | `/api/v1/privacy/enquiry-requests` | ADMIN staff-received phone-only request |
+| `PUT` | `/api/v1/privacy/requests/:requestId/enquiry-subjects` | Bind reviewed contact IDs |
+| `POST` | `/api/v1/privacy/enquiry-subject-candidates` | ADMIN exact email/phone candidates in body |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/conversion` | Explicit atomic organization/draft-event setup |

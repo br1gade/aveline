@@ -47,7 +47,7 @@ ENV NODE_ENV=production
 # handlers — so a deploy would wait out the stop timeout and kill the process
 # before Nest's shutdown hooks could close the Postgres, Redis and Mongo
 # connections.
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini util-linux
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma

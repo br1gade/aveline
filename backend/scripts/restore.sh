@@ -9,6 +9,7 @@
 #     -v aveline_backups:/backups backup \
 #     /bin/sh /scripts/restore.sh /backups/postgres-20261006T030000Z.dump
 set -eu
+[ "${RESTORE_QUIESCED:-}" = true ] || { echo 'Stop API and outbound workers before restoring' >&2; exit 1; }
 
 DUMP="${1:-}"
 : "${POSTGRES_USER:?POSTGRES_USER is required}"
@@ -91,6 +92,7 @@ if [ "$TABLES" -lt 2 ]; then
 fi
 
 echo ""
-echo "Next: restart the API so it reconnects, and check that it comes up:"
-echo "  docker compose -f docker-compose.prod.yml restart api"
-echo "  curl -fsS https://\$API_DOMAIN/api/v1/health/ready"
+echo "Keep API and outbound workers stopped. Apply current migrations using the API runtime."
+echo "Then run node dist/intake-privacy-recovery.js with the latest independent protected journal,"
+echo "SALES_PRIVACY_JOURNAL_LATEST_VERIFIED=true and SALES_PRIVACY_RESTORE_SEQUENCE set to its verified high-water mark."
+echo "Only a successful zero-outstanding replay report permits the documented restart/smoke procedure."

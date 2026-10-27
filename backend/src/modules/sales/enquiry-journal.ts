@@ -1,8 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { mkdir, open, readFile, rename } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 
 export interface RedactionReceipt { id: string; enquiryId: string; contactId: string; reason: 'RETENTION' | 'VERIFIED_ERASURE'; privacyRevision: number; redactedAt: string }
+export interface ReplayedRedactionReceipt extends RedactionReceipt { sequence: number }
 interface SignedRecord { sequence: number; previous: string; receipt: RedactionReceipt; signature: string }
 interface Manifest { sequence: number; signature: string; checksum: string }
 
@@ -19,18 +21,6 @@ export class EnquiryJournal {
     return left.length === right.length && timingSafeEqual(left, right);
   }
 
-  private async write(name: string, value: object): Promise<void> {
-    await mkdir(this.directory, { recursive: true, mode: 0o700 });
-    const path = join(this.directory, name);
-    const temporary = `${path}.${crypto.randomUUID()}.tmp`;
-    const file = await open(temporary, 'wx', 0o600);
-    try { await file.writeFile(JSON.stringify(value)); await file.sync(); }
-    finally { await file.close(); }
-    await rename(temporary, path);
-    const directory = await open(this.directory, 'r');
-    try { await directory.sync(); } finally { await directory.close(); }
-  }
-
   async manifest(shouldAllowEmpty = false): Promise<Manifest> {
     try {
       const manifest = JSON.parse(await readFile(join(this.directory, 'manifest.json'), 'utf8')) as Manifest;
@@ -42,31 +32,35 @@ export class EnquiryJournal {
     }
   }
 
-  private async saveManifest(record: SignedRecord): Promise<void> {
-    const value = { sequence: record.sequence, signature: record.signature };
-    await this.write('manifest.json', { ...value, checksum: this.sign(value) });
+  async initialize(): Promise<void> {
+    await this.runWriter([], 0, true);
+    const manifest = await this.manifest();
+    if (manifest.sequence !== 0) throw new Error('Only an explicit fresh installation may initialize a zero journal');
   }
 
-  async append(receipt: RedactionReceipt): Promise<number> {
-    const manifest = await this.manifest(true);
-    let record: SignedRecord;
-    try { record = JSON.parse(await readFile(join(this.directory, `${receipt.id}.json`), 'utf8')) as SignedRecord; }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      const payload = { sequence: manifest.sequence + 1, previous: manifest.signature, receipt };
-      record = { ...payload, signature: this.sign(payload) };
-      await this.write(`${receipt.id}.json`, record);
-      await this.write(`${record.sequence}.json`, record);
-    }
-    this.verify(record, record.sequence, record.previous);
-    if (JSON.stringify(record.receipt) !== JSON.stringify(receipt)) throw new Error('Privacy receipt identity mismatch');
-    if (record.sequence > manifest.sequence + 1) throw new Error('Privacy journal sequence gap');
-    if (record.sequence === manifest.sequence + 1) {
-      if (record.previous !== manifest.signature) throw new Error('Privacy journal chain mismatch');
-      await this.write(`${record.sequence}.json`, record);
-      await this.saveManifest(record);
-    }
-    return record.sequence;
+  private async runWriter(receipts: RedactionReceipt[], minimumSequence: number, shouldInitialize = false): Promise<void> {
+    await mkdir(this.directory, { recursive: true, mode: 0o700 });
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn('flock', ['-x', join(this.directory, '.journal.lock'), process.execPath, join(process.cwd(), 'scripts/intake-journal-writer.mjs')], { stdio: ['pipe', 'ignore', 'ignore'] });
+      child.on('error', reject);
+      child.on('close', (code) => {
+        if (code !== 0) { reject(new Error('Protected journal writer failed; keep recovery offline')); return; }
+        resolve();
+      });
+      child.stdin.on('error', reject);
+      child.stdin.end(JSON.stringify({ directory: this.directory, key: this.key, receipts, minimumSequence, initialize: shouldInitialize }));
+    });
+  }
+
+  async append(receipts: RedactionReceipt[], minimumSequence: number): Promise<{ id: string; sequence: number }[]> {
+    await this.runWriter(receipts, minimumSequence);
+    const manifest = await this.manifest();
+    return Promise.all(receipts.map(async (receipt) => {
+      const record = JSON.parse(await readFile(join(this.directory, `${receipt.id}.json`), 'utf8')) as SignedRecord;
+      this.verify(record, record.sequence, record.previous);
+      if (record.receipt.id !== receipt.id || record.sequence > manifest.sequence) throw new Error('Journal acknowledgement is incomplete');
+      return { id: receipt.id, sequence: record.sequence };
+    }));
   }
 
   private verify(record: SignedRecord, sequence: number, previous: string): void {
@@ -74,14 +68,14 @@ export class EnquiryJournal {
     if (record.sequence !== sequence || record.previous !== previous || !this.isSigned(signature, this.sign(payload))) throw new Error('Privacy journal sequence gap or signature mismatch');
   }
 
-  async readVerified(): Promise<RedactionReceipt[]> {
+  async readVerified(): Promise<ReplayedRedactionReceipt[]> {
     const manifest = await this.manifest();
-    const receipts: RedactionReceipt[] = [];
+    const receipts: ReplayedRedactionReceipt[] = [];
     let previous = '';
     for (let sequence = 1; sequence <= manifest.sequence; sequence++) {
       const record = JSON.parse(await readFile(join(this.directory, `${sequence}.json`), 'utf8')) as SignedRecord;
       this.verify(record, sequence, previous);
-      receipts.push(record.receipt);
+      receipts.push({ ...record.receipt, sequence: record.sequence });
       previous = record.signature;
     }
     if (previous !== manifest.signature) throw new Error('Privacy journal high-water mismatch');

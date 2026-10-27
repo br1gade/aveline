@@ -1,3 +1,4 @@
+import { fenceOwnerInviteAcceptance } from '../../modules/sales/owner-invite-privacy';
 import { lockOwnerAddress, lockOrganizationStanding, lockEventOrganization, requireCurrentOrganizationPermission, requireCurrentEventPermission } from './access-locks';
 import { canAddOrganizationMembership } from './organization-write-gate';
 import { incrementOrganizationRevision } from '../../modules/organizations/organization-membership';
@@ -306,6 +307,7 @@ export class AccountService {
     assertValidInvitation(initial);
     const admit = await this.prepareInvitee(initial.email, dto);
     const result = await this.prisma.$transaction(async (tx) => {
+      await fenceOwnerInviteAcceptance(tx, initial.id);
       await lockOwnerAddress(tx, initial.email);
       await lockOrganizationStanding(tx, { organizationId: initial.organizationId, mode: 'update' });
       await tx.$queryRaw`SELECT id FROM organization_invites WHERE id = ${initial.id} FOR UPDATE`;

@@ -69,7 +69,7 @@ const STRANDED_AFTER_MS = 15 * 60 * 1000;
 type DueMessage = Prisma.MessageGetPayload<object>;
 
 /** Whether a queued message still says something true, asked just before it is sent. */
-export type StillWanted = (message: { guestId: string | null; eventId: string | null; toAddress: string }) => Promise<boolean>;
+export type StillWanted = (message: { id?: string; guestId: string | null; eventId: string | null; toAddress: string }) => Promise<boolean>;
 
 @Injectable()
 export class CommunicationsService {

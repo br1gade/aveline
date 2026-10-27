@@ -42,4 +42,14 @@ describe('staff enquiry transactions', () => {
     expect(await prisma.enquiryActivity.count()).toBe(2);
     expect(await prisma.enquiryCommand.count()).toBe(2);
   });
+  it('maps opposing same-key commands on different roots to a safe idempotency conflict', async () => {
+    const admin = await staff('ADMIN');
+    const cases = await Promise.all(['create-first-key', 'create-other-key'].map((key) => service.create(admin.id, key, { contact: { name: 'Anna', phone: '+37499123456' } })));
+    const results = await Promise.allSettled(cases.map((entry) => service.addNote(admin.id, entry.enquiry.id, { key: 'same-note-command', dto: { expectedRevision: 1, body: 'Only one command' } })));
+    expect(results.filter((entry) => entry.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find((entry) => entry.status === 'rejected') as PromiseRejectedResult;
+    expect(String(rejected.reason)).toContain('IDEMPOTENCY_CONFLICT');
+    expect(await prisma.enquiryNote.count()).toBe(1);
+  });
+
 });

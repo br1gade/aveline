@@ -4,7 +4,8 @@ export interface ContactInput { name?: string | null; email?: string | null; pho
 export interface Contact { name: string; email: string | null; phone: string | null }
 
 export function mergeContact(current: ContactInput | null, changes: ContactInput): Contact {
-  const merged = { name: null, email: null, phone: null, ...current, ...changes };
+  const defined = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
+  const merged = { name: null, email: null, phone: null, ...current, ...defined } as ContactInput;
   const name = merged.name?.trim() ?? '';
   const email = merged.email?.trim().toLowerCase() || null;
   const phone = merged.phone?.trim() || null;

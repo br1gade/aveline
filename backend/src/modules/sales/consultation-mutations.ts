@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { DomainHttpException } from '../../common/domain-http.exception';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma, SalesEnquiry } from '@prisma/client';
 import { lockOperators } from './enquiry-access';
 import { CreateConsultationDto, UpdateConsultationDto } from './dto/consultation.dto';
@@ -21,7 +22,7 @@ export async function createConsultation(tx: Prisma.TransactionClient, root: Sal
 export async function updateConsultation(tx: Prisma.TransactionClient, root: SalesEnquiry, input: { userId: string; consultationId: string; dto: UpdateConsultationDto }) {
   const previous = await tx.consultation.findUnique({ where: { id_enquiryId: { id: input.consultationId, enquiryId: root.id } } });
   if (!previous) throw new NotFoundException('No such consultation');
-  if (previous.revision !== input.dto.expectedConsultationRevision) throw new ConflictException('ENQUIRY_CHANGED');
+  if (previous.revision !== input.dto.expectedConsultationRevision) throw new DomainHttpException('ENQUIRY_CHANGED', 'ENQUIRY_CHANGED');
   if (previous.status !== 'SCHEDULED') throw new BadRequestException('status is terminal; create a new consultation');
   const operatorUserId = input.dto.operatorUserId ?? previous.operatorUserId;
   await authorizeOperator(tx, { userId: input.userId, operatorUserId });
@@ -35,7 +36,7 @@ export async function updateConsultation(tx: Prisma.TransactionClient, root: Sal
 export function mapConsultationError(error: unknown): never {
   const isKnownOverlap = error instanceof Prisma.PrismaClientKnownRequestError && /consultation_operator_no_overlap|23P01/.test(JSON.stringify(error.meta));
   const isUnknownOverlap = error instanceof Prisma.PrismaClientUnknownRequestError && error.message.includes('23P01') && error.message.includes('consultation_operator_no_overlap');
-  if (isKnownOverlap || isUnknownOverlap) throw new ConflictException('CONSULTATION_CONFLICT');
+  if (isKnownOverlap || isUnknownOverlap) throw new DomainHttpException('CONSULTATION_CONFLICT', 'CONSULTATION_CONFLICT');
   throw error;
 }
 

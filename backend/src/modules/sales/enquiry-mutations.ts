@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { DomainHttpException } from '../../common/domain-http.exception';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Prisma, SalesEnquiry } from '@prisma/client';
 import { lockOperators, lockStaff } from './enquiry-access';
 import { rememberAddresses } from './enquiry-addresses';
@@ -21,7 +22,7 @@ export async function assignEnquiry(tx: Prisma.TransactionClient, root: SalesEnq
   const actor = await lockStaff(tx, input.userId);
   if (actor.platformRole !== 'ADMIN') throw new ForbiddenException('Assignment is ADMIN-only');
   if (input.dto.assignedUserId) await lockOperators(tx, [input.dto.assignedUserId]);
-  if (root.assignedUserId === input.dto.assignedUserId) throw new ConflictException('NO_CHANGE');
+  if (root.assignedUserId === input.dto.assignedUserId) throw new DomainHttpException('NO_CHANGE', 'NO_CHANGE');
   await tx.salesEnquiry.update({ where: { id: root.id }, data: { assignedUserId: input.dto.assignedUserId } });
   const appointmentsNeedingReview = await tx.consultation.count({ where: { enquiryId: root.id, status: 'SCHEDULED', operatorUserId: { not: input.dto.assignedUserId ?? '' } } });
   return { metadata: { assignedUserId: input.dto.assignedUserId, appointmentsNeedingReview } };
@@ -36,9 +37,10 @@ export async function changeEnquiryStage(tx: Prisma.TransactionClient, root: Sal
 }
 
 function validateStage(root: SalesEnquiry, dto: StageEnquiryDto): void {
-  if (root.stage === dto.stage) throw new ConflictException('NO_CHANGE');
+  if (dto.stage !== 'CLOSED' && (dto.closureReason || dto.closureNote)) throw new BadRequestException('closureReason and closureNote are only accepted for CLOSED');
+  if (root.stage === dto.stage) throw new DomainHttpException('NO_CHANGE', 'NO_CHANGE');
   if (dto.stage === 'CLOSED' && !dto.closureReason) throw new BadRequestException('closureReason is required for CLOSED');
-  if (root.personalDataClearedAt && dto.closureNote) throw new ConflictException('SUBJECT_ERASED');
+  if (root.personalDataClearedAt && dto.closureNote) throw new DomainHttpException('SUBJECT_ERASED', 'SUBJECT_ERASED');
 
 }
 
