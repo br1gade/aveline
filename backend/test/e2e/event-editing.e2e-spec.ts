@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -171,7 +172,7 @@ describe('Editing an event (e2e)', () => {
     it('offers it after a venue changes too, and the guest page shows the new address at once', async () => {
       const { eventId, slug, authorization } = await host();
       // Put the venue on the page: the fixture's template renders only HERO and RSVP.
-      await prisma.designTemplate.update({
+      await reviseTemplateFixture(prisma, {
         where: { key: 'test-template' },
         data: { supportedBlocks: ['HERO', 'VENUE', 'RSVP'] },
       });

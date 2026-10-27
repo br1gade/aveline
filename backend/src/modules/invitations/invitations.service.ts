@@ -1,3 +1,4 @@
+import { pinnedTemplate } from '../design/templates/template-content';
 import { GuestProjectionReader, LoadedGuest } from './guest-projection';
 import { GuestPageMeta } from './guest-page-version';
 import { GuestPageReader } from './guest-page-reader';
@@ -17,6 +18,7 @@ import { negotiateLocale } from '../../common/locale';
 
 export const invitationInclude = {
   template: true,
+  templateVersion: true,
   blocks: { where: { enabled: true }, orderBy: { sortOrder: 'asc' } },
   questions: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
   event: {
@@ -128,7 +130,7 @@ export class InvitationsService {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
     const media = await this.loadBlockMedia(invitation);
-    return { ...invitation, media };
+    return { ...invitation, template: { ...pinnedTemplate(invitation), id: invitation.template.id }, media };
   }
 
   /**

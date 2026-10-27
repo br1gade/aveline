@@ -54,11 +54,11 @@ export class ArrangementService {
   async arrange(slug: string, dto: ArrangeBlocksDto) {
     const invitation = await this.prisma.invitation.findUnique({
       where: { slug },
-      select: { id: true, template: { select: { supportedBlocks: true, blockVariants: true } } },
+      select: { id: true, templateVersion: { select: { supportedBlocks: true, blockVariants: true } } },
     });
     if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
 
-    assertArrangementIsValid(dto.blocks, invitation.template);
+    assertArrangementIsValid(dto.blocks, invitation.templateVersion);
 
     const blocks = await this.prisma.$transaction(async (tx) => {
       const placed = await Promise.all(dto.blocks.map((block, index) => this.upsertBlock(tx, invitation.id, block, index)));

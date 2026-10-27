@@ -1,3 +1,5 @@
+import { TemplateAdoptionService } from './templates/template-adoption.service';
+import { listEventTemplates, selectAvailableTemplate } from './templates/template-reader';
 import { versionStatement } from '../guest-contributions/statements';
 import { countQuestionAnswers } from '../ticketing/checkout-questions';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -32,25 +34,12 @@ export class DesignService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly adoption: TemplateAdoptionService,
   ) {}
 
   /** The template catalogue a designer picks from. */
-  async listTemplates() {
-    const templates = await this.prisma.designTemplate.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-    });
-
-    return templates.map((template) => ({
-      key: template.key,
-      name: template.name,
-      allowedFonts: template.allowedFonts,
-      palettes: template.palettes,
-      supportedBlocks: template.supportedBlocks,
-      // The layouts each block may take; `variant` must be one of these or null.
-      blockVariants: template.blockVariants,
-      defaultTheme: template.defaultTheme,
-    }));
+  async listTemplates(eventId: string) {
+    return listEventTemplates(this.prisma, eventId);
   }
 
   /**
@@ -62,25 +51,31 @@ export class DesignService {
    * template does not ship would produce exactly the broken render that theme
    * validation exists to prevent.
    */
-  async chooseTemplate(slug: string, dto: ChooseTemplateDto) {
-    const [invitation, template] = await Promise.all([
-      this.requireInvitation(slug),
-      this.prisma.designTemplate.findFirst({ where: { key: dto.templateKey, isActive: true } }),
-    ]);
-    if (!template) throw new NotFoundException(`No template "${dto.templateKey}" is available`);
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.invitation.update({
-        where: { id: invitation.id },
-        data: { templateId: template.id, theme: template.defaultTheme as Prisma.InputJsonValue },
-      });
-
-      if (template.supportedBlocks.length > 0) {
-        await tx.invitationBlock.updateMany({
-          where: { invitationId: invitation.id, type: { notIn: template.supportedBlocks } },
-          data: { enabled: false },
-        });
+  async chooseTemplate(slug: string, dto: ChooseTemplateDto, userId?: string) {
+    if (dto.templateVersionId) {
+      if (!dto.previewId || !dto.expectedTemplateVersionId || !dto.expectedDesignRevision || !dto.idempotencyKey || !userId) {
+        throw new ConflictException({ code: 'TEMPLATE_PREVIEW_REQUIRED', message: 'Exact version adoption requires previewId, expectedTemplateVersionId, expectedDesignRevision and idempotencyKey' });
       }
+      return this.adoption.apply(userId, slug, { targetVersionId: dto.templateVersionId, templateKey: dto.templateKey,
+        previewId: dto.previewId, expectedTemplateVersionId: dto.expectedTemplateVersionId, expectedDesignRevision: dto.expectedDesignRevision, idempotencyKey: dto.idempotencyKey });
+    }
+    const invitation = await this.prisma.invitation.findUniqueOrThrow({ where: { slug }, include: { templateVersion: true } });
+    if (invitation.templateVersion.templateId === invitation.templateId) {
+      const current = await this.prisma.designTemplate.findUniqueOrThrow({ where: { id: invitation.templateId } });
+      if (current.key === dto.templateKey) return this.describe(slug);
+    }
+    await this.prisma.$transaction(async (tx) => {
+      const template = await selectAvailableTemplate(tx, { organizationId: invitation.organizationId, templateKey: dto.templateKey });
+      if (!template) throw new NotFoundException('No such template');
+      if (template.provenance !== 'LEGACY_BASELINE') throw new ConflictException({ code: 'TEMPLATE_PREVIEW_REQUIRED', message: 'Explicit version preview and confirmation required' });
+      await tx.$queryRaw`SELECT id FROM invitations WHERE id=${invitation.id} FOR UPDATE`;
+      await tx.invitation.update({ where: { id: invitation.id }, data: {
+        templateId: template.id, templateVersionId: template.templateVersionId,
+        templateOwnerScopeKey: template.ownerScopeKey, theme: template.defaultTheme as Prisma.InputJsonValue,
+      } });
+      if (template.supportedBlocks.length > 0) await tx.invitationBlock.updateMany({
+        where: { invitationId: invitation.id, type: { notIn: template.supportedBlocks } }, data: { enabled: false },
+      });
       await clearUnofferedVariants(tx, invitation.id, template);
     });
 
@@ -101,15 +96,15 @@ export class DesignService {
       select: {
         id: true,
         theme: true,
-        template: { select: { allowedFonts: true, palettes: true } },
+        templateVersion: { select: { allowedFonts: true, palettes: true } },
       },
     });
     if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
 
     const merged = mergeTheme(asObject(invitation.theme), { ...dto });
     const result = validateTheme(merged, {
-      allowedFonts: invitation.template.allowedFonts,
-      palettes: asPalettes(invitation.template.palettes),
+      allowedFonts: invitation.templateVersion.allowedFonts,
+      palettes: asPalettes(invitation.templateVersion.palettes),
     });
 
     if (!result.isValid) throw new BadRequestException(result.errors);
@@ -133,7 +128,7 @@ export class DesignService {
    */
   async updateBlock(slug: string, type: BlockType, dto: UpdateBlockDto) {
     const invitation = await this.requireInvitation(slug);
-    const template = await this.prisma.designTemplate.findFirstOrThrow({
+    const template = await this.prisma.designTemplateVersion.findFirstOrThrow({
       where: { invitations: { some: { id: invitation.id } } },
       select: { supportedBlocks: true, blockVariants: true },
     });

@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -59,7 +60,7 @@ describe('Venue details and the directory (e2e)', () => {
 
   it('places a venue on the map, and guests receive it', async () => {
     const { eventId, slug, venueId, authorization } = await host();
-    await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'MAP', 'RSVP'] } });
+    await reviseTemplateFixture(prisma, { where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'MAP', 'RSVP'] } });
     await http()
       .patch(`/api/v1/invitations/${slug}/arrangement`)
       .set('Authorization', authorization)

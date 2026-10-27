@@ -173,3 +173,9 @@ open until frontend and production evidence exists.
   workload with TLS/proxy, analytics and writes. Report warm/cold/degraded
   percentiles separately. Rebuild/clear Redis when restoring older Postgres
   backups so cache revisions cannot collide with restored history.
+
+F44 remains gated: no production renderer capability manifest is approved. Keep
+new publication closed until actual frontend four-language/font/named palette/
+inert preview and mobile/desktop visual acceptance. Private artwork slot activation
+and event materialization need separate storage/privacy/worker acceptance; staging
+sanitizer tests do not prove production object isolation or frontend rendering.

@@ -28,8 +28,8 @@ export class TemplatePreviewsController {
   @Get('events/:eventId/design-templates/:templateKey/preview')
   @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Synthetic template preview payload for the invitation renderer' })
-  catalogue(@Param('templateKey') templateKey: string, @Query() query: PreviewLocaleQuery) {
-    return this.previews.catalogue(templateKey, query.locale);
+  catalogue(@Param('eventId') eventId: string, @Param('templateKey') templateKey: string, @Query() query: PreviewLocaleQuery) {
+    return this.previews.catalogue(eventId, templateKey, query.locale);
   }
 
   @RequirePermission('invitation:read')

@@ -704,3 +704,54 @@ Production also requires explicit `SALES_INTAKE_OPERATIONAL_ACCEPTANCE=true`
 after restore/frontend acceptance; local implementation is not that evidence.
 Never rotate away intent verification keys while receipts exist. Privacy and
 retention processing must continue when write flags are switched off.
+
+### Versioned template authoring (F44)
+
+All invitations pin immutable rendering inputs. Migration captures every legacy
+row verbatim, including inactive/unused templates and unusual JSON. Catalogue
+activation/retirement never upgrades existing invitations or resets invitation
+lifetime. Development reseeding also preserves the first immutable seed release.
+Event catalogue results are shared plus that event organization's private templates.
+
+Template authoring is platform-only: ADMIN creates identities/assigns active
+SUPPORT; assigned SUPPORT edits drafts; only ADMIN publishes or retires. Customer
+OWNER and event DESIGNER do not gain catalogue authoring. Author responses use
+`private, no-store`. Omitted draft definition fields are merged; expected revisions
+reject concurrent edits. Synthetic previews include en/ru/fr/hy and contain no
+customer/guest data or functional RSVP forms.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/design-templates` | ADMIN creates an inactive identity and first validated draft |
+| `GET` | `/api/v1/design-templates/:templateId` | Authorized inventory detail/history/open draft and asset status |
+| `POST` | `/api/v1/design-templates/:templateId/drafts` | Open draft from current immutable version |
+| `PATCH` | `/api/v1/design-templates/:templateId/drafts/:draftId` | Revision-checked definition merge |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/validate` | Structural and deployed capability validation |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/preview` | Four-locale synthetic JSON fixture and expiring preview receipt |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/publish` | ADMIN atomically publishes exact previewed draft, or fails capability gate |
+| `POST` | `/api/v1/design-templates/:templateId/retire` | ADMIN disables future selection, keeping existing pins |
+| `POST` | `/api/v1/design-templates/:templateId/assignments` | ADMIN explicitly assigns SUPPORT |
+| `POST` | `/api/v1/design-templates/:templateId/assignments/revoke` | ADMIN revokes assignment |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/assets` | Reserve private raster upload; returns 202 |
+| `GET` | `/api/v1/design-templates/:templateId/assets/:assetId/file` | Authorized sanitized artwork, never source/object URL |
+| `DELETE` | `/api/v1/design-templates/:templateId/drafts/:draftId/assets/:assetId` | Retire unreferenced staged artwork for durable cleanup |
+| `POST` | `/api/v1/invitations/:slug/template-upgrade-preview` | Exact-version event preview with source design revision fence |
+
+Flags default false: `TEMPLATE_AUTHORING_ENABLED`, `TEMPLATE_PUBLISH_ENABLED`,
+`TEMPLATE_ADOPTION_ENABLED`, `TEMPLATE_ASSETS_ENABLED`; values must be true/false.
+There is no pinning-off flag. Publication additionally requires a reviewed,
+deployed manifest from [the renderer contract](../docs/contracts/invitation-renderer-capabilities/README.md).
+The production approved registry is empty: payload validation is not browser or
+visual acceptance, and enabling a flag alone cannot publish. A trusted synthetic
+manifest exercises backend publication in integration tests only.
+
+Run `npm run start:template-asset-worker` separately with a 256MiB process limit.
+The worker accepts PNG/JPEG/WebP only, bounds bytes/pixels/dimensions/pages,
+strips metadata through reencoding, claims leases with SKIP LOCKED and persists
+cleanup tombstones. Author file reads recheck permission after storage IO.
+Default-artwork attachment/event materialization remains closed until a manifest
+declares tested slots; adoption refuses a version needing unprepared private art.
+
+Not yet built: real frontend capability/visual acceptance and production private
+artwork materialization acceptance. These are explicit rollout gates, not evidence
+that the backend fixture manifests constitute frontend support.

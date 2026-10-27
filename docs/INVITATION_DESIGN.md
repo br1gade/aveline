@@ -23,7 +23,7 @@ This is what makes "customization by qualified users" safe. A host picks from
 break their own invitation. The template guarantees that any permitted
 combination still renders.
 
-Adding a template is an INSERT and an asset upload. It is not a deployment.
+Adding a template uses platform-controlled draft/publication. A new renderer capability requires a reviewed deployment; authoring data cannot extend renderer code.
 
 ### Theme resolution
 
@@ -239,3 +239,43 @@ after Redis recovers. See [API.md](API.md#invitation-lifetime-and-expired-access
 
 Theme validation, block content, template switching, RSVP questions and venue
 CRUD are built — see [API.md](API.md) §6.
+
+## Immutable versions and platform authoring (F44)
+
+Invitation creation and explicit switching pin immutable template rendering inputs.
+Migration preserves every legacy rendering value exactly; legacy provenance makes
+no renderer-acceptance claim. Publishing or retiring a template changes future
+selection only. Existing draft/live/closed pins, invitation lifetime, attendance,
+acknowledgement statements and captured exports are unchanged.
+
+ADMIN creates shared identities or organization-private opaque identities and may
+assign active SUPPORT to drafts. Assignment grants no organization/event membership.
+Customer OWNER/DESIGNER remain invitation editors, not template authors. Draft
+merges require expected revisions; a single open draft and immutable versions are
+enforced by database constraints. Four-locale synthetic JSON previews use the
+same serializer as public pages and are explicitly payload-only until a reviewed
+capability release is deployed. Publication allocates version, immutable facts,
+active pointer, frozen draft, audit and dedupe receipt in one transaction.
+
+New publication is closed in production: the approved capability registry is
+empty. The backend ceiling comes from actual seeds, whose variants/fonts/themes
+are not evidence of current frontend handling. The deployed manifest must pass
+intersection validation plus actual en/ru/fr/hy, named palette role/font, inert
+preview and mobile/desktop acceptance. No ADMIN-editable capability whitelist or
+renderer code is accepted. See [the capability contract](contracts/invitation-renderer-capabilities/README.md).
+
+Existing invitations adopt an exact version only through requester-bound expiring
+preview and confirmation with source pin/hash/designRevision and UUID dedupe key.
+Same-key legacy requests never auto-upgrade. Unsupported blocks keep copy while
+being disabled; unsupported variants reset to null; event artwork remains an
+override. Retired pins continue to render and edit.
+
+Private raster uploads use their own durable object ledger and bounded background
+sanitizer; they never use public MediaAsset source URLs. File reads check current
+staff assignment before and after IO. Metadata is stripped; SVG, animation,
+multiframe files and oversized/decompression-heavy input are refused. Unreferenced
+objects use durable tombstones/leases; referenced immutable bytes are retained.
+
+Not yet built: deployed frontend capability and visual acceptance, default-artwork
+slot activation and event-private artwork materialization acceptance. These remain
+closed; a version requiring unprepared private artwork cannot be adopted.

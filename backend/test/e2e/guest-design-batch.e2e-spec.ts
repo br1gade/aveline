@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -258,7 +259,7 @@ describe('Guest corrections and invitation improvements (e2e)', () => {
     it('retains the current theme and omits internal venues/timeline and private media', async () => {
       const { slug, eventId, authorization } = await organizer('DESIGNER');
       await prisma.event.update({ where: { id: eventId }, data: { locales: ['en', 'ru', 'fr', 'hy'] } });
-      await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'RSVP', 'VENUE', 'TIMELINE'] } });
+      await reviseTemplateFixture(prisma, { where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'RSVP', 'VENUE', 'TIMELINE'] } });
       const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug } });
       await prisma.invitationBlock.createMany({ data: [
         { invitationId: invitation.id, type: 'VENUE', sortOrder: 2 }, { invitationId: invitation.id, type: 'TIMELINE', sortOrder: 3 },
@@ -302,7 +303,7 @@ describe('Guest corrections and invitation improvements (e2e)', () => {
       const path = `/api/v1/invitations/${slug}/template-preview`;
       await http().get(path).expect(401);
       await http().get(path).set('Authorization', other.authorization).expect(403);
-      await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { isActive: false } });
+      await reviseTemplateFixture(prisma, { where: { key: 'test-template' }, data: { isActive: false } });
       await http().get(`/api/v1/events/${eventId}/design-templates/test-template/preview`).set('Authorization', authorization).expect(404);
     });
   });

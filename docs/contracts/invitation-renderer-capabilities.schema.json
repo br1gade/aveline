@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reviewed invitation renderer capability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rendererKey", "capabilityVersion", "schemaVersion", "frontendRevision", "digest", "locales", "fonts", "blocks", "themeKeys", "paletteRoles", "mediaSlots"],
+  "properties": {
+    "rendererKey": {"type":"string", "maxLength":64},
+    "capabilityVersion": {"type":"string", "maxLength":64},
+    "schemaVersion": {"const":1},
+    "frontendRevision": {"type":"string", "minLength":1, "maxLength":128},
+    "digest": {"type":"string", "pattern":"^[a-f0-9]{64}$"},
+    "locales": {"type":"array", "uniqueItems":true, "minItems":4, "maxItems":4, "items":{"enum":["en","ru","fr","hy"]}},
+    "fonts": {"type":"array", "maxItems":16, "items":{"type":"object", "additionalProperties":false, "required":["id","bundledHash"], "properties":{"id":{"type":"string", "maxLength":80},"bundledHash":{"type":"string", "pattern":"^[a-f0-9]{64}$"}}}},
+    "blocks": {"type":"object", "maxProperties":14, "additionalProperties":{"type":"object", "additionalProperties":false, "required":["canDefault","variants"], "properties":{"canDefault":{"type":"boolean"},"variants":{"type":"array", "uniqueItems":true, "maxItems":20, "items":{"type":"string", "maxLength":40}}}}},
+    "themeKeys": {"type":"array", "uniqueItems":true, "maxItems":4, "items":{"enum":["headingFont","bodyFont","palette","colors"]}},
+    "paletteRoles": {"type":"object", "minProperties":1, "maxProperties":8, "additionalProperties":{"type":"integer", "minimum":0, "maximum":7}},
+    "mediaSlots": {"type":"array", "uniqueItems":true, "maxItems":2, "items":{"enum":["HERO","GALLERY"]}}
+  }
+}

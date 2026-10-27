@@ -265,12 +265,13 @@ model Event {
   @@index([startsAt])
   enquiries SalesEnquiry[]
   enquiryConversions EnquiryConversion[]
-  @@unique([id, organizationId])
   @@map("events")
   seatingJobs SeatingJob[]
   guestMedia GuestMedia[]
   acknowledgements GuestAcknowledgement[]
   guestPageVersion GuestPageVersion?
+
+  @@unique([id, organizationId])
 
 }
 
@@ -398,6 +399,10 @@ model Invitation {
   eventId    String           @unique
   /// Public URL segment
   slug       String           @unique
+  templateVersionId String @default(dbgenerated())
+  templateOwnerScopeKey String @default(dbgenerated())
+  organizationId String @default(dbgenerated())
+  designRevision BigInt @default(1)
   templateId String
   /// Resolved design tokens: palette, font choices, spacing. Validated against
   /// the template's allowed sets before write (see DesignTemplate).
@@ -420,6 +425,7 @@ model Invitation {
 
   event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   template  DesignTemplate    @relation(fields: [templateId], references: [id])
+  templateVersion DesignTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
   blocks    InvitationBlock[]
   questions RsvpQuestion[]
 
@@ -452,7 +458,21 @@ model DesignTemplate {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
+  organizationId String?
+  ownerScopeKey String @default("shared")
+  activeVersionId String? @unique
+  isLegacyBootstrap Boolean @default(true)
+  revision Int @default(1)
+  nextVersionNumber Int @default(2)
+  retiredAt DateTime?
+  versions DesignTemplateVersion[] @relation("TemplateVersions")
+  activeVersion DesignTemplateVersion? @relation("ActiveTemplateVersion", fields: [activeVersionId], references: [id], onDelete: Restrict)
+  drafts TemplateDraft[]
+  assignments TemplateAssignment[]
   invitations Invitation[]
+
+  @@unique([id, ownerScopeKey])
+  @@index([ownerScopeKey, isActive, name, id])
 
   @@map("design_templates")
 }
@@ -2656,4 +2676,166 @@ model OrganizationAccessReview {
   @@unique([organizationId])
   @@index([status, openedAt, id])
   @@map("organization_access_reviews")
+}
+
+
+model DesignTemplateVersion {
+  id String @id @default(cuid())
+  templateId String
+  ownerScopeKey String
+  versionNumber Int
+  name String
+  allowedFonts String[]
+  palettes Json
+  supportedBlocks BlockType[]
+  blockVariants Json
+  defaultTheme Json
+  schemaVersion Int @default(1)
+  rendererKey String @default("invitation-v1")
+  capabilityVersion String?
+  capabilityDigest String?
+  assetManifest Json @default("[]")
+  contentHash String
+  hashAlgorithm String @default("CANONICAL_SHA256_V1")
+  provenance String
+  sourceDraftId String?
+  sourceDraftRevision Int?
+  recordedAt DateTime @default(now())
+  publishedAt DateTime?
+  publishedByUserId String?
+  template DesignTemplate @relation("TemplateVersions", fields: [templateId], references: [id], onDelete: Restrict)
+  activeFor DesignTemplate? @relation("ActiveTemplateVersion")
+  invitations Invitation[]
+  @@unique([templateId, versionNumber])
+  @@unique([id, templateId, ownerScopeKey])
+  @@map("design_template_versions")
+}
+
+model TemplateDraft {
+  id String @id @default(cuid())
+  templateId String
+  ownerScopeKey String
+  revision Int @default(1)
+  state String @default("OPEN")
+  definition Json
+  contentHash String
+  createdByUserId String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  template DesignTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  @@index([templateId, state])
+  @@map("template_drafts")
+}
+
+model TemplateAssignment {
+  id String @id @default(cuid())
+  templateId String
+  userId String
+  assignedByUserId String
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  template DesignTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  @@unique([templateId, userId])
+  @@index([userId, revokedAt])
+  @@map("template_assignments")
+}
+
+model TemplateAudit {
+  id String @id @default(cuid())
+  templateId String
+  actorUserId String
+  action String
+  revision Int
+  createdAt DateTime @default(now())
+  @@index([templateId, createdAt])
+  @@map("template_audits")
+}
+
+model TemplatePreview {
+  id String @id @default(cuid())
+  templateId String
+  draftId String?
+  draftRevision Int?
+  capabilityDigest String?
+  invitationId String?
+  actorUserId String
+  sourceHash String
+  targetHash String
+  targetVersionId String?
+  sourceVersionId String?
+  designRevision BigInt?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([expiresAt])
+  @@map("template_previews")
+}
+
+model TemplateReceipt {
+  id String @id @default(cuid())
+  scopeKey String
+  idempotencyKey String
+  actorUserId String
+  requestHash String
+  result Json
+  createdAt DateTime @default(now())
+  @@unique([scopeKey, idempotencyKey])
+  @@map("template_receipts")
+}
+
+
+model DesignTemplateAsset {
+  id String @id @default(cuid())
+  templateId String
+  ownerScopeKey String
+  draftId String
+  kind String
+  state String @default("PROCESSING")
+  sourceKey String @unique
+  sanitizedKey String? @unique
+  width Int?
+  height Int?
+  sizeBytes Int?
+  mimeType String?
+  contentHash String?
+  createdByUserId String
+  createdAt DateTime @default(now())
+  attempts Int @default(0)
+  leaseOwner String?
+  leaseUntil DateTime?
+  leaseGeneration Int @default(0)
+  errorCode String?
+  @@unique([id, templateId, ownerScopeKey])
+  @@index([state, leaseUntil, createdAt])
+  @@map("design_template_assets")
+}
+
+model DesignTemplateStoredObject {
+  key String @id
+  assetId String?
+  templateId String
+  purpose String
+  state String @default("RESERVED")
+  contentHash String?
+  sizeBytes Int?
+  cleanupAfter DateTime
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([state, cleanupAfter, key])
+  @@map("design_template_stored_objects")
+}
+
+model DesignTemplateAssetReference {
+  id String @id @default(cuid())
+  templateId String
+  ownerScopeKey String
+  draftId String?
+  versionId String?
+  slot String
+  position Int
+  assetId String
+  @@unique([draftId, slot, position])
+  @@unique([draftId, slot, assetId])
+  @@unique([versionId, slot, position])
+  @@index([assetId])
+  @@map("design_template_asset_references")
 }

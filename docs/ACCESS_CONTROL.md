@@ -352,3 +352,13 @@ under the case lock on every read, write and receipt replay. Assignment does not
 change appointment operators and never grants customer organization membership.
 New contacts remain behind the disabled intake gate until independent protected
 journal restore and frontend acceptance evidence is recorded.
+
+### Template platform authority
+
+`template:author`, `template:publish` and `template:assign` are platform-only.
+ADMIN has all three; SUPPORT has coarse author access and must also hold an
+active explicit template assignment checked under the template lock. Only ADMIN
+creates identities, assigns/revokes SUPPORT, publishes or retires. Organization
+OWNER and event DESIGNER do not inherit these permissions. Author file reads
+recheck live account/assignment authority after private storage reads. Assignment
+never grants a customer membership.

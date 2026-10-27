@@ -37,6 +37,9 @@ export const ALL_PERMISSIONS = [
   'concierge:manage',
   'enquiry:manage',
   'enquiry:assign',
+  'template:author',
+  'template:publish',
+  'template:assign',
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -77,7 +80,7 @@ const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
   // destroy an event or read what the customer is billed. They also keep
   // the shared venue directory, which every customer reads, and set events
   // up for customers before handing them over.
-  [PlatformRole.SUPPORT]: [...RUN_EVENT, 'directory:manage', 'concierge:manage', 'enquiry:manage'],
+  [PlatformRole.SUPPORT]: [...RUN_EVENT, 'directory:manage', 'concierge:manage', 'enquiry:manage', 'template:author'],
   [PlatformRole.ADMIN]: [...ALL_PERMISSIONS],
 };
 
@@ -93,7 +96,7 @@ const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
  * customer, so one customer writing to it would be writing to all of them.
  * And a concierge opens organizations for other people.
  */
-const PLATFORM_ONLY: readonly Permission[] = ['privacy:manage', 'directory:manage', 'concierge:manage', 'enquiry:manage', 'enquiry:assign'];
+const PLATFORM_ONLY: readonly Permission[] = ['privacy:manage', 'directory:manage', 'concierge:manage', 'enquiry:manage', 'enquiry:assign', 'template:author', 'template:publish', 'template:assign'];
 
 const CUSTOMER_OWNED = ALL_PERMISSIONS.filter((permission) => !PLATFORM_ONLY.includes(permission));
 
