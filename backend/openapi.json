@@ -4704,11 +4704,119 @@
         ]
       }
     },
+    "/api/v1/organizations/current/closure-reviews": {
+      "post": {
+        "operationId": "OrganizationReviewsController_request",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Request administrator closure review without removing access",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organization-access-reviews": {
+      "get": {
+        "operationId": "OrganizationReviewsController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List open organization access reviews; ADMIN only",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organization-access-reviews/{reviewId}/resolve": {
+      "post": {
+        "operationId": "OrganizationReviewsController_resolve",
+        "parameters": [
+          {
+            "name": "reviewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveOrganizationReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Resolve ownership recovery or closure; ADMIN only",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/api/v1/organizations": {
       "post": {
         "description": "One per account. The caller becomes its OWNER.",
         "operationId": "OrganizationsController_create",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4763,6 +4871,202 @@
           }
         },
         "summary": "Rename your organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current/members": {
+      "get": {
+        "operationId": "OrganizationsController_members",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List organization members without contacts",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current/members/{userId}": {
+      "patch": {
+        "operationId": "OrganizationsController_changeMember",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeOrganizationMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change an organization member role",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "delete": {
+        "operationId": "OrganizationsController_removeMember",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expectedRevision",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "maximum": 2147483647,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove all customer access in this organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current/leave": {
+      "post": {
+        "operationId": "OrganizationsController_leave",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Leave this organization after required ownership handovers",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current/owner-transfers": {
+      "post": {
+        "operationId": "OrganizationsController_transferOwner",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferOrganizationOwnerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Promote an active member to owner; caller stays owner",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/me/organizations": {
+      "get": {
+        "operationId": "OwnOrganizationsController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Bounded own organization selector without billing or contacts",
         "tags": [
           "organizations"
         ]
@@ -7714,6 +8018,45 @@
           }
         }
       },
+      "OrganizationRevisionDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ]
+      },
+      "ResolveOrganizationReviewDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "HANDOVER",
+              "CLOSE",
+              "DECLINE"
+            ]
+          },
+          "successorUserId": {
+            "type": "string",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "decision"
+        ]
+      },
       "CreateOrganizationDto": {
         "type": "object",
         "properties": {
@@ -7746,6 +8089,48 @@
           "name"
         ]
       },
+      "ChangeOrganizationMemberDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "MANAGER",
+              "MEMBER",
+              "VIEWER"
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "role"
+        ]
+      },
+      "TransferOrganizationOwnerDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "successorUserId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "successorUserId"
+        ]
+      },
       "OpenForCustomerDto": {
         "type": "object",
         "properties": {
@@ -7765,6 +8150,11 @@
           "ownerEmail": {
             "type": "string",
             "description": "The customer, invited as owner; they set their own password"
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
           }
         },
         "required": [
@@ -8385,6 +8775,18 @@
           "code": {
             "type": "string",
             "enum": [
+              "TEMPLATE_VALIDATION_FAILED",
+              "TEMPLATE_CAPABILITY_REQUIRED",
+              "TEMPLATE_STATE_CHANGED",
+              "TEMPLATE_ACCESS_DENIED",
+              "TEMPLATE_PREVIEW_UNAVAILABLE",
+              "TEMPLATE_NOT_FOUND",
+              "ORGANIZATION_SELECTION_REQUIRED",
+              "ORGANIZATION_CONTEXT_MISMATCH",
+              "ORGANIZATION_ACCESS_DENIED",
+              "OWNER_HANDOVER_REQUIRED",
+              "IDEMPOTENCY_KEY_REUSED",
+              "REVISION_CHANGED",
               "SEATING_VENUE_CAPACITY",
               "SEATING_FAMILY_TABLE_FULL",
               "SEATING_NO_TABLES",
@@ -8440,7 +8842,9 @@
               "WAIT",
               "REUPLOAD",
               "CONTACT_SUPPORT",
-              "RETRY"
+              "RETRY",
+              "SELECT_ORGANIZATION",
+              "HAND_OVER_OWNERSHIP"
             ]
           }
         },
@@ -8457,6 +8861,18 @@
           "code": {
             "type": "string",
             "enum": [
+              "TEMPLATE_VALIDATION_FAILED",
+              "TEMPLATE_CAPABILITY_REQUIRED",
+              "TEMPLATE_STATE_CHANGED",
+              "TEMPLATE_ACCESS_DENIED",
+              "TEMPLATE_PREVIEW_UNAVAILABLE",
+              "TEMPLATE_NOT_FOUND",
+              "ORGANIZATION_SELECTION_REQUIRED",
+              "ORGANIZATION_CONTEXT_MISMATCH",
+              "ORGANIZATION_ACCESS_DENIED",
+              "OWNER_HANDOVER_REQUIRED",
+              "IDEMPOTENCY_KEY_REUSED",
+              "REVISION_CHANGED",
               "SEATING_VENUE_CAPACITY",
               "SEATING_FAMILY_TABLE_FULL",
               "SEATING_NO_TABLES",
@@ -8512,7 +8928,9 @@
               "WAIT",
               "REUPLOAD",
               "CONTACT_SUPPORT",
-              "RETRY"
+              "RETRY",
+              "SELECT_ORGANIZATION",
+              "HAND_OVER_OWNERSHIP"
             ]
           },
           "statusCode": {

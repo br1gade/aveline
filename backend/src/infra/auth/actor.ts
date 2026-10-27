@@ -1,3 +1,4 @@
+import type { OrganizationContext, OrganizationResolution } from './organization-context';
 import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
 import { EventRole, OrganizationRole, PlatformRole } from '@prisma/client';
 import { Actor, Permission, can } from '../../modules/access/access-policy';
@@ -16,6 +17,7 @@ export interface RequestActor {
   organizationId?: string | null;
   /** The event this request acts on, however the route named it — id or invitation slug. */
   eventId?: string | null;
+  organizationContext?: OrganizationContext | null;
 }
 
 export interface AuthenticatedRequest {
@@ -54,7 +56,8 @@ export const EventScope = (source: EventScopeSource) => SetMetadata(EVENT_SCOPE,
  * membership, never from a query parameter the caller controls.
  */
 export const ORGANIZATION_SCOPE = 'organizationScope';
-export const OrganizationScope = () => SetMetadata(ORGANIZATION_SCOPE, true);
+export interface OrganizationScopeOptions { mode?: OrganizationResolution['mode']; permission?: Permission }
+export const OrganizationScope = (options: OrganizationScopeOptions = {}) => SetMetadata(ORGANIZATION_SCOPE, options);
 
 /** Injects the resolved actor into a handler. */
 export const CurrentActor = createParamDecorator(

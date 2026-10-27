@@ -298,9 +298,12 @@ async function closeAccount(tx: Tx, email: string, now: Date): Promise<string | 
       name: ERASED_NAME,
       passwordHash: null,
       isActive: false,
+      sessionGeneration: { increment: 1 },
       deletedAt: now,
     },
   });
+  await tx.seatingJob.updateMany({ where: { requestedByUserId: user.id, status: { in: ['QUEUED', 'RUNNING'] } }, data: { status: 'FAILED', failureReason: 'ACCESS_REVOKED', leaseOwner: null, leaseUntil: null } });
+  await tx.exportSnapshot.updateMany({ where: { requestedByUserId: user.id, status: { in: ['QUEUED', 'RUNNING'] } }, data: { status: 'FAILED', failureReason: 'ACCESS_REVOKED', revokedAt: now, leaseOwner: null, leaseUntil: null } });
   await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } });
   // Where and on what they signed in is about them too.
   await tx.session.updateMany({ where: { userId: user.id }, data: { ipAddress: null, userAgent: null } });

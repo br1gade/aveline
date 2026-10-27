@@ -1,3 +1,6 @@
+import { lockOwnerAddress, lockCurrentUsers } from '../../infra/auth/access-locks';
+import { resolveCustomerOrganizations, selectionRequired, accessDenied } from '../../infra/auth/organization-context';
+import { actorCan } from '../../infra/auth/actor';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrganizationRole, OrgKind } from '@prisma/client';
 import { AccountService } from '../../infra/auth/account.service';
@@ -32,21 +35,21 @@ export class ConciergeService {
    */
   async openForCustomer(staffUserId: string, dto: OpenForCustomerDto) {
     const email = dto.ownerEmail.trim().toLowerCase();
-    const existing = await this.prisma.organizationMembership.findFirst({
-      where: { user: { email } },
-      select: { organization: { select: { id: true, name: true, kind: true, createdAt: true } } },
-    });
-    if (existing) return { organization: existing.organization, invite: null, isExisting: true };
-
-    const organization = await this.prisma.organization.create({
-      data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST },
-      select: { id: true, name: true, kind: true, createdAt: true },
-    });
-    const invite = await this.accounts.inviteMember(organization.id, staffUserId, {
-      email,
-      role: OrganizationRole.OWNER,
-    });
-    return { organization, invite, isExisting: false };
+    return this.prisma.$transaction(async (tx) => {
+      await lockOwnerAddress(tx, email);
+      const resolved = await resolveCustomerOrganizations(tx, { ownerEmail: email, selectedOrganizationId: dto.organizationId });
+      if (resolved.kind === 'selection-required') throw selectionRequired();
+      if (resolved.kind === 'one') {
+        await lockCurrentUsers(tx, [staffUserId]);
+        const staff = await tx.user.findUnique({ where: { id: staffUserId }, select: { isActive: true, platformRole: true } });
+        if (!staff?.isActive || !actorCan({ userId: staffUserId, email: '', platformRole: staff.platformRole }, 'concierge:manage')) throw accessDenied();
+        const organization = await tx.organization.findUniqueOrThrow({ where: { id: resolved.organizationId }, select: { id: true, name: true, kind: true, createdAt: true } });
+        return { organization, invite: null, isExisting: true };
+      }
+      const organization = await tx.organization.create({ data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST }, select: { id: true, name: true, kind: true, createdAt: true } });
+      const invite = await this.accounts.inviteMemberInTransaction(tx, { organizationId: organization.id, invitedByUserId: staffUserId, dto: { email, role: OrganizationRole.OWNER }, isConcierge: true });
+      return { organization, invite, isExisting: false };
+    }, { timeout: 10_000, maxWait: 5000 });
   }
 
   async createEvent(organizationId: string, staffUserId: string, dto: CreateEventDto) {

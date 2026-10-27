@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { actorCan, CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
@@ -5,6 +6,7 @@ import { LinkTicketGuestDto, RegisterTicketAttendeeDto } from './dto/reconcile-a
 import { TicketAttendeesService } from './ticket-attendees.service';
 
 @ApiTags('ticketing')
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class TicketAttendeesController {
   constructor(private readonly attendees: TicketAttendeesService) {}

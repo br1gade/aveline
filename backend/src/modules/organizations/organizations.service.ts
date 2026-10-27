@@ -1,3 +1,14 @@
+import { Prisma } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { RequestActor } from '../../infra/auth/actor';
+import { lockOwnerAddress, lockOrganizationStanding, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
+import { accessDenied } from '../../infra/auth/organization-context';
+import { canAddOrganizationMembership } from '../../infra/auth/organization-write-gate';
+import { DomainHttpException } from '../../common/domain-http.exception';
+import { assertOtherOrganizationOwner, incrementOrganizationRevision, lockOrganizationMutation, removeOrganizationAccess, requireActiveMember } from './organization-membership';
+import { organizationCursorWhere, pageOf, parseOrganizationCursor } from './organization-pagination';
+import { MembershipPageQuery } from './dto/organization.dto';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrganizationRole, OrgKind } from '@prisma/client';
 import { isUniqueViolation } from '../../common/prisma-errors';
@@ -8,57 +19,84 @@ import { CreateOrganizationDto, RenameOrganizationDto } from './dto/organization
 export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Creates the tenant a new account works inside, with that account as owner.
-   *
-   * One per user for now. The guard resolves "your organization" from the
-   * caller's single membership, so allowing a second would silently make every
-   * organization-scoped route act on whichever row came back first — a wrong
-   * answer is worse than a refusal that says where to look.
-   */
-  async create(userId: string, dto: CreateOrganizationDto) {
-    const existing = await this.prisma.organizationMembership.findFirst({
-      where: { userId },
-      include: { organization: { select: { id: true, name: true } } },
+  async create(userId: string, dto: CreateOrganizationDto, key?: string) {
+    if (key !== undefined && !/^[A-Za-z0-9_-]{1,120}$/.test(key)) throw new BadRequestException('Idempotency-Key: must match 1–120 letters, digits, underscores or hyphens');
+    const fingerprint = createHash('sha256').update(JSON.stringify({ name: dto.name, kind: dto.kind ?? OrgKind.HOST })).digest('hex');
+    const organizationId = await this.prisma.$transaction(async (tx) => {
+      const identity = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
+      await lockOwnerAddress(tx, identity.email);
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { isActive: true } });
+      if (!user?.isActive) throw accessDenied();
+      const canAddMembership = await canAddOrganizationMembership(tx);
+      const replay = key ? await tx.organizationCreateIntent.findUnique({ where: { actorUserId_key: { actorUserId: userId, key } } }) : null;
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) throw new DomainHttpException('IDEMPOTENCY_KEY_REUSED', 'Idempotency-Key: already used for another request');
+        const membership = await tx.organizationMembership.findUnique({ where: { userId_organizationId: { userId, organizationId: replay.organizationId } } });
+        if (!membership) throw accessDenied();
+        return replay.organizationId;
+      }
+      await assertOrganizationCreationAllowed(tx, userId, canAddMembership);
+      const created = await tx.organization.create({ data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST } });
+      await tx.organizationMembership.create({ data: { userId, organizationId: created.id, role: OrganizationRole.OWNER } });
+      if (key) await tx.organizationCreateIntent.create({ data: { actorUserId: userId, key, fingerprint, organizationId: created.id } });
+      return created.id;
+    }, { timeout: 10_000, maxWait: 5000 }).catch((error: unknown) => {
+      if (isUniqueViolation(error)) throw new ConflictException('You already belong to an organization; one organization per account for now');
+      throw error;
     });
-    if (existing) {
-      throw new ConflictException(
-        `You already belong to "${existing.organization.name}"; one organization per account for now`,
-      );
-    }
+    return this.describe(organizationId);
+  }
 
-    // Both or neither: an organization with no owner is unreachable, and a
-    // membership with no organization is a broken foreign key. The check above
-    // is for the message; the unique index on the membership's user is what
-    // holds when several requests arrive at once.
-    const organization = await this.prisma
-      .$transaction(async (tx) => {
-      const created = await tx.organization.create({
-        data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST },
-      });
-      await tx.organizationMembership.create({
-        data: { userId, organizationId: created.id, role: OrganizationRole.OWNER },
-      });
-      return created;
-    })
-      .catch((error: unknown) => {
-        if (isUniqueViolation(error)) {
-          throw new ConflictException('You already belong to an organization; one organization per account for now');
-        }
-        throw error;
-      });
+  async ownMemberships(userId: string, query: MembershipPageQuery) {
+    const rows = await this.prisma.organizationMembership.findMany({
+      where: { userId, user: { isActive: true }, organization: { deletedAt: null }, ...organizationCursorWhere(parseOrganizationCursor(query.cursor)) },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: query.limit + 1,
+      select: { id: true, organizationId: true, role: true, createdAt: true, organization: { select: { name: true, kind: true } } },
+    });
+    const page = pageOf(rows, query.limit);
+    return { ...page, items: page.items.map(({ organizationId, role, createdAt, organization }) => ({ organizationId, ...organization, role, joinedAt: createdAt })) };
+  }
 
-    return this.describe(organization.id);
+  async members(organizationId: string, query: MembershipPageQuery) {
+    const rows = await this.prisma.organizationMembership.findMany({
+      where: { organizationId, ...organizationCursorWhere(parseOrganizationCursor(query.cursor)) },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: query.limit + 1,
+      select: { id: true, userId: true, role: true, createdAt: true, user: { select: { name: true } } },
+    });
+    const page = pageOf(rows, query.limit);
+    const organization = await this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { accessRevision: true } });
+    return { ...page, ...organization, items: page.items.map(({ userId, role, createdAt, user }) => ({ userId, name: user.name, role, joinedAt: createdAt })) };
+  }
+
+  changeMember(organizationId: string, actor: RequestActor, input: { userId: string; role: OrganizationRole; expectedRevision: number }) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockOrganizationMutation(tx, organizationId, input.expectedRevision);
+      await requireCurrentOrganizationPermission(tx, { actor, organizationId, permission: 'member:manage' });
+      const member = await requireActiveMember(tx, organizationId, input.userId);
+      if (member.role === 'OWNER' && input.role !== 'OWNER') await assertOtherOrganizationOwner(tx, organizationId, input.userId);
+      await tx.organizationMembership.update({ where: { id: member.id }, data: { role: input.role } });
+      return { organizationId, userId: input.userId, role: input.role, accessRevision: await incrementOrganizationRevision(tx, organizationId) };
+    }, { timeout: 10_000, maxWait: 5000 });
+  }
+
+  transferOwner(organizationId: string, actor: RequestActor, input: { successorUserId: string; expectedRevision: number }) {
+    return this.changeMember(organizationId, actor, { userId: input.successorUserId, role: OrganizationRole.OWNER, expectedRevision: input.expectedRevision });
+  }
+
+  removeMember(organizationId: string, actor: RequestActor, input: { userId: string; expectedRevision: number }) {
+    return this.prisma.$transaction((tx) => removeOrganizationAccess(tx, { organizationId, actor, ...input }), { timeout: 10_000, maxWait: 5000 });
   }
 
   async current(organizationId: string) {
     return this.describe(organizationId);
   }
 
-  async rename(organizationId: string, dto: RenameOrganizationDto) {
-    await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: { name: dto.name },
+  async rename(organizationId: string, dto: RenameOrganizationDto, actor?: RequestActor) {
+    await this.prisma.$transaction(async (tx) => {
+      await lockOrganizationStanding(tx, { organizationId, mode: 'update' });
+      if (actor) await requireCurrentOrganizationPermission(tx, { actor, organizationId, permission: 'member:manage' });
+      await tx.organization.update({ where: { id: organizationId }, data: { name: dto.name } });
     });
     return this.describe(organizationId);
   }
@@ -81,7 +119,12 @@ export class OrganizationsService {
       members: organization._count.memberships,
       plan: organization.subscription?.plan ?? null,
       subscriptionStatus: organization.subscription?.status ?? null,
+      accessRevision: organization.accessRevision,
       createdAt: organization.createdAt,
     };
   }
+}
+
+async function assertOrganizationCreationAllowed(tx: Prisma.TransactionClient, userId: string, canAddMembership: boolean): Promise<void> {
+  if (!canAddMembership && await tx.organizationMembership.count({ where: { userId } })) throw new ConflictException('You already belong to an organization; one organization per account for now');
 }

@@ -323,3 +323,22 @@ retained, and no phone is globally suppressed based on an ambiguous delivery
 failure. Erased message recipients cannot be mutated by late receipts. Host
 delivery evidence retains the report's `guest:read` permission and existing
 `guest:contact:read` restriction for addresses; no new permission is added.
+
+### Organization context and departure
+
+Organization-scoped requests accept `X-Aveline-Organization-Id` as a selector,
+never a grant. No header uses exactly one open membership; ambiguity requires
+selection. Event resources derive exact tenant standing and reject an authorized
+mismatching selector. No arbitrary first membership supplies another tenant's role.
+The bounded own selector exposes only organization ID/name/kind/current role/join date.
+
+Any member may leave; managing peers requires current `member:manage`. Each write
+checks accessRevision and current standing under the organization fence. The last
+active organization OWNER or existing direct-event OWNER must hand over first.
+Departure removes all direct roles and pending invites in that tenant atomically;
+other tenants and independent staff powers survive. ADMIN alone resolves closure
+or inactive-owner recovery. Verified erasure deactivates across all organizations,
+retains tombstone roles/history, revokes pending work and opens recovery reviews.
+
+Not yet activated: second-membership writes await the operator-controlled runtime,
+reader/writer, migration, restore and frontend acceptance gates.

@@ -19,6 +19,7 @@ import { UpdateMediaDto } from './dto/update-media.dto';
 import { MediaService } from './media.service';
 
 @ApiTags('media')
+@EventScope('eventId')
 @Controller('events/:eventId/media')
 export class MediaController {
   constructor(private readonly media: MediaService) {}

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, Matches } from 'class-validator';
 import { CreateOrganizationDto } from './organization.dto';
 import { NormalizedEmail } from '../../../common/normalized-email';
 
@@ -9,6 +9,11 @@ export class OpenForCustomerDto extends CreateOrganizationDto {
   @IsEmail()
   @MaxLength(200)
   ownerEmail!: string;
+  @ApiPropertyOptional({ minLength: 1, maxLength: 64 })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{1,64}$/)
+  organizationId?: string;
 }
 
 export class FindOrganizationsQuery {

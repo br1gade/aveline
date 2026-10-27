@@ -1,3 +1,4 @@
+import { reconcileInactiveOwnerReviews } from '../organizations/organization-reviews.service';
 import { exportContributions } from '../guest-contributions/contribution-privacy';
 import { attendeeSubject, exportAttendees } from '../ticketing/attendee-privacy';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -280,6 +281,7 @@ export class PrivacyService {
       },
       { timeout: ERASURE_TIMEOUT_MS },
     );
+    if (afterwards.userId) await reconcileInactiveOwnerReviews(this.prisma, afterwards.userId);
     await Promise.all([
       Promise.allSettled(afterwards.fileUrls.map((url) => this.storage.removeByUrl(url))),
       this.audit.forgetPerson({ email: subjectEmail, userId: afterwards.userId }),

@@ -1,3 +1,6 @@
+import { OwnOrganizationsController } from './own-organizations.controller';
+import { OrganizationReviewsService } from './organization-reviews.service';
+import { OrganizationReviewsController } from './organization-reviews.controller';
 import { Module } from '@nestjs/common';
 import { EventsModule } from '../events/events.module';
 import { ConciergeController } from './concierge.controller';
@@ -7,7 +10,7 @@ import { OrganizationsService } from './organizations.service';
 
 @Module({
   imports: [EventsModule],
-  controllers: [OrganizationsController, ConciergeController],
-  providers: [OrganizationsService, ConciergeService],
+  controllers: [OrganizationReviewsController, OrganizationsController, OwnOrganizationsController, ConciergeController],
+  providers: [OrganizationReviewsService, OrganizationsService, ConciergeService],
 })
 export class OrganizationsModule {}

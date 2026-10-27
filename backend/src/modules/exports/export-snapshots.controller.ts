@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Get, Header, Param, Post, StreamableFile, UseInterceptors } from '@nestjs/common';
 import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.interceptor';
 import { ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
@@ -7,6 +8,7 @@ import { ExportSnapshotsService } from './export-snapshots.service';
 
 @ApiTags('exports')
 @UseInterceptors(JobRecoveryInterceptor)
+@EventScope('eventId')
 @Controller('events/:eventId/export-snapshots')
 export class ExportSnapshotsController {
   constructor(private readonly snapshots: ExportSnapshotsService) {}

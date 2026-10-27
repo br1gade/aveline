@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Get, Header, Param, Post, StreamableFile } from '@nestjs/common';
 import { ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { actorCan, CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
@@ -5,6 +6,7 @@ import { CreateExportDto } from './dto/export.dto';
 import { ExportsService } from './exports.service';
 
 @ApiTags('exports')
+@EventScope('eventId')
 @Controller('events/:eventId/exports')
 export class ExportsController {
   constructor(private readonly exports: ExportsService) {}

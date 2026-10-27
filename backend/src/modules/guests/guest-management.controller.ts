@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Delete, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GuestManagementService } from './guest-management.service';
@@ -11,6 +12,7 @@ import { RequirePermission } from '../../infra/auth/actor';
  * to account for, which the audit trail records.
  */
 @ApiTags('guests')
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class GuestManagementController {
   constructor(private readonly management: GuestManagementService) {}

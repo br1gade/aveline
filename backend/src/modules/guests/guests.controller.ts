@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import {
   BadRequestException,
   Controller,
@@ -19,6 +20,7 @@ const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 import { CurrentActor, RequestActor, RequirePermission, actorCan } from '../../infra/auth/actor';
 
 @ApiTags('guests')
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class GuestsController {
   constructor(

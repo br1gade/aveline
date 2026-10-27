@@ -284,3 +284,12 @@ Ticket attendee erasure clears the captured roster and reconciliation snapshot
 independently of buyer details and invalidates the checkout fingerprint. Issuance
 re-reads the roster after claiming the order, so delayed settlement cannot
 restore erased data. Existing guest/ticket links are retained for headcounts.
+
+### Organization compatibility records
+
+Organization.accessRevision fences member lifecycle writes. Invitations retain the
+accepted user ID for password-proven replay without restoring removed roles.
+OrganizationCreateIntent binds actor/key/fingerprint to the created tenant;
+OrganizationAccessReview stores minimal ADMIN closure/recovery state without contacts.
+RuntimeCompatibility is the shared revision and additional-membership write gate.
+The user-only membership unique index remains until an explicit maintenance cutover.

@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AnswersSheetService } from './answers-sheet.service';
@@ -5,6 +6,7 @@ import { OperationsService } from './operations.service';
 import { RequirePermission } from '../../infra/auth/actor';
 
 @ApiTags('operations')
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class OperationsController {
   constructor(

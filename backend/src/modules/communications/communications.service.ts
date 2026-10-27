@@ -1,3 +1,4 @@
+import { storedForms } from './address-form';
 import { normalizeAddress } from './address-form';
 import { isUniqueViolation } from '../../common/prisma-errors';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -107,6 +108,24 @@ export class CommunicationsService {
       this.loadTemplate(params.organizationId, params.templateKey, params.channel),
     ]);
     return this.createOnce(params.dedupeKey, messageData(params, template, isSuppressed));
+  }
+
+  /** Caller owns the transaction; credential and outbox commit together. */
+  async enqueueInTransaction(tx: Prisma.TransactionClient, params: EnqueueParams) {
+    if (params.dedupeKey) {
+      const existing = await tx.message.findUnique({ where: { dedupeKey: params.dedupeKey } });
+      if (existing) return existing;
+    }
+    const scopes = params.organizationId === null ? [{ organizationId: null }] : [{ organizationId: null }, { organizationId: params.organizationId }];
+    const [suppression, template] = await Promise.all([
+      tx.suppression.findFirst({ where: { channel: params.channel, address: { in: storedForms(params.channel, params.toAddress) }, OR: scopes }, select: { id: true } }),
+      tx.messageTemplate.findFirst({ where: { key: params.templateKey, channel: params.channel, isActive: true, OR: scopes }, orderBy: { organizationId: 'desc' } }),
+    ]);
+    if (!template) throw new NotFoundException(`No ${params.channel} template "${params.templateKey}"`);
+    const data = messageData(params, template, suppression !== null);
+    if (!params.dedupeKey) return tx.message.create({ data });
+    await tx.message.createMany({ data: [data], skipDuplicates: true });
+    return tx.message.findUniqueOrThrow({ where: { dedupeKey: params.dedupeKey } });
   }
 
   /**

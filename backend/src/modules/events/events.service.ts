@@ -1,3 +1,4 @@
+import { lockOrganizationStanding, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
 import { hasInvitationExpired } from '../invitations/lifetime';
 import {
   BadRequestException,
@@ -86,6 +87,9 @@ export class EventsService {
     const hostsLabel = dto.hostsLabel ?? dto.title;
 
     const event = await this.prisma.$transaction(async (tx) => {
+      await lockOrganizationStanding(tx, { organizationId });
+      await requireCurrentOrganizationPermission(tx, { actor: { userId, email: '', platformRole: 'NONE' }, organizationId,
+        permission: options.isOnBehalf ? 'concierge:manage' : 'event:write' });
       const created = await tx.event.create({
         data: {
           organizationId,
@@ -204,13 +208,14 @@ export class EventsService {
     const reach: Prisma.EventWhereInput[] = [{ memberships: { some: { userId: actor.userId } } }];
     if (actor.organizationId && actorCan(actor, 'event:read')) reach.push({ organizationId: actor.organizationId });
     const isStaff = actor.platformRole !== PlatformRole.NONE;
+    const hasGlobalScope = hasGlobalEventScope(actor);
     // Archived events are put away: listed only when asked for.
     const archive: Prisma.EventWhereInput = isArchiveWanted
       ? { status: EventStatus.ARCHIVED }
       : { status: { not: EventStatus.ARCHIVED } };
 
     return this.prisma.event.findMany({
-      where: isStaff ? archive : { AND: [archive, { OR: reach }] },
+      where: hasGlobalScope ? archive : { AND: [archive, { OR: reach }] },
       include: { invitation: { select: { slug: true, status: true } }, _count: { select: { guests: true } } },
       orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
       // Staff see every customer's events, so their list is paged by default;
@@ -446,4 +451,8 @@ function assertDeletable(event: {
   if (event._count.payments > 0 || event._count.ticketOrders > 0) {
     throw new ConflictException('Money has moved through this event, and those records are kept; archive it instead');
   }
+}
+
+function hasGlobalEventScope(actor: RequestActor): boolean {
+  return actor.platformRole !== PlatformRole.NONE && !actor.organizationContext;
 }

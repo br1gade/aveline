@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Throttle } from '@nestjs/throttler';
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { Body, Controller, Delete, Get, Header, NotFoundException, Param, Patch, Query, Res, UseInterceptors } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { sendPrivateImage } from './contributions.controller';
 
 @ApiTags('guest-contributions')
 @UseInterceptors(JobRecoveryInterceptor)
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class ContributionsHostController {
   constructor(private readonly acknowledgements: AcknowledgementsService, private readonly media: GuestMediaService, private readonly prisma: PrismaService) {}
