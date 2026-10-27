@@ -71,7 +71,7 @@ export class AuthGuard implements CanActivate {
 
     const claims = await this.verifyToken(request.headers.authorization);
     const selector = scope || isOrganizationScoped ? parseOrganizationSelector(request.headers, request.rawHeaders) : undefined;
-    const actor = await this.resolveActor(claims, request.params, { scope, organization: isOrganizationScoped, selector });
+    const actor = await this.resolveActor(claims, request.params, { scope, organization: isOrganizationScoped, selector, routeOrganizationId: isOrganizationScoped?.mode === 'platform' ? request.params.organizationId : undefined });
     request.actor = actor;
 
     const required = this.reflector.getAllAndOverride<Permission | undefined>(
@@ -107,7 +107,7 @@ export class AuthGuard implements CanActivate {
   private async resolveActor(
     claims: AccessTokenClaims,
     params: Record<string, string | undefined>,
-    selection: { scope?: EventScopeSource; organization?: OrganizationScopeOptions; selector?: string },
+    selection: { scope?: EventScopeSource; organization?: OrganizationScopeOptions; selector?: string; routeOrganizationId?: string },
   ): Promise<RequestActor> {
     const user = await this.prisma.user.findUnique({
       where: { id: claims.sub },
@@ -135,10 +135,10 @@ export class AuthGuard implements CanActivate {
   }
 
   private organizationContextOf(user: { id: string; platformRole: RequestActor['platformRole'] }, eventId: string | undefined,
-    selection: { organization?: OrganizationScopeOptions; selector?: string }) {
+    selection: { organization?: OrganizationScopeOptions; selector?: string; routeOrganizationId?: string }) {
     if (!eventId && !selection.organization) return null;
     return resolveOrganizationContext(this.prisma, {
-      userId: user.id, platformRole: user.platformRole, eventId, selector: selection.selector,
+      userId: user.id, platformRole: user.platformRole, eventId, selector: selection.selector, routeOrganizationId: selection.routeOrganizationId,
       mode: eventId ? 'event' : selection.organization?.mode ?? 'required',
       platformPermission: selection.organization?.permission,
     });

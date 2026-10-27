@@ -12,10 +12,12 @@ try {
     const index = await prisma.$queryRaw`SELECT indexname FROM pg_indexes WHERE indexname = 'organization_memberships_userId_key'`;
     process.stdout.write(JSON.stringify({ gate, multipleMembershipUsers: duplicates[0].count, hasSingleMembershipIndex: index.length > 0 }) + '\n');
   } else {
+    if (action !== 'disable-writes') {
     const evidence = JSON.parse(await readFile(process.env.ORGANIZATION_CUTOVER_EVIDENCE_FILE ?? '', 'utf8'));
     const required = ['readerWriterInventory', 'raceTests', 'populatedMigration', 'restoreRehearsal', 'fourLanguageTabAcceptance', 'oldRuntimeExclusion'];
     if (evidence.revision !== 2 || required.some((key) => evidence[key] !== true)) throw new Error('Complete revision-2 activation evidence is required');
     if (action === 'drop-single-membership-index' && process.env.ORGANIZATION_CUTOVER_MAINTENANCE !== 'confirmed') throw new Error('Maintenance with old credentials/sessions excluded must be confirmed');
+    }
     await prisma.$transaction(async (tx) => {
       const [gate] = await tx.$queryRaw`SELECT * FROM runtime_compatibility WHERE id = 'organization-context' FOR UPDATE`;
       if (!gate || gate.minimumRevision !== 2) throw new Error('Unsupported runtime revision');

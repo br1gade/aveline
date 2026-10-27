@@ -52,16 +52,20 @@ export async function resolveOrganizationContext(tx: OrganizationDatabase, input
 }
 
 async function resolveSelectedContext(tx: OrganizationDatabase, input: OrganizationResolution, organizationId: string): Promise<OrganizationContext> {
-  assertSelectionMatchesRoute(input);
+  assertPlatformSelectionAllowed(input);
   const membership = await tx.organizationMembership.findUnique({
     where: { userId_organizationId: { userId: input.userId, organizationId } }, select: { role: true, organization: { select: { deletedAt: true } } },
   });
   const source = input.routeOrganizationId ? 'route' : 'header';
-  if (membership && membership.organization?.deletedAt == null) return { organizationId, organizationRole: membership.role, source, access: 'membership' };
+  if (membership && membership.organization?.deletedAt == null) {
+    assertSelectionMatchesRoute(input);
+    return { organizationId, organizationRole: membership.role, source, access: 'membership' };
+  }
   const hasPlatformPermission = canTargetOrganization(input);
   if (!hasPlatformPermission) throw accessDenied();
   const organization = await tx.organization.findFirst({ where: { id: organizationId, deletedAt: null }, select: { id: true } });
   if (!organization) throw accessDenied();
+  assertSelectionMatchesRoute(input);
   return { organizationId, organizationRole: null, source, access: 'platform' };
 }
 
@@ -116,4 +120,8 @@ function assertEventSelection(input: OrganizationResolution, organizationId: str
 function contextAccess(hasMembership: boolean, hasEvent: boolean): OrganizationContext['access'] {
   if (hasMembership) return 'membership';
   return hasEvent ? 'event' : 'platform';
+}
+
+function assertPlatformSelectionAllowed(input: OrganizationResolution): void {
+  if (input.mode === 'platform' && !canTargetOrganization(input)) throw accessDenied();
 }

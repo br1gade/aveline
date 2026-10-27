@@ -1,3 +1,4 @@
+import { pageOf, parseOrganizationCursor } from './organization-pagination';
 import { lockOwnerAddress, lockCurrentUsers } from '../../infra/auth/access-locks';
 import { resolveCustomerOrganizations, selectionRequired, accessDenied } from '../../infra/auth/organization-context';
 import { actorCan } from '../../infra/auth/actor';
@@ -7,7 +8,7 @@ import { AccountService } from '../../infra/auth/account.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from '../events/dto/create-event.dto';
 import { EventsService } from '../events/events.service';
-import { OpenForCustomerDto } from './dto/concierge.dto';
+import { OpenForCustomerDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
 
 /**
  * Aveline staff setting an event up for a customer, then handing it over
@@ -29,9 +30,8 @@ export class ConciergeService {
 
   /**
    * A customer who already has an organization gets the event built in it
-   * (decided 10 October 2026, D8): no second organization, nothing to
-   * accept. Inviting them as owner of a new one could never be accepted —
-   * an account has one organization — and orphaned the staff's work.
+   * (decided 10 October 2026, D8). Several current relationships require an
+   * explicit selection; no first row may silently choose a different tenant.
    */
   async openForCustomer(staffUserId: string, dto: OpenForCustomerDto) {
     const email = dto.ownerEmail.trim().toLowerCase();
@@ -50,6 +50,15 @@ export class ConciergeService {
       const invite = await this.accounts.inviteMemberInTransaction(tx, { organizationId: organization.id, invitedByUserId: staffUserId, dto: { email, role: OrganizationRole.OWNER }, isConcierge: true });
       return { organization, invite, isExisting: false };
     }, { timeout: 10_000, maxWait: 5000 });
+  }
+
+  async resolveCustomer(dto: ResolveCustomerOrganizationsDto) {
+    const cursor = parseOrganizationCursor(dto.cursor);
+    const after = cursor ? { OR: [{ createdAt: { gt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { gt: cursor.id } }] } : {};
+    const rows = await this.prisma.organization.findMany({ where: { deletedAt: null,
+      memberships: { some: { user: { email: { equals: dto.ownerEmail, mode: 'insensitive' }, isActive: true } } }, ...after },
+      select: { id: true, name: true, kind: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: dto.limit + 1 });
+    return pageOf(rows, dto.limit);
   }
 
   async createEvent(organizationId: string, staffUserId: string, dto: CreateEventDto) {

@@ -28,6 +28,13 @@ describe('organization invite lifecycle', () => {
     await prisma.organizationMembership.updateMany({ where: { organizationId: organization.id }, data: { role: 'MANAGER' } });
     await expect(accounts.acceptInvite(dto)).resolves.toMatchObject({ ok: true, role: 'MANAGER', accountCreated: false });
   });
+  it('two simultaneous first accepts create one account and return compatible results', async () => {
+    const { token } = await fixture();
+    const dto = { token, name: 'Member', password: 'correct password 123' };
+    const results = await Promise.all([accounts.acceptInvite(dto), accounts.acceptInvite(dto)]);
+    expect(results.map((result) => result.ok)).toEqual([true, true]);
+    expect(await prisma.organizationMembership.count()).toBe(1);
+  });
   it('a departed accepted token never rejoins', async () => {
     const { token } = await fixture();
     const dto = { token, name: 'Member', password: 'correct password 123' };

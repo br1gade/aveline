@@ -1,3 +1,4 @@
+import { lockEventOrganization } from '../../infra/auth/access-locks';
 import { EXPORT_TYPES } from './renderers/export-document';
 import { BadRequestException, ConflictException, ForbiddenException, GoneException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ExportSnapshot } from '@prisma/client';
@@ -12,6 +13,7 @@ export class ExportSnapshotsService {
 
   async create(eventId: string, userId: string, dto: CreateExportSnapshotDto) {
     const record = await this.prisma.$transaction(async (tx) => {
+      await lockEventOrganization(tx, eventId);
       // Bounds queue admission across API replicas and concurrent requests.
       await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
       const access = await lockExportAccess(tx, eventId, userId);

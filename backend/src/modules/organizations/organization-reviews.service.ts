@@ -1,3 +1,4 @@
+import { pageOf, parseOrganizationCursor } from './organization-pagination';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -23,9 +24,11 @@ export class OrganizationReviewsService {
 
   async list(actor: RequestActor, query: MembershipPageQuery) {
     await this.prisma.$transaction((tx) => requireAdmin(tx, actor));
-    // Reviews contain no contacts or financial data; cursor is an opaque row ID.
-    return this.prisma.organizationAccessReview.findMany({ where: { status: 'OPEN' }, orderBy: [{ openedAt: 'asc' }, { id: 'asc' }],
-      take: query.limit, ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}) });
+    const cursor = parseOrganizationCursor(query.cursor);
+    const after = cursor ? { OR: [{ openedAt: { gt: cursor.createdAt } }, { openedAt: cursor.createdAt, id: { gt: cursor.id } }] } : {};
+    const rows = await this.prisma.organizationAccessReview.findMany({ where: { status: 'OPEN', ...after }, orderBy: [{ openedAt: 'asc' }, { id: 'asc' }], take: query.limit + 1 });
+    const page = pageOf(rows.map((row) => ({ ...row, createdAt: row.openedAt })), query.limit);
+    return { ...page, items: page.items.map(({ createdAt: _createdAt, ...row }) => row) };
   }
 
   async resolve(actor: RequestActor, reviewId: string, input: { decision: 'HANDOVER' | 'CLOSE' | 'DECLINE'; expectedRevision: number; successorUserId?: string }) {
@@ -73,6 +76,15 @@ export async function reconcileInactiveOwnerReviews(prisma: PrismaService, userI
   // Existing single-membership barrier bounds this until activation review; set-based query finds all missing-owner tenants.
   const ids = memberships.map((membership) => membership.organizationId);
   if (!ids.length) return;
-  const organizations = await prisma.organization.findMany({ where: { id: { in: ids }, memberships: { none: { role: 'OWNER', user: { isActive: true } } } }, select: { id: true } });
-  await prisma.organizationAccessReview.createMany({ data: organizations.map(({ id }) => ({ organizationId: id, reason: 'INACTIVE_OWNER_RECOVERY' })), skipDuplicates: true });
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM organizations WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`;
+    await tx.$executeRaw`INSERT INTO organization_access_reviews (id, "organizationId", status, reason, "openedAt", revision)
+      SELECT gen_random_uuid()::text, organization.id, 'OPEN', 'INACTIVE_OWNER_RECOVERY', CURRENT_TIMESTAMP, 0
+      FROM organizations organization WHERE organization.id IN (${Prisma.join(ids)}) AND organization."deletedAt" IS NULL
+      AND NOT EXISTS (SELECT 1 FROM organization_memberships member JOIN users owner ON owner.id = member."userId"
+        WHERE member."organizationId" = organization.id AND member.role = 'OWNER' AND owner."isActive")
+      ON CONFLICT ("organizationId") DO UPDATE SET status = 'OPEN', reason = 'INACTIVE_OWNER_RECOVERY',
+        revision = organization_access_reviews.revision + 1, "resolvedAt" = NULL, "resolvedByUserId" = NULL
+      WHERE organization_access_reviews.status <> 'OPEN'`;
+  }, { timeout: 10_000, maxWait: 5000 });
 }

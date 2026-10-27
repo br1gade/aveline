@@ -46,6 +46,7 @@ export class TeamService {
     return this.prisma.$transaction(async (tx) => {
       const member = await lockedMember(tx, eventId, userId);
       if (actor) await requireCurrentEventPermission(tx, { actor, eventId, permission: 'member:manage' });
+      await assertActiveOwnerPromotion(tx, userId, role);
       if (member.role === EventRole.OWNER && role !== EventRole.OWNER) await assertAnotherOwner(tx, eventId, userId);
 
       const updated = await tx.eventMembership.update({
@@ -87,4 +88,11 @@ async function assertAnotherOwner(tx: Prisma.TransactionClient, eventId: string,
   await lockCurrentUsers(tx, [successor.userId]);
   const user = await tx.user.findUnique({ where: { id: successor.userId }, select: { isActive: true } });
   if (!user?.isActive) throw new BadRequestException('An event needs an active owner; make someone else an owner first');
+}
+
+async function assertActiveOwnerPromotion(tx: Prisma.TransactionClient, userId: string, role: EventRole): Promise<void> {
+  if (role !== EventRole.OWNER) return;
+  await lockCurrentUsers(tx, [userId]);
+  const user = await tx.user.findUnique({ where: { id: userId }, select: { isActive: true } });
+  if (!user?.isActive) throw new BadRequestException('Only an active event member may become owner');
 }

@@ -26,7 +26,7 @@ src/
     events/ guests/ invitations/ rsvp/ operations/
     seating/        tables, seats, the packing algorithm
     design/         templates, theme, block content, questions, venues, timeline
-    organizations/  the tenant a new account creates for itself
+    organizations/  explicit tenant selection, membership lifecycle and ADMIN recovery
     billing/        plans, subscriptions, invoices, promo codes
     vendors/        the partner network and scoped briefs
     exports/        legacy CSV, private snapshots and durable export worker
@@ -309,3 +309,9 @@ The signed filesystem redaction journal is independent recovery evidence, with
 async fsync/atomic replacement and contiguous sequence verification. Missing or
 invalid latest evidence blocks offline replay. Production storage and frontend
 acceptance remain rollout gates; no provider or consultation messages are added.
+
+Organization writes use PostgreSQL aggregate fences: organization before event,
+invitation before current-user locks. Export privacy remains first when touched.
+Shared resolver and lock contracts live in infra/auth; independent platform powers
+are preserved. The database compatibility gate and explicit operator cutover keep
+new memberships disabled until acceptance evidence excludes old runtimes.

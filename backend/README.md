@@ -189,6 +189,7 @@ test/
 | `POST` | `/api/v1/event-invites/accept` | Accept an invitation to one event; grants nothing in the organization |
 | `POST` | `/api/v1/concierge/organizations` | Open a customer's organization and invite them as owner (Aveline staff) |
 | `POST` | `/api/v1/concierge/organizations/:organizationId/events` | Create an event for that customer (Aveline staff) |
+| `POST` | `/api/v1/concierge/organizations/resolve-customer` | Bounded customer choices without contact or billing fields |
 | `GET` | `/api/v1/concierge/organizations` | Find a customer's organization by name (Aveline staff) |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `GET` | `/api/v1/events/:eventId/media` | The event's uploads, with the blocks that show each |

@@ -244,7 +244,10 @@ export class AccountService {
    * person expects after asking for the email again.
    */
   async inviteMember(organizationId: string, invitedByUserId: string, dto: InviteMemberDto) {
-    return this.prisma.$transaction((tx) => this.inviteMemberInTransaction(tx, { organizationId, invitedByUserId, dto }), { timeout: 10_000, maxWait: 5000 });
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.role === 'OWNER') await lockOwnerAddress(tx, dto.email);
+      return this.inviteMemberInTransaction(tx, { organizationId, invitedByUserId, dto });
+    }, { timeout: 10_000, maxWait: 5000 });
   }
 
   async inviteMemberInTransaction(tx: Prisma.TransactionClient, input: { organizationId: string; invitedByUserId: string; dto: InviteMemberDto; reusePendingOwner?: boolean; isConcierge?: boolean }) {
@@ -288,6 +291,16 @@ export class AccountService {
    * every other session out — and then accepts.
    */
   async acceptInvite(dto: AcceptInviteDto) {
+    try { return await this.acceptOrganizationInvitation(dto); }
+    catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      // A concurrently registered account requires fresh password proof outside
+      // the rolled-back transaction; never attach our precomputed password.
+      return this.acceptOrganizationInvitation(dto);
+    }
+  }
+
+  private async acceptOrganizationInvitation(dto: AcceptInviteDto) {
     const tokenHash = hashRefreshToken(dto.token);
     const initial = await this.prisma.organizationInvite.findUnique({ where: { tokenHash } });
     assertValidInvitation(initial);
@@ -341,6 +354,14 @@ export class AccountService {
 
   /** Accepts an event invitation, creating the account if needed — the same rules as joining an organization. */
   async acceptEventInvite(dto: AcceptInviteDto) {
+    try { return await this.acceptEventInvitation(dto); }
+    catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      return this.acceptEventInvitation(dto);
+    }
+  }
+
+  private async acceptEventInvitation(dto: AcceptInviteDto) {
     const tokenHash = hashRefreshToken(dto.token);
     const initial = await this.prisma.eventInvite.findUnique({ where: { tokenHash } });
     assertValidInvitation(initial);
@@ -384,8 +405,8 @@ export class AccountService {
    * either organization arbitrarily on every request.
    */
   private async assertNoOtherOrganization(tx: Prisma.TransactionClient, userId: string, organizationId: string): Promise<void> {
-    const other = await tx.organizationMembership.findFirst({ where: { userId, organizationId: { not: organizationId } }, select: { id: true } });
-    if (other) throw new ConflictException('This account already belongs to an organization; one organization per account for now');
+    const other = await tx.organizationMembership.findFirst({ where: { userId, organizationId: { not: organizationId } }, select: { organization: { select: { name: true } } } });
+    if (other) throw new ConflictException(`This account already belongs to "${other.organization.name}"; one organization per account for now`);
   }
 
   /**

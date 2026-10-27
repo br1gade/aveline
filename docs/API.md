@@ -1105,6 +1105,7 @@ time by default**, since theirs is every customer's events — page with
 
 ```http
 POST /api/v1/concierge/organizations                       { "name": "Petrosyan Wedding", "ownerEmail": "anna@example.am" }
+POST /api/v1/concierge/organizations/resolve-customer        { "ownerEmail":"anna@example.am", "limit":50 }
 POST /api/v1/concierge/organizations/:organizationId/events  { ...as POST /events }
 GET  /api/v1/concierge/organizations?search=petrosyan
 ```
@@ -1118,6 +1119,14 @@ design and run it through the usual routes using their platform role. When
 the customer accepts at `/accept-invite`, choosing their own password, they
 own the organization and its events. The search lists organizations with
 their `owners`, `pendingOwnerInvites` and number of `events`.
+
+Concierge setup uses exact 0/1/many customer resolution, including an unexpired
+pending OWNER invitation for provisional onboarding. Several choices require
+selection with `409 ORGANIZATION_SELECTION_REQUIRED`. Optional `organizationId`
+selects an existing customer relationship, never grants one. The staff-only
+resolve-customer endpoint returns `{items:[{id,name,kind,createdAt}],nextCursor}`
+for current memberships, defaults/maxes at 50 and bounds cursor to 256 characters.
+New organization, OWNER invitation and credential Message commit atomically.
 
 **A customer who already has an organization** gets the event built in it
 (decided 10 October 2026): the response is that organization with

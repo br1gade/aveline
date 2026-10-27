@@ -24,8 +24,8 @@ an operator-controlled activation step, not a deployment side effect.
    index. Runtime lookup never uses the legacy user-only membership key.
 
 `disable-writes` stops additional creates/joins while existing multiple memberships
-remain readable. It also requires reviewed evidence to avoid accidental operator
-invocation against the wrong target. The command uses DATABASE_URL explicitly.
+remain readable. Emergency disabling needs no activation evidence file; a privileged operator can
+stop new joins immediately. The command uses DATABASE_URL explicitly.
 No command was run against a production or developer database in this change.
 
 Before any second membership, rollback may recreate the single-user index only

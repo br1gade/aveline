@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
+import { CurrentActor, OrganizationScope, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { CreateEventDto } from '../events/dto/create-event.dto';
 import { ConciergeService } from './concierge.service';
-import { FindOrganizationsQuery, OpenForCustomerDto } from './dto/concierge.dto';
+import { FindOrganizationsQuery, OpenForCustomerDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
 
 /** Aveline staff setting events up for customers, then handing them over. */
 @ApiTags('concierge')
@@ -22,6 +22,14 @@ export class ConciergeController {
   }
 
   @RequirePermission('concierge:manage')
+  @Post('resolve-customer')
+  @ApiOperation({ summary: 'Bounded customer organization choices for staff; no contacts or billing' })
+  resolveCustomer(@Body() dto: ResolveCustomerOrganizationsDto) {
+    return this.concierge.resolveCustomer(dto);
+  }
+
+  @RequirePermission('concierge:manage')
+  @OrganizationScope({ mode: 'platform', permission: 'concierge:manage' })
   @Post(':organizationId/events')
   @ApiOperation({
     summary: "Create an event in a customer's organization (Aveline staff)",

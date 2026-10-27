@@ -5121,6 +5121,31 @@
         ]
       }
     },
+    "/api/v1/concierge/organizations/resolve-customer": {
+      "post": {
+        "operationId": "ConciergeController_resolveCustomer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveCustomerOrganizationsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Bounded customer organization choices for staff; no contacts or billing",
+        "tags": [
+          "concierge"
+        ]
+      }
+    },
     "/api/v1/concierge/organizations/{organizationId}/events": {
       "post": {
         "description": "Staff design and run it through their platform role; the customer owns it once they accept.",
@@ -8540,6 +8565,27 @@
         },
         "required": [
           "name",
+          "ownerEmail"
+        ]
+      },
+      "ResolveCustomerOrganizationsDto": {
+        "type": "object",
+        "properties": {
+          "ownerEmail": {
+            "type": "string",
+            "description": "Customer email; staff-only resolution"
+          },
+          "limit": {
+            "type": "object",
+            "default": 50,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "required": [
           "ownerEmail"
         ]
       },

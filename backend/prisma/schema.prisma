@@ -135,9 +135,8 @@ enum PlatformRole {
 /// forced together.
 model OrganizationMembership {
   id             String           @id @default(cuid())
-  /// Unique: one organization per account, for now. The guard resolves "your
-  /// organization" from this single row; two would make every
-  /// organization-scoped route act on whichever came back first.
+  /// Retained until the operator-controlled revision-2 cutover. Readers already
+  /// resolve exact tenant standing; never drop this through automatic migration.
   userId         String           @unique
   organizationId String
   role           OrganizationRole

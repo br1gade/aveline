@@ -28,16 +28,19 @@ export async function assertOtherOrganizationOwner(tx: Prisma.TransactionClient,
   if (!active?.isActive) throw ownerHandover();
 }
 export async function assertEventOwnerSuccessors(tx: Prisma.TransactionClient, organizationId: string, userId: string): Promise<void> {
+  await assertEventOwnersRemain(tx, organizationId, userId);
+  await tx.$queryRaw`SELECT id FROM users WHERE id IN
+    (SELECT "userId" FROM event_memberships WHERE role = 'OWNER' AND "userId" <> ${userId}
+      AND "eventId" IN (SELECT id FROM events WHERE "organizationId" = ${organizationId})) ORDER BY id FOR SHARE`;
+  await assertEventOwnersRemain(tx, organizationId, userId);
+}
+async function assertEventOwnersRemain(tx: Prisma.TransactionClient, organizationId: string, userId: string): Promise<void> {
   const owners = await tx.$queryRaw<{ eventId: string }[]>`
     SELECT target."eventId" FROM event_memberships target JOIN events event ON event.id = target."eventId"
     WHERE event."organizationId" = ${organizationId} AND target."userId" = ${userId} AND target.role = 'OWNER'
     AND NOT EXISTS (SELECT 1 FROM event_memberships other JOIN users successor ON successor.id = other."userId"
       WHERE other."eventId" = target."eventId" AND other."userId" <> ${userId} AND other.role = 'OWNER' AND successor."isActive") LIMIT 1`;
   if (owners.length) throw ownerHandover();
-  // Lock viable successors in one bounded-to-tenant set query, then repeat the aggregate.
-  await tx.$queryRaw`SELECT id FROM users WHERE "isActive" AND id IN
-    (SELECT "userId" FROM event_memberships WHERE role = 'OWNER' AND "userId" <> ${userId}
-      AND "eventId" IN (SELECT id FROM events WHERE "organizationId" = ${organizationId})) ORDER BY id FOR SHARE`;
 }
 export function ownerHandover() { return new DomainHttpException('OWNER_HANDOVER_REQUIRED', 'Ownership handover is required before this change'); }
 export async function incrementOrganizationRevision(tx: Prisma.TransactionClient, organizationId: string): Promise<number> {
