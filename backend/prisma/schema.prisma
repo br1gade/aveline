@@ -44,6 +44,9 @@ model Organization {
   createIntents OrganizationCreateIntent[]
   accessReviews OrganizationAccessReview[]
 
+  enquiries SalesEnquiry[]
+  enquiryConversions EnquiryConversion[]
+
   @@map("organizations")
 }
 
@@ -83,6 +86,9 @@ model User {
   verificationTokens      VerificationToken[]
   deviceTokens            DeviceToken[]
   organizationCreateIntents OrganizationCreateIntent[]
+
+  assignedEnquiries SalesEnquiry[]
+  consultations Consultation[]
 
   @@map("users")
 }
@@ -255,9 +261,11 @@ model Event {
   payments            Payment[]
   vendorBookings      VendorBooking[]
 
-  @@unique([id, organizationId])
   @@index([organizationId])
   @@index([startsAt])
+  enquiries SalesEnquiry[]
+  enquiryConversions EnquiryConversion[]
+  @@unique([id, organizationId])
   @@map("events")
   seatingJobs SeatingJob[]
   guestMedia GuestMedia[]
@@ -1556,7 +1564,13 @@ model DataSubjectRequest {
 
   /// How the requester identified themselves. They may be a guest with no
   /// account, so an address is the only reliable handle.
-  subjectEmail   String
+  subjectEmail   String?
+  subjectSource DataSubjectSource @default(EMAIL)
+  enquirySubjectsVerifiedAt DateTime?
+  erasureAppliedAt DateTime?
+  erasureCheckpointId String?
+  erasureResult Json?
+  enquirySubjects DataSubjectRequestEnquirySubject[]
   organizationId String?
   guestId        String?
   userId         String?
@@ -2339,6 +2353,274 @@ model GuestPayloadChange {
   transactionId BigInt
   @@id([eventId, scope, transactionId])
   @@map("guest_payload_changes")
+}
+
+enum EnquiryStage {
+  NEW
+  CONTACTED
+  CONSULTATION
+  READY_FOR_QUOTE
+  CLOSED
+}
+
+enum EnquirySource {
+  PHONE
+  MESSAGING
+  IN_PERSON
+  EMAIL
+  OTHER
+}
+
+enum EnquiryClosureReason {
+  CUSTOMER_DECLINED
+  UNREACHABLE
+  DUPLICATE
+  OTHER
+}
+
+enum EnquiryClearanceReason {
+  RETENTION
+  VERIFIED_ERASURE
+}
+
+enum EnquiryAddressKind {
+  EMAIL
+  PHONE
+}
+
+enum EnquiryNoteKind {
+  GENERAL
+  CONSULTATION
+}
+
+enum ConsultationStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum OwnerInviteDeliveryState {
+  PENDING
+  QUEUED
+  CANCELLED
+  NEEDS_REVIEW
+}
+
+enum DataSubjectSource {
+  EMAIL
+  STAFF_ENQUIRY
+}
+
+model SalesEnquiry {
+  id                    String                  @id @default(cuid())
+  organizationId        String?
+  eventId               String?
+  assignedUserId        String?
+  createdByUserId       String
+  stage                 EnquiryStage            @default(NEW)
+  revision              Int                     @default(1)
+  eventType             EventType?
+  approximateLocalDate  DateTime?               @db.Date
+  approximateTimezone   String?                 @db.VarChar(64)
+  estimatedGuestCount   Int?
+  preferredLocale       String?                 @db.VarChar(2)
+  source                EnquirySource?
+  closedAt              DateTime?
+  closureReason         EnquiryClosureReason?
+  closureNote           String?                 @db.VarChar(2000)
+  cleanupDueAt          DateTime?
+  personalDataClearedAt DateTime?
+  clearanceReason       EnquiryClearanceReason?
+  privacyRevision       Int                     @default(0)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  organization          Organization?           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  event                 Event?                  @relation(fields: [eventId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  assignedUser          User?                   @relation(fields: [assignedUserId], references: [id], onDelete: Restrict)
+  contact               EnquiryContact?
+  notes                 EnquiryNote[]
+  consultations         Consultation[]
+  activities            EnquiryActivity[]
+  commands              EnquiryCommand[]
+  conversion            EnquiryConversion?
+  deliveries            OwnerInviteDelivery[]
+
+  @@index([assignedUserId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("sales_enquiries")
+}
+
+model EnquiryContact {
+  id         String                             @id @default(cuid())
+  enquiryId  String                             @unique
+  name       String?                            @db.VarChar(200)
+  email      String?                            @db.VarChar(200)
+  phone      String?                            @db.VarChar(32)
+  redactedAt DateTime?
+  revision   Int                                @default(1)
+  enquiry    SalesEnquiry                       @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  addresses  EnquiryContactAddress[]
+  subjects   DataSubjectRequestEnquirySubject[]
+
+  @@map("enquiry_contacts")
+}
+
+model EnquiryContactAddress {
+  contactId   String
+  kind        EnquiryAddressKind
+  fingerprint String
+  createdAt   DateTime           @default(now())
+  contact     EnquiryContact     @relation(fields: [contactId], references: [id], onDelete: Restrict)
+
+  @@id([contactId, kind, fingerprint])
+  @@index([kind, fingerprint, contactId])
+  @@map("enquiry_contact_addresses")
+}
+
+model EnquiryNote {
+  id              String          @id @default(cuid())
+  enquiryId       String
+  kind            EnquiryNoteKind @default(GENERAL)
+  consultationId  String?
+  body            String?         @db.VarChar(10000)
+  createdByUserId String
+  createdAt       DateTime        @default(now())
+  redactedAt      DateTime?
+  enquiry         SalesEnquiry    @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  consultation    Consultation?   @relation(fields: [consultationId, enquiryId], references: [id, enquiryId], onDelete: Restrict)
+
+  @@index([enquiryId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("enquiry_notes")
+}
+
+model Consultation {
+  id              String             @id @default(cuid())
+  enquiryId       String
+  operatorUserId  String
+  startsAt        DateTime           @db.Timestamptz(3)
+  endsAt          DateTime           @db.Timestamptz(3)
+  timezone        String             @db.VarChar(64)
+  status          ConsultationStatus @default(SCHEDULED)
+  revision        Int                @default(1)
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdByUserId String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  enquiry         SalesEnquiry       @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  operator        User               @relation(fields: [operatorUserId], references: [id], onDelete: Restrict)
+  notes           EnquiryNote[]
+
+  @@unique([id, enquiryId])
+  @@index([enquiryId, startsAt(sort: Desc), id(sort: Desc)])
+  @@map("consultations")
+}
+
+model EnquiryActivity {
+  id              String       @id @default(cuid())
+  enquiryId       String
+  enquiryRevision Int
+  actorUserId     String?
+  kind            String
+  metadata        Json         @default("{}")
+  createdAt       DateTime     @default(now())
+  enquiry         SalesEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+
+  @@unique([enquiryId, enquiryRevision])
+  @@index([enquiryId, enquiryRevision(sort: Desc)])
+  @@map("enquiry_activities")
+}
+
+model EnquiryCommand {
+  id                 String        @id @default(cuid())
+  actorUserId        String
+  operation          String
+  idempotencyKey     String        @db.VarChar(128)
+  requestFingerprint String?
+  enquiryId          String?
+  resultId           String?
+  appliedRevision    Int
+  responseStatus     Int
+  createdAt          DateTime      @default(now())
+  invalidatedAt      DateTime?
+  enquiry            SalesEnquiry? @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+
+  @@unique([actorUserId, operation, idempotencyKey])
+  @@map("enquiry_commands")
+}
+
+model EnquiryConversion {
+  id                String       @id @default(cuid())
+  enquiryId         String       @unique
+  organizationId    String
+  eventId           String?
+  ownerInviteId     String?
+  convertedByUserId String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  enquiry           SalesEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  event             Event?       @relation(fields: [eventId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@map("enquiry_conversions")
+}
+
+model OwnerInviteDelivery {
+  id                   String                   @id @default(cuid())
+  organizationInviteId String                   @unique
+  enquiryId            String?
+  privacyRevision      Int
+  sourceContactId      String?
+  state                OwnerInviteDeliveryState @default(PENDING)
+  messageId            String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  enquiry              SalesEnquiry?            @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+
+  @@index([state, createdAt])
+  @@map("owner_invite_deliveries")
+}
+
+model EnquiryPrivacyFence {
+  id       String @id @default("intake")
+  revision Int    @default(0)
+
+  @@map("enquiry_privacy_fences")
+}
+
+model EnquiryErasureTombstone {
+  enquiryId       String
+  contactId       String
+  privacyRevision Int
+  createdAt       DateTime @default(now())
+  sourceRequestId String?
+
+  @@id([enquiryId, contactId])
+  @@map("enquiry_erasure_tombstones")
+}
+
+model EnquiryPrivacyRedaction {
+  id                 String                 @id @default(cuid())
+  enquiryId          String
+  contactId          String
+  reason             EnquiryClearanceReason
+  privacyRevision    Int
+  redactedAt         DateTime
+  checkpointSequence BigInt?                @unique
+  checkpointedAt     DateTime?
+
+  @@index([checkpointedAt, redactedAt])
+  @@map("enquiry_privacy_redactions")
+}
+
+model DataSubjectRequestEnquirySubject {
+  requestId String
+  contactId String
+  request   DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  contact   EnquiryContact     @relation(fields: [contactId], references: [id], onDelete: Restrict)
+
+  @@id([requestId, contactId])
+  @@map("data_subject_request_enquiry_subjects")
 }
 
 model RuntimeCompatibility {

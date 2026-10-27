@@ -342,3 +342,13 @@ retains tombstone roles/history, revokes pending work and opens recovery reviews
 
 Not yet activated: second-membership writes await the operator-controlled runtime,
 reader/writer, migration, restore and frontend acceptance gates.
+
+### Staff enquiry substrate (F39, disabled pending rollout)
+
+`enquiry:manage` belongs only to active ADMIN and SUPPORT staff;
+`enquiry:assign` belongs only to ADMIN. No organization/event role or vendor
+scope grants either. SUPPORT standing is the current enquiry assignment, checked
+under the case lock on every read, write and receipt replay. Assignment does not
+change appointment operators and never grants customer organization membership.
+New contacts remain behind the disabled intake gate until independent protected
+journal restore and frontend acceptance evidence is recorded.

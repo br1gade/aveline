@@ -1,3 +1,4 @@
+import { SalesPrivacyModule } from '../sales/sales-privacy.module';
 import { Module } from '@nestjs/common';
 import { PrivacyController } from './privacy.controller';
 import { PrivacyService } from './privacy.service';
@@ -9,6 +10,7 @@ import { SuppressionsController } from './suppressions.controller';
  * contacted is the same job as handling an erasure request.
  */
 @Module({
+  imports: [SalesPrivacyModule],
   controllers: [PrivacyController, SuppressionsController],
   providers: [PrivacyService],
   exports: [PrivacyService],

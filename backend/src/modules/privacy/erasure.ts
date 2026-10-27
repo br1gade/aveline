@@ -1,3 +1,4 @@
+import { EnquiryPrivacySubject, eraseEnquirySubjects } from '../sales/enquiry-privacy';
 import { eraseContributions } from '../guest-contributions/contribution-privacy';
 import { revokeSubjectExports } from '../exports/export-privacy';
 import { attendeeSubject, eraseAttendees, lockSubjectOrders } from '../ticketing/attendee-privacy';
@@ -55,8 +56,9 @@ interface KnownAddress {
   address: string;
 }
 
-export async function eraseSubject(tx: Tx, email: string, now: Date) {
+export async function eraseSubject(tx: Tx, email: string, now: Date, enquirySubject?: EnquiryPrivacySubject) {
   await revokeSubjectExports(tx, email, now);
+  const enquiryCounts = await eraseEnquirySubjects(tx, { subject: enquirySubject ?? { email, verifiedContactIds: [] }, now });
   await lockSubjectOrders(tx, email);
   const { guests, addresses } = await findGuests(tx, email);
   const guestIds = guests.map((guest) => guest.id);
@@ -78,6 +80,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date) {
   return {
     counts: {
       ...privateContributions,
+      ...enquiryCounts,
       guestsAnonymised: guestIds.length,
       ticketAttendeesAnonymised,
       householdsRenamed,

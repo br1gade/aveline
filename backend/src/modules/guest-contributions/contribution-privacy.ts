@@ -39,7 +39,7 @@ export class ContributionPrivacyFiles {
   async read(requestId: string, mediaId: string) {
     const check = async () => {
       const request = await this.prisma.dataSubjectRequest.findUnique({ where: { id: requestId }, select: { kind: true, status: true, subjectEmail: true } });
-      if (!request || request.kind !== 'EXPORT' || !['IN_PROGRESS', 'COMPLETED'].includes(request.status)) throw new BadRequestException('Verify and start an export request before downloading subject files');
+      if (!request || !request.subjectEmail || request.kind !== 'EXPORT' || !['IN_PROGRESS', 'COMPLETED'].includes(request.status)) throw new BadRequestException('Verify and start an export request before downloading subject files');
       const media = await this.prisma.guestMedia.findFirst({ where: { ...subjectMedia(request.subjectEmail), id: mediaId } });
       if (!media) throw new NotFoundException('No file belonging to this subject');
       return media;
