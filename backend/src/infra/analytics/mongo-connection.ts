@@ -32,6 +32,16 @@ export class MongoConnection {
     return this.client.db();
   }
 
+  async probe(): Promise<void> {
+    try {
+      const db = await this.db();
+      await db.command({ ping: 1 }, { timeoutMS: 500 });
+    } catch (error) {
+      this.reportFailure(error);
+      throw error;
+    }
+  }
+
   private async connect(): Promise<MongoClient> {
     const client = this.createClient();
     // A failure leaves nothing kept: the driver has already closed that topology.

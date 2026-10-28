@@ -26,13 +26,28 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 0 open | 0 open | — |
-| Features | 1 open (F1, the client) | 0 open | 17 (F19–F30, F46–F50) | 15 revenue and services (F31–F45) |
-| Decisions | 22 (D1–D22), all decided | | | |
+| Features | 1 open (F1, frontend integration) | 0 open | 16 backend features implemented, acceptance open; native F22 deferred | 14 revenue and services (F31–F44); F45 is now a pilot gate |
+| Decisions | 38 decided (D1–D38) | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
 features — editing an event, and loading the invitation into the editor —
-were built the same day. What still blocks the pilot is F1, the client. Fixed items are removed, so a gap in the
+were built the same day. F1, the client, remains the original P0 feature.
+The expanded release scope below adds further pilot gates. Fixed items are removed, so a gap in the
 numbering is something that has been done.
+
+**Release scope revised 13 October 2026:** the user requires all the listed P2
+features plus F45 before the pilot, with **native F22 deferred explicitly**.
+The historical priority labels remain for reference; they no longer imply these
+features may ship after this pilot. The release needs 17 requested feature items,
+the frontend and the external launch checks. Attendance, export, gallery,
+signature, language and directory choices are recorded in D23–D38 and the
+[implementation plan](PILOT_IMPLEMENTATION_PLAN.md). The tentative 25 October
+date can move; full scope takes priority.
+
+Current execution tasks, prerequisites and proposed post-pilot batches are in
+[TODO.md](TODO.md). Backend translations and local performance/recovery rehearsals
+are implemented and verified; human review, frontend and actual-host/provider
+acceptance remain. Post-pilot batch groupings are proposals, not committed dates.
 
 Infrastructure and accounts (bank, domain, mail DNS, server) are not here;
 they are in [GOING_LIVE.md](GOING_LIVE.md). The long-range view of the
@@ -79,13 +94,13 @@ it needs a cancellation during the event itself, at the door.
 
 ---
 
-## 2. Features — not built
+## 2. Features — implementation and acceptance
 
 ### P0
 
 | # | Feature | Why | Size |
 |---|---|---|---|
-| F1 | **The client** | `frontend/` is a scaffold. No host or guest can use anything until it exists. Built against [API.md](API.md) and `backend/openapi.json` | L |
+| F1 | **The client** | Frontend work exists on a separate branch; integration and full host/guest acceptance remain. Build against [API.md](API.md) and `backend/openapi.json` | L |
 
 ### P1
 
@@ -96,23 +111,29 @@ it needs a cancellation during the event itself, at the door.
 
 | # | Feature | Size |
 |---|---|---|
-| F19 | Shared post-event photo gallery guests can add to (§7.2) | M–L |
-| F20 | PDF exports — the seating chart on paper (CSV works) | M |
-| F21 | WhatsApp delivery receipts | S–M |
-| F22 | Reading bounce reports that arrive after sending | M |
-| F23 | Ticket holders join the guest list, so arrivals and catering count them (§13.4) | M |
-| F24 | Hero and share-preview images on event listings (§13.2) | S |
-| F25 | Guest signature capture (`SIGNATURE` question) | S–M |
-| F26 | Caching the personalised page — every link actually sent is personalised and uncached | M |
-| F27 | Seating and exports as background jobs, as §12 says | M |
-| F28 | Template preview (layouts are now declared and validated — B46) | S |
-| F29 | Reordering custom RSVP questions | S |
-| F30 | Invitation expiry from the plan's lifetime (decided: indefinite paid, 3 months free) | S |
-| F46 | A guest correcting their own name on the RSVP form (§5.3 "Full name") | S |
-| F47 | Linking a directory venue to the vendor who runs it (VENUES §1) | S |
-| F48 | Logo uploads for corporate events (INVITATION_DESIGN §3) | S |
-| F49 | XLSX exports — the format is in the API enum and refused; or drop it from the enum | S |
-| F50 | Choosing seats per venue: one seat per guest per event today, and auto-assign mixes venues' tables | M |
+| F19 | Backend implemented: private invited-guest uploads, bounded worker variants, host moderation, owner removal and durable privacy cleanup. Frontend and production acceptance remain (§7.2) | M–L |
+| F20 | Backend implemented: PDFs for all seven kinds, translated standard headings, embedded four-script fonts and A4 flat place cards. Frontend, human language review and pilot print acceptance remain | M |
+| F21 | WhatsApp delivery receipts: signed/scoped backend and host evidence fields built; real account/template/subscription/send proof and frontend acceptance remain | S–M |
+| F22 | Native email feedback adapter or mailbox bounce parser. Provider-neutral signed delivery/bounce/complaint ingestion and suppression updates are built; provider connection remains deferred by the user | M |
+| F23 | Backend implemented: named checkout, guest linking, legacy reconciliation, unified admission/cancellation and attendee privacy. Frontend and pilot acceptance remain (§13.4) | M |
+| F24 | Backend implemented: validated same-event hero/share selection, batched responsive images and privacy-aware metadata. Frontend HTML Open Graph tags and browser acceptance remain (§13.2) | S |
+| F25 | Backend implemented: versioned typed/drawn acknowledgements, explicit household representation, RSVP/admission gates and attendee personal links. Frontend and production acceptance remain | S–M |
+| F26 | Backend implemented: bounded personal projections, durable revisions, live capability/expiry checks and Redis fallback. Production load acceptance remains | M |
+| F27 | Backend implemented: all exports and automatic seating use durable workers with bounded recovery and stale-plan guards. Queued frontend integration and production acceptance remain | M |
+| F28 | Backend implemented: synthetic en/ru/fr/hy and authorized event preview payloads share the live serializer. Frontend renderer integration and visual acceptance remain | S |
+| F29 | Backend implemented: atomic complete question ordering with stale-order conflicts; answered data preserved. Frontend editor acceptance remains | S |
+| F30 | Backend implemented: captured lifetime, free 90 days after event end/start, preserved legacy deadlines and bounded sweep. Frontend expiry state and production acceptance remain | S |
+| F46 | Backend implemented: personal-link self-name correction preserving identity links, answers and seats. Frontend form acceptance remains (§5.3) | S |
+| F47 | Backend implemented: curated VENUE operators may manage several directory halls; staff validation and private-link filtering. Frontend directory acceptance remains | S |
+| F48 | Backend implemented: allowlisted LOGO/COVER/PHOTO/AUDIO uploads honor kind and validate MIME/attachment compatibility. Frontend corporate logo acceptance remains | S |
+| F49 | Backend implemented: typed XLSX snapshots for all seven kinds, translated labels, literal untrusted text and separate catering tabs. Frontend, human language review and native-viewer acceptance remain | S |
+| F50 | **Backend implemented; acceptance pending:** separate venue seating, attendance modes, per-venue RSVP, preview/reconfirmation and history; frontend integration and four-language acceptance remain | L |
+
+### Pilot rehearsal — promoted from the post-pilot list
+
+| # | Feature | Size |
+|---|---|---|
+| F45 | **Required before pilot:** local mixed-load, venue seating, PDF and outage/worker recovery rehearsals pass. Frontend, real-provider, production-host and off-host recovery acceptance remain | S–M |
 
 ### Revenue and services — after the pilot
 
@@ -132,7 +153,6 @@ it needs a cancellation during the event itself, at the door.
 | F42 | Logistics, print orders, on-site staff, paper ticket fallback | GAPS #24–27 | L |
 | F43 | Vendor listing fees — §9.3 names "margin or listing fee"; F36 covers only the margin | §7.3, §9.3 | M |
 | F44 | Template authoring for the Production tier's custom design — templates exist only as seed data, with no way to make one | §8 | M–L |
-| F45 | Measure the §12 latency targets under load — nothing has measured them | §12 | S–M |
 | — | **Deferred:** enforcing plan limits — decided 8 October 2026, until after the pilot | §8 | — |
 
 ---
@@ -140,6 +160,9 @@ it needs a cancellation during the event itself, at the door.
 ## 3. Decisions needed
 
 D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D22 on 10 October.
+D23–D38 were decided on 13 October while planning the expanded pilot scope.
+All recorded product questions have answers; implementation details and external
+launch inputs are tracked in the implementation plan.
 
 | # | Question | Blocks | Decided |
 |---|---|---|---|
@@ -165,6 +188,22 @@ D1–D4 were decided on 8 October 2026, D5–D7 on 9 October, D8–D22 on 10 Oct
 | D20 | What is an erased guest's household called, when it was named after them? | B88 | **"Household" and a number** |
 | D21 | After an erasure, who may add the person again? | B88 | **Only the hosts who had them are stopped**: each such organization keeps a hashed `ERASED` record that blocks import and messages; other hosts are unaffected |
 | D22 | How long is Mongo observability data kept? | B91 | **Invitation views 13 months, audit trail 2 years**, then deleted automatically |
+| D23 | Attendance across multiple venues? | F50 | **Host chooses per event:** event-wide or per-venue attendance; household submissions still contain each person's answers |
+| D24 | Which of the 18 requested items must precede the pilot? | Release scope | **Full scope before pilot**, subject to D30's explicit native-email exception |
+| D25 | Which PDF exports are required? | F20 | **All seven existing export kinds**, not only seating charts |
+| D26 | Who uses the guest photo gallery? | F19 | **Invited guests only, with host approval before other guests see uploads** |
+| D27 | Who provides ticket attendee identities? | F23 | **Buyer supplies every attendee's names/details at checkout** |
+| D28 | How are guest acknowledgements captured? | F25 | **Both drawn and typed options** |
+| D29 | Are background exports live data or snapshots? | F27 | **Fixed snapshots; host regenerates when needed**, deliberately changing current CSV freshness behavior |
+| D30 | Must native email feedback integration precede the pilot? | F22 | **No. Keep provider-neutral and defer native F22 explicitly**; sender/domain setup and real sending still need verification |
+| D31 | Does free invitation expiry delete event data? | F30 | **Close guest access; retain host data and media** |
+| D32 | Who is invited to venues in per-venue mode? | F50 | **Everyone is invited to every guest-facing venue**; preparation/internal-only venues stay hidden |
+| D33 | May someone acknowledge for household members? | F25 | **Yes, a representative may acknowledge for their household**; record signer and subjects separately |
+| D34 | Is the pilot date or complete scope fixed? | Release | **Full scope wins. 25 October 2026 is tentative and may move** |
+| D35 | Which languages must the pilot support? | Language coverage | **English, Russian, French and Armenian**; host-interface coverage is D36 |
+| D36 | Must the host interface also support all four languages? | Frontend scope | **Yes. Guest flows and the host/organizer interface in English, Russian, French and Armenian**, including localized validation and operational screens |
+| D37 | May attendance mode change after guests answer? | F50 | **Yes, through an explicit reconfirmation flow.** Preserve historical answers; do not guess attendance under the new policy |
+| D38 | May one vendor operate several directory venues? | F47 | **Yes. One venue vendor may operate several directory venues**; preserve existing links when removing the current uniqueness restriction |
 
 ---
 
@@ -176,7 +215,6 @@ Re-checked on 9 October 2026. Each would be believed.
 - **API.md, more** — the §4 example theme uses `font`, but the keys are `headingFont`/`bodyFont`; the `devLink` list omits team invites and concierge; `/settings` is "not a general event PATCH" though `PATCH /events/:id` exists; `GET /events?archived=true` needs no `event:delete`; M4A is listed but only `audio/mp4` is accepted, so browsers' `audio/x-m4a` is a 415.
 - **ACCESS_CONTROL.md** — 20 policy tests, not 17; `billing:write` also gates ticket-order cancellation; the throttle is per IP and in memory; refresh "reuse makes theft visible" is not implemented.
 - **INVITATION_DESIGN.md** — `DOCUMENT` kind missing; `LOGO` and `SIGNATURE` cannot be uploaded (the upload's OpenAPI `kind` field is ignored); custom `colors` bypass palettes.
-- **VENUES_AND_SEATING.md** — §4 says venue capacity is respected (it is not; the schema comment agrees with §4); §5 describes the planner as unbuilt; one seat per guest per event, and auto-assign mixes venues.
 - **PAYMENTS.md** — paths lack `/v1`; "nothing schedules reconciliation" and "no auth" are false; "nothing charges" (the first period is charged).
 - **GAPS.md** §7 cites item numbers that now mean other things.
 - **DATA_MODEL.md / DATA_STORES.md / ARCHITECTURE.md** — the audit trail is built (Mongo `audit_trail`); `GuestChannel` and `InvoiceCounter` missing; the throttle is not in Redis; no job queue; the prefix is `/api/v1`; four sweeps plus reminders and privacy, not three.

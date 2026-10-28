@@ -8,6 +8,9 @@ This is what has to be true before that changes. Nothing here is a
 nice-to-have — each item is either a way to lose money, lose data, or lose a
 customer's trust.
 
+Use [TODO.md](TODO.md) for the remaining pilot tasks, required inputs, owners and
+proposed post-pilot batches. This document remains the release requirements checklist.
+
 ---
 
 ## 1. Blocking — cannot go live without these
@@ -15,7 +18,20 @@ customer's trust.
 ### Code
 
 Every open **P0 bugfix** and **P0 feature** in [BACKLOG.md](BACKLOG.md).
-Several of the bugs expose people's data.
+The original remaining P0 feature is the client. The user has also made the
+expanded [implementation plan](PILOT_IMPLEMENTATION_PLAN.md) a release gate:
+17 requested feature items, including all export formats, both attendance modes
+and explicit reconfirmation when changing modes, multiple directory venues per
+vendor, gallery, acknowledgements and final rehearsal. Native F22 is the one
+explicit exception. Repeat the complete host/guest walkthrough in English, Russian,
+French and Armenian after frontend integration. The tentative 25 October 2026
+date can move; full scope takes priority.
+
+The 24 October disposable backend rehearsal passed functional workflows, real
+worker lease recovery and local privacy cleanup. The latest isolated load run passes
+all eight local latency gates. Actual-host performance acceptance, required
+human review of export/recovery-message translations and external/frontend acceptance still
+block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 
 ### Money
 
@@ -33,7 +49,7 @@ Several of the bugs expose people's data.
 | # | Blocker | Why |
 |---|---|---|
 | 6 | **A sending domain and its DNS** | Email is implemented over SMTP and refuses to boot in production without it, but no mail account, sending domain or SPF/DKIM/DMARC records exist. Without them mail is sent and then filed as spam, which looks like delivery and is not |
-| 7 | **Google Workspace is not a transactional sender** | Paid Workspace allows 2,000 messages/day over `smtp.gmail.com` and 10,000/day over `smtp-relay.gmail.com`, so volume is not the blocker it was thought to be. What it lacks is bounce and complaint webhooks, a suppression API and delivery events — so a bounce arriving after the send is never recorded. That is the reason to use a transactional provider, not the cap |
+| 7 | **Real delivery feedback is not connected** | Persistent quotas and signed provider-neutral delivery/bounce/complaint handling are built. A native provider bridge is deferred by the user; sending, authentication and internal message correlation must still be proven against the chosen provider |
 
 ### Security and data
 
@@ -42,10 +58,10 @@ Several of the bugs expose people's data.
 | 8 | **`JWT_SECRET` must be real** | The app refuses to boot in production without it, which is the guard — but it must be generated, stored in a secret manager, and rotatable |
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
 | 9b | **`PUBLIC_APP_URL` must be the client's real origin** | Enforced at boot. Guest links, account emails and the bank's return page are all built from it, and a payment `returnUrl` on any other origin is refused — so a wrong value breaks checkout rather than opening a redirect |
-| 10 | **Off-host backup copies** | A verified nightly Postgres dump and Garage archive now run on the host, with a tested restore. They do not survive losing the machine until `BACKUP_SYNC_COMMAND` points somewhere else |
+| 10 | **A verified off-host recovery destination** | Quiesced paired database/media capture, encrypted Restic upload and complete restoration tooling are built. An isolated round trip preserved a guest credential and original/variant media. Configure a real separate destination, install the timer/boot recovery units, verify remote restoration and missed-backup alerts |
 | 11 | **A host and a domain** | The stack has now been run end to end locally — seven services healthy, migrations applied, TLS served by Caddy, a verified backup taken, and a full journey from `register` to a published invitation page. What it has never had is a real host, a real domain, or a certificate from Let's Encrypt |
 | 12b | **An SMS provider** | The channel is built and inert. Choose a provider that reaches Armenian numbers, write its adapter (one class), and set `SMS_PROVIDER`. Until then guests with only a phone number are reported unreachable |
-| 12 | **WhatsApp business verification** | The transport is built and inert. Meta needs a verified business — trade licence, tax papers, a dedicated number — and message templates approved in advance. Days to weeks, like the bank accounts |
+| 12 | **WhatsApp account and live acceptance** | Transport and signed/scoped receipt backend are built; no account/test number exists yet. Verify account/number/permissions, supported API version, approved four-language templates/consent, real subscription and send/receipt evidence using the [setup checklist](../backend/docs/WHATSAPP_SETUP.md). External approval can move the pilot date |
 | 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
 
 ### Operations
@@ -65,14 +81,14 @@ Several of the bugs expose people's data.
 | Item | Note |
 |---|---|
 | Orphan reclamation | Nothing deletes assets when an event is archived; usage only grows |
-| Invitation expiry | Decided (indefinite paid, 3 months free) and modelled; nothing sets `expiresAt` or sweeps |
+| Invitation expiry | Backend captures free 90 days after event end/start or plan lifetime; live guest checks and bounded monitored sweep built. Verify frontend expiry states, legacy review and actual-host sweep operation |
 | CDN | Garage serves media directly |
 | Shared rate limits | Limits are per account or per address, but counted in each instance's memory: a second API instance doubles them. `POST /privacy/requests` has only the general public limit |
-| Asynchronous bounce reports | A rejection at send time is classified and suppresses the address. A bounce that arrives minutes later, as a report to the sending mailbox, is not read by anything |
-| Provider send-rate throttling | The dispatcher now sends for up to 40 seconds a minute, five at a time, account and ticket mail first — hundreds a minute — with no provider-side rate limit. A provider's quota rejection is retried and never suppresses the guest, but a quota hit mid-send still spreads that send over the retry backoff. Set the provider's limit before a large pilot event |
+| Asynchronous bounce reports | Signed provider-neutral delivery/bounce/complaint ingestion is built. Native provider/mailbox integration stays deferred by D30; it is not connected to real delivery events |
+| Provider send-rate throttling | Persistent per-minute/daily budgets and sending concurrency are built. Configure them against the actual sender's limits and prove controlled sending; quota waits do not consume delivery attempts |
 | Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
-| BullMQ | Cron plus a lock covers periodic sweeps. Retryable per-item work has no queue |
-| Seating chart on paper | Every export works as CSV; PDF needs a renderer, and a venue wants the chart printed |
+| Background export/seating completion | All seven CSV/PDF/XLSX exports and automatic seating use dedicated Postgres workers; frontend job integration and production worker rehearsal remain |
+| Seating chart on paper | PDFs and A4 flat place cards are implemented and visually checked with synthetic data; verify the venue's physical printouts |
 | Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
 | Invoice tax | `taxMinor` is always zero, so an invoice is not a tax document |
 | Entitlement enforcement | Plans publish limits that nothing refuses an action against |
@@ -112,3 +128,48 @@ Worth stating, so the list above is read as scope rather than alarm.
 4. **The P0 items in [BACKLOG.md](BACKLOG.md)**, before the first real
    guest's data is held.
 5. Everything in §2, as usage reveals which matters.
+
+
+### Private snapshot worker gate
+
+Before using snapshots in the pilot, configure the separate private bucket
+and verify anonymous reads fail. Deploy the dedicated export worker, check its
+heartbeat/failed queue state, exercise termination/lease recovery and a storage
+outage, and prove expiry, event deletion and subject erasure clean up stored
+bytes. See [worker runbook](../backend/docs/EXPORT_WORKER.md). Frontend adoption,
+human review of translated headings and native spreadsheet/printing acceptance remain release
+gates in the pilot plan. The separate seating worker is implemented; deploy it,
+verify health and termination/lease recovery, and integrate its queued response.
+See [seating operations](../backend/docs/SEATING_WORKER.md). PDF/XLSX backend rendering is implemented;
+see [renderer acceptance](../backend/docs/EXPORT_RENDERERS.md).
+
+
+### Guest acknowledgements and gallery gate
+
+- [ ] Accept en/ru/fr/hy typed/drawn/representative flows, revised statements,
+  attendee personal links before check-in, pending/error states and host moderation.
+- [ ] Run the private media worker, verify its heartbeat/restart policy and
+  768 MiB memory bound with maximum accepted images on the real host.
+- [ ] Verify private originals/variants cannot be fetched through the public edge.
+- [ ] Rehearse removal/DSAR/event deletion with interrupted workers and restore
+  both pending media and cleanup tombstones from backup.
+
+Backend contract and operational details are in
+[GUEST_CONTRIBUTIONS.md](../backend/docs/GUEST_CONTRIBUTIONS.md). These gates remain
+open until frontend and production evidence exists.
+
+### Batch H acceptance on the pilot host
+
+- Review `INVITATION_LEGACY_LIFETIME_REVIEW` counts before launch; old published
+  invitations keep existing deadlines and must not be silently reassigned.
+- Prove a warm cached guest page, RSVP, gallery/signature file and Telegram
+  opt-in close at expiry while authorized host data/media remain readable.
+  Move the event date and verify finite expiry/processing state rearm; reopening
+  must not reset the captured clock.
+- Monitor `invitations.maintain-access` (minute, 55-second lock) and revision
+  ledger growth during Redis downtime. Recovery compacts bounded batches;
+  request access checks do not depend on sweep availability.
+- Repeat `npm run pilot:cache` as a local baseline, then the full production
+  workload with TLS/proxy, analytics and writes. Report warm/cold/degraded
+  percentiles separately. Rebuild/clear Redis when restoring older Postgres
+  backups so cache revisions cannot collide with restored history.

@@ -7,6 +7,7 @@ import { MONGO_CONNECTION } from '../analytics/analytics.service';
 import { MongoConnection } from '../analytics/mongo-connection';
 import { DependencyTransition, HealthTransitionTracker } from './health-transitions';
 import { Sentry } from './sentry';
+import { StorageService } from '../storage/storage.service';
 
 /**
  * Watches the dependencies and reports when one changes state.
@@ -25,24 +26,23 @@ export class HealthWatchService {
     private readonly prisma: PrismaService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject(MONGO_CONNECTION) private readonly mongo: MongoConnection,
+    private readonly storage: StorageService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
   async checkDependencies(): Promise<void> {
-    const [isPostgresUp, isRedisUp, isMongoUp] = await Promise.all([
+    const [isPostgresUp, isRedisUp, isMongoUp, isStorageUp] = await Promise.all([
       this.isReachable(() => this.prisma.$queryRaw`SELECT 1`),
       this.isReachable(() => this.redis.ping()),
-      this.isReachable(() => this.mongo.db()),
+      this.isReachable(() => this.mongo.probe()),
+      this.isReachable(() => this.storage.probe()),
     ]);
 
-    // Storage shares Garage's health with nothing else to probe cheaply; an
-    // S3 HEAD on every tick would be a request we pay for. Reported as up
-    // until there is a cheap signal worth reading.
     const readings = {
       postgres: isPostgresUp,
       redis: isRedisUp,
       mongo: isMongoUp,
-      storage: true,
+      storage: isStorageUp,
     };
 
     for (const transition of this.tracker.observe(readings)) {

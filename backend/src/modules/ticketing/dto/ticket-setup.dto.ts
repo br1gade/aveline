@@ -119,6 +119,18 @@ export class UpdateTicketTypeDto {
 }
 
 export class UpsertListingDto {
+  @ApiPropertyOptional({ description: 'Same-event PHOTO, COVER or LOGO; null clears the listing hero', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  heroAssetId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Same-event image for sharing; null falls back to the hero', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ogImageId?: string | null;
+
   @ApiPropertyOptional({ description: 'Public URL segment. Generated from the headline if omitted.' })
   @IsOptional()
   @IsString()

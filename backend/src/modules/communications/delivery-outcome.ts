@@ -4,9 +4,9 @@
  * This matters the moment a real transport exists. Until now every channel
  * resolved to the console and nothing could fail, so the dispatcher treated
  * every failure as final — a momentary network blip would have permanently
- * lost an invitation. With real SMTP, the three outcomes need three different
- * responses, and conflating them is how a product either loses mail or keeps
- * hammering an address that will never accept it.
+ * lost an invitation. Recipient bounces, temporary errors, configuration
+ * faults and message-level restrictions need distinct treatment; a restriction
+ * on one message must never become a global address suppression.
  *
  * Pure, because the classification is a judgement about provider behaviour
  * that must be reviewable and testable without a mail server.
@@ -17,19 +17,22 @@ export type FailureKind =
   /** The provider could not take it now: timeout, throttle, greylisting. */
   | 'TEMPORARY'
   /** Our configuration is wrong: bad credentials, no sending domain. */
-  | 'MISCONFIGURED';
+  | 'MISCONFIGURED'
+  /** Provider explicitly forbids this message; this is not a global address bounce. */
+  | 'REJECTED';
 
 export interface DeliveryFailure {
   kind: FailureKind;
   reason: string;
+  retryAfterMs?: number;
 }
 
 /**
  * How many times one message is attempted before it is given up on.
  *
- * Five spread over the backoff below covers roughly seven hours, which clears
- * a greylisting delay and a short provider outage without holding an
- * invitation past the point where the host would rather know it failed.
+ * Attempts are bounded independently of provider-directed backoff. A minimum
+ * retry delay can extend the ordinary schedule without burning attempts
+ * during a known provider restriction window.
  */
 export const MAX_DELIVERY_ATTEMPTS = 5;
 
@@ -75,6 +78,7 @@ export function classifyDeliveryFailure(error: unknown): DeliveryFailure {
   const reason = describe(error);
   const code = stringProperty(error, 'code');
 
+  if (code === 'EREJECTED') return { kind: 'REJECTED', reason };
   if (code !== undefined && MISCONFIGURATION_ERROR_CODES.has(code)) {
     return { kind: 'MISCONFIGURED', reason };
   }
@@ -84,7 +88,7 @@ export function classifyDeliveryFailure(error: unknown): DeliveryFailure {
 
   const responseCode = numberProperty(error, 'responseCode');
   if (responseCode !== undefined) {
-    return { kind: kindOfReply(responseCode, reason), reason };
+    return { kind: kindOfReply(responseCode, reason), reason, retryAfterMs: numberProperty(error, 'retryAfterMs') };
   }
 
   // An error we do not recognise is treated as temporary. Being wrong that way
@@ -119,14 +123,15 @@ function isRecipientFault(subject: string, detail: string): boolean {
 
 /** Whether another attempt is worth making. */
 export function isWorthRetrying(kind: FailureKind, attempts: number): boolean {
-  if (kind === 'UNDELIVERABLE') return false;
+  if (kind === 'UNDELIVERABLE' || kind === 'REJECTED') return false;
   return attempts < MAX_DELIVERY_ATTEMPTS;
 }
 
 /** When the next attempt is due, given how many have already been made. */
-export function nextAttemptAt(attempts: number, now: Date): Date {
+export function nextAttemptAt(attempts: number, now: Date, minimumDelayMs = 0): Date {
   const index = Math.min(Math.max(attempts, 1), RETRY_DELAYS_MS.length) - 1;
-  return new Date(now.getTime() + RETRY_DELAYS_MS[index]);
+  const providerDelay = Number.isFinite(minimumDelayMs) ? Math.max(0, Math.min(minimumDelayMs, 86400000)) : 0;
+  return new Date(now.getTime() + Math.max(RETRY_DELAYS_MS[index], providerDelay));
 }
 
 /**

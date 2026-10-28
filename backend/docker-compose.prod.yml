@@ -20,7 +20,7 @@ services:
   # nginx plus certbot because the renewal is the part that fails silently at
   # 3am, and here it is the proxy's own job rather than a cron nobody checks.
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9
     restart: unless-stopped
     ports:
       - '80:80'
@@ -31,6 +31,8 @@ services:
       - caddy-config:/config
     environment:
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      MEDIA_DOMAIN: ${MEDIA_DOMAIN:?set MEDIA_DOMAIN}
+      MEDIA_BUCKET_HOST: ${MEDIA_BUCKET_HOST:-aveline-media.web.garage.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
     depends_on:
       api:
@@ -60,6 +62,7 @@ services:
     env_file: [.env.production]
     environment:
       NODE_ENV: production
+      PILOT_MODE: ${PILOT_MODE:-true}
       # One proxy in front: Caddy. Without this the rate limiter sees every
       # request as coming from Caddy and its per-client limit becomes global.
       TRUST_PROXY_HOPS: '1'
@@ -75,9 +78,72 @@ services:
     expose:
       - '3000'
 
+  export-worker:
+    image: ${API_IMAGE:-aveline-api:latest}
+    restart: unless-stopped
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      ANALYTICS_ENABLED: 'false'
+    command: ['node', '--max-old-space-size=384', 'dist/export-worker.js']
+    mem_limit: 512m
+    cpus: 1
+    stop_grace_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/check-export-worker.mjs']
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+
+  seating-worker:
+    image: ${API_IMAGE:-aveline-api:latest}
+    restart: unless-stopped
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      ANALYTICS_ENABLED: 'false'
+    command: ['node', '--max-old-space-size=256', 'dist/seating-worker.js']
+    mem_limit: 384m
+    cpus: 1
+    stop_grace_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/check-seating-worker.mjs']
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+
+  private-media-worker:
+    image: ${API_IMAGE:-aveline-api:latest}
+    restart: unless-stopped
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      ANALYTICS_ENABLED: 'false'
+    command: ['node', '--max-old-space-size=256', 'dist/private-media-worker.js']
+    mem_limit: 768m
+    cpus: 1
+    stop_grace_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/check-private-media-worker.mjs']
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+
   # ── Stores ────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.15-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
@@ -96,7 +162,7 @@ services:
       - '5432'
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.8-alpine
     restart: unless-stopped
     # No persistence: everything in Redis is a cache, a rate-limit counter or
     # a job lock, all of which rebuild. An eviction policy rather than an
@@ -122,7 +188,7 @@ services:
       - '6379'
 
   mongo:
-    image: mongo:7
+    image: mongo:7@sha256:1f995ad6fdb93244a1addab1b58f934a0bc2f5643c38e02f5e9d7f0c7d227a7b
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?set MONGO_USER}
@@ -144,19 +210,40 @@ services:
       - '3900'
       - '3902'
 
+  backup-check:
+    image: ${API_IMAGE:-aveline-api:latest}
+    profiles: [maintenance]
+    restart: 'no'
+    # Capture's protected marker is root-owned; this one-shot reads it only.
+    user: '0:0'
+    command: ['node', 'scripts/check-backup.mjs']
+    environment:
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-30}
+      BACKUP_MIN_FREE_BYTES: ${BACKUP_MIN_FREE_BYTES:-10737418240}
+      BACKUP_MAX_USED_PERCENT: ${BACKUP_MAX_USED_PERCENT:-90}
+    volumes:
+      - backups:/backups:ro
+
   # ── Backups ───────────────────────────────────────────────────────────
   # In the same compose file as the thing it protects, because a backup that
   # lives in someone's personal crontab is a backup nobody knows the state of.
   backup:
-    image: postgres:16-alpine
-    restart: unless-stopped
+    image: ${BACKUP_IMAGE:-aveline-backup:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles: [maintenance]
+    restart: 'no'
     env_file: [.env.production]
+    environment:
+      NODE_ENV: production
     volumes:
       - ./scripts:/scripts:ro
       - backups:/backups
       - garage-data:/garage-data:ro
       - garage-meta:/garage-meta:ro
-    entrypoint: ['/bin/sh', '/scripts/backup-loop.sh']
+      - ./garage/garage.toml:/runtime-config/garage.toml:ro
+      - ./.env.production:/runtime-config/env.production:ro
     depends_on:
       postgres:
         condition: service_healthy

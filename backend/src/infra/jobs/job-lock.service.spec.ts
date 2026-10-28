@@ -52,4 +52,19 @@ describe('JobLockService', () => {
 
     expect(store.get('aveline:lock:test.job')).toBe('someone-else');
   });
+
+  it('reports a failed sweep to its monitor while still releasing its lock', async () => {
+    const { redis, store } = fakeRedis();
+    const locks = new JobLockService(redis);
+    await expect(locks.runExclusively(job, () => Promise.reject(new Error('sweep failed')))).rejects.toThrow('sweep failed');
+    expect(store.size).toBe(0);
+  });
+
+  it('reports unavailable locking without running the unsafe sweep', async () => {
+    const { redis } = fakeRedis();
+    jest.spyOn(redis, 'set').mockRejectedValue(new Error('redis unavailable'));
+    const work = jest.fn().mockResolvedValue(undefined);
+    await expect(new JobLockService(redis).runExclusively(job, work)).rejects.toThrow('redis unavailable');
+    expect(work).not.toHaveBeenCalled();
+  });
 });

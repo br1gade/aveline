@@ -1,3 +1,4 @@
+import { attendeeRoster } from '../fixtures/tickets.fixture';
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel, PaymentProvider, PaymentStatus, PrismaClient, TicketOrderStatus } from '@prisma/client';
 import { ConsoleTransport } from '../../src/modules/communications/channels/console.transport';
@@ -72,6 +73,7 @@ describe('ticket settlement (integration)', () => {
 
   const buy = (slug: string, ticketTypeId: string, quantity: number) =>
     ticketing.createOrder(slug, {
+      attendees: [...attendeeRoster(ticketTypeId, quantity)],
       items: [{ ticketTypeId, quantity }],
       buyerName: 'Ani',
       buyerEmail: 'ani@test.local',
@@ -94,6 +96,37 @@ describe('ticket settlement (integration)', () => {
     const type = await prisma.ticketType.findUniqueOrThrow({ where: { id: ticketTypeId } });
     return { sold: type.quantitySold, reserved: type.quantityReserved };
   };
+
+  it('rejects a pilot charge without consuming inventory or creating an order', async () => {
+    const { slug, ticketTypeId } = await onSale(10);
+    const previous = process.env.PILOT_MODE;
+    process.env.PILOT_MODE = 'true';
+    try {
+      await expect(buy(slug, ticketTypeId, 2)).rejects.toThrow('Payments are disabled for the free pilot');
+      expect(await sold(ticketTypeId)).toEqual({ sold: 0, reserved: 0 });
+      expect(await prisma.ticketOrder.count()).toBe(0);
+      expect(await prisma.payment.count()).toBe(0);
+    } finally {
+      if (previous === undefined) delete process.env.PILOT_MODE;
+      else process.env.PILOT_MODE = previous;
+    }
+  });
+
+  it('allows free tickets in pilot mode', async () => {
+    const { slug, ticketTypeId } = await onSale(10);
+    await prisma.ticketType.update({ where: { id: ticketTypeId }, data: { priceMinor: 0n } });
+    const previous = process.env.PILOT_MODE;
+    process.env.PILOT_MODE = 'true';
+    try {
+      const order = await buy(slug, ticketTypeId, 2);
+      expect(order.status).toBe('PAID');
+      expect(await sold(ticketTypeId)).toEqual({ sold: 2, reserved: 0 });
+      expect(await prisma.payment.count()).toBe(0);
+    } finally {
+      if (previous === undefined) delete process.env.PILOT_MODE;
+      else process.env.PILOT_MODE = previous;
+    }
+  });
 
   // B36: the hold lapsed without asking the bank, the seats were resold, and
   // the buyer's money was taken with no ticket and no refund.
@@ -138,6 +171,7 @@ describe('ticket settlement (integration)', () => {
         data: { organizationId, code: 'FRIENDS', kind: 'PERCENT', value: 10n, maxRedemptions: 1 },
       });
       const created = await ticketing.createOrder(slug, {
+      attendees: [...attendeeRoster(ticketTypeId, 1)],
         items: [{ ticketTypeId, quantity: 1 }],
         buyerName: 'Ani',
         buyerEmail: 'ani@test.local',
@@ -238,6 +272,7 @@ describe('ticket settlement (integration)', () => {
       const { slug, ticketTypeId } = await onSale(10);
       const send = () =>
         ticketing.createOrder(slug, {
+      attendees: [...attendeeRoster(ticketTypeId, 2)],
           items: [{ ticketTypeId, quantity: 2 }],
           buyerName: 'Ani',
           buyerEmail: 'ani@test.local',

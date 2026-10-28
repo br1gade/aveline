@@ -2,6 +2,7 @@ import { WhatsAppSettings, WhatsAppTransport, toE164 } from './whatsapp.transpor
 
 const settings: WhatsAppSettings = {
   phoneNumberId: '1234567890',
+  accountId: '111',
   accessToken: 'test-token',
   apiBaseUrl: 'https://graph.test',
   apiVersion: 'v21.0',
@@ -73,15 +74,14 @@ describe('WhatsAppTransport', () => {
   });
 
   /**
-   * Meta reports delivery and read receipts later through a webhook we do not
-   * consume, so claiming delivery here would be a guess.
+   * Meta reports delivery and read receipts asynchronously.
    */
   it('reports acceptance, not delivery', async () => {
     const { impl } = fakeFetch({ messages: [{ id: 'wamid.123' }] });
 
     const result = await new WhatsAppTransport(settings, impl).send(templated);
 
-    expect(result).toEqual({ providerRef: 'wamid.123', isDelivered: false });
+    expect(result).toEqual({ providerRef: 'wamid.123', providerAccountId: '111', providerSenderId: '1234567890', isDelivered: false });
   });
 
   /**
@@ -101,17 +101,33 @@ describe('WhatsAppTransport', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it.each([{}, { messages: [{ id: 123 }] }])('refuses acceptance without a usable provider reference', async (reply) => {
+    const { impl } = fakeFetch(reply);
+    await expect(new WhatsAppTransport(settings, impl).send(templated)).rejects.toThrow('reference');
+  });
+
+  it('honors Meta ecosystem backoff without exposing provider descriptions', async () => {
+    const { impl } = fakeFetch({ error: { code: 131049, message: 'private recipient data' } }, false, 400);
+    const sent = new WhatsAppTransport(settings, impl).send(templated);
+    await expect(sent).rejects.toMatchObject({ retryAfterMs: 86400000, responseCode: 451 });
+    await expect(sent).rejects.not.toHaveProperty('message', expect.stringContaining('private'));
+  });
+
+  it.each([130403, 131050])('stops an explicit restriction %s without globally suppressing the person', async (code) => {
+    const { impl } = fakeFetch({ error: { code } }, false, 400);
+    await expect(new WhatsAppTransport(settings, impl).send(templated)).rejects.toMatchObject({ code: 'EREJECTED' });
+  });
+
   describe('failures the dispatcher has to classify', () => {
-    // No retrying makes someone a WhatsApp user, and the address should stop
-    // being tried.
+    // These codes cannot establish permanent recipient refusal.
     it.each([
       { code: 131026, label: 'not a WhatsApp user' },
       { code: 131049, label: 'blocked by privacy settings' },
-    ])('maps $code ($label) to a permanent failure', async ({ code }) => {
+    ])('does not suppress a recipient on $code ($label)', async ({ code }) => {
       const { impl } = fakeFetch({ error: { code, message: 'rejected' } }, false, 400);
 
       await expect(new WhatsAppTransport(settings, impl).send(templated)).rejects.toMatchObject({
-        responseCode: 550,
+        responseCode: 451,
       });
     });
 

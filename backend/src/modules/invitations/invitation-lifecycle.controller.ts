@@ -1,5 +1,6 @@
+import { InvitationLifecycleDto } from './dto/invitation-lifecycle.dto';
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { actorCan, CurrentActor, EventScope, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { NotifyChangesDto } from './dto/notify-changes.dto';
 import { SendInvitationDto } from './dto/send-invitation.dto';
@@ -28,6 +29,7 @@ export class InvitationLifecycleController {
   @RequirePermission('invitation:publish')
   @EventScope('invitationSlug')
   @Post(':slug/publish')
+  @ApiCreatedResponse({ type: InvitationLifecycleDto })
   @ApiOperation({
     summary: 'Make the invitation live',
     description:
@@ -41,9 +43,10 @@ export class InvitationLifecycleController {
   @RequirePermission('invitation:publish')
   @EventScope('invitationSlug')
   @Post(':slug/close')
+  @ApiCreatedResponse({ type: InvitationLifecycleDto })
   @ApiOperation({
     summary: 'Stop accepting responses',
-    description: 'The page stays readable to guests; only new RSVPs are refused.',
+    description: 'The page stays readable until expiry; new RSVPs are refused.',
   })
   close(@Param('slug') slug: string) {
     return this.publishing.close(slug);
@@ -52,6 +55,7 @@ export class InvitationLifecycleController {
   @RequirePermission('invitation:publish')
   @EventScope('invitationSlug')
   @Post(':slug/reopen')
+  @ApiCreatedResponse({ type: InvitationLifecycleDto })
   @ApiOperation({ summary: 'Accept responses again after closing' })
   reopen(@Param('slug') slug: string) {
     return this.publishing.reopen(slug);
@@ -64,7 +68,7 @@ export class InvitationLifecycleController {
     summary: 'Send the invitation — one email per household',
     description:
       'Safe to press twice: a guest is only invited once per invitation. ' +
-      'Refused while the invitation is a draft, because the link would 404.',
+      'Refused for draft or expired invitations, because the link would 404.',
   })
   send(@Param('slug') slug: string, @Body() dto: SendInvitationDto) {
     return this.sender.send(slug, dto);

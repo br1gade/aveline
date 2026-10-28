@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Patch, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -19,8 +19,9 @@ export class InvitationsController {
   @Public()
   @Throttle(GUEST_PAGE_LIMITS)
   @Get(':slug')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Public invitation page payload (cached per slug and locale)' })
-  @ApiOkResponse({ description: 'Hydrated, locale-resolved invitation' })
+  @ApiOkResponse({ description: 'Hydrated, locale-resolved invitation', headers: { 'Cache-Control': { schema: { type: 'string', example: 'private, no-store' } } } })
   getBySlug(@Param('slug') slug: string, @Query('locale') locale?: string) {
     return this.invitations.getCachedInvitation(slug, locale);
   }
@@ -40,7 +41,9 @@ export class InvitationsController {
   @Public()
   @Throttle(GUEST_PAGE_LIMITS)
   @Get(':slug/g/:guestToken')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Invitation personalized for one guest' })
+  @ApiOkResponse({ headers: { 'Cache-Control': { schema: { type: 'string', example: 'private, no-store' } } } })
   getForGuest(
     @Param('slug') slug: string,
     @Param('guestToken') guestToken: string,

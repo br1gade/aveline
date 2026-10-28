@@ -1,6 +1,7 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { EventRole, MessageChannel, MessageStatus, OrganizationRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
@@ -36,6 +37,8 @@ describe('Invitation sending (e2e)', () => {
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
     await app.init();
+    // This suite tests enqueue/report APIs; dispatch is exercised separately, without a wall-clock cron race.
+    for (const job of app.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
   });
 
   beforeEach(() => resetTestDatabase());

@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentsService } from '../payments/payments.service';
+import { assertChargesEnabled } from '../payments/pilot-payments';
 import { invoiceNumberFor, periodAfter } from './billing-period';
 import { nextInvoiceSequence } from './invoice-number';
 import { SubscribeDto } from './dto/subscription.dto';
@@ -83,6 +84,7 @@ export class SubscriptionsService implements OnModuleInit {
       where: { key: dto.planKey, isActive: true },
     });
     if (!plan) throw new NotFoundException(`No plan "${dto.planKey}" is available`);
+    if (plan.priceMinor > 0n) assertChargesEnabled();
 
     if (plan.priceMinor === 0n) {
       const period = periodAfter(plan.interval, new Date());

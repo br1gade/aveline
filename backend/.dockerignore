@@ -13,6 +13,7 @@ coverage
 .env.*
 !.env.example
 .dev-credentials.md
+.backup
 *.log
 .history
 .vscode
@@ -22,3 +23,9 @@ garage
 docker-compose*.yml
 Dockerfile
 .dockerignore
+
+private-storage
+storage
+
+# Local rehearsal evidence is retained outside source and runtime images.
+test-results

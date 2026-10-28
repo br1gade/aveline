@@ -2,6 +2,7 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HealthController } from './health.controller';
+import { StorageService } from '../storage/storage.service';
 
 /**
  * B92: readiness said `ok` with Redis or Mongo down and `degraded` with
@@ -12,11 +13,12 @@ describe('HealthController.ready', () => {
   const up = () => Promise.resolve('ok');
   const down = () => Promise.reject(new Error('connection refused'));
 
-  const controller = (dependencies: { postgres: () => Promise<unknown>; redis: () => Promise<unknown>; mongo: () => Promise<unknown> }) =>
+  const controller = (dependencies: { postgres: () => Promise<unknown>; redis: () => Promise<unknown>; mongo: () => Promise<unknown>; storage?: () => Promise<unknown> }) =>
     new HealthController(
       { $queryRaw: dependencies.postgres } as unknown as PrismaService,
       { ping: dependencies.redis } as unknown as Redis,
-      { db: dependencies.mongo } as never,
+      { probe: dependencies.mongo } as never,
+      { probe: dependencies.storage ?? up } as unknown as StorageService,
     );
 
   it('is ok with everything up', async () => {
@@ -31,5 +33,11 @@ describe('HealthController.ready', () => {
 
   it('is unavailable — not 200 — with Postgres down', async () => {
     await expect(controller({ postgres: down, redis: up, mongo: up }).ready()).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('reports real storage failure as degraded while still serving domain reads', async () => {
+    const result = await controller({ postgres: up, redis: up, mongo: up, storage: down }).ready();
+    expect(result.status).toBe('degraded');
+    expect(result.optional.storage.isUp).toBe(false);
   });
 });

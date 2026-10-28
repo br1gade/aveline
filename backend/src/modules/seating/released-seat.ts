@@ -1,27 +1,18 @@
 import { Prisma } from '@prisma/client';
 
-/**
- * A declined guest's seat, given back to the table — and remembered.
- *
- * Decided 9 October 2026: declining frees the seat automatically, so the
- * table's count is true, but the plan flags where it was. A host who placed
- * the family carefully needs to see the gap and why, not discover a chair
- * quietly free. The flag stays until the guest is seated again or the host
- * dismisses it.
- *
- * Every RSVP write goes through `recordAnswer`, which calls this, so a decline
- * from the guest's own form and one the host records by phone behave alike.
- */
-export async function releaseSeat(tx: Prisma.TransactionClient, guestId: string): Promise<void> {
-  const seat = await tx.seat.findUnique({ where: { guestId }, select: { tableId: true } });
-  if (!seat) return;
-
-  await tx.seat.delete({ where: { guestId } });
-  await tx.guest.update({
-    where: { id: guestId },
-    data: { seatReleasedAt: new Date(), seatReleasedFromTableId: seat.tableId },
-  });
+/** A decline releases only its attendance scope; event-wide releases every arrangement. */
+export async function releaseSeat(tx: Prisma.TransactionClient, guestId: string, venueIds?: string[]): Promise<void> {
+  const where = { guestId, ...(venueIds ? { table: { venueId: { in: venueIds } } } : {}) };
+  const seats = await tx.seat.findMany({ where, select: { tableId: true, arrangementId: true, eventId: true } });
+  if (seats.length === 0) return;
+  const releasedAt = new Date();
+  await tx.seat.deleteMany({ where });
+  await tx.$executeRaw`
+    INSERT INTO seat_releases (id, "guestId", "eventId", "arrangementId", "tableId", "releasedAt")
+    VALUES ${Prisma.join(seats.map((seat) => Prisma.sql`(${`${guestId}:${seat.arrangementId}`}, ${guestId}, ${seat.eventId}, ${seat.arrangementId}, ${seat.tableId}, ${releasedAt})`))}
+    ON CONFLICT ("guestId", "arrangementId") DO UPDATE SET "tableId" = EXCLUDED."tableId", "releasedAt" = EXCLUDED."releasedAt"`;
 }
 
-/** What clears the flag: seating the guest again, or the host dismissing it. */
-export const NOT_RELEASED = { seatReleasedAt: null, seatReleasedFromTableId: null } satisfies Prisma.GuestUncheckedUpdateManyInput;
+export async function clearRelease(tx: Prisma.TransactionClient, guestIds: string[], arrangementId: string) {
+  await tx.seatRelease.deleteMany({ where: { guestId: { in: guestIds }, arrangementId } });
+}

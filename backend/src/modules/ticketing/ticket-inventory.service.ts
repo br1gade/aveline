@@ -28,10 +28,10 @@ export class TicketInventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Holds `quantity` seats for an in-flight checkout. */
-  async reserve(ticketTypeId: string, quantity: number): Promise<void> {
+  async reserve(ticketTypeId: string, quantity: number, tx?: Executor): Promise<void> {
     assertPositive(quantity);
 
-    const updated = await this.prisma.$executeRaw`
+    const updated = await (tx ?? this.prisma).$executeRaw`
       UPDATE "ticket_types"
          SET "quantityReserved" = "quantityReserved" + ${quantity},
              "updatedAt" = NOW()

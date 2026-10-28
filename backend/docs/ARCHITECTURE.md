@@ -29,13 +29,14 @@ src/
     organizations/  the tenant a new account creates for itself
     billing/        plans, subscriptions, invoices, promo codes
     vendors/        the partner network and scoped briefs
-    exports/        generated CSV documents
+    exports/        legacy CSV, private snapshots and durable export worker
     privacy/        data-subject requests and suppression lists
     payments/       providers/ holds one adapter per bank
     ticketing/      inventory, checkout, admission
     public-events/  announcements and listings
     communications/ outbox; channels/ holds one transport each
-    media/          uploads, recorded as MediaAsset
+    media/          public uploads, recorded as MediaAsset
+    guest-contributions/ versioned acknowledgements and moderated private gallery
     devices/        push registration tokens
   prisma/           PrismaService
 ```
@@ -100,19 +101,24 @@ development is quiet without needing a flag.
 Two things watch the system, neither of which is tracing:
 
 **Cron check-ins.** Each sweep runs inside `Sentry.withMonitor`, so Sentry
-alerts when one stops running *at all*. That is the failure mode worth
-catching: these three sweeps were implemented and inert for weeks and nothing
-said so.
+alerts when one stops running or fails. Redis lock failures and sweep errors
+propagate to the monitor instead of completing a successful check-in.
 
-**Dependency transitions.** `HealthWatchService` probes Postgres, Redis and
-Mongo every minute and reports only *changes* — edge-triggered, never
+**Dependency transitions.** `HealthWatchService` probes Postgres, Redis,
+Mongo and storage every minute and reports changes plus outages already present
+at startup — edge-triggered, never
 level-triggered. A check that re-reported "Redis is down" on every probe would
 send one alert a minute for an entire outage, and the first thing anyone does
 with a repeating alert is mute it, which is also how the next one gets missed.
 
 Severity follows [DATA_STORES.md](DATA_STORES.md): losing Postgres is `fatal`
-because it holds the domain; Redis and Mongo are `warning` because they
+because it holds the domain; Redis, Mongo and storage are `warning` because they
 degrade the product rather than break it.
+
+Mongo executes a real `ping` with a 500ms operation timeout instead of trusting
+a cached connection. S3 storage uses a bounded two-second `HeadBucket`;
+filesystem storage checks that its root is accessible for reads and writes.
+These probes establish availability, not object integrity or future capacity.
 
 Verified by stopping Redis against a running app: silent while healthy, one
 alert on failure, no repeat for the duration, one recovery message carrying
@@ -163,6 +169,9 @@ until `JobsService` existed:
 | `payments.reconcile` | 5 min | A paid order stays pending |
 | `ticketing.releaseExpiredReservations` | 5 min | Abandoned baskets hold seats forever |
 | `media.resize` (`ImageVariantsService`) | 1 min | Guests download every photo at its uploaded size |
+| `invitations.maintain-access` (`InvitationMaintenanceService`) | 1 min | Expiry reporting and revision compaction pause; access checks remain live |
+| `email.feedback` (`EmailFeedbackService`) | 1 min | Early delivery receipts remain pending; receipt retention does not run |
+| `whatsapp.receipts` (`WhatsAppReceiptsService`) | 1 min | Durable Meta outcomes remain pending and retention pauses; monitor and drain after recovery |
 
 Each takes a Redis lock with `SET NX EX` — one atomic operation, so exactly
 one instance runs it. The TTL is shorter than the interval and never extended:
@@ -170,10 +179,28 @@ an instance that dies holding the lock delays one run rather than stopping the
 sweep forever. If Redis is unreachable, sweeps are skipped rather than run
 unguarded, because double-dispatching messages is worse than delaying them.
 
-**BullMQ is still the right answer for queued, retryable, per-item work** —
-exports, seating computation. Photo resizing runs as a sweep for now: it
-finds its work by a column being empty, a few photos a minute. Cron plus a lock is correct
-for periodic sweeps and is far less machinery.
+**Private snapshot exports use a dedicated process and durable Postgres jobs.**
+`export-worker.ts` imports only read dependencies, storage and export providers;
+it does not start HTTP or cron sweeps. `ExportSnapshot` owns claims/90-second
+leases, bounded retries and guarded publication. `FOR UPDATE SKIP LOCKED` allows
+separate worker processes without duplicate publication. No Redis availability
+is required. CSV, PDF and XLSX render outside the capture transaction in this
+worker, with bounded inputs and bundled fonts. See
+[EXPORT_WORKER.md](EXPORT_WORKER.md) and [EXPORT_RENDERERS.md](EXPORT_RENDERERS.md).
+Automatic seating uses a separate `seating-worker.ts` process and Postgres
+`SeatingJob` queue. It captures revisioned inputs, computes outside transactions,
+then validates and applies seats with completion in one transaction. See
+[SEATING_WORKER.md](SEATING_WORKER.md). Public invitation photo resizing remains a cron sweep because its missing
+variant is already its work marker. Private guest images use the separate
+lease-based worker described below.
+
+Invitation expiry is captured by publishing and recomputed on event-date changes
+by Postgres. A minute sweep marks up to 100 due expiries, identifies up to 100
+unknown published policies as LEGACY, reports legacy review counts, and compacts
+bounded revision metadata. No event/data purge occurs. Shared/personal invitation
+caches use database revisions and two live checks per request; see
+[DATA_STORES.md](DATA_STORES.md). Redis downtime grows metadata and slows reads
+but cannot extend guest access.
 
 ## 4. Degradation
 
@@ -184,8 +211,8 @@ for periodic sweeps and is far less machinery.
 | **MongoDB** | Readiness still passes | Engagement reports zero |
 
 Only Postgres gates readiness. Taking an instance out of rotation for a Redis
-outage turns a slowdown into an outage. Measured: with Redis and Mongo both
-stopped, the invitation endpoint serves correct content in ~20 ms.
+outage turns a slowdown into an outage. The historical ~20 ms Redis/Mongo outage measurement predates personalized
+caching; repeat the current `pilot:cache` workload and production rehearsal.
 
 ## 5. Conventions a new module follows
 
@@ -244,11 +271,29 @@ failed open.
 
 ## 8. Still missing from the frame
 
-- **BullMQ** for queued work with retries and backoff. Cron plus a lock covers
-  periodic sweeps; per-item retryable work needs a queue
+- **Worker production acceptance.** Automatic seating and all export formats
+  run in dedicated durable workers. Frontend adoption and production recovery
+  rehearsal remain. Periodic sweeps keep their Redis locks.
 - **Metrics and tracing**
 - **Per-actor rate limits** — the throttle is global, not per account
 - **Outbound webhook signature verification**
 - **API versioning** — the prefix is `/api` with no version in it
 
 See [BACKEND_GAPS.md](GAPS.md) for the product-level list.
+
+
+Guest drawings/gallery originals and variants use the private storage port and
+`GuestMedia` ledger. A separate `private-media-worker.ts` runs bounded raster
+processing and durable deletion, with Postgres leases and tombstones. CPU work
+never runs in the API. A minute contribution sweep recovers attendee personal-link
+outbox entries. See [GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md); frontend and
+actual production recovery acceptance remain open.
+
+### Shared HTTP application setup
+
+`src/application.ts` exports the application factory used by `src/main.ts` and
+the disposable batch J server. Prefix, validation, serialization, route body
+parsing, static files, CORS, proxy trust and shutdown hooks have one definition.
+The normal entry point still initializes Sentry before importing the application.
+The rehearsal adds only private local timing diagnostics; see
+[PILOT_REHEARSAL.md](PILOT_REHEARSAL.md).

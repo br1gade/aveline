@@ -126,3 +126,13 @@ export class AssignSeatDto {
   @Max(100)
   position?: number;
 }
+
+/** A selection is mandatory when more than one seating arrangement is in use. */
+export class SeatingSelectionDto {
+  @ApiPropertyOptional({ description: 'Arrangement returned by GET seating/arrangements; required when ambiguous' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  arrangementId?: string;
+}

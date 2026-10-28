@@ -6,7 +6,7 @@ preference.
 | Store | Holds | Losing it costs |
 |---|---|---|
 | **PostgreSQL** | The entire domain. The only source of truth | Everything |
-| **Redis** | Cached reads, rate limits, job queue. Rebuildable | Latency |
+| **Redis** | Cached reads, rate limits, sweep locks. Rebuildable | Latency |
 | **MongoDB** | Append-only analytics. Never domain state | Insight, not correctness |
 
 ---
@@ -21,6 +21,12 @@ unique constraints and transactions are the features we are paying for.
 
 **Nothing that must be correct lives outside Postgres.**
 
+The pinned Prisma 6.19.3 client enables `relationJoins`: nested relational reads
+use PostgreSQL joins/JSON aggregation instead of multiple client round trips.
+A cold invitation screen without media now has a four-statement regression
+budget (two live checks, shared data, personal data), previously 19 statements.
+This generator setting changes no persisted columns and needs client regeneration.
+
 ### Why JSON columns rather than a document store
 
 `InvitationBlock.content`, `Invitation.theme` and `RsvpQuestion.prompt` hold
@@ -30,6 +36,44 @@ would split one aggregate across two stores with no transaction spanning them �
 an invitation whose blocks could be written without the invitation, or orphaned
 when it is deleted. JSONB handles the shape; splitting the aggregate solves
 nothing and costs consistency.
+
+---
+
+### Email delivery correctness
+
+**Email provider budgets live in Postgres.** `EmailSendQuota` is a shared token
+bucket with integer credits plus a UTC daily budget. Reservations serialize on
+one sender-budget row and persist across API/Redis restarts. Production defaults
+to 60 sends/minute, burst 5 and 1,000/day; tune `EMAIL_SENDS_PER_MINUTE`,
+`EMAIL_SEND_BURST`, `EMAIL_SENDS_PER_DAY` and `EMAIL_SEND_CONCURRENCY` to the
+selected provider. Configured concurrency is capped at 20. A quota wait happens
+before claiming a message and consumes no retry attempt. Reservations for a
+send that subsequently fails/loses its claim remain consumed conservatively.
+If the quota database is unavailable, dispatch stops before claiming a message
+and reports failure to the sweep monitor; no email is sent without its allowance.
+
+**Email feedback also lives in Postgres.** The signed provider-neutral boundary
+stores only receipt/message ids, an outcome and clocks. Message changes and
+global suppressions are applied transactionally, with row locks; duplicate,
+out-of-order and pre-acknowledgement feedback cannot undo permanent outcomes.
+Unmatched receipts rotate by `lastCheckedAt` so fifty unknown ids cannot starve
+the rest, expire after seven days, and processed receipts expire after thirty.
+There is no native provider adapter yet.
+
+**WhatsApp receipts also live in Postgres.** A single atomic insert accepts up
+to 1,000 normalized outcomes after raw-byte authentication. `WhatsAppReceipt`
+retains scope/provider reference, outcome, error code and clocks, never contact
+numbers, raw descriptions or full payloads. Composite channel/account/sender/
+provider-reference uniqueness on Message prevents cross-sender correlation.
+A row-locked minute sweep processes at most 200 receipts, five at once, and
+rotates unmatched work by `lastCheckedAt`. Pending expires at seven days,
+processed at thirty. Early callbacks wait for scoped send acknowledgement;
+erased contacts are never mutated. Delivery/read evidence cannot be downgraded
+by sent/failure. Failures never automatically suppress or resend. Redis holds
+only the sweep lock; an outage delays application while accepted receipts
+remain durable. The `whatsapp.receipts` monitor must notice sweep failure and
+lag must be measured during real pilot acceptance.
+
 
 ---
 
@@ -46,47 +90,102 @@ Redis fails immediately rather than queueing requests behind it.
 
 ### In use
 
-**Invitation payload cache.** The hottest read in the product: one link opened
-by every guest, usually within minutes of being sent, and the payload is
-identical for everyone reading the same language. Keyed by slug **and** locale
-so a cached Armenian page can never be served to a Russian reader. TTL is a
-backstop; any write that changes what the page renders invalidates immediately.
+**Shared and personalized invitation caches.** Shared payloads use
+`aveline:invitation:<slug>:<negotiatedLocale>:v3:<eventId>:<sharedRevision>`; personal
+projections use `aveline:personal:v2:<eventId>:<guestId>:<negotiatedLocale>:<sharedRevision>:<householdId>:<householdRevision>`.
+Shared TTL is `INVITATION_CACHE_TTL` (default 300 seconds); personal TTL is at
+most 300 seconds. Locale is negotiated against the event's published list,
+never an arbitrary query string. Old revisions expire naturally. Personal
+projections contain names, household, attendance, RSVP and authorized seating;
+they exclude raw capabilities, contacts, signature evidence and token-bearing
+links. Telegram links are generated only after final authorization.
 
-Beside each slug's payloads sits a small **page meta** entry — the event id,
-its languages and its visibility — so a hit is two Redis reads and no
-Postgres at all. (It used to load the invitation, blocks, event, venues and
-timeline first, only to choose the key.) Changing visibility invalidates both.
+An in-process cache also holds serialized immutable payloads under the same
+durable revision keys. It is bounded to 512 entries / 16 MiB of payload bytes,
+skips entries over 256 KiB and retains them for at most five minutes (or the
+shorter caller TTL). Parsing a separate object on each hit prevents caller
+mutation from changing future responses. It contains no authorization metadata.
 
-**Invalidation cannot be undone by a slow reader.** Each invitation has a
-generation counter (`aveline:invitation-generation:<slug>`, outside the
-payload pattern so deleting payloads never resets it). Invalidating bumps it
-before deleting; a miss reads it before loading and stores the result only if
-it has not moved — one Lua script, so the check and the write are atomic. A
-request that read the old row just before an edit used to store it back for
-the whole TTL.
+Each request reads **Postgres before and after** retrieving/building the
+payload: publication, expiry, visibility, guest identity/erasure and both payload revisions
+are authoritative even on a warm hit. Missing/expired/revoked access returns
+404; a changed revision retries at most three times, then returns 409 for the
+client to retry. There is no Redis page-meta authorization shortcut. Both
+invitation GET routes return `Cache-Control: private, no-store`; Redis caching stays server-side.
 
-The **personalized** page is the cached shared payload plus one query for the
-guest, never cached itself — per-guest by definition, so caching it would
-multiply the keyspace by the guest count for no reuse.
+Hot capability batches calculate only the shared/household counters they use.
+Direct legacy metadata reads still calculate the coarse event revision; the
+compatibility ledger remains available without adding that aggregate to every
+guest page check.
 
-Invalidation uses `SCAN`, never `KEYS`. `KEYS` blocks the Redis event loop
-across the whole keyspace and stalls every other client on a shared instance.
+Outstanding checks for one slug are batched (at most 100 capabilities per SQL
+query, up to four concurrent batches); completed authorization results are never
+retained. Household projections batch guest IDs within one event, fetch each
+household once per batch and exclude anonymized people. Each batched projection
+and its shared/household revision stamp come from one SQL statement snapshot.
+If a commit occurs after the initial check, the loader may remember that projection
+under its actual stamp in bounded memory. The final live check still retries;
+the retry can reuse the correctly stamped projection instead of rebuilding it.
+UTC date fields are restored from Postgres JSON without using the process timezone.
+Shared publication loads
+also share outstanding work across languages. Both queues bound
+pending bookkeeping to 1,000 and fall back to direct reads under overload. Cache
+misses share an outstanding loader only for the same key and generation; errors
+clear pending work. These optimizations preserve both live checks on every page.
 
-**Every component of a cache key must be bounded.** The locale in the key comes
-from a public query parameter, and it was briefly taken at face value: 50
-requests with junk locales created 50 entries. On an unauthenticated endpoint
-with `allkeys-lru`, that lets anyone evict every real entry and send the load to
-Postgres. The locale is now negotiated against the event's published list, so
-the keyspace per invitation is bounded by the number of languages it offers.
-Measured after the fix: 100 junk requests, 1 key.
+**Durable invalidation.** Row triggers on events, invitations, templates,
+blocks, questions, media, venues/timeline, guests/households, RSVP/attendance,
+seating, tickets and private contributions append one `GuestPageChange` per
+event/transaction. This coarse compatibility revision is `GuestPageVersion.revision` plus the count
+of committed ledger rows, in one SQL snapshot. Counting rather than taking the
+largest transaction id handles older transactions committing last. Rollback
+also rolls back its invalidation. This covers raw SQL, imports, workers and
+erasure, including Redis downtime. An old in-flight reader may populate its
+old key, but the final revision check retries and future reads cannot use it.
 
-Treat this as the general rule, not a one-off. Before any value becomes part of
-a cache key, ask what bounds it.
+Payload reads use independent `GuestPayloadVersion` / `GuestPayloadChange`
+scopes. Content/design, venues, policy and publication changes advance `shared`.
+Guest/household, RSVP/attendance and seat changes advance only affected
+`household:<id>` scopes, including both sides of a household move. Arrangement
+revision-only updates do not advance shared content. The shared/household pair
+therefore rejects stale data without invalidating every other household when
+one guest answers. New cache namespaces prevent reuse of old coarse-counter keys.
+Household identity is part of the stamp: a move cannot reuse a former family's
+payload merely because both independent counters happen to have the same value.
+
+The minute `invitations.maintain-access` sweep locks up to 50 version scopes
+and atomically compacts at most 1,000 ledger rows into base counts without
+changing visible revisions. Payload scope compaction also processes at most
+1,000 committed rows, atomically adding their counts to bases; orphan payload
+scopes are reclaimed in batches of 1,000. Append ledgers deliberately have no parent FKs:
+writes must not acquire event locks after household/seating locks. Up to 1,000
+orphan metadata rows are reclaimed per run. Metadata contains only ids and
+transaction numbers. Redis failure pauses the sweep, so monitor ledger growth;
+request correctness does not depend on the sweep running. Restore Postgres
+with an empty/rebuilt Redis and restarted API processes: restoring an older
+database can rewind revisions, so both payload layers must be discarded.
+
+Existing explicit invalidation uses `SCAN`, never `KEYS`, and retains the general
+cache adapter’s Redis generation guard. Invitation freshness now depends on the
+durable revision rather than successful Redis deletion. A cache outage falls
+back to Postgres for both layers, and recovery cannot revive stale access.
 
 ### Measured
 
-With Redis stopped mid-flight, the invitation endpoint keeps serving correct
-content in ~20 ms — the payload is simply rebuilt from Postgres each time.
+The earlier ~20 ms Redis-outage measurement predates personalized caching and
+live capability/revision checks. Use `npm run pilot:cache` for the current
+400-person, 100-household, two-venue/800-seat HTTP workload, with 50 concurrent
+distinct guest/locale reads in each warm, cold, disconnected and recovered phase.
+It uses the guarded test database without truncation and reports no capability
+URLs. Production proxy/TLS, analytics and mixed writes still require batch J.
+
+Latest local p95 (19 October): warm 39.2 ms, cold 103.7 ms, disconnected
+116.7 ms, recovered 63.2 ms; zero unexpected responses. Earlier warm bursts
+reached 108 ms; the latest recovered phase misses the 50 ms warm target.
+Production acceptance needs an actual-host rerun and remediation of missed
+budgets in batch J. The full
+workload and percentiles are recorded in
+[PILOT_IMPLEMENTATION_PLAN.md](../../docs/PILOT_IMPLEMENTATION_PLAN.md#9-milestone-h--lifetime-and-personalized-cache).
 
 ### Also in use
 
@@ -102,9 +201,6 @@ message is better than sending it twice.
 
 ### Intended, not yet built
 
-- **Job queue** (BullMQ) for retryable per-item work — exports, image
-  processing, seating computation. Cron plus a lock covers periodic sweeps and
-  is far less machinery; a queue is for work that must retry individually
 - **Throttle counts in Redis**, so several API instances share one limit
 
 ### Decided differently
@@ -120,6 +216,8 @@ moment.
 ---
 
 ## 3. MongoDB — append-only observability
+
+
 
 MongoDB holds data that is written far more often than it is read, never joined
 against the domain, and whose shape changes as we learn what to measure.
@@ -232,3 +330,57 @@ Both of the failures above were found by stopping a container against a running
 API, not by a test. **Run the degraded path by hand before trusting it**: a unit
 test proves the error is caught, not that the timeout is short enough or that
 the client recovers.
+
+
+### Private export jobs
+
+`ExportSnapshot` is the durable queue, not Redis: losing a claim or publication
+must not silently lose an accepted host request. Export-specific claims use
+Postgres row locks, attempt tokens and expiring leases. Consistent inputs and
+subject references are captured in a short repeatable-read transaction;
+CSV/PDF/XLSX rendering and storage IO happen afterwards in a separate process. An object ledger
+is committed before upload. Publication checks standing and ownership again.
+Erasure fences capture/publication and revokes affected jobs; the cleanup ledger
+survives cascading event deletion. See [EXPORT_WORKER.md](EXPORT_WORKER.md).
+
+Snapshots render standard headings, titles, metadata and status labels in
+English, Russian, French and Armenian. Legacy live CSV keeps its column contract.
+Not yet built: conversion of legacy live-CSV clients to the snapshot contract.
+
+### Automatic seating jobs
+
+`SeatingJob` uses its own durable Postgres claims/leases, independent of storage
+or Redis. A partial unique index permits one active job per arrangement. Database
+deferred constraint triggers maintain arrangement revisions across tables, seats, release flags,
+guests, RSVP/attendance, venue/timeline edits and policy/archive changes. The
+worker captures bounded repeatable-read inputs, computes outside transactions,
+and applies only after locking/revalidating current inputs and standing. Seats
+and completion commit together; stale owners roll back every seat. See
+[SEATING_WORKER.md](SEATING_WORKER.md). Frontend integration and actual production
+recovery/load acceptance remain open. Invalidation runs at transaction completion,
+once per affected arrangement per transaction, so independent RSVPs do not hold
+the same revision row throughout their writes. The seating worker explicitly
+flushes seat/release triggers before recording its applied revision. Unchanged
+RSVP and attendance writes preserve revisions; reminder withdrawal still runs.
+
+
+## Private guest images and acknowledgements
+
+`QuestionStatement`, `GuestAcknowledgement` and `GuestMedia` live in Postgres.
+The private storage port holds raw/drawing/gallery files and processed variants;
+no raw key/public URL enters a media library or guest payload. Image processing
+uses a separate bounded worker with leases/claim tokens, not Redis correctness or
+inline decoding. Removed/orphaned tombstones survive event deletion and repeatedly
+reclaim late writes. Metadata/subject records follow verified privacy erasure;
+physical file cleanup is asynchronous and durable. See
+[GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md) for quotas, access and recovery.
+Production storage isolation/restore and frontend acceptance remain launch gates.
+
+### Local rehearsal diagnostics
+
+The disposable J runner uses `scripts/pilot/serve.mjs` with the shared application
+factory. With `PILOT_TRACE_DB=true`, a local-only OpenTelemetry processor aggregates Prisma connection
+acquisition durations; it stores no span attributes or SQL and has no network
+exporter. Private sampler files also capture RSS/event-loop delay. This adds no
+production HTTP diagnostic endpoint or correctness dependency; see
+[PILOT_REHEARSAL.md](PILOT_REHEARSAL.md). Production acceptance remains open.

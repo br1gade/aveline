@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 47 models across three
+The authoritative map of what is stored and where. 65 models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 42 |
+| **PostgreSQL** | The entire domain. The only source of truth | 65 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -42,18 +42,26 @@ lives outside Postgres.
 | Model | Purpose |
 |---|---|
 | `DesignTemplate` | Fonts, palettes and blocks a template renders correctly |
-| `Invitation` | The published page |
+| `Invitation` | Published page; captured first publication, duration/source/plan key, expiry and processed marker |
+| `GuestPageVersion` · `GuestPageChange` | Coarse compatibility revision and committed per-event transaction ledger |
+| `GuestPayloadVersion` · `GuestPayloadChange` | Independent shared-content and household payload counters; append-only writes, bounded atomic compaction, no parent FKs to preserve domain lock order |
 | `InvitationBlock` | One section, ordered, data-bound, toggleable |
-| `MediaAsset` | Every uploaded or generated file, scoped to an event |
+| `MediaAsset` | Public invitation uploads, scoped to an event |
+| `GuestMedia` | Private raw/derived keys, processing/moderation, reserved bytes and durable deletion tombstones |
+| `QuestionStatement` · `GuestAcknowledgement` | Immutable question versions and actual signer/represented subject evidence |
 
 ### Guest graph — the core asset
 | Model | Purpose |
 |---|---|
 | `Household` | The unit invitations and seating operate on |
 | `Guest` | A person, reached by capability token |
+| `AttendancePolicy` · `AttendanceResponse` | Versioned attendance modes and person/venue answers; one active policy per event |
 | `Rsvp` · `RsvpQuestion` · `RsvpAnswer` | The response, and host-authored questions |
 | `GuestImport` | One upload, with per-row errors |
-| `Table` · `Seat` | Furniture, and who sits where |
+| `SeatingArrangement` | A separately seated venue or the explicit unspecified legacy plan, with a trigger-maintained input revision |
+| `Table` · `Seat` | Furniture and one seat per guest per arrangement |
+| `SeatRelease` | Decline history retained independently for each arrangement |
+| `SeatingJob` | Durable automatic seating intent, lease/attempts, captured attendance/arrangement revisions, applied revision and committed counts/reasons |
 | `CheckIn` | Day-of arrival |
 
 ### Ticketing
@@ -61,7 +69,8 @@ lives outside Postgres.
 |---|---|
 | `TicketType` | A sellable tier; inventory lives here |
 | `TicketOrder` · `TicketOrderItem` | One purchase |
-| `Ticket` | One admitted person |
+| `OrderAttendee` | One captured attendee per requested ticket, saved at reservation; original answers, explicit household grouping and reconciliation snapshot |
+| `Ticket` | One admitted person, uniquely linked to its attendee and guest within the event |
 | `PromoCode` | Discounts, percent or fixed |
 
 ### Money
@@ -75,13 +84,20 @@ lives outside Postgres.
 | Model | Purpose |
 |---|---|
 | `Vendor` · `VendorBooking` | The partner network, with scoped brief access |
-| `Export` | A generated document, produced as a job |
+| `Export` | Legacy live-download audit reference; no historical snapshot |
+| `ExportSnapshot` | Durable private CSV/PDF/XLSX job: intent, claims, attempts, provenance, artifact reference, expiry and revocation |
+| `ExportArtifact` | Write-ahead private object ledger; survives event deletion, retries and delayed uploads |
+| `ExportSnapshotSubject` | Normalized email fingerprints that locate old snapshots during subject erasure |
+| `ExportPrivacyFence` | Shared/exclusive capture/erasure fence; repeatable-read conflicts retry |
 
 ### Communications
 | Model | Purpose |
 |---|---|
 | `MessageTemplate` | Reusable copy, translated, overridable per organization |
-| `Message` | One message — an outbox. Carries `direction` and `threadKey` so inbound is additive later |
+| `Message` | One message — an outbox. Nullable account/sender scope plus provider ref uniquely correlate WhatsApp outcomes. Delivery/read/failure clocks and normalized failure kind/code complement the existing status |
+| `EmailSendQuota` | Persistent shared SMTP token bucket and UTC daily budget; survives deploys and Redis eviction |
+| `EmailFeedback` | Normalized, idempotent delivery outcomes keyed by an opaque receipt; no address or raw provider payload |
+| `WhatsAppReceipt` | Idempotent native status ledger with account/sender/provider reference, outcome, numeric error code and clocks; no contacts/raw payload. Pending seven days, processed thirty days |
 | `Suppression` | Who must not be contacted, and why |
 | `DeviceToken` | A phone or browser that can receive a push |
 
@@ -95,8 +111,32 @@ Guests carry `consentAt` / `consentSource` and `anonymizedAt`; `User` and
 
 ## 3. Decisions worth knowing before changing anything
 
+**Invitation lifetime is captured once.** `firstPublishedAt`, `lifetimeDays`,
+`lifetimeSource` (`FREE_DEFAULT`, `PLAN`, `LEGACY`) and `lifetimePlanKey` explain
+`expiresAt`. Free fallback is 90 elapsed days after event end/start; a valid
+ACTIVE subscription with a future period end captures its plan's
+positive days or null for indefinite. Event-date changes recompute finite
+captured deadlines; close/reopen and catalogue changes do not reset entitlement.
+Existing published history becomes LEGACY with its original deadline (including
+null) and no invented publication timestamp. `expiryProcessedAt` is an operational
+marker, rearmed when expiry changes; it does not archive or delete data.
+
+**Page revisions commit with domain writes.** Trigger-maintained change rows
+have no parent FK to avoid reversed event/household lock acquisition. Bounded
+compaction and orphan reclamation run every minute. The version base has an
+event FK/cascade. See [DATA_STORES.md](DATA_STORES.md) for cache/read semantics.
+
+
 **Money is `BigInt` minor units.** Never a float, never a `Decimal` someone can
 round. AMD has no subunit: 25,000 dram is `25000`.
+
+**Venue operators are one-to-many.** `VenueProfile.vendorId` is nullable and
+indexed, with no uniqueness restriction; `Vendor.venueProfiles` is a collection.
+The populated migration drops only the old unique index and adds a lookup
+index, preserving profile IDs, operator links and event copies. The staff write
+surface accepts only active curated VENUE vendors; public directory reads hide
+ineligible legacy links. No new tables were needed for the guest/design batch:
+listing image selectors and stable question order were already modelled.
 
 **Translated content is `Json` keyed by locale**, not a translations table. A
 join per field, per block, per locale, on the hottest read in the product would
@@ -121,23 +161,55 @@ reject the bad row.
 
 | Table | Constraint |
 |---|---|
+| `seating_arrangements` | One arrangement per venue and one unspecified arrangement per event (partial unique index) |
+| `tables` · `seats` | Derived arrangement/event IDs, matching composite foreign keys, arrangement-scoped names and guest seats; unique numbered chairs |
+| `seat_releases` | A known table must belong to the release's event and arrangement; a deleted/unknown table remains null without erasing history |
 | `ticket_types` | `sold + reserved <= total`; counters never negative |
 | `promo_codes` | redemptions within limit; value positive; percent ≤ 100 |
 | `refunds` | amount positive |
 | `invoices` | amounts never negative |
 | `plans` | price never negative |
-| `ticket_orders` | discount never negative |
+| `ticket_orders` | discount never negative; request fingerprint binds retries; cancellation marker freezes admission before a refund |
+| `order_attendees` · `tickets` | Unique roster position/order, unique attendee/ticket and guest/ticket; composite event FKs plus trigger reject mismatched order/type attendee links |
 | `subscriptions` | period end after period start |
 | `plans` | an invitation lifetime, when set, is positive — zero would expire a page on publication |
 | `device_tokens` | exactly one subject — a user or a guest, never both or neither |
 | `data_subject_requests` | the response deadline cannot precede the request |
 | `message_templates` | one global template per key and channel (partial index — Postgres treats NULLs as distinct, so the compound unique alone does not bind) |
 
+The multi-venue migration creates arrangements, backfills existing tables/seats
+and release markers, then constrains the new columns. Missing venue membership
+stays unspecified. Triggers create event/venue arrangements, derive table/seat
+write fields and enforce release-table scope, including bulk writes; their `NULL::text` Prisma
+defaults are filled before NOT NULL checks. A conflicting explicit field is
+rejected. Keep triggers and partial indexes in SQL migrations; Prisma does not
+model them. Legacy release columns remain historical input, not current view data.
+
+### Durable automatic seating
+
+`SeatingJob` belongs to its event/arrangement and cascades on their deletion.
+A unique requester/event/UUID identifies an accepted intent; a partial unique
+index permits only one QUEUED/RUNNING job per arrangement. It stores no guest
+names, contacts, capability tokens or reusable permission grant. Results contain
+counts and unseated household IDs/sizes/reasons. Current standing is rechecked
+before applying; leases and revision guards prevent stale results from writing.
+Seat insertion, release dismissal and COMPLETED state commit atomically.
+
+Database triggers advance `SeatingArrangement.revision` for seating and relevant
+graph/attendance/venue/policy mutations, including bulk SQL, cancellation and
+erasure. They preserve change/undo detection. See
+[SEATING_WORKER.md](SEATING_WORKER.md) for bounds and recovery. Frontend adoption,
+translated reasons and production recovery/load rehearsal remain open.
+
 ## 5. Storage layout
 
 Files go through `StorageService`, never straight to disk or a bucket. Two
 adapters sit behind it — Garage (S3) and the local filesystem — selected by
 configuration. Keys are generated UUIDs, never the uploaded filename.
+
+Private generated exports are separate: `ExportArtifact` stores internal UUID
+keys in a protected bucket/root; `ExportSnapshot` carries provenance, expiry and
+revocation. No private export is a public `MediaAsset`.
 
 Full detail, including why reads are anonymous and what durability actually
 depends on, is in [STORAGE.md](STORAGE.md).
@@ -154,14 +226,14 @@ Deliberate, with the reason.
 | `PrintOrder` | Same |
 | `ThankYou` | Post-event flow; the guest graph already holds who to thank |
 | Tax rates | Needed for corporate invoicing; `Invoice.taxMinor` holds the amount, nothing computes it |
-| Retention sweep | `Invitation.expiresAt` exists but nothing sets or sweeps it, so pages live forever and storage is never reclaimed (PRODUCT_SPEC §14) |
+| Host-data retention policy | Guest expiry is enforced and swept; it deliberately retains host data/media. Any future automatic deletion needs a separately agreed policy |
 | Inbound message ingestion | `direction` and `threadKey` are modelled; no provider webhook receives a reply |
 | `AuditLog` | Belongs in MongoDB — append-only, never joined |
 
 ## 7. Privacy
 
 Erasure **anonymises a guest rather than deleting them**. Deleting cascades to
-their RSVP, seat, ticket and check-in, which destroys the host's record of
+their RSVP, seat and check-in, which destroys the host's record of
 their own event — a record the host has a legitimate interest in keeping.
 Nulling the identifying fields removes the person while headcount, seating and
 catering totals stay correct.
@@ -187,3 +259,24 @@ Requests are accepted publicly and handled by Aveline staff — export,
 erasure, and a manual close for rectification (`privacy/`). What is missing:
 `Session.ipAddress` is personal data with no retention limit, and nothing
 verifies who is asking before a human marks a request in progress.
+
+Attendance now has an immutable policy identity `(eventId, revision)` and a
+response identity `(guestId, revision, scopeId)`. `scopeId` is `event` or the
+venue ID, checked against nullable `venueId`. Composite foreign keys enforce
+same-event guests, policies and venues; archived policy responses cannot be
+changed or moved to another revision. Event mode/revision updates must match
+an active policy. Initial policies are created for every event, including bulk
+writers. Migration backfills event-wide responses and keeps unknown response
+times null. No historical event-wide answer is copied to venues.
+
+`Rsvp.status` is the current person-level projection; dietary/custom fields stay
+personal. In per-venue mode it counts a person attending any eligible venue once,
+then pending/undecided/declined without guessing unanswered venues. Venue and
+timeline edits refresh that projection in the same transaction. Response history
+contains no contact details or free text, is included in subject exports, and
+retains anonymous operational attendance consistently with existing erasure rules.
+
+Ticket attendee erasure clears the captured roster and reconciliation snapshot
+independently of buyer details and invalidates the checkout fingerprint. Issuance
+re-reads the roster after claiming the order, so delayed settlement cannot
+restore erased data. Existing guest/ticket links are retained for headcounts.

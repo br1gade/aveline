@@ -1,5 +1,7 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { lockAdmission, recordAdmission, undoAdmission } from './admission';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { RsvpStatus } from '@prisma/client';
+import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -13,40 +15,31 @@ export class CheckInService {
    * same guest cannot both record an arrival and inflate the count.
    */
   async checkIn(eventId: string, guestId: string, notedBy?: string) {
-    const guest = await this.prisma.guest.findFirst({
-      where: { id: guestId, eventId },
-      include: { checkIn: true, rsvp: true, seat: { include: { table: true } } },
+    const ticket = await this.prisma.ticket.findUnique({ where: { guestId, eventId } });
+    return this.prisma.$transaction(async (tx) => {
+      const linked = await lockAdmission(tx, eventId, ticket, guestId);
+      const guest = await tx.guest.findFirst({
+        where: { id: guestId, eventId }, include: { rsvp: true, seats: { include: SEAT_DETAIL } },
+      });
+      if (!guest) throw new NotFoundException('That guest is not on this event');
+      const arrivedAt = await recordAdmission(tx, linked?.id ?? null, guestId, notedBy);
+      return {
+        guestId,
+        name: [guest.firstName, guest.lastName].filter(Boolean).join(' '),
+        arrivedAt,
+        // The two things door staff need next: where to send them, and whether
+        // they were expected — someone who declined still turning up is worth
+        // flagging rather than silently admitting.
+        table: singleTable(guest.seats),
+        seating: seatingAssignments(guest.seats),
+        wasExpected: guest.rsvp?.status === RsvpStatus.ATTENDING,
+      };
     });
-    if (!guest) throw new NotFoundException('That guest is not on this event');
-
-    if (guest.checkIn) {
-      throw new ConflictException(
-        `${guest.firstName} was already checked in at ${guest.checkIn.arrivedAt.toISOString()}`,
-      );
-    }
-
-    const created = await this.prisma.checkIn.create({
-      data: { guestId, notedBy: notedBy ?? null },
-    });
-
-    return {
-      guestId,
-      name: [guest.firstName, guest.lastName].filter(Boolean).join(' '),
-      arrivedAt: created.arrivedAt,
-      // The two things door staff need next: where to send them, and whether
-      // they were expected — someone who declined still turning up is worth
-      // flagging rather than silently admitting.
-      table: guest.seat?.table.name ?? null,
-      wasExpected: guest.rsvp?.status === RsvpStatus.ATTENDING,
-    };
   }
 
   /** Mis-scans happen; undoing one must be as easy as making it. */
   async undo(eventId: string, guestId: string) {
-    const removed = await this.prisma.checkIn.deleteMany({
-      where: { guestId, guest: { eventId } },
-    });
-    if (removed.count === 0) throw new NotFoundException('That guest is not checked in');
+    await this.prisma.$transaction((tx) => undoAdmission(tx, eventId, guestId));
     return { ok: true as const };
   }
 

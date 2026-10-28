@@ -1,10 +1,12 @@
+import { lockAttendancePolicy } from '../rsvp/attendance/attendance-context';
+import { ATTENDANCE_GUEST, isAttendanceReservation } from '../rsvp/attendance/attendance-view';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { isUniqueViolation } from '../../common/prisma-errors';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NOT_RELEASED } from './released-seat';
+import { clearRelease } from './released-seat';
+import { assertArrangement, lockArrangement, lockGuestAnswer, resolveArrangement } from './seating-arrangements';
 import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto } from './dto/seating.dto';
-import { SeatableHousehold, SeatableTable, buildSeatingPlan } from './seating-plan';
 
 @Injectable()
 export class SeatingService {
@@ -12,18 +14,27 @@ export class SeatingService {
 
   // ── tables ───────────────────────────────────────────────────────────
 
-  async listTables(eventId: string) {
-    const tables = await this.prisma.table.findMany({
+  listArrangements(eventId: string) {
+    return this.prisma.seatingArrangement.findMany({
       where: { eventId },
+      include: { venue: { select: { name: true, capacity: true } }, _count: { select: { tables: true } } },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async listTables(eventId: string, arrangementId?: string) {
+    await assertArrangement(this.prisma, eventId, arrangementId);
+    const tables = await this.prisma.table.findMany({
+      where: { eventId, arrangementId },
       include: {
-        seats: { include: { guest: { select: { id: true, firstName: true, lastName: true } } } },
-        releasedSeats: {
-          where: { seat: null },
-          select: { id: true, firstName: true, lastName: true, seatReleasedAt: true },
-          orderBy: { seatReleasedAt: 'asc' },
+        venue: { select: { name: true } },
+        seats: { include: { guest: { select: { id: true, firstName: true, lastName: true, ...ATTENDANCE_GUEST } } } },
+        seatReleases: {
+          include: { guest: { select: { id: true, firstName: true, lastName: true, ...ATTENDANCE_GUEST } } },
+          orderBy: { releasedAt: 'asc' },
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ arrangementId: 'asc' }, { name: 'asc' }],
     });
 
     return tables.map((table) => ({
@@ -32,6 +43,8 @@ export class SeatingService {
       capacity: table.capacity,
       zone: table.zone,
       venueId: table.venueId,
+      venue: table.venue?.name ?? null,
+      arrangementId: table.arrangementId,
       posX: table.posX,
       posY: table.posY,
       shape: table.shape,
@@ -41,53 +54,51 @@ export class SeatingService {
         guestId: seat.guest.id,
         name: [seat.guest.firstName, seat.guest.lastName].filter(Boolean).join(' '),
         position: seat.position,
+        isReservation: isAttendanceReservation(seat.guest, table.venueId),
       })),
       // Freed by a decline: the gap, and who left it, until the host acts.
-      released: table.releasedSeats.map((guest) => ({
-        guestId: guest.id,
-        name: [guest.firstName, guest.lastName].filter(Boolean).join(' '),
-        releasedAt: guest.seatReleasedAt,
+      released: table.seatReleases.map((release) => ({
+        guestId: release.guest.id,
+        name: [release.guest.firstName, release.guest.lastName].filter(Boolean).join(' '),
+        releasedAt: release.releasedAt,
       })),
     }));
   }
 
   async createTable(eventId: string, dto: CreateTableDto) {
-    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
-    return this.prisma.table.create({
-      data: {
-        eventId,
-        name: dto.name,
-        capacity: dto.capacity,
-        zone: dto.zone ?? null,
-        venueId: dto.venueId ?? null,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
+      await assertVenueOnEvent(tx, eventId, dto.venueId);
+      return tx.table.create({ data: { eventId, name: dto.name, capacity: dto.capacity,
+        zone: dto.zone ?? null, venueId: dto.venueId ?? null } });
+    }).catch((error: unknown) => rejectDuplicateName(error, dto.name));
   }
 
   /** Twenty tables of ten is one request, not twenty. */
   async createTables(eventId: string, dto: CreateTablesDto) {
-    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
-    // On from the highest number already used with this prefix. Counting the
-    // tables instead collided with names still there after a deletion, and
-    // those tables were silently skipped.
-    const taken = await this.prisma.table.findMany({
-      where: { eventId, name: { startsWith: `${dto.namePrefix} ` } },
-      select: { name: true },
-    });
-    const highest = Math.max(0, ...taken.map((table) => numberAfter(dto.namePrefix, table.name)));
-
-    const created = await this.prisma.table.createMany({
-      data: Array.from({ length: dto.count }, (_, index) => ({
-        eventId,
-        name: `${dto.namePrefix} ${highest + index + 1}`,
-        capacity: dto.capacity,
-        zone: dto.zone ?? null,
-        venueId: dto.venueId ?? null,
-      })),
-      skipDuplicates: true,
-    });
-
-    return { created: created.count };
+    return this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
+      await assertVenueOnEvent(tx, eventId, dto.venueId);
+      const arrangement = await tx.seatingArrangement.findFirst({ where: { eventId, venueId: dto.venueId ?? null } });
+      if (!arrangement) throw new NotFoundException('No such event or venue');
+      // Number allocation and insertion share the room lock: concurrent batches cannot disappear as duplicates.
+      await lockArrangement(tx, eventId, arrangement.id);
+      const taken = await tx.table.findMany({
+        where: { arrangementId: arrangement.id, name: { startsWith: `${dto.namePrefix} ` } },
+        select: { name: true },
+      });
+      const highest = Math.max(0, ...taken.map((table) => numberAfter(dto.namePrefix, table.name)));
+      const created = await tx.table.createMany({
+        data: Array.from({ length: dto.count }, (_, index) => ({
+          eventId,
+          name: `${dto.namePrefix} ${highest + index + 1}`,
+          capacity: dto.capacity,
+          zone: dto.zone ?? null,
+          venueId: dto.venueId ?? null,
+        })),
+      });
+      return { created: created.count };
+    }).catch((error: unknown) => rejectDuplicateName(error, dto.namePrefix));
   }
 
   /**
@@ -98,11 +109,13 @@ export class SeatingService {
    * a guest seated at the same moment is counted.
    */
   async updateTable(eventId: string, tableId: string, dto: UpdateTableDto) {
-    await assertVenueOnEvent(this.prisma, eventId, dto.venueId);
-
     return this.prisma
       .$transaction(async (tx) => {
-        const { seated } = await lockTable(tx, eventId, tableId);
+        await lockAttendancePolicy(tx, eventId);
+        await assertVenueOnEvent(tx, eventId, dto.venueId);
+        const current = await lockTable(tx, eventId, tableId);
+        await assertTableEdit(tx, current, dto);
+        const { seated } = current;
         if (dto.capacity !== undefined && dto.capacity < seated) {
           throw new BadRequestException(`capacity: ${seated} guest(s) are seated here; move some first`);
         }
@@ -128,6 +141,7 @@ export class SeatingService {
 
   async deleteTable(eventId: string, tableId: string) {
     await this.prisma.$transaction(async (tx) => {
+      await lockAttendancePolicy(tx, eventId);
       // Locked before counting, for the reason questions are: a guest seated
       // between the count and the delete was cascaded off the plan (B87).
       const locked = await tx.$queryRaw<{ id: string }[]>`
@@ -154,41 +168,39 @@ export class SeatingService {
    */
   async assign(eventId: string, dto: AssignSeatDto) {
     return this.prisma.$transaction(async (tx) => {
-      const guest = await tx.guest.findFirst({ where: { id: dto.guestId, eventId } });
-      if (!guest) throw new NotFoundException('That guest is not on this event');
-      // Locked, not just read: two planners seating the last chair at once
-      // both counted one free seat and both sat someone down.
+      await lockAttendancePolicy(tx, eventId);
+      await lockGuestAnswer(tx, eventId, dto.guestId);
+      const target = await tx.table.findFirst({ where: { id: dto.tableId, eventId }, select: { arrangementId: true } });
+      if (!target) throw new NotFoundException('That table is not on this event');
+      const room = await lockArrangement(tx, eventId, target.arrangementId);
       const table = await lockTable(tx, eventId, dto.tableId);
-
-      const alreadyHere = await tx.seat.findUnique({ where: { guestId: dto.guestId } });
-      const isMoveWithinTable = alreadyHere?.tableId === dto.tableId;
-
-      if (!isMoveWithinTable && table.seated >= table.capacity) {
-        throw new ConflictException(`${table.name} is full`);
-      }
-
+      if (table.arrangementId !== target.arrangementId) throw new ConflictException('The table changed venue; reload the plan');
+      const where = { guestId_arrangementId: { guestId: dto.guestId, arrangementId: table.arrangementId } };
+      const alreadyHere = await tx.seat.findUnique({ where });
+      assertSeatFits(table, room, alreadyHere, dto.position);
       await tx.seat.upsert({
-        where: { guestId: dto.guestId },
+        where,
         create: { guestId: dto.guestId, tableId: dto.tableId, position: dto.position ?? null },
         update: { tableId: dto.tableId, position: dto.position ?? null },
       });
-      await tx.guest.update({ where: { id: dto.guestId }, data: NOT_RELEASED });
+      await clearRelease(tx, [dto.guestId], table.arrangementId);
+      return { guestId: dto.guestId, tableId: dto.tableId, table: table.name, arrangementId: table.arrangementId };
 
-      return { guestId: dto.guestId, tableId: dto.tableId, table: table.name };
-    });
+    }).catch(rejectOccupiedChair);
   }
 
   /**
    * Unseats a guest — or, for one whose decline already freed their seat,
    * dismisses the flag that says so.
    */
-  async unassign(eventId: string, guestId: string) {
+  async unassign(eventId: string, guestId: string, arrangementId?: string) {
     return this.prisma.$transaction(async (tx) => {
-      const removed = await tx.seat.deleteMany({ where: { guestId, guest: { eventId } } });
-      const dismissed = await tx.guest.updateMany({
-        where: { id: guestId, eventId, seatReleasedAt: { not: null } },
-        data: NOT_RELEASED,
-      });
+      await lockAttendancePolicy(tx, eventId);
+      const arrangement = await resolveArrangement(tx, eventId, arrangementId);
+      await lockGuestAnswer(tx, eventId, guestId);
+      await lockArrangement(tx, eventId, arrangement.id);
+      const removed = await tx.seat.deleteMany({ where: { guestId, arrangementId: arrangement.id, guest: { eventId } } });
+      const dismissed = await tx.seatRelease.deleteMany({ where: { guestId, arrangementId: arrangement.id, eventId } });
       if (removed.count === 0 && dismissed.count === 0) throw new NotFoundException('That guest is not seated');
       return { ok: true as const };
     });
@@ -216,110 +228,6 @@ export class SeatingService {
     });
   }
 
-  /**
-   * Seats everyone who has accepted, keeping households together.
-   *
-   * Additive: guests already placed keep their seats and their tables count
-   * as partly occupied, so running this after a late RSVP fills the gaps
-   * rather than rearranging a plan a host has already adjusted by hand.
-   */
-  async autoAssign(eventId: string) {
-    const plan = await this.prisma.$transaction(async (tx) => {
-      // Every table locked before the room is read: a planner seating someone
-      // by hand locks their table too, so they wait for this plan or it waits
-      // for them — never both planning from the same empty chair.
-      await tx.$queryRaw`SELECT id FROM tables WHERE "eventId" = ${eventId} ORDER BY id FOR UPDATE`;
-      const [households, tables] = await Promise.all([
-        loadSeatableHouseholds(tx, eventId),
-        loadSeatableTables(tx, eventId),
-      ]);
-
-      const planned = buildSeatingPlan(households, tables);
-      const seats = planned.assignments.flatMap((assignment) =>
-        assignment.guestIds.map((guestId) => ({ guestId, tableId: assignment.tableId })),
-      );
-      await tx.seat.createMany({ data: seats });
-      await tx.guest.updateMany({ where: { id: { in: seats.map((seat) => seat.guestId) } }, data: NOT_RELEASED });
-      return planned;
-    });
-
-    return {
-      seated: plan.assignments.reduce((sum, a) => sum + a.guestIds.length, 0),
-      households: plan.assignments.length,
-      unseated: plan.unseated,
-    };
-  }
-}
-
-/**
- * Only households with someone attending and not yet seated — with where the
- * rest of each household already sits, so a late acceptor joins their family.
- */
-async function loadSeatableHouseholds(tx: Prisma.TransactionClient, eventId: string): Promise<SeatableHousehold[]> {
-  const candidates = await tx.guest.findMany({
-    where: { eventId, rsvp: { status: RsvpStatus.ATTENDING }, seat: null },
-    select: { id: true, householdId: true, attribution: true },
-    orderBy: { householdId: 'asc' },
-  });
-  const guests = await stillAttending(tx, candidates);
-  const householdIds = [...new Set(guests.map((guest) => guest.householdId))];
-  const seated = await tx.seat.findMany({
-    where: { guest: { householdId: { in: householdIds } } },
-    select: { tableId: true, guest: { select: { householdId: true } } },
-  });
-
-  const byHousehold = new Map<string, { guestIds: string[]; sides: GuestAttribution[] }>();
-  for (const guest of guests) {
-    const entry = byHousehold.get(guest.householdId) ?? { guestIds: [], sides: [] };
-    entry.guestIds.push(guest.id);
-    entry.sides.push(guest.attribution ?? GuestAttribution.UNKNOWN);
-    byHousehold.set(guest.householdId, entry);
-  }
-
-  return [...byHousehold.entries()].map(([householdId, entry]) => ({
-    householdId,
-    guestIds: entry.guestIds,
-    side: majoritySide(entry.sides),
-    seatedAt: [...new Set(seated.filter((seat) => seat.guest.householdId === householdId).map((seat) => seat.tableId))],
-  }));
-}
-
-/**
- * The candidates whose answer is still ATTENDING, with those answers locked
- * until the plan commits. A decline landing between reading the room and
- * writing the plan used to be seated anyway (B87): now it either commits
- * first and is filtered out here, or waits and then releases the new seat.
- */
-async function stillAttending<T extends { id: string }>(tx: Prisma.TransactionClient, candidates: T[]): Promise<T[]> {
-  if (candidates.length === 0) return candidates;
-  const rows = await tx.$queryRaw<{ guestId: string }[]>`
-    SELECT "guestId" FROM rsvps
-     WHERE "guestId" IN (${Prisma.join(candidates.map((guest) => guest.id))}) AND status = 'ATTENDING'
-       FOR SHARE`;
-  const attending = new Set(rows.map((row) => row.guestId));
-  return candidates.filter((guest) => attending.has(guest.id));
-}
-
-/** The side most of a household belongs to — it was the first guest's. */
-function majoritySide(sides: GuestAttribution[]): GuestAttribution {
-  const counts = new Map<GuestAttribution, number>();
-  for (const side of sides) counts.set(side, (counts.get(side) ?? 0) + 1);
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? GuestAttribution.UNKNOWN;
-}
-
-async function loadSeatableTables(tx: Prisma.TransactionClient, eventId: string): Promise<SeatableTable[]> {
-  const tables = await tx.table.findMany({
-    where: { eventId },
-    include: { seats: { include: { guest: { select: { attribution: true } } } } },
-    orderBy: { name: 'asc' },
-  });
-
-  return tables.map((table) => ({
-    tableId: table.id,
-    capacity: table.capacity,
-    occupied: table.seats.length,
-    side: dominantSide(table.seats.map((seat) => seat.guest.attribution)),
-  }));
 }
 
 /** The number in "Table 12" for prefix "Table"; 0 for a name that is not one of the series. */
@@ -328,22 +236,10 @@ function numberAfter(prefix: string, name: string): number {
   return /^\d+$/.test(suffix) ? Number(suffix) : 0;
 }
 
-/** Which side a table already belongs to, if any clearly does. */
-function dominantSide(attributions: GuestAttribution[]): GuestAttribution | null {
-  const sides = attributions.filter(
-    (side) => side === GuestAttribution.SIDE_A || side === GuestAttribution.SIDE_B,
-  );
-  if (sides.length === 0) return null;
-
-  const a = sides.filter((side) => side === GuestAttribution.SIDE_A).length;
-  if (a === sides.length - a) return null;
-  return a > sides.length - a ? GuestAttribution.SIDE_A : GuestAttribution.SIDE_B;
-}
-
 /** One table, locked for the rest of the transaction, with how many sit at it. */
 async function lockTable(tx: Prisma.TransactionClient, eventId: string, tableId: string) {
-  const rows = await tx.$queryRaw<{ id: string; name: string; capacity: number }[]>`
-    SELECT id, name, capacity FROM tables WHERE id = ${tableId} AND "eventId" = ${eventId} FOR UPDATE`;
+  const rows = await tx.$queryRaw<{ id: string; name: string; capacity: number; arrangementId: string; venueId: string | null }[]>`
+    SELECT id, name, capacity, "arrangementId", "venueId" FROM tables WHERE id = ${tableId} AND "eventId" = ${eventId} FOR UPDATE`;
   if (rows.length === 0) throw new NotFoundException('That table is not on this event');
 
   const seated = await tx.seat.count({ where: { tableId } });
@@ -362,4 +258,36 @@ async function assertVenueOnEvent(
   if (!venueId) return;
   const venue = await prisma.venue.findFirst({ where: { id: venueId, eventId }, select: { id: true } });
   if (!venue) throw new BadRequestException(`venueId: ${venueId} is not one of this event's venues`);
+}
+
+function rejectDuplicateName(error: unknown, name: string): never {
+  if (isUniqueViolation(error)) throw new BadRequestException(`name: there is already a table called "${name}" in this arrangement`);
+  throw error;
+}
+
+function rejectOccupiedChair(error: unknown): never {
+  if (isUniqueViolation(error)) throw new ConflictException('position: that chair is already occupied');
+  throw error;
+}
+
+async function assertTableEdit(tx: Prisma.TransactionClient, table: Awaited<ReturnType<typeof lockTable>>, dto: UpdateTableDto) {
+  if (dto.venueId !== undefined && dto.venueId !== table.venueId) {
+    const releases = await tx.seatRelease.count({ where: { tableId: table.id } });
+    if (table.seated > 0 || releases > 0) throw new ConflictException('venueId: move guests and dismiss release markers before changing venue');
+  }
+  if (dto.capacity !== undefined) {
+    const outside = await tx.seat.count({ where: { tableId: table.id, position: { gt: dto.capacity } } });
+    if (outside > 0) throw new BadRequestException('capacity: move chairs outside the proposed capacity first');
+  }
+}
+
+function assertSeatFits(
+  table: Awaited<ReturnType<typeof lockTable>>,
+  room: Awaited<ReturnType<typeof lockArrangement>>,
+  existing: { tableId: string } | null,
+  position: number | undefined,
+) {
+  if (existing?.tableId !== table.id && table.seated >= table.capacity) throw new ConflictException(`${table.name} is full`);
+  if (!existing && room.capacity !== null && room.occupied >= room.capacity) throw new ConflictException('Venue capacity is full');
+  if (position !== undefined && position > table.capacity) throw new BadRequestException('position: outside table capacity');
 }

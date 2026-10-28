@@ -1,3 +1,4 @@
+import { hasInvitationExpired } from '../lifetime';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -87,7 +88,9 @@ export class ReminderService implements OnModuleInit {
       if (!guestId) return true;
       const undecided = await this.prisma.guest.count({
         where: {
-          household: { guests: { some: { id: guestId } } },
+          anonymizedAt: null,
+          event: { invitation: { status: 'PUBLISHED', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } },
+          household: { guests: { some: { id: guestId, anonymizedAt: null } } },
           OR: [{ rsvp: null }, { rsvp: { status: RsvpStatus.PENDING } }],
         },
       });
@@ -187,6 +190,7 @@ export class ReminderService implements OnModuleInit {
     const invitations = await this.prisma.invitation.findMany({
       where: {
         status: InvitationStatus.PUBLISHED,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         event: {
           remindersEnabled: true,
           startsAt: { gt: now, lte: horizon },
@@ -495,6 +499,7 @@ export class ReminderService implements OnModuleInit {
     if (invitation.status !== InvitationStatus.PUBLISHED) {
       throw new BadRequestException('This invitation has not been published, so nobody has it yet');
     }
+    if (hasInvitationExpired(invitation)) throw new BadRequestException('This invitation has expired');
     if (invitation.startsAt <= new Date()) {
       throw new BadRequestException('This event has already started; a reminder would read oddly');
     }
@@ -508,6 +513,7 @@ export class ReminderService implements OnModuleInit {
         id: true,
         slug: true,
         status: true,
+        expiresAt: true,
         eventId: true,
         event: {
           select: {
@@ -527,6 +533,7 @@ export class ReminderService implements OnModuleInit {
       id: invitation.id,
       slug: invitation.slug,
       status: invitation.status,
+      expiresAt: invitation.expiresAt,
       eventId: invitation.eventId,
       organizationId: invitation.event.organizationId,
       title: invitation.event.title,

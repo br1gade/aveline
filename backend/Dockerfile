@@ -8,7 +8,7 @@
 # that can be vulnerable.
 # ─────────────────────────────────────────────────────────────────────────
 
-ARG NODE_VERSION=26-alpine
+ARG NODE_VERSION=26-alpine@sha256:143494b1da2945f061539253adc65e4f1569ddf07da2d384c022c791a9d90a4a
 
 # ── deps: every dependency, needed to build ──────────────────────────────
 FROM node:${NODE_VERSION} AS deps
@@ -27,6 +27,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
+RUN test -f dist/seating-worker.js
+RUN test -f dist/private-media-worker.js
 
 # Fails the build rather than shipping an image that cannot start. The entry
 # point went missing once already, when stale incremental build state was
@@ -55,6 +57,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY scripts ./scripts
+COPY assets ./assets
+RUN test -s assets/fonts/DejaVuSans.ttf && test -s assets/fonts/DejaVuSans-Bold.ttf
 
 # node's own unprivileged user, so a container escape is not already root.
 USER node

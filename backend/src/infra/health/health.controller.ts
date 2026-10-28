@@ -6,6 +6,7 @@ import { REDIS_CLIENT } from '../cache/cache.service';
 import { MongoConnection } from '../analytics/mongo-connection';
 import { MONGO_CONNECTION } from '../analytics/analytics.service';
 import { Public } from '../auth/actor';
+import { StorageService } from '../storage/storage.service';
 
 /**
  * Liveness and readiness.
@@ -23,6 +24,7 @@ export class HealthController {
     private readonly prisma: PrismaService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject(MONGO_CONNECTION) private readonly mongo: MongoConnection,
+    private readonly storage: StorageService,
   ) {}
 
   @Public()
@@ -36,18 +38,19 @@ export class HealthController {
   @Get('ready')
   @ApiOperation({ summary: 'Dependencies reachable; only Postgres is required' })
   async ready() {
-    const [postgres, redis, mongo] = await Promise.all([
+    const [postgres, redis, mongo, storage] = await Promise.all([
       this.check(() => this.prisma.$queryRaw`SELECT 1`),
       this.check(() => this.redis.ping()),
-      this.check(() => this.mongo.db()),
+      this.check(() => this.mongo.probe()),
+      this.check(() => this.storage.probe()),
     ]);
 
-    const report = { required: { postgres }, optional: { redis, mongo }, at: new Date().toISOString() };
+    const report = { required: { postgres }, optional: { redis, mongo, storage }, at: new Date().toISOString() };
     // Without Postgres nothing is served, so it is not ready: 503, which the
     // container's healthcheck and a load balancer act on. It used to say
     // "degraded" with a 200, and "ok" with Redis or Mongo down — the reverse.
     if (!postgres.isUp) throw new ServiceUnavailableException({ status: 'unavailable', ...report });
-    return { status: redis.isUp && mongo.isUp ? 'ok' : 'degraded', ...report };
+    return { status: redis.isUp && mongo.isUp && storage.isUp ? 'ok' : 'degraded', ...report };
   }
 
   private async check(probe: () => Promise<unknown>) {
@@ -64,4 +67,3 @@ export class HealthController {
     }
   }
 }
-

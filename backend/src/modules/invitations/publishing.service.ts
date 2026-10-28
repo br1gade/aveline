@@ -1,3 +1,4 @@
+import { captureInvitationLifetime, hasInvitationExpired, LIFETIME_SELECT } from './lifetime';
 import { lockLiveEvent } from '../events/event-lock';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventStatus, InvitationStatus } from '@prisma/client';
@@ -78,7 +79,11 @@ export class PublishingService {
     to: InvitationStatus,
   ) {
     const updated = await this.prisma.$transaction(async (tx) => {
-      if (to === InvitationStatus.PUBLISHED) await lockLiveEvent(tx, invitation.eventId);
+      if (to === InvitationStatus.PUBLISHED) {
+        await lockLiveEvent(tx, invitation.eventId);
+        await tx.$queryRaw`SELECT id FROM invitations WHERE id = ${invitation.id} FOR UPDATE`;
+        await captureInvitationLifetime(tx, invitation.id);
+      }
       const moved = await tx.invitation.updateMany({
         where: { id: invitation.id, status: invitation.status },
         data: { status: to },
@@ -96,14 +101,14 @@ export class PublishingService {
 
       return tx.invitation.findUniqueOrThrow({
         where: { id: invitation.id },
-        select: { slug: true, status: true },
+        select: { slug: true, status: true, ...LIFETIME_SELECT },
       });
     });
 
     // The public page is cached per slug; a stale cache would keep serving a
     // closed invitation as open, or a published one as missing.
     await this.cache.invalidateInvitation(invitation.slug);
-    return updated;
+    return { ...updated, isExpired: hasInvitationExpired(updated) };
   }
 
   private assertCanMove(from: InvitationStatus, to: InvitationStatus): void {

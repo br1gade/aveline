@@ -827,6 +827,148 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/attendance-policy/preview": {
+      "post": {
+        "operationId": "AttendancePolicyController_preview",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewAttendancePolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Preview the responses and seats affected by changing attendance mode",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/attendance-policy": {
+      "post": {
+        "operationId": "AttendancePolicyController_change",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAttendancePolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Confirm a previewed policy change and request fresh attendance",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/guests/{guestId}/attendance-history": {
+      "get": {
+        "operationId": "AttendancePolicyController_history",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a guest attendance history across policy revisions",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/name": {
+      "patch": {
+        "operationId": "GuestNameController_correct",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectNameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Correct only the personal link holder’s first and last names",
+        "tags": [
+          "guests"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/guests": {
       "get": {
         "operationId": "GuestsController_list",
@@ -1207,7 +1349,15 @@
         ],
         "responses": {
           "200": {
-            "description": "Hydrated, locale-resolved invitation"
+            "description": "Hydrated, locale-resolved invitation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "private, no-store"
+                }
+              }
+            }
           }
         },
         "summary": "Public invitation page payload (cached per slug and locale)",
@@ -1282,6 +1432,14 @@
         ],
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "private, no-store"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -1307,7 +1465,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationLifecycleDto"
+                }
+              }
+            }
           }
         },
         "summary": "Make the invitation live",
@@ -1318,7 +1483,7 @@
     },
     "/api/v1/invitations/{slug}/close": {
       "post": {
-        "description": "The page stays readable to guests; only new RSVPs are refused.",
+        "description": "The page stays readable until expiry; new RSVPs are refused.",
         "operationId": "InvitationLifecycleController_close",
         "parameters": [
           {
@@ -1332,7 +1497,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationLifecycleDto"
+                }
+              }
+            }
           }
         },
         "summary": "Stop accepting responses",
@@ -1356,7 +1528,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationLifecycleDto"
+                }
+              }
+            }
           }
         },
         "summary": "Accept responses again after closing",
@@ -1367,7 +1546,7 @@
     },
     "/api/v1/invitations/{slug}/send": {
       "post": {
-        "description": "Safe to press twice: a guest is only invited once per invitation. Refused while the invitation is a draft, because the link would 404.",
+        "description": "Safe to press twice: a guest is only invited once per invitation. Refused for draft or expired invitations, because the link would 404.",
         "operationId": "InvitationLifecycleController_send",
         "parameters": [
           {
@@ -1685,6 +1864,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1706,6 +1893,14 @@
             "name": "eventId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -2372,6 +2567,122 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/ticket-orders/{orderId}": {
+      "get": {
+        "operationId": "TicketAttendeesController_findOrder",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Review named attendees and ticket links; contacts/codes require contact permission",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/tickets/{ticketId}/attendee": {
+      "post": {
+        "operationId": "TicketAttendeesController_register",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterTicketAttendeeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register an explicitly supplied attendee for an unlinked legacy ticket",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/tickets/{ticketId}/link-guest": {
+      "post": {
+        "operationId": "TicketAttendeesController_link",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkTicketGuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Explicitly link an existing invited guest, preserving their answers",
+        "tags": [
+          "ticketing"
+        ]
+      }
+    },
     "/api/v1/promo-codes": {
       "get": {
         "operationId": "PromoCodesController_list",
@@ -2706,6 +3017,109 @@
         ]
       }
     },
+    "/api/v1/communications/email-feedback": {
+      "post": {
+        "description": "Requires an HMAC signature of timestamp + dot + raw request bytes. Native provider payloads are not accepted.",
+        "operationId": "EmailFeedbackController_receive",
+        "parameters": [
+          {
+            "name": "x-aveline-feedback-signature",
+            "in": "header",
+            "description": "Hex HMAC-SHA256 over timestamp + dot + exact raw request bytes",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-aveline-feedback-timestamp",
+            "in": "header",
+            "description": "Unix timestamp in seconds, within five minutes of server time",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailFeedbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "summary": "Accept normalized email delivery feedback from a trusted signed adapter",
+        "tags": [
+          "communications"
+        ]
+      }
+    },
+    "/api/v1/communications/whatsapp-webhook": {
+      "get": {
+        "operationId": "WhatsAppWebhookController_verify",
+        "parameters": [
+          {
+            "name": "hub.challenge",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "hub.verify_token",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "hub.mode",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Verify Meta webhook subscription with a configured token",
+        "tags": [
+          "communications"
+        ]
+      },
+      "post": {
+        "description": "No user session; requires a valid Meta raw-byte signature. Batches up to 1000 statuses / 3 MiB. Outcomes reconcile asynchronously.",
+        "operationId": "WhatsAppWebhookController_receive",
+        "parameters": [
+          {
+            "name": "X-Hub-Signature-256",
+            "in": "header",
+            "description": "sha256= followed by HMAC-SHA256 of exact request bytes using the Meta app secret",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Durably accept scoped Meta WhatsApp message status receipts",
+        "tags": [
+          "communications"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/media": {
       "post": {
         "description": "Assets are scoped to an event, so deleting the event reclaims its storage and no asset is reachable from an unrelated invitation.",
@@ -2736,10 +3150,8 @@
                     "enum": [
                       "PHOTO",
                       "COVER",
-                      "SIGNATURE",
                       "LOGO",
-                      "AUDIO",
-                      "DOCUMENT"
+                      "AUDIO"
                     ]
                   }
                 }
@@ -2854,6 +3266,744 @@
         ]
       }
     },
+    "/api/v1/privacy/requests/{requestId}/guest-media/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionPrivacyController_read",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Download an original private subject file for a verified export request",
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements": {
+      "get": {
+        "operationId": "ContributionsController_listAcknowledgements",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Current statements and this household’s acknowledgement history",
+        "tags": [
+          "guest-contributions"
+        ]
+      },
+      "post": {
+        "operationId": "ContributionsController_sign",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignAcknowledgementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Acknowledge a versioned statement for explicitly selected household members",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/signature-uploads": {
+      "post": {
+        "operationId": "ContributionsController_uploadSignature",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Stage a private drawn signature for background validation",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/signature-uploads/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionsController_signatureFile",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Preview your processed signature; credentials required",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/signature-uploads/{mediaId}": {
+      "delete": {
+        "operationId": "ContributionsController_removeSignature",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove your unclaimed signature upload",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements/{acknowledgementId}/file": {
+      "get": {
+        "operationId": "ContributionsController_acknowledgementFile",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acknowledgementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a drawn acknowledgement visible to this guest’s household",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/gallery": {
+      "get": {
+        "operationId": "ContributionsController_gallery",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Approved gallery photos plus your own pending uploads; private paginated view",
+        "tags": [
+          "guest-contributions"
+        ]
+      },
+      "post": {
+        "operationId": "ContributionsController_uploadGallery",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Upload a private gallery photo requiring host approval after processing",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/gallery/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionsController_galleryFile",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variant",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "display",
+                "thumbnail"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read an authorized processed gallery variant; originals are never served",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/gallery/{mediaId}": {
+      "delete": {
+        "operationId": "ContributionsController_removeGallery",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove your own gallery photo, including after approval",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/acknowledgements": {
+      "get": {
+        "operationId": "ContributionsHostController_acknowledgementsList",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Private acknowledgement records, including actual signer and represented subject",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/acknowledgements/{acknowledgementId}/file": {
+      "get": {
+        "operationId": "ContributionsHostController_acknowledgementFile",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acknowledgementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a private drawn acknowledgement image",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/gallery": {
+      "get": {
+        "operationId": "ContributionsHostController_gallery",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "in": "query",
+            "description": "Last returned item id, bound to this event and visible collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Gallery processing and moderation queue for this event",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/gallery/{mediaId}": {
+      "patch": {
+        "operationId": "ContributionsHostController_moderate",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerateGalleryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Approve or reject a processed gallery photo",
+        "tags": [
+          "guest-contributions"
+        ]
+      },
+      "delete": {
+        "operationId": "ContributionsHostController_remove",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a gallery photo and queue its private files for cleanup",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/gallery/{mediaId}/file": {
+      "get": {
+        "operationId": "ContributionsHostController_galleryFile",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variant",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "display",
+                "thumbnail"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a processed gallery photo for moderation",
+        "tags": [
+          "guest-contributions"
+        ]
+      }
+    },
     "/api/v1/devices": {
       "post": {
         "description": "Idempotent by token — re-registering updates rather than duplicating.",
@@ -2905,6 +4055,30 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/seating/arrangements": {
+      "get": {
+        "operationId": "SeatingController_listArrangements",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Seating arrangements by venue, including the unspecified legacy plan",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/tables": {
       "get": {
         "operationId": "SeatingController_listTables",
@@ -2913,6 +4087,15 @@
             "name": "eventId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "arrangementId",
+            "required": false,
+            "in": "query",
+            "description": "Arrangement returned by GET seating/arrangements; required when ambiguous",
             "schema": {
               "type": "string"
             }
@@ -3123,6 +4306,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "arrangementId",
+            "required": false,
+            "in": "query",
+            "description": "Arrangement returned by GET seating/arrangements; required when ambiguous",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3138,8 +4330,50 @@
     },
     "/api/v1/events/{eventId}/seats/auto-assign": {
       "post": {
-        "description": "Additive: guests already seated keep their places, so running it after a late RSVP fills gaps rather than rearranging a plan already adjusted by hand. Anything it cannot place is returned with a reason.",
         "operationId": "SeatingController_autoAssign",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "arrangementId",
+            "required": false,
+            "in": "query",
+            "description": "Arrangement returned by GET seating/arrangements; required when ambiguous",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSeatingJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Queue additive automatic seating; poll seating/jobs/:jobId for the committed result",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seating/jobs": {
+      "get": {
+        "operationId": "SeatingController_listJobs",
         "parameters": [
           {
             "name": "eventId",
@@ -3151,11 +4385,43 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": ""
           }
         },
-        "summary": "Seat everyone who has accepted, keeping households together",
+        "summary": "Latest 50 automatic seating jobs for this event",
+        "tags": [
+          "seating"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/seating/jobs/{jobId}": {
+      "get": {
+        "operationId": "SeatingController_findJob",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Automatic seating status, revisions and committed result",
         "tags": [
           "seating"
         ]
@@ -3586,6 +4852,79 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/design-templates/{templateKey}/preview": {
+      "get": {
+        "operationId": "TemplatePreviewsController_catalogue",
+        "parameters": [
+          {
+            "name": "templateKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Synthetic template preview payload for the invitation renderer",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/template-preview": {
+      "get": {
+        "operationId": "TemplatePreviewsController_forEvent",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateKey",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to the selected template",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Preview event content with a template without publishing or changing it",
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/v1/invitations/{slug}/design": {
       "get": {
         "description": "Drafts included; every block, switched on or not; every language of every block and question; settings, media, and what still blocks publishing. What an editor loads.",
@@ -3826,6 +5165,40 @@
           }
         },
         "summary": "Add a custom RSVP question",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/question-order": {
+      "patch": {
+        "operationId": "DesignController_reorderQuestions",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderQuestionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Reorder all custom questions atomically; stale expectedOrder returns 409",
         "tags": [
           "design"
         ]
@@ -4361,6 +5734,126 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/export-snapshots": {
+      "get": {
+        "operationId": "ExportSnapshotsController_list",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Latest 50 fixed snapshots; poll individual jobs for readiness",
+        "tags": [
+          "exports"
+        ]
+      },
+      "post": {
+        "operationId": "ExportSnapshotsController_create",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExportSnapshotDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Queue a private fixed snapshot; use a new idempotency key to regenerate",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/export-snapshots/{snapshotId}": {
+      "get": {
+        "operationId": "ExportSnapshotsController_findOne",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "snapshotId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Snapshot state, generation metadata, expiry and download readiness",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/export-snapshots/{snapshotId}/download": {
+      "get": {
+        "operationId": "ExportSnapshotsController_download",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "snapshotId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Download stored snapshot bytes with current event/contact authorization",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
     "/api/v1/privacy/requests": {
       "post": {
         "description": "Always answers the same way, whether or not anything is held — saying \"we hold nothing about you\" is itself information about that address.",
@@ -4885,6 +6378,64 @@
           "role"
         ]
       },
+      "PreviewAttendancePolicyDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "EVENT_WIDE",
+              "PER_VENUE"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "ChangeAttendancePolicyDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "EVENT_WIDE",
+              "PER_VENUE"
+            ]
+          },
+          "expectedRevision": {
+            "type": "number"
+          },
+          "previewToken": {
+            "type": "string",
+            "description": "Fingerprint returned by the preview; stale previews are rejected"
+          },
+          "transitionId": {
+            "type": "string",
+            "description": "Client UUID reused when retrying this transition"
+          }
+        },
+        "required": [
+          "mode",
+          "expectedRevision",
+          "previewToken",
+          "transitionId"
+        ]
+      },
+      "CorrectNameDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "lastName": {
+            "type": "object",
+            "maxLength": 100,
+            "nullable": true
+          }
+        }
+      },
       "AddGuestDto": {
         "type": "object",
         "properties": {
@@ -5026,6 +6577,63 @@
           "blocks"
         ]
       },
+      "InvitationLifecycleDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "CLOSED"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "firstPublishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lifetimeDays": {
+            "type": "number",
+            "nullable": true,
+            "description": "Captured duration; null may mean indefinite or uncaptured legacy history."
+          },
+          "lifetimeSource": {
+            "type": "string",
+            "enum": [
+              "FREE_DEFAULT",
+              "PLAN",
+              "LEGACY"
+            ],
+            "nullable": true
+          },
+          "lifetimePlanKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "isExpired": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "status",
+          "expiresAt",
+          "firstPublishedAt",
+          "lifetimeDays",
+          "lifetimeSource",
+          "lifetimePlanKey",
+          "isExpired"
+        ]
+      },
       "SendInvitationDto": {
         "type": "object",
         "properties": {
@@ -5047,6 +6655,26 @@
           }
         }
       },
+      "VenueAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "venueId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ]
+          }
+        },
+        "required": [
+          "venueId",
+          "status"
+        ]
+      },
       "CustomAnswerDto": {
         "type": "object",
         "properties": {
@@ -5055,7 +6683,7 @@
           },
           "value": {
             "type": "object",
-            "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions."
+            "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions. SIGNATURE: statementVersionId, method TYPED/DRAWN, signerName, isAcknowledged true, locale, optional isRepresentative and assetId."
           }
         },
         "required": [
@@ -5066,17 +6694,24 @@
       "MemberAnswerDto": {
         "type": "object",
         "properties": {
-          "guestId": {
-            "type": "string",
-            "description": "A guest in the same household"
-          },
           "status": {
             "type": "string",
             "enum": [
               "ATTENDING",
               "DECLINED",
               "UNDECIDED"
-            ]
+            ],
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "guestId": {
+            "type": "string",
+            "description": "A guest in the same household"
           },
           "dietary": {
             "type": "array",
@@ -5096,19 +6731,12 @@
           }
         },
         "required": [
-          "guestId",
-          "status"
+          "guestId"
         ]
       },
       "PartyMemberDto": {
         "type": "object",
         "properties": {
-          "firstName": {
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          },
           "status": {
             "type": "string",
             "enum": [
@@ -5116,7 +6744,19 @@
               "DECLINED",
               "UNDECIDED"
             ],
-            "description": "Their answer; the respondent's if omitted"
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
           },
           "dietary": {
             "type": "array",
@@ -5148,7 +6788,18 @@
               "ATTENDING",
               "DECLINED",
               "UNDECIDED"
-            ]
+            ],
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "attendanceRevision": {
+            "type": "number",
+            "description": "The current revision shown by the guest/host form. Mandatory after any policy change"
           },
           "attribution": {
             "type": "string",
@@ -5201,10 +6852,7 @@
               "$ref": "#/components/schemas/CustomAnswerDto"
             }
           }
-        },
-        "required": [
-          "status"
-        ]
+        }
       },
       "HostRsvpDto": {
         "type": "object",
@@ -5215,7 +6863,18 @@
               "ATTENDING",
               "DECLINED",
               "UNDECIDED"
-            ]
+            ],
+            "description": "Required in event-wide mode; omit in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "attendanceRevision": {
+            "type": "number",
+            "description": "The current revision shown by the guest/host form. Mandatory after any policy change"
           },
           "dietary": {
             "type": "array",
@@ -5246,10 +6905,7 @@
             "default": false,
             "description": "Send the guest the usual confirmation. Off by default: they told you themselves."
           }
-        },
-        "required": [
-          "status"
-        ]
+        }
       },
       "RefundPaymentDto": {
         "type": "object",
@@ -5265,6 +6921,71 @@
         },
         "required": [
           "amountMinor"
+        ]
+      },
+      "OrderAttendeeDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ],
+            "description": "Defaults to ATTENDING in event-wide mode; omit and supply venueAttendance in per-venue mode"
+          },
+          "venueAttendance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueAttendanceDto"
+            }
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "dietary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dietaryNotes": {
+            "type": "string"
+          },
+          "answers": {
+            "description": "Their own answers to the host's questions",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomAnswerDto"
+            }
+          },
+          "ticketTypeId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "householdKey": {
+            "type": "string",
+            "description": "Explicit household grouping within this order only; omit to keep people separate"
+          },
+          "drinkPreference": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "firstName",
+          "ticketTypeId"
         ]
       },
       "OrderLineDto": {
@@ -5287,6 +7008,16 @@
       "CreateOrderDto": {
         "type": "object",
         "properties": {
+          "attendees": {
+            "description": "Exactly one named person per requested ticket",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderAttendeeDto"
+            }
+          },
+          "attendanceRevision": {
+            "type": "number"
+          },
           "promoCode": {
             "type": "string",
             "description": "A promo code to redeem, case-insensitive"
@@ -5329,6 +7060,7 @@
           }
         },
         "required": [
+          "attendees",
           "items",
           "buyerName",
           "buyerEmail",
@@ -5440,6 +7172,16 @@
       "UpsertListingDto": {
         "type": "object",
         "properties": {
+          "heroAssetId": {
+            "type": "object",
+            "description": "Same-event PHOTO, COVER or LOGO; null clears the listing hero",
+            "nullable": true
+          },
+          "ogImageId": {
+            "type": "object",
+            "description": "Same-event image for sharing; null falls back to the hero",
+            "nullable": true
+          },
           "slug": {
             "type": "string",
             "description": "Public URL segment. Generated from the headline if omitted."
@@ -5473,6 +7215,45 @@
             "description": "Allow search engines to index it. Off by default."
           }
         }
+      },
+      "RegisterTicketAttendeeDto": {
+        "type": "object",
+        "properties": {
+          "attendee": {
+            "$ref": "#/components/schemas/OrderAttendeeDto"
+          },
+          "attendanceRevision": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "attendee"
+        ]
+      },
+      "LinkTicketGuestDto": {
+        "type": "object",
+        "properties": {
+          "guestId": {
+            "type": "string"
+          },
+          "expectedGuestId": {
+            "type": "string",
+            "nullable": true,
+            "description": "The guest currently linked to this ticket, or null for a legacy unlinked ticket"
+          },
+          "keepExistingAnswers": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Explicitly preserve the invited guest’s answers; checkout answers remain archived"
+          }
+        },
+        "required": [
+          "guestId",
+          "expectedGuestId",
+          "keepExistingAnswers"
+        ]
       },
       "CreatePromoCodeDto": {
         "type": "object",
@@ -5562,6 +7343,38 @@
           "planKey"
         ]
       },
+      "EmailFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "receiptKey": {
+            "type": "string",
+            "description": "Unique, opaque receipt key from the trusted adapter; not an address or token"
+          },
+          "messageId": {
+            "type": "string",
+            "description": "Internal outbound Message id from X-Aveline-Message-Id"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "DELIVERED",
+              "HARD_BOUNCE",
+              "SOFT_BOUNCE",
+              "COMPLAINT"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "description": "When the delivery event occurred, in ISO 8601 UTC"
+          }
+        },
+        "required": [
+          "receiptKey",
+          "messageId",
+          "outcome",
+          "occurredAt"
+        ]
+      },
       "UpdateMediaDto": {
         "type": "object",
         "properties": {
@@ -5576,6 +7389,72 @@
         },
         "required": [
           "altText"
+        ]
+      },
+      "Object": {
+        "type": "object",
+        "properties": {}
+      },
+      "SignAcknowledgementDto": {
+        "type": "object",
+        "properties": {
+          "statementVersionId": {
+            "type": "string"
+          },
+          "subjectGuestIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "TYPED",
+              "DRAWN"
+            ]
+          },
+          "signerName": {
+            "type": "string"
+          },
+          "isAcknowledged": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "isRepresentative": {
+            "type": "boolean"
+          },
+          "assetId": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statementVersionId",
+          "subjectGuestIds",
+          "method",
+          "signerName",
+          "isAcknowledged",
+          "locale"
+        ]
+      },
+      "ModerateGalleryDto": {
+        "type": "object",
+        "properties": {
+          "moderationStatus": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ]
+          }
+        },
+        "required": [
+          "moderationStatus"
         ]
       },
       "RegisterDeviceDto": {
@@ -5717,6 +7596,18 @@
         "required": [
           "guestId",
           "tableId"
+        ]
+      },
+      "CreateSeatingJobDto": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "description": "UUID v4; reuse only to retry this exact request"
+          }
+        },
+        "required": [
+          "idempotencyKey"
         ]
       },
       "CreateVendorDto": {
@@ -5992,6 +7883,29 @@
           }
         }
       },
+      "ReorderQuestionsDto": {
+        "type": "object",
+        "properties": {
+          "questionIds": {
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedOrder": {
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "questionIds",
+          "expectedOrder"
+        ]
+      },
       "UpsertQuestionDto": {
         "type": "object",
         "properties": {
@@ -6240,6 +8154,11 @@
       "CreateVenueProfileDto": {
         "type": "object",
         "properties": {
+          "vendorId": {
+            "type": "object",
+            "description": "Active curated VENUE vendor operating this hall; null removes the link",
+            "nullable": true
+          },
           "name": {
             "type": "string"
           },
@@ -6276,6 +8195,11 @@
       "UpdateVenueProfileDto": {
         "type": "object",
         "properties": {
+          "vendorId": {
+            "type": "object",
+            "description": "Active curated VENUE vendor operating this hall; null removes the link",
+            "nullable": true
+          },
           "name": {
             "type": "string"
           },
@@ -6338,6 +8262,54 @@
           "kind"
         ]
       },
+      "CreateExportSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "GUEST_LIST",
+              "SEATING_CHART",
+              "PLACE_CARDS",
+              "CATERING_SHEET",
+              "BAR_SHEET",
+              "PLAYLIST",
+              "TICKET_MANIFEST"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "New UUID for each regeneration; reuse only to retry the same request."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "CSV",
+              "XLSX"
+            ],
+            "default": "CSV"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ru",
+              "fr",
+              "hy"
+            ],
+            "description": "Defaults to the event language; snapshot headings, document labels and standard status values use this language."
+          },
+          "includesContacts": {
+            "type": "boolean",
+            "description": "Defaults to current contact permission. False requests a redacted artifact."
+          }
+        },
+        "required": [
+          "kind",
+          "idempotencyKey"
+        ]
+      },
       "CreateDataSubjectRequestDto": {
         "type": "object",
         "properties": {
@@ -6384,6 +8356,214 @@
       "SuppressDto": {
         "type": "object",
         "properties": {}
+      },
+      "FieldFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "nullable": true,
+            "description": "DTO field path when identifiable; otherwise null."
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable validation classification, such as INVALID_EMAIL or REQUIRED_FIELD."
+          },
+          "userMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "code",
+          "userMessage"
+        ]
+      },
+      "JobRecoveryDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "SEATING_VENUE_CAPACITY",
+              "SEATING_FAMILY_TABLE_FULL",
+              "SEATING_NO_TABLES",
+              "SEATING_TABLES_FULL",
+              "SEATING_NO_TABLE_FITS",
+              "SEATING_UNAVAILABLE",
+              "VALIDATION_FAILED",
+              "INVALID_FIELD",
+              "INVALID_STRING",
+              "INVALID_EMAIL",
+              "INVALID_NUMBER",
+              "INVALID_CHOICE",
+              "INVALID_LENGTH",
+              "REQUIRED_FIELD",
+              "SIGN_IN_REQUIRED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "CONFLICT",
+              "ATTENDANCE_CHANGED",
+              "EXPIRED",
+              "UPLOAD_TOO_LARGE",
+              "RATE_LIMITED",
+              "SERVICE_UNAVAILABLE",
+              "INTERNAL_ERROR",
+              "STATE_CHANGED",
+              "REGENERATE",
+              "INVALID_IMAGE",
+              "JOB_LIMIT",
+              "JOB_FAILED"
+            ]
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ru",
+              "fr",
+              "hy"
+            ]
+          },
+          "userMessage": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "EDIT",
+              "SIGN_IN",
+              "REQUEST_ACCESS",
+              "CONTACT_HOST",
+              "RELOAD",
+              "REGENERATE",
+              "WAIT",
+              "REUPLOAD",
+              "CONTACT_SUPPORT",
+              "RETRY"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "locale",
+          "userMessage",
+          "action"
+        ]
+      },
+      "HttpErrorDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "SEATING_VENUE_CAPACITY",
+              "SEATING_FAMILY_TABLE_FULL",
+              "SEATING_NO_TABLES",
+              "SEATING_TABLES_FULL",
+              "SEATING_NO_TABLE_FITS",
+              "SEATING_UNAVAILABLE",
+              "VALIDATION_FAILED",
+              "INVALID_FIELD",
+              "INVALID_STRING",
+              "INVALID_EMAIL",
+              "INVALID_NUMBER",
+              "INVALID_CHOICE",
+              "INVALID_LENGTH",
+              "REQUIRED_FIELD",
+              "SIGN_IN_REQUIRED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "CONFLICT",
+              "ATTENDANCE_CHANGED",
+              "EXPIRED",
+              "UPLOAD_TOO_LARGE",
+              "RATE_LIMITED",
+              "SERVICE_UNAVAILABLE",
+              "INTERNAL_ERROR",
+              "STATE_CHANGED",
+              "REGENERATE",
+              "INVALID_IMAGE",
+              "JOB_LIMIT",
+              "JOB_FAILED"
+            ]
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ru",
+              "fr",
+              "hy"
+            ]
+          },
+          "userMessage": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "EDIT",
+              "SIGN_IN",
+              "REQUEST_ACCESS",
+              "CONTACT_HOST",
+              "RELOAD",
+              "REGENERATE",
+              "WAIT",
+              "REUPLOAD",
+              "CONTACT_SUPPORT",
+              "RETRY"
+            ]
+          },
+          "statusCode": {
+            "type": "number"
+          },
+          "message": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "details": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldFeedbackDto"
+            }
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "code",
+          "locale",
+          "userMessage",
+          "action",
+          "statusCode",
+          "message",
+          "details",
+          "path",
+          "at"
+        ]
       }
     }
   }

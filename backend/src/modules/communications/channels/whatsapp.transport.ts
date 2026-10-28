@@ -1,13 +1,14 @@
-import { Logger } from '@nestjs/common';
+import { classifyWhatsAppCode } from '../whatsapp/whatsapp-outcome';
 import { MessageChannel } from '@prisma/client';
 import { DeliveryResult, MessageTransport, OutboundMessage } from './message-channel';
 
 export interface WhatsAppSettings {
   /** The WhatsApp Business phone number id from Meta, not the number itself. */
   phoneNumberId: string;
+  accountId: string;
   accessToken: string;
   apiBaseUrl?: string;
-  apiVersion?: string;
+  apiVersion: string;
 }
 
 interface WhatsAppReply {
@@ -15,27 +16,10 @@ interface WhatsAppReply {
   error?: { message?: string; code?: number; type?: string };
 }
 
-/**
- * WhatsApp, over Meta's Cloud API.
- *
- * Two things make this unlike email and Telegram:
- *
- * 1. **It can reach someone cold** — which is why it exists here at all, since
- *    Telegram cannot and email ends up in spam from a new domain.
- * 2. **It refuses free text.** A business-initiated message must be a template
- *    registered with Meta in advance, identified by name, with its variables
- *    supplied as positional parameters. So the rendered body we store and show
- *    the host is not what travels: the template name and its parameters are.
- *    A message with no `template` is a configuration mistake and fails loudly
- *    rather than being sent as text Meta will reject.
- *
- * Every delivered template is billed, which is why `channel-preference.ts`
- * ranks it below a channel the guest opted into.
- */
+/** Sends business-initiated, approved templates; guest consent is a setup gate. */
 export class WhatsAppTransport implements MessageTransport {
   readonly channel = MessageChannel.WHATSAPP;
 
-  private readonly logger = new Logger(WhatsAppTransport.name);
   private readonly endpoint: string;
 
   constructor(
@@ -43,7 +27,7 @@ export class WhatsAppTransport implements MessageTransport {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {
     const base = settings.apiBaseUrl ?? 'https://graph.facebook.com';
-    const version = settings.apiVersion ?? 'v21.0';
+    const version = settings.apiVersion;
     this.endpoint = `${base}/${version}/${settings.phoneNumberId}/messages`;
   }
 
@@ -89,11 +73,8 @@ export class WhatsAppTransport implements MessageTransport {
     if (reply.error || !response.ok) throw whatsAppError(reply, response.status);
 
     const providerRef = reply.messages?.[0]?.id;
-    this.logger.log(`whatsapp → ${message.toAddress} (${providerRef ?? '?'})`);
-
-    // Accepted, not delivered. Meta reports delivery and read receipts later,
-    // through a webhook we do not consume yet.
-    return { providerRef, isDelivered: false };
+    if (typeof providerRef !== 'string' || !providerRef || providerRef.length > 512) throw Object.assign(new Error('WhatsApp acceptance omitted its message reference'), { code: 'ECONFIG' });
+    return { providerRef, providerAccountId: this.settings.accountId, providerSenderId: this.settings.phoneNumberId, isDelivered: false };
   }
 }
 
@@ -107,59 +88,16 @@ export function toE164(address: string): string {
   return address.replace(/[^\d]/g, '');
 }
 
-/**
- * Maps a Cloud API error onto the SMTP-shaped range the dispatcher's
- * classifier already understands, so one classifier serves every channel.
- *
- * The distinction worth getting right: 131026 means the number is not on
- * WhatsApp, which no amount of retrying changes and which should suppress
- * that address. 131048 is a per-number throughput limit — temporary, and
- * suppressing on it would lose a guest over our own rate.
- */
+/** Provider descriptions may contain contacts; persist/log only normalized codes. */
 function whatsAppError(reply: WhatsAppReply, httpStatus: number): Error {
-  const code = reply.error?.code ?? httpStatus;
-  const description = reply.error?.message ?? 'WhatsApp rejected the message';
-
-  if (AUTHENTICATION_CODES.has(code)) {
-    return Object.assign(new Error(description), { code: 'EAUTH', response: `${code} ${description}` });
-  }
-  // A template problem is ours to fix. Read as the guest's bounce, it put
-  // their number on the platform-wide suppression list, where no host can
-  // lift it.
-  if (TEMPLATE_CODES.has(code)) {
-    return Object.assign(new Error(description), { code: 'ECONFIG', response: `${code} ${description}` });
-  }
-
-  return Object.assign(new Error(description), {
-    responseCode: UNDELIVERABLE_CODES.has(code) ? 550 : 451,
-    response: `${code} ${description}`,
-    whatsAppErrorCode: code,
-  });
+  const providerCode = reply.error?.code;
+  const code = typeof providerCode === 'number' && Number.isSafeInteger(providerCode) && providerCode >= 0 ? providerCode : httpStatus;
+  const description = `WhatsApp rejected the message (${code})`;
+  if ([130403, 131050].includes(code)) return Object.assign(new Error(description), { code: 'EREJECTED' });
+  if (AUTHENTICATION_CODES.has(code)) return Object.assign(new Error(description), { code: 'EAUTH' });
+  if (classifyWhatsAppCode(code) === 'CONFIGURATION') return Object.assign(new Error(description), { code: 'ECONFIG' });
+  // 131026 has several causes. 131049 is ecosystem throttling, not a block.
+  // Neither establishes a permanent refusal suitable for global suppression.
+  return Object.assign(new Error(description), { responseCode: 451, whatsAppErrorCode: code, retryAfterMs: code === 131049 ? 24 * 60 * 60 * 1000 : undefined });
 }
-
-/** Our credentials or our account, never the recipient's problem. */
-const AUTHENTICATION_CODES = new Set([
-  0, // AuthException
-  3, // insufficient permission
-  10, // permission denied
-  190, // access token expired
-  200, // permission error
-]);
-
-/** The recipient cannot receive it, now or ever. */
-const UNDELIVERABLE_CODES = new Set([
-  131026, // message undeliverable — not a WhatsApp user
-  131049, // blocked by the user's privacy settings
-  131051, // unsupported message type for this recipient
-]);
-
-/** Our message template is wrong or unavailable: nothing about the recipient. */
-const TEMPLATE_CODES = new Set([
-  132000, // template parameter count mismatch
-  132001, // template does not exist
-  132005, // translated text too long
-  132007, // template format policy violated
-  132012, // template parameter format mismatch
-  132015, // template is paused for quality reasons
-  132016, // template is disabled
-]);
+const AUTHENTICATION_CODES = new Set([0, 3, 10, 190, 200, 131005]);

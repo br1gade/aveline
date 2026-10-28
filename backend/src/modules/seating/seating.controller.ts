@@ -1,19 +1,30 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
+import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.interceptor';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { RequirePermission } from '../../infra/auth/actor';
-import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto } from './dto/seating.dto';
+import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
+import { AssignSeatDto, CreateTableDto, CreateTablesDto, UpdateTableDto, SeatingSelectionDto } from './dto/seating.dto';
+import { SeatingJobsService } from './jobs/seating-jobs.service';
+import { CreateSeatingJobDto } from './dto/seating-job.dto';
 import { SeatingService } from './seating.service';
 
 @ApiTags('seating')
+@UseInterceptors(JobRecoveryInterceptor)
 @Controller('events/:eventId')
 export class SeatingController {
-  constructor(private readonly seating: SeatingService) {}
+  constructor(private readonly seating: SeatingService, private readonly jobs: SeatingJobsService) {}
+
+  @RequirePermission('seating:read')
+  @Get('seating/arrangements')
+  @ApiOperation({ summary: 'Seating arrangements by venue, including the unspecified legacy plan' })
+  listArrangements(@Param('eventId') eventId: string) {
+    return this.seating.listArrangements(eventId);
+  }
 
   @RequirePermission('seating:read')
   @Get('tables')
   @ApiOperation({ summary: 'Tables with who is seated at each' })
-  listTables(@Param('eventId') eventId: string) {
-    return this.seating.listTables(eventId);
+  listTables(@Param('eventId') eventId: string, @Query() selection: SeatingSelectionDto) {
+    return this.seating.listTables(eventId, selection.arrangementId);
   }
 
   @RequirePermission('seating:write')
@@ -63,22 +74,27 @@ export class SeatingController {
   @RequirePermission('seating:write')
   @Delete('seats/:guestId')
   @ApiOperation({ summary: 'Unseat a guest' })
-  unassign(@Param('eventId') eventId: string, @Param('guestId') guestId: string) {
-    return this.seating.unassign(eventId, guestId);
+  unassign(@Param('eventId') eventId: string, @Param('guestId') guestId: string, @Query() selection: SeatingSelectionDto) {
+    return this.seating.unassign(eventId, guestId, selection.arrangementId);
   }
 
   @RequirePermission('seating:write')
   @Post('seats/auto-assign')
-  @ApiOperation({
-    summary: 'Seat everyone who has accepted, keeping households together',
-    description:
-      'Additive: guests already seated keep their places, so running it after ' +
-      'a late RSVP fills gaps rather than rearranging a plan already adjusted by hand. ' +
-      'Anything it cannot place is returned with a reason.',
-  })
-  autoAssign(@Param('eventId') eventId: string) {
-    return this.seating.autoAssign(eventId);
+  @ApiOperation({ summary: 'Queue additive automatic seating; poll seating/jobs/:jobId for the committed result' })
+  autoAssign(@CurrentActor() actor: RequestActor, @Param('eventId') eventId: string,
+    @Query() selection: SeatingSelectionDto, @Body() dto: CreateSeatingJobDto) {
+    return this.jobs.create(eventId, actor.userId, dto, selection.arrangementId);
   }
+
+  @RequirePermission('seating:read')
+  @Get('seating/jobs')
+  @ApiOperation({ summary: 'Latest 50 automatic seating jobs for this event' })
+  listJobs(@Param('eventId') eventId: string) { return this.jobs.list(eventId); }
+
+  @RequirePermission('seating:read')
+  @Get('seating/jobs/:jobId')
+  @ApiOperation({ summary: 'Automatic seating status, revisions and committed result' })
+  findJob(@Param('eventId') eventId: string, @Param('jobId') jobId: string) { return this.jobs.findOne(eventId, jobId); }
 
   @RequirePermission('seating:write')
   @Post('seating/publish')

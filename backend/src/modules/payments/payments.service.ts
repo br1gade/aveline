@@ -18,6 +18,7 @@ import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { assertTransition, isSettled, nextStatusForRefund } from './payment-status';
 import { BankDeclinedError, ProviderOutcome, ProviderStatus } from './providers/payment-provider';
 import { StartPaymentDto } from './dto/start-payment.dto';
+import { assertChargesEnabled } from './pilot-payments';
 import { isRecordNotFound, isUniqueViolation } from '../../common/prisma-errors';
 
 /** How long a registered-but-unpaid order stays payable before expiry. */
@@ -60,6 +61,7 @@ export class PaymentsService {
    * this is the difference between one charge and two.
    */
   async start(dto: StartPaymentDto) {
+    assertChargesEnabled();
     const existing = await this.prisma.payment.findUnique({
       where: { idempotencyKey: dto.idempotencyKey },
     });

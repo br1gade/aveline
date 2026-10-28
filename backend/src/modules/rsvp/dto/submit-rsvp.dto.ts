@@ -1,3 +1,4 @@
+import { AttendanceAnswerDto, AttendanceSubmissionDto } from './attendance.dto';
 import { Trimmed } from '../../../common/trimmed';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { GuestAttribution, RsvpStatus } from '@prisma/client';
@@ -27,7 +28,8 @@ export class CustomAnswerDto {
   @ApiProperty({
     description:
       'TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position ' +
-      'of the chosen option (0-based). MULTI_CHOICE: a list of positions.',
+      'of the chosen option (0-based). MULTI_CHOICE: a list of positions. SIGNATURE: ' +
+      'statementVersionId, method TYPED/DRAWN, signerName, isAcknowledged true, locale, optional isRepresentative and assetId.',
   })
   @IsDefined()
   value!: unknown;
@@ -36,14 +38,11 @@ export class CustomAnswerDto {
 /** The answers one household member can be given by whoever holds the link. */
 export const MEMBER_STATUSES = [RsvpStatus.ATTENDING, RsvpStatus.DECLINED, RsvpStatus.UNDECIDED] as const;
 
-export class MemberAnswerDto {
+export class MemberAnswerDto extends AttendanceAnswerDto {
   @ApiProperty({ description: 'A guest in the same household' })
   @IsString()
   guestId!: string;
 
-  @ApiProperty({ enum: MEMBER_STATUSES })
-  @IsIn(MEMBER_STATUSES)
-  status!: (typeof MEMBER_STATUSES)[number];
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
@@ -72,7 +71,7 @@ export class MemberAnswerDto {
 }
 
 /** Someone the guest is bringing, named for the first time — with their own answers. */
-export class PartyMemberDto {
+export class PartyMemberDto extends AttendanceAnswerDto {
   @ApiProperty()
   @IsString()
   @Trimmed()
@@ -86,10 +85,10 @@ export class PartyMemberDto {
   @MaxLength(80)
   lastName?: string;
 
-  @ApiPropertyOptional({ enum: MEMBER_STATUSES, description: "Their answer; the respondent's if omitted" })
+  @ApiPropertyOptional({ enum: MEMBER_STATUSES })
   @IsOptional()
   @IsIn(MEMBER_STATUSES)
-  status?: (typeof MEMBER_STATUSES)[number];
+  declare status?: RsvpStatus;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
@@ -114,11 +113,7 @@ export class PartyMemberDto {
   answers?: CustomAnswerDto[];
 }
 
-export class SubmitRsvpDto {
-  // PENDING is "not answered yet", so it is not something an answer can say.
-  @ApiProperty({ enum: MEMBER_STATUSES })
-  @IsIn(MEMBER_STATUSES)
-  status!: (typeof MEMBER_STATUSES)[number];
+export class SubmitRsvpDto extends AttendanceSubmissionDto {
 
   @ApiPropertyOptional({
     enum: GuestAttribution,

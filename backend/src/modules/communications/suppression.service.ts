@@ -129,15 +129,16 @@ export class SuppressionService {
     address: string;
     reason: SuppressionReason;
     notes?: string;
-  }) {
+  }, transaction?: Prisma.TransactionClient) {
+    const database = transaction ?? this.prisma;
     const address = normalizeAddress(input.channel, input.address);
 
     // A later, stronger reason wins: an unsubscribe followed by a complaint
     // must not stay recorded as a mere unsubscribe.
     if (input.organizationId === null) {
-      await this.upsertGlobal(input.channel, address, input.reason, input.notes);
+      await this.upsertGlobal({ ...input, address }, database);
     } else {
-      await this.prisma.suppression.upsert({
+      await database.suppression.upsert({
         where: {
           organizationId_channel_address: {
             organizationId: input.organizationId,
@@ -156,7 +157,7 @@ export class SuppressionService {
       });
     }
 
-    return this.prisma.suppression.findFirstOrThrow({
+    return database.suppression.findFirstOrThrow({
       where: { organizationId: input.organizationId, channel: input.channel, address },
     });
   }
@@ -170,18 +171,19 @@ export class SuppressionService {
    * rows, so two concurrent bounce reports collapse into one instead of racing.
    */
   private async upsertGlobal(
-    channel: MessageChannel,
-    address: string,
-    reason: SuppressionReason,
-    notes?: string,
+    input: { channel: MessageChannel; address: string; reason: SuppressionReason; notes?: string },
+    database: Prisma.TransactionClient | PrismaService,
   ): Promise<void> {
-    await this.prisma.$executeRaw`
+    const { channel, address, reason, notes } = input;
+    const priority: Record<SuppressionReason, number> = { UNSUBSCRIBED: 1, MANUAL: 2, HARD_BOUNCE: 3, COMPLAINT: 4, ERASED: 5 };
+    await database.$executeRaw`
       INSERT INTO "suppressions" ("id", "organizationId", "channel", "address", "reason", "notes", "createdAt")
            VALUES (gen_random_uuid()::text, NULL, ${channel}::"MessageChannel", ${address},
                    ${reason}::"SuppressionReason", ${notes ?? null}, NOW())
       ON CONFLICT ("channel", "address") WHERE "organizationId" IS NULL
         DO UPDATE SET "reason" = ${reason}::"SuppressionReason",
                       "notes" = COALESCE(${notes ?? null}, "suppressions"."notes")
+      WHERE array_position(ARRAY['UNSUBSCRIBED','MANUAL','HARD_BOUNCE','COMPLAINT','ERASED'], "suppressions"."reason"::text) <= ${priority[reason]}
     `;
   }
 

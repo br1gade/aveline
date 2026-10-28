@@ -8,6 +8,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -213,6 +214,9 @@ model Event {
   /// rather we did not.
   remindersEnabled Boolean @default(true)
 
+  attendanceMode     AttendanceMode @default(EVENT_WIDE)
+  attendanceRevision Int            @default(1)
+
   /// When the host let guests see their tables. Null while the plan is still
   /// being worked out: a guest shown a table that later changes walks to the
   /// wrong one (decision D4, 9 October 2026).
@@ -221,30 +225,38 @@ model Event {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  memberships    EventMembership[]
-  invites        EventInvite[]
-  listing        EventListing?
-  ticketTypes    TicketType[]
-  ticketOrders   TicketOrder[]
-  tickets        Ticket[]
-  messages       Message[]
-  guestImports   GuestImport[]
-  promoCodes     PromoCode[]
-  exports        Export[]
-  venues         Venue[]
-  timeline       TimelineEntry[]
-  invitation     Invitation?
-  households     Household[]
-  guests         Guest[]
-  tables         Table[]
-  mediaAssets    MediaAsset[]
-  payments       Payment[]
-  vendorBookings VendorBooking[]
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships         EventMembership[]
+  invites             EventInvite[]
+  listing             EventListing?
+  ticketTypes         TicketType[]
+  ticketOrders        TicketOrder[]
+  tickets             Ticket[]
+  messages            Message[]
+  guestImports        GuestImport[]
+  promoCodes          PromoCode[]
+  exports             Export[]
+  exportSnapshots ExportSnapshot[]
+  venues              Venue[]
+  timeline            TimelineEntry[]
+  invitation          Invitation?
+  households          Household[]
+  guests              Guest[]
+  tables              Table[]
+  attendancePolicies  AttendancePolicy[]
+  seatingArrangements SeatingArrangement[]
+  mediaAssets         MediaAsset[]
+  payments            Payment[]
+  vendorBookings      VendorBooking[]
 
   @@index([organizationId])
   @@index([startsAt])
   @@map("events")
+  seatingJobs SeatingJob[]
+  guestMedia GuestMedia[]
+  acknowledgements GuestAcknowledgement[]
+  guestPageVersion GuestPageVersion?
+
 }
 
 enum EventType {
@@ -294,11 +306,14 @@ model Venue {
   capacity     Int?
   sortOrder    Int       @default(0)
 
-  event    Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  profile  VenueProfile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
-  timeline TimelineEntry[]
-  tables   Table[]
+  event              Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  profile            VenueProfile?       @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  timeline           TimelineEntry[]
+  tables             Table[]
+  attendanceResponses AttendanceResponse[]
+  seatingArrangement SeatingArrangement?
 
+  @@unique([id, eventId])
   @@index([eventId])
   @@map("venues")
 }
@@ -307,7 +322,7 @@ model Venue {
 /// Linked to a Vendor when the venue is also a booked partner (spec §7.3).
 model VenueProfile {
   id        String   @id @default(cuid())
-  vendorId  String?  @unique
+  vendorId  String?
   name      String
   address   String
   city      String?
@@ -324,6 +339,7 @@ model VenueProfile {
   venues Venue[]
 
   @@index([city])
+  @@index([vendorId])
   @@map("venue_profiles")
 }
 
@@ -356,6 +372,12 @@ model TimelineEntry {
 
 // ───────────────────────────── Invitation ──────────────────────────────
 
+enum InvitationLifetimeSource {
+  FREE_DEFAULT
+  PLAN
+  LEGACY
+}
+
 model Invitation {
   id         String           @id @default(cuid())
   eventId    String           @unique
@@ -373,6 +395,11 @@ model Invitation {
   status     InvitationStatus @default(DRAFT)
   /// Invitation stays reachable until this moment; null = indefinitely
   expiresAt  DateTime?
+  firstPublishedAt DateTime?
+  lifetimeDays Int?
+  lifetimeSource InvitationLifetimeSource?
+  lifetimePlanKey String?
+  expiryProcessedAt DateTime?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
@@ -382,6 +409,8 @@ model Invitation {
   questions RsvpQuestion[]
 
   @@index([templateId])
+  @@index([expiresAt, expiryProcessedAt])
+  @@index([lifetimeSource, status])
   @@map("invitations")
 }
 
@@ -510,9 +539,7 @@ model Guest {
   /// headcount, seating and catering totals stay correct.
   anonymizedAt DateTime?
 
-  /// Set when declining freed this guest's seat, so the plan can show the
-  /// gap and why until the host seats someone — or them — again (decided
-  /// 9 October 2026: free the seat, and flag it).
+  /// Legacy release snapshot retained as migration history. Current flags are SeatRelease rows.
   seatReleasedAt          DateTime?
   seatReleasedFromTableId String?
 
@@ -524,12 +551,18 @@ model Guest {
   seatReleasedFromTable Table?         @relation("ReleasedSeats", fields: [seatReleasedFromTableId], references: [id], onDelete: SetNull)
   channels              GuestChannel[]
   rsvp                  Rsvp?
-  seat                  Seat?
+  attendanceResponses   AttendanceResponse[]
+  seats                 Seat[]
+  seatReleases          SeatRelease[]
   checkIn               CheckIn?
   ticket                Ticket?
   messages              Message[]
   deviceTokens          DeviceToken[]
+  guestMedia GuestMedia[]
+  acknowledgementsReceived GuestAcknowledgement[] @relation("AcknowledgementSubject")
+  acknowledgementsSigned GuestAcknowledgement[] @relation("AcknowledgementSigner")
 
+  @@unique([id, eventId])
   @@index([eventId])
   @@index([householdId])
   @@index([seatReleasedFromTableId])
@@ -571,6 +604,52 @@ model Rsvp {
   @@map("rsvps")
 }
 
+enum AttendanceMode {
+  EVENT_WIDE
+  PER_VENUE
+}
+
+/// Each transition keeps its policy and answers available as history.
+model AttendancePolicy {
+  id               String         @id @default(cuid())
+  eventId          String
+  revision         Int
+  mode             AttendanceMode
+  isActive         Boolean        @default(true)
+  transitionId     String?
+  previewToken     String?
+  createdAt        DateTime       @default(now())
+
+  event     Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  responses AttendanceResponse[]
+
+  @@unique([eventId, revision])
+  @@unique([eventId, transitionId])
+  @@map("attendance_policies")
+}
+
+/// scopeId is "event" or the venue ID; the SQL check prevents a mismatched scope.
+model AttendanceResponse {
+  id          String     @id @default(cuid())
+  eventId     String
+  guestId     String
+  revision    Int
+  scopeId     String
+  venueId     String?
+  status      RsvpStatus
+  respondedAt DateTime?
+  updatedAt   DateTime   @updatedAt
+
+  guest  Guest            @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: Cascade)
+  policy AttendancePolicy @relation(fields: [eventId, revision], references: [eventId, revision], onDelete: Cascade)
+  venue  Venue?           @relation(fields: [venueId, eventId], references: [id, eventId], onDelete: NoAction)
+
+  @@unique([guestId, revision, scopeId])
+  @@index([eventId, revision, venueId, status])
+  @@index([venueId])
+  @@map("attendance_responses")
+}
+
 enum RsvpStatus {
   PENDING
   ATTENDING
@@ -589,7 +668,11 @@ model RsvpQuestion {
   options      Json         @default("[]")
   required     Boolean      @default(false)
   sortOrder    Int          @default(0)
+  statementVersionId String? @unique
 
+  currentStatement QuestionStatement? @relation("CurrentStatement", fields: [statementVersionId], references: [id], onDelete: SetNull)
+  statements QuestionStatement[] @relation("QuestionStatements")
+  acknowledgements GuestAcknowledgement[]
   invitation Invitation   @relation(fields: [invitationId], references: [id], onDelete: Cascade)
   answers    RsvpAnswer[]
 
@@ -673,42 +756,90 @@ enum MediaKind {
 
 // ───────────────────────────── Seating ─────────────────────────────────
 
+/// A separately seated venue, or the explicitly unspecified legacy plan.
+model SeatingArrangement {
+  id      String  @id @default(cuid())
+  eventId String
+  venueId String? @unique
+
+  event    Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue    Venue?        @relation(fields: [venueId, eventId], references: [id, eventId], onDelete: NoAction)
+  tables   Table[]
+  releases SeatRelease[]
+  jobs     SeatingJob[]
+  /// Invalidated by every seating/eligibility write, including direct SQL and cascades.
+  revision Int @default(0)
+
+  @@unique([id, eventId])
+  @@unique([venueId, eventId])
+  @@index([eventId])
+  @@map("seating_arrangements")
+}
+
+/// Decline history is kept independently for each arrangement.
+model SeatRelease {
+  id            String   @id @default(cuid())
+  guestId       String
+  eventId       String
+  arrangementId String
+  tableId       String?
+  releasedAt    DateTime
+
+  guest       Guest              @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: Cascade)
+  arrangement SeatingArrangement @relation(fields: [arrangementId, eventId], references: [id, eventId], onDelete: Cascade)
+  table       Table?             @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  @@unique([guestId, arrangementId])
+  @@index([tableId])
+  @@index([arrangementId])
+  @@map("seat_releases")
+}
+
 model Table {
-  id       String  @id @default(cuid())
-  eventId  String
-  /// Which venue this table stands in. Null for a single-venue event.
-  venueId  String?
-  name     String
-  capacity Int
+  id            String  @id @default(cuid())
+  eventId       String
+  /// Null identifies the explicit legacy/unspecified arrangement.
+  venueId       String?
+  /// Filled by the database from event/venue for every write, including bulk imports.
+  arrangementId String  @default(dbgenerated("NULL::text"))
+  name          String
+  capacity      Int
   /// Free-text grouping inside a venue, e.g. "main hall", "terrace".
-  zone     String?
+  zone          String?
   /// Canvas position for the seating editor
-  posX     Float?
-  posY     Float?
-  shape    String  @default("round")
+  posX          Float?
+  posY          Float?
+  shape         String  @default("round")
 
-  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  venue         Venue?  @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  event         Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue         Venue?             @relation(fields: [venueId, eventId], references: [id, eventId], onDelete: NoAction)
+  arrangement   SeatingArrangement @relation(fields: [arrangementId, eventId], references: [id, eventId], onDelete: NoAction)
   seats         Seat[]
-  /// Guests whose decline freed a seat here, until they or the seat are dealt with.
-  releasedSeats Guest[] @relation("ReleasedSeats")
+  /// Historical single-seat release relation; current views read seatReleases.
+  releasedSeats Guest[]            @relation("ReleasedSeats")
+  seatReleases  SeatRelease[]
 
-  @@unique([eventId, name])
+  @@unique([arrangementId, name])
+  @@unique([id, arrangementId, eventId])
   @@index([eventId])
   @@map("tables")
 }
 
 model Seat {
-  id         String   @id @default(cuid())
-  tableId    String
-  guestId    String   @unique
+  id            String   @id @default(cuid())
+  tableId       String
+  guestId       String
+  arrangementId String   @default(dbgenerated("NULL::text"))
+  eventId       String   @default(dbgenerated("NULL::text"))
   /// Place at the table, for place cards and printed plans.
-  position   Int?
-  assignedAt DateTime @default(now())
+  position      Int?
+  assignedAt    DateTime @default(now())
 
-  table Table @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  table Table @relation(fields: [tableId, arrangementId, eventId], references: [id, arrangementId, eventId], onDelete: Cascade)
+  guest Guest @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: Cascade)
 
+  @@unique([guestId, arrangementId])
+  @@index([arrangementId])
   @@unique([tableId, position])
   @@index([tableId])
   @@map("seats")
@@ -742,7 +873,7 @@ model Vendor {
 
   organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bookings     VendorBooking[]
-  venueProfile VenueProfile?
+  venueProfiles VenueProfile[]
 
   @@index([organizationId])
   @@map("vendors")
@@ -987,7 +1118,9 @@ model TicketType {
   event   Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   items   TicketOrderItem[]
   tickets Ticket[]
+  attendees OrderAttendee[]
 
+  @@unique([id, eventId])
   @@index([eventId, isActive])
   @@map("ticket_types")
 }
@@ -1013,6 +1146,8 @@ model TicketOrder {
   reservesUntil      DateTime?
   /// Supplied by the client; makes a double-tapped checkout safe.
   idempotencyKey     String    @unique
+  requestFingerprint String?
+  cancellationStartedAt DateTime?
 
   /// Applied discount, captured so a later code change never rewrites what
   /// a buyer was actually charged.
@@ -1029,7 +1164,9 @@ model TicketOrder {
   promoCode PromoCode?        @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
   items     TicketOrderItem[]
   tickets   Ticket[]
+  attendees OrderAttendee[]
 
+  @@unique([id, eventId])
   @@index([eventId, status])
   /// The reservation sweep scans expiring holds oldest-first.
   @@index([status, reservesUntil])
@@ -1084,16 +1221,56 @@ model Ticket {
   /// Set when a ticket holder is also tracked in the guest graph, which lets
   /// seating and catering treat both populations the same way.
   guestId  String?      @unique
+  attendeeId String?    @unique
 
   event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   order      TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   ticketType TicketType  @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
-  guest      Guest?      @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  guest      Guest?      @relation(fields: [guestId, eventId], references: [id, eventId], onDelete: NoAction)
+  attendee   OrderAttendee? @relation(fields: [attendeeId, eventId], references: [id, eventId], onDelete: NoAction)
 
+  @@unique([guestId, eventId])
+  @@unique([attendeeId, eventId])
   @@index([eventId, status])
   /// Voiding an order's tickets and listing them filter by order.
   @@index([orderId])
   @@map("tickets")
+}
+
+/// Checkout intent belongs to the attendee, independently of the buyer.
+model OrderAttendee {
+  id          String @id @default(cuid())
+  orderId     String
+  eventId     String
+  ticketTypeId String
+  position    Int
+  firstName   String
+  lastName    String?
+  email       String?
+  phone       String?
+  locale      String
+  householdKey String?
+  generatedGuestId String? @unique
+  linkedSourceSnapshot Json?
+  dietary     String[] @default([])
+  dietaryNotes String?
+  drinkPreference String?
+  answers     Json @default("[]")
+  attendanceRevision Int
+  status      RsvpStatus
+  venueAttendance Json @default("[]")
+  erasedAt    DateTime?
+
+  order TicketOrder @relation(fields: [orderId, eventId], references: [id, eventId], onDelete: Cascade)
+  ticketType TicketType @relation(fields: [ticketTypeId, eventId], references: [id, eventId], onDelete: NoAction)
+  ticket Ticket?
+
+  @@unique([id, eventId])
+  @@unique([orderId, position])
+  @@index([ticketTypeId])
+  @@index([email])
+  @@index([eventId])
+  @@map("order_attendees")
 }
 
 enum TicketStatus {
@@ -1144,6 +1321,72 @@ model MessageTemplate {
   @@map("message_templates")
 }
 
+/// Shared SMTP budget. Correct after process or Redis restarts, not a cache.
+model EmailSendQuota {
+  scope        String   @id
+  credits      BigInt
+  refilledAt   DateTime
+  dayStartedAt DateTime
+  usedToday    Int      @default(0)
+
+  @@map("email_send_quotas")
+}
+
+/// Normalized email feedback, without provider payloads or recipient addresses.
+model EmailFeedback {
+  receiptKey  String               @id
+  messageId   String
+  outcome     EmailFeedbackOutcome
+  occurredAt  DateTime
+  receivedAt  DateTime             @default(now())
+  lastCheckedAt DateTime?
+  processedAt DateTime?
+
+  /// Acknowledgement can follow callback; unmatched work is bounded by time.
+  @@index([processedAt, receivedAt])
+  @@index([processedAt, lastCheckedAt, receivedAt])
+  @@map("email_feedback")
+}
+
+enum EmailFeedbackOutcome {
+  DELIVERED
+  HARD_BOUNCE
+  SOFT_BOUNCE
+  COMPLAINT
+}
+
+/// Durable, scoped provider outcomes; never contacts, message bodies or raw payloads.
+model WhatsAppReceipt {
+  receiptKey    String @id
+  accountId     String
+  phoneNumberId String
+  providerRef   String
+  outcome       WhatsAppReceiptOutcome
+  occurredAt    DateTime
+  errorCode     Int?
+  receivedAt    DateTime @default(now())
+  lastCheckedAt DateTime?
+  processedAt   DateTime?
+
+  @@index([processedAt, lastCheckedAt, receivedAt])
+  @@index([processedAt, receivedAt])
+  @@map("whatsapp_receipts")
+}
+
+enum WhatsAppReceiptOutcome {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppDeliveryFailureKind {
+  CONFIGURATION
+  TRANSIENT
+  AMBIGUOUS
+  UNKNOWN
+}
+
 /// One outbound message. Written in the same transaction as the action that
 /// causes it and dispatched afterwards — an outbox — so a send can never be
 /// lost because the process died between committing and calling the provider.
@@ -1191,6 +1434,13 @@ model Message {
   priority      Int           @default(0)
   attempts      Int           @default(0)
   providerRef   String?
+  providerAccountId String?
+  providerSenderId  String?
+  providerStatusAt DateTime?
+  readAt DateTime?
+  deliveryFailedAt DateTime?
+  deliveryErrorCode Int?
+  deliveryFailureKind WhatsAppDeliveryFailureKind?
   failureReason String?
 
   scheduledFor DateTime  @default(now())
@@ -1208,6 +1458,8 @@ model Message {
   event        Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   guest        Guest?        @relation(fields: [guestId], references: [id], onDelete: SetNull)
 
+  // Null scope on historical/other-channel messages intentionally remains unmatched.
+  @@unique([channel, providerAccountId, providerSenderId, providerRef])
   /// The dispatcher claims due work highest priority first, then oldest.
   @@index([status, priority, scheduledFor])
   @@index([threadKey])
@@ -1564,8 +1816,8 @@ model Plan {
   maxLocales             Int      @default(1)
   /// How long a published invitation stays reachable after its event.
   /// Null means indefinitely, which is what a paid tier buys; free tiers
-  /// carry a number and the retention sweep uses it to set
-  /// Invitation.expiresAt. See PRODUCT_SPEC §14.8.
+  /// carry a number captured at first publication to set
+  /// Invitation.expiresAt after event end/start. See PRODUCT_SPEC §14.8.
   invitationLifetimeDays Int?
   /// Capability flags, e.g. ["seating", "vendor-briefs", "check-in"].
   features               String[] @default([])
@@ -1828,4 +2080,254 @@ enum ExportFormat {
   PDF
   CSV
   XLSX
+}
+
+
+/// A fixed private export generated by the dedicated worker. Legacy Export
+/// rows retain their live-download contract during the frontend transition.
+model ExportSnapshot {
+  id String @id @default(cuid())
+  eventId String
+  requestedByUserId String
+  idempotencyKey String
+  kind ExportKind
+  format ExportFormat @default(CSV)
+  locale String
+  includesContacts Boolean
+  status ExportStatus @default(QUEUED)
+  attempts Int @default(0)
+  leaseOwner String?
+  leaseUntil DateTime?
+  nextAttemptAt DateTime @default(now())
+  failureReason String?
+  snapshotAt DateTime?
+  timezone String?
+  attendanceRevision Int?
+  dataRevision String?
+  artifactKey String?
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  artifacts ExportArtifact[]
+  subjects ExportSnapshotSubject[]
+  @@unique([eventId, requestedByUserId, idempotencyKey])
+  @@index([eventId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseUntil])
+  @@map("export_snapshots")
+}
+
+/// Write-ahead object ledger. Survives event deletion and failed attempts.
+/// Cleanup tombstones are retained: a delayed stale upload must still be
+/// discoverable and removable, even after an earlier deletion succeeded.
+model ExportArtifact {
+  key String @id
+  snapshotId String?
+  cleanupAfter DateTime
+  isRetired Boolean @default(false)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  snapshot ExportSnapshot? @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+  @@index([cleanupAfter])
+  @@index([snapshotId])
+  @@map("export_artifacts")
+}
+
+/// Pseudonymous lookup catches old snapshots after a contact address changes.
+model ExportSnapshotSubject {
+  snapshotId String
+  fingerprint String
+  snapshot ExportSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  @@id([snapshotId, fingerprint])
+  @@index([fingerprint])
+  @@map("export_snapshot_subjects")
+}
+
+/// Serializes erasure against consistent capture and guarded publication.
+model ExportPrivacyFence {
+  id String @id
+  revision Int @default(0)
+  @@map("export_privacy_fences")
+}
+
+
+enum SeatingJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// Durable automatic seating. Application and completion commit together.
+model SeatingJob {
+  id String @id @default(cuid())
+  eventId String
+  arrangementId String
+  requestedByUserId String
+  idempotencyKey String
+  status SeatingJobStatus @default(QUEUED)
+  attempts Int @default(0)
+  leaseOwner String?
+  leaseUntil DateTime?
+  nextAttemptAt DateTime @default(now())
+  failureReason String?
+  snapshotAt DateTime?
+  attendanceRevision Int?
+  arrangementRevision Int?
+  appliedRevision Int?
+  result Json?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  arrangement SeatingArrangement @relation(fields: [arrangementId, eventId], references: [id, eventId], onDelete: Cascade)
+  @@unique([eventId, requestedByUserId, idempotencyKey])
+  @@index([eventId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseUntil])
+  @@index([arrangementId])
+  @@map("seating_jobs")
+}
+
+
+/// Immutable wording. Translation edits also create a new version.
+model QuestionStatement {
+  id String @id @default(cuid())
+  questionId String
+  revision Int
+  prompt Json
+  createdAt DateTime @default(now())
+  question RsvpQuestion @relation("QuestionStatements", fields: [questionId], references: [id], onDelete: Cascade)
+  currentFor RsvpQuestion? @relation("CurrentStatement")
+  acknowledgements GuestAcknowledgement[]
+  @@unique([questionId, revision])
+  @@map("question_statements")
+}
+
+enum AcknowledgementMethod {
+  TYPED
+  DRAWN
+}
+
+model GuestAcknowledgement {
+  id String @id @default(uuid())
+  dedupeKey String @unique
+  eventId String
+  questionId String
+  statementVersionId String
+  subjectGuestId String
+  signerGuestId String
+  signerName String
+  method AcknowledgementMethod
+  isRepresentative Boolean @default(false)
+  locale String
+  statement String
+  mediaId String?
+  createdAt DateTime @default(now())
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  question RsvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  version QuestionStatement @relation(fields: [statementVersionId], references: [id], onDelete: Cascade)
+  subject Guest @relation("AcknowledgementSubject", fields: [subjectGuestId], references: [id], onDelete: Cascade)
+  signer Guest @relation("AcknowledgementSigner", fields: [signerGuestId], references: [id], onDelete: Cascade)
+  media GuestMedia? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  @@index([eventId, createdAt, id])
+  @@index([subjectGuestId, statementVersionId])
+  @@index([signerGuestId])
+  @@index([questionId])
+  @@index([statementVersionId])
+  @@index([mediaId])
+  @@map("guest_acknowledgements")
+}
+
+enum GuestMediaKind {
+  SIGNATURE
+  GALLERY
+}
+
+enum GuestMediaStatus {
+  STAGING
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+  REMOVED
+}
+
+enum GalleryModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A private file ledger survives event/guest deletion to reclaim late writes.
+model GuestMedia {
+  id String @id @default(uuid())
+  eventId String?
+  uploaderGuestId String?
+  kind GuestMediaKind
+  processingStatus GuestMediaStatus @default(STAGING)
+  moderationStatus GalleryModerationStatus @default(PENDING)
+  sourceKey String @unique
+  displayKey String? @unique
+  thumbnailKey String? @unique
+  mimeType String
+  sourceBytes Int
+  storedBytes Int
+  reservedBytes Int
+  width Int?
+  height Int?
+  caption String?
+  attempts Int @default(0)
+  claimToken String?
+  leaseUntil DateTime?
+  failureReason String?
+  moderatedBy String?
+  moderatedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  removedAt DateTime?
+  clearedAt DateTime?
+  cleanupAfter DateTime @default(now())
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  uploader Guest? @relation(fields: [uploaderGuestId], references: [id], onDelete: SetNull)
+  acknowledgements GuestAcknowledgement[]
+  @@index([eventId, kind, processingStatus, createdAt, id])
+  @@index([uploaderGuestId, kind, createdAt])
+  @@index([processingStatus, leaseUntil, createdAt])
+  @@index([cleanupAfter])
+  @@map("guest_media")
+}
+
+// Writers append one change per event/transaction, avoiding lock upgrades on
+// event rows and lock inversions with seating jobs. Compaction preserves totals.
+model GuestPageVersion {
+  eventId String @id
+  revision BigInt @default(0)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@map("guest_page_versions")
+}
+model GuestPageChange {
+  eventId String
+  transactionId BigInt
+  @@id([eventId, transactionId])
+  @@map("guest_page_changes")
+}
+
+/// Independent payload counters: an RSVP invalidates its household, not every
+/// guest's shared invitation. No parent FKs; maintenance reclaims orphan scopes.
+model GuestPayloadVersion {
+  eventId String
+  scope String
+  revision BigInt @default(0)
+  @@id([eventId, scope])
+  @@map("guest_payload_versions")
+}
+
+model GuestPayloadChange {
+  eventId String
+  scope String
+  transactionId BigInt
+  @@id([eventId, scope, transactionId])
+  @@map("guest_payload_changes")
 }

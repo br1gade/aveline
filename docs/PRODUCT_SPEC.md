@@ -81,7 +81,7 @@ The critical property: **data flows one way and is never re-entered.** A venue a
 ## 4. Domain model
 
 The entities below are the ones the product argument rests on. The complete
-inventory — 47 models, what each is for, and the invariants the database
+inventory — 65 models, what each is for, and the invariants the database
 enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 
 | Entity | Purpose |
@@ -95,7 +95,8 @@ enforces — is in [DATA_MODEL.md](../backend/docs/DATA_MODEL.md).
 | **Household** | The unit invitations and seating operate on |
 | **Guest** | A person, reached by capability token |
 | **Rsvp** | The response every operational view is derived from |
-| **Table** · **Seat** | Furniture, and who sits where |
+| **SeatingArrangement** · **Table** · **Seat** | A venue's seating plan, its furniture and one seat per person in that arrangement |
+| **SeatRelease** | Where a decline freed a seat, independently at each venue |
 | **EventListing** | The public face of a public event |
 | **TicketType** · **TicketOrder** · **Ticket** | Capacity, a purchase, an admitted person |
 | **Payment** | A charge, with every transition recorded |
@@ -158,10 +159,26 @@ The RSVP is a configurable questionnaire, not a fixed form. Every question has a
 | Preferred language | single choice | per-guest invitation language |
 | Free message to the hosts | text | guest book |
 
+Guests can correct their own first/last names through their personal link.
+This changes identity display and future operational exports while retaining
+credentials, household membership, attendance and seating. Existing exported
+snapshots retain their captured names. Name correction cannot edit another
+household member or contact fields.
+
 **One link answers for the household.** Whoever opens it answers for every
 named member, each attending or not, in one submission — decided 8 October
 2026, because families split ("we're coming, grandma can't travel") and
 catering and seating count people, not households.
+
+Attendance policy is host-selectable: EVENT_WIDE or PER_VENUE. Everyone is
+invited to each guest-facing venue. A policy change requires a preview and
+explicit confirmation, preserves earlier attendance as history and requests
+fresh answers under the new revision. Seats remain visible capacity-consuming
+reservations until reconfirmed; a fresh venue decline releases only that venue.
+Household submissions contain each person's own venue choices, including new
+plus-ones. Operational totals count unique people and offer venue-specific
+attendance/catering/bar views. The frontend reconfirmation journey still needs
+integration and acceptance in en/ru/fr/hy.
 
 ### 5.4 Per-guest personalization
 
@@ -282,7 +299,7 @@ Tiers gate **capability**, never artificial scarcity. Revisions, languages and s
 | Post-event gallery & thank-yous | — | ✓ | ✓ |
 | Invitation stays live | 3 months | indefinitely | indefinitely |
 
-Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and entitlements are published but not enforced until real events show what to charge and which limits matter.
+Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and other entitlements are published but not enforced until real events show what to charge and which limits matter. Invitation lifetime is enforced independently; paid billing remains inactive.
 
 ---
 
@@ -381,13 +398,15 @@ between a tool someone reaches for and one they avoid.
 | Operations dashboard | < 500 ms | 6–18 ms |
 | Block arrangement | < 300 ms | ~25 ms |
 
-Measured on a small demo event, so these are a floor rather than a guarantee at
+These historical measurements predate batch H’s live access/revision checks.
+Measured on a small demo event, they are a floor rather than a guarantee at
 400 guests. The point of recording them is that a regression is visible.
 
-A **degraded** store must not break the budget either. With Redis and MongoDB
-both stopped, the invitation endpoint serves correct content in ~20 ms and the
-dashboard in ~6 ms — see [DATA_STORES.md](../backend/docs/DATA_STORES.md) for the two failures
-that had to be fixed to make that true.
+A **degraded** store must not break the budget either. The historical
+Redis/Mongo outage run measured ~20 ms for invitations and ~6 ms for the
+dashboard. Current personalized-page warm/cold/degraded measurements use
+`pilot:cache`; production capacity acceptance remains open. See
+[DATA_STORES.md](../backend/docs/DATA_STORES.md).
 
 Anything CPU-bound — seating computation, exports, image processing — runs as
 a job and never inside a request. See [DATA_STORES.md](../backend/docs/DATA_STORES.md).
@@ -436,6 +455,7 @@ robots directive, so the client renders rather than invents them.
 |---|---|
 | **TicketType** | A sellable tier: price, capacity, sales window, per-order limits |
 | **TicketOrder** | One purchase. Buyers are not users — a stranger must not need an account, the same reasoning that makes guests capability-based |
+| **OrderAttendee** | One named attendee, independently of the buyer, with captured attendance and personal answers |
 | **Ticket** | One admitted person, with an unguessable code |
 
 **Inventory is held before payment, never after.** Charging for a seat that no
@@ -452,8 +472,22 @@ A ticket code admits once. Two scanners at one door cannot both admit it.
 
 ### 13.4 Where the two shapes meet
 
-A ticket may link to a `Guest`, which lets seating, catering and check-in
-treat ticket holders and invited guests identically. A corporate client can
+Checkout collects each attendee's names/details and stores the roster with the
+reserved order. Settlement creates a linked `Guest` per ticket exactly once;
+failed/expired checkouts create no attending guests. Household grouping is
+explicit, never inferred from a shared buyer, email or name. Per-venue checkout
+collects each person's own choices; a policy change before settlement requires
+reconfirmation rather than guessed answers.
+
+Hosts can deliberately register legacy holders or link an existing invited
+guest. The invited guest's answers remain; captured checkout answers are
+archived, and the duplicate leaves live counts. Both scanning surfaces share
+one admission record. Cancellation freezes admission, withdraws participation
+and releases seats; used tickets require explicit admission undo first.
+Privacy export/erasure follow the actual attendee independently of the buyer.
+
+These links let seating, catering and check-in treat ticket holders and invited
+guests identically. A corporate client can
 run an invited-only dinner and a public conference from one account, with one
 operations dashboard.
 
@@ -468,4 +502,22 @@ operations dashboard.
 5. **Diaspora.** Launch market or expansion market?
 6. **Price points.** §8 is structural only; the numbers are unset.
 7. **Vendor supply.** The network module is worthless without partners. Sequencing matters.
-8. **Page lifetime.** How long does a published invitation stay live after the event, and at what tier?
+8. **Page lifetime — decided and implemented.** Free access closes 90 elapsed
+   days after event end (start when no end exists); paid plans may be indefinite.
+   Capture the policy at first publication. Date corrections move finite expiry;
+   plan changes and reopening do not reset it. Keep host data/media after expiry;
+   preserve and report ambiguous legacy publication history for operator review.
+
+
+### Guest contributions — pilot delivery (19 October 2026)
+
+The backend implements invited-guest gallery uploads with host approval,
+20 photos per guest, 1,000 and 2 GiB per event, 10 MiB per photo. Guests may
+remove their own approved photos. Originals remain private and processed copies
+lose metadata. Versioned acknowledgements support typed/drawn declarations and
+explicit household representation, with actual signer recorded separately.
+Ticket purchases collect all attendees but never substitute for acknowledgement;
+attendees use personal invitation links before admission. Host data survives guest
+access expiry. Verified privacy erasure revokes access and queues durable file
+deletion. Frontend capture/moderation in en/ru/fr/hy and production rehearsal
+remain required before enabling these capabilities in the pilot.

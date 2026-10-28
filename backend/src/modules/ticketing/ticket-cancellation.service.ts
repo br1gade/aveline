@@ -1,3 +1,5 @@
+import { beginCancellation } from './cancellation-state';
+import { BankDeclinedError } from '../payments/providers/payment-provider';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { RefundStatus, TicketOrderStatus, TicketStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -17,17 +19,10 @@ const CONCURRENT_GRACE_MS = 2_000;
  * and the money and the access could disagree whenever a host remembered one
  * step and not the other. Whole orders only, also as decided.
  *
- * The order of operations is the design:
- *
- *   1. **Refund first**, through `PaymentsService.refund`, which is already
- *      exactly-once — it claims the refund in the database before calling the
- *      bank, so two concurrent cancellations cannot both pay out.
- *   2. **Then void**, through a claim that only matches a PAID order.
- *
- * If the process dies between the two, the money has gone back and the
- * tickets are still valid. Running the cancellation again finishes it: step 1
- * sees the payment already refunded and skips straight to step 2. So a retry
- * heals the gap rather than refunding twice.
+ * Freeze admission first, then claim/refund through PaymentsService, then void.
+ * A crash after the bank leaves admission frozen; retry finishes the void
+ * without paying twice. A definite bank refusal reopens admission, while an
+ * unknown outcome stays frozen for reconciliation.
  */
 @Injectable()
 export class TicketCancellationService {
@@ -73,6 +68,7 @@ export class TicketCancellationService {
       );
     }
 
+    await this.prisma.$transaction((tx) => beginCancellation(tx, eventId, orderId));
     const isPaid = order.totalMinor > 0n && order.paymentOrderNumber !== null;
     if (isPaid && !(await this.refundRemaining(order.paymentOrderNumber!))) {
       // Another cancellation holds the refund and is at the bank now. Voiding
@@ -119,6 +115,9 @@ export class TicketCancellationService {
       return true;
     } catch (error) {
       // Lost the claim to a concurrent cancellation: theirs is the refund.
+      if (error instanceof BankDeclinedError) await this.prisma.ticketOrder.updateMany({
+        where: { paymentOrderNumber: orderNumber, status: 'PAID' }, data: { cancellationStartedAt: null },
+      });
       if (error instanceof ConflictException) return false;
       throw error;
     }

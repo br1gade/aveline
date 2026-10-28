@@ -13,6 +13,12 @@ with the code, so the committed file is current.
 
 ## 1. Conventions that apply everywhere
 
+**Free-pilot deployments:** `PILOT_MODE=true` refuses paid ticket checkout and
+paid subscription selection with `403` and the message "Payments are disabled
+for the free pilot". No payable order/invoice is committed. Free ticket orders
+and free subscriptions continue to work. Treat this as an unavailable paid
+capability, not a retryable payment failure.
+
 Learn these once and every endpoint behaves predictably.
 
 ### Authentication is default-on
@@ -39,6 +45,34 @@ Authorization: Bearer <accessToken>
 
 `message` is a **string or an array of strings** — validation failures return
 an array, one entry per bad field. Handle both.
+
+Errors also include additive display fields: `code`, `locale`, `userMessage`,
+`action` and `details: [{field, code, userMessage}]`. Send `Accept-Language`
+(`en`, `ru`, `fr`, `hy`; region tags and weighted preferences supported) for
+host or guest interface copy. A supported `?locale=` takes precedence; otherwise
+the fallback is English. These UI strings do not change the event's published
+content language. Keep using the original `message` and status for compatibility.
+Field paths identify invalid inputs; an unidentifiable business error has a null
+field. Details are bounded to 100 entries. Display the translated `userMessage`
+and map field paths to the form's translated labels.
+
+`attendanceRevision:` conflicts have code `ATTENDANCE_CHANGED` and action
+`RELOAD`: fetch the latest invitation and reconfirm. Other actions are `EDIT`,
+`SIGN_IN`, `REQUEST_ACCESS`, `CONTACT_HOST`, `REGENERATE`, `WAIT`, `REUPLOAD`,
+`CONTACT_SUPPORT` or `RETRY`. A retry is a user choice; never automatically repeat
+a non-idempotent purchase based only on this guidance. Readiness failures retain
+their structured report in `message`.
+
+Export snapshot, seating job and private-media summaries retain `failureReason`
+and add `recovery: {code, locale, userMessage, action}` (null without a failure).
+Queued/running retries say `WAIT`; exhausted state-change failures say `RETRY`
+without promising another automatic attempt. Subject-erased exports say `REGENERATE`. Send the
+same language preference when polling. Common display types are included as
+`HttpErrorDto`, `FieldFeedbackDto` and `JobRecoveryDto` in OpenAPI.
+Completed seating results retain each unseated household's original `reason`
+and add an `explanation` with the same display shape and action `EDIT`. This
+also translates older saved planner results; unknown historical text gets safe
+generic guidance, with the original reason preserved.
 
 `path` has its credential replaced: a guest's link comes back as
 `/invitations/:slug/g/[token]`, an invite's address as `[email]`, a payment's
@@ -379,6 +413,26 @@ Block types you may receive: `HERO`, `STORY`, `COUNTDOWN`, `MUSIC`, `VENUE`,
 **Render unknown block types as nothing rather than crashing.** New types ship
 without a client release.
 
+### Correct your own name
+
+```http
+PATCH /api/v1/invitations/:slug/g/:guestToken/name
+      { "firstName": "Ani", "lastName": "Dupont" }
+```
+
+No account is required: the personal link identifies exactly one guest. Names
+are trimmed and limited to 100 characters; first name must be nonempty.
+Null characters are rejected as a field error before storage. Either
+field may be omitted; `lastName: null` (or empty text) clears the surname.
+The response is `{ id, firstName, lastName, name }`. No guest ID, household,
+contact, locale or RSVP fields may be supplied. Wrong/rotated links, erased
+guests, drafts and expired invitations return 404; a closed but readable
+invitation still permits correction. Existing credentials, household membership,
+answers and seats are preserved. Host/guest reads and new exports use the new
+name; previously generated files remain fixed snapshots. New ticket manifests
+use the current linked guest name (falling back to the captured holder for
+unlinked legacy tickets); original checkout attendee captures remain intact.
+
 ### Submit an RSVP
 
 ```http
@@ -421,7 +475,7 @@ themselves at the top level and for everyone else named in the household in
 }
 ```
 
-`status`: `ATTENDING` | `DECLINED` | `UNDECIDED` — `PENDING` is a `400`, since
+`status` in EVENT_WIDE mode: `ATTENDING` | `DECLINED` | `UNDECIDED` — `PENDING` is a `400`, since
 it means "not answered".
 `attribution`: `SIDE_A` | `SIDE_B` | `SHARED` | `UNKNOWN`. It is recorded only
 when the host has not set the guest's side; a side the host set stands.
@@ -463,7 +517,7 @@ when the host has not set the guest's side; a side the host set stands.
   "Fish", "Рыба" and "Ձուկ". A question marked `required` must be answered by
   a guest who is `ATTENDING` — not by one who declines — and an answer given
   in an earlier submission counts. Any problem is a `400` whose message starts
-  `answers:`. `SIGNATURE` questions cannot be answered yet.
+  `answers:`. SIGNATURE takes a versioned typed/drawn acknowledgement object; see the private acknowledgements section.
 
 ```json
 { "status": "ATTENDING", "respondedAt": "...", "partyAdded": 1, "membersAnswered": 1,
@@ -502,6 +556,107 @@ answered from a forwarded link, simply receives nothing. So the on-screen
 success state is still the client's to show; the email is reassurance on top
 of it, not a replacement for it.
 
+### Attendance modes and reconfirmation
+
+Events default to `EVENT_WIDE`, revision 1. The host may choose `PER_VENUE`:
+every person is invited to every guest-facing venue. Preparation and exclusively
+internal venues are excluded, using the same rule as invitation venue display.
+
+Personal invitation responses include `guest.attendance`; each
+`guest.household.members` entry also has `attendance`. The RSVP read includes
+`attendance` and each other household member's attendance. Host guest reads
+include the same projection. Only current answers are in guest projections.
+
+```json
+{
+  "mode": "PER_VENUE", "revision": 2, "status": "ATTENDING",
+  "needsReconfirmation": true,
+  "venues": [
+    { "venueId": "hall-id", "venue": "Reception", "status": "ATTENDING", "respondedAt": "..." },
+    { "venueId": "church-id", "venue": "Ceremony", "status": "PENDING", "respondedAt": null }
+  ]
+}
+```
+
+Venue labels on the invitation use the negotiated page language. `PENDING`
+means no answer for that venue. The person-level summary is ATTENDING if any
+eligible venue is accepted; otherwise PENDING if any is unanswered, otherwise
+UNDECIDED if any is undecided, otherwise DECLINED. With no eligible venues the
+summary is PENDING. Counts never count a person twice at event level.
+`needsReconfirmation` is true after a policy transition while attendance is
+still pending for the person or any eligible venue. A newly added venue starts
+pending; it does not inherit an earlier answer.
+
+In per-venue mode, omit `status` and send bounded `venueAttendance` instead:
+
+```json
+{
+  "attendanceRevision": 2,
+  "venueAttendance": [{ "venueId": "hall-id", "status": "ATTENDING" }],
+  "members": [{ "guestId": "member-id", "venueAttendance": [{ "venueId": "hall-id", "status": "DECLINED" }] }],
+  "party": [{ "firstName": "Anna", "venueAttendance": [{ "venueId": "church-id", "status": "ATTENDING" }] }]
+}
+```
+
+Each person submitted must have at least one venue answer, at most 100, with no
+repeated, foreign or hidden venue IDs. Other venues and omitted members keep
+their answers. New plus-ones need their own venue answers; they do not implicitly
+follow the respondent in this mode. Dietary/custom required questions bind each
+person whose summary is ATTENDING. Venue declines release seats only at that
+venue; event-wide declines release every seat. Unspecified legacy seats remain
+reservations in per-venue mode until the host explicitly unseats them.
+
+**Frontend cutover:** guest submissions and host-recorded RSVPs use
+`attendanceRevision`. It may be omitted only for an unchanged EVENT_WIDE event
+at revision 1. Once mode changes, stale or missing revisions return **409** with
+an `attendanceRevision:` message: reload the form and ask for fresh attendance.
+Returning to EVENT_WIDE does not restore old-client compatibility. Invalid
+payloads return 400 naming `status`, `venueAttendance` or `attendanceRevision`.
+
+Host policy transitions are a preview followed by explicit confirmation;
+both require `event:write`:
+
+```http
+POST /api/v1/events/:eventId/attendance-policy/preview
+     { "mode": "PER_VENUE" }
+POST /api/v1/events/:eventId/attendance-policy
+     { "mode": "PER_VENUE", "expectedRevision": 1,
+       "previewToken": "<32-character fingerprint>", "transitionId": "<client UUID>" }
+GET  /api/v1/events/:eventId/guests/:guestId/attendance-history
+```
+
+Preview returns `mode`, `expectedRevision`, `previewToken`, `affected`
+(`guests`, `responses`, `seatedGuests`, `seats`),
+`seatsRetainedAsReservations: true`, and `request` containing the fields to
+confirm. Add a client-generated UUID to `request` and reuse the exact payload
+on retry. A changed revision, RSVP or seating/venue state invalidates the preview
+with 409; preview again. Choosing the current mode or PER_VENUE without any
+eligible venue returns 400. Repeated identical transitions return the originally
+created revision, even if a later transition has since occurred; a reused UUID
+with a different payload is 409.
+
+Transition returns `{ mode, revision, notice }`. It preserves old attendance
+under its original revision, keeps dietary/custom answers and admission history,
+and resets current attendance to pending. Seats are retained, visibly marked
+`isReservation`, and continue to occupy capacity. Confirmed totals and automatic
+seating exclude unconfirmed people. A fresh decline releases the appropriate
+seats. History needs `guest:read`, stays scoped to that event/person, and returns
+up to 1,000 records newest revision first. Records include policy mode/active
+state, venue, status and response/update times; unknown imported response times
+remain null rather than being guessed.
+
+`notice.notificationPath` offers the existing `notify-changes` outbox operation
+after the transition commits. Sending is a separate deliberate host call; add a
+note asking guests to reconfirm. Failure/retry cannot repeat the mode transition
+or discard answers. Per-venue RSVP confirmations use dedicated copy that
+acknowledges saved answers without claiming the whole event was accepted or
+declined. New default copy supports en/ru/fr/hy on email, Telegram and WhatsApp;
+rerun the idempotent production seed before enabling it. Translation review
+and frontend reconfirmation screens remain acceptance work.
+
+Answered venues cannot be deleted or hidden through role/timeline edits;
+these return a field error and roll back the edit, preserving attendance history.
+
 ### Find your seat
 
 There is no lookup by name. A guest finds their table **on their own
@@ -519,8 +674,15 @@ show nothing rather than "no table".
 }
 ```
 
-`table` is `null` for a guest not seated yet — say so and send them to the
-hosts. A guest sees their own household and never anyone else's. The shared,
+`guest.seating.assignments` and each household member's `assignments` are
+arrays of `{ arrangementId, venueId, venue, tableId, table, position, isReservation }`.
+Guest `venue` labels use the negotiated page language and fall back to the
+venue's plain name when no translation exists. Only the household's guest-facing venues and unspecified seats are returned;
+preparation/internal-only venue IDs and names never appear. These arrays stay
+inside the published seating boundary.
+
+The legacy `table` field is `null` when there are zero or multiple assignments.
+Use the array to distinguish “not seated” from “seated at several venues”. A guest sees their own household and never anyone else's. The shared,
 un-personalized page carries no seating at all.
 
 **Breaking, 9 October 2026:** `GET /events/:eventId/find-seat` is gone. It
@@ -603,7 +765,8 @@ that, `PATCH { "isActive": false }` stops selling it.
 PUT  /api/v1/events/:eventId/listing
      { "headline": { "en": "Autumn Jazz Night" }, "summary": {...}, "body": {...},
        "categories": ["concert"], "ogTitle": {...}, "ogDescription": {...},
-       "isIndexable": false, "slug": "autumn-jazz-night" }
+       "isIndexable": false, "slug": "autumn-jazz-night",
+       "heroAssetId": "<event image id>", "ogImageId": null }
 POST /api/v1/events/:eventId/listing/publish
 POST /api/v1/events/:eventId/listing/unpublish
 ```
@@ -616,6 +779,24 @@ Publishing is refused for a private event, without a headline in any
 language, or once the event has started. Unpublishing does not affect tickets
 already sold.
 
+`heroAssetId` and `ogImageId` select existing PHOTO/COVER/LOGO assets belonging
+to this event. Omitted leaves the selection unchanged; null clears it. Invalid,
+missing, cross-event or non-image IDs reject the entire edit with 400. A selected
+image cannot be deleted until its listing references are cleared (409).
+
+Public browse cards and announcement detail include `heroImage`, or null:
+`{ id, url, kind, altText, width, height, variants }`. `altText` is resolved in
+the negotiated locale; build `srcset` from `variants` and fall back to `url`.
+Detail `metadata.image` has the same shape, preferring the share image and then
+the hero; `metadata.imageAssetId` identifies that resolved image. Invalid legacy
+references are ignored. Image hydration is batched across the browse page.
+Private, unpublished, future-published and archived listings return no public
+metadata. UNLISTED pages remain noindex and absent from browse.
+
+The frontend must put `metadata.image.url`, title and description into the
+actual HTML Open Graph tags served to link crawlers. The API supplies data;
+HTML previews still require frontend integration and acceptance.
+
 All of this needs `event:write` (reading, `event:read`).
 
 ### Cancelling an order
@@ -627,6 +808,12 @@ POST /api/v1/events/:eventId/ticket-orders/:orderId/cancel
 
 The list needs `operations:read`; **`buyerEmail` is absent unless you also hold
 `guest:contact:read`** — door staff and viewers see orders, not addresses.
+
+Cancellation freezes admission before contacting the bank. A definite refund
+refusal reopens it; an uncertain bank outcome stays frozen until reconciled.
+Successful cancellation declines linked guests in the current attendance
+policy and releases all their seats while preserving release history. Later
+RSVPs cannot mark a void/refunded ticket holder attending again.
 
 **Cancelling is how a ticket order is refunded.** It voids every ticket on the
 order, puts the seats back on sale, returns any promo-code use, refunds the
@@ -656,6 +843,43 @@ validated `{ "amountMinor": "15000", "reason": "..." }`. Refunding a
 subscription payment **in full** voids its invoice and ends the plan at once
 (decided 10 October 2026); a partial refund changes nothing.
 
+### Reviewing and reconciling attendees
+
+```http
+GET  /api/v1/events/:eventId/ticket-orders/:orderId
+POST /api/v1/events/:eventId/tickets/:ticketId/attendee
+POST /api/v1/events/:eventId/tickets/:ticketId/link-guest
+```
+
+The order detail requires `guest:read`. It returns the ordered captured roster
+and tickets with their attendee and current guest IDs. Only callers with
+`guest:contact:read` receive attendee email/phone and ticket codes. No guest
+capability, buyer access token or archived personal answer snapshot is exposed.
+
+Both writes require `guest:write` and only reconcile active paid tickets.
+To register an unlinked legacy ticket, supply
+`{attendee: {ticketTypeId, firstName, ...}, attendanceRevision}` using the same
+attendee rules as checkout. This creates its named guest and attaches it to the
+existing ticket; it never issues another code or guesses from the buyer name.
+The ticket type must match. Already-registered tickets return `409`.
+
+To link an existing invited guest, send
+`{guestId, expectedGuestId, keepExistingAnswers: true}`. The expected ID is the
+current ticket guest, or explicit `null` for an unlinked legacy ticket; omission
+is `400`, a changed link is `409`. The target must belong to this event, be
+unerased and have no other ticket. Repeating a completed link is safe.
+The invited guest keeps their profile and answers; an automatically created
+checkout duplicate is archived under the roster and removed from live totals.
+Household allowance is reduced accordingly. Existing invited guests cannot be
+silently replaced. A checkout duplicate with seats/release history, admission,
+a signature, channels/devices or messages must be resolved first (`409`).
+A known legacy admission timestamp is retained when linking; unknown/conflicting
+admission timestamps require staff review. Erased attendees cannot be relinked.
+
+Legacy tickets remain valid without invented guest identities until hosts
+explicitly register/link them. Their guest-based operational counts are complete
+only after reconciliation.
+
 ### Buying tickets
 
 ```http
@@ -667,6 +891,11 @@ POST /api/v1/public/events/:slug/orders
   "items": [{ "ticketTypeId": "...", "quantity": 2 }],
   "buyerName": "Ani Grigoryan",
   "buyerEmail": "ani@example.com",
+  "attendanceRevision": 1,
+  "attendees": [
+    { "ticketTypeId": "...", "firstName": "Anna", "email": "anna@example.com" },
+    { "ticketTypeId": "...", "firstName": "Davit" }
+  ],
   "provider": "AMERIABANK",
   "returnUrl": "https://yourapp.am/tickets/return",
   "idempotencyKey": "<uuid you generate>"
@@ -680,14 +909,56 @@ redirect through a real payment page. Omitted, it is `/tickets/return` on the
 app. The same rule holds for `returnUrl` on `POST /subscription`, whose
 default is `/billing/return`.
 
+**Breaking checkout contract, 15 October 2026:** `attendees` is required,
+with exactly one named person for each ticket in `items` (up to 1,000 people).
+Each person names their `ticketTypeId`. The buyer is separate; omitted attendee
+email/phone never falls back to the buyer's contacts. An omitted buyer locale uses the event's default language. An attendee's
+locale falls back to the buyer locale, then the event default. Attendees accept
+`firstName`, `lastName`, `email`, `phone`, `locale`, `dietary`, `dietaryNotes`,
+`drinkPreference`, custom `answers`, and attendance inputs. The event's locale
+list and RSVP question rules apply. `householdKey`, when supplied, explicitly
+groups people within this order; otherwise each person gets a separate household.
+Matching names or email addresses never merge people.
+
+Load the public event detail first. Its `checkout` object supplies
+`attendanceMode`, `attendanceRevision`, `venues: [{id, name}]`, `rsvpFields`
+and localized `questions: [{id, type, required, prompt, options}]`. The checkout
+built-in fields are `dietary` and `drinkPreference`, the fields accepted per
+attendee.
+Preparation/internal-only venues are excluded from both checkout and the
+public venue list; public venue entries now also include their `id`.
+In `EVENT_WIDE`, an attendee's omitted `status` means `ATTENDING`.
+In `PER_VENUE`, omit `status` and collect each attendee's own
+`venueAttendance: [{venueId, status}]`; at least one choice per person is
+required, with unanswered venues left pending. Send the current top-level
+`attendanceRevision`; omission only works for the original event-wide revision.
+Stale revisions return `409` and invalid choices return `400`, before inventory
+or a promo claim is written.
+
+Ticket types with checkout history must be deactivated instead of deleted,
+even after an order expires. Questions answered in pending or archived
+checkout rosters cannot be deleted or have their answer shape changed.
+
+The reserved order stores the roster atomically. Settlement (including free
+checkout) creates guests, answers and linked tickets once. An abandoned order
+creates no guest. If the host changes attendance policy before settlement,
+checkout answers stay in the roster and the new guest must reconfirm under the
+current policy. Buying a ticket never invents venue answers. Responses include
+`attendees` (names, IDs, ticket types, positions and captured attendance) and
+issued `tickets` with `id`, `attendeeId`, `holderName`, `code`, `status`.
+Guest capability tokens are never returned to buyers.
+
 List each ticket type **once**, with its quantity: a basket naming one type
 twice is a `400` on `items` (two lines of six used to pass a limit of ten).
 
 **Generate `idempotencyKey` once per checkout attempt and reuse it on retry.**
 A double-tapped button with the same key returns the same order rather than
 reserving twice — **with its `payment`**, so a retry can still send the buyer
-to the bank. Two taps arriving at once both get that order; neither is a
-`409` (until 10 October 2026 one was, and a retry came back without a link).
+to the bank. Two identical taps arriving at once both get that order. Reusing
+the key with
+a different event, buyer, basket or roster returns `409`; use a new key for a
+changed intent. Legacy keys created before roster fingerprints cannot be
+replayed through checkout; their existing access-token URL still works.
 
 ```json
 {
@@ -771,6 +1042,14 @@ arriving or a reminder is due. A day with no answers is absent, not zero.
 Bar-sheet `preferences` and catering-sheet `requirements` each carry `key` —
 what guests sent — beside the label (`drink`, `requirement`) in the event's
 language. For free text the two are the same.
+
+`headcount` (also in the dashboard) adds `venues`, each with `venueId`, `venue`,
+`invited`, `attending`, `declined`, `undecided` and `pending`. Only guest-facing
+venues appear. Response rate and its daily trend count people who answered any
+venue, including partial replies whose remaining venues are pending.
+`catering-sheet` and `bar-sheet` accept optional `?venueId=...`;
+without it they count unique people attending anywhere. A foreign or hidden
+venue is 404. Personal dietary/drink choices remain one answer per person.
 
 ### Answers to the host's own questions
 
@@ -1066,8 +1345,12 @@ the primary first within each:
 ```
 
 `seatReleased` is `{ "table": "Table 4", "releasedAt": "..." }` for a guest
-whose decline freed their seat — see *A decline frees the seat* below — and
-`null` otherwise.
+whose decline freed a seat — see the seating section below — and `null` when
+there are zero or multiple release records. Guests also carry `seating` as an
+array of `{ arrangementId, venueId, venue, tableId, table, position }`, and
+`seatReleases` as `{ arrangementId, venueId, table, releasedAt }` records.
+The legacy `table` is null when several assignments exist. Host reads include
+all arrangements, including internal venues.
 
 **`email`, `phone` and `token` are present only for callers holding
 `guest:contact:read`** — owners and coordinators, not viewers or designers.
@@ -1159,6 +1442,10 @@ and empty-household removal apply:
 the record that they came. Undo the check-in first if it was a mistake. (A
 product decision, 8 October 2026.)
 
+**A ticket-linked guest cannot be removed** (`400`), including after
+cancellation: keep their operational history. Use the explicit ticket linking
+flow to reconcile a checkout duplicate.
+
 **A household's seats** can be changed, and it can be renamed, but
 `seatsAllotted` cannot go below the number of guests already named in it:
 
@@ -1179,6 +1466,7 @@ of the two is refused. Show the refusal; do not retry it.
 ### Tables and seating
 
 ```http
+GET    /api/v1/events/:eventId/seating/arrangements
 GET    /api/v1/events/:eventId/tables
 POST   /api/v1/events/:eventId/tables
 POST   /api/v1/events/:eventId/tables/bulk
@@ -1186,14 +1474,20 @@ PATCH  /api/v1/events/:eventId/tables/:tableId
 DELETE /api/v1/events/:eventId/tables/:tableId
 ```
 
-`GET` returns each table with its occupancy, who is at it and where it sits
-on the plan, which is the whole seating screen in one request:
+`GET /seating/arrangements` returns a bare array of `{ id, eventId, venueId, revision,
+venue: { name, capacity } | null, _count: { tables } }`. Every venue has an
+arrangement and every event has an explicit unspecified plan (`venueId: null`).
+Treat IDs as opaque. `revision` advances on relevant seating/attendance/guest
+changes and protects worker application; it is server-maintained. `GET /tables`
+returns all tables or accepts
+`?arrangementId=...` to read one plan, with occupancy and names in one request:
+
 
 ```json
 [
   {
     "id": "clz...", "name": "Table 1", "capacity": 10, "zone": "Main hall",
-    "venueId": "clz...", "posX": 120.5, "posY": 40, "shape": "round",
+    "venueId": "clz...", "venue": "Reception hall", "arrangementId": "clz...", "posX": 120.5, "posY": 40, "shape": "round",
     "seated": 7, "available": 3,
     "guests": [{ "guestId": "clz...", "name": "Armen Petrosyan", "position": null }],
     "released": [{ "guestId": "clz...", "name": "Ani Sargsyan", "releasedAt": "..." }]
@@ -1201,26 +1495,35 @@ on the plan, which is the whole seating screen in one request:
 ]
 ```
 
-**A decline frees the seat.** When a guest declines — on their own link or
-recorded by the host — their seat is given back, so `seated` and `available`
-are true. The table lists them in `released` so the plan can show the gap and
-why. The flag clears when they are seated again, or when the host dismisses it
-with `DELETE /seats/:guestId`. Answering `ATTENDING` or `UNDECIDED` keeps the
-seat. Decided 9 October 2026.
+**An event-wide decline frees every seat.** Guest and host RSVP writes release
+all of that person's assignments and keep one flag per arrangement in the
+tables' `released` arrays. Reseating them clears only the target arrangement's
+flag; explicit unassignment dismisses only the selected arrangement's flag.
+Answering `ATTENDING` or `UNDECIDED` keeps seats. Per-venue declines release only
+the selected venue; policy transitions retain seats as flagged reservations
+until fresh attendance is given. See attendance modes above.
+
 
 `POST /tables` takes `{ name, capacity, zone?, venueId? }`. For a real room,
 use `/tables/bulk` with `{ namePrefix, count, capacity, zone?, venueId? }` —
 twenty tables of ten is one request, and numbering continues from the highest
 number already used with that prefix (`Table 1` … `Table 20`, then `Table 21`
-even if `Table 3` was deleted). It returns `{ "created": 20 }`.
+even if `Table 3` was deleted). Names and numbering are scoped to the venue's
+arrangement, so both venues can use “Table 1”. Omitting `venueId` creates a table
+in the unspecified arrangement. Number allocation and insertion are atomic
+within the arrangement; simultaneous batches create all requested tables. It
+returns `{ "created": 20 }`.
 
 `PATCH /tables/:tableId` changes any of `name`, `capacity`, `zone`,
 `venueId`, `posX`, `posY` and `shape` (`round`, `rectangle`, `square`,
 `oval`); omitted fields are unchanged and `null` clears `zone`, `venueId` and
 the position. Use it to save a table's place when it is dragged on the plan.
-`capacity` cannot go below the guests already seated, a name another table
-has is refused, and `venueId` must be one of this event's venues — each a
-`400` whose message starts with the field. The position is in the editor's
+`capacity` cannot go below the guests already seated or their numbered chairs,
+a name another table in the same arrangement has is refused, and `venueId`
+must be one of this event's venues — each a `400` naming the field.
+Changing `venueId` while seats or release flags remain returns `409`; move
+people and dismiss the flags before reparenting an empty table. Updating a
+venue's capacity below its seated headcount is also refused. The position is in the editor's
 own units; the server stores it and does not interpret it.
 
 Deleting a table with guests at it returns `409` naming how many, because the
@@ -1231,9 +1534,19 @@ POST   /api/v1/events/:eventId/seats          { guestId, tableId, position? }
 DELETE /api/v1/events/:eventId/seats/:guestId
 ```
 
-`POST` seats a guest, or moves one who was already seated — there is no
-separate move call. `DELETE` unseats a guest, or dismisses the `released` flag
-of one whose decline already freed their seat. A full table returns `409` with its name. Capacity is
+`POST` seats a guest or moves their existing seat **within the target table's
+arrangement**, keeping their assignments at other venues. It returns
+`{ guestId, tableId, table, arrangementId }`. A duplicate numbered chair is
+`409` naming `position`; a position past table capacity is `400`.
+
+`DELETE` accepts `?arrangementId=...` and removes only that arrangement's seat
+or release flag. **Contract cutover, 13 October 2026:** omission is `400` naming
+`arrangementId` if more than one arrangement has tables or release history.
+Automatic seating below has the same selection rule. Existing one-plan clients
+may omit it; new clients must retain the active arrangement ID. A foreign event's
+arrangement returns `404`; rejected requests change nothing.
+
+A full table or venue returns `409`. Capacity is
 checked inside the transaction, so two coordinators filling the last chair at
 once cannot both succeed; handle the `409` as a routine outcome of drag-and-drop
 and re-fetch the table.
@@ -1242,21 +1555,71 @@ and re-fetch the table.
 POST /api/v1/events/:eventId/seats/auto-assign
 ```
 
-Seats everyone who has accepted, then tells you who did not fit:
+**Breaking cutover, 18 October 2026:** this endpoint now queues a job; it does
+not seat guests in the request. Send `{ "idempotencyKey": "<new UUID v4>" }` and
+retain `?arrangementId=...` under the selection rule above. Requires
+`seating:write`. It returns `201` with `id`, `arrangementId`, `status: "QUEUED"`,
+`attempts: 0`, `result: null` and nullable generation/revision metadata. Manual
+seat assignments remain immediate.
+
+```http
+GET /api/v1/events/:eventId/seating/jobs
+GET /api/v1/events/:eventId/seating/jobs/:jobId
+```
+
+These reads require `seating:read`. History returns the latest 50 job summaries,
+excluding result details. Poll an individual job for `QUEUED` → `RUNNING` →
+`COMPLETED`/`FAILED` and its result:
 
 ```json
 {
-  "seated": 84,
-  "households": 31,
-  "unseated": [
-    { "householdId": "clz...", "size": 5, "reason": "No table has 5 free seats together" }
-  ]
+  "id": "clz...", "arrangementId": "venue:clz...", "status": "COMPLETED",
+  "attempts": 1, "failureReason": null, "snapshotAt": "2026-10-18T12:00:00Z",
+  "attendanceRevision": 1, "arrangementRevision": 40, "appliedRevision": 124,
+  "result": {
+    "seated": 84, "households": 31,
+    "unseated": [
+      { "householdId": "clz...", "size": 5, "reason": "No table has 5 free seats together" }
+    ]
+  },
+  "createdAt": "2026-10-18T11:59:58Z", "completedAt": "2026-10-18T12:00:01Z"
 }
 ```
 
+The same event/requester/UUID returns its original job. Reusing it with a different
+explicit arrangement returns `409`. One active job per arrangement is enforced;
+a new UUID while it is queued/running returns `409`. After completion/failure, a
+new UUID explicitly starts another additive run. A foreign event's job ID is
+`404` to an authorized caller of that event. Job results describe their completed
+attempt; refresh tables for the current live room rather than applying the
+result in the browser.
+
+The worker captures inputs when an attempt starts, computes outside database
+locks, then rechecks current attendance/policy, arrangement revision, capacity
+and requester permission before atomically inserting seats and completing the
+job. Table edits, manual seats, guest/answer changes, cancellation and erasure
+invalidate captured plans. Busy answers/identities or changed inputs queue a
+fresh attempt (`failureReason: "STATE_CHANGED"`); households are never partially
+applied. Attempts are bounded to three, including crash recovery. A repeated
+conflict ends as `FAILED`; the host can refresh and explicitly run again.
+
+Archived events cannot start or apply a job. Permission loss/inactive users stop
+it with `ACCESS_REVOKED`; archive uses `EVENT_UNAVAILABLE`. Exhausted crashed
+claims use `LEASE_EXHAUSTED`; input bounds use `INPUT_LIMIT_EXCEEDED`. Other
+internal failures expose safe codes only. See the
+[worker runbook](../backend/docs/SEATING_WORKER.md) for the complete code list.
+Event/arrangement deletion removes its jobs. Results contain household IDs and
+reasons, never guest credentials/contact details or saved permission grants.
+
+Automatic planning supports at most 5,000 event guests, 500 arrangement tables
+and 5,000 arrangement seats. Capture/application transactions are limited to
+20 seconds each; bounded computation is limited to 30 seconds before applying.
+Manual seating still serializes with answer writes and remains available while
+a job is computing.
+
 Three things to know before you wire the button:
 
-1. **It is additive, not a re-plan.** Guests already seated keep their seats,
+1. **It is additive, not a re-plan.** Guests already seated in this arrangement keep their seats,
    and their tables count as partly occupied. Running it after a late RSVP
    fills the gaps instead of rearranging a plan the host has adjusted by hand.
    Someone accepting late joins the table their household already sits at —
@@ -1301,14 +1664,18 @@ DELETE /api/v1/events/:eventId/guests/:guestId/check-in
 ```
 
 The response is the door screen: the name to confirm, the table to point at,
-and `wasExpected` — `false` means this guest declined or never responded and
+and the venue-labelled `seating` array (same shape as host guest reads). The
+legacy `table` is null when several assignments exist. `wasExpected` being
+`false` means this guest declined or never responded and
 has turned up anyway, which is worth showing the host rather than silently
 admitting.
 
 **A guest arrives once.** A second check-in returns `409`. Two people on the
 door cannot both record the same arrival, so treat the `409` as "already here"
 and show the first arrival time, not as an error. `DELETE` undoes a mis-scan
-and a guest can then be checked in again.
+and a guest can then be checked in again. For a ticket-linked guest, a used,
+void/refunded ticket or a cancelled/frozen order instead returns `400` with
+the ticket reason; a used ticket means the person was already admitted.
 
 ```http
 GET /api/v1/events/:eventId/arrivals
@@ -1672,12 +2039,9 @@ what is checked on every download, not when the export was asked for:
 **Breaking, 9 October 2026:** the `asset: { url, sizeBytes }` field is gone.
 Its URL was public and never expired.
 
-Read `status` anyway — PDF will be queued when it exists, and a client that
-already branches on it will not need changing. `FAILED` carries
-`failureReason`.
-
-`format` defaults to `CSV`. `PDF` and `XLSX` return `400` today; the message
-says so rather than queueing something that never runs.
+`format` defaults to `CSV`. These legacy routes return `400` for `PDF` and
+`XLSX`, directing callers to the snapshot routes below. Those routes support
+all three formats and their queued states. Legacy records remain live CSV.
 
 The files are UTF-8 with a BOM and CRLF endings, so Excel opens Armenian text
 correctly, and every cell is quoted — including a defensive tab in front of
@@ -1690,6 +2054,102 @@ words. The catering sheet lists every dietary note under its counts, with
 the guest it belongs to.
 
 Requires `operations:read`.
+
+### Export columns for separate venue seating (13 October 2026)
+
+CSV guest lists retain the legacy `Table` column (empty for multiple assignments)
+and add `Seating by venue`. Seating charts add `Venue` and `Arrangement`; place
+cards add those columns and produce one row per seated arrangement for each
+attending guest, or one blank-seat row if unseated. Import consumers must use
+headers rather than fixed column positions. CSV downloads still use current
+data on the legacy `/exports` routes. Use `/export-snapshots` for fixed files.
+
+### Private snapshot exports (16 October 2026)
+
+```http
+POST /api/v1/events/:eventId/export-snapshots
+GET  /api/v1/events/:eventId/export-snapshots
+GET  /api/v1/events/:eventId/export-snapshots/:snapshotId
+GET  /api/v1/events/:eventId/export-snapshots/:snapshotId/download
+```
+
+These additive routes support all seven kinds above in **CSV, PDF and XLSX**.
+The frontend can migrate explicitly; `/exports` keeps its existing live behavior.
+Old export records now explicitly carry `isSnapshot: false` and
+`requiresRegeneration: true`: they cannot recover past data and must be
+regenerated through the new route. Their live compatibility download remains
+available until the frontend migrates. Snapshot jobs appear only in the new history, newest 50 first.
+
+Create with `{ "kind": "GUEST_LIST", "idempotencyKey": "<new UUID v4>",
+"format": "PDF", "locale": "en", "includesContacts": false }`. Format defaults
+to `CSV`; accepted values are `CSV`, `PDF`, `XLSX`. Locale defaults to the event language and accepts
+`en`, `ru`, `fr`, `hy`. Snapshot titles, standard headings, metadata, status/side
+labels and translated question/choice and ticket-type labels use it. Host-authored
+names, answers and notes remain literal. `includesContacts` defaults to the caller's
+current contact permission. A viewer can request redacted sheets; a contact
+holder can also explicitly request them. Manifests always require contact
+permission and cannot be redacted. The existing CSV columns and formula
+protection apply. Venue and arrangement columns identify separate seating.
+Snapshot catering and bar sheets add `Venue` and use each guest-facing venue's
+current attendance answers; preparation/internal-only venues are excluded.
+Event-wide attendees count at every guest-facing venue. Without any such venue,
+these sheets retain the event-wide layout. Legacy live CSV columns are unchanged.
+
+PDF uses embedded fonts for Latin, Cyrillic, Armenian and French accents. Seating
+charts group rosters by venue/arrangement/table with capacity and seated counts;
+place cards are six **90 × 70 mm flat cut cards on A4**, with cut guides. Wide
+lists split into column groups with identifying fields repeated. XLSX uses typed
+counts/dates and literal text cells; ticket codes keep leading zeros, and text
+never becomes a formula or external link. Catering workbooks separate requirements
+and dietary notes. Workbook timestamps are labelled UTC; PDF generation times
+use the event timezone.
+
+Create returns `201` with `id`, `kind`, `format`, `locale`, `includesContacts`,
+`status: "QUEUED"`, `attempts: 0`, and `downloadPath: null`. The same UUID,
+event, requester and intent (kind, format, locale and contact visibility) returns
+the same job; changed intent returns `409`.
+A regeneration uses a **new UUID**. At most 10 queued/running jobs per event;
+further new work returns `409`, while retries of accepted intents still work.
+
+Poll the individual job: `QUEUED` → `RUNNING` → `COMPLETED` or `FAILED`.
+Transient failure may return to `QUEUED` with a safe `failureReason`;
+`attempts` is bounded to three. The worker takes a consistent read **when an
+attempt starts**, not when the host queues it. A recovered attempt may capture
+new inputs before publishing. A completed artifact never changes.
+
+Metadata includes nullable `snapshotAt`, event `timezone`, `attendanceRevision`,
+opaque Postgres visibility token `dataRevision`, `completedAt`, `expiresAt`,
+`revokedAt`, and `failureReason`. The visibility token is provenance, not a
+monotonic event edit version. An available artifact has an authenticated
+`downloadPath`; it contains no object key or public URL. Files expire after
+seven days by default (configurable 1–30); source event data is retained.
+
+All routes require `operations:read`. Downloads recheck active user/event
+standing and contact permission **after storage IO too**. A full artifact
+returns `403` after contact permission is lost; request a redacted regeneration.
+A queued/running/failed job returns `409` on download. Revoked or expired files
+return `410`; cross-event snapshot IDs return `404` to an authorized event
+caller. A missing/offline object returns `503`. Fetch with authorization and
+use the returned blob, as for legacy exports. The body contains the raw artifact
+bytes; read it with `blob()` or `arrayBuffer()`. Responses use `Cache-Control:
+no-store`. MIME types are `text/csv; charset=utf-8`, `application/pdf`, or
+`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, with matching
+`.csv`/`.pdf`/`.xlsx` filenames in `Content-Disposition`. Do not render a public
+anchor or store a permanent file URL.
+
+Subject erasure revokes existing jobs/artifacts for affected events, including
+snapshots that retain an earlier email address. In-flight jobs cannot publish
+after erasure. Event deletion leaves a private cleanup ledger. Cleanup is
+asynchronous and retried during storage outages; future downloads are denied
+immediately on revocation/expiry. Hosts regenerate after these transitions.
+
+All formats have a 10 MiB output cap and input caps of 5,000 guests, tickets,
+seats, orders, attendees and tables each, 50 venues, 200 custom questions and
+100,000 answers. Rendered sheets are limited to 20,000 rows, 256 columns,
+32,767 characters per cell and 2 million text characters; PDF also has a
+500-page/45-second rendering limit. Oversized jobs fail with bounded retries
+and safe failure codes. Automatic seating also runs in its own worker; frontend
+job adoption and production worker acceptance remain F27 release gates.
 
 ### Suppression — who must not be contacted
 
@@ -1793,7 +2253,13 @@ request is itself a breach**: the form is public, so without that gate anyone
 could erase a stranger's data by typing their address.
 
 An `EXPORT` returns the data as JSON in the response — account, guest records,
-ticket orders, messages sent and suppressions. It is assembled on demand and
+ticket orders, subject-specific ticket attendee records (including archived
+checkout answers), messages sent and suppressions. A buyer-only export does
+not include unrelated attendee records. Erasure clears attendee snapshots and
+reserved rosters independently of the buyer; later settlement cannot restore
+the erased names or answers. Erasure also invalidates checkout-key replay;
+the buyer access-token URL continues to show the retained order. Financial
+amounts and operational history remain. It is assembled on demand and
 never stored, because a copy waiting to be collected is a second place it can
 leak from.
 
@@ -1801,7 +2267,8 @@ An `ERASURE` anonymises in place and reports what it touched:
 
 ```json
 { "reference": "clz...", "kind": "ERASURE", "guestsAnonymised": 1,
-  "householdsRenamed": 1, "ticketOrdersAnonymised": 1, "messagesRedacted": 4,
+  "householdsRenamed": 1, "ticketOrdersAnonymised": 1, "ticketAttendeesAnonymised": 2,
+  "messagesRedacted": 4,
   "suppressionsHashed": 1, "invitesWithdrawn": 0, "accountsClosed": 1 }
 ```
 
@@ -1819,7 +2286,7 @@ token, which is itself identifying and would otherwise still open their RSVP
 from a group chat. An account with that address is closed: it can no longer
 sign in, its sessions are revoked and stripped of IP address and browser, and
 its name and email are replaced. Pending team invitations to the address are
-withdrawn. A drawn signature's file is deleted from storage, the address is
+withdrawn. Private drawings/gallery files are revoked and queued for durable physical cleanup; legacy signature files are deleted after commit. The address is
 dropped from the staff audit trail, and the guest's invitation views are
 unlinked from them — these three after the database has committed.
 
@@ -2048,6 +2515,35 @@ venues only internal timeline entries use (decided 10 October 2026); timeline
 entries at the same minute follow `sortOrder`. On this call `variant: null`
 resets the layout to the template's default.
 
+### Previewing a template
+
+```http
+GET /api/v1/events/:eventId/design-templates/:templateKey/preview?locale=fr
+GET /api/v1/invitations/:slug/template-preview?templateKey=classic&locale=fr
+```
+
+Both require `invitation:read` for the event and return `Cache-Control: private,
+no-store`. Render these with the same frontend invitation renderer used for a
+live page. The response has the live page's content shape plus `isPreview: true`
+and `previewSource: "SYNTHETIC" | "EVENT"`; `guest` is null and
+`isAcceptingResponses` is always false. Disable response submission and guest
+tracking in the preview UI.
+
+The catalogue route uses only synthetic en/ru/fr/hy content, including sample
+venue/timeline data. It never copies customer data. The event route accepts
+drafts and defaults to the selected template when `templateKey` is omitted.
+Locale negotiation and fallbacks match a live page. Previewing the selected
+template retains the host's theme; another template starts from its defaults,
+matching a real template switch. Unsupported/disabled blocks are omitted and
+unoffered variants fall back to null. Only guest-facing venues/timeline and
+same-event public media are hydrated. Guest contacts, personal links,
+attendance, seating, answers and private signature assets are excluded.
+
+Preview reads never change the template, blocks, theme, publication or RSVP
+state, never use the public page cache, and do not record invitation views.
+Unknown/inactive templates return 404. Actual visual rendering and all-language
+browser acceptance remain frontend work.
+
 ### Publishing the invitation
 
 ```http
@@ -2083,6 +2579,55 @@ answer can never be accepted after closing even if a cached page briefly says
 otherwise.
 
 Publishing the invitation also marks the event itself published.
+
+### Invitation lifetime and expired access
+
+First publication captures a lifetime policy. Without an ACTIVE
+subscription whose period end is still in the future, the free fallback is
+**90 elapsed UTC days after `endsAt`, or `startsAt` when no end is set**. An
+eligible subscription captures its plan's duration (`null` means indefinite).
+This does not activate paid billing. Later plan/catalogue changes and
+close/reopen preserve the captured policy; event-date corrections recompute a
+finite deadline from that policy.
+
+Publish/close/reopen results, the host event's `invitation`, and the authorized
+draft response's invitation metadata include:
+
+```json
+{
+  "expiresAt": "2027-01-23T16:00:00.000Z",
+  "firstPublishedAt": "2026-10-19T09:00:00.000Z",
+  "lifetimeDays": 90,
+  "lifetimeSource": "FREE_DEFAULT",
+  "lifetimePlanKey": null,
+  "isExpired": false
+}
+```
+
+All capture fields may be null before publication. `PLAN` records the captured
+plan key; `LEGACY` preserves a previously published invitation's existing expiry,
+including indefinite access, without inventing a first-publication date. Such
+rows require operator review. A null deadline means no scheduled expiry.
+
+At `now >= expiresAt`, generic/personal invitation pages, guest RSVP reads,
+name editing, gallery, acknowledgement and private guest file access return 404;
+RSVP submission returns 400. Telegram opt-in cannot reactivate an expired link.
+Sending or manually reminding an expired invitation returns 400; automatic
+reminders skip it, and queued invitations/reminders recheck availability before
+dispatch. Host event/draft access and retained RSVP, seating, signatures and
+photos remain authorized normally. Expiry neither deletes data nor archives the
+event. Reopening an expired invitation preserves the expired deadline.
+
+Both invitation GET routes return `Cache-Control: private, no-store`, including
+expired responses, so browser/proxy caching cannot bypass availability checks.
+Personalized pages cache their guest/household/attendance/seating projection
+separately from shared content on the server. Live Postgres checks before and after loading
+still enforce token validity, visibility, erasure, expiry and committed revisions.
+A concurrent edit triggers a retry; sustained changes may return 409 with
+`Invitation changed while loading; please retry`. Retry the read. Redis outage
+falls back to Postgres. Raw capabilities and generated token-bearing links are
+excluded from cache keys and projections. No frontend cache may bypass guest
+availability checks.
 
 ### Sending the invitation
 
@@ -2142,7 +2687,7 @@ the household. Omitted, it invites every household on the event that has not
 been invited yet. An id that is not on the event is a `400`, not a silent
 no-op.
 
-**A draft is refused** with a `400` saying to publish first: the link resolves
+**A draft or expired invitation is refused** with a `400` (drafts must publish first): the link resolves
 to a page that 404s until then, and four hundred emails cannot be recalled.
 
 **Mail is queued, not sent during the request.** Four hundred SMTP
@@ -2306,7 +2851,9 @@ GET /api/v1/invitations/:slug/delivery
     "householdId": "clz...", "household": "Petrosyan family",
     "guest": "Armen Petrosyan", "toAddress": "armen@example.am",
     "status": "SENT", "attempts": 1, "failureReason": null,
-    "sentAt": "2026-10-05T18:02:11.000Z"
+    "sentAt": "2026-10-05T18:02:11.000Z",
+    "deliveredAt": null, "readAt": null, "deliveryFailedAt": null,
+    "deliveryErrorCode": null, "deliveryFailureKind": null
   }]
 }
 ```
@@ -2323,6 +2870,15 @@ malformed but never quotes the address.
 `status` is `NOT_SENT` (nothing has been sent to this address yet) or a
 `Message` status: `QUEUED`, `SENDING`, `SENT`, `DELIVERED`, `FAILED`,
 `BOUNCED`, `SUPPRESSED`, `CANCELLED` (withdrawn before sending).
+
+**Additive receipt fields (19 October 2026):** `deliveredAt`, `readAt`,
+`deliveryFailedAt`, `deliveryErrorCode` and `deliveryFailureKind` are nullable.
+WhatsApp reads keep `status: DELIVERED` and populate `readAt`; an absent read
+receipt is not proof the message was unread. Receipt failure classes are
+`CONFIGURATION`, `TRANSIENT`, `AMBIGUOUS`, `UNKNOWN`. Display localized labels
+for these classes; raw provider descriptions are never exposed. Delivery/read
+proof wins over late sent/failed callbacks. An asynchronous failure becomes
+`FAILED` and does not automatically resend or globally suppress the guest.
 
 Each row also has `reminders` — how many reminders the household has had —
 and `lastRemindedAt`.
@@ -2377,16 +2933,30 @@ PATCH  /api/v1/invitations/:slug/questions/:questionId
 DELETE /api/v1/invitations/:slug/questions/:questionId
 ```
 
-`type` is `TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE` or `BOOLEAN`.
-`SIGNATURE` is refused (`400` starting `type:`) until signatures can be
-captured. `prompt` is translated (`{ "hy": "...", "en": "..." }`) and must
+`type` is `TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE`, `BOOLEAN` or `SIGNATURE`. SIGNATURE creates a current `statementVersionId` for private typed/drawn acknowledgements. `prompt` is translated (`{ "hy": "...", "en": "..." }`) and must
 carry at least one language. `options` is translated too
 (`{ "hy": ["Միս", "Ձուկ"] }`) and is **required for the choice types** — a
 choice question with no choices cannot be answered, so it is a `400`. Every
 language must offer the **same number of choices**, since an answer is a
 position.
 
-New questions go last; `sortOrder` comes back on each.
+New questions go last; `sortOrder` comes back on each. At most 1000 questions
+are supported per invitation. To reorder them in one atomic call:
+
+```http
+PATCH /api/v1/invitations/:slug/question-order
+      { "questionIds": ["second-id", "first-id"],
+        "expectedOrder": ["first-id", "second-id"] }
+```
+
+Needs `invitation:design`. Send every current ID exactly once in `questionIds`,
+in display order; `expectedOrder` is the ID order originally read from the
+questions or design response. Duplicate, missing or foreign IDs return 400.
+If a question was added/removed or another organizer changed its order, return
+409 and reload before retrying. Rejection changes nothing. The response is the
+ordered question array with zero-based `sortOrder`. Answers retain their stable
+question IDs; option positions, required flags and copy are untouched.
+
 
 `PATCH` changes only the fields sent — `{ "required": false }` makes a question
 optional and leaves its wording and choices alone. The result must still be
@@ -2435,10 +3005,22 @@ the address on an invitation already sent.
 
 The directory itself is kept by Aveline staff (`directory:manage`):
 `POST /venue-profiles` adds a hall (`name`, `address`, `city?`, `latitude?`,
-`longitude?`, `capacity?`, `notes?`), and `PATCH /venue-profiles/:profileId`
+`longitude?`, `capacity?`, `notes?`, `vendorId?`), and `PATCH /venue-profiles/:profileId`
 corrects one or retires it with `isActive: false` — it disappears from the
 list hosts see, and venues already copied from it keep their copy. Hosts
 cannot write to it: every customer reads the same directory.
+
+A directory hall may link to one active **curated VENUE** vendor using
+`vendorId`; one vendor may operate several halls. `PATCH { "vendorId": null }`
+unlinks just that hall. Private organization vendors, inactive/wrong-category
+vendors and unknown IDs return 400. Event venue copies retain their data.
+Host directory reads include `vendorId` and `vendor: { id, name }` (both null
+when the linked operator is no longer eligible); private contacts/notes never
+appear there. Vendor directory entries add `venueProfiles: [{ id, name, city,
+capacity }]` for active halls. The former `venueProfile: { city, capacity }`
+remains as a compatibility summary of the first hall by name/id; new clients
+should use the collection.
+
 
 `DELETE` is refused with a `400` while timeline entries or tables still point
 at the venue, naming how many — the cascade would otherwise detach a running
@@ -2452,6 +3034,12 @@ Reading needs `event:read`; writing needs `event:write`. Design calls need
 ```http
 POST /api/v1/events/:eventId/media        # multipart/form-data, field "file"
 ```
+
+Optional multipart field `kind` is PHOTO, COVER, LOGO or AUDIO. Without it,
+images default to PHOTO and audio to AUDIO. Explicit kind is honored: LOGO and
+COVER are images; AUDIO must be audio. Type/kind mismatch, unknown kinds,
+DOCUMENT and SIGNATURE return 400 before storage. Attachment rules still apply:
+MUSIC accepts audio only; other blocks accept PHOTO/COVER/LOGO images only.
 
 JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. Wrong type → `415` — SVG
 included, since it can carry script (decided 10 October 2026) — too
@@ -2472,7 +3060,8 @@ DELETE /api/v1/events/:eventId/media/:assetId
 `GET` (needs `invitation:read`) lists the event's uploads newest first, each
 with `id`, `url`, `kind`, `mimeType`, `sizeBytes`, `altText` (keyed by
 language), `createdAt` and `usedBy` — the block types showing it, e.g.
-`["HERO"]`. Generated exports are not in it; they are under `/exports`.
+`["HERO"]`. `listingUses` lists `"HERO"` and/or `"SHARE"` when selected on the
+announcement (empty otherwise). Generated exports are not in it; they are under `/exports`.
 
 `PATCH` (needs `invitation:design`) sets alt text one language at a time: a
 language sent replaces that one, `null` removes it, the rest are kept. Each
@@ -2481,7 +3070,8 @@ Guests receive it already resolved to their language, as `media[].altText`.
 
 `DELETE` (needs `invitation:design`) removes the upload and its file. It is
 refused with `409` while a block shows it, naming the block — take it off
-there first, with `PATCH /invitations/:slug/blocks/:type`.
+there first, with `PATCH /invitations/:slug/blocks/:type`. Listing hero/share
+references also prevent deletion; clear them through the listing edit first.
 
 **Photos are resized after upload, in the background.** Within about a minute
 each JPEG, PNG, WebP or AVIF photo gains smaller WebP copies at 480, 960 and
@@ -2508,6 +3098,12 @@ one event, and a code from any other event is `404`.
 **A code admits exactly once.** A second scan returns `400` with
 `"Ticket already used"` — which is the point, and the message to show. Two
 staff scanning the same ticket simultaneously cannot both admit it.
+For a linked ticket, either the ticket scanner or guest-list check-in writes
+one `CheckIn` and marks the ticket `USED` with the same timestamp, atomically.
+The ticket response also includes `guestId` (null for an unlinked legacy ticket).
+Guest-list check-in refuses void/refunded tickets and orders frozen for
+cancellation. Explicit guest check-in undo restores an active paid ticket to
+`VALID`; attendance-policy changes never undo admission.
 
 `404` means the code is not recognised at all. Distinguish the two in the UI:
 "already admitted" is routine, "not recognised" is a problem.
@@ -2571,6 +3167,87 @@ for something to integrate with. It records a guest's opt-in when they tap the
 deep link, treats blocking the bot as an unsubscribe, and lifts that
 unsubscribe when the guest starts or unblocks the bot again.
 
+### Not for the browser: Meta WhatsApp receipts
+
+```http
+GET  /api/v1/communications/whatsapp-webhook
+POST /api/v1/communications/whatsapp-webhook
+```
+
+These public routes authenticate Meta, not a host session. Never expose their
+secrets in the frontend. GET requires `hub.mode=subscribe`, a matching
+`hub.verify_token`, and bounded `hub.challenge`; it echoes the challenge as
+plain text with `200` and `Cache-Control: no-store`. A wrong token is `401`;
+unconfigured verification is `503`.
+
+POST requires `X-Hub-Signature-256: sha256=<hex HMAC-SHA256>` of the exact raw
+request bytes keyed by the Meta app secret. It accepts native
+`whatsapp_business_account` JSON, scoped by `entry[].id` and
+`changes[].value.metadata.phone_number_id`, for `messages` statuses only.
+Supported outcomes: `sent`, `delivered`, `read`, `failed`. Inbound messages,
+other accounts/senders/fields and unknown future statuses are ignored. Limits
+are 3 MiB, 1,000 entries/total changes/total applicable statuses, and a 512
+character provider reference. Timestamps are Unix seconds; invalid or more
+than five minutes future times are rejected, but old retries remain valid.
+
+`200 { "accepted": true }` means normalized receipts committed to Postgres,
+not that application has finished. Forged signatures are `401`, malformed
+payloads/fields are `400`, oversized bodies are `413`, compressed bodies are
+`415`, absent signing/scope configuration is `503`, and database failures are
+non-200 so Meta can retry. Standard public throttling still applies. The
+route-specific larger body limit does not change other APIs.
+
+Normalized receipts contain only account/sender/provider IDs, status, clocks
+and numeric error code. Duplicate identities are idempotent. A minute sweep
+processes at most 200, five transactions at once; unknown references rotate
+fairly, waiting up to seven days for acknowledgement/correlation. Processed
+metadata expires after thirty days. Matching requires WHATSAPP, the recorded
+account, sender and provider reference; old unscoped messages stay unmatched.
+Late callbacks do not mutate erased contacts. No WhatsApp receipt creates a
+global suppression; account/template errors and ambiguous delivery are not
+proof of an address hard bounce or unsubscribe.
+
+All six WhatsApp settings are required together once any is enabled in
+production, including an explicitly selected API version. See
+[WHATSAPP_SETUP.md](../backend/docs/WHATSAPP_SETUP.md) for configuration,
+external approval and real provider acceptance gates. No Meta account/test
+number is available yet; local payload tests do not close the launch gate.
+
+### Not for the browser: normalized email feedback
+
+```http
+POST /api/v1/communications/email-feedback
+```
+
+This is a provider-neutral boundary for a **trusted server-side adapter**, not
+a native provider webhook and not a host/guest API. No provider adapter has been
+selected. Never put its signing secret in the client. When
+`EMAIL_FEEDBACK_SECRET` is unset, ingestion answers `503`.
+
+Send a JSON object with `receiptKey` (unique opaque key, 1–120 ASCII letters,
+digits, dot, underscore, colon or hyphen), `messageId` (internal Message id,
+1–80 letters/digits/underscore/hyphen), `outcome` (`DELIVERED`, `HARD_BOUNCE`,
+`SOFT_BOUNCE`, `COMPLAINT`) and `occurredAt` (ISO 8601 UTC ending in `Z`).
+Do not include recipient addresses, message bodies or native provider payloads.
+SMTP carries the internal id in `X-Aveline-Message-Id`; the eventual adapter
+must verify its provider's own authentication and preserve/correlate that id.
+
+Headers: `x-aveline-feedback-timestamp` is current Unix seconds, and
+`x-aveline-feedback-signature` is the hex HMAC-SHA256 of
+`timestamp + "." + exact raw JSON bytes`, keyed by the secret. The timestamp
+must be within five minutes of the server. Invalid authentication is `401`,
+invalid fields/body size (maximum 16 KiB) are `400`, and accepted input returns
+`202 { "accepted": true }`. Standard public throttling still applies; retry
+with backoff and a newly signed current timestamp.
+
+Repeated receipt keys are idempotent. Delivery never overrides a permanent
+bounce/complaint. Soft bounces record the outcome without suppressing the guest
+or re-sending a provider-accepted message. Hard bounces/complaints suppress
+future sends globally; a later weaker report cannot downgrade the reason.
+Late feedback never reconstructs erased addresses. Early/unmatched receipts
+are reconciled every minute, least-recently checked first, for at most seven
+days. Processed receipts expire after thirty days.
+
 ### The audit trail
 
 ```http
@@ -2604,10 +3281,14 @@ GET /api/v1/health/live      # process is up
 GET /api/v1/health/ready     # dependencies
 ```
 
-`ready` returns `"status": "ok"`, or `"degraded"` when Redis or Mongo is down
+`ready` returns `"status": "ok"`, or `"degraded"` when Redis, Mongo or storage is down
 — **degraded is still serving**: those outages cost latency and analytics,
 not correctness. With Postgres down nothing is served, so it answers `503`
 (`"status": "unavailable"`), which the container healthcheck acts on.
+
+The response names `required.postgres` and `optional.redis`, `optional.mongo`,
+`optional.storage`; each has `isUp`, `latencyMs`, and an error when unreachable.
+Storage failure affects media operations even though domain reads remain ready.
 
 ---
 
@@ -2658,9 +3339,10 @@ So you can plan around them rather than discover them:
   guest with a phone and no other way in — but no provider is connected, so
   it is never chosen until one is. Email and Telegram are delivered; WhatsApp
   is built but has no approved templates yet, so it is never chosen.
-- **No WhatsApp delivery receipts.** Meta reports delivery and read status by
-  webhook; we do not consume it, so a WhatsApp message stays `SENT`. Email over SMTP is real, retries a temporary
-  failure and suppresses an address that hard-bounces.
+- **WhatsApp live acceptance.** Signed, scoped delivery/read/failure ingestion is
+  built. Account/app/test number, template approval, real callback/subscription
+  proof and frontend acceptance remain; see the
+  [setup checklist](../backend/docs/WHATSAPP_SETUP.md).
 - **Nothing enforces plan entitlements.** They are published on `/plans` and on
   the subscription, but the server will not refuse a fourth event on a
   three-event plan.
@@ -2668,12 +3350,149 @@ So you can plan around them rather than discover them:
 - **No renewal or dunning.** A subscription's period lapses and nothing
   charges again or moves it to `PAST_DUE`.
 - **One organization per account.** See §6.
-- **No block creation outside the arrangement call**, and no way to reorder
-  custom RSVP questions once added.
-- **PDF and XLSX exports.** CSV works; the other two formats return `400`.
-- **Asynchronous bounce reports.** A rejection at send time suppresses the
-  address automatically. A bounce that arrives later, as a report to the
-  sending mailbox, is not read by anything.
+- **No block creation outside the arrangement call.** Custom RSVP questions can be reordered atomically through the question-order route.
+- **Worker/frontend acceptance.** Automatic seating and all export formats run
+  in dedicated workers. Frontend job integration, standard heading/reason
+  translations and production rehearsal remain.
+- **A native email feedback adapter.** Normalized signed delivery/bounce/complaint
+  ingestion is built; no provider has been selected or connected. Ordinary
+  bounce emails arriving in a mailbox are still not parsed.
 
 The authoritative list is [GAPS.md](../backend/docs/GAPS.md), and
 [GOING_LIVE.md](GOING_LIVE.md) is what blocks production.
+
+## 11. Private acknowledgements and guest gallery
+
+Guest routes require a personal invitation capability. Generic invitation,
+preview, buyer order and ticket-code links do not authorize them. Draft, erased,
+unknown and expired links return 404; CLOSED invitations remain readable.
+Keep capability URLs out of analytics and set `Referrer-Policy: no-referrer` on
+the frontend. File responses use `private, no-store` and `nosniff`. Processed image reads share the guest-page read allowance (50/second, 3,000/minute per caller/address), so a gallery page can load its thumbnails; handle 429 with a delayed retry. Uploads and other actions keep the normal mutation limits.
+
+```http
+GET  /api/v1/invitations/:slug/g/:guestToken/acknowledgements?limit=30&after=recordId
+POST /api/v1/invitations/:slug/g/:guestToken/acknowledgements
+```
+
+GET returns `{ statements, records, signatureUploads, nextCursor }`; `signatureUploads` contains up to 20 of your active signature uploads with processing status and fixed failure codes. Each current SIGNATURE statement
+contains `questionId`, `statementVersionId`, `required`, resolved `prompt` and
+`locale` (published language to send when signing), and `statementLocale` (the actual fallback text language); records contain the subject and actual signer IDs, `signerName`, method,
+representative declaration, exact rendered statement/locale, mediaId or null,
+version and server timestamp. History is limited to the guest's own signed records
+and subjects currently in their household. Each record is immutable; a retry of
+identical intent returns the same ID. Pagination is newest first, default 30,
+1–100; a cursor outside this visible collection returns 404.
+
+```json
+{ "statementVersionId": "current-version", "subjectGuestIds": ["self-id", "household-member-id"],
+  "method": "TYPED", "signerName": "Anna Example", "isAcknowledged": true,
+  "isRepresentative": true, "locale": "en" }
+```
+
+POST returns `{ records }` with status 201 and does not change attendance. Supply
+1–21 unique subjects from the signer's current household. A representative must
+explicitly set `isRepresentative: true` for other subjects; their names are never
+recorded as the actual signer. `signerName` is trimmed, 1–200 characters; locale
+must be an event language. No implied acknowledgement from a purchase or host
+RSVP entry. TYPED takes no image; DRAWN requires `assetId` from the signer's own
+READY signature upload on this event. Forged/unready assets or subjects return
+400. Old statement versions return 409: reread, display the current text and
+ask for a new acknowledgement. Prompt changes, including translations, create
+an immutable new version; old records keep the text and language actually used.
+
+The same object **without `subjectGuestIds`** can be a SIGNATURE custom answer in
+guest RSVP `answers`, `members[].answers` or `party[].answers`. The response stores
+an acknowledgement reference, rather than an image URL. Required statements must
+have current acknowledgements for every affected attending guest, including new
+plus-ones; an incomplete submission rolls back attendance and all its writes.
+Existing standalone acknowledgements count. Required current acknowledgements
+also gate both guest check-in and ticket admission, including legacy reconciliation.
+
+```http
+POST   /api/v1/invitations/:slug/g/:guestToken/signature-uploads
+GET    /api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file
+DELETE /api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId
+GET    /api/v1/invitations/:slug/g/:guestToken/acknowledgements/:acknowledgementId/file
+```
+
+Upload one multipart `file` (PNG/JPEG/WebP/AVIF, at most 1 MiB) and receive private
+media metadata in QUEUED state. Poll `acknowledgements.signatureUploads` for READY/FAILED, then fetch the preview; pending/failed/unavailable files return 404. The worker validates raster
+bytes, rejects animation/over 4 million pixels, strips metadata and emits PNG at
+most 2048px per side and 1 MiB. Preview is owner-only; acknowledgement file reads
+also permit the record's authorized household subjects. DELETE removes an unclaimed
+upload; a drawing used by an acknowledgement returns 409 and requires the privacy
+request process. Unclaimed drawings are reclaimed after 24 hours. Technical
+signature limits: 20 active uploads per guest, 5,000 per event and 2 GiB reserved
+storage per event, separate from gallery storage.
+
+Ticket checkout excludes SIGNATURE from the buyer's questions and returns
+`acknowledgementsRequiredBeforeCheckIn: [{ questionId, prompt }]` in checkout
+metadata. Checkout still collects every attendee and completes before signing.
+A minute sweep queues a personal-link email to each valid, paid ticket guest with
+an email address (four-language `ticket.acknowledgement` copy). It recovers missing
+outbox entries and deduplicates per ticket/person. It rechecks the recipient,
+paid/valid ticket and invitation availability immediately before dispatch. The
+buyer response never reveals attendee guest tokens. For attendees without email,
+failed/suppressed delivery or later statement/contact changes, the host must use
+the existing personal invitation send/share workflow; the door gate still applies.
+
+```http
+GET    /api/v1/invitations/:slug/g/:guestToken/gallery?limit=30&after=mediaId
+POST   /api/v1/invitations/:slug/g/:guestToken/gallery
+GET    /api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId/file?variant=thumbnail
+DELETE /api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId
+```
+
+Gallery POST accepts one multipart `file` and optional `caption` (trimmed, at most
+500 characters). Allowlisted PNG/JPEG/WebP/AVIF, maximum 10 MiB; SVG is refused
+and spoofed raster content fails in the worker. Limits: 20 active photos per guest,
+1,000 per event and 2 GiB per event, including originals and derived files.
+Reservations include worst-case derivative bytes (2.5 MiB per queued photo), so
+available capacity may be lower during processing. Count/storage contention returns
+409; oversized uploads return 413; unsupported MIME returns 415; storage outage
+returns 503. Removed bytes remain reserved until cleanup succeeds.
+
+GET returns `{ items, nextCursor, limits }`. Items contain `id`, kind,
+processing/moderation status, caption, dimensions, timestamps, fixed failure code
+or null, and `isOwn`. No storage keys, original filename, public URL or other
+guest's contacts/IDs. Guests see their own pending/rejected items and other
+READY+APPROVED photos only. JPEG orientation is applied; EXIF/other metadata is
+stripped. Maximum 40 million input pixels, static images only. The separate worker
+emits WebP display (2048px, at most 2 MiB) and thumbnail (480px, at most 512 KiB).
+`variant` is display (default) or thumbnail. Ordinary reads never return originals.
+A guest can DELETE only their own gallery photo, including after approval.
+Removal revokes access immediately; durable cleanup deletes physical files later.
+
+```http
+GET    /api/v1/events/:eventId/acknowledgements?limit=30&after=recordId
+GET    /api/v1/events/:eventId/acknowledgements/:acknowledgementId/file
+GET    /api/v1/events/:eventId/gallery?limit=30&after=mediaId
+PATCH  /api/v1/events/:eventId/gallery/:mediaId
+GET    /api/v1/events/:eventId/gallery/:mediaId/file?variant=display
+DELETE /api/v1/events/:eventId/gallery/:mediaId
+```
+
+Host acknowledgement history/files require `guest:contact:read`; gallery moderation,
+files/removal require `guest:write`. Designers have neither. Lists return
+`{ items, nextCursor }`; pagination is the same as guest lists. PATCH accepts
+`{ "moderationStatus": "APPROVED" }` or `REJECTED`; a photo must be READY and
+still present, otherwise 409. Approval is required before other guests can see it.
+Host data remains after guest expiry. Ordinary guest deletion refuses guests with
+acknowledgement evidence; use a verified privacy request to erase it.
+
+```http
+GET /api/v1/privacy/requests/:requestId/guest-media/:mediaId/file
+```
+
+Staff `privacy:manage` only, for an identity-verified EXPORT request in IN_PROGRESS
+or COMPLETED state and a file belonging to that subject (uploader, signer or
+acknowledged subject). Returns the original as an octet-stream attachment; callers
+must treat it as untrusted. Privacy JSON exports add `contributions` with records
+and media metadata plus protected `fileDownloadPath` values. Erasure removes records
+where the subject was signer or represented person, removes RSVP pointers, and
+revokes uploader media immediately. `acknowledgementsErased` and
+`privateMediaQueuedForDeletion` report the result; the durable media worker removes
+originals and variants asynchronously. Event deletion leaves cleanup tombstones,
+so interrupted workers cannot orphan private files. Pending frontend work includes
+the four-language capture, moderation, pending/error states and ticket pre-check-in
+flow; these backend endpoints alone do not satisfy pilot acceptance.

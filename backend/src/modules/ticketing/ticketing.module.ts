@@ -1,3 +1,5 @@
+import { TicketAttendeesService } from './ticket-attendees.service';
+import { TicketAttendeesController } from './ticket-attendees.controller';
 import { Module } from '@nestjs/common';
 import { BillingModule } from '../billing/billing.module';
 import { PaymentsModule } from '../payments/payments.module';
@@ -12,8 +14,9 @@ import { TicketingService } from './ticketing.service';
 
 @Module({
   imports: [PaymentsModule, BillingModule],
-  controllers: [TicketingController, TicketSetupController],
+  controllers: [TicketingController, TicketSetupController, TicketAttendeesController],
   providers: [
+    TicketAttendeesService,
     TicketInventoryService,
     TicketNotifierService,
     TicketFulfilmentService,

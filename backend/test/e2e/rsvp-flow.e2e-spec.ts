@@ -43,6 +43,17 @@ describe('RSVP flow (e2e)', () => {
     await disconnectTestDatabase();
   });
 
+  it.each(['en', 'ru', 'fr', 'hy'])('adds localized field validation and policy recovery in %s', async (locale) => {
+    const { slug, primaryGuestToken } = await seedEvent(prisma);
+    const path = `/api/v1/invitations/${slug}/g/${primaryGuestToken}/rsvp`;
+    const invalid = await http().post(path).set('Accept-Language', locale).send({ status: 'INVALID' }).expect(400);
+    expect(invalid.body).toMatchObject({ locale, code: 'VALIDATION_FAILED', action: 'EDIT', details: [{ field: 'status', code: 'INVALID_CHOICE' }] });
+    expect(Array.isArray(invalid.body.message)).toBe(true);
+    expect(invalid.body.userMessage).toBeTruthy();
+    const changed = await http().post(path).set('Accept-Language', locale).send({ status: 'ATTENDING', attendanceRevision: 999 }).expect(409);
+    expect(changed.body).toMatchObject({ locale, code: 'ATTENDANCE_CHANGED', action: 'RELOAD' });
+  });
+
   it('serves a published invitation and personalizes it for a guest', async () => {
     const { slug, primaryGuestToken } = await seedEvent(prisma, { visibility: EventVisibility.UNLISTED });
 

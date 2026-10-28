@@ -1,3 +1,7 @@
+import { readGuestAccess } from '../guest-contributions/guest-access';
+import { assertRequiredAcknowledgements } from '../guest-contributions/acknowledgement-writes';
+import { AttendanceContext, lockAttendancePolicy, normalizeHouseholdAttendance } from './attendance/attendance-context';
+import { attendanceView, ATTENDANCE_GUEST } from './attendance/attendance-view';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Guest, GuestAttribution, RsvpStatus } from '@prisma/client';
 import { isFollowing, partyAnswersProblem, partyRequiredProblem, partyStatus } from './party';
@@ -7,7 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
 import { RsvpFields, Tx, recordAnswer, saveAnswers, withoutUndefined } from './answer-writes';
 import { AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
-import { MemberAnswerDto, PartyMemberDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
+import { MemberAnswerDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
 import { membersProblem, newPartyMembers } from './household-answers';
 import { builtInAnswerProblem } from './rsvp-fields';
 
@@ -42,26 +46,25 @@ export class RsvpService {
    * Safe to send again: plus-ones are matched by name, omitted fields keep
    * their value, and the time of the first answer is kept.
    */
-  async submit(slug: string, token: string, dto: SubmitRsvpDto) {
+  async submit(slug: string, token: string, submitted: SubmitRsvpDto) {
     const guest = await this.loadGuest(slug, token);
-    const { questions, rsvpFields, locales } = await this.loadAcceptingInvitation(slug);
-    if (dto.locale !== undefined && !locales.includes(dto.locale)) {
-      throw new BadRequestException(`locale: this invitation is in ${locales.join(', ')}, not "${dto.locale}"`);
-    }
-    assertNoProblem(answersProblem(questions, dto.answers ?? []));
-    assertNoProblem(memberAnswersProblem(questions, dto.members ?? []));
-    assertNoProblem(builtInAnswerProblem(rsvpFields, dto));
-    assertNoProblem(memberBuiltInProblem(rsvpFields, dto.members ?? []));
-    assertNoProblem(partyAnswersProblem(questions, rsvpFields, dto.party ?? []));
-
     const result = await this.prisma.$transaction(async (tx) => {
+      const policy = await lockAttendancePolicy(tx, guest.eventId);
       // Counted under the household's lock, not from the guest loaded above:
       // the host may be adding someone to this household at the same moment.
       const household = await lockHousehold(tx, guest.eventId, guest.householdId);
+      const locked = await tx.$queryRaw<{ canRespond: boolean }[]>`SELECT
+        (id = ${guest.id} AND token = ${token} AND "anonymizedAt" IS NULL) AS "canRespond"
+        FROM guests WHERE "householdId" = ${guest.householdId} AND "eventId" = ${guest.eventId} ORDER BY id FOR UPDATE`;
+      if (!locked.some((person) => person.canRespond)) throw new NotFoundException('Invitation link not recognised');
+      const { questions, rsvpFields, locales } = await this.loadAcceptingInvitation(slug, tx);
+      assertResponseLocale(submitted.locale, locales);
       const members = await tx.guest.findMany({
         where: { householdId: guest.householdId },
         select: { id: true, firstName: true, lastName: true, addedByGuest: true, anonymizedAt: true, rsvp: { select: { status: true } } },
       });
+      const dto = await normalizeHouseholdAttendance(tx, policy, submitted, guest.id);
+      this.assertSubmission(questions, rsvpFields, dto);
       const party = newPartyMembers(members, dto.party ?? []);
       assertHouseholdCapacity(household, party.length);
       // Only plus-ones named for the first time: a resubmitted one is already
@@ -75,12 +78,18 @@ export class RsvpService {
 
       await this.applyGuestChanges(tx, guest, dto);
       const before = members.find((member) => member.id === guest.id)?.rsvp?.status;
-      const rsvp = await recordAnswer(tx, guest.id, respondentFields(dto));
-      await this.saveCustomAnswers(tx, rsvp.id, dto);
-      await this.addPartyMembers(tx, guest, dto, party);
-      await this.answerForMembers(tx, members, { respondentId: guest.id, before }, dto);
+      const rsvp = await recordAnswer(tx, guest.id, respondentFields(dto), { policy, venueAttendance: dto.venueAttendance });
+      await this.saveCustomAnswers(tx, rsvp.id, dto, guest.id);
+      const added = await this.addPartyMembers(tx, guest, { ...dto, party }, policy);
+      const followed = await this.answerForMembers(tx, members, { respondentId: guest.id, before, policy }, dto);
+      const affected = [guest.id, ...added, ...followed, ...(dto.members ?? []).map((member) => member.guestId)];
+      const attending = await loadAttendingPeople(tx, affected, rsvp);
+      await assertRequiredAcknowledgements(tx, guest.eventId, attending.map((person) => person.id));
+      await this.assertStillAccepting(slug, tx);
 
       return {
+        attendanceMode: policy.attendanceMode,
+        attendanceRevision: policy.attendanceRevision,
         status: rsvp.status,
         respondedAt: rsvp.respondedAt,
         partyAdded: party.length,
@@ -91,15 +100,17 @@ export class RsvpService {
 
     // After the commit, never inside it: a confirmation for an answer that
     // then rolled back would tell the guest something untrue.
-    await this.confirmer.confirm(guest.id, result.status);
+    await this.confirmer.confirm(guest.id, result.status, result.attendanceMode);
     return result;
   }
 
   /** The guest's answer, and everyone in the household they can answer for. */
   async getForGuest(slug: string, token: string) {
+    await readGuestAccess(this.prisma, slug, token);
     const guest = await this.prisma.guest.findFirst({
-      where: { token, event: { invitation: { slug } } },
+      where: { token, anonymizedAt: null, event: { invitation: { slug } } },
       include: {
+        ...ATTENDANCE_GUEST,
         rsvp: { include: { answers: { select: { questionId: true, value: true } } } },
         household: {
           include: {
@@ -107,13 +118,14 @@ export class RsvpService {
               // Someone erased at their request is not anyone's to answer for.
               where: { anonymizedAt: null },
               orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
-              select: { id: true, firstName: true, lastName: true, addedByGuest: true, rsvp: true },
+              select: { id: true, firstName: true, lastName: true, addedByGuest: true, ...ATTENDANCE_GUEST, rsvp: true },
             },
           },
         },
       },
     });
     if (!guest) throw new NotFoundException('Invitation link not recognised');
+    await readGuestAccess(this.prisma, slug, token);
 
     return {
       guest: { id: guest.id, firstName: guest.firstName, lastName: guest.lastName },
@@ -127,20 +139,31 @@ export class RsvpService {
             firstName: member.firstName,
             lastName: member.lastName,
             addedByGuest: member.addedByGuest,
+            attendance: attendanceView(member),
             status: member.rsvp?.status ?? RsvpStatus.PENDING,
             dietary: member.rsvp?.dietary ?? [],
             dietaryNotes: member.rsvp?.dietaryNotes ?? null,
           })),
       },
+      attendance: attendanceView(guest),
       rsvp: guest.rsvp ?? { status: RsvpStatus.PENDING, answers: [] },
     };
+  }
+
+  private assertSubmission(questions: AnswerableQuestion[], rsvpFields: unknown, dto: SubmitRsvpDto) {
+    assertNoProblem(answersProblem(questions, dto.answers ?? []));
+    assertNoProblem(memberAnswersProblem(questions, dto.members ?? []));
+    assertNoProblem(builtInAnswerProblem(rsvpFields, dto));
+    assertNoProblem(memberBuiltInProblem(rsvpFields, dto.members ?? []));
+    assertNoProblem(partyAnswersProblem(questions, rsvpFields, dto.party ?? []));
+
   }
 
   // ── guards ───────────────────────────────────────────────────────────
 
   private async loadGuest(slug: string, token: string): Promise<Guest> {
     const guest = await this.prisma.guest.findFirst({
-      where: { token, event: { invitation: { slug } } },
+      where: { token, anonymizedAt: null, event: { invitation: { slug } } },
     });
     if (!guest) throw new NotFoundException('Invitation link not recognised');
     return guest;
@@ -149,8 +172,9 @@ export class RsvpService {
   /** The invitation's questions and how it asks the built-in ones, if it is taking answers. */
   private async loadAcceptingInvitation(
     slug: string,
+    tx: Tx = this.prisma,
   ): Promise<{ questions: AnswerableQuestion[]; rsvpFields: unknown; locales: string[] }> {
-    const invitation = await this.prisma.invitation.findUnique({
+    const invitation = await tx.invitation.findUnique({
       where: { slug },
       select: {
         status: true,
@@ -161,13 +185,13 @@ export class RsvpService {
       },
     });
 
-    if (invitation?.status !== 'PUBLISHED') {
-      throw new BadRequestException('This invitation is not accepting responses');
-    }
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
-      throw new BadRequestException('This invitation has closed');
-    }
+    assertAcceptingInvitation(invitation);
     return { questions: invitation.questions, rsvpFields: invitation.rsvpFields, locales: invitation.event.locales };
+  }
+
+  private async assertStillAccepting(slug: string, tx: Tx): Promise<void> {
+    const invitation = await tx.invitation.findUnique({ where: { slug }, select: { status: true, expiresAt: true } });
+    assertAcceptingInvitation(invitation);
   }
 
   private async assertRequiredAnswered(
@@ -176,13 +200,14 @@ export class RsvpService {
     questions: AnswerableQuestion[],
     dto: SubmitRsvpDto,
   ): Promise<void> {
+    if (!questions.some((question) => question.required && question.type !== 'SIGNATURE')) return;
     const earlier = await tx.rsvpAnswer.findMany({
       where: { rsvp: { guestId } },
       select: { questionId: true },
     });
     const answered = new Set([...earlier, ...(dto.answers ?? [])].map((answer) => answer.questionId));
 
-    const missing = unansweredRequired(questions, answered, dto.status);
+    const missing = unansweredRequired(questions.filter((question) => question.type !== 'SIGNATURE'), answered, dto.status!);
     if (missing) throw new BadRequestException(`answers: ${missing.id} is required for a guest who is coming`);
 
     await this.assertMembersAnsweredRequired(tx, questions, dto.members ?? []);
@@ -206,7 +231,7 @@ export class RsvpService {
         ...earlier.filter((answer) => answer.rsvp.guestId === member.guestId).map((answer) => answer.questionId),
         ...(member.answers ?? []).map((answer) => answer.questionId),
       ]);
-      const missing = unansweredRequired(questions, answered, member.status);
+      const missing = unansweredRequired(questions.filter((question) => question.type !== 'SIGNATURE'), answered, member.status!);
       if (missing) {
         throw new BadRequestException(`members: ${member.guestId} must answer ${missing.id}, as they are coming`);
       }
@@ -238,9 +263,10 @@ export class RsvpService {
     tx: Tx,
     guest: Guest,
     dto: SubmitRsvpDto,
-    party: PartyMemberDto[],
-  ): Promise<void> {
-    for (const member of party) {
+    policy: AttendanceContext,
+  ): Promise<string[]> {
+    const added: string[] = [];
+    for (const member of dto.party ?? []) {
       const created = await tx.guest.create({
         data: {
           eventId: guest.eventId,
@@ -251,19 +277,16 @@ export class RsvpService {
           attribution: sideToRecord(guest, dto) ?? guest.attribution,
           locale: dto.locale ?? guest.locale,
           addedByGuest: true,
-          rsvp: {
-            create: withoutUndefined({
-              status: partyStatus(member, dto.status),
-              dietary: member.dietary,
-              dietaryNotes: member.dietaryNotes,
-              respondedAt: new Date(),
-            }),
-          },
         },
-        select: { rsvp: { select: { id: true } } },
+        select: { id: true },
       });
-      if (created.rsvp) await saveAnswers(tx, created.rsvp.id, member.answers ?? []);
+      const rsvp = await recordAnswer(tx, created.id, withoutUndefined({
+        status: partyStatus(member, dto.status!), dietary: member.dietary, dietaryNotes: member.dietaryNotes,
+      }), { policy, venueAttendance: member.venueAttendance });
+      await saveAnswers(tx, rsvp.id, member.answers ?? [], guest.id);
+      added.push(created.id);
     }
+    return added;
   }
 
   /**
@@ -275,17 +298,18 @@ export class RsvpService {
   private async answerForMembers(
     tx: Tx,
     members: HouseholdMember[],
-    respondent: { respondentId: string; before: RsvpStatus | undefined },
+    respondent: { respondentId: string; before: RsvpStatus | undefined; policy: AttendanceContext },
     dto: SubmitRsvpDto,
-  ): Promise<void> {
-    const { respondentId, before } = respondent;
+  ): Promise<string[]> {
+    const { respondentId, before, policy } = respondent;
     const explicit = new Map((dto.members ?? []).map((answer) => [answer.guestId, answer]));
 
     for (const answer of explicit.values()) {
-      const rsvp = await recordAnswer(tx, answer.guestId, memberFields(answer));
-      await saveAnswers(tx, rsvp.id, answer.answers ?? []);
+      const rsvp = await recordAnswer(tx, answer.guestId, memberFields(answer), { policy, venueAttendance: answer.venueAttendance });
+      await saveAnswers(tx, rsvp.id, answer.answers ?? [], respondentId);
     }
 
+    if (policy.attendanceMode === 'PER_VENUE') return [];
     const followers = members.filter(
       (member) =>
         member.addedByGuest &&
@@ -295,13 +319,24 @@ export class RsvpService {
         isFollowing(member.rsvp?.status, before),
     );
     for (const follower of followers) {
-      await recordAnswer(tx, follower.id, { status: dto.status });
+      await recordAnswer(tx, follower.id, { status: dto.status! }, { policy });
     }
+    return followers.map((follower) => follower.id);
   }
 
-  private async saveCustomAnswers(tx: Tx, rsvpId: string, dto: SubmitRsvpDto): Promise<void> {
-    await saveAnswers(tx, rsvpId, dto.answers ?? []);
+  private async saveCustomAnswers(tx: Tx, rsvpId: string, dto: SubmitRsvpDto, signerGuestId: string): Promise<void> {
+    await saveAnswers(tx, rsvpId, dto.answers ?? [], signerGuestId);
   }
+}
+
+function assertAcceptingInvitation(invitation: { status: string; expiresAt: Date | null } | null): asserts invitation {
+  if (invitation?.status !== 'PUBLISHED') throw new BadRequestException('This invitation is not accepting responses');
+  if (invitation.expiresAt && invitation.expiresAt <= new Date()) throw new BadRequestException('This invitation has closed');
+}
+
+async function loadAttendingPeople(tx: Tx, affected: string[], rsvp: { guestId: string; status: RsvpStatus }) {
+  if (affected.length === 1) return rsvp.status === 'ATTENDING' ? [{ id: rsvp.guestId }] : [];
+  return tx.guest.findMany({ where: { id: { in: affected }, rsvp: { status: 'ATTENDING' } }, select: { id: true } });
 }
 
 /** A member's dietary choices, held to the invitation's list as the respondent's are. */
@@ -324,7 +359,7 @@ function memberAnswersProblem(questions: AnswerableQuestion[], members: MemberAn
 
 function respondentFields(dto: SubmitRsvpDto): RsvpFields {
   return withoutUndefined({
-    status: dto.status,
+    status: dto.status!,
     dietary: dto.dietary,
     dietaryNotes: dto.dietaryNotes,
     drinkPreference: dto.drinkPreference,
@@ -334,7 +369,7 @@ function respondentFields(dto: SubmitRsvpDto): RsvpFields {
 }
 
 function memberFields(answer: MemberAnswerDto): RsvpFields {
-  return withoutUndefined({ status: answer.status, dietary: answer.dietary, dietaryNotes: answer.dietaryNotes });
+  return withoutUndefined({ status: answer.status!, dietary: answer.dietary, dietaryNotes: answer.dietaryNotes });
 }
 
 function memberIds(dto: SubmitRsvpDto): string[] {
@@ -360,4 +395,8 @@ function assertHouseholdCapacity(household: LockedHousehold, incoming: number): 
 /** The side a guest's answer may record: theirs only where the host left it unknown. */
 function sideToRecord(guest: Guest, dto: SubmitRsvpDto): GuestAttribution | undefined {
   return guest.attribution === GuestAttribution.UNKNOWN ? dto.attribution : undefined;
+}
+
+function assertResponseLocale(locale: string | undefined, locales: string[]) {
+  if (locale !== undefined && !locales.includes(locale)) throw new BadRequestException(`locale: this invitation is in ${locales.join(', ')}, not "${locale}"`);
 }

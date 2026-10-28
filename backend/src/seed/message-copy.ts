@@ -9,7 +9,19 @@ import { MessageChannel } from '@prisma/client';
  * production seed and the development seed read this one list — there used to
  * be a second, shorter copy in the development seed that had already drifted.
  */
+const VENUE_RESPONSE_COPY = {
+  hy: '{{guestName}}, Ձեր մասնակցության պատասխանները պահպանվել են։ Դիտեք կամ փոխեք դրանք Ձեր հրավերում։\n\n{{link}}',
+  en: '{{guestName}}, your venue attendance answers have been saved. Review or change them on your invitation.\n\n{{link}}',
+  ru: '{{guestName}}, ваши ответы об участии на площадках сохранены. Проверьте или измените их в приглашении.\n\n{{link}}',
+  fr: '{{guestName}}, vos réponses de participation aux différents lieux ont été enregistrées. Consultez-les ou modifiez-les dans votre invitation.\n\n{{link}}',
+};
+
 export const MESSAGE_COPY = [
+  ...[MessageChannel.EMAIL, MessageChannel.TELEGRAM, MessageChannel.WHATSAPP].map((channel) => ({
+    key: 'rsvp.confirmation.venues', channel,
+    subject: { hy: 'Պատասխանը պահպանվել է', en: 'Your answers are saved', ru: 'Ваши ответы сохранены', fr: 'Vos réponses sont enregistrées' },
+    body: VENUE_RESPONSE_COPY,
+  })),
   {
     key: 'invitation.send',
     channel: MessageChannel.EMAIL,
@@ -136,6 +148,12 @@ export const MESSAGE_COPY = [
       hy: '{{buyerName}}, Ձեր տոմսերը {{eventTitle}}-ին չեղարկվել են, և {{amount}} վերադարձվել է։ Տոմսերն այլևս վավեր չեն։',
       en: '{{buyerName}}, your tickets for {{eventTitle}} have been cancelled and {{amount}} refunded. The tickets are no longer valid.',
     },
+  },
+  {
+    key: 'ticket.acknowledgement',
+    channel: MessageChannel.EMAIL,
+    subject: {"en": "Please acknowledge the event rules", "ru": "Пожалуйста, подтвердите ознакомление с правилами мероприятия", "fr": "Veuillez prendre connaissance des règles de l’événement", "hy": "Խնդրում ենք հաստատել միջոցառման կանոններին ծանոթանալը"},
+    body: {"en": "{{guestName}}, your ticket for {{eventTitle}} is ready. Before check-in, please read and acknowledge the required statements through your personal invitation:\n\n{{link}}\n\nKeep this link private.", "ru": "{{guestName}}, ваш билет на {{eventTitle}} готов. До регистрации на входе ознакомьтесь с обязательными условиями и подтвердите согласие в личном приглашении:\n\n{{link}}\n\nНе передавайте эту ссылку другим.", "fr": "{{guestName}}, votre billet pour {{eventTitle}} est prêt. Avant votre admission, veuillez lire et accepter les conditions requises dans votre invitation personnelle :\n\n{{link}}\n\nGardez ce lien confidentiel.", "hy": "{{guestName}}, Ձեր {{eventTitle}} միջոցառման տոմսը պատրաստ է։ Մուտքի գրանցումից առաջ խնդրում ենք կարդալ և հաստատել պարտադիր պայմանները Ձեր անձնական հրավերում՝\n\n{{link}}\n\nԱյս հղումը պահեք գաղտնի։"},
   },
   {
     key: 'ticket.issued',

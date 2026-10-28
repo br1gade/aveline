@@ -51,6 +51,7 @@ describe('loggingConfig', () => {
       'req.body.email',
       'req.headers.referer',
       'req.headers["x-telegram-bot-api-secret-token"]',
+      'req.headers["x-hub-signature-256"]',
     ])('never logs %s', (path) => {
       expect(config().redact.paths).toContain(path);
     });

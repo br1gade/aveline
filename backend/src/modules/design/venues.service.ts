@@ -1,3 +1,4 @@
+import { mutateGuestVenues } from '../rsvp/attendance/venue-attendance';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, VenueRole } from '@prisma/client';
 import { VENUE_TRANSLATABLE, translationsProblem } from '../../common/field-translations';
@@ -25,11 +26,16 @@ export class VenuesService {
   ) {}
 
   /** The reusable directory, so a popular hall is typed once per platform. */
-  listProfiles(city?: string) {
-    return this.prisma.venueProfile.findMany({
-      where: { isActive: true, city },
-      orderBy: [{ city: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true, address: true, city: true, capacity: true },
+  async listProfiles(city?: string) {
+    const profiles = await this.prisma.venueProfile.findMany({
+      where: { isActive: true, city }, orderBy: [{ city: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true, address: true, city: true, capacity: true,
+        vendor: { select: { id: true, name: true, organizationId: true, active: true, category: true } } },
+    });
+    return profiles.map(({ vendor, ...profile }) => {
+      const operator = vendor?.active && vendor.organizationId === null && vendor.category === 'VENUE'
+        ? { id: vendor.id, name: vendor.name } : null;
+      return { ...profile, vendorId: operator?.id ?? null, vendor: operator };
     });
   }
 
@@ -71,7 +77,7 @@ export class VenuesService {
       select: { sortOrder: true },
     });
 
-    const venue = await this.prisma.venue.create({
+    const venue = await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, () => tx.venue.create({
       data: {
         eventId,
         role,
@@ -85,13 +91,14 @@ export class VenuesService {
         // What the host typed wins over the directory's copy.
         ...withoutUndefined({ latitude: dto.latitude, longitude: dto.longitude, capacity: dto.capacity }),
       },
-    });
+    })));
     return { ...venue, notice: await this.afterChange(eventId) };
   }
 
   async update(eventId: string, venueId: string, dto: UpdateVenueDto) {
     assertTranslations(dto.translations);
-    const venue = await this.prisma.$transaction(async (tx) => {
+    const venue = await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, async () => {
+      await tx.$queryRaw`SELECT id FROM seating_arrangements WHERE "venueId" = ${venueId} AND "eventId" = ${eventId} FOR UPDATE`;
       await lockRow(tx, 'venues', venueId);
       const current = await tx.venue.findFirst({ where: { id: venueId, eventId } });
       if (!current) throw new NotFoundException('No such venue on this event');
@@ -100,6 +107,7 @@ export class VenuesService {
         dto.longitude === undefined ? current.longitude : dto.longitude,
       );
 
+      await assertVenueCapacity(tx, venueId, dto.capacity);
       return tx.venue.update({
         where: { id: venueId },
         data: {
@@ -117,7 +125,7 @@ export class VenuesService {
             : undefined,
         },
       });
-    });
+    }));
     return { ...venue, notice: await this.afterChange(eventId) };
   }
 
@@ -128,21 +136,26 @@ export class VenuesService {
    * them to null and quietly detach a running order from where it happens.
    */
   async remove(eventId: string, venueId: string) {
-    const venue = await this.prisma.venue.findFirst({
-      where: { id: venueId, eventId },
-      include: { _count: { select: { timeline: true, tables: true } } },
-    });
-    if (!venue) throw new NotFoundException('No such venue on this event');
-
-    const dependents = venue._count.timeline + venue._count.tables;
-    if (dependents > 0) {
-      throw new BadRequestException(
-        `${venue._count.timeline} timeline entr(ies) and ${venue._count.tables} table(s) ` +
-          'still point at this venue; move them first',
-      );
-    }
-
-    await this.prisma.venue.delete({ where: { id: venueId } });
+    await this.prisma.$transaction((tx) => mutateGuestVenues(tx, eventId, async () => {
+      await tx.$queryRaw`SELECT id FROM seating_arrangements WHERE "venueId" = ${venueId} AND "eventId" = ${eventId} FOR UPDATE`;
+      await lockRow(tx, 'venues', venueId);
+      const venue = await tx.venue.findFirst({
+        where: { id: venueId, eventId },
+        include: { _count: { select: { timeline: true, tables: true } } },
+      });
+      if (!venue) throw new NotFoundException('No such venue on this event');
+      const releases = await tx.seatRelease.count({ where: { arrangement: { venueId } } });
+      const responses = await tx.attendanceResponse.count({ where: { eventId, venueId } });
+      if (responses > 0) throw new BadRequestException('venue: attendance history exists; retain this venue');
+      if (venue._count.timeline + venue._count.tables + releases > 0) {
+        throw new BadRequestException(
+          `${venue._count.timeline} timeline entr(ies), ${venue._count.tables} table(s) and ${releases} release marker(s) ` +
+          'still point at this venue; move or dismiss them first',
+        );
+      }
+      await tx.seatingArrangement.deleteMany({ where: { eventId, venueId } });
+      await tx.venue.delete({ where: { id: venueId } });
+    }));
     return { ok: true as const, notice: await this.afterChange(eventId) };
   }
 
@@ -151,17 +164,25 @@ export class VenuesService {
   /** A hall in the directory every host copies from. Aveline staff only. */
   createProfile(dto: CreateVenueProfileDto) {
     assertCoordinatePair(dto.latitude, dto.longitude);
-    return this.prisma.venueProfile.create({ data: { ...dto } });
+    return this.prisma.$transaction(async (tx) => {
+      await assertDirectoryOperator(tx, dto.vendorId);
+      return tx.venueProfile.create({ data: { ...dto } });
+    });
   }
 
-  /** Corrects a hall, or retires it. Venues already copied from it keep their copy. */
+  /** Corrects a hall; event venues retain their own copy. */
   async updateProfile(profileId: string, dto: UpdateVenueProfileDto) {
-    const current = await this.requireProfile(profileId, { includeRetired: true });
-    assertCoordinatePair(
-      dto.latitude === undefined ? current.latitude : dto.latitude,
-      dto.longitude === undefined ? current.longitude : dto.longitude,
-    );
-    return this.prisma.venueProfile.update({ where: { id: profileId }, data: { ...dto } });
+    return this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'venue_profiles', profileId);
+      const current = await tx.venueProfile.findUnique({ where: { id: profileId } });
+      if (!current) throw new NotFoundException('No such venue in the directory');
+      assertCoordinatePair(
+        dto.latitude === undefined ? current.latitude : dto.latitude,
+        dto.longitude === undefined ? current.longitude : dto.longitude,
+      );
+      await assertDirectoryOperator(tx, dto.vendorId);
+      return tx.venueProfile.update({ where: { id: profileId }, data: { ...dto } });
+    });
   }
 
   /**
@@ -239,4 +260,17 @@ function assertCoordinatePair(latitude: number | null | undefined, longitude: nu
 
 function withoutUndefined<T extends object>(fields: T): Partial<T> {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
+async function assertVenueCapacity(tx: Prisma.TransactionClient, venueId: string, capacity: number | null | undefined) {
+  if (capacity === undefined || capacity === null) return;
+  const seated = await tx.seat.count({ where: { table: { venueId } } });
+  if (capacity < seated) throw new BadRequestException(`capacity: ${seated} guests are seated at this venue`);
+}
+
+async function assertDirectoryOperator(tx: Prisma.TransactionClient, vendorId: string | null | undefined): Promise<void> {
+  if (vendorId === undefined || vendorId === null) return;
+  await tx.$queryRaw`SELECT id FROM vendors WHERE id = ${vendorId} FOR SHARE`;
+  const vendor = await tx.vendor.findFirst({ where: { id: vendorId, organizationId: null, category: 'VENUE', active: true }, select: { id: true } });
+  if (!vendor) throw new BadRequestException('vendorId: choose an active curated VENUE vendor');
 }

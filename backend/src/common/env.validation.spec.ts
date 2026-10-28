@@ -64,4 +64,27 @@ describe('validateEnv', () => {
   it('accepts whole-number token lifetimes', () => {
     expect(() => validateEnv({ ...base, ACCESS_TOKEN_TTL_SECONDS: '900', REFRESH_TOKEN_TTL_DAYS: '30' })).not.toThrow();
   });
+
+  it.each(['1', 'yes', '', 'TRUE'])('rejects an ambiguous PILOT_MODE of %p', (value) => {
+    expect(() => validateEnv({ ...base, PILOT_MODE: value })).toThrow(/PILOT_MODE/);
+  });
+
+  it.each([
+    ['EMAIL_SENDS_PER_MINUTE', '0'], ['EMAIL_SENDS_PER_MINUTE', '60/min'],
+    ['EMAIL_SENDS_PER_DAY', '-1'], ['EMAIL_SENDS_PER_DAY', '1000001'],
+    ['EMAIL_SEND_BURST', '1.5'], ['EMAIL_SEND_BURST', ''],
+    ['EMAIL_SEND_CONCURRENCY', '21'], ['EMAIL_FEEDBACK_SECRET', 'short'],
+  ])('rejects unsafe email configuration %s', (key, value) => {
+    expect(() => validateEnv({ ...base, [key]: value })).toThrow(key);
+  });
+});
+
+
+describe('Export file retention', () => {
+  it.each(['0', '31', '1.5', 'seven', ''])('rejects invalid retention days %p at startup', (value) => {
+    expect(() => validateEnv({ NODE_ENV: 'test', DATABASE_URL: 'postgresql://localhost/db', EXPORT_RETENTION_DAYS: value })).toThrow('EXPORT_RETENTION_DAYS');
+  });
+  it.each(['1', '7', '30'])('accepts bounded retention days %s', (value) => {
+    expect(() => validateEnv({ NODE_ENV: 'test', DATABASE_URL: 'postgresql://localhost/db', EXPORT_RETENTION_DAYS: value })).not.toThrow();
+  });
 });

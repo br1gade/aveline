@@ -2,6 +2,13 @@
 
 Armenian card acquiring through Ameriabank, Inecobank and IDBank.
 
+**Free pilot policy:** `PILOT_MODE=true` disables charge initiation centrally
+and refuses paid ticket checkout and paid subscription selection with `403`.
+No payable order, invoice or payment is committed by those refused requests;
+ticket reservations are released. Free ticket orders and free subscriptions
+remain available. Production Compose enables the policy by default. This does
+not undo historical payments or disable refunds/confirmation of existing ones.
+
 > **Status:** the provider-agnostic core and all three adapters are built and
 > tested. No bank has issued credentials yet, so no adapter has been exercised
 > against a real sandbox. See [§6](#6-before-go-live).
@@ -147,6 +154,13 @@ refund with HTTP 200; the adapters read Ameriabank's `ResponseCode` and ArCa's
 `errorCode` and throw on anything but success, and amounts go in the
 payment's own currency.
 
+**Named checkout is one transaction.** Validate the complete attendee roster,
+then reserve all inventory, claim a promo and write the order/roster together.
+An advisory transaction lock serializes duplicate idempotency keys before
+inventory locks; a fingerprint refuses a different intent under the same key.
+The unique order key remains the database backstop. This avoids a retry holding
+inventory while waiting for an order the first request is settling.
+
 **Ticket settlement is one transaction, claim first.** Committing inventory
 and issuing tickets happen together, behind a conditional update that only
 matches a `RESERVED` order. Ticket codes are random, so without that guard a
@@ -178,6 +192,16 @@ paid), so a later cancellation cannot give it back twice.
 **"Refunded" is said only after the bank refunds.** A late order is claimed
 `REFUNDED` before the bank is asked; the notice sweep waits for a completed
 `Refund`, so an unknown outcome is never announced as money returned.
+
+**Cancellation freezes admission before the bank call.** Policy, order, linked
+guests and tickets are locked in that order while checking for prior admission.
+`cancellationStartedAt` blocks both ticket scans and guest-list check-in until
+the outcome is resolved. A definite bank refusal clears the freeze; an unknown
+outcome stays frozen for staff reconciliation. Retrying a completed refund
+finishes the void without paying twice. Successful voiding declines current
+venue attendance and releases seats in the same transaction. Admission records
+are retained; an admitted order is refused until an explicit mistaken-admission
+undo.
 
 **Two cancellations of one order both get the cancelled order.** The loser of
 the refund claim waits — bounded by the bank timeout — for the winner to

@@ -43,15 +43,21 @@ human retyping something another human already typed.
 |---|---|---|
 | 5 | **An SMS provider** | The SMS channel is built provider-neutral (decided 9 October 2026): chosen last, numbers normalised, failures classified, copy written. What remains is choosing a provider and writing its adapter — one class implementing `SmsProvider` and a row in `SMS_PROVIDERS` |
 
+The selected pilot also requires performance and four-language acceptance.
+The [local rehearsal](PILOT_REHEARSAL.md) passed functional checks and all eight
+latency gates in its latest primary run; frontend, human language review and
+actual-host acceptance remain. Earlier misses and local variability are retained
+in its evidence rather than treated as production capacity proof.
+
 ## 3. High value — the actual digitalisation
 
 Each replaces a process the incumbent market performs by hand.
 
 | # | Gap | Replaces |
 |---|---|---|
-| 6 | **WhatsApp delivery receipts** | Meta reports delivery and read status by webhook; nothing consumes it, so a WhatsApp message stays SENT and a failure after acceptance is never recorded. The same webhook is how a WhatsApp block would reach us |
-| 7 | **PDF exports** | CSV works for every kind — guest list, seating chart, place cards, catering, bar, playlist, ticket manifest. A venue still wants the seating chart on paper, which needs a renderer and a queue |
-| 8 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — the guest book and the thank-you flow are built; a gallery guests can add to needs capability-token uploads and a moderation answer |
+| 6 | **WhatsApp live acceptance** | Signed, scoped sent/delivered/read/failed receipts and host evidence fields are implemented. Account/app/test number, supported/approved templates, real subscription/send/receipt proof and frontend acceptance remain. See [setup checklist](WHATSAPP_SETUP.md); ambiguous failures never globally suppress a guest |
+| 7 | **Export pilot acceptance** | All seven kinds now have private CSV/PDF/XLSX worker snapshots, translated standard labels in four languages and synthetic four-script file acceptance. Frontend adoption, human translation review, native spreadsheet/print checks and production worker/private-bucket rehearsal remain |
+| 8 | **Shared photo gallery** | PRODUCT_SPEC §7.2 — backend private uploads, moderation, owner removal and durable cleanup are implemented; frontend and production acceptance remain |
 | 9 | **Disputed refunds** | A ticket order with any admitted ticket cannot be cancelled — refunding after attendance is a dispute with the buyer, not a cancellation, and voiding a used ticket would erase the record that they came. There is no flow for that dispute; it is handled outside the system |
 | 10 | **Partial ticket cancellation** | **Decided (8 October 2026): whole orders only.** A buyer who can bring three of four is refunded and buys again. Revisit if hosts ask |
 | 11 | **Image cropping** | Photos reach the guest page with smaller WebP copies made by a background job, and alt text is written per language. What remains is cropping to a shape and focal points |
@@ -76,7 +82,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 | 18 | ~~Health and readiness endpoints~~ | **Done** |
 | 18b | **Metrics and tracing** | Deliberately deferred. Service health is covered by Sentry cron check-ins and edge-triggered dependency alerts, neither of which is tracing |
 | 19 | ~~Structured logging~~ | **Done** — pino, JSON in production, every line carrying the request id |
-| 20 | **Backups and retention policy** | Page lifetime is decided (indefinite on paid tiers, 3 months on free) and modelled as `Plan.invitationLifetimeDays`; nothing sets `Invitation.expiresAt` from it and no sweep reclaims storage |
+| 20 | **Production backup and retention acceptance** | Lifetime capture and guest-access expiry are built; host data/media are retained by decision. Actual backup destination, installed timers, alerts and production recovery acceptance remain |
 | 21 | **GDPR identity verification** | Requests are accepted, tracked, carried out, and the one-month clock is now swept daily and raised in Sentry when it is missed. What stays manual is establishing who is asking — a human step by design, since acting on an unverified request is itself a breach |
 | 22 | **Webhook signature verification** | If any bank pushes callbacks rather than being polled |
 

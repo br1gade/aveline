@@ -27,11 +27,14 @@ export class VendorsService {
           category: true,
           email: true,
           phone: true,
-          venueProfile: { select: { city: true, capacity: true } },
+          venueProfiles: { where: { isActive: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }], select: { id: true, name: true, city: true, capacity: true } },
         },
       })
       .then((vendors) =>
-        vendors.map(({ organizationId: owner, ...vendor }) => ({ ...vendor, isCurated: owner === null })),
+        vendors.map(({ organizationId: owner, ...vendor }) => ({ ...vendor,
+          // Compatibility for clients expecting the former single-hall summary.
+          venueProfile: vendor.venueProfiles[0] ? { city: vendor.venueProfiles[0].city, capacity: vendor.venueProfiles[0].capacity } : null,
+          isCurated: owner === null })),
       );
   }
 

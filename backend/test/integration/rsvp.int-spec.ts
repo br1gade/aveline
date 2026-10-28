@@ -1,3 +1,7 @@
+import { AttendancePolicyService } from '../../src/modules/events/attendance-policy.service';
+import { CacheService } from '../../src/infra/cache/cache.service';
+import { randomUUID } from 'node:crypto';
+import { MESSAGE_COPY } from '../../src/seed/message-copy';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel, MessageStatus, PrismaClient, RsvpStatus } from '@prisma/client';
@@ -185,6 +189,23 @@ describe('RsvpService (integration)', () => {
         where: { templateKey: { startsWith: 'rsvp.confirmation' } },
         orderBy: { createdAt: 'asc' },
       });
+
+    it('confirms partial venue answers without claiming the whole event was accepted or declined', async () => {
+      const event = await withCopy();
+      const copy = MESSAGE_COPY.find((template) => template.key === 'rsvp.confirmation.venues' && template.channel === MessageChannel.EMAIL)!;
+      await prisma.messageTemplate.create({ data: { ...copy, organizationId: null } });
+      const venue = await prisma.venue.findFirstOrThrow({ where: { eventId: event.eventId } });
+      const other = await prisma.venue.create({ data: { eventId: event.eventId, role: 'CEREMONY', name: 'Other', address: 'Other' } });
+      const policy = new AttendancePolicyService(prisma as unknown as PrismaService, { invalidateInvitation: jest.fn().mockResolvedValue(undefined) } as unknown as CacheService);
+      const preview = await policy.preview(event.eventId, 'PER_VENUE');
+      await policy.change(event.eventId, { ...preview.request, transitionId: randomUUID() });
+      const answer = { attendanceRevision: 2, venueAttendance: [{ venueId: venue.id, status: 'DECLINED' as const }] };
+      expect((await service.submit(event.slug, event.primaryGuestToken, answer)).status).toBe('PENDING');
+      await service.submit(event.slug, event.primaryGuestToken, answer);
+      await service.submit(event.slug, event.primaryGuestToken, { attendanceRevision: 2, venueAttendance: [{ venueId: other.id, status: 'ATTENDING' }] });
+      await service.submit(event.slug, event.primaryGuestToken, { attendanceRevision: 2, venueAttendance: [{ venueId: other.id, status: 'DECLINED' }] });
+      expect((await confirmations()).map((message) => message.templateKey)).toEqual(Array(3).fill('rsvp.confirmation.venues'));
+    });
 
     it('confirms an answer to the guest who gave it', async () => {
       const { slug, primaryGuestToken } = await withCopy();

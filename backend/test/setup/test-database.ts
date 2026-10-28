@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
+import { assertTestDatabaseUrl } from '../../src/common/test-database-url';
 
 /**
  * Integration and e2e tests run against a real Postgres, never a mock, because
@@ -13,12 +14,14 @@ export const TEST_DATABASE_URL =
 let client: PrismaClient | null = null;
 
 export function testPrisma(): PrismaClient {
+  assertTestDatabaseUrl(TEST_DATABASE_URL);
   client ??= new PrismaClient({ datasources: { db: { url: TEST_DATABASE_URL } } });
   return client;
 }
 
 /** Applies migrations once per jest worker. */
 export function migrateTestDatabase(): void {
+  assertTestDatabaseUrl(TEST_DATABASE_URL);
   execSync('npx prisma migrate deploy', {
     env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL },
     stdio: 'pipe',
@@ -31,6 +34,7 @@ export function migrateTestDatabase(): void {
  * a per-table delete loop would dominate the suite's runtime.
  */
 export async function resetTestDatabase(): Promise<void> {
+  assertTestDatabaseUrl(TEST_DATABASE_URL);
   const prisma = testPrisma();
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables

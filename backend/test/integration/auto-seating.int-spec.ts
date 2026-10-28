@@ -1,58 +1,37 @@
-import { PrismaClient, RsvpStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { SeatingService } from '../../src/modules/seating/seating.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { seedEvent } from '../fixtures/event.fixture';
+import { runAutomaticSeating, seatingTestJob } from '../fixtures/seating-job.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
-/**
- * B28: auto-seating read the room, planned, and wrote later without checking
- * again — so a planner seating someone by hand in between overfilled a table.
- * The gap is held open here on purpose, because over HTTP it is too narrow to
- * hit reliably and still real.
- */
-describe('auto-seating alongside other seating (integration)', () => {
+describe('Automatic seating alongside manual work (integration)', () => {
   let prisma: PrismaClient;
-
-  beforeAll(() => {
-    prisma = testPrisma();
-  });
+  beforeAll(() => { prisma = testPrisma(); });
   beforeEach(() => resetTestDatabase());
+  afterEach(() => jest.restoreAllMocks());
   afterAll(() => disconnectTestDatabase());
-
-  /** The same database, with every transaction starting `ms` late. */
-  const slowToCommit = (ms: number) =>
-    new Proxy(prisma, {
-      get(target, property, receiver) {
-        if (property !== '$transaction') return Reflect.get(target, property, receiver) as unknown;
-        return async (...args: Parameters<PrismaClient['$transaction']>) => {
-          await new Promise((resolve) => setTimeout(resolve, ms));
-          return (target.$transaction as (...a: unknown[]) => Promise<unknown>)(...args);
-        };
-      },
-    });
-
-  it('re-checks the table it writes to, so a guest seated by hand in the meantime is not overfilled', async () => {
+  it('replans after a coordinator fills a chair during computation, preserving that manual seat', async () => {
     const { eventId } = await seedEvent(prisma);
     const table = await prisma.table.create({ data: { eventId, name: 'Table 1', capacity: 2 } });
-    const attending = async (name: string) => {
+    for (const name of ['Ani', 'Aram', 'Narek']) {
       const household = await prisma.household.create({ data: { eventId, name, seatsAllotted: 1 } });
-      return prisma.guest.create({
-        data: { eventId, householdId: household.id, firstName: name, token: `${name}-${eventId}`, rsvp: { create: { status: RsvpStatus.ATTENDING } } },
-      });
-    };
-    await attending('Ani');
-    await attending('Aram');
-    const household = await prisma.household.create({ data: { eventId, name: 'Narek', seatsAllotted: 1 } });
-    const narek = await prisma.guest.create({ data: { eventId, householdId: household.id, firstName: 'Narek', token: `narek-${eventId}` } });
-
-    const automatic = new SeatingService(slowToCommit(300) as unknown as PrismaService);
-    const byHand = new SeatingService(prisma as unknown as PrismaService);
-
-    const running = automatic.autoAssign(eventId);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    await byHand.assign(eventId, { guestId: narek.id, tableId: table.id });
-    await running;
-
+      await prisma.guest.create({ data: { eventId, householdId: household.id, firstName: name, token: `${name}-${eventId}`,
+        rsvp: { create: { status: name === 'Narek' ? 'PENDING' : 'ATTENDING' } } } });
+    }
+    const narek = await prisma.guest.findUniqueOrThrow({ where: { token: `Narek-${eventId}` } });
+    const worker = await seatingTestJob(prisma, eventId);
+    const original = worker.planner.plan.bind(worker.planner);
+    jest.spyOn(worker.planner, 'plan').mockImplementationOnce(async (input) => {
+      const plan = await original(input);
+      await new SeatingService(prisma as unknown as PrismaService).assign(eventId, { guestId: narek.id, tableId: table.id });
+      return plan;
+    });
+    await worker.runner.runOne();
+    expect(await worker.jobs.findOne(eventId, worker.job.id)).toMatchObject({ status: 'QUEUED', failureReason: 'STATE_CHANGED' });
+    expect(await prisma.seat.count({ where: { tableId: table.id } })).toBe(1);
+    expect(await runAutomaticSeating(prisma, eventId)).toMatchObject({ seated: 1 });
     expect(await prisma.seat.count({ where: { tableId: table.id } })).toBe(2);
+    expect(await prisma.seat.count({ where: { guestId: narek.id, tableId: table.id } })).toBe(1);
   });
 });

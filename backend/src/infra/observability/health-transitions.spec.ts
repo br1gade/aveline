@@ -14,8 +14,12 @@ describe('HealthTransitionTracker', () => {
     clock = 1_000_000;
   });
 
-  it('says nothing on the first observation — a fresh process has learned nothing', () => {
+  it('says nothing on the first observation when all dependencies are healthy', () => {
     expect(tracker().observe(allUp)).toEqual([]);
+  });
+
+  it('alerts when a dependency is already unavailable at startup', () => {
+    expect(tracker().observe({ ...allUp, storage: false })).toEqual([{ dependency: 'storage', isUp: false, heldForMs: 0 }]);
   });
 
   it('says nothing while everything stays up', () => {

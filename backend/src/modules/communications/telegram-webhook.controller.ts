@@ -87,17 +87,12 @@ export class TelegramWebhookController {
    * the one thing this endpoint must not do.
    */
   private async handleStart(token: string, chatId: string): Promise<void> {
-    const guest = await this.prisma.guest.findUnique({
-      where: { token },
-      select: { id: true, anonymizedAt: true },
-    });
-
-    if (!guest || guest.anonymizedAt !== null) {
-      this.logger.warn('telegram /start with an unrecognised token');
+    const guestId = await this.guestChannels.recordOptInFromToken(token, MessageChannel.TELEGRAM, chatId);
+    if (!guestId) {
+      this.logger.warn('telegram /start with an unavailable invitation');
       return;
     }
 
-    await this.guestChannels.recordOptIn(guest.id, MessageChannel.TELEGRAM, chatId);
     // A guest who blocked the bot and starts it again has opted back in; the
     // suppression from the block would otherwise outlive their own decision.
     await this.suppressions.liftAfterOptIn(MessageChannel.TELEGRAM, chatId);

@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { versionStatement } from '../guest-contributions/statements';
+import { countQuestionAnswers } from '../ticketing/checkout-questions';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { BlockType, Prisma, QuestionType } from '@prisma/client';
 import { CacheService } from '../../infra/cache/cache.service';
 import { blockMediaProblem } from './block-media';
@@ -10,6 +12,7 @@ import { TemplateRules, assertBlockEdit, variantProblem } from './block-rules';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   ChooseTemplateDto,
+  ReorderQuestionsDto,
   UpdateBlockDto,
   UpdateRsvpFieldsDto,
   UpdateThemeDto,
@@ -205,7 +208,7 @@ export class DesignService {
 
     const questions = await this.prisma.rsvpQuestion.findMany({
       where: { invitationId: invitation.id },
-      orderBy: { sortOrder: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
 
     return questions.map((question) => ({
@@ -215,6 +218,7 @@ export class DesignService {
       options: question.options,
       required: question.required,
       sortOrder: question.sortOrder,
+      statementVersionId: question.statementVersionId,
     }));
   }
 
@@ -222,21 +226,16 @@ export class DesignService {
     const invitation = await this.requireInvitation(slug);
     assertQuestionIsAnswerable(dto);
 
-    const last = await this.prisma.rsvpQuestion.findFirst({
-      where: { invitationId: invitation.id },
-      orderBy: { sortOrder: 'desc' },
-      select: { sortOrder: true },
-    });
-
-    const question = await this.prisma.rsvpQuestion.create({
-      data: {
-        invitationId: invitation.id,
-        type: dto.type,
-        prompt: dto.prompt as Prisma.InputJsonValue,
-        options: (dto.options ?? []) as Prisma.InputJsonValue,
-        required: dto.required ?? false,
-        sortOrder: (last?.sortOrder ?? 0) + 1,
-      },
+    const question = await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'invitations', invitation.id);
+      const questions = await tx.rsvpQuestion.aggregate({ where: { invitationId: invitation.id }, _count: true, _max: { sortOrder: true } });
+      if (questions._count >= 1000) throw new BadRequestException('questions: at most 1000 per invitation');
+      const created = await tx.rsvpQuestion.create({ data: {
+        invitationId: invitation.id, type: dto.type, prompt: dto.prompt as Prisma.InputJsonValue,
+        options: (dto.options ?? []) as Prisma.InputJsonValue, required: dto.required ?? false,
+        sortOrder: (questions._max.sortOrder ?? 0) + 1,
+      } });
+      return { ...created, statementVersionId: await versionStatement(tx, created) };
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -261,13 +260,13 @@ export class DesignService {
       const options = (dto.options ? mergeTranslations(question.options, dto.options) : (question.options ?? [])) as Prisma.InputJsonValue;
       const type = dto.type ?? question.type;
       assertQuestionIsAnswerable({ type, prompt, options: asObject(options as Prisma.JsonValue) });
-      const answers = await tx.rsvpAnswer.count({ where: { questionId: id } });
+      const answers = await countQuestionAnswers(tx, id);
       assertAnsweredQuestionKeepsShape(answers, question, { type, options });
 
-      return tx.rsvpQuestion.update({
-        where: { id },
-        data: { type, prompt: prompt as Prisma.InputJsonValue, options, required: dto.required ?? question.required },
+      const changed = await tx.rsvpQuestion.update({
+        where: { id }, data: { type, prompt: prompt as Prisma.InputJsonValue, options, required: dto.required ?? question.required },
       });
+      return { ...changed, statementVersionId: await versionStatement(tx, changed) };
     });
 
     await this.cache.invalidateInvitation(slug);
@@ -285,11 +284,12 @@ export class DesignService {
     const question = await this.requireQuestion(slug, questionId);
 
     await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'invitations', question.invitationId);
       // Locked before counting: an answer arriving between the count and the
       // delete was cascaded away (B87). The lock conflicts with the one an
       // answer's foreign key takes, so the two now run one after the other.
       await tx.$queryRaw`SELECT id FROM rsvp_questions WHERE id = ${question.id} FOR UPDATE`;
-      const answers = await tx.rsvpAnswer.count({ where: { questionId: question.id } });
+      const answers = await countQuestionAnswers(tx, question.id);
       if (answers > 0) {
         throw new BadRequestException(
           `${answers} guest(s) have answered this question; deleting it would discard their answers. ` +
@@ -300,6 +300,29 @@ export class DesignService {
     });
     await this.cache.invalidateInvitation(slug);
     return { ok: true as const };
+  }
+
+  async reorderQuestions(slug: string, dto: ReorderQuestionsDto) {
+    const invitation = await this.requireInvitation(slug);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'invitations', invitation.id);
+      const current = await tx.rsvpQuestion.findMany({ where: { invitationId: invitation.id }, select: { id: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] });
+      const ids = current.map((question) => question.id);
+      if (JSON.stringify(ids) !== JSON.stringify(dto.expectedOrder)) {
+        throw new ConflictException('expectedOrder: questions changed; reload them before reordering');
+      }
+      const wanted = new Set(dto.questionIds);
+      if (wanted.size !== ids.length || dto.questionIds.length !== ids.length || ids.some((id) => !wanted.has(id))) {
+        throw new BadRequestException('questionIds: include every current question exactly once');
+      }
+      if (ids.length > 0) await tx.$executeRaw`
+        UPDATE rsvp_questions SET "sortOrder" = requested.position::integer - 1
+        FROM unnest(${dto.questionIds}::text[]) WITH ORDINALITY AS requested(id, position)
+        WHERE rsvp_questions.id = requested.id AND rsvp_questions."invitationId" = ${invitation.id}`;
+      return tx.rsvpQuestion.findMany({ where: { invitationId: invitation.id }, orderBy: { sortOrder: 'asc' } });
+    });
+    await this.cache.invalidateInvitation(slug);
+    return result;
   }
 
   private async requireInvitation(slug: string) {
@@ -347,7 +370,7 @@ export class DesignService {
         status: true,
         template: { select: { key: true, name: true } },
         blocks: {
-          orderBy: { sortOrder: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
           select: { type: true, enabled: true, variant: true, sortOrder: true },
         },
       },
@@ -360,11 +383,6 @@ function assertQuestionIsAnswerable(dto: UpsertQuestionDto): void {
   assertLanguages(['prompt', dto.prompt], ['options', dto.options]);
   if (Object.keys(dto.prompt).length === 0) {
     throw new BadRequestException('prompt: give the question in at least one language');
-  }
-  // Nothing can capture a signature yet (F25). Allowed, a required one made
-  // every attending answer a 400, and an optional one could never be given.
-  if (dto.type === QuestionType.SIGNATURE) {
-    throw new BadRequestException('type: signature questions cannot be answered yet');
   }
 
   if (!CHOICE_TYPES.includes(dto.type)) return;

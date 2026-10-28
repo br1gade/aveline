@@ -4,9 +4,15 @@ import { Test } from '@nestjs/testing';
 import { EventRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import sharp from 'sharp';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { AppModule } from '../../src/app.module';
 import { ImageVariantsService } from '../../src/modules/media/image-variants.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { STORAGE_ADAPTER } from '../../src/infra/storage/storage-port';
+import { FilesystemStorageAdapter } from '../../src/infra/storage/adapters/filesystem.adapter';
+import { StorageService, storageKeyOf } from '../../src/infra/storage/storage.service';
 import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
@@ -19,6 +25,7 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/
 describe('An event’s uploads (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
+  let mediaRoot: string;
 
   const http = () => request(app.getHttpServer() as Server);
 
@@ -29,7 +36,10 @@ describe('An event’s uploads (e2e)', () => {
 
   beforeAll(async () => {
     prisma = testPrisma();
+    mediaRoot = await mkdtemp(join(tmpdir(), 'aveline-media-e2e-'));
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(STORAGE_ADAPTER)
+      .useValue(new FilesystemStorageAdapter(mediaRoot, '/files'))
       .overrideProvider(PrismaService)
       .useValue(prisma)
       .compile();
@@ -46,6 +56,7 @@ describe('An event’s uploads (e2e)', () => {
   afterAll(async () => {
     await app.close();
     await disconnectTestDatabase();
+    await rm(mediaRoot, { recursive: true, force: true });
   });
 
   const designer = async (role: EventRole = EventRole.DESIGNER) => {
@@ -112,6 +123,7 @@ describe('An event’s uploads (e2e)', () => {
   it('describes a photo one language at a time, and guests read it', async () => {
     const { eventId, slug, authorization } = await designer();
     const photo = await upload(eventId, authorization);
+
     await http()
       .patch(`/api/v1/invitations/${slug}/blocks/HERO`)
       .set('Authorization', authorization)
@@ -150,11 +162,12 @@ describe('An event’s uploads (e2e)', () => {
   it('removes a photo nothing shows, file and all', async () => {
     const { eventId, authorization } = await designer();
     const photo = await upload(eventId, authorization);
+    await expect(app.get(StorageService).get(storageKeyOf(photo.url))).resolves.toEqual(pixel);
 
     await http().delete(`/api/v1/events/${eventId}/media/${photo.id}`).set('Authorization', authorization).expect(200);
 
     expect(await library(eventId, authorization)).toEqual([]);
-    expect((await fetch(photo.url)).status).toBe(404);
+    await expect(app.get(StorageService).get(storageKeyOf(photo.url))).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('removes the smaller copies with the photo', async () => {
@@ -169,10 +182,11 @@ describe('An event’s uploads (e2e)', () => {
     const [listed] = (await http().get(`/api/v1/events/${eventId}/media`).set('Authorization', authorization).expect(200))
       .body as { variants: { url: string }[] }[];
     expect(listed.variants).toHaveLength(2);
+    for (const variant of listed.variants) await expect(app.get(StorageService).get(storageKeyOf(variant.url))).resolves.toBeInstanceOf(Buffer);
 
     await http().delete(`/api/v1/events/${eventId}/media/${photo.id as string}`).set('Authorization', authorization).expect(200);
 
-    for (const variant of listed.variants) expect((await fetch(variant.url)).status).toBe(404);
+    for (const variant of listed.variants) await expect(app.get(StorageService).get(storageKeyOf(variant.url))).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   // Deleting it would leave a broken image on the page guests already have.

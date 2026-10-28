@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { SeatingRunner } from '../../src/modules/seating/jobs/seating-runner';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -308,9 +310,13 @@ describe('Guest operations (e2e)', () => {
       const { body } = await http()
         .post(`/api/v1/events/${eventId}/seats/auto-assign`)
         .set('Authorization', authorization)
+        .send({ idempotencyKey: randomUUID() })
         .expect(201);
 
-      expect(body.unseated).toHaveLength(0);
+      expect(body.status).toBe('QUEUED');
+      await app.get(SeatingRunner).runOne();
+      const completed = await http().get(`/api/v1/events/${eventId}/seating/jobs/${body.id as string}`).set('Authorization', authorization).expect(200);
+      expect(completed.body.result.unseated).toHaveLength(0);
 
       const tables = await http()
         .get(`/api/v1/events/${eventId}/tables`)
@@ -320,9 +326,9 @@ describe('Guest operations (e2e)', () => {
       // The Petrosyans must all be at one table.
       const petrosyans = await prisma.guest.findMany({
         where: { eventId, household: { name: 'Petrosyan family' } },
-        include: { seat: true },
+        include: { seats: true },
       });
-      expect(new Set(petrosyans.map((g) => g.seat?.tableId)).size).toBe(1);
+      expect(new Set(petrosyans.map((g) => g.seats[0]?.tableId)).size).toBe(1);
       const seatedTables = tables.body as { seated: number; capacity: number }[];
       expect(seatedTables.every((table) => table.seated <= table.capacity)).toBe(true);
     });
@@ -338,10 +344,13 @@ describe('Guest operations (e2e)', () => {
       const { body } = await http()
         .post(`/api/v1/events/${eventId}/seats/auto-assign`)
         .set('Authorization', authorization)
+        .send({ idempotencyKey: randomUUID() })
         .expect(201);
 
-      expect(body.unseated.length).toBeGreaterThan(0);
-      expect(body.unseated[0].reason).toEqual(expect.any(String));
+      await app.get(SeatingRunner).runOne();
+      const completed = await http().get(`/api/v1/events/${eventId}/seating/jobs/${body.id as string}`).set('Authorization', authorization).expect(200);
+      expect(completed.body.result.unseated.length).toBeGreaterThan(0);
+      expect(completed.body.result.unseated[0].reason).toEqual(expect.any(String));
     });
 
     it('refuses to seat someone at a full table', async () => {

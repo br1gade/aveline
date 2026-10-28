@@ -44,3 +44,7 @@ describe('redactQueryObject', () => {
     expect(redactQueryObject({ q: 'Armen', limit: '20' })).toEqual({ q: '[redacted]', limit: '20' });
   });
 });
+
+it('redacts the Meta handshake token and challenge from request logs', () => {
+  expect(redactUrl('/api/v1/communications/whatsapp-webhook?hub.mode=subscribe&hub.verify_token=secret&hub.challenge=123')).toBe('/api/v1/communications/whatsapp-webhook?hub.mode=[redacted]&hub.verify_token=[redacted]&hub.challenge=[redacted]');
+});

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { GuestAttribution, RsvpStatus } from '@prisma/client';
+import { attendingAtVenue, venueHeadcount } from './venue-headcount';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { BuiltInField, optionLabel } from '../rsvp/rsvp-fields';
@@ -13,9 +14,17 @@ import { BuiltInField, optionLabel } from '../rsvp/rsvp-fields';
 @Injectable()
 export class OperationsService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PrismaService) private readonly prisma: Prisma.TransactionClient,
     private readonly analytics: AnalyticsService,
   ) {}
+
+  private locale?: string;
+
+  inTransaction(tx: Prisma.TransactionClient, locale: string): OperationsService {
+    const service = new OperationsService(tx, this.analytics);
+    service.locale = locale;
+    return service;
+  }
 
   /**
    * Everything the operations screen renders, in one request.
@@ -72,10 +81,11 @@ export class OperationsService {
       };
     });
 
-    const [households, byHousehold, trend] = await Promise.all([
+    const [households, byHousehold, trend, venues] = await Promise.all([
       this.prisma.household.count({ where: { eventId } }),
       this.householdAnswers(eventId),
       this.responseTrend(eventId, guests.length),
+      venueHeadcount(this.prisma, eventId),
     ]);
     const responded = guests.filter((g) => g.rsvp?.respondedAt).length;
 
@@ -90,6 +100,7 @@ export class OperationsService {
       bySide,
       byHousehold,
       trend,
+      venues,
     };
   }
 
@@ -121,7 +132,7 @@ export class OperationsService {
       FROM rsvps r
       JOIN guests g ON g.id = r."guestId"
       JOIN events e ON e.id = g."eventId"
-      WHERE g."eventId" = ${eventId} AND r."respondedAt" IS NOT NULL AND r.status <> 'PENDING'
+      WHERE g."eventId" = ${eventId} AND r."respondedAt" IS NOT NULL
       GROUP BY 1
       ORDER BY 1`;
 
@@ -133,11 +144,11 @@ export class OperationsService {
   }
 
   /** Confirmed headcount plus every dietary requirement — hand to the venue. */
-  async cateringSheet(eventId: string) {
+  async cateringSheet(eventId: string, venueId?: string) {
     await this.assertEvent(eventId);
 
     const attending = await this.prisma.guest.findMany({
-      where: { eventId, rsvp: { status: RsvpStatus.ATTENDING } },
+      where: await attendingAtVenue(this.prisma, eventId, venueId),
       include: { rsvp: true, household: true },
       orderBy: [{ household: { name: 'asc' } }, { firstName: 'asc' }],
     });
@@ -166,12 +177,12 @@ export class OperationsService {
   }
 
   /** Drink preferences aggregated into quantities — hand to the bar. */
-  async barSheet(eventId: string) {
+  async barSheet(eventId: string, venueId?: string) {
     await this.assertEvent(eventId);
 
     const rows = await this.prisma.rsvp.groupBy({
       by: ['drinkPreference'],
-      where: { status: RsvpStatus.ATTENDING, guest: { eventId }, drinkPreference: { not: null } },
+      where: { guest: await attendingAtVenue(this.prisma, eventId, venueId), drinkPreference: { not: null } },
       _count: { drinkPreference: true },
       orderBy: { _count: { drinkPreference: 'desc' } },
     });
@@ -245,7 +256,7 @@ export class OperationsService {
       select: { defaultLocale: true, invitation: { select: { rsvpFields: true } } },
     });
     const config = event?.invitation?.rsvpFields ?? {};
-    const locale = event?.defaultLocale ?? 'hy';
+    const locale = this.locale ?? event?.defaultLocale ?? 'hy';
     return (field: BuiltInField, key: string) => optionLabel(config, field, key, locale);
   }
 

@@ -1,6 +1,7 @@
 # Storage
 
-Files go through `StorageService`, never straight to disk or to a bucket.
+Public media goes through `StorageService`; private generated artifacts use
+`PrivateStorageService`. Callers never access disk or buckets directly.
 Two backends sit behind it and no call site knows which is in use.
 
 ---
@@ -37,6 +38,12 @@ MediaController → StorageService → StorageAdapter
 **Validation lives in the service, not the adapter**, so both backends enforce
 the same rules and a new backend cannot quietly relax them: a MIME allowlist
 (never a blocklist) and a 10 MB ceiling.
+
+Public upload `kind` is limited to PHOTO/COVER/LOGO images or AUDIO. It is
+validated against MIME type before storage, and defaults by type when omitted.
+DOCUMENT/SIGNATURE are excluded. Listing hero/share images are same-event
+public image assets; selection takes share locks, and removal refuses both
+listing and block references. Resizing treats LOGO and COVER like PHOTO.
 
 **Keys are generated**, never derived from the uploaded filename — a
 caller-supplied name is a path-traversal and overwrite risk.
@@ -92,7 +99,9 @@ the same posture as the invitation link itself.
 In development `*.localhost` resolves, so
 `http://aveline-media.web.garage.localhost:3902/<key>` works directly. In
 production a reverse proxy maps a real hostname to the web endpoint, and that
-hostname goes in `S3_PUBLIC_URL`.
+hostname goes in `S3_PUBLIC_URL`. Production Caddy routes `MEDIA_DOMAIN` to
+Garage's website endpoint and supplies `MEDIA_BUCKET_HOST` to select the bucket;
+the S3 API and private exports are not published by that route.
 
 ## 5. Durability
 
@@ -111,11 +120,35 @@ on; doing so on one node buys nothing.
 - **Cropping.** Photos gain smaller WebP copies at 480, 960 and 1600 px
   (`media/image-variants.service.ts`, run by a sweep); the original is kept
   too, so resizing lowers what guests download, not what is stored
-- **Orphan reclamation.** Removing an upload or deleting an event removes its
+- **Public-media orphan reclamation.** Removing an upload or deleting an event removes its
   files and their copies; archiving keeps them, and nothing reclaims files no
   row points at
 - **CDN** in front of the public URL
 - **Virus scanning** for host-uploaded files
-- **Backups.** Described above; not automated here
-- **Test isolation.** The e2e suite writes real objects into whichever bucket
+- **Off-host recovery configuration.** Paired quiesced capture and complete restore tooling are built; the real encrypted destination and operator alerts remain to be configured. See [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Public-media test isolation.** The media e2e suite writes real objects into whichever bucket
   is configured. Harmless locally, but CI needs a throwaway bucket
+
+
+## Private generated artifacts
+
+Snapshot exports use `PrivateStorageService` and opaque UUID keys. It returns
+bytes or success, never a public URL or MediaAsset. When S3 is configured,
+`PRIVATE_S3_BUCKET` must differ from `S3_BUCKET`; production requires it
+explicitly (development/test default to `aveline-private`). Grant API/worker
+read+write and disable website hosting, anonymous reads and public bucket/CDN
+policies. The bootstrap script creates a separate private Garage bucket with
+website access denied; it never grants anonymous access to that bucket.
+
+Filesystem fallback uses `PRIVATE_STORAGE_ROOT` (default `./private-storage`),
+outside `STORAGE_ROOT`. Both paths are checked for containment, including
+symlinks on write/probe. Files use mode 0600; API and worker need the same
+protected filesystem/volume. It must not sit under any Caddy/static root.
+Private bytes are ignored by Git and Docker build context.
+
+Exports have a durable write-ahead object ledger and retryable bounded cleanup
+for failed attempts, deletion, erasure and expiry. Cleanup tombstones remain
+as opaque metadata and repeat deletions to catch delayed stale uploads. This
+does not replace the still-pending orphan reclamation for public media.
+See [EXPORT_WORKER.md](EXPORT_WORKER.md). The deployment rehearsal must verify
+anonymous object reads fail with the actual bucket policies.

@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Aveline off-host backup freshness and backup volume headroom
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/aveline/backend
+ExecStart=/usr/bin/docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps backup-check
+TimeoutStartSec=2min

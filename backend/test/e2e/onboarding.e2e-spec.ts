@@ -489,7 +489,9 @@ describe('Onboarding (e2e)', () => {
       await http().get(`/api/v1/invitations/${slug}`).expect(404);
       const { body } = await act(slug, 'publish', authorization).expect(201);
 
-      expect(body).toEqual({ slug, status: 'PUBLISHED' });
+      expect(body).toEqual({ slug, status: 'PUBLISHED', lifetimeSource: 'FREE_DEFAULT', lifetimeDays: 90,
+        lifetimePlanKey: null, firstPublishedAt: expect.any(String), isExpired: false,
+        expiresAt: new Date(new Date(anEvent.startsAt).getTime() + 90 * 86_400_000).toISOString() });
       const page = await http().get(`/api/v1/invitations/${slug}`).expect(200);
       expect(page.body.isAcceptingResponses).toBe(true);
     });

@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
+import { VersionedPayloadCache } from './versioned-payload-cache';
 
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 
@@ -9,11 +10,6 @@ const NAMESPACE = 'aveline';
  *  to a guest who reads Russian. */
 export function invitationCacheKey(slug: string, locale: string): string {
   return `${NAMESPACE}:invitation:${slug}:${locale}`;
-}
-
-/** Who may read the page, and in which languages — beside the payload, invalidated with it. */
-export function invitationMetaKey(slug: string): string {
-  return `${NAMESPACE}:invitation:${slug}:_meta`;
 }
 
 /**
@@ -52,8 +48,25 @@ export function invitationKeyPattern(slug: string): string {
 @Injectable()
 export class CacheService {
   private readonly logger = new Logger(CacheService.name);
+  private readonly pending = new Map<string, Promise<unknown>>();
+  private readonly versioned = new VersionedPayloadCache();
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+
+  async readVersioned<T>(scope: string, revision: string, ttlSeconds: number, load: () => Promise<T>): Promise<T> {
+    const key = `${scope}:${revision}`;
+    const cached = this.versioned.get<T>(key);
+    if (cached !== null) return cached;
+    const fresh = await this.readThrough(key, ttlSeconds, load);
+    this.versioned.set(key, fresh, ttlSeconds);
+    return fresh;
+  }
+
+  clearVersioned(): void { this.versioned.clear(); }
+
+  rememberVersioned(scope: string, revision: string, ttlSeconds: number, value: unknown): void {
+    this.versioned.set(`${scope}:${revision}`, value, ttlSeconds);
+  }
 
   /**
    * With a `generationKey`, a value is stored only if nothing invalidated it
@@ -66,11 +79,24 @@ export class CacheService {
     if (cached !== null) return cached;
 
     const generation = generationKey ? await this.tryGetRaw(generationKey) : null;
-    const fresh = await load();
-    await (generationKey
-      ? this.trySetIfGeneration({ key, generationKey, generation: generation ?? '0' }, fresh, ttlSeconds)
-      : this.trySet(key, fresh, ttlSeconds));
-    return fresh;
+    const identity = JSON.stringify([key, generationKey, generation]);
+    return this.shareLoad(identity, async () => {
+      const fresh = await load();
+      await (generationKey
+        ? this.trySetIfGeneration({ key, generationKey, generation: generation ?? '0' }, fresh, ttlSeconds)
+        : this.trySet(key, fresh, ttlSeconds));
+      return fresh;
+    });
+  }
+
+  async shareLoad<T>(key: string, load: () => Promise<T>): Promise<T> {
+    const existing = this.pending.get(key);
+    if (existing) return existing as Promise<T>;
+    const request = Promise.resolve().then(load);
+    // Bound bookkeeping even if unrelated loaders stall; overload still reads Postgres.
+    if (this.pending.size >= 1000) return request;
+    this.pending.set(key, request);
+    try { return await request; } finally { this.pending.delete(key); }
   }
 
   /** Drops every locale variant for one invitation. Called on any write that

@@ -58,7 +58,7 @@ export class JobLockService {
       wasAcquired = (await this.redis.set(key, owner, 'EX', job.ttlSeconds, 'NX')) === 'OK';
     } catch (error) {
       this.logger.warn(`skipping ${job.name}: lock unavailable (${describeError(error)})`);
-      return;
+      throw error;
     }
 
     if (!wasAcquired) return;
@@ -67,6 +67,7 @@ export class JobLockService {
       await work();
     } catch (error) {
       this.logger.error(`${job.name} failed: ${describeError(error)}`);
+      throw error;
     } finally {
       // Only if still ours. A run that outlived its TTL deleted the lock the
       // next run had taken, and a third run could start beside it.

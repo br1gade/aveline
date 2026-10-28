@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { join } from 'node:path';
 import { FileToStore, StorageAdapter, StoredFile } from '../storage-port';
 
@@ -40,6 +41,11 @@ export class FilesystemStorageAdapter implements StorageAdapter {
 
   async remove(key: string): Promise<void> {
     await rm(join(this.root, shardOf(key), key), { force: true });
+  }
+
+  async probe(): Promise<void> {
+    await mkdir(this.root, { recursive: true });
+    await access(this.root, constants.R_OK | constants.W_OK);
   }
 }
 

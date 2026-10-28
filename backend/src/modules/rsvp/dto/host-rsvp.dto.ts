@@ -1,22 +1,19 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
-  IsIn,
   IsOptional,
   IsString,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { CustomAnswerDto, MEMBER_STATUSES } from './submit-rsvp.dto';
+import { AttendanceSubmissionDto } from './attendance.dto';
+import { CustomAnswerDto } from './submit-rsvp.dto';
 
 /** An answer a host records for a guest — phoned in, said at a dinner, sent by letter. */
-export class HostRsvpDto {
-  @ApiProperty({ enum: MEMBER_STATUSES })
-  @IsIn(MEMBER_STATUSES)
-  status!: (typeof MEMBER_STATUSES)[number];
+export class HostRsvpDto extends AttendanceSubmissionDto {
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

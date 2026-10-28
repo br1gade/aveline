@@ -97,6 +97,22 @@ describe('billing (integration)', () => {
   });
 
   describe('subscribing', () => {
+    it('refuses paid pilot plans before issuing an invoice and still permits a free plan', async () => {
+      await plan({ key: 'paid', priceMinor: 25_000n });
+      await plan({ key: 'free', priceMinor: 0n });
+      const previous = process.env.PILOT_MODE;
+      process.env.PILOT_MODE = 'true';
+      try {
+        await expect(subscriptions.subscribe(organizationId, { planKey: 'paid', provider: PaymentProvider.FAKE })).rejects.toThrow('Payments are disabled for the free pilot');
+        expect(await prisma.invoice.count()).toBe(0);
+        expect(await prisma.payment.count()).toBe(0);
+        const result = await subscriptions.subscribe(organizationId, { planKey: 'free' });
+        expect(result.subscription?.status).toBe(SubscriptionStatus.ACTIVE);
+      } finally {
+        if (previous === undefined) delete process.env.PILOT_MODE;
+        else process.env.PILOT_MODE = previous;
+      }
+    });
     it('activates a free plan immediately, with no invoice', async () => {
       await plan({ key: 'free', priceMinor: 0n });
 

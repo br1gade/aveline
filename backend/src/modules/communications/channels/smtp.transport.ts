@@ -77,6 +77,7 @@ export class SmtpTransport implements MessageTransport {
       to: message.toAddress,
       subject: message.subject ?? '',
       text: message.body,
+      headers: message.messageId ? { 'X-Aveline-Message-Id': message.messageId } : undefined,
       // Templates are authored as text, so the HTML part is the same content
       // with line breaks preserved rather than a second thing to keep in sync.
       html: asHtml(message.body),

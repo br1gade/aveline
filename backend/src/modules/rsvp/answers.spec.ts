@@ -40,7 +40,7 @@ describe('answersProblem', () => {
     [note, 'x'.repeat(501), /500/],
     [note, 7, /text/],
     [yesNo, 'yes', /true or false/],
-    [signature, 'data:image/png', /cannot be answered/],
+    [signature, 'data:image/png', /acknowledgement object/],
   ])('refuses %o answered %p', (q, value, message) => {
     expect(answersProblem(all, [{ questionId: q.id, value }])).toMatch(message);
   });

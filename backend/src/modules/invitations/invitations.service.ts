@@ -1,21 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { GuestProjectionReader, LoadedGuest } from './guest-projection';
+import { GuestPageMeta } from './guest-page-version';
+import { GuestPageReader } from './guest-page-reader';
+import { hasInvitationExpired } from './lifetime';
+import { buildInvitationContent } from './invitation-content';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BlockType, EventVisibility, Prisma } from '@prisma/client';
+import { EventVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isReadableByGuests } from './publishing';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
-import { CacheService, invitationCacheKey, invitationMetaKey, invitationGenerationKey } from '../../infra/cache/cache.service';
-import { translatedField } from '../../common/field-translations';
-import { fieldsForPage } from '../rsvp/rsvp-fields';
-import { negotiateLocale, resolveTranslation } from '../../common/locale';
+import { CacheService, invitationCacheKey } from '../../infra/cache/cache.service';
+import { attendanceView } from '../rsvp/attendance/attendance-view';
+import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
+import { seatingAssignments, singleTable } from '../seating/seat-view';
+import { negotiateLocale } from '../../common/locale';
 
-const invitationInclude = {
+export const invitationInclude = {
   template: true,
   blocks: { where: { enabled: true }, orderBy: { sortOrder: 'asc' } },
-  questions: { orderBy: { sortOrder: 'asc' } },
+  questions: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
   event: {
     include: {
-      venues: { orderBy: { sortOrder: 'asc' } },
+      venues: { where: GUEST_FACING_VENUES, orderBy: { sortOrder: 'asc' } },
       // Entries marked internal are for the people running the day, not guests.
       // The host's order breaks ties at the same minute, as on their own list.
       timeline: { where: { isInternal: false }, orderBy: [{ occursAt: 'asc' }, { sortOrder: 'asc' }] },
@@ -26,13 +32,9 @@ const invitationInclude = {
 type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitationInclude }> & {
   /** The uploads its enabled blocks show, by id. */
   media: Map<string, BlockMedia>;
-  /** Venues the crew's internal timeline entries use — kept off the page unless guests' entries use them too. */
-  internalVenueIds: Set<string>;
 };
-type LoadedEvent = LoadedInvitation['event'];
-type LoadedBlock = LoadedInvitation['blocks'][number];
 
-const blockMediaSelect = {
+export const blockMediaSelect = {
   id: true,
   url: true,
   kind: true,
@@ -42,28 +44,15 @@ const blockMediaSelect = {
   variants: true,
 } satisfies Prisma.MediaAssetSelect;
 type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect }>;
-const GUEST_INCLUDE = {
-  rsvp: true,
-  event: { select: { seatingPublishedAt: true } },
-  household: {
-    include: {
-      guests: {
-        orderBy: { isPrimary: 'desc' },
-        include: { seat: { select: { table: { select: { name: true } } } } },
-      },
-    },
-  },
-} satisfies Prisma.GuestInclude;
 
-type LoadedGuest = Prisma.GuestGetPayload<{ include: typeof GUEST_INCLUDE }>;
 
-/** Resolves a translated field for one request's locale. */
-type Translate = <T>(content: unknown) => T | null;
 
 @Injectable()
 export class InvitationsService {
   private readonly cacheTtlSeconds: number;
   private readonly botUsername: string;
+  private readonly pageReader: GuestPageReader;
+  private readonly projectionReader: GuestProjectionReader;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -73,139 +62,57 @@ export class InvitationsService {
   ) {
     this.cacheTtlSeconds = Number(config.get<string>('INVITATION_CACHE_TTL') ?? 300);
     this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
+    this.pageReader = new GuestPageReader(prisma);
+    this.projectionReader = new GuestProjectionReader(prisma);
   }
 
-  /**
-   * The hot path. One invitation link is opened by every guest, often in the
-   * same few minutes after it is sent, and the payload is identical for every
-   * guest reading the same language. It is cached per slug and locale and
-   * dropped on any write that changes what the page renders.
-   *
-   * The personalized variant is NOT cached: it is per-guest by definition, and
-   * caching it would multiply the keyspace by the guest count for no reuse.
-   */
   async getCachedInvitation(slug: string, locale?: string) {
-    const meta = await this.pageMeta(slug);
-    // A PRIVATE event is reachable by personal link only (spec §13.1; D6,
-    // 9 October 2026). Changing visibility invalidates the cache, so making
-    // an event private closes its generic link at once.
-    if (meta.visibility === EventVisibility.PRIVATE) {
-      throw new NotFoundException(`Invitation "${slug}" is no longer available`);
-    }
-    // Bounds the cache keyspace to the locales this event publishes.
-    const effectiveLocale = negotiateLocale(locale, meta.locales, meta.defaultLocale);
-    const payload = await this.sharedPayload(slug, effectiveLocale);
-
-    // Fire and forget: a guest's page must never wait on analytics.
-    void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale: effectiveLocale });
-    return payload;
+    return this.servePage(slug, undefined, locale);
   }
 
-  /**
-   * The page personalized for one guest: greeted by name, in their language,
-   * with their household's real seat allowance (spec §5.4).
-   *
-   * Built from the cached shared page plus one query for the guest — the
-   * personal link is what every email carries, so it is most of the traffic,
-   * and rebuilding the whole page per guest cost some fourteen queries.
-   */
   async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string) {
-    const meta = await this.pageMeta(slug);
-    const guest = guestToken ? await this.findGuest(guestToken, meta.eventId) : null;
-    // A personal link must belong to a guest. Served with `guest: null`, any
-    // made-up token opened a PRIVATE event's page — its generic URL with
-    // extra steps. Same answer as an unknown slug, so a token is not probeable.
-    if (guestToken && !guest) throw new NotFoundException(`Invitation "${slug}" is no longer available`);
-    if (!guest) return this.getCachedInvitation(slug, requestedLocale);
-
-    // A language the guest picks on the page wins, if the event publishes it;
-    // otherwise their own. Picking one does not change their stored language.
-    // Negotiated like the shared page: `en-GB` reaches `en`.
-    const asked = requestedLocale ? negotiateLocale(requestedLocale, meta.locales, '') : '';
-    const locale = negotiateLocale(asked || (guest.locale ?? undefined), meta.locales, meta.defaultLocale);
-    const payload = await this.sharedPayload(slug, locale);
-
-    void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: guest.id });
-    return { ...payload, guest: this.buildGuestView(guest, guest.event.seatingPublishedAt !== null) };
+    return this.servePage(slug, guestToken, requestedLocale);
   }
 
-  /**
-   * Who may read the page and in which languages, cached beside it. A hit on
-   * the page used to load the invitation, its blocks, event, venues and
-   * timeline from Postgres first, only to decide the cache key.
-   */
-  private pageMeta(slug: string) {
-    return this.cache.readThrough(invitationMetaKey(slug), this.cacheTtlSeconds, async () => {
-      const invitation = await this.prisma.invitation.findUnique({
-        where: { slug },
-        select: { status: true, event: { select: { id: true, locales: true, defaultLocale: true, visibility: true } } },
-      });
-      if (!invitation || !isReadableByGuests(invitation.status)) {
-        throw new NotFoundException(`Invitation "${slug}" is no longer available`);
-      }
-      const { event } = invitation;
-      return { eventId: event.id, locales: event.locales, defaultLocale: event.defaultLocale, visibility: event.visibility };
-    }, invitationGenerationKey(slug));
+  private async servePage(slug: string, token?: string, requestedLocale?: string) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const meta = await this.pageMeta(slug, token);
+      const asked = requestedLocale ? negotiateLocale(requestedLocale, meta.locales, '') : '';
+      const locale = negotiateLocale(asked || (meta.guestLocale ?? undefined), meta.locales, meta.defaultLocale);
+      const [payload, guest] = await Promise.all([this.sharedPayload(slug, locale, meta),
+        meta.guestId ? this.personalPayload(meta, locale) : Promise.resolve(null)]);
+      const current = await this.pageMeta(slug, token);
+      if (!isSamePage(meta, current)) continue;
+      void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: meta.guestId ?? undefined });
+      return { ...payload, guest: guest ? { ...guest, telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${token!}` : null } : null };
+    }
+    throw new ConflictException('Invitation changed while loading; please retry');
   }
 
-  /** The page as every guest reading this language sees it, cached per slug and locale. */
-  private sharedPayload(slug: string, locale: string) {
-    return this.cache.readThrough(
-      invitationCacheKey(slug, locale),
-      this.cacheTtlSeconds,
-      async () => this.buildPayload(await this.loadPublished(slug), null, locale),
-      invitationGenerationKey(slug),
-    );
+  private async pageMeta(slug: string, token?: string) {
+    const [meta] = await this.pageReader.read(slug, token);
+    const isDenied = !meta || !isReadableByGuests(meta.status) || hasInvitationExpired(meta)
+      || (token ? !meta.guestId : meta.visibility === EventVisibility.PRIVATE);
+    if (isDenied) throw new NotFoundException(`Invitation "${slug}" is no longer available`);
+    return meta;
   }
 
-  private buildPayload(
-    invitation: LoadedInvitation,
-    guest: LoadedGuest | null,
-    requestedLocale?: string,
-  ) {
-    const { event } = invitation;
-    const locale = negotiateLocale(requestedLocale, event.locales, event.defaultLocale);
-    const translate: Translate = (content) => resolveTranslation(content, locale, event.defaultLocale);
+  private sharedPayload(slug: string, locale: string, meta: GuestPageMeta) {
+    return this.cache.readVersioned(`${invitationCacheKey(slug, locale)}:v3:${meta.eventId}`, String(meta.sharedRevision ?? meta.revision), this.cacheTtlSeconds,
+      async () => buildInvitationContent(await this.cache.shareLoad(`publication:${meta.eventId}:${meta.sharedRevision ?? meta.revision}`,
+        () => this.loadPublished(slug)), locale));
+  }
 
-    return {
-      slug: invitation.slug,
-      // Whether to show the RSVP form at all. A closed invitation is still
-      // readable — the venue and time still matter to people who are coming —
-      // so the page needs to know not to offer a form that will be refused.
-      isAcceptingResponses: isAcceptingResponses(invitation, new Date()),
-      template: invitation.template.key,
-      // The host's choices layered over the template's defaults, so a partially
-      // configured invitation still renders with a complete token set.
-      theme: { ...asRecord(invitation.template.defaultTheme), ...asRecord(invitation.theme) },
-      allowedFonts: invitation.template.allowedFonts,
-      // Derived from the blocks rather than stored beside them, so there is
-      // one place a host sets each: the hero's first photo is the cover, and
-      // switching the music block off silences the page.
-      musicUrl: firstMediaUrl(invitation, BlockType.MUSIC),
-      coverUrl: firstMediaUrl(invitation, BlockType.HERO),
-      locale,
-      availableLocales: event.locales,
-      event: this.buildEventView(event, locale),
-      guest: guest ? this.buildGuestView(guest, event.seatingPublishedAt !== null) : null,
-      blocks: invitation.blocks.map((block) => ({
-        type: block.type,
-        sortOrder: block.sortOrder,
-        variant: block.variant,
-        settings: block.settings,
-        content: translate(block.content) ?? {},
-        media: mediaFor(block, invitation.media, translate),
-        data: this.hydrateBlock(block.type, invitation, translate, locale),
-      })),
-      // How the built-in questions are asked: which to show, and fixed choices in this language.
-      rsvpFields: fieldsForPage(invitation.rsvpFields, locale, event.defaultLocale),
-      rsvpQuestions: invitation.questions.map((question) => ({
-        id: question.id,
-        type: question.type,
-        required: question.required,
-        prompt: translate(question.prompt),
-        options: translate(question.options) ?? [],
-      })),
-    };
+  private personalPayload(meta: GuestPageMeta, locale: string) {
+    const key = `aveline:personal:v2:${meta.eventId}:${meta.guestId!}:${locale}`;
+    const revision = pageRevision(meta); const ttl = Math.min(this.cacheTtlSeconds, 300);
+    return this.cache.readVersioned(key, revision, ttl, async () => {
+      const guest = await this.projectionReader.read(meta.eventId, meta.guestId!);
+      if (!guest) throw new NotFoundException('Invitation is no longer available');
+      const value = this.buildGuestView(guest, guest.event.seatingPublishedAt !== null, locale);
+      if (guest.payloadRevision && guest.payloadRevision !== revision) this.cache.rememberVersioned(key, guest.payloadRevision, ttl, value);
+      return value;
+    });
   }
 
   private async loadPublished(slug: string): Promise<LoadedInvitation> {
@@ -217,17 +124,11 @@ export class InvitationsService {
     if (!invitation || !isReadableByGuests(invitation.status)) {
       throw new NotFoundException(`No published invitation at "${slug}"`);
     }
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
+    if (invitation.expiresAt && invitation.expiresAt <= new Date()) {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
-    const [media, internal] = await Promise.all([
-      this.loadBlockMedia(invitation),
-      this.prisma.timelineEntry.findMany({
-        where: { eventId: invitation.eventId, isInternal: true, venueId: { not: null } },
-        select: { venueId: true },
-      }),
-    ]);
-    return { ...invitation, media, internalVenueIds: new Set(internal.flatMap((entry) => (entry.venueId ? [entry.venueId] : []))) };
+    const media = await this.loadBlockMedia(invitation);
+    return { ...invitation, media };
   }
 
   /**
@@ -250,19 +151,7 @@ export class InvitationsService {
     return new Map(assets.map((asset) => [asset.id, asset]));
   }
 
-  private buildEventView(event: LoadedEvent, locale: string) {
-    return {
-      type: event.type,
-      title: translatedField(event.translations, locale, 'title') ?? event.title,
-      hosts: translatedField(event.translations, locale, 'hostsLabel') ?? event.hostsLabel,
-      startsAt: event.startsAt,
-      endsAt: event.endsAt,
-      timezone: event.timezone,
-      sides: { a: event.sideALabel, b: event.sideBLabel },
-    };
-  }
-
-  private buildGuestView(guest: LoadedGuest, isSeatingPublished: boolean) {
+  private buildGuestView(guest: LoadedGuest, isSeatingPublished: boolean, locale: string) {
     return {
       id: guest.id,
       name: fullName(guest),
@@ -273,128 +162,47 @@ export class InvitationsService {
         members: guest.household.guests.map((member) => ({
           id: member.id,
           name: fullName(member),
+          attendance: attendanceView({ ...member, event: guest.event }, locale),
         })),
       },
+      attendance: attendanceView(guest, locale),
       rsvp: guest.rsvp && { status: guest.rsvp.status, respondedAt: guest.rsvp.respondedAt },
       // Decision D4: their own household's tables, on their own link, once the
       // host publishes — never the room, never on the shared page.
-      seating: isSeatingPublished ? seatingFor(guest) : null,
-      // Opening the bot from here opts them in to reminders on Telegram. Their
-      // own token, so it links this guest; null when no bot is configured.
-      telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${guest.token}` : null,
+      seating: isSeatingPublished ? seatingFor(guest, locale) : null,
     };
   }
 
-  /** Pulls live Event data for the block types that must never duplicate it. */
-  private hydrateBlock(type: BlockType, invitation: LoadedInvitation, translate: Translate, locale: string): unknown {
-    const { event } = invitation;
-    switch (type) {
-      case BlockType.VENUE:
-      case BlockType.MAP:
-        return guestVenues(invitation).map((venue) => ({
-          // Timeline entries carry venueId; this is what they point at.
-          id: venue.id,
-          role: venue.role,
-          name: translatedField(venue.translations, locale, 'name') ?? venue.name,
-          address: translatedField(venue.translations, locale, 'address') ?? venue.address,
-          latitude: venue.latitude,
-          longitude: venue.longitude,
-          mapUrl: venue.mapUrl,
-          arriveAt: venue.arriveAt,
-        }));
-      case BlockType.TIMELINE:
-        return event.timeline.map((entry) => ({
-          label: translate(entry.label),
-          occursAt: entry.occursAt,
-          venueId: entry.venueId,
-        }));
-      case BlockType.COUNTDOWN:
-        return { target: event.startsAt, timezone: event.timezone };
-      default:
-        return null;
-    }
-  }
 
-  private findGuest(token: string, eventId: string) {
-    return this.prisma.guest.findFirst({
-      where: { token, eventId },
-      include: GUEST_INCLUDE,
-    });
-  }
-}
-
-/** A block's uploads in the host's order, skipping any since removed. */
-function mediaFor(block: LoadedBlock, media: Map<string, BlockMedia>, translate: Translate) {
-  return block.assetIds.flatMap((id) => {
-    const asset = media.get(id);
-    if (!asset) return [];
-    return [
-      {
-        id: asset.id,
-        url: asset.url,
-        kind: asset.kind,
-        altText: translate<string>(asset.altText),
-        width: asset.width,
-        height: asset.height,
-        // Smaller copies, once the resizing job has made them; pick by width.
-        variants: asset.variants,
-      },
-    ];
-  });
-}
-
-/** The first upload on an enabled block of this type, or null. */
-function firstMediaUrl(invitation: LoadedInvitation, type: BlockType): string | null {
-  const block = invitation.blocks.find((candidate) => candidate.type === type);
-  const firstId = block?.assetIds.find((id) => invitation.media.has(id));
-  return firstId ? (invitation.media.get(firstId)?.url ?? null) : null;
 }
 
 function fullName(person: { firstName: string; lastName: string | null }): string {
   return [person.firstName, person.lastName].filter(Boolean).join(' ');
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-/**
- * Open for new answers: published, and not past its expiry.
- *
- * Computed into a cached payload, so an expiry passing mid-cache can briefly
- * show the form after it has closed. The RSVP endpoint enforces the same rule
- * independently, so the worst case is a form that says "this invitation has
- * closed" when submitted — never an answer accepted after the deadline.
- */
-function isAcceptingResponses(
-  invitation: { status: string; expiresAt: Date | null },
-  now: Date,
-): boolean {
-  if (invitation.status !== 'PUBLISHED') return false;
-  return invitation.expiresAt === null || invitation.expiresAt > now;
-}
-
 /** Where this guest and the people they came with are sitting; `null` for no table yet. */
-function seatingFor(guest: LoadedGuest) {
-  const tableOf = (member: LoadedGuest['household']['guests'][number]) => member.seat?.table.name ?? null;
+function seatingFor(guest: LoadedGuest, locale: string) {
+  const visibleVenueIds = new Set(guest.event.venues.map((venue) => venue.id));
+  const visibleSeats = (member: LoadedGuest['household']['guests'][number]) => member.seats.filter(
+    (seat) => seat.table.venueId === null || visibleVenueIds.has(seat.table.venueId),
+  );
+  const tableOf = (member: LoadedGuest['household']['guests'][number]) => singleTable(visibleSeats(member));
+  const assignmentsOf = (member: LoadedGuest['household']['guests'][number]) => seatingAssignments(
+    visibleSeats(member).map((seat) => ({ ...seat, guest: { ...member, event: guest.event } })), locale);
   const own = guest.household.guests.find((member) => member.id === guest.id);
   return {
     table: own ? tableOf(own) : null,
-    household: guest.household.guests.map((member) => ({ id: member.id, name: fullName(member), table: tableOf(member) })),
+    assignments: own ? assignmentsOf(own) : [],
+    household: guest.household.guests.map((member) => ({
+      id: member.id, name: fullName(member), table: tableOf(member), assignments: assignmentsOf(member),
+    })),
   };
 }
 
-/**
- * The venues a guest should see (decided 10 October 2026, D17): not where the
- * couple gets ready — often a family home — and not a place only the crew's
- * internal entries use. The page used to show every venue on the event.
- */
-function guestVenues(invitation: LoadedInvitation) {
-  const { event, internalVenueIds } = invitation;
-  const usedByGuests = new Set(event.timeline.map((entry) => entry.venueId).filter(Boolean));
-  return event.venues.filter(
-    (venue) => venue.role !== 'PREPARATION' && (!internalVenueIds.has(venue.id) || usedByGuests.has(venue.id)),
-  );
+function isSamePage(before: GuestPageMeta, after: GuestPageMeta): boolean {
+  return before.eventId === after.eventId && before.guestId === after.guestId && pageRevision(before) === pageRevision(after);
+}
+
+function pageRevision(meta: GuestPageMeta): string {
+  return meta.sharedRevision === undefined ? String(meta.revision) : `${meta.sharedRevision}:${meta.guestHouseholdId ?? ''}:${meta.personalRevision ?? 0n}`;
 }

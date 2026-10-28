@@ -6,6 +6,7 @@
  * production surfaces as "anyone can mint a staff token". Failing at startup
  * turns both into a deployment that visibly does not come up.
  */
+import { validateWhatsAppConfig } from './whatsapp-config';
 import { ENVIRONMENTS } from './environment';
 
 export interface ValidatedEnv extends Record<string, unknown> {
@@ -31,8 +32,16 @@ function asText(value: unknown): string | undefined {
 export function validateEnv(raw: Record<string, unknown>): ValidatedEnv {
   const nodeEnv = recognisedNodeEnv(raw.NODE_ENV);
   assertRequiredPresent(raw);
+  validateWhatsAppConfig(raw);
 
   assertWholeNumbers(raw, ['ACCESS_TOKEN_TTL_SECONDS', 'REFRESH_TOKEN_TTL_DAYS']);
+  assertEmailQuotaSettings(raw);
+  assertExportRetention(raw);
+  const feedbackSecret = asText(raw.EMAIL_FEEDBACK_SECRET);
+  if (feedbackSecret && feedbackSecret.length < 32) throw new Error('EMAIL_FEEDBACK_SECRET must have at least 32 characters');
+  if (raw.PILOT_MODE !== undefined && !['true', 'false'].includes(asText(raw.PILOT_MODE) ?? '')) {
+    throw new Error('PILOT_MODE must be true or false');
+  }
 
   return {
     ...raw,
@@ -54,6 +63,15 @@ function assertWholeNumbers(raw: Record<string, unknown>, keys: readonly string[
     if (!/^\d+$/.test(value) || Number(value) <= 0) {
       throw new Error(`${key} must be a whole number above zero, got "${value}"`);
     }
+  }
+}
+
+function assertEmailQuotaSettings(raw: Record<string, unknown>): void {
+  const maximums = { EMAIL_SENDS_PER_MINUTE: 60000, EMAIL_SENDS_PER_DAY: 1000000, EMAIL_SEND_BURST: 1000, EMAIL_SEND_CONCURRENCY: 20 };
+  assertWholeNumbers(raw, Object.keys(maximums));
+  for (const [key, maximum] of Object.entries(maximums)) {
+    const value = asText(raw[key]);
+    if (value !== undefined && (value === '' || Number(value) > maximum)) throw new Error(`${key} must be between 1 and ${maximum}`);
   }
 }
 
@@ -96,4 +114,11 @@ function parsePort(value: unknown): number {
     throw new Error(`PORT must be a valid port number, got "${asText(value) ?? ''}"`);
   }
   return port;
+}
+
+
+function assertExportRetention(raw: Record<string, unknown>): void {
+  if (raw.EXPORT_RETENTION_DAYS === undefined) return;
+  const value = asText(raw.EXPORT_RETENTION_DAYS) ?? '';
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 30) throw new Error('EXPORT_RETENTION_DAYS must be a whole number between 1 and 30');
 }

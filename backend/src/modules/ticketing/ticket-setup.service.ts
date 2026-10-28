@@ -132,10 +132,10 @@ export class TicketSetupService {
     // Conditioned again, so a checkout that reserves between the read and the
     // delete is not left holding seats against a type that no longer exists.
     const deleted = await this.prisma.ticketType.deleteMany({
-      where: { id: typeId, quantitySold: 0, quantityReserved: 0 },
+      where: { id: typeId, quantitySold: 0, quantityReserved: 0, attendees: { none: {} }, items: { none: {} }, tickets: { none: {} } },
     });
     if (deleted.count === 0) {
-      throw new ConflictException('Someone started buying this just now; deactivate it instead');
+      throw new ConflictException('This type has checkout history or someone started buying it; deactivate it instead');
     }
     return { ok: true as const };
   }
@@ -170,17 +170,22 @@ export class TicketSetupService {
       ogTitle: dto.ogTitle as Prisma.InputJsonValue | undefined,
       ogDescription: dto.ogDescription as Prisma.InputJsonValue | undefined,
       isIndexable: dto.isIndexable,
+      heroAssetId: dto.heroAssetId,
+      ogImageId: dto.ogImageId,
     };
 
     try {
-      return await this.prisma.eventListing.upsert({
-        where: { eventId },
-        create: {
-          eventId,
-          slug: dto.slug ?? listingSlug(event.title),
-          ...data,
-        },
-        update: { ...data, slug: dto.slug },
+      return await this.prisma.$transaction(async (tx) => {
+        await assertListingImages(tx, eventId, dto);
+        return tx.eventListing.upsert({
+          where: { eventId },
+          create: {
+            eventId,
+            slug: dto.slug ?? listingSlug(event.title),
+            ...data,
+          },
+          update: { ...data, slug: dto.slug },
+        });
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -344,4 +349,12 @@ function isCheckViolation(error: unknown): boolean {
     return false;
   }
   return /check constraint|23514/i.test(error.message);
+}
+
+async function assertListingImages(tx: Prisma.TransactionClient, eventId: string, dto: UpsertListingDto): Promise<void> {
+  const ids = [...new Set([dto.heroAssetId, dto.ogImageId].filter((id): id is string => typeof id === 'string'))].sort();
+  if (!ids.length) return;
+  await tx.$queryRaw`SELECT id FROM media_assets WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR SHARE`;
+  const assets = await tx.mediaAsset.findMany({ where: { id: { in: ids }, eventId, kind: { in: ['PHOTO', 'COVER', 'LOGO'] } }, select: { id: true } });
+  if (assets.length !== ids.length) throw new BadRequestException('heroAssetId/ogImageId: choose existing images belonging to this event');
 }

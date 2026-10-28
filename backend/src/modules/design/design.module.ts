@@ -1,3 +1,5 @@
+import { TemplatePreviewsController } from './template-previews.controller';
+import { TemplatePreviewsService } from './template-previews.service';
 import { Module } from '@nestjs/common';
 import { DesignController } from './design.controller';
 import { DesignService } from './design.service';
@@ -13,8 +15,8 @@ import { VenuesService } from './venues.service';
  * payload in one language.
  */
 @Module({
-  controllers: [DesignController, VenueDirectoryController],
-  providers: [DesignService, VenuesService, TimelineService, DraftReaderService],
+  controllers: [TemplatePreviewsController, DesignController, VenueDirectoryController],
+  providers: [TemplatePreviewsService, DesignService, VenuesService, TimelineService, DraftReaderService],
   exports: [DesignService, VenuesService, TimelineService],
 })
 export class DesignModule {}

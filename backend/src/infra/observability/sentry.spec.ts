@@ -17,7 +17,7 @@ describe('Sentry', () => {
     const eventWith = (request: Record<string, unknown>) =>
       scrubEvent({ request } as unknown as ErrorEvent);
 
-    it.each(['authorization', 'cookie', 'referer', 'x-api-key'])('removes the %s header', (header) => {
+    it.each(['authorization', 'cookie', 'referer', 'x-api-key', 'x-aveline-feedback-signature'])('removes the %s header', (header) => {
       const scrubbed = eventWith({ headers: { [header]: 'secret-value', 'user-agent': 'curl' } });
       expect(scrubbed?.request?.headers?.[header]).toBeUndefined();
     });
@@ -44,6 +44,11 @@ describe('Sentry', () => {
       const scrubbed = eventWith({ url });
       expect(scrubbed?.request?.url).not.toContain(leaked);
       expect(scrubbed?.request?.url).toContain('[token]');
+    });
+
+    it.each(['x-hub-signature-256', 'X-Hub-Signature-256'])('removes the Meta signature %s before sending incidents off-host', (header) => {
+      const scrubbed = eventWith({ headers: { [header]: 'sha256=synthetic' } });
+      expect(scrubbed?.request?.headers).not.toHaveProperty(header);
     });
 
     it('drops the query string, which can carry a searched name', () => {

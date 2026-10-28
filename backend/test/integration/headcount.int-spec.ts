@@ -1,7 +1,6 @@
 import { PrismaClient, RsvpStatus } from '@prisma/client';
 import { AnalyticsService } from '../../src/infra/analytics/analytics.service';
 import { OperationsService } from '../../src/modules/operations/operations.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
@@ -18,7 +17,7 @@ describe('Headcount by household and over time (integration)', () => {
   beforeAll(() => {
     prisma = testPrisma();
     operations = new OperationsService(
-      prisma as unknown as PrismaService,
+      prisma,
       { invitationViewSummary: () => Promise.resolve({ totalViews: 0, byLocale: [] }) } as unknown as AnalyticsService,
     );
   });

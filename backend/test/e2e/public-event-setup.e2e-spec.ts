@@ -1,3 +1,4 @@
+import { attendeeRoster } from '../fixtures/tickets.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -93,6 +94,7 @@ describe('Public event setup (e2e)', () => {
     const { body: order } = await http()
       .post(`/api/v1/public/events/${listing.slug}/orders`)
       .send({
+      attendees: [...attendeeRoster(type.id as string, 2)],
         items: [{ ticketTypeId: type.id, quantity: 2 }],
         buyerName: 'Ani',
         buyerEmail: 'ani@test.local',
@@ -117,7 +119,8 @@ describe('Public event setup (e2e)', () => {
     await at(`${base}/listing/publish`, authorization).post().expect(201);
     const { body: order } = await http()
       .post(`/api/v1/public/events/${listing.slug}/orders`)
-      .send({ items: [{ ticketTypeId: type.id, quantity: 1 }], buyerName: 'Ani', buyerEmail: 'ani@test.local', idempotencyKey: `k-${eventId}` })
+      .send({
+      attendees: [...attendeeRoster(type.id as string, 1)], items: [{ ticketTypeId: type.id, quantity: 1 }], buyerName: 'Ani', buyerEmail: 'ani@test.local', idempotencyKey: `k-${eventId}` })
       .expect(201);
     return { authorization, eventId, slug: listing.slug as string, code: (order.tickets as { code: string }[])[0].code };
   };
@@ -136,6 +139,7 @@ describe('Public event setup (e2e)', () => {
     const { body } = await http()
       .post(`/api/v1/public/events/${listing.slug}/orders`)
       .send({
+      attendees: [...attendeeRoster(type.id as string, 6), ...attendeeRoster(type.id as string, 6)],
         items: [{ ticketTypeId: type.id, quantity: 6 }, { ticketTypeId: type.id, quantity: 6 }],
         buyerName: 'Ani',
         buyerEmail: 'ani@test.local',
@@ -156,7 +160,8 @@ describe('Public event setup (e2e)', () => {
     const buyAt = (slug: string, ticketTypeId: string) =>
       http()
         .post(`/api/v1/public/events/${slug}/orders`)
-        .send({ items: [{ ticketTypeId, quantity: 1 }], buyerName: 'Late', buyerEmail: 'late@test.local', idempotencyKey: `late-${slug}` });
+        .send({
+      attendees: [...attendeeRoster(ticketTypeId, 1)], items: [{ ticketTypeId, quantity: 1 }], buyerName: 'Late', buyerEmail: 'late@test.local', idempotencyKey: `late-${slug}` });
 
     it('stops selling once the event has started, but stays listed until it ends', async () => {
       const { eventId, slug } = await onSale();
@@ -417,6 +422,7 @@ describe('Public event setup (e2e)', () => {
       const { body: order } = await http()
         .post(`/api/v1/public/events/${listing.slug}/orders`)
         .send({
+      attendees: [...attendeeRoster(type.id as string, 2)],
           items: [{ ticketTypeId: type.id, quantity: 2 }],
           buyerName: 'Ani',
           buyerEmail: 'ani@test.local',

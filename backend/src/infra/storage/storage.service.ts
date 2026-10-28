@@ -57,6 +57,8 @@ export class StorageService {
     return this.adapter.remove(key);
   }
 
+  probe(): Promise<void> { return this.adapter.probe(); }
+
   /**
    * Removes the file behind a stored URL. Best effort: the row that pointed at
    * it is already gone, and an orphaned file costs disk, not correctness.

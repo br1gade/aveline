@@ -100,12 +100,22 @@ call that endpoint; production refuses to boot without it once a bot token is
 set, because otherwise anyone who guessed a guest token could register their
 own chat against that guest.
 
-**WhatsApp** can reach someone cold, which is why it exists here, but it is
-gated: a Meta Business account, a verified business, a dedicated number, and
-**message templates approved in advance**. It will not send free text at all,
-so a `MessageTemplate` used on WhatsApp needs `providerTemplate` (Meta's
-template name) and `providerParams` (the variable names in the order Meta
-expects them). Every delivered template is billed.
+**WhatsApp** sends business-initiated approved templates through Meta's Cloud
+API. Configure account/sender/token, an explicitly supported API version, app
+secret and webhook verification token together; see
+[the setup and live acceptance checklist](docs/WHATSAPP_SETUP.md). A
+`MessageTemplate` needs `providerTemplate` (Meta's approved name) and ordered
+`providerParams`. Guest consent, account/number eligibility, billing and template
+approval must be verified before enabling it. Localized copy alone does not
+prove Meta template/language support.
+
+`GET /communications/whatsapp-webhook` verifies the Meta subscription;
+`POST /communications/whatsapp-webhook` authenticates exact raw bytes and
+acknowledges durable normalized receipts. A minute sweep reconciles scoped
+sent/delivered/read/failed outcomes. Read is `DELIVERED` with `readAt`; no new
+Message status is introduced. Ambiguous WhatsApp failures never globally
+suppress guests. Receipt ingestion is implemented, but real Meta send/subscription
+acceptance remains open because there is no account/test number yet.
 
 A channel is only used when **both** its transport is configured and the
 organization has copy for it. An organization with no Telegram template keeps
@@ -132,7 +142,7 @@ src/
     organizations/   the tenant a new account creates for itself
     billing/         plans, subscriptions, invoices, promo codes
     vendors/         the partner network and scoped briefs
-    exports/         CSV documents, built when downloaded
+    exports/         legacy live CSV and private snapshot jobs
     privacy/         data-subject requests and suppression lists
     operations/      derived views + the one-call dashboard
     access/          permission policy (pure, table-driven)
@@ -198,8 +208,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/invitations/:slug` | Invitation payload, cached per slug and locale |
+| `GET` | `/api/v1/invitations/:slug` | Invitation payload, revisioned cache per slug and locale |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken` | Personalized for one guest |
+| `PATCH` | `/api/v1/invitations/:slug/g/:guestToken/name` | Correct only the link holder's first/last names |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Read current response |
 | `POST` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
 | `PATCH` | `/api/v1/invitations/:slug/arrangement` | Reorder, toggle and re-variant every block atomically |
@@ -222,6 +233,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `DELETE` | `/api/v1/events/:eventId/team/invites/:email` | Withdraw an open invitation |
 | `PATCH` | `/api/v1/events/:eventId/team/:userId` | Change someone's role; never the last owner |
 | `DELETE` | `/api/v1/events/:eventId/team/:userId` | Take someone off; they lose access at once |
+| `POST` | `/api/v1/events/:eventId/attendance-policy/preview` | Preview a mode change |
+| `POST` | `/api/v1/events/:eventId/attendance-policy` | Confirm policy change and require fresh attendance |
+| `GET` | `/api/v1/events/:eventId/guests/:guestId/attendance-history` | Attendance history across policies |
 | `GET` | `/api/v1/events/:id/audit-trail` | Who changed what on this event |
 | `GET` | `/api/v1/events/:id/dashboard` | **Everything the operations screen needs, in one request** |
 | `GET` | `/api/v1/events/:id/guests` | Guest graph grouped by household |
@@ -236,6 +250,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/events/:eventId/design-templates/:templateKey/preview` | Synthetic four-language renderer preview; invitation:read |
+| `GET` | `/api/v1/invitations/:slug/template-preview` | Authorized event-content template preview; no publishing or RSVP |
+| `PATCH` | `/api/v1/invitations/:slug/question-order` | Atomic complete question order with expectedOrder conflict check |
 | `GET` | `/api/v1/events/:eventId/design-templates` | The template catalogue and its constraints |
 | `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
 | `POST` | `/api/v1/invitations/:slug/publish` | Make it live — needs an RSVP block, a venue and a future date |
@@ -288,6 +305,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/events/:eventId/seating/arrangements` | Plans by venue plus the unspecified legacy plan |
 | `GET` | `/api/v1/events/:eventId/tables` | Tables with seated counts |
 | `POST` | `/api/v1/events/:eventId/tables` | Add one table |
 | `POST` | `/api/v1/events/:eventId/tables/bulk` | Add numbered tables in one call |
@@ -297,7 +315,16 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `DELETE` | `/api/v1/events/:eventId/seats/:guestId` | Unseat one guest |
 | `POST` | `/api/v1/events/:eventId/seating/publish` | Let guests see their tables on their own link |
 | `POST` | `/api/v1/events/:eventId/seating/unpublish` | Take the tables off guests' pages |
-| `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Seat everyone attending; reports who did not fit |
+| `POST` | `/api/v1/events/:eventId/seats/auto-assign` | Queue additive seating; UUID idempotency key required (breaking, 18 October) |
+| `GET` | `/api/v1/events/:eventId/seating/jobs` | Latest 50 job summaries, excluding result details |
+| `GET` | `/api/v1/events/:eventId/seating/jobs/:jobId` | Job status, revisions and committed result |
+
+Automatic seating now returns a queued resource, not immediate seat counts.
+Run `npm run start:seating-worker` separately after the build. Poll the job for
+`COMPLETED`/`FAILED`, then refresh tables; manual assignment remains immediate.
+The worker retries stale plans and recovers expired claims without replacing
+manual seats. See [SEATING_WORKER.md](docs/SEATING_WORKER.md) for limits, deployment
+and failure handling.
 
 #### Vendors and briefs
 
@@ -319,6 +346,26 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/exports` | Record one; returns where to download it |
 | `GET` | `/api/v1/events/:eventId/exports/:exportId` | One export |
 | `GET` | `/api/v1/events/:eventId/exports/:exportId/download` | The CSV, built now; contact columns only with `guest:contact:read` |
+| `GET` | `/api/v1/events/:eventId/export-snapshots` | Latest 50 snapshot jobs |
+| `POST` | `/api/v1/events/:eventId/export-snapshots` | Queue an immutable private CSV/PDF/XLSX; UUID idempotency key required |
+| `GET` | `/api/v1/events/:eventId/export-snapshots/:snapshotId` | Job state, generation metadata and expiry |
+| `GET` | `/api/v1/events/:eventId/export-snapshots/:snapshotId/download` | Stored bytes; rechecks current permissions and revocation |
+
+Snapshot CSV, PDF and XLSX support all seven existing kinds. Run `npm run build` then
+`npm run start:export-worker` in a separate process. It claims one job at a time
+from Postgres, retries at most three attempts and recovers expired 90-second
+leases. API startup does not process this queue. Use `PRIVATE_S3_BUCKET` with
+anonymous access disabled, or a shared `PRIVATE_STORAGE_ROOT` outside public
+storage. Files expire after `EXPORT_RETENTION_DAYS` (default 7, range 1–30).
+See [EXPORT_WORKER.md](docs/EXPORT_WORKER.md) for recovery and cleanup, and
+[EXPORT_RENDERERS.md](docs/EXPORT_RENDERERS.md) for fonts, layouts, limits and
+the database-free 400-person file rehearsal. PDF place cards are six flat
+90 × 70 mm cut cards per A4. Snapshot catering/bar totals are venue-specific.
+Snapshot headings, titles, metadata and standard status labels support English,
+Russian, French and Armenian; human language/print acceptance remains.
+The existing `/exports` API remains live CSV during frontend migration;
+its records are references to regenerate, never historical snapshots.
+
 
 #### Check-in on the day
 
@@ -377,6 +424,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/listing/publish` | Make it public |
 | `POST` | `/api/v1/events/:eventId/listing/unpublish` | Take it down |
 | `GET` | `/api/v1/events/:eventId/ticket-orders` | Orders on the event, newest first |
+| `GET` | `/api/v1/events/:eventId/ticket-orders/:orderId` | Review captured attendees and ticket/guest links; contacts/codes permission-filtered |
+| `POST` | `/api/v1/events/:eventId/tickets/:ticketId/attendee` | Register an explicitly supplied legacy ticket attendee |
+| `POST` | `/api/v1/events/:eventId/tickets/:ticketId/link-guest` | Link an existing invited guest, preserving their answers |
 | `POST` | `/api/v1/events/:eventId/ticket-orders/:orderId/cancel` | Cancel and refund an order, exactly once |
 
 ### Public — vendor briefs and discounts
@@ -398,10 +448,18 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events/:eventId/tickets/:code/admit` | Admit at the door; a code admits once, and only at its own event |
 | `POST` | `/api/v1/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
 
+### Signed integration feedback
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/communications/whatsapp-webhook` | Meta subscription challenge; configured verification token required |
+| `POST` | `/api/v1/communications/whatsapp-webhook` | Native WhatsApp statuses; exact-byte app-secret HMAC and durable receipt acceptance |
+| `POST` | `/api/v1/communications/email-feedback` | Normalized email delivery feedback; public route requiring a trusted HMAC signature |
+
 ## Three design decisions worth knowing
 
 **Blocks are data-bound.** An `InvitationBlock` of type `VENUE`, `TIMELINE` or
-`COUNTDOWN` stores no copy of the event's data. `InvitationsService.hydrateBlock`
+`COUNTDOWN` stores no copy of the event's data. `invitation-content.ts`
 pulls it live from the Event at render time. This is what makes unlimited free
 revisions economically trivial — correcting a venue address is one UPDATE, not
 a re-edit of every block that mentions it.
@@ -430,6 +488,22 @@ adapter; TypeScript 7 waits on `ts-jest`.
 Read it before running `npm outdated` and reaching for `--force`.
 
 ## Testing
+
+CI runs the full verification pipeline with disposable databases and a Mailpit
+mail sink, then exercises the production Caddy configuration, builds the API
+image and runs disposable API/recovery rehearsals. `npm run test:edge` needs
+Docker and checks local TLS, routing and logs with synthetic credentials.
+`npm run pilot:rehearsal` also tests real Mongo retention/erasure and dependency
+recovery outside Jest. `npm run test:backup` covers capture and protection-check
+failures; `npm run backup:rehearsal` restores fresh Postgres/Garage from a local
+encrypted test repository. `npm run pilot:smoke` exercises a seeded running API over
+HTTP; it creates synthetic account/event data. Remote targets require explicit
+`PILOT_SMOKE_ALLOW_REMOTE=true` and a controlled `PILOT_SMOKE_EMAIL`.
+
+Destructive integration/e2e setup rejects `NODE_ENV=production` and database
+names other than `*_test` or `*_test_<suffix>`, before connecting or truncating.
+Only the public schema is supported. Point `TEST_DATABASE_URL` at a disposable
+database; never at the development or production database.
 
 Three layers, each with a distinct job. See `../CLAUDE.md` §6.
 
@@ -461,6 +535,11 @@ LOG_LEVEL=warn npm run start:dev    # trace|debug|info|warn|error|fatal
 ```
 
 Health checks are not logged. 4xx logs as `warn`, 5xx as `error`.
+
+Errors retain `message` and add localized `code`, `locale`, `userMessage`,
+`action` and field `details`. Job/media summaries add `recovery`; unseated
+households add `explanation`. Request interface copy with `Accept-Language`.
+See the shared [API contract](../docs/API.md#errors-have-one-shape).
 
 Sentry also watches service health without tracing: each scheduled sweep
 reports a cron check-in, so one that stops running is noticed, and dependency
@@ -501,6 +580,89 @@ verified list, by priority; `docs/GAPS.md` is the backend's own.
    chosen until `SMS_PROVIDER` names an adapter; none is written yet.
 2. **Payments against a real sandbox.** No bank credentials yet, so no adapter
    has run against one. See `../docs/PAYMENTS.md` §6–7.
-3. **PDF and XLSX exports.** CSV works; the other two return `400`.
+3. **Integrated pilot acceptance.** Automatic seating and all seven export
+   kinds now run in dedicated workers. Frontend job adoption, human language review and
+   production worker/storage rehearsal remain.
 
 `docs/GAPS.md` is the full list, prioritised.
+
+Multi-venue seating now permits one seat per guest per arrangement. Automatic
+seating and unassignment use `?arrangementId=...` when several plans are in use;
+assignment derives the arrangement from its table. Guest views, check-in and
+CSV outputs carry venue labels. Event-wide and per-venue attendance are now
+available through an explicit policy preview/reconfirmation flow:
+
+```http
+POST /api/v1/events/:eventId/attendance-policy/preview
+POST /api/v1/events/:eventId/attendance-policy
+GET  /api/v1/events/:eventId/guests/:guestId/attendance-history
+```
+
+Both policy writes require `event:write`; history requires `guest:read`.
+Guest/host RSVP writes carry the active `attendanceRevision`; omission works
+only at unchanged EVENT_WIDE revision 1. Per-venue payloads use `venueAttendance`
+for each person. Transitions preserve history, personal answers, seats and
+admissions, while requiring fresh attendance. Reserved seats remain counted
+and are flagged `isReservation`. Venue declines release only their own seats.
+Headcount adds per-venue totals; catering/bar accept optional `venueId`.
+See the shared API contract for payloads, stale-preview handling and frontend
+cutover. Apply both new migrations and rerun `seed:production` for the new
+four-language venue-response confirmation copy. Production deployment,
+frontend reconfirmation screens and language review remain acceptance gates.
+
+
+### Private guest contributions
+
+The API stages files; run `npm run start:private-media-worker` separately for
+raster validation and deletion. See [GUEST_CONTRIBUTIONS.md](docs/GUEST_CONTRIBUTIONS.md).
+Guest routes require their personal capability; host reads/moderation are permission checked.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/acknowledgements` | Current statements, signature upload states and private household history |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/acknowledgements` | Typed/drawn acknowledgement for explicit household subjects |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/signature-uploads` | Stage a private drawing |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file` | Owner's processed drawing preview |
+| `DELETE` | `/api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId` | Remove an unclaimed drawing |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/acknowledgements/:acknowledgementId/file` | Private acknowledgement image |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/gallery` | Approved photos and own pending statuses |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/gallery` | Stage a photo for validation/moderation |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId/file` | Authorized WebP variant |
+| `DELETE` | `/api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId` | Owner removes a photo, even after approval |
+| `GET` | `/api/v1/events/:eventId/acknowledgements` | Private host acknowledgement history |
+| `GET` | `/api/v1/events/:eventId/acknowledgements/:acknowledgementId/file` | Authorized host drawing read |
+| `GET` | `/api/v1/events/:eventId/gallery` | Host moderation queue |
+| `PATCH` | `/api/v1/events/:eventId/gallery/:mediaId` | Approve/reject a READY photo |
+| `GET` | `/api/v1/events/:eventId/gallery/:mediaId/file` | Host moderation image read |
+| `DELETE` | `/api/v1/events/:eventId/gallery/:mediaId` | Host removal and cleanup |
+| `GET` | `/api/v1/privacy/requests/:requestId/guest-media/:mediaId/file` | Verified subject export original attachment |
+
+### Invitation lifetime and cache rehearsal
+
+Publishing captures the free 90-day period after event end/start or an eligible
+subscription's plan lifetime. Host event/draft and publication responses expose
+captured policy and expiry. Guest access closes at the deadline; host data stays.
+Shared/personal caches perform live Postgres access/revision checks even when
+warm. The minute `invitations.maintain-access` sweep reports legacy policy rows
+and compacts revision metadata. See [API.md](../docs/API.md#invitation-lifetime-and-expired-access)
+and [DATA_STORES.md](docs/DATA_STORES.md).
+
+`npm run pilot:cache` profiles 50 simultaneous personalized HTTP readers against
+a synthetic 400-person, 100-household, two-venue/800-seat event using the guarded
+test database and local Redis. It never truncates tables, removes its event on
+exit, and reports warm/cold/disconnected/recovered percentiles without guest
+URLs. Run without other test suites (which truncate the shared test database).
+Production proxy/TLS, real analytics and mixed writes remain rehearsal gates.
+
+### Batch J disposable backend rehearsal
+
+Build `aveline-api:pilot-j-local`, then run `npm run pilot:production-rehearsal`.
+It owns its stores/workers and preserves checkpoint reports under `test-results/pilot/` plus synthetic export
+artifacts. `npm run test:pilot` validates rehearsal guards and measurement policy
+and is included in `npm run verify`. See [PILOT_REHEARSAL.md](docs/PILOT_REHEARSAL.md)
+for the workload, interpretation and remaining external launch gates.
+Use `-- --functional-only` to skip load or `-- --load-only` for an isolated
+performance run. Do not measure load alongside verification/builds. Local
+`npm run backup:rehearsal` now verifies the 400-person graph and approximately
+251 MB of private/public files through encrypted fresh-store restoration;
+the off-host destination remains an operator gate.

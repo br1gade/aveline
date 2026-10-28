@@ -9,7 +9,7 @@ wrote it. Everything here has been run; where something has not, it says so.
 
 ## 1. What this is
 
-One host, running six containers behind Caddy:
+Seven long-running services on one host, plus one-shot migrations and backup tasks:
 
 ```
             ┌─────────────────────────────────────────┐
@@ -22,9 +22,28 @@ One host, running six containers behind Caddy:
             │          ├──▶ mongo      analytics, audit│
             │          └──▶ garage     media, exports  │
             │                                         │
-            │        backup      nightly, verified     │
+            │        export-worker → postgres/garage   │
+            │        seating-worker → postgres         │
+            │        backup      quiesced capture      │
+            │        backup-check freshness and space  │
             └─────────────────────────────────────────┘
 ```
+
+The `seating-worker` service uses the API release image with a separate entry
+point, a 256 MiB JS heap/384 MiB container limit and no HTTP port. It requires
+Postgres only. Migrations must complete first; deploy API and both workers from
+the same release. Automatic seating now returns queued jobs, so coordinate the
+frontend polling cutover. Alert on its heartbeat and failed/stalled jobs; rehearse
+termination, lease recovery, concurrent manual edits and attendance changes on
+the real host. See [SEATING_WORKER.md](SEATING_WORKER.md). Production operation
+of the expanded worker stack remains unverified.
+
+The `export-worker` service is new in the CSV snapshot batch. Compose syntax
+and process recovery are tested locally, but the expanded production stack and
+its private bucket still require rehearsal. Set `PRIVATE_S3_BUCKET` separately
+from public media, disable anonymous reads, and run the same image/migrations
+in API and worker. Its healthcheck reads a process heartbeat; it has no HTTP
+port. See [EXPORT_WORKER.md](EXPORT_WORKER.md) for limits, recovery and cleanup.
 
 **One machine, deliberately.** Replication and failover cost more to run than
 the product earns at this stage, and an architecture nobody can operate is
@@ -33,7 +52,8 @@ worse than a simple one whose limits are written down. The limits are in
 
 ## 2. First deployment
 
-> This stack has been run end to end locally — all seven services healthy,
+> The earlier stack, before the export worker, was run end to end locally —
+> all seven services (including migrations) healthy,
 > migrations applied, TLS served by Caddy, the API answering through it, a
 > backup taken and verified, and a full customer journey from `register` to a
 > published invitation page. What it has **not** had is a real host, a real
@@ -54,13 +74,13 @@ $EDITOR .env.production          # see §3
 # access key and secret into .env.production.
 cp garage/garage.toml.example garage/garage.toml
 
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 ```
 
 Then check it came up:
 
 ```bash
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
 curl -fsS https://$API_DOMAIN/api/v1/health/ready && echo
 ```
 
@@ -77,7 +97,7 @@ returns an event with `invitation: null`, `GET /plans` is empty, and sending an
 invitation fails partway through a guest list with "template not found".
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm --entrypoint node api \
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --entrypoint node api \
   dist/seed-production.js
 ```
 
@@ -94,6 +114,25 @@ It runs with plain `node`, not `ts-node`, which is why the script lives under
 `src/` and ships compiled: the production image has no dev dependencies.
 
 ## 3. Configuration
+
+**Free pilot:** production Compose defaults `PILOT_MODE` to `true`. Paid ticket
+checkout and subscription selection are refused with `403` before a payable
+order/invoice is committed; payment initiation also checks the policy centrally.
+Free tickets and free subscriptions still work. Only the exact strings `true`
+and `false` are accepted. Setting `PILOT_MODE=false` is part of a commercial
+launch, after the money requirements in GOING_LIVE are satisfied.
+
+Set `MEDIA_DOMAIN` and `S3_PUBLIC_URL` to the public media origin. Caddy sends
+that hostname's requests to Garage's web endpoint with `MEDIA_BUCKET_HOST`
+(default `aveline-media.web.garage.localhost`), selecting the website-enabled
+public bucket. Both domains use filtered access logs that omit URI and headers;
+the global runtime logger applies the same filter to proxy error logs, including
+502 responses. The API retains sanitized route logs. Exports must never use
+this public bucket.
+
+Production Compose uses its env file twice: `--env-file` supplies interpolation
+for Compose itself, while each service's `env_file` supplies container variables.
+Run all commands in this document with `--env-file .env.production`.
 
 Everything comes from `.env.production`, which exists only on the host. It is
 gitignored, and `chmod 600` because every container that reads it runs as a
@@ -127,11 +166,20 @@ openssl rand -base64 48
 set: without it anyone who guessed a guest token could register their own chat
 against that guest and receive their invitation.
 
+Optional WhatsApp requires **all six** sender/receipt settings once any is
+configured in production: `WHATSAPP_ACCOUNT_ID`, `WHATSAPP_PHONE_NUMBER_ID`,
+`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_API_VERSION`, `WHATSAPP_APP_SECRET` and
+`WHATSAPP_WEBHOOK_VERIFY_TOKEN`. No API version is guessed. Leave them all
+unset until account/template setup is ready. The production compose API reads
+them from its existing private env file. Follow [WHATSAPP_SETUP.md](WHATSAPP_SETUP.md)
+for public HTTPS callback/subscription verification, raw-body proxy rules and
+real provider evidence. Monitor `whatsapp.receipts` and pending ledger lag.
+
 ## 4. Deploying a change
 
 ```bash
 git pull
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 ```
 
 Migrations run first and the API only starts if they succeed. The old
@@ -145,78 +193,129 @@ invitation, taking the deploy at a quiet hour is a reasonable answer; two
 replicas behind Caddy is the real one, and it needs the session store checked
 for anything instance-local first.
 
-## 5. Backups
+## 5. Backups and complete recovery
 
-A nightly dump of Postgres and an archive of Garage, kept 14 days, in the
-`backups` volume. Redis and Mongo are deliberately not backed up: one holds
-cache and locks, the other append-only analytics and the audit trail. Losing
-either costs insight, not correctness.
+`backup` is now an on-demand maintenance service, not an unattended live-volume
+copy loop. Build it first:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs backup --tail 20   # did it run
-docker compose -f docker-compose.prod.yml exec backup ls -lh /backups
+docker compose --env-file .env.production -f docker-compose.prod.yml build backup
 ```
 
-Every dump is verified readable with `pg_restore --list` at the moment it is
-taken, because a dump nobody has read is a guess.
-
-**These backups do not survive losing the host.** They are on the same disk as
-the database. Set `BACKUP_SYNC_COMMAND` to something that copies `/backups`
-elsewhere — the script runs it after each successful backup and warns in the
-log while it is unset:
+Choose a separate off-host Restic repository, configure `RESTIC_REPOSITORY`,
+`RESTIC_PASSWORD` and its access credentials, then initialize it explicitly:
 
 ```bash
-BACKUP_SYNC_COMMAND=rclone sync /backups remote:aveline-backups
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps backup restic init
 ```
 
-### Restoring
+Keep repository credentials and a recovery copy of the password outside this
+machine. Protected configuration is included in the encrypted recovery set;
+the password inside that set cannot bootstrap decrypting the set itself.
 
-Read this before you need it. The round trip below has been run: a dump of the
-development database restored into a scratch database, giving back 47 tables,
-17 migrations and every row.
+For an SFTP repository, mount a protected SSH directory read-only at
+`/root/.ssh` in the backup service, containing its key/config and verified
+`known_hosts`. The backup image includes an SSH client. Do not disable host-key
+verification or store SSH secrets in Git; HTTPS object/REST repositories use
+the corresponding repository credentials instead.
+
+### Capture and upload
+
+Run `bash scripts/capture-backup.sh` on the Docker host. It locks against another
+capture, records which API/worker/Garage services were running, stops them, takes
+a Postgres dump and stable Garage data/metadata archives, verifies checksums,
+and resumes those services **before** uploading. The backup container never
+receives a Docker socket. Capturing without this quiesced boundary is refused.
+
+**The capture is a maintenance window.** API calls and media reads can fail
+while these services are stopped. Choose a quiet time, measure the window on
+the real dataset and never schedule it across event-day check-in. Upload speed
+does not extend this window. The resume journal and boot recovery unit handle a
+power loss during capture; traps handle normal command failures/signals.
+
+Restic encrypts/authenticates the recovery set, verifies repository data and
+records `offhost-success.json` only after success. Failed uploads retain local
+sets and the previous success timestamp. Default retention: 14 local days,
+14 remote daily, 8 weekly and 12 monthly snapshots. Remote snapshot expiration
+uses one host group despite per-run paths; pruning unused encrypted packs is an
+explicit operator maintenance task.
+
+Set includes `postgres.dump`, both Garage archives, release/architecture/version
+metadata, checksums, and the protected Garage/application configuration. Redis
+and Mongo remain excluded by the existing data-store decision.
+
+### Scheduling
+
+The sample systemd units live in `scripts/systemd/`. Adjust `/opt/aveline` to
+the actual checkout, install the service/timer plus boot recovery unit, and
+then enable them. The timer template schedules **03:00 Asia/Yerevan**, not the
+execution host's timezone. Nothing is installed/enabled automatically here.
+`journalctl -u aveline-backup` shows failures.
+
+The additional `aveline-backup-check` service/timer checks every fifteen minutes.
+It exits non-zero for missing/stale off-host success (default 30 hours), a future
+timestamp, or low backup-volume space (default less than 10GiB free or over 90%
+used). Run it manually with `docker compose --env-file .env.production -f
+docker-compose.prod.yml run --rm --no-deps backup-check`. A local rehearsal
+marker cannot satisfy it. It checks the backup filesystem only; separately
+monitor any data volumes placed on other filesystems. Configure the operator's
+alerting for failed units and external uptime, and prove alerts arrive before
+holding real guest data. Templates do not install an alert destination.
+
+### Restore onto a fresh environment
+
+Download a named recovery set into a new directory, using the same external
+repository credentials and password:
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm \
-  -v aveline_backups:/backups backup \
-  /bin/sh /scripts/restore.sh /backups/postgres-20261006T030000Z.dump
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps \
+  -v /secure/recovery:/recovery backup /bin/sh /scripts/fetch-recovery.sh RUN_ID /recovery/download
 ```
 
-It asks you to type the database name, then prints what it restored — table,
-migration, event, guest and payment counts. That report is the point: "done"
-after restoring an empty or wrong dump is indistinguishable from "done" after
-the right one, which was true of this script until a test caught it.
+`fetch-recovery.sh` uses Restic verification and checks the file manifest. The
+set is under `/secure/recovery/download/backups/RUN_ID` on the host.
 
-If the dump was empty the script fails and says so. **Nothing is destroyed in
-that case** — `pg_restore --clean` only drops objects the dump itself
-contains, so an empty dump is a no-op.
+Provision empty Garage volumes and a target Postgres database. Stop the API,
+workers and Garage, mount that set read-only and both **fresh Garage volumes
+writable**, then run `/bin/sh /scripts/restore-recovery.sh /recovery-set` in the
+backup image with `RESTORE_QUIESCED=true`. It checks format, architecture,
+checksums, archive paths/types and the required Aveline tables **before** writes.
+It requires interactive database-name confirmation outside a disposable test.
+Existing media volumes are refused rather than overwritten. Postgres restoration
+is transactional. If copying media is interrupted, start again with fresh
+volumes and the same checked set; do not try to serve a partial copy.
 
-Afterwards:
+Install the protected configuration for the new host, adjusting its DNS/RPC
+address rather than changing stored Garage keys or identity. Use the recorded
+Garage version and compatible CPU architecture. Start Garage, then the API,
+and verify existing invitation credentials, original media and image variants.
+The legacy `restore.sh` remains for older Postgres-only dumps; it does not
+recover a complete event on its own.
 
-```bash
-docker compose -f docker-compose.prod.yml restart api
-curl -fsS https://$API_DOMAIN/api/v1/health/ready
-```
-
-> **Practise this once, on purpose, before you need it.** A restore procedure
-> that has only been read is a procedure with an unknown number of steps
-> missing.
+`npm run backup:rehearsal` exercises a real PostgreSQL/Garage round trip through
+an encrypted, isolated local repository. It never marks that local test as
+off-host protection. Actual off-host recovery and alert delivery still require
+the selected destination and operator configuration.
 
 ## 6. When something is wrong
 
 ```bash
 # What is running, and what keeps restarting
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
 
 # The app's own logs. JSON in production; pipe through jq to read them.
-docker compose -f docker-compose.prod.yml logs api --tail 100 -f
+docker compose --env-file .env.production -f docker-compose.prod.yml logs api --tail 100 -f
 
 # Is it the app or a dependency?
 curl -s https://$API_DOMAIN/api/v1/health/ready | jq
 ```
 
-`/health/ready` names each dependency. **Only Postgres is required**: Redis
-and Mongo down means slower responses and no engagement figures, not an
-outage, and that is tested.
+`/health/ready` names Postgres, Redis, Mongo and storage. **Only Postgres is
+required**: optional outages return 200 with `degraded`; media operations can
+fail during a storage outage. Mongo is checked with a real server command,
+and storage with a bucket/filesystem probe. Dependency monitoring reports an
+outage already present at startup and one recovery message; sweeps propagate
+failures to Sentry monitors. Actual notifications need a configured DSN/receiver.
 
 | Symptom | Where to look first |
 |---|---|
@@ -234,13 +333,25 @@ worse than knowing them now. Each is a row in
 [`../../docs/GOING_LIVE.md`](../../docs/GOING_LIVE.md).
 
 - **No failover.** One of everything. The host going down is an outage.
-- **No off-host backups** until `BACKUP_SYNC_COMMAND` is set.
+- **No verified off-host protection** until the Restic destination is configured and a remote restore drill succeeds.
 - **No zero-downtime deploys.** See §4.
 - **No log shipping.** Logs are JSON on this host and rotate with Docker's
   defaults. An incident older than that is not investigable.
 - **Backups are not tested on a schedule.** The restore works; nothing proves
   it still works next month.
-- **Mongo is unauthenticated between containers** — it is on the internal
-  network only, and nothing is published except Caddy's ports.
+- **Mongo credentials are required** — it is on the internal network only,
+  and nothing is published except Caddy's ports.
 - **The image is ~960MB.** Mostly Prisma's engines and runtime plus Sentry.
   It costs a slower first pull, not money.
+
+
+## Private media worker
+
+Compose includes `private-media-worker` from the API image, with one CPU, 768 MiB
+process memory, private storage settings and heartbeat healthcheck. Start it for
+signatures/gallery; the API only stages uploads. Include it in release health,
+restart and backup/restore procedures. Capture stops it alongside other writers.
+Monitor queued/failed media and physical cleanup; verify private bucket isolation
+and actual image memory/recovery before pilot. See
+[GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md). No production deployment has been
+performed as part of the backend delivery.

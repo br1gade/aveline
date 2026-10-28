@@ -1,5 +1,7 @@
+import { ATTENDANCE_GUEST, attendanceView } from '../rsvp/attendance/attendance-view';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Rsvp, RsvpStatus } from '@prisma/client';
+import { SEAT_DETAIL, seatingAssignments, singleTable } from '../seating/seat-view';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -51,9 +53,10 @@ export class GuestsService {
 }
 
 const GUEST_DETAIL = {
+  ...ATTENDANCE_GUEST,
   rsvp: true,
-  seat: { include: { table: { select: { name: true } } } },
-  seatReleasedFromTable: { select: { name: true } },
+  seats: { include: SEAT_DETAIL },
+  seatReleases: { include: { table: { select: { name: true } }, arrangement: { select: { venueId: true } } } },
   checkIn: { select: { arrivedAt: true } },
 } satisfies Prisma.GuestInclude;
 
@@ -73,14 +76,18 @@ function guestView(guest: DetailedGuest, canSeeContacts: boolean) {
     addedByGuest: guest.addedByGuest,
     isAnonymized: guest.anonymizedAt !== null,
     // Kept beside `rsvp.status` for clients that read the flat field.
+    attendance: attendanceView(guest),
     rsvpStatus: rsvp.status,
     rsvp,
-    table: guest.seat?.table.name ?? null,
-    // Their decline freed this seat; shown until they are seated again.
-    seatReleased:
-      guest.seatReleasedAt === null
-        ? null
-        : { table: guest.seatReleasedFromTable?.name ?? null, releasedAt: guest.seatReleasedAt },
+    table: singleTable(guest.seats),
+    seating: seatingAssignments(guest.seats),
+    seatReleased: singleRelease(guest.seatReleases),
+    seatReleases: guest.seatReleases.map((release) => ({
+      arrangementId: release.arrangementId,
+      venueId: release.arrangement.venueId,
+      table: release.table?.name ?? null,
+      releasedAt: release.releasedAt,
+    })),
     isCheckedIn: guest.checkIn !== null,
     arrivedAt: guest.checkIn?.arrivedAt ?? null,
   };
@@ -108,4 +115,9 @@ function rsvpView(rsvp: Rsvp | null) {
     songRequest: rsvp.songRequest,
     message: rsvp.message,
   };
+}
+
+function singleRelease(releases: DetailedGuest['seatReleases']) {
+  if (releases.length !== 1) return null;
+  return { table: releases[0].table?.name ?? null, releasedAt: releases[0].releasedAt };
 }

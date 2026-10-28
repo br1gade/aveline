@@ -170,6 +170,18 @@ describe('invitation loop (integration)', () => {
     expect((await inbox()).length).toBe(afterFirst);
   });
 
+  it('exposes delivery and read evidence in the host report without leaking contacts', async () => {
+    const { slug } = await invitedEvent();
+    await sender.send(slug);
+    const message = await prisma.message.findFirstOrThrow({ where: { templateKey: 'invitation.send' } });
+    const at = new Date();
+    await prisma.message.update({ where: { id: message.id }, data: { status: 'DELIVERED', deliveredAt: at, readAt: at } });
+    const report = await sender.deliveryStatus(slug, false);
+    const row = report.households.find((household) => household.status === 'DELIVERED');
+    expect(row).toMatchObject({ deliveredAt: at, readAt: at, deliveryErrorCode: null, deliveryFailureKind: null });
+    expect(row).not.toHaveProperty('toAddress');
+  });
+
   it('records delivery against the household afterwards', async () => {
     const { slug } = await invitedEvent();
 

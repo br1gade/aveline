@@ -57,6 +57,18 @@ describe('reminders (integration)', () => {
       config,
     );
     reminders.onModuleInit();
+    sender.onModuleInit();
+  });
+
+  it('refuses expired reminders and cancels ones queued before expiry', async () => {
+    const event = await invitedEvent(7);
+    await sendEarlier(event.slug);
+    await reminders.remindNow(event.slug);
+    await prisma.invitation.update({ where: { slug: event.slug }, data: { expiresAt: new Date(0) } });
+    await expect(reminders.remindNow(event.slug)).rejects.toThrow('expired');
+    expect(await reminders.sendDueReminders()).toEqual({ events: 0, queued: 0 });
+    await communications.dispatchDue();
+    expect(await prisma.message.count({ where: { status: 'SENT' } })).toBe(0);
   });
 
   beforeEach(() => resetTestDatabase());

@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly Aveline recovery set
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Asia/Yerevan
+Persistent=true
+Unit=aveline-backup.service
+
+[Install]
+WantedBy=timers.target

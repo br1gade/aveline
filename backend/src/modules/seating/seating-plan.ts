@@ -56,13 +56,13 @@ export interface SeatingPlan {
  *
  * Complexity is O(households × tables). At the scale this product targets —
  * a few hundred households across a few dozen tables — that is tens of
- * thousands of comparisons and runs in single-digit milliseconds, so it is
- * computed in the request. Anything that adds local-improvement passes
- * belongs in a job instead (CLAUDE.md §5).
+ * thousands of comparisons. It runs in the dedicated seating worker outside
+ * database transactions; manual seating stays an immediate write.
  */
 export function buildSeatingPlan(
   households: SeatableHousehold[],
   tables: SeatableTable[],
+  availableSeats = Number.POSITIVE_INFINITY,
 ): SeatingPlan {
   const remaining = tables.map((table) => ({ ...table }));
   const plan: SeatingPlan = { assignments: [], unseated: [] };
@@ -74,8 +74,12 @@ export function buildSeatingPlan(
   for (const household of largestFirst) {
     const size = household.guestIds.length;
     if (size === 0) continue;
+    if (size > availableSeats) {
+      plan.unseated.push({ householdId: household.householdId, size, reason: `Needs ${size} seat(s); the venue has ${availableSeats} free` });
+      continue;
+    }
 
-    const allowed = household.seatedAt?.length ? remaining.filter((t) => household.seatedAt?.includes(t.tableId)) : remaining;
+    const allowed = familyTables(remaining, household);
     const table = chooseTable(allowed, household);
     if (!table) {
       plan.unseated.push({
@@ -86,6 +90,7 @@ export function buildSeatingPlan(
       continue;
     }
 
+    availableSeats -= size;
     table.occupied += size;
     table.side ??= household.side;
     plan.assignments.push({
@@ -125,10 +130,15 @@ function whyNotWithFamily(tables: SeatableTable[], size: number): string {
 
 /** A reason a host can act on, rather than "could not place". */
 function describeWhyNot(tables: SeatableTable[], size: number): string {
-  if (tables.length === 0) return 'No tables have been created for this event';
+  if (tables.length === 0) return 'No tables have been created for this seating arrangement';
 
   const largestGap = Math.max(...tables.map((table) => table.capacity - table.occupied));
   if (largestGap <= 0) return 'Every table is full';
 
   return `Needs ${size} adjacent seats; the largest remaining table has ${largestGap}`;
+}
+
+function familyTables(tables: SeatableTable[], household: SeatableHousehold) {
+  if (!household.seatedAt?.length) return tables;
+  return tables.filter((table) => household.seatedAt?.includes(table.tableId));
 }

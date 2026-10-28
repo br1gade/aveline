@@ -134,14 +134,23 @@ owner.
 | `directory:manage` | Add, correct and retire halls in the shared venue directory |
 | `concierge:manage` | Open an organization and its events for a customer, and invite them as owner |
 
+Automatic seating requires `seating:write` when queueing and again in the
+worker before application; current user/membership standing is locked during
+the final transaction. History/status/result reads require `seating:read`.
+A queued request never preserves an old permission grant after removal,
+downgrade or deactivation.
+
 Two permissions are split out from their obvious parents on purpose:
 `guest:contact:read` from `guest:read`, and `vendor:fee:read` from
 `vendor:read`. Both exist so a `DESIGNER` can be useful without being trusted
 with PII or commercial terms.
 
 `guest:contact:read` is checked wherever an address could leak, not only on
-the guest list: export downloads drop the `Email` and `Phone` columns without
-it, the ticket manifest is refused without it, the ticket order list omits
+the guest list: legacy live CSV downloads drop the `Email` and `Phone` columns
+without it. Private snapshot exports choose full or redacted columns at
+generation; a full artifact is refused after contact permission is lost, so
+the viewer must regenerate a redacted snapshot. Ticket manifests require
+contact permission at creation and download. The ticket order list omits
 `buyerEmail`, and the delivery report omits `toAddress`. The delivery report
 itself needs `guest:read`, so a `DESIGNER` cannot read the guest list through
 it. A vendor's `headcount` brief is numbers only; names come with the
@@ -174,6 +183,12 @@ plan or issue a discount, because a discount is revenue.
 ---
 
 ## 4. Policy is a lookup, not a branch
+
+**Email feedback is an integration credential.** The normalized feedback route
+is public to the session guard but requires a server-held HMAC key, current
+timestamp and exact raw body signature. Hosts, guests and the browser never
+receive this key. Native provider authentication belongs in the future trusted
+adapter; this boundary does not make an arbitrary provider payload trusted.
 
 `access-policy.ts` is a pure function over three lookup tables. Adding a role
 means adding a row; it never means adding control flow. Two consequences:
@@ -224,6 +239,23 @@ Two supporting models complete the lifecycle: `VerificationToken` for password
 reset and email verification, and `OrganizationInvite` for adding a teammate —
 separate, because an invitee may not have an account yet.
 
+### Private acknowledgements and gallery
+
+Personal invitation capabilities authorize same-event guest contributions only
+while the invitation is readable and unexpired. A household representative may
+explicitly acknowledge current members; records identify signer and subject
+separately. Buyer order access never grants signing access. Guests can see their
+own signature previews, their signed records/current household subjects, their
+own gallery statuses and approved gallery photos. Only owners remove their own
+uploads; drawings attached to acknowledgements use verified privacy erasure.
+
+Host acknowledgement records/files require `guest:contact:read`. Gallery queue,
+approval/rejection/files/removal require `guest:write`. Designers gain neither.
+All list/file routes check the event and return no private storage keys or public
+original URLs. File authorization repeats after storage reads. Original DSAR
+attachments require platform `privacy:manage`, a verified EXPORT request and
+matching subject ownership. See [API.md](API.md) for the exact route contract.
+
 ## 6. Not yet built
 
 1. **Rotating guest links.** Vendor brief links can be rotated
@@ -237,3 +269,47 @@ separate, because an invitee may not have an account yet.
 3. **Email verification is not enforced.** Anyone can register any address.
    Invitations guard against it — accepting for an existing account needs
    that account's password — but nothing else does.
+
+Attendance policy preview/confirmation requires `event:write`. Attendance
+history requires `guest:read` and is event/person scoped; designers cannot
+read it. Guest capabilities permit current answers only for their own household,
+including venue attendance. No new role or permission was introduced.
+
+### Guest corrections and design previews
+
+The personal guest link permits correction of only that guest's first/last
+names, with no host session. The link is revalidated under lock; rotated links,
+erasure, draft and expiry close this write surface. Closed readable invitations
+still permit name correction. No household, contacts or answers can be edited
+through the name endpoint.
+
+Template catalogue/event previews require `invitation:read` for the event.
+Draft previews contain only renderer content, never guest contacts, capability
+links, attendance, seating, answers or private acknowledgements. They are served
+private/no-store and do not publish or collect responses. Question reordering
+requires `invitation:design`; directory operator assignment remains staff-only
+under `directory:manage`, and accepts active curated VENUE vendors only.
+
+### Invitation expiry and cached capabilities
+
+A page capability grants access only while the invitation is readable and
+unexpired, and the person is not erased. Generic/personal pages check Postgres
+before and after cached loads; the raw token never appears in a cache key or
+projection. Guest RSVP reads, gallery/acknowledgement files, self-name changes
+and Telegram opt-in also enforce availability. New invitation/reminder sends
+refuse expired access and queued ones recheck before dispatch. Expiry preserves
+all host permissions and data; no new role or permission is introduced. Legacy
+published rows retain their existing deadline until reviewed. See
+[API.md](API.md#invitation-lifetime-and-expired-access).
+
+### Provider delivery evidence
+
+Meta WhatsApp callback routes are public only with provider authentication:
+subscription GET requires the configured verification token; POST requires
+HMAC-SHA256 over exact raw bytes using the app secret. Status correlation is
+limited to the configured account/sender plus WHATSAPP/provider reference.
+No tenant/user identity is taken from a callback, no raw contacts/bodies are
+retained, and no phone is globally suppressed based on an ambiguous delivery
+failure. Erased message recipients cannot be mutated by late receipts. Host
+delivery evidence retains the report's `guest:read` permission and existing
+`guest:contact:read` restriction for addresses; no new permission is added.

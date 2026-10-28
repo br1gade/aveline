@@ -1,3 +1,4 @@
+import { StreamableFile } from '@nestjs/common';
 import { serializeBigInts } from './serialize';
 
 /**
@@ -6,6 +7,13 @@ import { serializeBigInts } from './serialize';
  * amount had to remember — and the one that forgot would 500 at runtime.
  */
 describe('serializeBigInts', () => {
+  it('reuses ordinary JSON payloads without allocating a second object graph', () => {
+    const payload = { blocks: [{ title: 'Հրավեր' }], guest: { members: [{ name: 'Émilie' }] } };
+    expect(serializeBigInts(payload)).toBe(payload);
+    const mixed = { payload, order: { amount: 100n } };
+    expect(serializeBigInts(mixed)).toEqual({ payload, order: { amount: '100' } });
+    expect(mixed.order.amount).toBe(100n);
+  });
   it('converts a bigint to a string, preserving precision beyond a float', () => {
     expect(serializeBigInts(9007199254740993n)).toBe('9007199254740993');
   });
@@ -43,6 +51,11 @@ describe('serializeBigInts', () => {
   it('leaves Date objects intact so they still serialise as ISO strings', () => {
     const date = new Date('2026-01-01T00:00:00.000Z');
     expect(serializeBigInts({ at: date })).toEqual({ at: date });
+  });
+
+  it('preserves streamed binary files for the HTTP adapter instead of serializing their internals', () => {
+    const file = new StreamableFile(Buffer.from('%PDF-synthetic'), { type: 'application/pdf' });
+    expect(serializeBigInts(file)).toBe(file);
   });
 
   it('produces output JSON.stringify accepts', () => {
