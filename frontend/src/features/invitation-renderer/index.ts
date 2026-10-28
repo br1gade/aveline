@@ -18,6 +18,7 @@ export {
 } from './page-data';
 export { invitationPalette } from './theme';
 export type {
+  AttendanceView,
   BuiltInField,
   Invitation,
   InvitationBlock,

@@ -2,7 +2,8 @@ import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { eventPath } from '@/features/events';
+import { eventPath, type EventDetail } from '@/features/events';
+import { formatEventDay, formatEventTime } from '@/lib/time';
 
 import type { InvitationPageData } from '../load';
 import { usePageStatus } from './page-status';
@@ -21,6 +22,34 @@ function StatusLine({
     <p ref={statusRef} role="status" tabIndex={-1} className="m-0 text-sm font-medium outline-none">
       {children}
     </p>
+  );
+}
+
+/**
+ * How long guests can open it (design PD-55): set when it is first published, from the event's plan
+ * (free: 90 days after the event), and moved with the event's dates. Nothing for a draft.
+ */
+function Lifetime({ event }: { event: EventDetail }) {
+  const { t, i18n } = useTranslation('sending');
+  const { invitation } = event;
+  if (!invitation || invitation.status === 'DRAFT' || invitation.expiresAt === undefined) {
+    return null;
+  }
+  const zone = { timeZone: event.timezone, locale: i18n.language };
+  let words = t('page.noExpiry');
+  if (invitation.isExpired) words = t('page.expired');
+  else if (invitation.expiresAt) {
+    const at = invitation.expiresAt;
+    words = t('page.openUntil', {
+      date: formatEventDay(at, zone),
+      time: formatEventTime(at, zone),
+    });
+  }
+  return (
+    <>
+      <dt className="text-muted-foreground pt-2 text-sm">{t('page.lifetime')}</dt>
+      <dd className="m-0">{words}</dd>
+    </>
   );
 }
 
@@ -52,6 +81,7 @@ export function InvitationPage({ data }: { data: InvitationPageData }) {
           <dd className="m-0">{t(`page.state.${invitation.status}`)}</dd>
           <dt className="text-muted-foreground pt-2 text-sm">{t('page.slug')}</dt>
           <dd className="m-0 break-all">{invitation.slug}</dd>
+          <Lifetime event={event} />
         </dl>
       ) : (
         <p className="m-0">{t('page.noInvitation')}</p>
@@ -62,11 +92,17 @@ export function InvitationPage({ data }: { data: InvitationPageData }) {
       ) : null}
       {invitation && invitation.status !== 'DRAFT' ? (
         <>
-          <RepliesPanel slug={invitation.slug} status={invitation.status} page={page} />
+          <RepliesPanel
+            slug={invitation.slug}
+            status={invitation.status}
+            isExpired={invitation.isExpired === true}
+            page={page}
+          />
           <SendPanel
             event={event}
             slug={invitation.slug}
             isPublished={invitation.status === 'PUBLISHED'}
+            isExpired={invitation.isExpired === true}
             delivery={delivery}
           />
         </>

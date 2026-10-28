@@ -97,7 +97,12 @@ export function RemoveGuestDialog({ eventId, guest, household, host }: RemovePro
               <AlertDialogTitle>{t('remove.title', { name: guest.name })}</AlertDialogTitle>
               <Consequences guest={guest} household={household} />
             </AlertDialogHeader>
-            {refusal ? <ProblemAlert problem={refusal.problem} refused={refused} /> : null}
+            {refusal ? (
+              <ProblemAlert
+                problem={refusal.problem}
+                refused={(status) => refused(status, refusal.messages)}
+              />
+            ) : null}
             <AlertDialogFooter>
               <AlertDialogCancel>{t('remove.cancel')}</AlertDialogCancel>
               <Button variant="destructive" disabled={isRemoving} onClick={() => void confirm()}>

@@ -9,7 +9,11 @@
       "CLOSED": "Replies stopped: guests can still open it, but can’t reply"
     },
     "slug": "Link name",
-    "noInvitation": "This event has no invitation yet."
+    "noInvitation": "This event has no invitation yet.",
+    "lifetime": "Guests can open it",
+    "openUntil": "until {{date}}, {{time}}",
+    "noExpiry": "with no end date",
+    "expired": "no longer: its time has run out"
   },
   "status": {
     "published": "The invitation is published.",
@@ -44,14 +48,16 @@
     "open": "Guests can reply. Stopping replies keeps the invitation readable, since the venue, the time and the dress code still matter to everyone coming. You can take replies again later.",
     "closed": "Replies are stopped. Guests can still open the invitation. Taking replies again lets them answer, and lets you send it.",
     "close": "Stop replies",
-    "reopen": "Take replies again"
+    "reopen": "Take replies again",
+    "expired": "Its time has run out: taking replies again won’t let guests open it."
   },
   "send": {
     "title": "Send the invitation",
     "lead": "Each household gets one message with its own link, by email, or on Telegram if they use it. Sending again is safe: a household already invited isn’t sent another, and one whose message failed is tried again.",
     "everyone": "Send to every household not yet invited",
     "sending": "Sending…",
-    "closed": "Replies are stopped, so the invitation can’t be sent. Take replies again to send it."
+    "closed": "Replies are stopped, so the invitation can’t be sent. Take replies again to send it.",
+    "expired": "This invitation’s time has run out: guests can no longer open it, so it can’t be sent."
   },
   "summary": {
     "invited_one": "{{count, number}} household invited",
@@ -122,8 +128,10 @@
       "SUPPRESSED": "They asked not to be contacted, or an earlier message bounced. Correct a bounced address and send again, or talk to them.",
       "CANCELLED": "Send again if they should still have it.",
       "UNKNOWN": "Reload the page later to see what happened.",
-      "UNREACHABLE": "Add or correct an address, then send again."
-    }
+      "UNREACHABLE": "Add or correct an address, then send again.",
+      "CONFIGURATION": "Sending on this channel isn’t set up correctly, which the guest can’t fix. Try again later."
+    },
+    "readAt": "read {{date}}, {{time}}"
   },
   "problems": {
     "forbidden": "Your role on this event can’t publish or send the invitation. The event’s owner can change your role.",
@@ -131,6 +139,7 @@
     "missing": "This invitation is no longer available. The page has been reloaded.",
     "conflict": "Someone changed the invitation just now. The page has been reloaded; try again.",
     "sendRefused": "The invitation can’t be sent right now.",
-    "other": "This wasn’t accepted. Try again."
+    "other": "This wasn’t accepted. Try again.",
+    "expired": "This invitation’s time has run out, so it can’t be sent. The page has been reloaded."
   }
 }

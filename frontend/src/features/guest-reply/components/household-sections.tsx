@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, Icon } from '@/ui';
 import { ChoiceCard, Fieldset, Segmented, TextField } from '@/ui/form';
 
+import { effectiveVenues, summarize, type VenueChoice } from '../attendance';
 import { fieldId } from '../fields';
 import { answerableQuestions, newPartyRow } from '../form-model';
 import { LIMITS } from '../options';
@@ -14,23 +15,97 @@ import { QuestionSection, type AnswerOwner } from './question-section';
 
 const STATUSES: readonly ReplyStatus[] = ['ATTENDING', 'DECLINED', 'UNDECIDED'];
 
-/** The three answers as choice cards, nothing chosen until the guest chooses (spec §6.1). */
+/**
+ * The three answers as choice cards, nothing chosen until the guest chooses (spec §6.1). When the
+ * event asks per venue, the same three for each venue, in the host's order (design PD-50).
+ */
 export function AnswerSection() {
   const { t } = useTranslation('reply');
+  const { form, venues } = useReplyForm();
   const error = useFieldError('status');
+  if (venues.length > 0) return <VenueAnswers venues={venues} />;
   return (
     <Fieldset id={fieldId('status')} legend={t('answer.legend')} error={error}>
       {STATUSES.map((status) => (
-        <ChoiceCardFor key={status} status={status} />
+        <ChoiceCard
+          key={status}
+          label={t(`answer.${status}`)}
+          value={status}
+          {...form.register('status')}
+        />
       ))}
     </Fieldset>
   );
 }
 
-function ChoiceCardFor({ status }: { status: ReplyStatus }) {
+function VenueAnswers({ venues }: { venues: readonly VenueChoice[] }) {
+  const { t } = useTranslation('reply');
+  return (
+    <Fieldset id={fieldId('status')} legend={t('answer.legend')}>
+      <p className="text-ink-muted m-0 text-sm leading-[22px]">{t('venues.lead')}</p>
+      {venues.map((venue) => (
+        <VenueAnswer key={venue.venueId} venue={venue} />
+      ))}
+    </Fieldset>
+  );
+}
+
+function VenueAnswer({ venue }: { venue: VenueChoice }) {
   const { t } = useTranslation('reply');
   const { form } = useReplyForm();
-  return <ChoiceCard label={t(`answer.${status}`)} value={status} {...form.register('status')} />;
+  const path = `venues.${venue.venueId}` as const;
+  const error = useFieldError(path);
+  return (
+    <Fieldset id={fieldId(path)} legend={venue.label} error={error}>
+      {STATUSES.map((status) => (
+        <ChoiceCard
+          key={status}
+          label={t(`answer.${status}`)}
+          value={status}
+          {...form.register(path)}
+        />
+      ))}
+    </Fieldset>
+  );
+}
+
+/**
+ * A member's answer at each venue, starting on the respondent's ("same as me", PD-28) until
+ * changed. Nobody follows on the server in PER_VENUE, so what is shown is what is sent.
+ */
+function MemberVenues({ index, name }: { index: number; name: string }) {
+  const { t } = useTranslation('reply');
+  const { form, venues, venueIds } = useReplyForm();
+  const [respondent, own] = useWatch({
+    control: form.control,
+    name: ['venues', `members.${index}.venues`],
+  });
+  const effective = effectiveVenues(own, respondent, venueIds);
+  const options = STATUSES.map((value) => ({ value, label: t(`household.${value}`) }));
+  return (
+    <div className="grid gap-3">
+      <p className="text-ink m-0 text-base leading-6 font-medium">{name}</p>
+      {venues.map((venue) => (
+        <Controller
+          key={venue.venueId}
+          control={form.control}
+          name={`members.${index}.venues.${venue.venueId}`}
+          render={({ field }) => (
+            <Segmented
+              legend={t('venues.memberAt', { name, venue: venue.label })}
+              name={field.name}
+              value={effective[venue.venueId] ?? ''}
+              options={options}
+              onChange={field.onChange}
+            />
+          )}
+        />
+      ))}
+      {summarize(venueIds, effective) === 'ATTENDING' ? (
+        <PersonAnswers owner={{ kind: 'member', index }} name={name} />
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -40,7 +115,7 @@ function ChoiceCardFor({ status }: { status: ReplyStatus }) {
  */
 export function HouseholdSection() {
   const { t } = useTranslation('reply');
-  const { form, record, status } = useReplyForm();
+  const { form, record, status, venues } = useReplyForm();
   const members = form.getValues('members');
   const error = useFieldError('members');
   const options = STATUSES.map((value) => ({ value, label: t(`household.${value}`) }));
@@ -49,30 +124,34 @@ export function HouseholdSection() {
       <p className="text-ink-muted m-0 text-sm leading-[22px]">
         {t('household.seats', { count: record.household.seatsAllotted })}
       </p>
-      {members.map((member, index) => (
-        <Controller
-          key={member.guestId}
-          control={form.control}
-          name={`members.${index}.status`}
-          render={({ field }) => {
-            const effective = field.value || status;
-            return (
-              <div className="grid gap-2">
-                <Segmented
-                  legend={member.name}
-                  name={field.name}
-                  value={effective}
-                  options={options}
-                  onChange={field.onChange}
-                />
-                {effective === 'ATTENDING' ? (
-                  <PersonAnswers owner={{ kind: 'member', index }} name={member.name} />
-                ) : null}
-              </div>
-            );
-          }}
-        />
-      ))}
+      {members.map((member, index) =>
+        venues.length > 0 ? (
+          <MemberVenues key={member.guestId} index={index} name={member.name} />
+        ) : (
+          <Controller
+            key={member.guestId}
+            control={form.control}
+            name={`members.${index}.status`}
+            render={({ field }) => {
+              const effective = field.value || status;
+              return (
+                <div className="grid gap-2">
+                  <Segmented
+                    legend={member.name}
+                    name={field.name}
+                    value={effective}
+                    options={options}
+                    onChange={field.onChange}
+                  />
+                  {effective === 'ATTENDING' ? (
+                    <PersonAnswers owner={{ kind: 'member', index }} name={member.name} />
+                  ) : null}
+                </div>
+              );
+            }}
+          />
+        ),
+      )}
     </Fieldset>
   );
 }

@@ -21,3 +21,7 @@ export function venuesPath(eventId: string): string {
 export function invitationPath(eventId: string): string {
   return generatePath(APP_PATHS.invitation, { eventId });
 }
+
+export function attendancePath(eventId: string): string {
+  return generatePath(APP_PATHS.attendance, { eventId });
+}

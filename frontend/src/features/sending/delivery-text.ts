@@ -58,30 +58,47 @@ const ACTION_OF: Partial<Record<DeliveryStatus, ActionKey>> = {
   UNKNOWN: 'UNKNOWN',
 };
 
+/** A moment in the event's zone, through one of the report's sentences. */
+function momentText(
+  key: 'delivery.sentAt' | 'delivery.readAt',
+  iso: string | null,
+  t: T,
+  zone: EventZone,
+) {
+  if (!iso) return '';
+  return t(key, { date: formatEventDay(iso, zone), time: formatEventTime(iso, zone) });
+}
+
+/**
+ * What the host can do. A failure the provider put down to our own set-up is not theirs to fix
+ * by sending again, so it says so (pilot F21).
+ */
+function actionText(delivery: Reachable, t: T): string | null {
+  if (delivery.status === 'FAILED' && delivery.failureKind === 'CONFIGURATION') {
+    return t('delivery.action.CONFIGURATION');
+  }
+  const action = ACTION_OF[delivery.status];
+  return action ? t(`delivery.action.${action}`) : null;
+}
+
 function reachableText(delivery: Reachable, t: T, zone: EventZone): DeliveryText {
-  const when = delivery.sentAt
-    ? t('delivery.sentAt', {
-        date: formatEventDay(delivery.sentAt, zone),
-        time: formatEventTime(delivery.sentAt, zone),
-      })
-    : '';
   const reminded =
     delivery.reminders > 0 ? t('delivery.reminders', { count: delivery.reminders }) : '';
   const summary = [
     statusText(delivery, t),
     t('delivery.to', { name: delivery.recipient }),
     destinationText(delivery.destination, t),
-    when,
+    momentText('delivery.sentAt', delivery.sentAt, t, zone),
+    momentText('delivery.readAt', delivery.readAt, t, zone),
     reminded,
   ]
     .filter(Boolean)
     .join(' · ');
   const isReasonShown = delivery.isRetrying || SHOWS_REASON.has(delivery.status);
-  const action = ACTION_OF[delivery.status];
   return {
     summary,
     english: isReasonShown ? delivery.failureReason : null,
-    action: action ? t(`delivery.action.${action}`) : null,
+    action: actionText(delivery, t),
     isAttention: deliveryGroupOf(delivery) === 'attention',
   };
 }

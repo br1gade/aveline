@@ -55,7 +55,11 @@
     "erased": "Details erased at their request",
     "table": "Seated at {{table}}",
     "edit": "Edit",
-    "remove": "Remove"
+    "remove": "Remove",
+    "askedAgain": "Asked to answer again",
+    "tableAt": "Seated at {{table}} ({{venue}})",
+    "held": "{{seat}}, held until they answer",
+    "venueAnswer": "{{venue}}: {{answer}}"
   },
   "fields": {
     "firstName": "First name",
@@ -140,7 +144,9 @@
     "importRunning": "An import of this list is already running. Try again when it has finished.",
     "tooLarge": "This file is over 2 MB. A guest list fits well under that, so check it is the right file.",
     "tooManyRows": "This file has more than 2,000 guests. Split it, and import each part.",
-    "other": "This wasn’t accepted. Try again."
+    "other": "This wasn’t accepted. Try again.",
+    "ticketLinked": "This guest holds a ticket, so they stay on the list with their answers. The list has been reloaded.",
+    "acknowledged": "This guest has agreed to one of your statements, and that record is kept, so they can’t be removed here. Removing it needs a privacy request. The list has been reloaded."
   },
   "import": {
     "title": "Import guests",
@@ -192,7 +198,8 @@
     "PUBLISHED": "Tick households to send them the invitation, or send it to everyone not yet invited.",
     "CLOSED": "Replies to the invitation are stopped, so it can’t be sent.",
     "link": "Publish and send",
-    "refused": "Who was invited isn’t shown to your role on this event."
+    "refused": "Who was invited isn’t shown to your role on this event.",
+    "expired": "The invitation’s time has run out, so it can’t be sent."
   },
   "send": {
     "label": "Send the invitation",

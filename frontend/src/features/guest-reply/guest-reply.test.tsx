@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -11,6 +11,7 @@ import type { Invitation } from '@/features/invitation-renderer';
 import { createI18n } from '@/lib/i18n';
 
 import { GuestReply, type GuestReplyProps } from './components/guest-reply';
+import { eventWide, perVenueRecord } from './test-data';
 import type { ReplyRecord } from './types';
 
 const ORIGIN = 'http://api.test';
@@ -71,11 +72,13 @@ function recordWith(rsvp: Partial<ReplyRecord['rsvp']> = {}): ReplyRecord {
           lastName: 'Petrosyan',
           addedByGuest: false,
           status: 'PENDING',
+          attendance: eventWide(),
           dietary: [],
           dietaryNotes: null,
         },
       ],
     },
+    attendance: eventWide(rsvp.status ?? 'PENDING'),
     rsvp: { status: 'PENDING', answers: [], ...rsvp },
   };
 }
@@ -105,6 +108,18 @@ function replyWith(
       return response();
     }),
     http.get(RSVP, () => HttpResponse.json(after)),
+  );
+}
+
+const ACKNOWLEDGEMENTS = `${ORIGIN}/api/v1/invitations/:slug/g/:guestToken/acknowledgements`;
+const UPLOADS = `${ORIGIN}/api/v1/invitations/:slug/g/:guestToken/signature-uploads`;
+
+/** The household's agreements: none yet, unless given; the signer's drawings as listed. */
+function acknowledgementsWith(statements: unknown[] = [], uploads: () => unknown[] = () => []) {
+  server.use(
+    http.get(ACKNOWLEDGEMENTS, () =>
+      HttpResponse.json({ statements, records: [], signatureUploads: uploads(), nextCursor: null }),
+    ),
   );
 }
 
@@ -170,6 +185,7 @@ describe('GuestReply', () => {
     expect(sent).toEqual([
       {
         status: 'ATTENDING',
+        attendanceRevision: 1,
         party: [{ firstName: 'Narek', answers: [{ questionId: 'q-main', value: 1 }] }],
         dietary: ['vegetarian'],
         members: [
@@ -250,7 +266,12 @@ describe('GuestReply', () => {
 
     await screen.findByText('Your reply has been received.');
     expect(sent).toEqual([
-      { status: 'UNDECIDED', members: [{ guestId: 'g2', status: 'UNDECIDED' }], locale: 'en' },
+      {
+        status: 'UNDECIDED',
+        attendanceRevision: 1,
+        members: [{ guestId: 'g2', status: 'UNDECIDED' }],
+        locale: 'en',
+      },
     ]);
   });
 
@@ -283,7 +304,8 @@ describe('GuestReply', () => {
     );
   });
 
-  it('links a refused question the form does not show to the top of the form (PD-23)', async () => {
+  it('links a refused statement it cannot show, one without a version, to the top of the form', async () => {
+    acknowledgementsWith();
     replyWith(() =>
       HttpResponse.json(
         { statusCode: 400, message: 'answers: q-sign is required for a guest who is coming' },
@@ -386,6 +408,242 @@ describe('GuestReply', () => {
 
     expect(screen.getByText('Not attending')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Change reply' })).toBeNull();
+  });
+});
+
+describe('after the host changed how guests answer', () => {
+  const NO_QUESTIONS: Invitation = { ...INVITATION, rsvpQuestions: [] };
+
+  it('asks again, venue by venue, and sends each person’s venues with the revision', async () => {
+    replyWith(
+      () => HttpResponse.json({ ...SENT, attendanceMode: 'PER_VENUE' }, { status: 201 }),
+      perVenueRecord({ 'v-church': 'ATTENDING', 'v-hall': 'DECLINED' }),
+    );
+    const { user } = renderReply({ invitation: NO_QUESTIONS, record: perVenueRecord() });
+
+    expect(screen.getByText(/The hosts have changed how guests reply/)).toBeInTheDocument();
+    await user.click(inField('reply-venues-v-church').getByLabelText('Joyfully attending'));
+    await user.click(inField('reply-venues-v-hall').getByLabelText('Regretfully declining'));
+    await user.click(
+      within(screen.getByRole('group', { name: 'Davit · Hall' })).getByRole('radio', {
+        name: 'Attending',
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+    await screen.findByText('Your reply has been received.');
+    const church = (status: string) => ({ venueId: 'v-church', status });
+    const hall = (status: string) => ({ venueId: 'v-hall', status });
+    expect(sent).toEqual([
+      {
+        venueAttendance: [church('ATTENDING'), hall('DECLINED')],
+        attendanceRevision: 2,
+        members: [
+          { guestId: 'g2', venueAttendance: [church('ATTENDING'), hall('DECLINED')] },
+          { guestId: 'g3', venueAttendance: [church('ATTENDING'), hall('ATTENDING')] },
+        ],
+      },
+    ]);
+  });
+
+  it('asks for every venue before sending', async () => {
+    const { user } = renderReply({ invitation: NO_QUESTIONS, record: perVenueRecord() });
+
+    await user.click(inField('reply-venues-v-church').getByLabelText('Regretfully declining'));
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+    const link = await screen.findByRole('link', { name: 'Choose an answer for this part.' });
+    expect(link).toHaveAttribute('href', '#reply-venues-v-hall');
+    expect(sent).toEqual([]);
+  });
+
+  it('offers Reload, not Retry, on a 409, and keeps what was typed', async () => {
+    const changed = {
+      statusCode: 409,
+      message: 'attendanceRevision: attendance policy changed; reload the invitation and reconfirm',
+      code: 'ATTENDANCE_CHANGED',
+      action: 'RELOAD',
+    };
+    replyWith(() => HttpResponse.json(changed, { status: 409 }), perVenueRecord());
+    const { user, props } = renderReply({
+      invitation: { ...NO_QUESTIONS, rsvpFields: { message: { isEnabled: true, options: null } } },
+    });
+
+    await user.click(screen.getByLabelText('Not sure yet'));
+    await user.type(screen.getByLabelText(/A message for the hosts/), 'Hoping to make it');
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+    expect(
+      await screen.findByText(/The invitation changed while you were answering/),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
+
+    expect(await screen.findByText(/The hosts have changed how guests reply/)).toBeInTheDocument();
+    expect(inField('reply-venues-v-church').getByLabelText('Joyfully attending')).not.toBeChecked();
+    // The message waits, kept, until an answer brings its section back.
+    await user.click(inField('reply-venues-v-church').getByLabelText('Joyfully attending'));
+    expect(screen.getByLabelText(/A message for the hosts/)).toHaveValue('Hoping to make it');
+    expect(props.onReplied).toHaveBeenCalled();
+  });
+
+  it('says the invitation is gone when the link stops opening it', async () => {
+    replyWith(() => HttpResponse.json({ statusCode: 404, message: 'x' }, { status: 404 }));
+    const { user } = renderReply();
+
+    await user.click(screen.getByLabelText('Regretfully declining'));
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+    expect(await screen.findByText(/no longer available/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send reply' })).toBeNull();
+  });
+});
+
+describe('agreeing to the hosts’ statement', () => {
+  const STATEMENT = {
+    questionId: 'q-sign',
+    statementVersionId: 'sv-1',
+    required: true,
+    prompt: 'Photos of you may be shared with the other guests.',
+    locale: 'en',
+  };
+  const SIGNED: Invitation = {
+    ...INVITATION,
+    rsvpQuestions: [
+      ...INVITATION.rsvpQuestions,
+      {
+        id: 'q-sign',
+        type: 'SIGNATURE',
+        required: true,
+        prompt: STATEMENT.prompt,
+        options: [],
+        statementVersionId: 'sv-1',
+      },
+    ],
+  };
+  const AGREEMENT = {
+    statementVersionId: 'sv-1',
+    method: 'TYPED',
+    signerName: 'Armen Petrosyan',
+    isAcknowledged: true,
+    locale: 'en',
+  };
+
+  async function comeWithHousehold(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByLabelText('Joyfully attending'));
+    await chooseMainCourses(user, ['reply-answers-q-main', 'reply-members-0-answers-q-main']);
+  }
+
+  it('asks for the agreement, then sends it for each person coming, on their behalf', async () => {
+    acknowledgementsWith([STATEMENT]);
+    replyWith(() => HttpResponse.json(SENT, { status: 201 }));
+    const { user } = renderReply({ invitation: SIGNED });
+
+    await comeWithHousehold(user);
+    expect(screen.getByText(STATEMENT.prompt)).toBeInTheDocument();
+    expect(screen.getByText('For: Armen Petrosyan, Lusine Petrosyan')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+    expect(
+      await screen.findByRole('link', {
+        name: 'Agree to the statement to reply for everyone coming.',
+      }),
+    ).toHaveAttribute('href', '#reply-signatures-q-sign-isAcknowledged');
+
+    await user.click(screen.getByLabelText('I agree'));
+    await user.type(screen.getByLabelText('Your full name'), 'Armen Petrosyan');
+    await user.click(screen.getByLabelText('I agree on behalf of Lusine Petrosyan'));
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+    await screen.findByText('Your reply has been received.');
+    expect(sent).toMatchObject([
+      {
+        answers: [
+          { questionId: 'q-main', value: 1 },
+          { questionId: 'q-sign', value: AGREEMENT },
+        ],
+        members: [
+          {
+            guestId: 'g2',
+            answers: [
+              { questionId: 'q-main', value: 1 },
+              { questionId: 'q-sign', value: { ...AGREEMENT, isRepresentative: true } },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('draws a signature, waits for it to be checked, and signs with it', async () => {
+    let isChecked = false;
+    acknowledgementsWith([STATEMENT], () =>
+      isChecked ? [{ id: 'm1', processingStatus: 'READY' }] : [],
+    );
+    server.use(
+      http.post(UPLOADS, () => {
+        isChecked = true;
+        return HttpResponse.json({ id: 'm1', processingStatus: 'QUEUED' }, { status: 201 });
+      }),
+    );
+    replyWith(() => HttpResponse.json(SENT, { status: 201 }));
+    const drawn = new Blob(['png'], { type: 'image/png' });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((done) => done(drawn));
+    const { user } = renderReply({
+      invitation: SIGNED,
+      record: { ...recordWith(), household: { ...recordWith().household, members: [] } },
+    });
+
+    await user.click(screen.getByLabelText('Joyfully attending'));
+    await user.click(inField('reply-answers-q-main').getByLabelText('Fish'));
+    await user.click(screen.getByLabelText('I agree'));
+    await user.type(screen.getByLabelText('Your full name'), 'Armen Petrosyan');
+    await user.click(screen.getByLabelText('Draw my signature'));
+    await user.click(screen.getByRole('button', { name: 'Use this signature' }));
+    expect(await screen.findByText('Draw your signature first.')).toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByRole('img', { name: 'Signature drawing area' }));
+    await user.click(screen.getByRole('button', { name: 'Use this signature' }));
+    expect(
+      await screen.findByText('Your signature is ready.', {}, { timeout: 3000 }),
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+    await screen.findByText('Your reply has been received.');
+    expect(sent).toMatchObject([
+      {
+        answers: [
+          { questionId: 'q-main', value: 1 },
+          { questionId: 'q-sign', value: { ...AGREEMENT, method: 'DRAWN', assetId: 'm1' } },
+        ],
+      },
+    ]);
+    vi.restoreAllMocks();
+  });
+
+  it('asks nothing of a household that already agreed to this wording', async () => {
+    server.use(
+      http.get(ACKNOWLEDGEMENTS, () =>
+        HttpResponse.json({
+          statements: [STATEMENT],
+          records: ['g1', 'g2'].map((subjectGuestId) => ({
+            id: `a-${subjectGuestId}`,
+            questionId: 'q-sign',
+            statementVersionId: 'sv-1',
+            subjectGuestId,
+            method: 'TYPED',
+            createdAt: '2027-03-01T10:00:00.000Z',
+          })),
+          signatureUploads: [],
+          nextCursor: null,
+        }),
+      ),
+    );
+    const { user } = renderReply({ invitation: SIGNED });
+
+    await comeWithHousehold(user);
+
+    await waitFor(() => expect(screen.queryByText(STATEMENT.prompt)).toBeNull());
   });
 });
 

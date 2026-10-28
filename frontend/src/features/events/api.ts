@@ -1,7 +1,22 @@
 import { expectData, type ApiClient } from '@/api/client';
 import type { components } from '@/api/schema';
 
-import type { Dashboard, EventDetail, EventSummary, EventUpdated, NotifyResult } from './types';
+import {
+  readChanged,
+  readPreview,
+  type AttendanceChanged,
+  type AttendancePreview,
+  type ChangedWire,
+  type PreviewWire,
+} from './attendance';
+import type {
+  AttendanceMode,
+  Dashboard,
+  EventDetail,
+  EventSummary,
+  EventUpdated,
+  NotifyResult,
+} from './types';
 
 type Schemas = components['schemas'];
 
@@ -45,6 +60,41 @@ export function getDashboard(api: ApiClient, eventId: string): Promise<Dashboard
   return expectData<Dashboard>(
     api.GET('/api/v1/events/{eventId}/dashboard', { params: { path: { eventId } } }),
   );
+}
+
+/** What changing how guests answer would set back; refused with 400 `mode:` when it cannot. */
+export async function previewAttendancePolicy(
+  api: ApiClient,
+  eventId: string,
+  mode: AttendanceMode,
+): Promise<AttendancePreview> {
+  const preview = await expectData<PreviewWire>(
+    api.POST('/api/v1/events/{eventId}/attendance-policy/preview', {
+      params: { path: { eventId } },
+      body: { mode },
+    }),
+  );
+  return readPreview(preview);
+}
+
+/**
+ * The previewed change. `transitionId` is made once per preview and sent again on a retry, so a
+ * press repeated after a lost answer changes nothing twice.
+ */
+export async function changeAttendancePolicy(
+  api: ApiClient,
+  eventId: string,
+  preview: AttendancePreview,
+  transitionId: string,
+): Promise<AttendanceChanged> {
+  const { mode, expectedRevision, previewToken } = preview;
+  const changed = await expectData<ChangedWire>(
+    api.POST('/api/v1/events/{eventId}/attendance-policy', {
+      params: { path: { eventId } },
+      body: { mode, expectedRevision, previewToken, transitionId },
+    }),
+  );
+  return readChanged(changed);
 }
 
 /** Only ever on the host's request (docs/API.md §6, "Telling guests the details changed"). */

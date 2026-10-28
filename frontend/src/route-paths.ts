@@ -41,4 +41,6 @@ export const APP_PATHS = {
   editVenue: '/app/events/:eventId/venues/:venueId/edit',
   /** Publishing, closing, reopening and sending the event's invitation. */
   invitation: '/app/events/:eventId/invitation',
+  /** How guests answer: once for the event, or per venue. */
+  attendance: '/app/events/:eventId/attendance',
 } as const;

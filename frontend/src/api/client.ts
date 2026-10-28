@@ -12,8 +12,11 @@ import type { paths } from './schema';
 export type ApiClient = ReturnType<typeof createClient<paths>>;
 
 /** No credentials: guest, ticket, brief and public-event calls. */
-export function createPublicApi(baseUrl: string): ApiClient {
-  return createClient<paths>({ baseUrl, fetch: createApiFetch() });
+export function createPublicApi(
+  baseUrl: string,
+  options: Pick<ApiFetchOptions, 'getLanguage'> = {},
+): ApiClient {
+  return createClient<paths>({ baseUrl, fetch: createApiFetch(options) });
 }
 
 /** The bearer token and refresh-once, for signed-in screens (not built yet). */

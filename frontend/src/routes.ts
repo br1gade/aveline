@@ -43,6 +43,7 @@ export default [
       route(underApp(APP_PATHS.newVenue), 'routes/app/venue-new.tsx'),
       route(underApp(APP_PATHS.editVenue), 'routes/app/venue-edit.tsx'),
       route(underApp(APP_PATHS.invitation), 'routes/app/invitation.tsx'),
+      route(underApp(APP_PATHS.attendance), 'routes/app/event-attendance.tsx'),
     ]),
   ]),
 

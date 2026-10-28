@@ -75,8 +75,10 @@
     "missing": "This venue is no longer on the event. The list has been reloaded.",
     "eventMissing": "This event is no longer available.",
     "conflict": "That can’t be done in the event’s current state. Reload the page to see it as it is now.",
-    "inUse": "This venue can’t be removed while the running order or a table still uses it. Move them to another venue first.",
+    "inUse": "This venue can’t be removed while the running order, a table or a released seat still points to it. Move or dismiss them first.",
     "check": "Some details weren’t accepted. Check them and try again.",
-    "other": "This wasn’t accepted. Try again."
+    "other": "This wasn’t accepted. Try again.",
+    "hasAnswers": "Guests have already answered for this venue, so it can’t be removed: their answers stay with it. You can still correct its details.",
+    "guestFacing": "Guests have answered, chosen or been seated for this venue, so it has to stay shown to guests. Keep what happens there as it was."
   }
 }

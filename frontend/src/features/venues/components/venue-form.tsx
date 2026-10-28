@@ -14,7 +14,7 @@ import { createVenue, updateVenue } from '../api';
 import { NEW_VENUE_VALUES, venueFormValues } from '../form-model';
 import { venuesPath } from '../paths';
 import { createVenuePayload, updateVenuePayload } from '../payload';
-import { markRefusals, useRefusedText } from '../refusals';
+import { markRefusals, refusalMessages, useRefusedText } from '../refusals';
 import { venueFormSchema, type VenueFormInput, type VenueFormValues } from '../schemas';
 import type { Venue } from '../types';
 import { VenueFields } from './venue-fields';
@@ -51,7 +51,9 @@ export function VenueForm({ event, venue, onSuggested }: VenueFormProps) {
   const { t } = useTranslation('venues');
   const navigate = useNavigate();
   const refused = useRefusedText(venue ? 'edit' : 'create');
-  const [problem, setProblem] = useState<Problem | null>(null);
+  const [problem, setProblem] = useState<{ problem: Problem; messages: readonly string[] } | null>(
+    null,
+  );
   const schema = useMemo(() => venueFormSchema(event.timezone), [event.timezone]);
   // The baseline is the venue as the form first showed it, as the event form's is: a later reload
   // of the page must not move it.
@@ -72,7 +74,7 @@ export function VenueForm({ event, venue, onSuggested }: VenueFormProps) {
         await navigate(venuesPath(event.id));
       }
     } catch (error) {
-      setProblem(markRefusals(error, form.setError));
+      setProblem({ problem: markRefusals(error, form.setError), messages: refusalMessages(error) });
     }
   };
 
@@ -85,7 +87,12 @@ export function VenueForm({ event, venue, onSuggested }: VenueFormProps) {
         <p className="text-muted-foreground m-0">{event.title}</p>
       </div>
       <p className="m-0">{t('form.lead')}</p>
-      {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
+      {problem ? (
+        <ProblemAlert
+          problem={problem.problem}
+          refused={(status) => refused(status, problem.messages)}
+        />
+      ) : null}
       <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
         <VenueFields form={form} timeZone={event.timezone} />
         <div className="flex flex-wrap items-center gap-3">

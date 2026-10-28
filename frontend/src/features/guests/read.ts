@@ -1,15 +1,19 @@
-import type {
-  Contact,
-  Guest,
-  GuestWire,
-  Household,
-  HouseholdWire,
-  ImportRecord,
-  ImportRecordWire,
-  ImportResult,
-  ImportResultWire,
-  RowError,
-  RowErrorWire,
+import {
+  ANSWERS,
+  type Answer,
+  type Contact,
+  type Guest,
+  type GuestWire,
+  type Seat,
+  type VenueAnswer,
+  type Household,
+  type HouseholdWire,
+  type ImportRecord,
+  type ImportRecordWire,
+  type ImportResult,
+  type ImportResultWire,
+  type RowError,
+  type RowErrorWire,
 } from './types';
 
 /**
@@ -22,6 +26,24 @@ import type {
 function contactOf(guest: GuestWire): Contact {
   if (!('email' in guest)) return { isShown: false };
   return { isShown: true, email: guest.email ?? null, phone: guest.phone ?? null };
+}
+
+function answerOf(value: string): Answer {
+  return ANSWERS.find((answer) => answer === value) ?? 'PENDING';
+}
+
+/** Every seat by venue; from a backend before `eb77cd4`, the one table it names. */
+function seatsOf(guest: GuestWire): Seat[] {
+  if (!guest.seating) {
+    return guest.table ? [{ venue: null, table: guest.table, isReservation: false }] : [];
+  }
+  return guest.seating.map(({ venue, table, isReservation }) => ({ venue, table, isReservation }));
+}
+
+function venueAnswersOf(guest: GuestWire): VenueAnswer[] {
+  const { attendance } = guest;
+  if (attendance?.mode !== 'PER_VENUE') return [];
+  return attendance.venues.map(({ venue, status }) => ({ venue, answer: answerOf(status) }));
 }
 
 function readGuest(guest: GuestWire): Guest {
@@ -37,6 +59,9 @@ function readGuest(guest: GuestWire): Guest {
     isErased: guest.isAnonymized,
     answer: guest.rsvpStatus,
     table: guest.table,
+    seats: seatsOf(guest),
+    venueAnswers: venueAnswersOf(guest),
+    isAskedAgain: guest.attendance?.needsReconfirmation ?? false,
     isCheckedIn: guest.isCheckedIn,
     contact: contactOf(guest),
   };

@@ -69,4 +69,27 @@ describe('createApiFetch', () => {
 
     expect(response.status).toBe(401);
   });
+
+  it('asks for errors in the page’s language, unless the call names one', async () => {
+    const fetchMock = vi.fn((_request: Request) => Promise.resolve(respond(200)));
+    vi.stubGlobal('fetch', fetchMock);
+    const send = createApiFetch({ getLanguage: () => 'hy' });
+
+    await send(new Request('http://api.test/api/v1/x'));
+    await send(new Request('http://api.test/api/v1/x', { headers: { 'accept-language': 'ru' } }));
+
+    expect(fetchMock.mock.calls[0]?.[0].headers.get('accept-language')).toBe('hy');
+    expect(fetchMock.mock.calls[1]?.[0].headers.get('accept-language')).toBe('ru');
+  });
+
+  it('sends no language when it knows none', async () => {
+    const fetchMock = vi.fn((_request: Request) => Promise.resolve(respond(200)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createApiFetch({ getLanguage: () => undefined })(new Request('http://api.test/api/v1/x'));
+    await createApiFetch()(new Request('http://api.test/api/v1/x'));
+
+    expect(fetchMock.mock.calls[0]?.[0].headers.has('accept-language')).toBe(false);
+    expect(fetchMock.mock.calls[1]?.[0].headers.has('accept-language')).toBe(false);
+  });
 });

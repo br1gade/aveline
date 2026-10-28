@@ -27,7 +27,7 @@ function InvitationLine({ event }: { event: EventDetail }) {
   if (!invitation) return null;
   return (
     <p className="m-0 text-sm">
-      {t(`invite.${invitation.status}`)}{' '}
+      {invitation.isExpired ? t('invite.expired') : t(`invite.${invitation.status}`)}{' '}
       <Link
         to={invitationPath(event.id)}
         className="text-primary underline underline-offset-4 hover:no-underline"

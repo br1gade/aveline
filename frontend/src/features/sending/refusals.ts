@@ -25,7 +25,11 @@ export function refusalOf(error: unknown): Refusal {
   return { problem, messages, isStale: status === 400 || status === 404 || status === 409 };
 }
 
-type ProblemKey = 'forbidden' | 'state' | 'missing' | 'conflict' | 'sendRefused' | 'other';
+type ProblemKey =
+  'forbidden' | 'state' | 'missing' | 'conflict' | 'sendRefused' | 'expired' | 'other';
+
+/** A send refused because the invitation's time ran out (`invitation-sender.service.ts`). */
+const EXPIRED = /^This invitation has expired/;
 
 /**
  * Publishing, closing, reopening and sending all need `invitation:publish` (there is no
@@ -40,7 +44,12 @@ const WORDS: Readonly<Record<LifecycleAction, Partial<Record<number, ProblemKey>
   send: { 400: 'sendRefused', 403: 'forbidden', 404: 'missing', 409: 'conflict' },
 };
 
-export function useRefusedText(action: LifecycleAction): (status: number) => string {
+export function useRefusedText(
+  action: LifecycleAction,
+): (status: number, messages?: readonly string[]) => string {
   const { t } = useTranslation('sending');
-  return (status) => t(`problems.${WORDS[action][status] ?? 'other'}`);
+  return (status, messages = []) => {
+    const isExpired = status === 400 && messages.some((message) => EXPIRED.test(message));
+    return t(`problems.${isExpired ? 'expired' : (WORDS[action][status] ?? 'other')}`);
+  };
 }

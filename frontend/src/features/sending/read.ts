@@ -1,6 +1,7 @@
 import {
   CHANNELS,
   DELIVERY_STATUSES,
+  FAILURE_KINDS,
   type Channel,
   type DeliveryReport,
   type DeliveryRowWire,
@@ -9,6 +10,7 @@ import {
   type DesignStatus,
   type DesignStatusWire,
   type Destination,
+  type FailureKind,
   type HouseholdDelivery,
   type SendOutcome,
   type SendResultWire,
@@ -57,6 +59,10 @@ export function readSendResult(result: SendResultWire): SendOutcome {
   };
 }
 
+function failureKindOf(value: string | null | undefined): FailureKind | null {
+  return FAILURE_KINDS.find((kind) => kind === value) ?? null;
+}
+
 function statusOf(value: string): DeliveryStatus {
   return DELIVERY_STATUSES.find((status) => status === value) ?? 'UNKNOWN';
 }
@@ -74,6 +80,8 @@ function readRow(row: DeliveryRowWire): HouseholdDelivery {
     // The server's reply often quotes the address, which this role may not see (FR-35).
     failureReason: 'toAddress' in row ? row.failureReason : null,
     sentAt: row.sentAt,
+    readAt: row.readAt ?? null,
+    failureKind: failureKindOf(row.deliveryFailureKind),
     reminders: row.reminders ?? 0,
     lastRemindedAt: row.lastRemindedAt ?? null,
   };

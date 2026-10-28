@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  carryOver,
   initialValues,
   neverAnswered,
   newPartyRow,
   replySchema,
   type ReplyFormValues,
 } from './form-model';
-import { QUESTIONS, recordWith } from './test-data';
+import { perVenueRecord, QUESTIONS, recordWith } from './test-data';
 
 function edit(base: ReplyFormValues, change: Partial<ReplyFormValues>): ReplyFormValues {
   return { ...base, ...change };
@@ -58,7 +59,11 @@ describe('initialValues', () => {
 describe('replySchema', () => {
   const record = recordWith();
   const initial = initialValues(record, QUESTIONS);
-  const schema = replySchema({ questions: QUESTIONS, neverAnswered: neverAnswered(record) });
+  const schema = replySchema({
+    questions: QUESTIONS,
+    neverAnswered: neverAnswered(record),
+    venueIds: [],
+  });
 
   function issues(values: ReplyFormValues) {
     const result = schema.safeParse(values);
@@ -89,6 +94,7 @@ describe('replySchema', () => {
     const schemaForAnswered = replySchema({
       questions: QUESTIONS,
       neverAnswered: neverAnswered(answered),
+      venueIds: [],
     });
     expect(schemaForAnswered.safeParse(values).success).toBe(true);
   });
@@ -114,5 +120,69 @@ describe('replySchema', () => {
       party: [newPartyRow(QUESTIONS)],
     });
     expect(issues(values)).toEqual([]);
+  });
+});
+
+describe('answering per venue', () => {
+  const record = perVenueRecord();
+  const initial = initialValues(record, QUESTIONS);
+  const schema = replySchema({
+    questions: QUESTIONS,
+    neverAnswered: neverAnswered(record),
+    venueIds: ['v-church', 'v-hall'],
+  });
+
+  function issues(values: ReplyFormValues) {
+    const result = schema.safeParse(values);
+    return result.success
+      ? []
+      : result.error.issues.map((issue) => `${issue.path.join('.')}:${issue.message}`);
+  }
+
+  it('starts every venue unanswered, for the respondent and each member', () => {
+    expect(initial.venues).toEqual({ 'v-church': '', 'v-hall': '' });
+    expect(initial.members[1]?.venues).toEqual({ 'v-church': '', 'v-hall': '' });
+  });
+
+  it('asks the respondent for every venue, and not for one answer for the event', () => {
+    expect(issues(edit(initial, { venues: { 'v-church': 'DECLINED', 'v-hall': '' } }))).toEqual([
+      'venues.v-hall:chooseVenue',
+    ]);
+  });
+
+  it('binds the questions to everyone coming to any venue', () => {
+    const values = edit(initial, { venues: { 'v-church': 'DECLINED', 'v-hall': 'ATTENDING' } });
+    expect(issues(values)).toEqual([
+      'answers.q-main:required',
+      'members.0.answers.q-main:required',
+      'members.1.answers.q-main:required',
+    ]);
+  });
+});
+
+describe('carryOver', () => {
+  it('keeps what was typed and asks again who is coming, from the fresh reply', () => {
+    const typed = edit(initialValues(recordWith(), QUESTIONS), {
+      status: 'ATTENDING',
+      message: 'See you there',
+      answers: { 'q-main': '1' },
+      party: [{ ...newPartyRow(QUESTIONS), firstName: 'Narek' }],
+    });
+    typed.members = [{ ...typed.members[0]!, status: 'DECLINED', dietaryNotes: 'No nuts' }];
+    const fresh = initialValues(perVenueRecord(), QUESTIONS);
+
+    const kept = carryOver(typed, fresh);
+
+    expect(kept.status).toBe(fresh.status);
+    expect(kept.venues).toEqual({ 'v-church': '', 'v-hall': '' });
+    expect(kept.message).toBe('See you there');
+    expect(kept.answers).toEqual({ 'q-main': '1' });
+    expect(kept.party.map((row) => row.firstName)).toEqual(['Narek']);
+    expect(
+      kept.members.map((member) => [member.guestId, member.status, member.dietaryNotes]),
+    ).toEqual([
+      ['g2', '', 'No nuts'],
+      ['g3', '', ''],
+    ]);
   });
 });

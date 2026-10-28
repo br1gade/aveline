@@ -38,11 +38,30 @@ export interface Guest {
   /** Erased at their request: still on the list, never edited again (docs/API.md §6). */
   isErased: boolean;
   answer: Answer;
-  /** The table's name once seated. */
+  /** The table's name once seated at one table only; `null` with none or with several. */
   table: string | null;
+  /** Every seat, each at its venue's plan (design PD-54). */
+  seats: Seat[];
+  /** In PER_VENUE, the answer at each venue guests see; empty for one answer for the event. */
+  venueAnswers: VenueAnswer[];
+  /** The host changed how guests answer and this guest has not answered again yet. */
+  isAskedAgain: boolean;
   /** Checked in at the door, which is the record that they came: they cannot be removed. */
   isCheckedIn: boolean;
   contact: Contact;
+}
+
+export interface Seat {
+  /** The venue's name; `null` for a plan that names none. */
+  venue: string | null;
+  table: string;
+  /** Held for them while they have not said they are coming there. */
+  isReservation: boolean;
+}
+
+export interface VenueAnswer {
+  venue: string;
+  answer: Answer;
 }
 
 export interface Household {
@@ -98,7 +117,22 @@ export interface GuestWire {
   isAnonymized: boolean;
   rsvpStatus: Answer;
   table: string | null;
+  /** Since `eb77cd4`: how they answer, and their seats per venue. */
+  attendance?: AttendanceWire;
+  seating?: SeatWire[];
   isCheckedIn: boolean;
+}
+
+export interface AttendanceWire {
+  mode: string;
+  needsReconfirmation: boolean;
+  venues: Array<{ venueId: string; venue: string; status: string }>;
+}
+
+export interface SeatWire {
+  venue: string | null;
+  table: string;
+  isReservation: boolean;
 }
 
 export interface HouseholdWire {

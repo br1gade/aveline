@@ -5,6 +5,7 @@ import type { FieldProblem } from './server-errors';
 
 const KEYS = {
   chooseAnswer: 'errors.chooseAnswer',
+  chooseVenue: 'errors.chooseVenue',
   firstName: 'errors.firstName',
   tooLong: 'errors.tooLong',
   required: 'errors.required',
@@ -12,6 +13,10 @@ const KEYS = {
   members: 'errors.members',
   party: 'errors.party',
   seats: 'errors.seats',
+  agree: 'errors.agree',
+  signerName: 'errors.signerName',
+  drawing: 'errors.drawing',
+  onBehalf: 'errors.onBehalf',
 } as const satisfies Record<ErrorCode | FieldProblem['code'], string>;
 
 function isKnownCode(code: string): code is keyof typeof KEYS {

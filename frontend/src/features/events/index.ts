@@ -1,4 +1,5 @@
 export { getEvent, listEvents } from './api';
+export { AttendanceSettings } from './components/attendance-mode';
 export { CreateEvent } from './components/create-event';
 export { EditEvent } from './components/edit-event';
 export { EventList } from './components/event-list';
@@ -7,4 +8,10 @@ export { EventUnavailable } from './components/event-unavailable';
 export { NotifyGuests, type NotifyBack, type NotifyOffer } from './components/notify-guests';
 export { loadEventOverview } from './load';
 export { eventPath } from './paths';
-export type { EventDetail, EventNotice, EventSummary, InvitationStatus } from './types';
+export type {
+  AttendanceMode,
+  EventDetail,
+  EventNotice,
+  EventSummary,
+  InvitationStatus,
+} from './types';

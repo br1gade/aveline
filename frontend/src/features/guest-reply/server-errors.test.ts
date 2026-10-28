@@ -88,4 +88,32 @@ describe('classifySendError', () => {
       requestId: 'req-3',
     });
   });
+
+  it('asks for a reload, never a retry, when the invitation changed while they answered', () => {
+    const changed = new ApiError({
+      status: 409,
+      messages: [
+        'attendanceRevision: attendance policy changed; reload the invitation and reconfirm',
+      ],
+      feedback: {
+        code: 'ATTENDANCE_CHANGED',
+        action: 'RELOAD',
+        userMessage: undefined,
+        details: [],
+      },
+    });
+    expect(classifySendError(changed, PEOPLE)).toEqual({ kind: 'reload' });
+    expect(classifySendError(new ApiError({ status: 409, messages: [] }), PEOPLE)).toEqual({
+      kind: 'reload',
+    });
+    expect(refused('venueAttendance: venue is not guest-facing on this event')).toEqual({
+      kind: 'reload',
+    });
+  });
+
+  it('says so when the link no longer opens the invitation', () => {
+    expect(classifySendError(new ApiError({ status: 404, messages: [] }), PEOPLE)).toEqual({
+      kind: 'gone',
+    });
+  });
 });

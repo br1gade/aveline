@@ -1,6 +1,13 @@
 import type { BuiltInField, RsvpFieldConfig, RsvpQuestion } from '@/features/invitation-renderer';
 
 import {
+  effectiveVenues,
+  memberStatus,
+  respondentStatus,
+  venueAttendance,
+  type VenueAnswers,
+} from './attendance';
+import {
   answerableQuestions,
   isAnswered,
   type AnswerValue,
@@ -9,6 +16,7 @@ import {
   type PartyValues,
   type ReplyFormValues,
 } from './form-model';
+import { agreementAnswers, pendingAgreements, type SignatureContext } from './signatures';
 import type { AnswerPayload, ReplyStatus, SubmitReplyBody } from './types';
 
 /** What the payload needs besides the form: the questions and how the invitation asks them. */
@@ -17,6 +25,42 @@ export interface PayloadContext {
   field: (field: BuiltInField) => RsvpFieldConfig;
   /** The language to store as the guest's, when they switched the page to it. */
   locale?: string | undefined;
+  /**
+   * The revision the reply was read at, sent with every reply so a change of mode meanwhile is
+   * refused rather than misread; and the venues to answer in PER_VENUE (none in EVENT_WIDE).
+   */
+  attendance: { revision: number; venueIds: readonly string[] };
+  /** The statements to agree to, and who already has (design PD-52). */
+  signatures?: SignatureContext | undefined;
+}
+
+interface AnswerEntry {
+  questionId: string;
+  value: AnswerPayload;
+}
+
+/**
+ * The respondent's answer, which the others on the form follow where they have none, and the
+ * agreements this reply gives, by person (a guest id, or `party.<index>`).
+ */
+interface Respondent {
+  status: ReplyStatus;
+  venues: VenueAnswers;
+  agreements: ReadonlyMap<string, AnswerEntry[]>;
+}
+
+/** Everyone's agreements on this reply; none while the invitation has no statement. */
+function agreementsOf(values: ReplyFormValues, context: PayloadContext) {
+  const { signatures } = context;
+  if (!signatures) return new Map<string, AnswerEntry[]>();
+  const pending = pendingAgreements(values, signatures, context.attendance.venueIds);
+  return agreementAnswers(pending, signatures.signer);
+}
+
+/** One answer in EVENT_WIDE; each venue's in PER_VENUE, where `status` is refused. */
+function attendanceOf(status: ReplyStatus, venues: VenueAnswers, context: PayloadContext) {
+  const { venueIds } = context.attendance;
+  return venueIds.length > 0 ? { venueAttendance: venueAttendance(venues, venueIds) } : { status };
 }
 
 const FORM_BOOLEAN: Readonly<Record<string, boolean>> = { yes: true, no: false };
@@ -67,46 +111,81 @@ function dietaryChanges(
   };
 }
 
+/** Whether a member's attendance differs from what was saved. A pending venue always differs. */
+function isAttendanceChanged(
+  effective: ReplyStatus,
+  venues: VenueAnswers,
+  before: MemberValues | undefined,
+  context: PayloadContext,
+): boolean {
+  if (context.attendance.venueIds.length === 0) return effective !== before?.status;
+  return !isSame(venues, before?.venues ?? {});
+}
+
 /**
- * A household member, when anything about them changed. Their own answers go only while they are
- * coming: the questions are not shown otherwise.
+ * A household member, when anything about them changed. In PER_VENUE every venue is sent, theirs
+ * or the respondent's, since nobody follows on the server. Their own answers go only while they
+ * are coming: the questions are not shown otherwise.
  */
 function memberEntry(
   member: MemberValues,
   before: MemberValues | undefined,
-  status: ReplyStatus,
+  respondent: Respondent,
   context: PayloadContext,
 ) {
-  const effective = member.status || status;
-  const answers =
-    effective === 'ATTENDING'
-      ? changedAnswers(member.answers, before?.answers, context.questions)
-      : [];
-  const dietary = effective === 'ATTENDING' ? dietaryChanges(member, before, context) : {};
+  const { venueIds } = context.attendance;
+  const effective = memberStatus(member, respondent, venueIds);
+  if (!effective) return [];
+  const venues = effectiveVenues(member.venues, respondent.venues, venueIds);
+  const isComing = effective === 'ATTENDING';
+  const answers: AnswerEntry[] = isComing
+    ? [
+        ...changedAnswers(member.answers, before?.answers, context.questions),
+        ...(respondent.agreements.get(member.guestId) ?? []),
+      ]
+    : [];
+  const dietary = isComing ? dietaryChanges(member, before, context) : {};
   const isChanged =
-    effective !== before?.status || answers.length > 0 || Object.keys(dietary).length > 0;
+    isAttendanceChanged(effective, venues, before, context) ||
+    answers.length > 0 ||
+    Object.keys(dietary).length > 0;
   if (!isChanged) return [];
   return [
     {
       guestId: member.guestId,
-      status: effective,
+      ...attendanceOf(effective, venues, context),
       ...dietary,
       ...(answers.length > 0 ? { answers } : {}),
     },
   ];
 }
 
-/** A guest added on this reply, with what they answered for themselves; status follows ours. */
-function partyEntry(row: PartyValues, context: PayloadContext) {
+/**
+ * A guest added on this reply, with what they answered for themselves. They come where the
+ * respondent comes: in EVENT_WIDE the server applies that; in PER_VENUE it must be sent.
+ */
+function partyEntry(
+  row: PartyValues,
+  index: number,
+  respondent: Respondent,
+  context: PayloadContext,
+) {
   const firstName = row.firstName.trim();
   if (!firstName) return [];
-  const answers = changedAnswers(row.answers, undefined, context.questions).filter((answer) =>
-    isAnswered(row.answers[answer.questionId]),
-  );
+  const answers: AnswerEntry[] = [
+    ...changedAnswers(row.answers, undefined, context.questions).filter((answer) =>
+      isAnswered(row.answers[answer.questionId]),
+    ),
+    ...(respondent.agreements.get(`party.${index}`) ?? []),
+  ];
+  const { venueIds } = context.attendance;
   return [
     {
       firstName,
       ...(row.lastName.trim() ? { lastName: row.lastName.trim() } : {}),
+      ...(venueIds.length > 0
+        ? { venueAttendance: venueAttendance(respondent.venues, venueIds) }
+        : {}),
       ...dietaryChanges(row, undefined, context),
       ...(answers.length > 0 ? { answers } : {}),
     },
@@ -129,10 +208,15 @@ function changedField(
 function attendingDetails(
   values: ReplyFormValues,
   initial: ReplyFormValues,
+  respondent: Respondent,
   context: PayloadContext,
 ) {
-  const party = values.party.flatMap((row) => partyEntry(row, context));
-  const answers = changedAnswers(values.answers, initial.answers, context.questions);
+  const party = values.party.flatMap((row, index) => partyEntry(row, index, respondent, context));
+  const own = context.signatures?.signer.guestId;
+  const answers: AnswerEntry[] = [
+    ...changedAnswers(values.answers, initial.answers, context.questions),
+    ...((own && respondent.agreements.get(own)) || []),
+  ];
   return {
     ...(values.attribution && context.field('attribution').isEnabled
       ? { attribution: values.attribution }
@@ -146,25 +230,32 @@ function attendingDetails(
 }
 
 /**
- * What is sent: the answer always, and otherwise only what changed, because omitted fields keep
- * their value and a resubmission edits rather than duplicates (docs/API.md §4). A built-in
- * question the invitation does not ask is never sent: the server refuses it.
+ * What is sent: the answer and the attendance revision always, and otherwise only what changed,
+ * because omitted fields keep their value and a resubmission edits rather than duplicates
+ * (docs/API.md §4). A built-in question the invitation does not ask is never sent: the server
+ * refuses it.
  */
 export function buildPayload(
   values: ReplyFormValues,
   initial: ReplyFormValues,
   context: PayloadContext,
 ): SubmitReplyBody {
-  if (!values.status) {
+  const status = respondentStatus(values, context.attendance.venueIds);
+  if (!status) {
     throw new Error('A reply needs an answer; the schema checks this first');
   }
-  const status = values.status;
+  const respondent: Respondent = {
+    status,
+    venues: values.venues,
+    agreements: agreementsOf(values, context),
+  };
   const members = values.members.flatMap((member, index) =>
-    memberEntry(member, initial.members[index], status, context),
+    memberEntry(member, initial.members[index], respondent, context),
   );
   return {
-    status,
-    ...(status === 'ATTENDING' ? attendingDetails(values, initial, context) : {}),
+    ...attendanceOf(status, values.venues, context),
+    attendanceRevision: context.attendance.revision,
+    ...(status === 'ATTENDING' ? attendingDetails(values, initial, respondent, context) : {}),
     ...(members.length > 0 ? { members } : {}),
     ...changedField('message', values.message, initial.message, context),
     ...(context.locale ? { locale: context.locale } : {}),
@@ -172,11 +263,15 @@ export function buildPayload(
 }
 
 /** Everyone coming, the respondent first, from what the form will send. */
-export function attendingNames(values: ReplyFormValues, respondent: string): string[] {
-  if (!values.status) return [];
-  const status = values.status;
+export function attendingNames(
+  values: ReplyFormValues,
+  respondent: string,
+  venueIds: readonly string[],
+): string[] {
+  const status = respondentStatus(values, venueIds);
+  if (!status) return [];
   const members = values.members
-    .filter((member) => (member.status || status) === 'ATTENDING')
+    .filter((member) => memberStatus(member, values, venueIds) === 'ATTENDING')
     .map((member) => member.name);
   const party =
     status === 'ATTENDING'

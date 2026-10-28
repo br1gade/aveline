@@ -3,14 +3,42 @@ import { redactUrl } from '@/lib/capability-links';
 /**
  * Every failed call becomes one ApiError (setup proposal §5.4). The backend's error body is
  * `{ statusCode, message, requestId, path, at }`, where `message` is a string or, for validation
- * failures, an array with one entry per bad field (docs/API.md §1).
+ * failures, an array with one entry per bad field (docs/API.md §1). Since `eb77cd4` it also
+ * carries `code`, `action`, `userMessage` and `details`, worded in the `Accept-Language` sent.
  */
 export interface ApiErrorInit {
   status: number;
   messages: readonly string[];
   requestId?: string | undefined;
   path?: string | undefined;
+  feedback?: ErrorFeedback | undefined;
 }
+
+/** One entry per refused field of a 400 or 422; `field` is `null` when the message names none. */
+export interface FieldFeedback {
+  field: string | null;
+  code: string;
+  userMessage: string;
+}
+
+/**
+ * The backend's own classification. `code` follows the status alone, except
+ * `ATTENDANCE_CHANGED`; `userMessage` is a generic sentence per code, so the pages keep their own
+ * words and read only `code` and `details`.
+ */
+export interface ErrorFeedback {
+  code: string | undefined;
+  action: string | undefined;
+  userMessage: string | undefined;
+  details: readonly FieldFeedback[];
+}
+
+const NO_FEEDBACK: ErrorFeedback = {
+  code: undefined,
+  action: undefined,
+  userMessage: undefined,
+  details: [],
+};
 
 /** A message the backend prefixed with a field name, such as "members: …" or "answers: …". */
 const FIELD_MESSAGE = /^([A-Za-z][\w.[\]-]*): (.+)$/;
@@ -25,6 +53,10 @@ export class ApiError extends Error {
   readonly requestId: string | undefined;
   /** The API path, with any capability token removed. */
   readonly path: string | undefined;
+  readonly code: string | undefined;
+  readonly action: string | undefined;
+  readonly userMessage: string | undefined;
+  readonly details: readonly FieldFeedback[];
 
   constructor(init: ApiErrorInit) {
     super(init.messages[0] ?? `Request failed with status ${init.status}`);
@@ -36,6 +68,11 @@ export class ApiError extends Error {
     const { fieldErrors, formErrors } = splitFieldMessages(init.messages);
     this.fieldErrors = fieldErrors;
     this.formErrors = formErrors;
+    const feedback = init.feedback ?? NO_FEEDBACK;
+    this.code = feedback.code;
+    this.action = feedback.action;
+    this.userMessage = feedback.userMessage;
+    this.details = feedback.details;
   }
 }
 
@@ -60,10 +97,37 @@ interface ErrorBody {
   message?: unknown;
   requestId?: unknown;
   path?: unknown;
+  code?: unknown;
+  action?: unknown;
+  userMessage?: unknown;
+  details?: unknown;
 }
 
 function isErrorBody(body: unknown): body is ErrorBody {
   return typeof body === 'object' && body !== null;
+}
+
+function stringOf(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function fieldFeedbackOf(entry: unknown): FieldFeedback[] {
+  if (!isErrorBody(entry)) return [];
+  const { field, code, userMessage } = entry as Record<string, unknown>;
+  const isField = field === null || typeof field === 'string';
+  if (!isField || typeof code !== 'string' || typeof userMessage !== 'string') return [];
+  return [{ field, code, userMessage }];
+}
+
+/** The classification beside the message; anything malformed is left out, never guessed. */
+export function feedbackFrom(body: unknown): ErrorFeedback {
+  if (!isErrorBody(body)) return NO_FEEDBACK;
+  return {
+    code: stringOf(body.code),
+    action: stringOf(body.action),
+    userMessage: stringOf(body.userMessage),
+    details: Array.isArray(body.details) ? body.details.flatMap(fieldFeedbackOf) : [],
+  };
 }
 
 /** Messages from whatever the server sent: an error body, plain text, or nothing. */
@@ -90,6 +154,7 @@ export function apiErrorFrom(response: Response, body: unknown, requestId?: stri
     messages: messagesFrom(body),
     requestId: response.headers.get('x-request-id') ?? fromBody ?? requestId,
     path,
+    feedback: feedbackFrom(body),
   });
 }
 

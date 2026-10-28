@@ -7,7 +7,7 @@ import { Checkbox } from '@/ui/kit/checkbox';
 import { Label } from '@/ui/kit/label';
 
 import { hasFreeSeat } from '../form-model';
-import type { Guest, Household, Side } from '../types';
+import type { Guest, Household, Seat, Side } from '../types';
 import { AnswerChip } from './answer-chip';
 import type { DialogTarget } from './dialog-target';
 
@@ -26,11 +26,32 @@ interface RowProps {
 
 function notesOf(guest: Guest, t: TFunction<'guests'>): string[] {
   return [
+    guest.isAskedAgain ? t('row.askedAgain') : '',
     guest.isPrimary ? t('row.primary') : '',
     guest.isAddedByGuest ? t('row.addedByGuest') : '',
     guest.isCheckedIn ? t('row.checkedIn') : '',
     guest.isErased ? t('row.erased') : '',
   ].filter(Boolean);
+}
+
+/** A seat, at its venue when the plan names one, and whether it is only held for them (PD-54). */
+function seatText(seat: Seat, t: TFunction<'guests'>): string {
+  const where = seat.venue
+    ? t('row.tableAt', { table: seat.table, venue: seat.venue })
+    : t('row.table', { table: seat.table });
+  return seat.isReservation ? t('row.held', { seat: where }) : where;
+}
+
+/** In PER_VENUE, each venue's answer, in the host's order. */
+function VenueAnswers({ guest, t }: { guest: Guest; t: TFunction<'guests'> }) {
+  if (guest.venueAnswers.length === 0) return null;
+  return (
+    <p className="text-muted-foreground m-0 text-sm">
+      {guest.venueAnswers
+        .map(({ venue, answer }) => t('row.venueAnswer', { venue, answer: t(`answer.${answer}`) }))
+        .join(' · ')}
+    </p>
+  );
 }
 
 /** Email and phone only when they arrived: missing is not this role's to see (docs/API.md §6). */
@@ -51,7 +72,7 @@ function ContactLines({ guest }: { guest: Guest }) {
 function GuestRow({ guest, household, sides, t, onOpen }: RowProps) {
   const open = (kind: 'edit' | 'remove') => (event: MouseEvent<HTMLButtonElement>) =>
     onOpen({ kind, guest, household }, event.currentTarget);
-  const facts = [sides[guest.side], guest.table ? t('row.table', { table: guest.table }) : '']
+  const facts = [sides[guest.side], ...guest.seats.map((seat) => seatText(seat, t))]
     .concat(notesOf(guest, t))
     .filter(Boolean);
   return (
@@ -66,6 +87,7 @@ function GuestRow({ guest, household, sides, t, onOpen }: RowProps) {
             </span>
           ))}
         </div>
+        <VenueAnswers guest={guest} t={t} />
         <ContactLines guest={guest} />
       </div>
       <div className="flex flex-none gap-2">

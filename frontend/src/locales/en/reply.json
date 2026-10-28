@@ -82,6 +82,48 @@
     "failed": "We couldn’t send your reply. Check your connection and try again.",
     "retry": "Try again",
     "reference": "Reference: {{id}}",
-    "loadFailed": "We couldn’t load your reply. Please reload the page."
+    "loadFailed": "We couldn’t load your reply. Please reload the page.",
+    "chooseVenue": "Choose an answer for this part.",
+    "changed": "The invitation changed while you were answering. Reload it to see the change: what you typed stays.",
+    "reload": "Reload",
+    "gone": "This invitation is no longer available, so your reply could not be sent.",
+    "agree": "Agree to the statement to reply for everyone coming.",
+    "signerName": "Enter your full name.",
+    "drawing": "Draw your signature and choose “Use this signature”, or type your name instead.",
+    "onBehalf": "Confirm that you agree on behalf of the others coming."
+  },
+  "venues": {
+    "lead": "Let the hosts know for each part of the celebration.",
+    "memberAt": "{{name}} · {{venue}}",
+    "line": "{{venue}}: {{answer}}",
+    "pending": "not answered yet",
+    "reconfirm": "The hosts have changed how guests reply, so earlier answers no longer count. Please answer again."
+  },
+  "signature": {
+    "legend": "Please read and agree",
+    "for": "For: {{names}}",
+    "already": "Already agreed: {{names}}",
+    "agree": "I agree",
+    "onBehalf": "I agree on behalf of {{names}}",
+    "method": "How would you like to sign?",
+    "TYPED": "Type my name",
+    "DRAWN": "Draw my signature",
+    "signerName": "Your full name",
+    "typedHelp": "Typing your name is your signature.",
+    "drawnHelp": "Your name is kept beside your signature.",
+    "saved": "Agreed: {{names}}"
+  },
+  "pad": {
+    "label": "Signature drawing area",
+    "help": "Draw with your finger, a pen or the mouse. If that is hard, type your name instead.",
+    "clear": "Clear",
+    "use": "Use this signature",
+    "empty": "Draw your signature first.",
+    "uploading": "Saving your signature…",
+    "checking": "Checking your signature…",
+    "ready": "Your signature is ready.",
+    "failed": "Your signature couldn’t be saved. Draw it again, or type your name instead.",
+    "again": "Draw again",
+    "typeInstead": "Type your name instead"
   }
 }

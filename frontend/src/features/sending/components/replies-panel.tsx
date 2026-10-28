@@ -13,6 +13,8 @@ import { RefusalAlert } from './refusal-alert';
 interface RepliesProps {
   slug: string;
   status: Extract<InvitationStatus, 'PUBLISHED' | 'CLOSED'>;
+  /** Past its time: reopening succeeds, but guests still cannot open it (docs/API.md §6). */
+  isExpired: boolean;
   page: PageActions;
 }
 
@@ -20,7 +22,7 @@ interface RepliesProps {
  * Stopping replies and taking them again (docs/API.md §6). Both are reversible, so neither asks
  * first; the words beside the button say what each does (design PD-47).
  */
-export function RepliesPanel({ slug, status, page }: RepliesProps) {
+export function RepliesPanel({ slug, status, isExpired, page }: RepliesProps) {
   const { t } = useTranslation('sending');
   const [isMoving, setIsMoving] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
@@ -49,6 +51,9 @@ export function RepliesPanel({ slug, status, page }: RepliesProps) {
         {t('replies.title')}
       </h2>
       <p className="m-0">{t(isOpen ? 'replies.open' : 'replies.closed')}</p>
+      {isExpired ? (
+        <p className="text-muted-foreground m-0 text-sm">{t('replies.expired')}</p>
+      ) : null}
       {refusal ? <RefusalAlert refusal={refusal} action={action} /> : null}
       <Button
         variant="outline"

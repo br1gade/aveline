@@ -26,6 +26,21 @@ export type EventType = (typeof EVENT_TYPES)[number];
 
 export type InvitationStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED';
 
+/** One answer for the whole event, or one per guest-facing venue (docs/API.md §6). */
+export type AttendanceMode = 'EVENT_WIDE' | 'PER_VENUE';
+
+/** The event's invitation, as its detail carries it. */
+export interface EventInvitation {
+  slug: string;
+  status: InvitationStatus;
+  /**
+   * When guests can no longer open it, set on first publish from the plan (free: 90 days after the
+   * event); `null` for a draft or an invitation that never closes. Absent before `eb77cd4`.
+   */
+  expiresAt?: string | null;
+  isExpired?: boolean;
+}
+
 /** An event as `GET /events/:id`, `POST /events` and `PATCH /events/:id` return it. */
 export interface EventDetail extends EventSummary {
   type: EventType;
@@ -37,7 +52,10 @@ export interface EventDetail extends EventSummary {
   sideALabel: string | null;
   sideBLabel: string | null;
   /** `null` when no design template existed as the event was created (docs/API.md §6). */
-  invitation: { slug: string; status: InvitationStatus } | null;
+  invitation: EventInvitation | null;
+  /** How guests answer, and the policy's revision, which a change raises. Absent before `eb77cd4`. */
+  attendanceMode?: AttendanceMode;
+  attendanceRevision?: number;
 }
 
 /** Whether to offer "let your guests know" after an edit: never sent by itself. */
@@ -63,6 +81,18 @@ export interface Headcount {
   pending: number;
   /** A whole percentage. */
   responseRate: number;
+  /** In PER_VENUE, each guest-facing venue's answers, in the host's order. */
+  venues?: VenueHeadcount[];
+}
+
+export interface VenueHeadcount {
+  venueId: string;
+  venue: string;
+  invited: number;
+  attending: number;
+  declined: number;
+  undecided: number;
+  pending: number;
 }
 
 export interface Dashboard {

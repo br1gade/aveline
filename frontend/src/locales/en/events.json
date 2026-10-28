@@ -71,7 +71,9 @@
       "CLOSED": "Closed: replies are no longer taken"
     },
     "venues": "Venues",
-    "publishSend": "Publish and send"
+    "publishSend": "Publish and send",
+    "attendance": "How guests answer",
+    "attendanceChange": "Change"
   },
   "headcount": {
     "title": "Guests",
@@ -84,7 +86,9 @@
     "responseRate": "Answered",
     "empty": "No guests on the list yet.",
     "refused": "The guest numbers aren’t available to your role on this event.",
-    "failed": "The guest numbers couldn’t be loaded. Reload the page to try again."
+    "failed": "The guest numbers couldn’t be loaded. Reload the page to try again.",
+    "byVenue": "By venue",
+    "venue": "Venue"
   },
   "edit": {
     "title": "Edit the details",
@@ -117,5 +121,51 @@
     "failed": "The event couldn’t be loaded. Please try again in a moment.",
     "rateLimited": "Too many requests just now. Wait a minute, then reload the page.",
     "back": "Your events"
+  },
+  "attendance": {
+    "back": "Back to the event",
+    "title": "How guests answer",
+    "now": {
+      "EVENT_WIDE": "One answer for the whole event.",
+      "PER_VENUE": "An answer for each venue guests see."
+    },
+    "explain": {
+      "PER_VENUE": "Asking per venue lets each guest say which parts they come to, such as the ceremony and the reception. Every venue guests see is asked about.",
+      "EVENT_WIDE": "Asking once means each guest only says whether they are coming, for the whole event."
+    },
+    "see": "See what would change",
+    "notice": {
+      "stale": "Something changed since that preview, so nothing was changed. Look at it again.",
+      "noVenue": "Guests can answer per venue once the event has a venue they can see.",
+      "sameMode": "Guests already answer this way. The page has been reloaded."
+    },
+    "toVenues": "Add a venue",
+    "preview": {
+      "title": "If you change this",
+      "answers_one": "The {{count, number}} answer given so far goes back to “not answered”, and every household is asked to answer again.",
+      "answers_other": "The {{count, number}} answers given so far go back to “not answered”, and every household is asked to answer again.",
+      "seats_one": "{{count, number}} seated guest keeps their seat, held for them until they answer again.",
+      "seats_other": "{{count, number}} seated guests keep their seats, held for them until they answer again."
+    },
+    "change": {
+      "PER_VENUE": "Ask per venue",
+      "EVENT_WIDE": "Ask once for the event"
+    },
+    "cancel": "Cancel",
+    "confirmTitle": {
+      "PER_VENUE": "Ask guests to answer for each venue?",
+      "EVENT_WIDE": "Ask guests to answer once for the event?"
+    },
+    "confirmBody": "Every answer goes back to “not answered”, and guests are asked again. Changing back later asks them again too.",
+    "confirm": "Change",
+    "notifyLead": "Guests are now asked to answer again. They aren’t told automatically.",
+    "done": {
+      "PER_VENUE": "Guests now answer for each venue.",
+      "EVENT_WIDE": "Guests now answer once for the whole event."
+    },
+    "problems": {
+      "forbidden": "Your role on this event can’t change how guests answer. The event’s owner can change your role.",
+      "other": "This wasn’t accepted. Try again."
+    }
   }
 }

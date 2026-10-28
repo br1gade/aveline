@@ -40,6 +40,13 @@ export interface BrowserSessionDependencies {
   channel?: SessionChannel;
   locks?: Pick<LockManager, 'request'> | undefined;
   schedule?: Schedule;
+  /** The language errors are asked in; by default the page's own (`<html lang>`). */
+  getLanguage?: () => string | undefined;
+}
+
+/** Read at each call, never at module scope: the page's language can change after a switch. */
+function pageLanguage(): string | undefined {
+  return typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined;
 }
 
 /** Refresh this long before the access token expires, but never sooner than the floor. */
@@ -86,10 +93,10 @@ function withRefreshTimer(base: TokenStore, schedule: Schedule, onDue: () => voi
 }
 
 export function createBrowserSession(dependencies: BrowserSessionDependencies): BrowserSession {
-  const { baseUrl, schedule = scheduleWithTimer } = dependencies;
+  const { baseUrl, schedule = scheduleWithTimer, getLanguage = pageLanguage } = dependencies;
   const channel = dependencies.channel ?? createSessionChannel();
   const listeners = createListeners();
-  const publicApi = createPublicApi(baseUrl);
+  const publicApi = createPublicApi(baseUrl, { getLanguage });
   const store = withRefreshTimer(dependencies.store ?? createTokenStore(), schedule, () => {
     // A proactive refresh that fails to reach the server is retried by the next 401.
     refreshOrEnd().catch(() => undefined);
@@ -120,6 +127,7 @@ export function createBrowserSession(dependencies: BrowserSessionDependencies): 
   const api = createAppApi(baseUrl, {
     getAccessToken: () => store.getAccessToken(),
     refreshSession: refreshOrEnd,
+    getLanguage,
   });
 
   channel.onLogout(end);

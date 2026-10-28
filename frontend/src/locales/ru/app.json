@@ -11,7 +11,8 @@
     "venues": "Места · Aveline",
     "newVenue": "Добавить место · Aveline",
     "editVenue": "Изменить место · Aveline",
-    "invitation": "Публикация и рассылка · Aveline"
+    "invitation": "Публикация и рассылка · Aveline",
+    "attendance": "Как отвечают гости · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

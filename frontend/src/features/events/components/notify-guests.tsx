@@ -92,12 +92,19 @@ function NoteField({ value, onChange }: { value: string; onChange: (value: strin
   );
 }
 
+interface NotifyGuestsProps {
+  offer: NotifyOffer;
+  back: NotifyBack;
+  /** In place of the household count, for a notice that gives none (a change of how to answer). */
+  lead?: string | undefined;
+}
+
 /**
  * "Let your guests know", offered after an edit whose notice suggests it, and sent only when the
  * host presses it (docs/API.md §6, decided 8 October 2026). Once sent, the button is gone. The event
  * edit and the venue screens host it, each with its own way back.
  */
-export function NotifyGuests({ offer, back }: { offer: NotifyOffer; back: NotifyBack }) {
+export function NotifyGuests({ offer, back, lead }: NotifyGuestsProps) {
   const { t } = useTranslation('events');
   const refused = useRefusedText('notify');
   const heading = useRef<HTMLHeadingElement>(null);
@@ -128,7 +135,7 @@ export function NotifyGuests({ offer, back }: { offer: NotifyOffer; back: Notify
       >
         {t('notify.title')}
       </h1>
-      <p className="m-0">{t('notify.body', { count: offer.households })}</p>
+      <p className="m-0">{lead ?? t('notify.body', { count: offer.households })}</p>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
       {result ? (
         <NotifySent result={result} back={back} />

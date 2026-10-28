@@ -10,7 +10,7 @@ export function RefusalAlert({ refusal, action }: { refusal: Refusal; action: Li
       problem={refusal.problem}
       refused={(status) => (
         <>
-          {refused(status)}
+          {refused(status, refusal.messages)}
           {refusal.messages.map((message) => (
             <span key={message} lang="en" className="block">
               {message}

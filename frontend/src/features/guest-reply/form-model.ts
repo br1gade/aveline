@@ -2,7 +2,15 @@ import { z } from 'zod';
 
 import type { RsvpQuestion } from '@/features/invitation-renderer';
 
+import { memberStatus, respondentStatus, venueAnswersFrom, type VenueAnswers } from './attendance';
 import { LIMITS } from './options';
+import {
+  EMPTY_SIGNATURE,
+  signatureIssues,
+  type SignatureCode,
+  type SignatureContext,
+  type SignatureValues,
+} from './signatures';
 import type { ReplyRecord, ReplyStatus, SavedStatus } from './types';
 
 /**
@@ -19,6 +27,8 @@ export interface MemberValues {
   name: string;
   /** '' follows the respondent's answer until this person is answered for (spec §6.1a). */
   status: ReplyStatus | '';
+  /** In PER_VENUE, the same per venue: '' follows the respondent's answer there. */
+  venues: VenueAnswers;
   dietary: string[];
   dietaryNotes: string;
   /** Their own answers to the host's questions: each person chooses their own meal. */
@@ -37,7 +47,10 @@ export interface PartyValues {
 export type Attribution = '' | 'SIDE_A' | 'SIDE_B' | 'SHARED';
 
 export interface ReplyFormValues {
+  /** The answer in EVENT_WIDE. In PER_VENUE it is unused: the venues' summary stands in. */
   status: ReplyStatus | '';
+  /** The respondent's answer at each venue, in PER_VENUE; empty otherwise. */
+  venues: VenueAnswers;
   members: MemberValues[];
   party: PartyValues[];
   attribution: Attribution;
@@ -47,11 +60,25 @@ export interface ReplyFormValues {
   songRequest: string;
   message: string;
   answers: Answers;
+  /** Agreeing to each of the host's statements, by question (design PD-52). */
+  signatures: Record<string, SignatureValues>;
 }
 
-/** SIGNATURE questions cannot be answered yet, so they are never shown (PD-23). */
+/**
+ * The questions answered as questions. A SIGNATURE question is a statement to agree to instead,
+ * asked once for everyone coming (signatures.ts), never per person.
+ */
 export function answerableQuestions(questions: readonly RsvpQuestion[]): RsvpQuestion[] {
   return questions.filter((question) => question.type !== 'SIGNATURE');
+}
+
+/** Nothing agreed yet, for each statement: an agreement is given anew on every reply. */
+function emptySignatures(questions: readonly RsvpQuestion[]): Record<string, SignatureValues> {
+  return Object.fromEntries(
+    questions
+      .filter((question) => question.type === 'SIGNATURE')
+      .map((question) => [question.id, { ...EMPTY_SIGNATURE }]),
+  );
 }
 
 export function fullName(person: { firstName: string; lastName: string | null }): string {
@@ -120,10 +147,12 @@ export function initialValues(
   const saved = new Map(rsvp.answers.map((answer) => [answer.questionId, answer.value]));
   return {
     status: asFormStatus(rsvp.status),
+    venues: venueAnswersFrom(record.attendance),
     members: record.household.members.map((member) => ({
       guestId: member.id,
       name: fullName(member),
       status: asFormStatus(member.status),
+      venues: venueAnswersFrom(member.attendance),
       dietary: member.dietary,
       dietaryNotes: member.dietaryNotes ?? '',
       answers: answersFrom(questions, new Map()),
@@ -136,6 +165,29 @@ export function initialValues(
     songRequest: rsvp.songRequest ?? '',
     message: rsvp.message ?? '',
     answers: answersFrom(questions, saved),
+    signatures: emptySignatures(questions),
+  };
+}
+
+/**
+ * What the guest typed, kept across a reload after the invitation changed underneath them
+ * (design PD-51): their details, answers and added guests stay; who is coming, and where, is asked
+ * again from the fresh reply, since the change is usually to exactly that.
+ */
+export function carryOver(typed: ReplyFormValues, fresh: ReplyFormValues): ReplyFormValues {
+  const typedMembers = new Map(typed.members.map((member) => [member.guestId, member]));
+  return {
+    ...typed,
+    status: fresh.status,
+    venues: fresh.venues,
+    // The wording may be what changed: agreeing is asked again.
+    signatures: fresh.signatures,
+    members: fresh.members.map((member) => {
+      const before = typedMembers.get(member.guestId);
+      if (!before) return member;
+      const { dietary, dietaryNotes, answers } = before;
+      return { ...member, dietary, dietaryNotes, answers };
+    }),
   };
 }
 
@@ -144,7 +196,8 @@ export function isAnswered(value: AnswerValue | undefined): boolean {
 }
 
 /** The codes the form's messages are looked up by (`reply:errors.*`). */
-export type ErrorCode = 'chooseAnswer' | 'firstName' | 'tooLong' | 'required';
+export type ErrorCode =
+  'chooseAnswer' | 'chooseVenue' | 'firstName' | 'tooLong' | 'required' | SignatureCode;
 
 const tooLong = (limit: number) => z.string().max(limit, { error: 'tooLong' satisfies ErrorCode });
 const answersShape = z.record(z.string(), z.union([z.string(), z.array(z.string())]));
@@ -185,18 +238,35 @@ export interface SchemaContext {
    * unanswered; for the rest the server checks, counting their earlier answers.
    */
   neverAnswered: ReadonlySet<string>;
+  /** The venues to answer in PER_VENUE; empty for one answer for the whole event. */
+  venueIds: readonly string[];
+  /** The statements to agree to, and who already has; none when the invitation has none. */
+  signatures?: SignatureContext | undefined;
 }
 
+// '' until the guest chooses, so the schema's input and output match the form's values.
+const answerShape = z.enum(['ATTENDING', 'DECLINED', 'UNDECIDED', '']);
+const venuesShape = z.record(z.string(), answerShape);
+const signaturesShape = z.record(
+  z.string(),
+  z.object({
+    method: z.enum(['TYPED', 'DRAWN']),
+    signerName: z.string(),
+    isAcknowledged: z.boolean(),
+    isOnBehalf: z.boolean(),
+    assetId: z.string(),
+  }),
+);
+
 const valuesShape = z.object({
-  // '' until the guest chooses, so the schema's input and output match the form's values.
-  status: z
-    .enum(['ATTENDING', 'DECLINED', 'UNDECIDED', ''])
-    .refine((status) => status !== '', { error: 'chooseAnswer' satisfies ErrorCode }),
+  status: answerShape,
+  venues: venuesShape,
   members: z.array(
     z.object({
       guestId: z.string(),
       name: z.string(),
-      status: z.enum(['ATTENDING', 'DECLINED', 'UNDECIDED', '']),
+      status: answerShape,
+      venues: venuesShape,
       dietary: z.array(z.string()),
       dietaryNotes: tooLong(LIMITS.dietaryNotes),
       answers: answersShape,
@@ -218,6 +288,7 @@ const valuesShape = z.object({
   songRequest: tooLong(LIMITS.song),
   message: tooLong(LIMITS.message),
   answers: answersShape,
+  signatures: signaturesShape,
 });
 
 /**
@@ -227,14 +298,14 @@ const valuesShape = z.object({
  */
 function allAnswerIssues(values: z.infer<typeof valuesShape>, context: SchemaContext) {
   const questions = answerableQuestions(context.questions);
-  const isAttending = values.status === 'ATTENDING';
+  const isAttending = respondentStatus(values, context.venueIds) === 'ATTENDING';
   const memberIssues = values.members.flatMap((member, index) =>
     answerIssues({
       questions,
       answers: member.answers,
       path: ['members', index],
       isBound:
-        (member.status || values.status) === 'ATTENDING' &&
+        memberStatus(member, values, context.venueIds) === 'ATTENDING' &&
         context.neverAnswered.has(member.guestId),
     }),
   );
@@ -256,12 +327,30 @@ function allAnswerIssues(values: z.infer<typeof valuesShape>, context: SchemaCon
 }
 
 /**
+ * The answer itself: chosen in EVENT_WIDE; in PER_VENUE, one for every venue, since the
+ * respondent's answers are what everyone else follows (design PD-50).
+ */
+function attendanceIssues(values: z.infer<typeof valuesShape>, venueIds: readonly string[]) {
+  if (venueIds.length === 0) {
+    return values.status ? [] : [{ path: ['status'], message: 'chooseAnswer' satisfies ErrorCode }];
+  }
+  return venueIds
+    .filter((venueId) => !values.venues[venueId])
+    .map((venueId) => ({ path: ['venues', venueId], message: 'chooseVenue' satisfies ErrorCode }));
+}
+
+/**
  * The checks a guest can fix before sending. The server stays the authority: whatever it refuses
  * maps onto the same fields (server-errors.ts).
  */
 export function replySchema(context: SchemaContext) {
   return valuesShape.superRefine((values, refinement) => {
-    for (const issue of allAnswerIssues(values, context)) {
+    const issues = [
+      ...attendanceIssues(values, context.venueIds),
+      ...allAnswerIssues(values, context),
+      ...(context.signatures ? signatureIssues(values, context.signatures, context.venueIds) : []),
+    ];
+    for (const issue of issues) {
       refinement.addIssue({ code: 'custom', ...issue });
     }
   });

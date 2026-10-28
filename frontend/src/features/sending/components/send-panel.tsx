@@ -17,7 +17,15 @@ interface SendPanelProps {
   event: EventDetail;
   slug: string;
   isPublished: boolean;
+  /** Past its time: the backend refuses to send it, so it is not offered (design PD-55). */
+  isExpired: boolean;
   delivery: Loaded<DeliveryReport> | null;
+}
+
+/** Why sending is not offered: replies stopped, or the invitation's time ran out. */
+function NotOffered({ isExpired }: { isExpired: boolean }) {
+  const { t } = useTranslation('sending');
+  return <p className="m-0">{t(isExpired ? 'send.expired' : 'send.closed')}</p>;
 }
 
 /** Who has been invited so far, with the way to each household on the guest list. */
@@ -73,7 +81,7 @@ function MissingReport({ delivery }: { delivery: Loaded<DeliveryReport> | null }
  * guest list sends to the households chosen there. A closed invitation is refused by the backend,
  * though the guide names only a draft (BACKEND_REQUESTS §3), so it is not offered then.
  */
-export function SendPanel({ event, slug, isPublished, delivery }: SendPanelProps) {
+export function SendPanel({ event, slug, isPublished, isExpired, delivery }: SendPanelProps) {
   const { t } = useTranslation('sending');
   const report = delivery?.kind === 'ready' ? delivery.value : null;
   const send = useSend({ slug, report });
@@ -86,7 +94,7 @@ export function SendPanel({ event, slug, isPublished, delivery }: SendPanelProps
       {report ? <DeliverySummary report={report} eventId={event.id} /> : null}
       <MissingReport delivery={delivery} />
       {send.refusal ? <RefusalAlert refusal={send.refusal} action="send" /> : null}
-      {isPublished ? (
+      {isPublished && !isExpired ? (
         <Button
           // The longest label in the app: it wraps rather than widen a 360 px page (ru, hy).
           className="h-auto min-h-10 self-start py-2 text-left whitespace-normal pointer-coarse:h-auto pointer-coarse:min-h-11"
@@ -96,7 +104,7 @@ export function SendPanel({ event, slug, isPublished, delivery }: SendPanelProps
           {send.isSending ? t('send.sending') : t('send.everyone')}
         </Button>
       ) : (
-        <p className="m-0">{t('send.closed')}</p>
+        <NotOffered isExpired={isExpired} />
       )}
       {send.outcome ? <SendOutcomeView outcome={send.outcome} eventId={event.id} /> : null}
       <Confirmation send={send} report={report} />

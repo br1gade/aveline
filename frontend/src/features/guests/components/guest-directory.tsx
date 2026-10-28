@@ -185,7 +185,9 @@ function useSending(
 ) {
   const texts = useDeliveryTexts(report, event);
   const sender = useSendFromList({ event, households, report });
-  const isSendable = event.invitation?.status === 'PUBLISHED' && households.length > 0;
+  const { invitation } = event;
+  const isSendable =
+    invitation?.status === 'PUBLISHED' && !invitation.isExpired && households.length > 0;
   const sending: Sending = {
     texts,
     chosen: isSendable ? sender.chosen : null,

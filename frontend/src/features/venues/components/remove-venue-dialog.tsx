@@ -46,7 +46,7 @@ function RefusalAlert({ refusal }: { refusal: Refusal }) {
       problem={refusal.problem}
       refused={(status) => (
         <>
-          {refused(status)}
+          {refused(status, refusal.messages)}
           {refusal.messages.map((message) => (
             <span key={message} lang="en" className="block">
               {message}
@@ -59,9 +59,9 @@ function RefusalAlert({ refusal }: { refusal: Refusal }) {
 }
 
 /**
- * Removing a venue, after a confirmation (design PD-46). Refused while the running order or a
- * table still points at it. The press is a plain button, so the dialog stays open while the
- * request runs and can show a refusal.
+ * Removing a venue, after a confirmation (design PD-46). Refused while the running order, a table
+ * or a released seat still points at it, and for good once guests have answered for it. The press
+ * is a plain button, so the dialog stays open while the request runs and can show a refusal.
  */
 export function RemoveVenueDialog({
   eventId,

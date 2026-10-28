@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { formatLocale } from '@/lib/time';
 
 import type { HeadcountResult } from '../load';
-import type { Headcount } from '../types';
+import type { AttendanceMode, Headcount, VenueHeadcount } from '../types';
 
 const COUNTS = ['invited', 'households', 'attending', 'declined', 'undecided', 'pending'] as const;
 
@@ -29,16 +29,80 @@ function Numbers({ headcount }: { headcount: Headcount }) {
   );
 }
 
-function HeadcountBody({ result }: { result: HeadcountResult }) {
+const VENUE_COUNTS = ['attending', 'declined', 'undecided', 'pending'] as const;
+
+/**
+ * Each venue guests see, when they answer per venue (design PD-53): someone coming to the
+ * ceremony and not the dinner counts once above, and here at each.
+ */
+function VenueTable({ venues }: { venues: readonly VenueHeadcount[] }) {
+  const { t, i18n } = useTranslation('events');
+  const number = new Intl.NumberFormat(formatLocale(i18n.language));
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-sm">
+        <caption className="mb-2 text-left font-medium">{t('headcount.byVenue')}</caption>
+        <thead>
+          <tr>
+            <th scope="col" className="text-muted-foreground py-1 pr-4 text-left font-normal">
+              {t('headcount.venue')}
+            </th>
+            {VENUE_COUNTS.map((count) => (
+              <th
+                key={count}
+                scope="col"
+                className="text-muted-foreground py-1 pr-4 text-right font-normal"
+              >
+                {t(`headcount.${count}`)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {venues.map((venue) => (
+            <tr key={venue.venueId} className="border-border border-t">
+              <th scope="row" className="py-1 pr-4 text-left font-normal">
+                {venue.venue}
+              </th>
+              {VENUE_COUNTS.map((count) => (
+                <td key={count} className="py-1 pr-4 text-right tabular-nums">
+                  {number.format(venue[count])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Ready({ headcount, mode }: { headcount: Headcount; mode: AttendanceMode | undefined }) {
+  const { t } = useTranslation('events');
+  if (headcount.invited === 0) {
+    return <p className="text-muted-foreground m-0">{t('headcount.empty')}</p>;
+  }
+  const venues = mode === 'PER_VENUE' ? (headcount.venues ?? []) : [];
+  return (
+    <>
+      <Numbers headcount={headcount} />
+      {venues.length > 0 ? <VenueTable venues={venues} /> : null}
+    </>
+  );
+}
+
+function HeadcountBody({
+  result,
+  mode,
+}: {
+  result: HeadcountResult;
+  mode: AttendanceMode | undefined;
+}) {
   const { t } = useTranslation('events');
   const { t: common } = useTranslation('common');
   switch (result.kind) {
     case 'ready':
-      return result.headcount.invited > 0 ? (
-        <Numbers headcount={result.headcount} />
-      ) : (
-        <p className="text-muted-foreground m-0">{t('headcount.empty')}</p>
-      );
+      return <Ready headcount={result.headcount} mode={mode} />;
     case 'refused':
       return <p className="text-muted-foreground m-0">{t('headcount.refused')}</p>;
     case 'failed':
@@ -59,7 +123,14 @@ function HeadcountBody({ result }: { result: HeadcountResult }) {
  * The headcount from the dashboard: numbers, not a chart (design PD-42). A designer may open the
  * event but not its numbers, and a failed dashboard says so here without hiding the event.
  */
-export function HeadcountSummary({ result }: { result: HeadcountResult }) {
+export function HeadcountSummary({
+  result,
+  mode,
+}: {
+  result: HeadcountResult;
+  /** How guests answer; the per-venue table shows only when they answer per venue. */
+  mode?: AttendanceMode | undefined;
+}) {
   const { t } = useTranslation('events');
   const titleId = useId();
   return (
@@ -70,7 +141,7 @@ export function HeadcountSummary({ result }: { result: HeadcountResult }) {
       <h2 id={titleId} className="m-0 text-base font-medium">
         {t('headcount.title')}
       </h2>
-      <HeadcountBody result={result} />
+      <HeadcountBody result={result} mode={mode} />
     </section>
   );
 }

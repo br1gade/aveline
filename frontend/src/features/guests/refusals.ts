@@ -8,6 +8,8 @@ export type GuestAction = 'add' | 'edit' | 'household' | 'remove' | 'import';
 /** A failed write: what to say, and whether the list on screen is now out of date. */
 export interface Refusal {
   problem: Problem;
+  /** The backend's sentences, for telling apart refusals that share a status (FR-28). */
+  messages: readonly string[];
   /** A 400 whose messages named fields, which now carry them. */
   isOnFields: boolean;
   /** Something changed underneath: the list reloads behind the message (docs/API.md §6). */
@@ -37,6 +39,7 @@ export function refusalOf(error: unknown, action: GuestAction, fieldsMarked = 0)
   const status = problem.code === 'refused' ? problem.status : 0;
   return {
     problem,
+    messages: isApiError(error) ? error.messages : [],
     isOnFields: fieldsMarked > 0,
     isListStale: isListStale(action, status, fieldsMarked),
   };
@@ -56,6 +59,8 @@ type ProblemKey =
   | 'importMissing'
   | 'editErased'
   | 'checkedIn'
+  | 'ticketLinked'
+  | 'acknowledged'
   | 'moved'
   | 'importRunning'
   | 'tooLarge'
@@ -80,14 +85,32 @@ const WORDS: Readonly<Record<GuestAction, Partial<Record<number, ProblemKey>>>> 
   },
 };
 
+/**
+ * A removal's other 400s since `eb77cd4`, told apart from a check-in by their exact text
+ * (`guest-management.service.ts`; design PD-54, a stand-in until FR-28 gives them codes). A
+ * reworded sentence falls back to the check-in's words, as before.
+ */
+const REMOVAL_BY_TEXT: ReadonlyArray<readonly [RegExp, ProblemKey]> = [
+  [/^This guest is linked to a ticket/, 'ticketLinked'],
+  [/^This guest has acknowledgement evidence/, 'acknowledged'],
+];
+
+function keyOf(action: GuestAction, status: number, messages: readonly string[]) {
+  const byText =
+    action === 'remove' && status === 400
+      ? REMOVAL_BY_TEXT.find(([pattern]) => messages.some((message) => pattern.test(message)))
+      : undefined;
+  return byText?.[1] ?? WORDS[action][status];
+}
+
 export function useRefusedText(
   action: GuestAction,
   isOnFields: boolean,
-): (status: number) => string {
+): (status: number, messages?: readonly string[]) => string {
   const { t } = useTranslation('guests');
-  return (status) => {
+  return (status, messages = []) => {
     if (status === 400 && isOnFields) return t('problems.check');
-    const key = WORDS[action][status];
+    const key = keyOf(action, status, messages);
     return key ? t(`problems.${key}`) : t('problems.other');
   };
 }

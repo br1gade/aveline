@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -12,6 +12,7 @@ import { ApiError } from '@/api/errors';
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
 
+import { AttendanceSettings } from './components/attendance-mode';
 import { CreateEvent } from './components/create-event';
 import { EditEvent } from './components/edit-event';
 import { EventOverview } from './components/event-overview';
@@ -332,6 +333,153 @@ describe('EventOverview', () => {
     overview({ event: { ...EVENT, invitation: null } });
     expect(await screen.findByText('No invitation yet.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Publish and send' })).not.toBeInTheDocument();
+  });
+});
+
+describe('How guests answer, on the overview', () => {
+  const perVenue: EventDetail = { ...EVENT, attendanceMode: 'PER_VENUE', attendanceRevision: 2 };
+  const counts = { invited: 412, households: 160, declined: 41, undecided: 12, responseRate: 69 };
+
+  it('says how guests answer, with the way to change it', async () => {
+    overview({ event: { ...EVENT, attendanceMode: 'EVENT_WIDE', attendanceRevision: 1 } });
+    expect(await screen.findByText('One answer for the whole event.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Change' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/attendance',
+    );
+  });
+
+  it('gives each venue’s numbers when guests answer per venue, and none otherwise', async () => {
+    const venues = [
+      {
+        venueId: 'v1',
+        venue: 'Church',
+        invited: 412,
+        attending: 200,
+        declined: 50,
+        undecided: 12,
+        pending: 150,
+      },
+      {
+        venueId: 'v2',
+        venue: 'Hall',
+        invited: 412,
+        attending: 230,
+        declined: 41,
+        undecided: 12,
+        pending: 129,
+      },
+    ];
+    const headcount = { ...counts, attending: 230, pending: 129, venues };
+    overview({ event: perVenue, headcount: { kind: 'ready', headcount } });
+    const table = await screen.findByRole('table', { name: 'By venue' });
+    expect(within(table).getByRole('rowheader', { name: 'Church' })).toBeInTheDocument();
+    expect(within(table).getAllByRole('row')).toHaveLength(3);
+    cleanup();
+    overview({ event: EVENT, headcount: { kind: 'ready', headcount } });
+    await screen.findByText('Not answered');
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+describe('AttendanceSettings', () => {
+  const event: EventDetail = { ...EVENT, attendanceMode: 'EVENT_WIDE', attendanceRevision: 1 };
+  const preview = {
+    mode: 'PER_VENUE',
+    expectedRevision: 1,
+    previewToken: 'f'.repeat(32),
+    affected: { guests: 120, responses: 40, seatedGuests: 12, seats: 12 },
+    request: {},
+    seatsRetainedAsReservations: true,
+  };
+  const at = () =>
+    renderAt('/app/events/e1/attendance', '/app/events/:eventId/attendance', () => (
+      <AttendanceSettings event={event} />
+    ));
+
+  async function previewed(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole('button', { name: 'See what would change' }));
+    await screen.findByText(/The 40 answers given so far go back/);
+  }
+
+  it('previews what is set back, asks, changes, then offers to tell guests', async () => {
+    answer('post', '/events/e1/attendance-policy/preview', () =>
+      HttpResponse.json(preview, { status: 201 }),
+    );
+    const changed = answer('post', '/events/e1/attendance-policy', () =>
+      HttpResponse.json(
+        {
+          mode: 'PER_VENUE',
+          revision: 2,
+          notice: {
+            requiresReconfirmation: true,
+            notificationPath: '/api/v1/invitations/anna-davit-3f8a1c20/notify-changes',
+          },
+        },
+        { status: 201 },
+      ),
+    );
+    const user = at();
+    expect(await screen.findByText('One answer for the whole event.')).toBeInTheDocument();
+    await previewed(user);
+    expect(screen.getByText(/12 seated guests keep their seats/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ask per venue' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(changed).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Change' }));
+
+    expect(await screen.findByText(/Guests are now asked to answer again/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Let your guests know' })).toBeInTheDocument();
+    expect(changed).toEqual([
+      {
+        mode: 'PER_VENUE',
+        expectedRevision: 1,
+        previewToken: 'f'.repeat(32),
+        transitionId: expect.stringMatching(/^[0-9a-f-]{36}$/) as unknown,
+      },
+    ]);
+  });
+
+  it('starts again, saying why, when something changed since the preview', async () => {
+    answer('post', '/events/e1/attendance-policy/preview', () =>
+      HttpResponse.json(preview, { status: 201 }),
+    );
+    answer(
+      'post',
+      '/events/e1/attendance-policy',
+      refusal(409, 'previewToken: attendance or seating changed; preview again'),
+    );
+    const user = at();
+    await previewed(user);
+    await user.click(screen.getByRole('button', { name: 'Ask per venue' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Change' }),
+    );
+    expect(await screen.findByText(/Something changed since that preview/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'See what would change' })).toBeInTheDocument();
+  });
+
+  it('says a venue guests see is needed first, with the way to add one', async () => {
+    answer(
+      'post',
+      '/events/e1/attendance-policy/preview',
+      refusal(400, 'mode: per-venue attendance needs a guest-facing venue'),
+    );
+    const user = at();
+    await user.click(await screen.findByRole('button', { name: 'See what would change' }));
+    expect(await screen.findByRole('link', { name: 'Add a venue' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/venues',
+    );
+  });
+
+  it('explains a 403', async () => {
+    answer('post', '/events/e1/attendance-policy/preview', refusal(403));
+    const user = at();
+    await user.click(await screen.findByRole('button', { name: 'See what would change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your role on this event can’t change how guests answer.',
+    );
   });
 });
 

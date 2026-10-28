@@ -109,6 +109,29 @@ export interface HouseholdMemberName {
   name: string;
 }
 
+/**
+ * How a guest answers (docs/API.md §4, "Attendance modes"): one answer for the whole event, or one
+ * per guest-facing venue. A host's change of mode raises `revision`, sets every answer back to
+ * pending and asks the household to answer again (`needsReconfirmation`).
+ */
+export interface AttendanceView {
+  mode: 'EVENT_WIDE' | 'PER_VENUE';
+  revision: number;
+  /** The person's answer; in PER_VENUE, a summary of the venues' (coming to any is coming). */
+  status: RsvpStatus;
+  needsReconfirmation: boolean;
+  /** Empty in EVENT_WIDE; otherwise each guest-facing venue in the host's order. */
+  venues: Array<{ venueId: string; venue: string; status: RsvpStatus; respondedAt: string | null }>;
+}
+
+/** One seat at one venue's seating plan. */
+export interface SeatAssignment {
+  venueId: string;
+  venue: string;
+  table: string;
+  isReservation: boolean;
+}
+
 export interface InvitationGuest {
   id: string;
   name: string;
@@ -120,10 +143,21 @@ export interface InvitationGuest {
     members: HouseholdMemberName[];
   };
   rsvp: { status: RsvpStatus; respondedAt: string | null } | null;
-  /** The household's tables, once the host publishes the seating; `null` until then. */
+  /** Venue names in the page's language. Absent from backends before `eb77cd4`. */
+  attendance?: AttendanceView;
+  /**
+   * The household's tables, once the host publishes the seating; `null` until then. `table` is
+   * `null` when the guest has no seat or seats at several venues: `assignments` lists each.
+   */
   seating?: {
     table: string | null;
-    household: Array<{ id: string; name: string; table: string | null }>;
+    assignments?: SeatAssignment[];
+    household: Array<{
+      id: string;
+      name: string;
+      table: string | null;
+      assignments?: SeatAssignment[];
+    }>;
   } | null;
   /**
    * Opens the event's Telegram bot and subscribes this guest to reminders. It carries the guest's
@@ -155,6 +189,8 @@ export interface RsvpQuestion {
   required: boolean;
   prompt: string | null;
   options: string[];
+  /** A SIGNATURE question's current wording, which an agreement names; `null` for the others. */
+  statementVersionId?: string | null;
 }
 
 export interface Invitation {

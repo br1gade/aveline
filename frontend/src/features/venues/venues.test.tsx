@@ -402,6 +402,19 @@ describe('Correcting a venue', () => {
     );
   });
 
+  it('explains why a venue guests answered for must stay shown to them', async () => {
+    serve();
+    answer(
+      'patch',
+      '/events/e1/venues/v1',
+      refusal(409, 'venue: attendance, checkout choices or seats exist; keep it guest-facing'),
+    );
+    const user = renderAt('/app/events/e1/venues/v1/edit');
+    await user.selectOptions(await screen.findByLabelText('What happens there'), 'PREPARATION');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('it has to stay shown to guests');
+  });
+
   it('explains a venue removed while the form was open', async () => {
     serve();
     answer('patch', '/events/e1/venues/v1', refusal(404, 'No such venue on this event'));
@@ -454,17 +467,32 @@ describe('Removing a venue', () => {
       '/events/e1/venues/v1',
       refusal(
         400,
-        '2 timeline entr(ies) and 0 table(s) still point at this venue; move them first',
+        '2 timeline entr(ies), 0 table(s) and 1 release marker(s) still point at this venue; move or dismiss them first',
       ),
     );
     const user = renderAt('/app/events/e1/venues');
     await user.click(await screen.findByRole('button', { name: 'Remove: Saint Hripsime Church' }));
     await user.click(await screen.findByRole('button', { name: 'Remove' }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('can’t be removed while the running order or a table');
+    expect(alert).toHaveTextContent('running order, a table or a released seat');
     const english = within(alert).getByText(/still point at this venue/);
     expect(english).toHaveAttribute('lang', 'en');
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  });
+
+  it('explains a venue guests have answered for, which stays', async () => {
+    serve();
+    answer(
+      'delete',
+      '/events/e1/venues/v1',
+      refusal(400, 'venue: attendance history exists; retain this venue'),
+    );
+    const user = renderAt('/app/events/e1/venues');
+    await user.click(await screen.findByRole('button', { name: 'Remove: Saint Hripsime Church' }));
+    await user.click(await screen.findByRole('button', { name: 'Remove' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Guests have already answered for this venue');
+    expect(within(alert).getByText(/attendance history exists/)).toHaveAttribute('lang', 'en');
   });
 
   it('explains a 403', async () => {

@@ -8,7 +8,7 @@ import { APP_PATHS } from '@/route-paths';
 import { Button } from '@/ui/kit/button';
 
 import type { EventOverviewData } from '../load';
-import { editEventPath, guestListPath, invitationPath, venuesPath } from '../paths';
+import { attendancePath, editEventPath, guestListPath, invitationPath, venuesPath } from '../paths';
 import type { EventDetail } from '../types';
 import { HeadcountSummary } from './headcount-summary';
 
@@ -59,6 +59,17 @@ function EventDetails({ event }: { event: EventDetail }) {
         {invitation ? t(`overview.status.${invitation.status}`) : t('overview.noInvitation')}
       </Detail>
       {invitation ? <Detail term={t('overview.slug')}>{invitation.slug}</Detail> : null}
+      {event.attendanceMode ? (
+        <Detail term={t('overview.attendance')}>
+          {t(`attendance.now.${event.attendanceMode}`)}{' '}
+          <Link
+            to={attendancePath(event.id)}
+            className="text-primary underline underline-offset-4 hover:no-underline"
+          >
+            {t('overview.attendanceChange')}
+          </Link>
+        </Detail>
+      ) : null}
     </dl>
   );
 }
@@ -99,7 +110,7 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
         </div>
       </div>
       <EventDetails event={event} />
-      <HeadcountSummary result={data.headcount} />
+      <HeadcountSummary result={data.headcount} mode={event.attendanceMode} />
     </section>
   );
 }

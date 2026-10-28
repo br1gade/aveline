@@ -71,6 +71,66 @@ describe('readHouseholds', () => {
   });
 });
 
+describe('seats and answers per venue', () => {
+  const perVenue = {
+    mode: 'PER_VENUE',
+    revision: 2,
+    status: 'ATTENDING',
+    needsReconfirmation: true,
+    venues: [
+      { venueId: 'v1', venue: 'Church', status: 'ATTENDING', respondedAt: null },
+      { venueId: 'v2', venue: 'Hall', status: 'PENDING', respondedAt: null },
+    ],
+  };
+
+  it('keeps every seat with its venue, a held one marked, beside no single table', () => {
+    const [household] = readHouseholds([
+      householdWire({
+        guests: [
+          guestWire({
+            table: null,
+            attendance: perVenue,
+            seating: [
+              {
+                venueId: 'v1',
+                venue: 'Church',
+                table: 'Pew 2',
+                isReservation: false,
+                arrangementId: 'a1',
+                tableId: 't1',
+                position: 1,
+              } as never,
+              { venueId: 'v2', venue: 'Hall', table: 'Table 4', isReservation: true } as never,
+            ],
+          }),
+        ],
+      }),
+    ]);
+    expect(household?.guests[0]).toMatchObject({
+      table: null,
+      seats: [
+        { venue: 'Church', table: 'Pew 2', isReservation: false },
+        { venue: 'Hall', table: 'Table 4', isReservation: true },
+      ],
+      venueAnswers: [
+        { venue: 'Church', answer: 'ATTENDING' },
+        { venue: 'Hall', answer: 'PENDING' },
+      ],
+      isAskedAgain: true,
+    });
+    expect(JSON.stringify(household)).not.toContain('arrangementId');
+  });
+
+  it('reads one table, and no venue answers, from a backend before the change', () => {
+    const [household] = readHouseholds([householdWire()]);
+    expect(household?.guests[0]).toMatchObject({
+      seats: [{ venue: null, table: 'Table 4', isReservation: false }],
+      venueAnswers: [],
+      isAskedAgain: false,
+    });
+  });
+});
+
 describe('readImportResult', () => {
   it('keeps each refused row’s own spreadsheet number and the cell it quotes', () => {
     const result = readImportResult({

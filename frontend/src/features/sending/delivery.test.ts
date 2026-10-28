@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { createI18n } from '@/lib/i18n';
+
 import { deliveryGroupOf } from './delivery';
+import { deliveryText } from './delivery-text';
 import { readDelivery } from './read';
 import { guestIdsFor, needsConfirmation, SEND_LIMIT } from './send';
 import type { DeliveryRowWire, DeliveryWire } from './types';
@@ -79,6 +82,17 @@ describe('the delivery report, per household', () => {
     expect(JSON.stringify([...read.byHousehold.values()].at(-1))).not.toContain('armen@');
   });
 
+  it('keeps when it was read, and a failure kind it knows', () => {
+    const read = report([
+      row({ status: 'DELIVERED', readAt: '2027-05-01T11:00:00.000Z' }),
+      row({ householdId: 'h2', status: 'FAILED', deliveryFailureKind: 'CONFIGURATION' }),
+      row({ householdId: 'h3', status: 'FAILED', deliveryFailureKind: 'SOMETHING_NEW' }),
+    ]);
+    expect(read.byHousehold.get('h1')).toMatchObject({ readAt: '2027-05-01T11:00:00.000Z' });
+    expect(read.byHousehold.get('h2')).toMatchObject({ failureKind: 'CONFIGURATION' });
+    expect(read.byHousehold.get('h3')).toMatchObject({ failureKind: null, readAt: null });
+  });
+
   it('reads a status it does not know as unknown, which needs attention', () => {
     const read = report([row({ status: 'READ' })]);
     const delivery = read.byHousehold.get('h1');
@@ -138,5 +152,24 @@ describe('sending', () => {
     expect(guestIdsFor(Array.from({ length: SEND_LIMIT + 1 }, () => one))).toEqual({
       kind: 'tooMany',
     });
+  });
+});
+
+describe('the delivery line, in words', () => {
+  const t = createI18n('en').getFixedT('en', 'sending');
+  const zone = { timeZone: 'Asia/Yerevan', locale: 'en' };
+
+  it('says when it was read, in the event’s zone', () => {
+    const delivery = report([row({ status: 'DELIVERED', readAt: '2027-05-01T11:00:00.000Z' })]);
+    const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
+    expect(text.summary).toContain('read 1 May 2027, 15:00');
+  });
+
+  it('does not ask the host to send again when our own set-up stopped it', () => {
+    const delivery = report([row({ status: 'FAILED', deliveryFailureKind: 'CONFIGURATION' })]);
+    const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
+    expect(text.action).toBe(
+      'Sending on this channel isn’t set up correctly, which the guest can’t fix. Try again later.',
+    );
   });
 });

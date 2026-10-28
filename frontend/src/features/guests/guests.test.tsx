@@ -334,6 +334,40 @@ describe('GuestList: reading', () => {
   });
 });
 
+describe('GuestList: answers and seats per venue', () => {
+  it('shows each venue’s answer, every seat at its venue, and who is asked again', async () => {
+    serve([
+      householdWire({
+        guests: [
+          guestWire({
+            table: null,
+            rsvpStatus: 'ATTENDING',
+            attendance: {
+              mode: 'PER_VENUE',
+              needsReconfirmation: true,
+              venues: [
+                { venueId: 'v1', venue: 'Church', status: 'ATTENDING' },
+                { venueId: 'v2', venue: 'Hall', status: 'PENDING' },
+              ],
+            },
+            seating: [
+              { venue: 'Church', table: 'Pew 2', isReservation: false },
+              { venue: 'Hall', table: 'Table 4', isReservation: true },
+            ],
+          }),
+        ],
+      }),
+    ]);
+    renderList();
+    expect(await screen.findByText('Church: Coming · Hall: Not answered')).toBeInTheDocument();
+    expect(screen.getByText('Seated at Pew 2 (Church)')).toBeInTheDocument();
+    expect(
+      screen.getByText('Seated at Table 4 (Hall), held until they answer'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Asked to answer again')).toBeInTheDocument();
+  });
+});
+
 describe('GuestList: contact details this role cannot see', () => {
   const hidden = () => [householdWire({ id: 'h1', guests: [guestWithoutContact({ id: 'g1' })] })];
 
@@ -754,6 +788,24 @@ describe('GuestList: removing a guest', () => {
     await waitFor(() => expect(reads.guests).toBe(2));
   });
 
+  it.each([
+    ['This guest is linked to a ticket; retain their attendance history', 'holds a ticket'],
+    [
+      'This guest has acknowledgement evidence; use the privacy request process',
+      'needs a privacy request',
+    ],
+  ])('words the removal refused for “%s” as its own reason', async (message, words) => {
+    serve();
+    answer('delete', '/events/e1/guests/g1', refusal(400, message));
+    const user = renderList();
+    await user.click(await screen.findByRole('button', { name: 'Remove: Armen Petrosyan' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(words);
+    expect(alert).not.toHaveTextContent('checked in');
+  });
+
   it('reads a 409 as a move made at the same moment, and reloads the list', async () => {
     const reads = serve();
     answer(
@@ -926,6 +978,20 @@ describe('GuestList: the invitation', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Invitation')).not.toBeInTheDocument();
     expect(reads.delivery).toBe(0);
+  });
+
+  it('offers nothing to send once the invitation’s time has run out, and says why', async () => {
+    serve(guestList(), {
+      event: {
+        ...EVENT,
+        invitation: { slug: 'anna-davit-3f8a1c20', status: 'PUBLISHED', isExpired: true },
+      },
+    });
+    renderList();
+    expect(
+      await screen.findByText(/The invitation’s time has run out, so it can’t be sent./),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('leaves the list standing when the report fails, with the reference', async () => {

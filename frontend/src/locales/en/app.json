@@ -11,7 +11,8 @@
     "venues": "Venues · Aveline",
     "newVenue": "Add a venue · Aveline",
     "editVenue": "Edit a venue · Aveline",
-    "invitation": "Publish and send · Aveline"
+    "invitation": "Publish and send · Aveline",
+    "attendance": "How guests answer · Aveline"
   },
   "shell": {
     "loading": "Loading…",

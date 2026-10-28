@@ -54,7 +54,7 @@ afterAll(() => server.close());
 const VENUE = 'Add a venue with an address, so guests know where to go';
 const STARTED = 'This event has already started; an invitation now would arrive late';
 
-function event(status: InvitationStatus | null): EventDetail {
+function event(status: InvitationStatus | null, lifetime: Lifetime = {}): EventDetail {
   return {
     id: 'e1',
     title: 'The wedding of Anna and Davit',
@@ -67,8 +67,14 @@ function event(status: InvitationStatus | null): EventDetail {
     defaultLocale: 'hy',
     sideALabel: null,
     sideBLabel: null,
-    invitation: status ? { slug: SLUG, status } : null,
+    invitation: status ? { slug: SLUG, status, ...lifetime } : null,
   };
+}
+
+/** The invitation's time, as the event detail carries it since `eb77cd4`. */
+interface Lifetime {
+  expiresAt?: string | null;
+  isExpired?: boolean;
 }
 
 function report(overrides: Partial<DeliveryWire> = {}): DeliveryWire {
@@ -107,16 +113,23 @@ interface Served {
   status: InvitationStatus | null;
   blockers: string[];
   delivery: DeliveryWire | (() => Response);
+  lifetime: Lifetime;
 }
 
 /** A stateful backend: publishing, closing and reopening move the invitation it serves. */
 function serve(initial: Partial<Served> = {}) {
-  const state: Served = { status: 'DRAFT', blockers: [], delivery: report(), ...initial };
+  const state: Served = {
+    status: 'DRAFT',
+    blockers: [],
+    delivery: report(),
+    lifetime: {},
+    ...initial,
+  };
   const reads = { event: 0, design: 0, delivery: 0 };
   server.use(
     http.get(`${API}/events/e1`, () => {
       reads.event += 1;
-      return HttpResponse.json(event(state.status));
+      return HttpResponse.json(event(state.status, state.lifetime));
     }),
     http.get(`${API}/invitations/${SLUG}/design`, () => {
       reads.design += 1;
@@ -310,6 +323,45 @@ describe('InvitationPage: replies', () => {
     await user.click(screen.getByRole('button', { name: 'Take replies again' }));
     expect(await screen.findByText('Guests can reply again.')).toBeInTheDocument();
     expect(reopened).toEqual([null]);
+  });
+});
+
+describe('InvitationPage: its time', () => {
+  it('says until when guests can open it, in the event’s zone', async () => {
+    serve({
+      status: 'PUBLISHED',
+      lifetime: { expiresAt: '2027-09-10T20:00:00.000Z', isExpired: false },
+    });
+    renderPage();
+    expect(await screen.findByText('until 11 September 2027, 00:00')).toBeInTheDocument();
+  });
+
+  it('offers no sending once its time has run out, and says reopening keeps it so', async () => {
+    serve({
+      status: 'CLOSED',
+      lifetime: { expiresAt: '2027-09-10T20:00:00.000Z', isExpired: true },
+    });
+    renderPage();
+    expect(await screen.findByText('no longer: its time has run out')).toBeInTheDocument();
+    expect(screen.getByText(/taking replies again won’t let guests open it/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/guests can no longer open it, so it can’t be sent/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Send to every household not yet invited' }),
+    ).toBeNull();
+  });
+
+  it('explains a send refused because its time ran out meanwhile', async () => {
+    serve({ status: 'PUBLISHED', delivery: report({ invited: 2 }) });
+    answer(`/invitations/${SLUG}/send`, refusal(400, 'This invitation has expired'));
+    const user = renderPage();
+    await user.click(
+      await screen.findByRole('button', { name: 'Send to every household not yet invited' }),
+    );
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('This invitation’s time has run out, so it can’t be sent.');
+    expect(within(alert).getByText('This invitation has expired')).toHaveAttribute('lang', 'en');
   });
 });
 

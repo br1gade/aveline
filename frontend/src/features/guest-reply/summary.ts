@@ -5,14 +5,16 @@ import type { ReplyRecord } from './types';
 
 /**
  * How many people are coming: the respondent, the members answered as attending, and plus-ones
- * not yet answered for, who follow the respondent (docs/API.md §4).
+ * not yet answered for, who follow the respondent (docs/API.md §4). In PER_VENUE nobody follows,
+ * and someone coming to any venue is coming.
  */
 export function attendingCount(record: ReplyRecord): number {
   const isRespondentAttending = record.rsvp.status === 'ATTENDING';
+  const isFollowing = isRespondentAttending && record.attendance.mode === 'EVENT_WIDE';
   const members = record.household.members.filter(
     (member) =>
       member.status === 'ATTENDING' ||
-      (isRespondentAttending && member.addedByGuest && member.status === 'PENDING'),
+      (isFollowing && member.addedByGuest && member.status === 'PENDING'),
   );
   return (isRespondentAttending ? 1 : 0) + members.length;
 }

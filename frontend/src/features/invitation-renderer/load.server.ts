@@ -1,5 +1,6 @@
 import { createPublicApi } from '@/api/client';
 import { isApiError } from '@/api/errors';
+import { retryOnConflict } from '@/api/retry';
 import { readServerEnv } from '@/config/env.server';
 import { createI18n, isLanguage, SOURCE_LANGUAGE } from '@/lib/i18n';
 
@@ -16,13 +17,14 @@ export function previewMeta(invitation: Invitation): PreviewMeta {
 
 /**
  * Loads an invitation on the server, through the internal API address. A 404 (a wrong link, a
- * draft, or one past its retention date, C-22) becomes the not-found page; anything else goes to
- * the error boundary with its request id.
+ * draft, one past its retention date, C-22, or past its expiry) becomes the not-found page; a 409
+ * (the invitation changed while it was read) is tried again; anything else goes to the error
+ * boundary with its request id.
  */
 export async function loadInvitationPage(request: InvitationRequest): Promise<InvitationPageData> {
   const api = createPublicApi(readServerEnv().API_INTERNAL_URL);
   try {
-    const invitation = await fetchInvitation(api, request);
+    const invitation = await retryOnConflict(() => fetchInvitation(api, request));
     return { state: 'found', invitation, preview: previewMeta(invitation) };
   } catch (error) {
     if (isApiError(error) && error.status === 404) {

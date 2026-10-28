@@ -85,9 +85,16 @@ export interface Reachable {
   failureReason: string | null;
   /** ISO 8601 UTC; shown in the event's zone. */
   sentAt: string | null;
+  /** When the provider reported it read (WhatsApp); the status stays DELIVERED. */
+  readAt: string | null;
+  /** Why a provider reported it failed, when it said; only CONFIGURATION changes what to do. */
+  failureKind: FailureKind | null;
   reminders: number;
   lastRemindedAt: string | null;
 }
+
+export const FAILURE_KINDS = ['CONFIGURATION', 'TRANSIENT', 'AMBIGUOUS', 'UNKNOWN'] as const;
+export type FailureKind = (typeof FAILURE_KINDS)[number];
 
 export interface Unreachable {
   kind: 'unreachable';
@@ -148,6 +155,9 @@ export interface DeliveryRowWire {
   sentAt: string | null;
   reminders?: number;
   lastRemindedAt?: string | null;
+  /** Since `eb77cd4`: provider receipts. */
+  readAt?: string | null;
+  deliveryFailureKind?: string | null;
 }
 
 export interface DeliveryWire {
