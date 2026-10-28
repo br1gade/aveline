@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
+import type { DeliveryGroup } from '@/features/sending';
+
 import { filterFromQuery, withFilter, type GuestFilter } from '../filter';
 import type { Answer } from '../types';
 
@@ -11,8 +13,8 @@ const SEARCH_DELAY_MS = 300;
 const QUIETLY = { replace: true, preventScrollReset: true } as const;
 
 /**
- * The search and the answer filter, kept in the address (`?q=`, `?answer=`) so a reload or a shared
- * link keeps them. The search box holds its own text, so typing never waits for the router; the
+ * The search and the filters, kept in the address (`?q=`, `?answer=`, `?invite=`) so a reload or a
+ * shared link keeps them. The search box holds its own text, so typing never waits for the router; the
  * address catches up when typing stops. A change of address this hook did not write (Back, a link)
  * replaces what is typed. The route skips reloading for a change of query alone
  * (`revalidateUnlessQueryOnly`).
@@ -44,12 +46,13 @@ export function useGuestFilter() {
     return () => clearTimeout(timer);
   }, [query, addressQuery, setParams]);
 
-  const setAnswer = (answer: Answer | null) => write({ query, answer });
+  const setAnswer = (answer: Answer | null) => write({ ...inAddress, query, answer });
+  const setInvite = (invite: DeliveryGroup | null) => write({ ...inAddress, query, invite });
   const clear = () => {
     setQuery('');
-    write({ query: '', answer: null });
+    write({ query: '', answer: null, invite: null });
   };
 
-  const filter: GuestFilter = { query, answer: inAddress.answer };
-  return { filter, setQuery, setAnswer, clear };
+  const filter: GuestFilter = { query, answer: inAddress.answer, invite: inAddress.invite };
+  return { filter, setQuery, setAnswer, setInvite, clear };
 }

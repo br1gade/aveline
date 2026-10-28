@@ -1,0 +1,82 @@
+{
+  "roles": {
+    "choose": "Choose…",
+    "CEREMONY": "Ceremony",
+    "RECEPTION": "Reception",
+    "AFTER_PARTY": "After-party",
+    "PREPARATION": "Getting ready",
+    "OTHER": "Other"
+  },
+  "fields": {
+    "role": "What happens there",
+    "roleHelp": "“Getting ready” is for you and your team: guests don’t see it on the invitation.",
+    "name": "Name",
+    "nameHelp": "As guests will see it, such as “Saint Hripsime Church”.",
+    "address": "Address",
+    "addressHelp": "Shown to guests. The invitation can be published once a venue has an address.",
+    "mapUrl": "Map link (optional)",
+    "mapUrlHelp": "A link to the place on a map, starting with https://. Guests see it as “Directions”.",
+    "arrival": "When guests should arrive (optional)",
+    "arrivalHelp": "In the event’s time zone, {{timeZone}}, wherever your guests are. Leave both empty for no set time.",
+    "arrivalDate": "Date",
+    "arrivalTime": "Time",
+    "errors": {
+      "required": "Fill this in.",
+      "choose": "Choose one.",
+      "tooLong": "This is too long.",
+      "mapUrl": "Use a web address starting with https:// or http://. Guests wouldn’t be shown anything else.",
+      "arrivalPair": "Fill in both the date and the time, or leave both empty.",
+      "dateInvalid": "Enter a real date.",
+      "timeSkipped": "The clocks go forward at this time, so it doesn’t exist on that day in this time zone. Choose another time.",
+      "refused": "This wasn’t accepted. Check it.",
+      "other": "Check this field."
+    }
+  },
+  "form": {
+    "newTitle": "Add a venue",
+    "editTitle": "Edit {{name}}",
+    "lead": "Guests who open the invitation see a change at once.",
+    "newSubmit": "Add the venue",
+    "adding": "Adding…",
+    "editSubmit": "Save changes",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "goneTitle": "This venue is no longer on the event",
+    "goneBody": "Someone may have removed it."
+  },
+  "list": {
+    "back": "Back to the event",
+    "title": "Venues",
+    "lead": "Where your guests go. The invitation shows each venue with its address and directions, and can be published once one has an address.",
+    "add": "Add a venue",
+    "empty": "No venues yet.",
+    "arrival": "Guests arrive at {{time}}, {{date}} ({{timeZone}})",
+    "directions": "Directions",
+    "newTab": "(opens in a new tab)",
+    "mapUnusable": "The map link isn’t a web address, so guests aren’t shown it. Edit the venue to correct it.",
+    "hiddenRole": "{{role}}: not shown to guests",
+    "edit": "Edit",
+    "remove": "Remove",
+    "removed": "{{name}} was removed."
+  },
+  "actionFor": "{{action}}: {{name}}",
+  "remove": {
+    "title": "Remove {{name}}?",
+    "body": "Guests will no longer see it on the invitation.",
+    "confirm": "Remove",
+    "removing": "Removing…",
+    "cancel": "Cancel"
+  },
+  "notify": {
+    "back": "Back to the venues"
+  },
+  "problems": {
+    "forbidden": "Your role on this event can’t change its venues. The event’s owner can change your role.",
+    "missing": "This venue is no longer on the event. The list has been reloaded.",
+    "eventMissing": "This event is no longer available.",
+    "conflict": "That can’t be done in the event’s current state. Reload the page to see it as it is now.",
+    "inUse": "This venue can’t be removed while the running order or a table still uses it. Move them to another venue first.",
+    "check": "Some details weren’t accepted. Check them and try again.",
+    "other": "This wasn’t accepted. Try again."
+  }
+}

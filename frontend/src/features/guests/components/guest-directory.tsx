@@ -4,11 +4,19 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import type { EventDetail } from '@/features/events';
+import {
+  deliveryGroupOf,
+  useDeliveryTexts,
+  type DeliveryReport,
+  type DeliveryText,
+  type Loaded,
+} from '@/features/sending';
 import { Button } from '@/ui/kit/button';
 
 import {
   filterHouseholds,
   indexHouseholds,
+  type GroupOf,
   type GuestFilter,
   type VisibleHousehold,
 } from '../filter';
@@ -17,13 +25,16 @@ import { importGuestsPath } from '../paths';
 import type { Household } from '../types';
 import type { DialogTarget } from './dialog-target';
 import { GuestDialog } from './guest-dialog';
-import { HouseholdCard, type OpenDialog, type SideNames } from './household-card';
+import { HouseholdCard, type OnChoose, type OpenDialog, type SideNames } from './household-card';
 import { HouseholdDialog } from './household-dialog';
 import { ListToolbar } from './list-toolbar';
 import { RemoveGuestDialog } from './remove-guest-dialog';
+import { SendBar } from './send-bar';
+import { SendingNotes } from './sending-notes';
 import { useGuestFilter } from './use-guest-filter';
 import { useSideNames } from './use-guest-options';
 import { useListDialogs, type DialogHostActions } from './use-list-dialogs';
+import { useSendFromList } from './use-send-from-list';
 
 function countLine(
   visible: readonly VisibleHousehold[],
@@ -86,15 +97,23 @@ function DialogHost({ event, households, target, isListContactShown, host }: Dia
   }
 }
 
+/** Each household's invitation line, and whether it is chosen for sending (`null`: not sendable). */
+interface Sending {
+  texts: ReadonlyMap<string, DeliveryText>;
+  chosen: ReadonlySet<string> | null;
+  onChoose: OnChoose;
+}
+
 interface ResultsProps {
   households: readonly Household[];
   visible: readonly VisibleHousehold[];
   sides: SideNames;
+  sending: Sending;
   onOpen: OpenDialog;
   onClear: () => void;
 }
 
-function Results({ households, visible, sides, onOpen, onClear }: ResultsProps) {
+function Results({ households, visible, sides, sending, onOpen, onClear }: ResultsProps) {
   const { t } = useTranslation('guests');
   if (households.length === 0)
     return <p className="text-muted-foreground m-0">{t('list.empty')}</p>;
@@ -118,6 +137,9 @@ function Results({ households, visible, sides, onOpen, onClear }: ResultsProps) 
           sides={sides}
           t={t}
           onOpen={onOpen}
+          delivery={sending.texts.get(household.id)}
+          isChosen={sending.chosen ? sending.chosen.has(household.id) : null}
+          onChoose={sending.onChoose}
         />
       ))}
     </div>
@@ -139,59 +161,131 @@ function StatusLine({
 }
 
 /** What the list shows for the filter, worked out only when the data or the filter changes. */
-function useVisibleHouseholds(households: readonly Household[], filter: GuestFilter) {
+function useVisibleHouseholds(
+  households: readonly Household[],
+  filter: GuestFilter,
+  groupOf: GroupOf | undefined,
+) {
   const query = useDeferredValue(filter.query);
   const index = useMemo(() => indexHouseholds(households), [households]);
   const visible = useMemo(
-    () => filterHouseholds(index, { query, answer: filter.answer }),
-    [index, query, filter.answer],
+    () => filterHouseholds(index, { query, answer: filter.answer, invite: filter.invite }, groupOf),
+    [index, query, filter.answer, filter.invite, groupOf],
   );
-  const isFiltered = Boolean(query.trim()) || filter.answer !== null;
+  const isInviteFiltered = Boolean(groupOf) && filter.invite !== null;
+  const isFiltered = Boolean(query.trim()) || filter.answer !== null || isInviteFiltered;
   return { visible, isFiltered };
 }
 
-/**
- * The guest list itself (design PD-44): the actions, the search and the filter, the households,
- * and one dialog at a time. Filtering runs on a deferred copy of the search, so typing stays quick
- * on a list of two thousand.
- */
-export function GuestDirectory({
-  event,
-  households,
+/** Each household's invitation line, and choosing households while the invitation is published. */
+function useSending(
+  event: EventDetail,
+  households: readonly Household[],
+  report: DeliveryReport | null,
+) {
+  const texts = useDeliveryTexts(report, event);
+  const sender = useSendFromList({ event, households, report });
+  const isSendable = event.invitation?.status === 'PUBLISHED' && households.length > 0;
+  const sending: Sending = {
+    texts,
+    chosen: isSendable ? sender.chosen : null,
+    onChoose: sender.choose,
+  };
+  return { sender, sending, isSendable };
+}
+
+/** The delivery report's group for each household, once there is a report. */
+function useGroupOf(report: DeliveryReport | null): GroupOf | undefined {
+  return useMemo(
+    () =>
+      report ? (householdId) => deliveryGroupOf(report.byHousehold.get(householdId)) : undefined,
+    [report],
+  );
+}
+
+/** Adding a guest, and importing a spreadsheet. */
+function ListActions({ eventId, onOpen }: { eventId: string; onOpen: OpenDialog }) {
+  const { t } = useTranslation('guests');
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button
+        onClick={(click) =>
+          onOpen({ kind: 'add', householdId: NEW_HOUSEHOLD }, click.currentTarget)
+        }
+      >
+        {t('list.add')}
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={importGuestsPath(eventId)}>{t('list.import')}</Link>
+      </Button>
+    </div>
+  );
+}
+
+/** Choosing households, and sending to them: "Choose all shown" takes what the filter shows. */
+function ListSendBar({
+  sender,
+  visible,
 }: {
+  sender: ReturnType<typeof useSendFromList>;
+  visible: readonly VisibleHousehold[];
+}) {
+  return (
+    <SendBar
+      count={sender.count}
+      isTooMany={sender.isTooMany}
+      isSending={sender.send.isSending}
+      onChooseShown={() => sender.chooseAll(visible.map(({ household }) => household.id))}
+      onClear={sender.clear}
+      onSend={sender.sendChosen}
+    />
+  );
+}
+
+interface GuestDirectoryProps {
   event: EventDetail;
   households: readonly Household[];
-}) {
+  delivery: Loaded<DeliveryReport> | null;
+}
+
+/**
+ * The guest list itself (design PD-44): the actions, the search and the filters, the households,
+ * and one dialog at a time; with the invitation's delivery report on each household, and choosing
+ * households to send it to while it is published (PD-48). Filtering runs on a deferred copy of the
+ * search, so typing stays quick on a list of two thousand.
+ */
+export function GuestDirectory({ event, households, delivery }: GuestDirectoryProps) {
   const { t } = useTranslation('guests');
-  const { filter, setQuery, setAnswer, clear } = useGuestFilter();
-  const { visible, isFiltered } = useVisibleHouseholds(households, filter);
+  const { filter, setQuery, setAnswer, setInvite, clear } = useGuestFilter();
+  const report = delivery?.kind === 'ready' ? delivery.value : null;
+  const groupOf = useGroupOf(report);
+  const { visible, isFiltered } = useVisibleHouseholds(households, filter, groupOf);
   const isContactHidden = useMemo(
     () => households.some(({ guests }) => guests.some((guest) => !guest.contact.isShown)),
     [households],
   );
   const sides = useSideNames(event);
   const { target, open, host, status, statusRef } = useListDialogs(households);
+  const { sender, sending, isSendable } = useSending(event, households, report);
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          onClick={(click) =>
-            open({ kind: 'add', householdId: NEW_HOUSEHOLD }, click.currentTarget)
-          }
-        >
-          {t('list.add')}
-        </Button>
-        <Button asChild variant="outline">
-          <Link to={importGuestsPath(event.id)}>{t('list.import')}</Link>
-        </Button>
-      </div>
+      <ListActions eventId={event.id} onOpen={open} />
       {isContactHidden ? (
         <p className="text-muted-foreground m-0 text-sm">{t('list.contactHidden')}</p>
       ) : null}
+      <SendingNotes event={event} delivery={delivery} sender={sender} />
       <div className="flex flex-col gap-3">
         {households.length > 0 ? (
-          <ListToolbar filter={filter} onQuery={setQuery} onAnswer={setAnswer} />
+          <div className="bg-background border-border sticky top-0 z-10 flex flex-col gap-3 border-b py-3">
+            <ListToolbar
+              filter={filter}
+              onQuery={setQuery}
+              onAnswer={setAnswer}
+              onInvite={report ? setInvite : null}
+            />
+            {isSendable ? <ListSendBar sender={sender} visible={visible} /> : null}
+          </div>
         ) : null}
         <p aria-live="polite" className="text-muted-foreground m-0 text-sm">
           {households.length > 0 ? countLine(visible, isFiltered, t) : ''}
@@ -202,6 +296,7 @@ export function GuestDirectory({
           households={households}
           visible={visible}
           sides={sides}
+          sending={sending}
           onOpen={open}
           onClear={clear}
         />

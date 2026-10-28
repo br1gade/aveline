@@ -277,6 +277,18 @@ describe('EventOverview', () => {
     );
   });
 
+  it('links to the venues, and to publishing and sending the invitation', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Venues' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/venues',
+    );
+    expect(screen.getByRole('link', { name: 'Publish and send' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/invitation',
+    );
+  });
+
   it('shows the headcount', async () => {
     overview();
     const numbers = await screen.findByRole('region', { name: 'Guests' });
@@ -319,6 +331,7 @@ describe('EventOverview', () => {
   it('says when the event has no invitation yet', async () => {
     overview({ event: { ...EVENT, invitation: null } });
     expect(await screen.findByText('No invitation yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Publish and send' })).not.toBeInTheDocument();
   });
 });
 

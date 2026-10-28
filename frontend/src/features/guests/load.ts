@@ -1,6 +1,7 @@
 import type { ApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { getEvent, type EventDetail } from '@/features/events';
+import { loadDelivery, type DeliveryReport, type Loaded } from '@/features/sending';
 
 import { listGuests, listImports } from './api';
 import type { Household, ImportRecord } from './types';
@@ -23,15 +24,25 @@ async function unlessRefused<T>(load: Promise<T>): Promise<Readable<T>> {
 export interface GuestListData {
   event: EventDetail;
   households: Readable<Household[]>;
+  /**
+   * Who was invited, once the invitation is published (design PD-48); `null` for a draft. Its own
+   * failure leaves the list standing.
+   */
+  delivery: Loaded<DeliveryReport> | null;
 }
 
-/** The event and its guests in parallel. Only the event's own failure, or a 5xx, fails the page. */
+/**
+ * The event and its guests in parallel, and the delivery report as soon as the event names its
+ * invitation. Only the event's own failure, or the list's 5xx, fails the page.
+ */
 export async function loadGuestList(api: ApiClient, eventId: string): Promise<GuestListData> {
-  const [event, households] = await Promise.all([
-    getEvent(api, eventId),
+  const eventLoad = getEvent(api, eventId);
+  const [event, households, delivery] = await Promise.all([
+    eventLoad,
     unlessRefused(listGuests(api, eventId)),
+    eventLoad.then((loaded) => loadDelivery(api, loaded)),
   ]);
-  return { event, households };
+  return { event, households, delivery };
 }
 
 export interface GuestImportsData {

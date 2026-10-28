@@ -24,7 +24,9 @@
     "label": "Find guests",
     "search": "Search by name",
     "answer": "Answer",
-    "anyAnswer": "Any answer"
+    "anyAnswer": "Any answer",
+    "invite": "Invitation",
+    "anyInvite": "Any"
   },
   "answer": {
     "ATTENDING": "Coming",
@@ -42,7 +44,8 @@
     "seats_one": "{{named}} of {{count}} seat named",
     "seats_other": "{{named}} of {{count}} seats named",
     "edit": "Edit household",
-    "addHere": "Add a guest here"
+    "addHere": "Add a guest here",
+    "invitation": "Invitation:"
   },
   "actionFor": "{{action}}: {{name}}",
   "row": {
@@ -177,5 +180,32 @@
       "showRows_one": "Show the row not imported",
       "showRows_other": "Show the {{count}} rows not imported"
     }
+  },
+  "inviteGroup": {
+    "notSent": "Not sent yet",
+    "onItsWay": "On its way",
+    "sent": "Sent",
+    "attention": "Needs attention"
+  },
+  "invite": {
+    "DRAFT": "The invitation is a draft, so nothing has been sent yet.",
+    "PUBLISHED": "Tick households to send them the invitation, or send it to everyone not yet invited.",
+    "CLOSED": "Replies to the invitation are stopped, so it can’t be sent.",
+    "link": "Publish and send",
+    "refused": "Who was invited isn’t shown to your role on this event."
+  },
+  "send": {
+    "label": "Send the invitation",
+    "chooseLabel": "Choose",
+    "choose": "Choose {{name}}",
+    "chosen_one": "{{count, number}} household chosen",
+    "chosen_other": "{{count, number}} households chosen",
+    "chooseShown": "Choose all shown",
+    "clear": "Clear the choice",
+    "submit_one": "Send to {{count, number}} household",
+    "submit_other": "Send to {{count, number}} households",
+    "sending": "Sending…",
+    "none": "Tick the households to send the invitation to.",
+    "tooMany": "Choose up to {{limit, number}} households at a time, or send to everyone not yet invited from Publish and send."
   }
 }

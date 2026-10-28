@@ -97,9 +97,10 @@ function EditForm({ event, onSuggested }: EditFormProps) {
  * only here, never in history: a reload or Back must not offer to send it again.
  */
 export function EditEvent({ event }: { event: EventDetail }) {
+  const { t } = useTranslation('events');
   const [offer, setOffer] = useState<NotifyOffer | null>(null);
   return offer ? (
-    <NotifyGuests eventId={event.id} offer={offer} />
+    <NotifyGuests offer={offer} back={{ to: eventPath(event.id), label: t('notify.back') }} />
   ) : (
     <EditForm event={event} onSuggested={setOffer} />
   );

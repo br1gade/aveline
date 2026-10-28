@@ -8,7 +8,7 @@ import { APP_PATHS } from '@/route-paths';
 import { Button } from '@/ui/kit/button';
 
 import type { EventOverviewData } from '../load';
-import { editEventPath, guestListPath } from '../paths';
+import { editEventPath, guestListPath, invitationPath, venuesPath } from '../paths';
 import type { EventDetail } from '../types';
 import { HeadcountSummary } from './headcount-summary';
 
@@ -64,8 +64,9 @@ function EventDetails({ event }: { event: EventDetail }) {
 }
 
 /**
- * One event: its details and its headcount (design PD-42), and the way to its guest list (PD-44).
- * "Edit details" is offered to every role; one that may not edit is told so when it tries (FR-6).
+ * One event: its details and its headcount (design PD-42), and the ways to its guest list (PD-44),
+ * its venues (PD-46) and its invitation's publishing and sending (PD-47). Every action is offered
+ * to every role; one that may not do it is told so when it tries (FR-6).
  */
 export function EventOverview({ data }: { data: EventOverviewData }) {
   const { t } = useTranslation('events');
@@ -84,6 +85,14 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
           <Button asChild variant="outline">
             <Link to={guestListPath(event.id)}>{t('overview.guests')}</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link to={venuesPath(event.id)}>{t('overview.venues')}</Link>
+          </Button>
+          {event.invitation ? (
+            <Button asChild variant="outline">
+              <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
+            </Button>
+          ) : null}
           <Button asChild variant="outline">
             <Link to={editEventPath(event.id)}>{t('overview.edit')}</Link>
           </Button>

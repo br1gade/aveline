@@ -1,0 +1,1 @@
+export { safeExternalUrl } from './links';

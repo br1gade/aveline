@@ -8,7 +8,9 @@
 > The first surface is the guest invitation. The organizer app comes later (design decision C-7);
 > since 23 October 2026 its way in exists: the account pages and the app's first screens, then
 > creating an event, opening it and correcting its details. Since 24 October an event has its
-> guest list: reading it, importing a spreadsheet, and keeping it right.
+> guest list: reading it, importing a spreadsheet, and keeping it right. Since 25 October it has
+> its venues, and its invitation can be published and sent, with who was invited shown on the
+> guest list.
 
 ## 1. Stack
 
@@ -35,7 +37,7 @@
 | Public: `/invitations/:slug`, `/invitations/:slug/g/:guestToken` | Server | A server `loader` against the public API; `meta` from the response |
 | Capability, later: `/tickets/:accessToken`, `/briefs/:briefToken` | Server shell | Fetched in the browser; `noindex`; `no-referrer` |
 | Account: `/sign-in`, `/register`, `/reset-password`, `/verify-email`, `/accept-invite`, `/accept-event-invite` | Server, the form included | A server `loader` for the language only; forms submit from the browser. Sign-in and register skip to the app when a session is stored (`clientLoader`) |
-| App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit`, `/app/events/:eventId/guests`, `/app/events/:eventId/guests/import` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame. A change of query alone (the guest list's search and filter) reloads nothing: the root, the layout and the guest list skip it, and the `/app` segment reloads only when `?lang=` changes (`src/lib/routing`) |
+| App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit`, `/app/events/:eventId/guests`, `/app/events/:eventId/guests/import`, `/app/events/:eventId/venues`, `/app/events/:eventId/venues/new`, `/app/events/:eventId/venues/:venueId/edit`, `/app/events/:eventId/invitation` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame. A change of query alone (the guest list's search and filter) reloads nothing: the root, the layout and the guest list skip it, and the `/app` segment reloads only when `?lang=` changes (`src/lib/routing`) |
 
 Rules:
 
@@ -45,7 +47,7 @@ Rules:
 - **A form that submits from JavaScript** has `method="post"` and a submit button disabled until
   hydration (`useIsHydrated`), so nothing typed, a password above all, can reach the address bar
   before React runs. The account forms, the event forms, the guest list's dialogs, the import
-  form and the guest reply form do (design PD-41).
+  form, the venue form and the guest reply form do (design PD-41).
 - **No browser globals at module scope.**
 - **Filters live in the address,** written in place (`replace`) and without a scroll jump, so a
   reload or a shared link keeps them. The guest list's search box holds its own text and the
@@ -61,8 +63,10 @@ breaking change for the backend's emails (FR-8 asks for the table in `docs/API.m
 the bank's default return pages, `/tickets/return` and `/billing/return`; React Router ranks the
 static `/tickets/return` above `/tickets/:accessToken`. The client's own paths, which nothing
 outside links to, are in `APP_PATHS` beside them: registering, the app's home, onboarding, the
-event pages and an event's guest list and import. The static `/app/events/new` ranks above
-`/app/events/:eventId`, and `/guests/import` would rank above a `/guests/:guestId`.
+event pages, an event's guest list and import, its venues (adding and correcting one) and its
+invitation's publishing and sending. The static `/app/events/new` ranks above
+`/app/events/:eventId`; `/venues/new` would rank above a `/venues/:venueId`, and `/guests/import`
+above a `/guests/:guestId`.
 
 ## 4. The API layer (`src/api/`)
 
@@ -236,7 +240,21 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   in the answers to adding and correcting a guest (FR-29). It stops where the response arrives:
   `features/guests/read.ts` builds every object by naming its fields, and the write calls resolve
   to nothing. It is never rendered, stored, logged or put in an address, and no test fixture holds
-  one: the tests make theirs at run time and check it went nowhere.
+  one: the tests make theirs at run time and check it went nowhere. The venue, publishing,
+  sending and delivery answers carry none (checked against the backend's services on 25 October
+  2026); their readers (`features/venues/read.ts`, `features/sending/read.ts`) still name every
+  field they keep, and the tests put a token into the venue, draft, send and delivery answers and
+  check it went nowhere. Publishing, closing and reopening keep only the answer's `status`.
+- **Addresses in the invitation's answers:** the delivery report omits `toAddress` without
+  `guest:contact:read`, and the client reads a missing one as "not yours to see". Its
+  `failureReason` is the mail server's own reply, which often quotes the address, so it is shown
+  only when the address arrived too (FR-35). The send answer carries `toAddress` whatever the role
+  (FR-34); it is shown where it arrived and never logged. A Telegram address is a chat number and
+  is never shown, only "on Telegram".
+- **Publishing's refusals** are English sentences without a code (FR-32). The three the backend
+  has are recognised by their exact text and worded in the page's language, each linked to its fix
+  (design PD-49); anything else is shown as it came, marked `lang="en"`. A send's unreachable
+  reasons are shown in English the same way (FR-33).
 - **Capability links** are redacted with the patterns of `backend/src/common/redact-url.ts`
   before anything is logged, and a test reads that file so the copy cannot drift. A payment's
   order number and an invitee's address are redacted too, though they make no page a capability
@@ -248,8 +266,8 @@ Pure, safe to render on the server, light on JavaScript. Specified by
 
 | Layer | Tool | What |
 |---|---|---|
-| Unit | Vitest | `lib/` (money, time, redaction and its parity with the backend's, language negotiation), the API error mapping, the session (refresh races, the browser session against MSW), the route contract, `safeNext`, the account schemas, block order and fallbacks, the theme stand-in, tokens and contrast, i18n key parity; typed times to UTC (Yerevan, clocks skipping and repeating in London, Los Angeles and Sydney, zones off the hour, impossible input, the device's own zone), the event form's checks, payloads that send only what changed, a 400's messages mapped to fields, the overview's loader; the guest list's readers (no token gets through, a missing contact field is not an empty one), its payloads (only what changed, `""` to clear, never an email or phone it did not receive), its 400s mapped to fields, its search and filter in the address, its forms' limits, and the revalidation guards. The multipart upload runs under Node (`api.test.ts`, `@vitest-environment node`), since jsdom's `File` and `FormData` are not the ones Node's fetch sends |
-| Component | Vitest, Testing Library, MSW | The invitation page (order, unknown types, personal and generic links, closed, zones, countdown); the reply form's states: sent, client checks, 400 mapped to fields, 429, 5xx with a reference, closed mid-send, and posting with Send disabled before hydration; every account page and its refusals, the token taken out of the address and kept across a language switch, the email check sent once under StrictMode, creating the organization; the app's header signing out, here and on every device; the events list in each event's time zone, linked to each overview, and creating the first from an empty list; creating an event (its defaults, the checks, the UTC body, a skipped time, a 400 on its field, 403, 429, 5xx with a reference, and posting with the submit disabled before hydration); the overview (the event's zone, its languages and invitation, the headcount, and the headcount refused, failed or empty); an event that cannot be opened; correcting one (prefilled in its zone, only what changed, nothing when nothing did, the form's baseline kept when the page's data reloads, "let your guests know" sent only when pressed, with or without a note, "Not now", the draft refusal, 403, the end-time refusal); 409 on create; the app's frame saying "Loading…" while a click waits for the next page; the guest list (households in order with seats, answers, sides and tables; no token on the page or in the console; without contact access; the filter from and to the address without reloading, and following the address on Back; adding, correcting, clearing an email, moving and removing, each reloading the list; nothing sent when nothing changed; the focus after an edit, a move and a removal; a 400 under its field, an erased guest, a check-in, 403, 404, 409 on an edit and on a removal, 429, 5xx; the designer's 403); the import (a partial result by its own row numbers beside the upload, row 0 as the file, a file refused whole, English reasons marked, the 2 MB check before sending, 409, 413, 400, 403, 429, 5xx, the history, posting with the submit disabled before hydration) |
+| Unit | Vitest | `lib/` (money, time, redaction and its parity with the backend's, language negotiation), the API error mapping, the session (refresh races, the browser session against MSW), the route contract, `safeNext`, the account schemas, block order and fallbacks, the theme stand-in, tokens and contrast, i18n key parity; typed times to UTC (Yerevan, clocks skipping and repeating in London, Los Angeles and Sydney, zones off the hour, impossible input, the device's own zone), the event form's checks, payloads that send only what changed, a 400's messages mapped to fields, the overview's loader; the guest list's readers (no token gets through, a missing contact field is not an empty one), its payloads (only what changed, `""` to clear, never an email or phone it did not receive), its 400s mapped to fields, its search and filter in the address, its forms' limits, and the revalidation guards; the venue form's checks (both or neither arrival, a skipped time, only an http or https map link), its payloads (only what changed, `null` to clear, the arrival typed in Yerevan, London and Kolkata as UTC), its 400s mapped to fields and its readers; the publish blockers recognised by text, a send's three outcomes (no Telegram address, a missing address read as hidden, no token), the delivery report per household (a retry told from a wait, the server's failure text kept only with the address, no token), the invitation filter, the first send's question and one guest named per chosen household. The multipart upload runs under Node (`api.test.ts`, `@vitest-environment node`), since jsdom's `File` and `FormData` are not the ones Node's fetch sends |
+| Component | Vitest, Testing Library, MSW | The invitation page (order, unknown types, personal and generic links, closed, zones, countdown); the reply form's states: sent, client checks, 400 mapped to fields, 429, 5xx with a reference, closed mid-send, and posting with Send disabled before hydration; every account page and its refusals, the token taken out of the address and kept across a language switch, the email check sent once under StrictMode, creating the organization; the app's header signing out, here and on every device; the events list in each event's time zone, linked to each overview, and creating the first from an empty list; creating an event (its defaults, the checks, the UTC body, a skipped time, a 400 on its field, 403, 429, 5xx with a reference, and posting with the submit disabled before hydration); the overview (the event's zone, its languages and invitation, the headcount, and the headcount refused, failed or empty); an event that cannot be opened; correcting one (prefilled in its zone, only what changed, nothing when nothing did, the form's baseline kept when the page's data reloads, "let your guests know" sent only when pressed, with or without a note, "Not now", the draft refusal, 403, the end-time refusal); 409 on create; the app's frame saying "Loading…" while a click waits for the next page; the guest list (households in order with seats, answers, sides and tables; no token on the page or in the console; without contact access; the filter from and to the address without reloading, and following the address on Back; adding, correcting, clearing an email, moving and removing, each reloading the list; nothing sent when nothing changed; the focus after an edit, a move and a removal; a 400 under its field, an erased guest, a check-in, 403, 404, 409 on an edit and on a removal, 429, 5xx; the designer's 403); the import (a partial result by its own row numbers beside the upload, row 0 as the file, a file refused whole, English reasons marked, the 2 MB check before sending, 409, 413, 400, 403, 429, 5xx, the history, posting with the submit disabled before hydration); the venues (in their order, arrivals in the event's zone, directions only through a web link, a preparation venue marked hidden, no token on the page; adding with the arrival as UTC, the checks, a 400 under its field, 403, 429, 5xx with a reference, the offer to tell guests sent only when asked, posting before hydration; correcting only what changed, clearing with `null`, nothing sent when nothing changed, a venue gone before and after saving; removing after the question, the focus on the status line, a venue in use with the backend's words in English, 403, and the offer in place of the list with "Not now" going back to it); the invitation page (every blocker at once with its fix, an unknown one in English, the question before publishing that says there is no way back, cancelling, blockers on the press, a state changed meanwhile, 403, 409, 429, 5xx; stopping and taking replies; the first send's question with its counts, the three outcomes with what to do, a second press sent at once, the report refused or failed, each send refusal, no invitation); and the guest list's invitation (each household's line in the event's zone, the server's words only with the address, a household nothing can reach, the filter in the address, choosing and sending with one guest per household, the first send's question, a refusal keeping the choice, a draft offering nothing, a failed report leaving the list) |
 | End-to-end | Playwright against the local backend | A guest opens a personal link, replies for the household, edits, sees the closed state; raw server HTML carries the right meta and no guest name. **Not written yet:** the local backend needs Docker |
 | Accessibility | `@axe-core/playwright` | Guest pages, the account pages and the app's screens; serious and critical violations fail |
 
@@ -284,6 +302,27 @@ contact access, a designer's 403, Armenian and Russian with the search kept acro
 switch and restored by Back, and 360 px in all three languages without horizontal scroll. axe found no serious or
 critical violation on any page, state or open dialog. None of the 2,001 tokens appeared in the
 page, the address, the console, browser storage or any request's address.
+On 25 October 2026 a fourth throwaway script walked the venues, publishing and sending the same
+way, against a stateful mock with 2,000 guests in 800 households and tokens made at run time.
+It covered every blocker listed at once and Publish disabled with its reason; the venue form's
+checks (nothing sent), a map link the guest page would drop, an arrival typed in Yerevan sent as
+UTC and a correction sending only the moved time; a venue in use refused with the backend's
+words marked English; the question before publishing, then the status line taking the focus; the
+first send's question, its body sending no `guestIds`, the outcome, and a second press sent at once
+without a question; the guest list with the report, the "needs attention" filter in the address,
+a bounce's server words shown to the owner, and two households chosen and sent to with one guest
+each; the offer to tell guests after a venue change, sent once with its note; replies stopped and
+taken again; a send refused with 500 (a reference) and 429; a viewer shown no address and no
+server words, and their send's 403; a designer told the report is not theirs and their venue's
+403; a London arrival the clocks skip, refused on the time field; and the venue, invitation and
+guest pages in Armenian and Russian, and all of them at 360 px in three languages. The send
+button's label did not fit 360 px in Armenian and Russian, as the kit's buttons never wrap; it
+wraps now. axe found no serious or critical violation on any page, state or open dialog, and
+none of the 2,000 tokens appeared in the page, the address, browser storage, the console or any
+request. The guest list with the report was on screen 1,301 ms after the click and the slowest
+input event while typing a name took 40 ms, both with the machine's load average near 20 from
+other programs, so not comparable with 24 October's figures. Request bodies were read at the mock:
+this headless shell gives Playwright no body for a `fetch`.
 The real end-to-end tests still wait for the backend.
 
 ## 11. Decision log
@@ -335,24 +374,43 @@ The real end-to-end tests still wait for the backend.
 | 24 Oct 2026 | The import refuses a file over 2 MB before sending it | The backend's own limit, which answers 413 only once the bytes have travelled. The server stays the authority: its 413 is handled too |
 | 24 Oct 2026 | The multipart upload is tested under Node (`@vitest-environment node`); the import page's tests stub that one call | jsdom's `File` and `FormData` are not Node's, and Node's fetch refuses to send them. The walkthrough checked the real upload in Chromium |
 | 24 Oct 2026 | `EventUnavailable` says "too many requests" for a 429 | Every event page had shown a 429 as a failure with a reference |
+| 25 Oct 2026 | **Built on the backend at `d23ff2d`**, though origin/main had reached `eb77cd4`; what main changes for the frontend is listed in BACKEND_REQUESTS §5, to pull separately | The frontend lead chose it: main changes little for venues, publishing and sending, and a merge would also bring the guest reply's attendance revision and signature questions into this change |
+| 25 Oct 2026 | `safeExternalUrl` moved from the renderer's `schemas.ts` to `src/lib/links` | The venue form refuses a map link the guest page would drop, so both read one rule |
+| 25 Oct 2026 | Adding and correcting a venue are pages, removing one an alert dialog; `NotifyGuests` takes a `back` (a page, or a callback that returns to the list) | The event edit's offer to tell guests is reused as it is, in place of the form or, after a removal, of the list |
+| 25 Oct 2026 | Publishing asks first and says there is no way back to draft; closing and reopening do not ask. The event's **first** send asks once, with its counts; every later press sends at once, the button disabled only while its request runs | Publishing and a first send cannot be undone; the API says a second press of "send" must not need a confirmation, and the backend makes it safe. "First" is read from the delivery report (nothing sent to any household), so a reload cannot forget it |
+| 25 Oct 2026 | Publish blockers recognised by their exact English text, in one module (design PD-49) | The backend sends sentences without codes (FR-32); a stand-in with its exit, falling back to the English sentence, never to a wrong fix |
+| 25 Oct 2026 | Who was invited is shown on the guest list, from the delivery report read beside the guests; households are chosen there for `guestIds`, one guest named per household, at most 1,000 | The household is what an invitation goes to; the host fixes an address where the household is. A failed report leaves the list standing. Each household's words are worked out once per report and language, so the memoized households draw strings |
+| 25 Oct 2026 | Sending is not offered while replies are stopped | The backend refuses any invitation but a published one; API.md names only a draft (BACKEND_REQUESTS §3) |
+| 25 Oct 2026 | The venue list and the invitation page speak, and move the focus, in the render that shows the reloaded data | React Router applies a reload as a transition: a status set when `revalidate()` resolved spoke beside the old state, and the focus went back to a button about to disappear. The guest list already did this |
+| 25 Oct 2026 | A venue correction sends `null` to clear its map link or arrival through one cast (FR-36) | The schema declares neither nullable, though the API clears both with `null` |
+| 25 Oct 2026 | Each household's "Choose" box is named by `aria-label`, starting with the word on screen | Testing Library dropped the space inside a visually hidden span ("ChooseHakobyan"); browsers kept it. The explicit name is the same everywhere |
 
 ## 12. Not yet built
 
-- The organizer app beyond its way in, an event's details and its guest list: design, seating,
-  door, billing (with the bank's return page, `/billing/return`), the event team, and **archiving
-  and deleting events**.
-- Of the guest list: recording an answer for a guest (`PATCH …/guests/:guestId/rsvp`); sending
-  the invitation and reminders; seating, and the note that a decline freed a seat
-  (`seatReleased`); check-in and undoing it; the export; the guest's personal link, whose token is
+- The organizer app beyond its way in, an event's details, its guest list, its venues and its
+  invitation's publishing and sending: designing the invitation (blocks, theme, media, RSVP
+  questions), seating, door, billing (with the bank's return page, `/billing/return`), the event
+  team, and **archiving and deleting events**.
+- Of the guest list: recording an answer for a guest (`PATCH …/guests/:guestId/rsvp`); reminders
+  and chasing (`remind`) and thank-you messages (`thank-you`); seating, and the note that a
+  decline freed a seat (`seatReleased`); check-in and undoing it; the export; the guest's personal link, whose token is
   never shown; moving a guest into a household of their own (FR-30); clearing a guest's language
   (FR-31); a household's notes, which no endpoint writes; and a household picker better than a
   native select (DQ-16). The single-guest read (`GET …/guests/:guestId`) is not used: the list
   holds everything the forms show.
-- Of an event's details: venues and the running order; its end time, side labels and per-language
-  title and hosts (`translations`, FR-24); adding an invitation to an event that has none
-  (`POST /events/:id/invitation`); a custom slug (no endpoint exists). Of the dashboard: catering,
+- Of an event's details: the running order (`/timeline`); a venue's per-language name and address
+  (`translations`), its coordinates and its capacity; the venue directory (`venue-profiles`); its
+  end time, side labels and per-language title and hosts (`translations`, FR-24); adding an
+  invitation to an event that has none (`POST /events/:id/invitation`); a custom slug (no endpoint exists). Of the dashboard: catering,
   bar, playlist and engagement. A link to a published invitation from the overview: a private
   event's generic link is a 404.
+- Of publishing and sending: sending to more than 1,000 chosen households at once (the backend's
+  limit; "send to every household not yet invited" has none); telling guests about a change other
+  than from the event edit and the venue screens; the invitation's expiry, which origin/main has
+  and this branch's backend does not (BACKEND_REQUESTS §5).
+- The pull of origin/main `eb77cd4` (BACKEND_REQUESTS §5): the guest reply's attendance revision
+  and per-venue answers, signature questions, the guest list's new removal refusals and several
+  seats per guest, the error bodies' codes and translated messages, and French.
 - A "verify your email" banner and a way to ask for the email again: nothing says whether an
   address is verified (FR-5).
 - Capability pages: tickets and briefs, and the ticket buyer's return from the bank,

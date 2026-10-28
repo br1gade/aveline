@@ -1,7 +1,10 @@
 import type { TFunction } from 'i18next';
 import { memo, useId, type MouseEvent } from 'react';
 
+import { DeliveryLine, type DeliveryText } from '@/features/sending';
 import { Button } from '@/ui/kit/button';
+import { Checkbox } from '@/ui/kit/checkbox';
+import { Label } from '@/ui/kit/label';
 
 import { hasFreeSeat } from '../form-model';
 import type { Guest, Household, Side } from '../types';
@@ -87,6 +90,9 @@ function GuestRow({ guest, household, sides, t, onOpen }: RowProps) {
   );
 }
 
+/** Choosing households to send the invitation to, while it is published (design PD-48). */
+export type OnChoose = (householdId: string, isChosen: boolean) => void;
+
 interface HouseholdCardProps {
   household: Household;
   /** The guests the filter shows: the household's own array when it shows them all. */
@@ -94,11 +100,78 @@ interface HouseholdCardProps {
   sides: SideNames;
   t: TFunction<'guests'>;
   onOpen: OpenDialog;
+  /** What happened to its invitation, in words worked out once per report. */
+  delivery: DeliveryText | undefined;
+  /** `null` while the invitation cannot be sent; otherwise whether this household is chosen. */
+  isChosen: boolean | null;
+  onChoose: OnChoose;
 }
 
 /**
- * A household and its guests (design PD-44). Memoized, and drawn only when on screen
- * (`content-visibility`), so a search across two thousand guests redraws only what changed.
+ * The box shows "Choose"; its name says which household, starting with the word on screen, so a
+ * voice command for the visible word still finds it.
+ */
+function ChooseBox({
+  household,
+  isChosen,
+  onChoose,
+  t,
+}: Pick<HouseholdCardProps, 'household' | 'onChoose' | 't'> & { isChosen: boolean }) {
+  const id = useId();
+  return (
+    <div className="flex min-h-11 items-center gap-2">
+      <Checkbox
+        id={id}
+        checked={isChosen}
+        aria-label={t('send.choose', { name: household.name })}
+        onCheckedChange={(checked) => onChoose(household.id, checked === true)}
+      />
+      <Label htmlFor={id} className="text-sm font-normal">
+        {t('send.chooseLabel')}
+      </Label>
+    </div>
+  );
+}
+
+/** Choosing it for sending, correcting it, and adding a guest to it while a seat is free. */
+function HouseholdActions({
+  household,
+  t,
+  onOpen,
+  isChosen,
+  onChoose,
+}: Pick<HouseholdCardProps, 'household' | 't' | 'onOpen' | 'isChosen' | 'onChoose'>) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {isChosen === null ? null : (
+        <ChooseBox household={household} isChosen={isChosen} onChoose={onChoose} t={t} />
+      )}
+      <Button
+        variant="ghost"
+        aria-label={t('actionFor', { action: t('household.edit'), name: household.name })}
+        onClick={(event) => onOpen({ kind: 'household', household }, event.currentTarget)}
+      >
+        {t('household.edit')}
+      </Button>
+      {hasFreeSeat(household) ? (
+        <Button
+          variant="ghost"
+          aria-label={t('actionFor', { action: t('household.addHere'), name: household.name })}
+          onClick={(event) =>
+            onOpen({ kind: 'add', householdId: household.id }, event.currentTarget)
+          }
+        >
+          {t('household.addHere')}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A household and its guests (design PD-44), with its invitation's line and the box that chooses it
+ * for sending (PD-48). Memoized, and drawn only when on screen (`content-visibility`), so a search
+ * across two thousand guests, or a box ticked, redraws only what changed.
  */
 export const HouseholdCard = memo(function HouseholdCard({
   household,
@@ -106,6 +179,9 @@ export const HouseholdCard = memo(function HouseholdCard({
   sides,
   t,
   onOpen,
+  delivery,
+  isChosen,
+  onChoose,
 }: HouseholdCardProps) {
   const titleId = useId();
   return (
@@ -121,27 +197,15 @@ export const HouseholdCard = memo(function HouseholdCard({
           <p className="text-muted-foreground m-0 text-sm">
             {t('household.seats', { named: household.seatsNamed, count: household.seatsAllotted })}
           </p>
+          {delivery ? <DeliveryLine text={delivery} label={t('household.invitation')} /> : null}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="ghost"
-            aria-label={t('actionFor', { action: t('household.edit'), name: household.name })}
-            onClick={(event) => onOpen({ kind: 'household', household }, event.currentTarget)}
-          >
-            {t('household.edit')}
-          </Button>
-          {hasFreeSeat(household) ? (
-            <Button
-              variant="ghost"
-              aria-label={t('actionFor', { action: t('household.addHere'), name: household.name })}
-              onClick={(event) =>
-                onOpen({ kind: 'add', householdId: household.id }, event.currentTarget)
-              }
-            >
-              {t('household.addHere')}
-            </Button>
-          ) : null}
-        </div>
+        <HouseholdActions
+          household={household}
+          t={t}
+          onOpen={onOpen}
+          isChosen={isChosen}
+          onChoose={onChoose}
+        />
       </div>
       <ul className="m-0 flex list-none flex-col p-0">
         {guests.map((guest) => (

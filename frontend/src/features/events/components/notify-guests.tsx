@@ -10,7 +10,6 @@ import { Field, FieldDescription, FieldLabel } from '@/ui/kit/field';
 import { Textarea } from '@/ui/kit/textarea';
 
 import { notifyChanges } from '../api';
-import { eventPath } from '../paths';
 import { useRefusedText } from '../refusals';
 import type { NotifyResult } from '../types';
 
@@ -20,10 +19,39 @@ export interface NotifyOffer {
   households: number;
 }
 
+/**
+ * Where "Not now", and "Back" once sent, lead: a page, or, on a page that hosts the offer in place
+ * of its own content, back to that content.
+ */
+export type NotifyBack = { label: string } & ({ to: string } | { onClick: () => void });
+
 /** The note's limit on the backend (`NotifyChangesDto`). */
 const NOTE_LIMIT = 500;
 
-function NotifySent({ result, eventId }: { result: NotifyResult; eventId: string }) {
+function BackButton({
+  back,
+  label,
+  variant,
+}: {
+  back: NotifyBack;
+  label: string;
+  variant: 'outline' | 'ghost';
+}) {
+  if ('onClick' in back) {
+    return (
+      <Button type="button" variant={variant} className="self-start" onClick={back.onClick}>
+        {label}
+      </Button>
+    );
+  }
+  return (
+    <Button asChild variant={variant} className="self-start">
+      <Link to={back.to}>{label}</Link>
+    </Button>
+  );
+}
+
+function NotifySent({ result, back }: { result: NotifyResult; back: NotifyBack }) {
   const { t } = useTranslation('events');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => ref.current?.focus(), []);
@@ -41,9 +69,7 @@ function NotifySent({ result, eventId }: { result: NotifyResult; eventId: string
         <p className="m-0">{t('notify.unreachable', { count: unreachable })}</p>
       ) : null}
       {isNobody ? <p className="m-0">{t('notify.nobody')}</p> : null}
-      <Button asChild variant="outline" className="self-start">
-        <Link to={eventPath(eventId)}>{t('notify.back')}</Link>
-      </Button>
+      <BackButton back={back} label={back.label} variant="outline" />
     </div>
   );
 }
@@ -68,9 +94,10 @@ function NoteField({ value, onChange }: { value: string; onChange: (value: strin
 
 /**
  * "Let your guests know", offered after an edit whose notice suggests it, and sent only when the
- * host presses it (docs/API.md §6, decided 8 October 2026). Once sent, the button is gone.
+ * host presses it (docs/API.md §6, decided 8 October 2026). Once sent, the button is gone. The event
+ * edit and the venue screens host it, each with its own way back.
  */
-export function NotifyGuests({ eventId, offer }: { eventId: string; offer: NotifyOffer }) {
+export function NotifyGuests({ offer, back }: { offer: NotifyOffer; back: NotifyBack }) {
   const { t } = useTranslation('events');
   const refused = useRefusedText('notify');
   const heading = useRef<HTMLHeadingElement>(null);
@@ -104,7 +131,7 @@ export function NotifyGuests({ eventId, offer }: { eventId: string; offer: Notif
       <p className="m-0">{t('notify.body', { count: offer.households })}</p>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
       {result ? (
-        <NotifySent result={result} eventId={eventId} />
+        <NotifySent result={result} back={back} />
       ) : (
         <AppForm
           onSubmit={(submit) => {
@@ -118,9 +145,7 @@ export function NotifyGuests({ eventId, offer }: { eventId: string; offer: Notif
             <SubmitButton isSubmitting={isSending} className="w-auto">
               {isSending ? t('notify.sending') : t('notify.send')}
             </SubmitButton>
-            <Button asChild variant="ghost">
-              <Link to={eventPath(eventId)}>{t('notify.later')}</Link>
-            </Button>
+            <BackButton back={back} label={t('notify.later')} variant="ghost" />
           </div>
         </AppForm>
       )}

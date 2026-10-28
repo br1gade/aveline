@@ -112,14 +112,71 @@ function guestList(): HouseholdWire[] {
   ];
 }
 
-/** Serves the event and its guests, and counts each read of the list. */
-function serve(households: HouseholdWire[] | (() => Response) = guestList()) {
-  const reads = { guests: 0 };
+/** `GET /invitations/:slug/delivery` as the backend sends it (docs/API.md §6). */
+interface DeliveryWire {
+  invited: number;
+  notSent: number;
+  unreachable: Array<{ householdId: string; householdName: string; reason: string }>;
+  households: Array<Record<string, unknown> & { householdId: string; toAddress?: string }>;
+}
+
+/** The delivery report: the Petrosyans invited by email, the Hakobyans not yet. */
+function deliveryReport(overrides: Partial<DeliveryWire> = {}): DeliveryWire {
+  return {
+    invited: 1,
+    notSent: 1,
+    unreachable: [],
+    households: [
+      {
+        householdId: 'h1',
+        household: 'Petrosyan family',
+        guest: 'Armen Petrosyan',
+        channel: 'EMAIL',
+        toAddress: 'armen@example.am',
+        status: 'SENT',
+        attempts: 1,
+        failureReason: null,
+        sentAt: '2027-05-01T10:00:00.000Z',
+        reminders: 0,
+        lastRemindedAt: null,
+        ...{ token },
+      },
+      {
+        householdId: 'h2',
+        household: 'Hakobyan',
+        guest: 'Davit Hakobyan',
+        channel: 'EMAIL',
+        toAddress: 'davit@example.am',
+        status: 'NOT_SENT',
+        attempts: 0,
+        failureReason: null,
+        sentAt: null,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+interface ServeOptions {
+  event?: EventDetail;
+  delivery?: DeliveryWire | (() => Response);
+}
+
+/** Serves the event, its guests and the delivery report, and counts each read of the list. */
+function serve(
+  households: HouseholdWire[] | (() => Response) = guestList(),
+  { event = EVENT, delivery = deliveryReport() }: ServeOptions = {},
+) {
+  const reads = { guests: 0, delivery: 0 };
   server.use(
-    http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)),
+    http.get(`${API}/events/e1`, () => HttpResponse.json(event)),
     http.get(`${API}/events/e1/guests`, () => {
       reads.guests += 1;
       return typeof households === 'function' ? households() : HttpResponse.json(households);
+    }),
+    http.get(`${API}/invitations/anna-davit-3f8a1c20/delivery`, () => {
+      reads.delivery += 1;
+      return typeof delivery === 'function' ? delivery() : HttpResponse.json(delivery);
     }),
   );
   return reads;
@@ -179,6 +236,7 @@ function renderList(path: string | string[] = '/app/events/e1/guests') {
       Component: GuestsPage,
     },
     { path: '/app/events/:eventId/guests/import', Component: () => <p>Import page</p> },
+    { path: '/app/events/:eventId/invitation', Component: () => <p>Invitation page</p> },
     { path: '/app/events/:eventId', Component: () => <p>Event page</p> },
   ]);
   render(
@@ -279,8 +337,15 @@ describe('GuestList: reading', () => {
 describe('GuestList: contact details this role cannot see', () => {
   const hidden = () => [householdWire({ id: 'h1', guests: [guestWithoutContact({ id: 'g1' })] })];
 
+  /** The report as this role receives it: no address (docs/API.md §6). */
+  const noAddresses = () => {
+    const report = deliveryReport();
+    report.households = report.households.map(({ toAddress: _hidden, ...row }) => row);
+    return report;
+  };
+
   it('says so once, and shows no email or phone', async () => {
-    serve(hidden());
+    serve(hidden(), { delivery: noAddresses() });
     renderList();
     expect(
       await screen.findByText(
@@ -704,5 +769,169 @@ describe('GuestList: removing a guest', () => {
       'Someone moved this guest to another household just now.',
     );
     await waitFor(() => expect(reads.guests).toBe(2));
+  });
+});
+
+describe('GuestList: the invitation', () => {
+  const sendResult = (overrides: Record<string, unknown> = {}) =>
+    HttpResponse.json({
+      queued: 1,
+      alreadySent: 0,
+      recipients: [
+        { householdName: 'Petrosyan family', toAddress: 'armen@example.am', channel: 'EMAIL' },
+      ],
+      suppressed: [],
+      unreachable: [],
+      ...overrides,
+    });
+
+  it('says what happened to each household’s invitation, in the event’s zone', async () => {
+    serve();
+    renderList();
+    await screen.findByText('3 guests in 2 households');
+    expect(household('Petrosyan family')).toHaveTextContent(
+      'Invitation: Sent · to Armen Petrosyan · by email, armen@example.am · 1 May 2027, 14:00',
+    );
+    expect(household('Hakobyan')).toHaveTextContent(
+      'Invitation: Not sent yet · to Davit Hakobyan · by email, davit@example.am',
+    );
+    expect(document.body.innerHTML).not.toContain(token);
+  });
+
+  it('shows the mail server’s words, in English, only to a role that sees the address', async () => {
+    const reason = '550 5.1.1 <davit@example.am>: Recipient address rejected';
+    const bounced = deliveryReport();
+    const [, hakobyans] = bounced.households;
+    if (!hakobyans) throw new Error('No row');
+    Object.assign(hakobyans, { status: 'BOUNCED', attempts: 1, failureReason: reason });
+    serve(guestList(), { delivery: bounced });
+    renderList();
+    await screen.findByText('3 guests in 2 households');
+    expect(within(household('Hakobyan')).getByText(reason)).toHaveAttribute('lang', 'en');
+    expect(household('Hakobyan')).toHaveTextContent('Correct the address, then send again.');
+  });
+
+  it('keeps the server’s words and the address from a role without contact access (FR-35)', async () => {
+    const reason = '550 5.1.1 <davit@example.am>: Recipient address rejected';
+    const bounced = deliveryReport();
+    bounced.households = bounced.households.map(({ toAddress: _hidden, ...row }) => ({
+      ...row,
+      status: 'BOUNCED',
+      failureReason: reason,
+    }));
+    serve(guestList(), { delivery: bounced });
+    renderList();
+    await screen.findByText('3 guests in 2 households');
+    expect(household('Hakobyan')).toHaveTextContent(
+      'Invitation: Bounced · to Davit Hakobyan · by email',
+    );
+    expect(screen.queryByText(reason)).not.toBeInTheDocument();
+  });
+
+  it('says why nothing can reach a household, in English', async () => {
+    serve(guestList(), {
+      delivery: deliveryReport({
+        households: deliveryReport().households.slice(0, 1),
+        unreachable: [
+          {
+            householdId: 'h2',
+            householdName: 'Hakobyan',
+            reason: 'The email address on file for Davit Hakobyan does not look valid',
+          },
+        ],
+      }),
+    });
+    renderList();
+    await screen.findByText('3 guests in 2 households');
+    const hakobyans = household('Hakobyan');
+    expect(hakobyans).toHaveTextContent('Invitation: Can’t be sent');
+    expect(within(hakobyans).getByText(/does not look valid/)).toHaveAttribute('lang', 'en');
+    expect(hakobyans).toHaveTextContent('Add or correct an address, then send again.');
+  });
+
+  it('filters by what happened to the invitation, from the address and into it', async () => {
+    serve();
+    const user = renderList('/app/events/e1/guests?invite=notSent');
+    expect(await screen.findByText('Showing 1 guest in 1 household')).toBeInTheDocument();
+    expect(screen.getByLabelText('Invitation')).toHaveValue('notSent');
+    expect(screen.getByText('Davit Hakobyan')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Invitation'), 'sent');
+    expect(await screen.findByText('Showing 2 guests in 1 household')).toBeInTheDocument();
+    expect(screen.getByTestId('where')).toHaveTextContent('?invite=sent');
+  });
+
+  it('sends to the households chosen, naming one guest of each, then reloads', async () => {
+    const reads = serve();
+    const sent = answer('post', '/invitations/anna-davit-3f8a1c20/send', () => sendResult());
+    const user = renderList();
+    await user.click(await screen.findByRole('checkbox', { name: 'Choose Petrosyan family' }));
+    expect(screen.getByText('1 household chosen')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Send to 1 household' }));
+    expect(await screen.findByRole('heading', { name: 'What happened' })).toHaveFocus();
+    expect(sent).toEqual([{ guestIds: ['g1'] }]);
+    expect(screen.getByText('On its way to 1 household. Nothing more to do.')).toBeInTheDocument();
+    await waitFor(() => expect(reads.delivery).toBe(2));
+    expect(reads.guests).toBe(2);
+    expect(screen.getByText('0 households chosen')).toBeInTheDocument();
+  });
+
+  it('chooses every household shown, and still names each household’s first guest', async () => {
+    serve();
+    const sent = answer('post', '/invitations/anna-davit-3f8a1c20/send', () => sendResult());
+    const user = renderList('/app/events/e1/guests?answer=pending');
+    await screen.findByText('Showing 1 guest in 1 household');
+    await user.click(screen.getByRole('button', { name: 'Choose all shown' }));
+    await user.click(screen.getByRole('button', { name: 'Send to 1 household' }));
+    await screen.findByRole('heading', { name: 'What happened' });
+    expect(sent).toEqual([{ guestIds: ['g1'] }]);
+  });
+
+  it('asks first when nothing has been sent yet', async () => {
+    serve(guestList(), { delivery: deliveryReport({ invited: 0, notSent: 2 }) });
+    const sent = answer('post', '/invitations/anna-davit-3f8a1c20/send', () => sendResult());
+    const user = renderList();
+    await user.click(await screen.findByRole('checkbox', { name: 'Choose Hakobyan' }));
+    await user.click(screen.getByRole('button', { name: 'Send to 1 household' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Send the invitation to 1 household?');
+    expect(sent).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(sent).toEqual([{ guestIds: ['g3'] }]));
+  });
+
+  it('explains a refused send, and keeps the choice', async () => {
+    serve();
+    answer('post', '/invitations/anna-davit-3f8a1c20/send', refusal(403));
+    const user = renderList();
+    await user.click(await screen.findByRole('checkbox', { name: 'Choose Hakobyan' }));
+    await user.click(screen.getByRole('button', { name: 'Send to 1 household' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your role on this event can’t publish or send the invitation.',
+    );
+    expect(screen.getByText('1 household chosen')).toBeInTheDocument();
+  });
+
+  it('offers nothing to send, and reads no report, while the invitation is a draft', async () => {
+    const reads = serve(guestList(), {
+      event: { ...EVENT, invitation: { slug: 'anna-davit-3f8a1c20', status: 'DRAFT' } },
+    });
+    renderList();
+    expect(
+      await screen.findByText(/The invitation is a draft, so nothing has been sent yet./),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Publish and send' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/invitation',
+    );
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Invitation')).not.toBeInTheDocument();
+    expect(reads.delivery).toBe(0);
+  });
+
+  it('leaves the list standing when the report fails, with the reference', async () => {
+    serve(guestList(), { delivery: refusal(500) });
+    renderList();
+    expect(await screen.findByText('3 guests in 2 households')).toBeInTheDocument();
+    expect(screen.getByText('Reference: req-1')).toBeInTheDocument();
   });
 });

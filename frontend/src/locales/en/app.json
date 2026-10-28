@@ -7,7 +7,11 @@
     "editEvent": "Edit the details · Aveline",
     "guests": "Guests · Aveline",
     "importGuests": "Import guests · Aveline",
-    "named": "{{title}} · Aveline"
+    "named": "{{title}} · Aveline",
+    "venues": "Venues · Aveline",
+    "newVenue": "Add a venue · Aveline",
+    "editVenue": "Edit a venue · Aveline",
+    "invitation": "Publish and send · Aveline"
   },
   "shell": {
     "loading": "Loading…",

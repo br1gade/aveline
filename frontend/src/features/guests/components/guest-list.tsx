@@ -26,7 +26,7 @@ export function GuestList({ data }: { data: GuestListData }) {
         <p className="text-muted-foreground m-0">{event.title}</p>
       </div>
       {households.kind === 'ready' ? (
-        <GuestDirectory event={event} households={households.value} />
+        <GuestDirectory event={event} households={households.value} delivery={data.delivery} />
       ) : (
         <p className="m-0">{t('list.refused')}</p>
       )}

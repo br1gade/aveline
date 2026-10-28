@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { safeExternalUrl } from '@/lib/links';
 import { Button, ButtonLink, cx, EXTERNAL_LINK, Eyebrow, Icon } from '@/ui';
 
 import { useInvitation, useZoneLabel } from '../context';
 import { displayTime } from '../format';
-import { safeExternalUrl, type Venue } from '../schemas';
+import type { Venue } from '../schemas';
 import { VENUE_ROLES, type VenueRole } from '../types';
 
 function isVenueRole(value: string): value is VenueRole {

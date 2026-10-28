@@ -7,7 +7,11 @@
     "editEvent": "Изменение данных · Aveline",
     "guests": "Гости · Aveline",
     "importGuests": "Импорт гостей · Aveline",
-    "named": "{{title}} · Aveline"
+    "named": "{{title}} · Aveline",
+    "venues": "Места · Aveline",
+    "newVenue": "Добавить место · Aveline",
+    "editVenue": "Изменить место · Aveline",
+    "invitation": "Публикация и рассылка · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import { safeExternalUrl } from '@/lib/links';
 import { ButtonLink, cx, EXTERNAL_LINK, Icon, SectionHeading } from '@/ui';
 
 import { ArchFrame } from '../components/arch-frame';
@@ -12,7 +13,6 @@ import {
   notesContent,
   paragraphs,
   photos,
-  safeExternalUrl,
   signatureContent,
   telephoneHref,
 } from '../schemas';

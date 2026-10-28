@@ -4,6 +4,7 @@ export { EditEvent } from './components/edit-event';
 export { EventList } from './components/event-list';
 export { EventOverview } from './components/event-overview';
 export { EventUnavailable } from './components/event-unavailable';
+export { NotifyGuests, type NotifyBack, type NotifyOffer } from './components/notify-guests';
 export { loadEventOverview } from './load';
 export { eventPath } from './paths';
-export type { EventDetail, EventSummary } from './types';
+export type { EventDetail, EventNotice, EventSummary, InvitationStatus } from './types';

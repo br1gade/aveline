@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
+import { DELIVERY_GROUPS, type DeliveryGroup } from '@/features/sending';
 import { SelectField, TextInputField } from '@/ui/app-form';
+import { cn } from '@/ui/cn';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
 import type { GuestFilter } from '../filter';
@@ -10,23 +12,32 @@ interface ListToolbarProps {
   filter: GuestFilter;
   onQuery: (query: string) => void;
   onAnswer: (answer: Answer | null) => void;
+  /** Offered only while there is a delivery report to filter by (design PD-48). */
+  onInvite: ((invite: DeliveryGroup | null) => void) | null;
 }
 
 function answerOf(value: string): Answer | null {
   return ANSWERS.find((answer) => answer === value) ?? null;
 }
 
+function inviteOf(value: string): DeliveryGroup | null {
+  return DELIVERY_GROUPS.find((group) => group === value) ?? null;
+}
+
 /**
- * The search and the answer filter (design PD-44), kept in view while the list scrolls. Not a form:
- * nothing here is submitted, so Enter sends nothing anywhere.
+ * The search, the answer filter and the invitation filter (design PD-44, PD-48). Not a form:
+ * nothing here is submitted, so Enter sends nothing anywhere. The list keeps it in view.
  */
-export function ListToolbar({ filter, onQuery, onAnswer }: ListToolbarProps) {
+export function ListToolbar({ filter, onQuery, onAnswer, onInvite }: ListToolbarProps) {
   const { t } = useTranslation('guests');
   return (
     <div
       role="search"
       aria-label={t('toolbar.label')}
-      className="bg-background border-border sticky top-0 z-10 grid gap-3 border-b py-3 sm:grid-cols-[1fr_14rem]"
+      className={cn(
+        'grid gap-3',
+        onInvite ? 'sm:grid-cols-[1fr_12rem_12rem]' : 'sm:grid-cols-[1fr_14rem]',
+      )}
     >
       <TextInputField
         label={t('toolbar.search')}
@@ -47,6 +58,20 @@ export function ListToolbar({ filter, onQuery, onAnswer }: ListToolbarProps) {
           </NativeSelectOption>
         ))}
       </SelectField>
+      {onInvite ? (
+        <SelectField
+          label={t('toolbar.invite')}
+          value={filter.invite ?? ''}
+          onChange={(event) => onInvite(inviteOf(event.target.value))}
+        >
+          <NativeSelectOption value="">{t('toolbar.anyInvite')}</NativeSelectOption>
+          {DELIVERY_GROUPS.map((group) => (
+            <NativeSelectOption key={group} value={group}>
+              {t(`inviteGroup.${group}`)}
+            </NativeSelectOption>
+          ))}
+        </SelectField>
+      ) : null}
     </div>
   );
 }

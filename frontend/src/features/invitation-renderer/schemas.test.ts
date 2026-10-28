@@ -5,7 +5,6 @@ import {
   heroContent,
   notesContent,
   paragraphs,
-  safeExternalUrl,
   swatchColours,
   telephoneHref,
   timelineEntries,
@@ -87,17 +86,6 @@ describe('event data', () => {
 });
 
 describe('links from host content', () => {
-  it.each([
-    ['https://maps.example.com/x', 'https://maps.example.com/x'],
-    ['http://example.com/', 'http://example.com/'],
-    ['javascript:alert(1)', undefined],
-    ['data:text/html,hi', undefined],
-    ['not a url', undefined],
-    [null, undefined],
-  ])('safeExternalUrl(%j) is %j', (input, expected) => {
-    expect(safeExternalUrl(input)).toBe(expected);
-  });
-
   it.each([
     ['+374 00 000000', 'tel:+37400000000'],
     ['(010) 12-34-56', 'tel:010123456'],

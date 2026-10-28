@@ -69,7 +69,9 @@
       "DRAFT": "Draft: guests can’t open it yet",
       "PUBLISHED": "Published",
       "CLOSED": "Closed: replies are no longer taken"
-    }
+    },
+    "venues": "Venues",
+    "publishSend": "Publish and send"
   },
   "headcount": {
     "title": "Guests",

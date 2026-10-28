@@ -1,0 +1,136 @@
+{
+  "page": {
+    "back": "Back to the event",
+    "title": "Publish and send",
+    "status": "The invitation",
+    "state": {
+      "DRAFT": "Draft: guests can’t open it yet",
+      "PUBLISHED": "Published: guests can open their links and reply",
+      "CLOSED": "Replies stopped: guests can still open it, but can’t reply"
+    },
+    "slug": "Link name",
+    "noInvitation": "This event has no invitation yet."
+  },
+  "status": {
+    "published": "The invitation is published.",
+    "closed": "Replies are stopped. Guests can still open the invitation.",
+    "reopened": "Guests can reply again."
+  },
+  "publish": {
+    "title": "Publish",
+    "lead": "Publishing makes the invitation live: guests can open their links, and you can send it.",
+    "blockedTitle": "Before you can publish:",
+    "ready": "Nothing stands in the way of publishing.",
+    "blockersRefused": "What still blocks publishing isn’t shown to your role. Publishing will say if anything does.",
+    "button": "Publish the invitation",
+    "waiting": "Publishing waits for the items above.",
+    "confirmTitle": "Publish the invitation?",
+    "confirmBody": "Guests will be able to open their links from now on, and you can send the invitation.",
+    "noWayBack": "Once published, it can’t go back to being a draft. You can stop replies at any time, and take them again.",
+    "cancel": "Cancel",
+    "confirm": "Publish",
+    "publishing": "Publishing…"
+  },
+  "blockers": {
+    "rsvp": "The reply section is switched off in the invitation’s design, so guests would have no way to answer. It can’t be switched on here yet.",
+    "venue": "Add a venue with an address, so guests know where to go.",
+    "venueFix": "Add a venue",
+    "started": "The event has already started, so an invitation would arrive late. If its date is wrong, correct it.",
+    "startedFix": "Edit the details",
+    "inEnglish": "Some of these are in English for now."
+  },
+  "replies": {
+    "title": "Replies",
+    "open": "Guests can reply. Stopping replies keeps the invitation readable, since the venue, the time and the dress code still matter to everyone coming. You can take replies again later.",
+    "closed": "Replies are stopped. Guests can still open the invitation. Taking replies again lets them answer, and lets you send it.",
+    "close": "Stop replies",
+    "reopen": "Take replies again"
+  },
+  "send": {
+    "title": "Send the invitation",
+    "lead": "Each household gets one message with its own link, by email, or on Telegram if they use it. Sending again is safe: a household already invited isn’t sent another, and one whose message failed is tried again.",
+    "everyone": "Send to every household not yet invited",
+    "sending": "Sending…",
+    "closed": "Replies are stopped, so the invitation can’t be sent. Take replies again to send it."
+  },
+  "summary": {
+    "invited_one": "{{count, number}} household invited",
+    "invited_other": "{{count, number}} households invited",
+    "notSent_one": "{{count, number}} not yet",
+    "notSent_other": "{{count, number}} not yet",
+    "unreachable_one": "{{count, number}} can’t be reached",
+    "unreachable_other": "{{count, number}} can’t be reached",
+    "seeEach": "See each household on the guest list",
+    "refused": "Who was invited isn’t shown to your role on this event."
+  },
+  "confirm": {
+    "title_one": "Send the invitation to {{count, number}} household?",
+    "title_other": "Send the invitation to {{count, number}} households?",
+    "titleUnknown": "Send the invitation?",
+    "body": "Each household gets one message with its own link. Sent messages can’t be recalled.",
+    "unreachable_one": "{{count, number}} household has no usable address and won’t be sent anything. The guest list says why.",
+    "unreachable_other": "{{count, number}} households have no usable address and won’t be sent anything. The guest list says why.",
+    "cancel": "Cancel",
+    "send": "Send"
+  },
+  "outcome": {
+    "title": "What happened",
+    "queued_one": "On its way to {{count, number}} household. Nothing more to do.",
+    "queued_other": "On its way to {{count, number}} households. Nothing more to do.",
+    "seeWho": "See who",
+    "alreadySent_one": "{{count, number}} household already had it, so it wasn’t sent another.",
+    "alreadySent_other": "{{count, number}} households already had it, so they weren’t sent another.",
+    "suppressedTitle_one": "Not sent: {{count, number}} household",
+    "suppressedTitle_other": "Not sent: {{count, number}} households",
+    "suppressedHelp": "They asked not to be contacted, or an earlier message to them bounced. For a bounce, correct the address on the guest list and send again. If they asked not to be contacted, talk to them.",
+    "unreachableTitle_one": "Can’t be reached: {{count, number}} household",
+    "unreachableTitle_other": "Can’t be reached: {{count, number}} households",
+    "unreachableHelp": "There’s no usable address for them. Add or correct one on the guest list, then send again.",
+    "inEnglish": "The reasons are in English for now.",
+    "fixOnList": "Show them on the guest list",
+    "nobody": "There was nobody to send to."
+  },
+  "channel": {
+    "EMAIL": "by email",
+    "TELEGRAM": "on Telegram",
+    "WHATSAPP": "on WhatsApp",
+    "SMS": "by text message",
+    "withAddress": "{{how}}, {{address}}"
+  },
+  "delivery": {
+    "status": {
+      "NOT_SENT": "Not sent yet",
+      "QUEUED": "Waiting to go out",
+      "RETRYING": "Being tried again after a temporary failure",
+      "SENDING": "Going out now",
+      "SENT": "Sent",
+      "DELIVERED": "Delivered",
+      "FAILED": "Couldn’t be sent",
+      "BOUNCED": "Bounced",
+      "SUPPRESSED": "Not sent: they can’t be contacted",
+      "CANCELLED": "Withdrawn before it was sent",
+      "UNKNOWN": "Status not known"
+    },
+    "to": "to {{name}}",
+    "sentAt": "{{date}}, {{time}}",
+    "reminders_one": "reminded once",
+    "reminders_other": "reminded {{count, number}} times",
+    "unreachable": "Can’t be sent",
+    "action": {
+      "FAILED": "Send again to try once more.",
+      "BOUNCED": "Correct the address, then send again.",
+      "SUPPRESSED": "They asked not to be contacted, or an earlier message bounced. Correct a bounced address and send again, or talk to them.",
+      "CANCELLED": "Send again if they should still have it.",
+      "UNKNOWN": "Reload the page later to see what happened.",
+      "UNREACHABLE": "Add or correct an address, then send again."
+    }
+  },
+  "problems": {
+    "forbidden": "Your role on this event can’t publish or send the invitation. The event’s owner can change your role.",
+    "state": "That can’t be done in the invitation’s current state. The page has been reloaded.",
+    "missing": "This invitation is no longer available. The page has been reloaded.",
+    "conflict": "Someone changed the invitation just now. The page has been reloaded; try again.",
+    "sendRefused": "The invitation can’t be sent right now.",
+    "other": "This wasn’t accepted. Try again."
+  }
+}

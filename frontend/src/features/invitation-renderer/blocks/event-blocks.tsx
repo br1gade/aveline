@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import { safeExternalUrl } from '@/lib/links';
 import { timeLeftUntil } from '@/lib/time';
 import { cx, Eyebrow, SectionHeading, TextLink } from '@/ui';
 
@@ -11,7 +12,6 @@ import { useRoleLabel, VenueCard } from '../components/venue-card';
 import {
   bodyContent,
   countdownData,
-  safeExternalUrl,
   swatchColours,
   timelineEntries,
   titledContent,

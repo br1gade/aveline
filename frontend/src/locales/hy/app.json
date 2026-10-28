@@ -7,7 +7,11 @@
     "editEvent": "Տվյալների խմբագրում · Aveline",
     "guests": "Հյուրեր · Aveline",
     "importGuests": "Հյուրերի ներմուծում · Aveline",
-    "named": "{{title}} · Aveline"
+    "named": "{{title}} · Aveline",
+    "venues": "Վայրեր · Aveline",
+    "newVenue": "Ավելացնել վայր · Aveline",
+    "editVenue": "Խմբագրել վայրը · Aveline",
+    "invitation": "Հրապարակել և ուղարկել · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

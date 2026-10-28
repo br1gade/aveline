@@ -35,4 +35,10 @@ export const APP_PATHS = {
   guests: '/app/events/:eventId/guests',
   /** Static, so it would rank above a `:guestId` under `guests` too. */
   importGuests: '/app/events/:eventId/guests/import',
+  venues: '/app/events/:eventId/venues',
+  /** Static, so it would rank above a `:venueId` under `venues` too. */
+  newVenue: '/app/events/:eventId/venues/new',
+  editVenue: '/app/events/:eventId/venues/:venueId/edit',
+  /** Publishing, closing, reopening and sending the event's invitation. */
+  invitation: '/app/events/:eventId/invitation',
 } as const;
