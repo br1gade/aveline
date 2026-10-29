@@ -2694,6 +2694,7 @@ model DesignTemplateVersion {
   capabilityVersion String?
   capabilityDigest String?
   assetManifest Json @default("[]")
+  rendererManifest Json @default("{}")
   contentHash String
   hashAlgorithm String @default("CANONICAL_SHA256_V1")
   provenance String
@@ -2812,6 +2813,7 @@ model DesignTemplateStoredObject {
   key String @id
   assetId String?
   templateId String
+  materializationId String?
   purpose String
   state String @default("RESERVED")
   contentHash String?
@@ -2837,4 +2839,54 @@ model DesignTemplateAssetReference {
   @@unique([versionId, slot, position])
   @@index([assetId])
   @@map("design_template_asset_references")
+}
+
+
+
+
+model TemplateMaterialization {
+  isInitialSelection Boolean @default(false)
+  id String @id @default(cuid())
+  previewId String @unique
+  invitationId String
+  eventId String
+  organizationId String
+  targetVersionId String
+  sourceHash String
+  actorUserId String
+  state String @default("PROCESSING")
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([state, expiresAt])
+  @@map("template_materializations")
+}
+
+model InvitationTemplateAsset {
+  id String @id @default(cuid())
+  materializationId String
+  invitationId String
+  eventId String
+  organizationId String
+  templateVersionId String
+  templateId String
+  ownerScopeKey String
+  sourceAssetId String
+  slot String
+  position Int
+  objectKey String @unique
+  state String @default("PROCESSING")
+  contentHash String
+  width Int
+  height Int
+  mimeType String
+  kind String
+  leaseOwner String?
+  leaseUntil DateTime?
+  leaseGeneration Int @default(0)
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  @@unique([materializationId, slot, position])
+  @@index([invitationId, templateVersionId, state])
+  @@index([state, leaseUntil, createdAt])
+  @@map("invitation_template_assets")
 }

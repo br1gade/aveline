@@ -750,8 +750,9 @@ Run `npm run start:template-asset-worker` separately with a 256MiB process limit
 The worker accepts PNG/JPEG/WebP only, bounds bytes/pixels/dimensions/pages,
 strips metadata through reencoding, claims leases with SKIP LOCKED and persists
 cleanup tombstones. Author file reads recheck permission after storage IO.
-Default-artwork attachment/event materialization remains closed until a manifest
-declares tested slots; adoption refuses a version needing unprepared private art.
+Default-artwork attachment and event materialization require a reviewed manifest
+with tested slots. The production registry is empty; integration fixtures exercise
+the complete gated path without claiming frontend acceptance.
 
 Not yet built: real frontend capability/visual acceptance and production private
 artwork materialization acceptance. These are explicit rollout gates, not evidence
@@ -779,3 +780,38 @@ Staff intake routes (default disabled; active ADMIN or assigned SUPPORT):
 | `PUT` | `/api/v1/privacy/requests/:requestId/enquiry-subjects` | Bind reviewed contact IDs |
 | `POST` | `/api/v1/privacy/enquiry-subject-candidates` | ADMIN exact email/phone candidates in body |
 | `POST` | `/api/v1/sales/enquiries/:enquiryId/conversion` | Explicit atomic organization/draft-event setup |
+Not yet accepted: deployed-process exclusion, restore/performance evidence and
+four-language multi-tab frontend acceptance. No production cutover was run.
+
+Additional F44 inventory/artwork routes:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/design-templates` | Staff inventory, 50-row cursor pages; SUPPORT sees active assignments only |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/discard` | Discard an expected revision and retire eligible transient art |
+| `PATCH` | `/api/v1/design-templates/:templateId/drafts/:draftId/artwork` | Atomically replace ordered same-template defaults in reviewed HERO/GALLERY slots |
+| `GET` | `/api/v1/invitations/:slug/template-upgrade-previews/:previewId` | Poll requester-bound event artwork preparation and ready preview |
+| `GET` | `/api/v1/invitations/:slug/design-assets/:assetId/file` | Current PUBLIC/UNLISTED invitation asset bytes |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/design-assets/:assetId/file` | Live guest-capability/pin-authorized asset bytes |
+| `GET` | `/api/v1/events/:eventId/design-assets/:assetId/file` | Authorized editor's bound/ready-preview asset bytes |
+| `GET` | `/api/v1/events/:eventId/design-templates/:templateKey/assets/:assetId/file` | Published same-tenant catalogue artwork sample |
+
+Default artwork is normalized in draft/version references. Publication captures
+its exact hash/dimensions/order and the immutable renderer manifest. Event upgrade
+preview reserves private event-copy jobs and returns 202/PROCESSING with a poll
+path; the separate worker copies sanitized bytes outside database transactions.
+Confirmation refuses incomplete copies and binds the ready set atomically with
+the exact pin. Initial creation can reserve jobs in its creation transaction and
+return additive setup state while preserving the existing 201 event response;
+its invitation remains DRAFT and cannot publish until copies are bound. A late
+worker cannot bind after the initial pin changes. Event deletion retires copies
+through durable tombstones while retaining reusable immutable sources.
+
+Shared cached payloads contain only internal asset descriptors. The public reader
+projects them to generic or personal capability file paths after cache retrieval;
+credentials never enter shared caches. File readers recheck current status,
+expiry/guest capability, pin and source availability after storage IO. Authored
+payloads add exact capability identity and named `resolvedTheme`; legacy payloads
+retain their exact old fields and values. Verified DSAR export includes only the
+subject's authorship/assignment/publication/audit/receipt facts, and closure revokes
+active assignments, preview sessions and unbound work without deleting versions.

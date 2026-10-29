@@ -38,6 +38,6 @@ describe('explicit template preview and adoption', () => {
     const intent = { targetVersionId: state.targetVersionId, expectedDesignRevision: state.expectedDesignRevision, templateKey: state.template.key, expectedTemplateVersionId: state.invitation.templateVersionId, previewId: preview.previewId, idempotencyKey: randomUUID() };
     await expect(service.apply(state.user.id, state.slug, intent)).rejects.toMatchObject({ status: 409 });
     await prisma.eventMembership.deleteMany({ where: { userId: state.user.id } });
-    await expect(service.preview(state.user.id, state.slug, state)).rejects.toMatchObject({ status: 404 });
+    await expect(service.preview(state.user.id, state.slug, state)).rejects.toMatchObject({ status: 403 });
   });
 });

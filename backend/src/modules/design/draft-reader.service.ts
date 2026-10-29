@@ -1,3 +1,5 @@
+import { readTemplateDefaultMedia } from './templates/template-materialization';
+import { projectTemplateAssetPaths } from './templates/template-asset-paths';
 import { pinnedTemplate } from './templates/template-content';
 import { hasInvitationExpired, LIFETIME_SELECT } from '../invitations/lifetime';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -8,6 +10,8 @@ import { BUILT_IN_FIELDS, fieldOf } from '../rsvp/rsvp-fields';
 
 const draftSelect = {
   ...LIFETIME_SELECT,
+  id: true,
+  templateVersionId: true,
   slug: true,
   designRevision: true,
   status: true,
@@ -83,12 +87,13 @@ export class DraftReaderService {
 
     const draft = { ...found, template: { ...pinnedTemplate(found), id: found.templateVersion.templateId } };
     const media = await this.loadMedia(draft);
+    const defaults = await readTemplateDefaultMedia(this.prisma, { invitationId: draft.id, versionId: draft.templateVersionId });
     const blocks = draft.blocks.map((block) => ({
       ...block,
-      media: block.assetIds.flatMap((id) => media.get(id) ?? []),
+      media: block.assetIds.length ? block.assetIds.flatMap((id) => media.get(id) ?? []) : defaults.media.get(block.type) ?? [],
     }));
 
-    return {
+    return projectTemplateAssetPaths({
       slug: draft.slug,
       status: draft.status,
       firstPublishedAt: draft.firstPublishedAt, lifetimeDays: draft.lifetimeDays, lifetimeSource: draft.lifetimeSource,
@@ -108,7 +113,7 @@ export class DraftReaderService {
         { status: draft.status, blocks: draft.blocks, venues: draft.event.venues, startsAt: draft.event.startsAt },
         new Date(),
       ),
-    };
+    }, `/api/v1/events/${draft.eventId}/design-assets`);
   }
 
   /** Every attached upload in one query, scoped to the event. */

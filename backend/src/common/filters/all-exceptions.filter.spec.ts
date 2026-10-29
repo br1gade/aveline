@@ -23,3 +23,14 @@ describe('safe domain feedback boundary', () => {
     expect(new Set(['en', 'ru', 'fr', 'hy'].map((locale) => catchResponse(new DomainHttpException('OWNER_HANDOVER_REQUIRED', 'handover'), locale).userMessage)).size).toBe(4);
   });
 });
+
+describe('localized template feedback', () => {
+  it.each(['en', 'ru', 'fr', 'hy'])('keeps a safe stale-preview code and regeneration action in %s', (locale) => {
+    expect(catchResponse(new DomainHttpException('TEMPLATE_PREVIEW_STALE', 'The preview is stale'), locale)).toMatchObject({ statusCode: 409, code: 'TEMPLATE_PREVIEW_STALE', action: 'REGENERATE', locale });
+  });
+  it('identifies nested template field errors while retaining distinct translations', () => {
+    const results = ['en', 'ru', 'fr', 'hy'].map((locale) => catchResponse(new DomainHttpException('TEMPLATE_VALIDATION_FAILED', ['blockVariants.HERO: unsupported variant']), locale));
+    expect(results.every((result) => result.details.length === 1)).toBe(true);
+    expect(new Set(results.map((result) => result.userMessage)).size).toBe(4);
+  });
+});

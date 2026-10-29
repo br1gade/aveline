@@ -163,3 +163,16 @@ describe('staff enquiry permissions', () => {
     expect(permissionsFor(staff(PlatformRole.SUPPORT))).not.toContain('enquiry:assign');
   });
 });
+
+describe('platform-only template permissions', () => {
+  it.each(['OWNER', 'MANAGER', 'MEMBER', 'VIEWER'] as OrganizationRole[])('never grants template authoring through organization %s', (role) => {
+    for (const permission of ['template:author', 'template:publish', 'template:assign'] as const) {
+      expect(can({ kind: 'member', organizationRole: role, eventRole: 'DESIGNER' }, permission)).toBe(false);
+    }
+  });
+  it('grants SUPPORT only coarse author access, leaving assignment checks to the resource transaction', () => {
+    expect(can(staff(PlatformRole.SUPPORT), 'template:author')).toBe(true);
+    expect(can(staff(PlatformRole.SUPPORT), 'template:publish')).toBe(false);
+    expect(can(staff(PlatformRole.SUPPORT), 'template:assign')).toBe(false);
+  });
+});

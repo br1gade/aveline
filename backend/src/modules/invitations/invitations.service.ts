@@ -1,3 +1,5 @@
+import { readTemplateDefaultMedia } from '../design/templates/template-materialization';
+import { projectTemplateAssetPaths } from '../design/templates/template-asset-paths';
 import { pinnedTemplate } from '../design/templates/template-content';
 import { GuestProjectionReader, LoadedGuest } from './guest-projection';
 import { GuestPageMeta } from './guest-page-version';
@@ -34,6 +36,7 @@ export const invitationInclude = {
 type LoadedInvitation = Prisma.InvitationGetPayload<{ include: typeof invitationInclude }> & {
   /** The uploads its enabled blocks show, by id. */
   media: Map<string, BlockMedia>;
+  defaultMedia: Awaited<ReturnType<typeof readTemplateDefaultMedia>>['media'];
 };
 
 export const blockMediaSelect = {
@@ -86,9 +89,15 @@ export class InvitationsService {
       const current = await this.pageMeta(slug, token);
       if (!isSamePage(meta, current)) continue;
       void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: meta.guestId ?? undefined });
-      return { ...payload, guest: guest ? { ...guest, telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${token!}` : null } : null };
+      const projected = projectTemplateAssetPaths(payload, designAssetPrefix(slug, token));
+      return { ...projected, guest: guest ? { ...guest, telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${token!}` : null } : null };
     }
     throw new ConflictException('Invitation changed while loading; please retry');
+  }
+
+  async assertDesignAssetReadable(slug: string, token?: string) {
+    const meta = await this.pageMeta(slug, token);
+    return { eventId: meta.eventId };
   }
 
   private async pageMeta(slug: string, token?: string) {
@@ -130,7 +139,9 @@ export class InvitationsService {
       throw new NotFoundException(`Invitation "${slug}" is no longer available`);
     }
     const media = await this.loadBlockMedia(invitation);
-    return { ...invitation, template: { ...pinnedTemplate(invitation), id: invitation.template.id }, media };
+    const hasDefaults = Array.isArray(invitation.templateVersion.assetManifest) && invitation.templateVersion.assetManifest.length > 0;
+    const defaults = hasDefaults ? await readTemplateDefaultMedia(this.prisma, { invitationId: invitation.id, versionId: invitation.templateVersionId }) : { media: new Map() };
+    return { ...invitation, template: { ...pinnedTemplate(invitation), id: invitation.template.id }, media, defaultMedia: defaults.media };
   }
 
   /**
@@ -207,4 +218,8 @@ function isSamePage(before: GuestPageMeta, after: GuestPageMeta): boolean {
 
 function pageRevision(meta: GuestPageMeta): string {
   return meta.sharedRevision === undefined ? String(meta.revision) : `${meta.sharedRevision}:${meta.guestHouseholdId ?? ''}:${meta.personalRevision ?? 0n}`;
+}
+
+function designAssetPrefix(slug: string, token?: string): string {
+  return token ? `/api/v1/invitations/${slug}/g/${token}/design-assets` : `/api/v1/invitations/${slug}/design-assets`;
 }

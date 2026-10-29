@@ -1,7 +1,10 @@
+import { projectTemplateAssetPaths } from './template-asset-paths';
+import { bindTemplateMaterialization, prepareTemplateMaterialization, readTemplateDefaultMedia } from './template-materialization';
+import { DomainHttpException } from '../../../common/domain-http.exception';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { RequestActor, actorCan } from '../../../infra/auth/actor';
+import { lockOrganizationStanding, requireCurrentEventPermission } from '../../../infra/auth/access-locks';
 import { invitationInclude, blockMediaSelect } from '../../invitations/invitations.service';
 import { buildInvitationContent } from '../../invitations/invitation-content';
 import { CacheService } from '../../../infra/cache/cache.service';
@@ -23,17 +26,26 @@ export class TemplateAdoptionService {
       const { invitation, target } = await lockAdoption(tx, { userId, slug, targetVersionId: intent.targetVersionId });
       assertDesignRevision(invitation.designRevision, intent.expectedDesignRevision);
       const source = await loadSource(tx, invitation);
-      const plan = planTemplateAdoption(invitation, target);
       const preview = await tx.templatePreview.create({ data: { templateId: target.templateId, invitationId: invitation.id, actorUserId: userId,
         sourceHash: source.hash, targetHash: target.contentHash, targetVersionId: target.id, sourceVersionId: invitation.templateVersionId,
         designRevision: invitation.designRevision, expiresAt: new Date(Date.now() + 900000) } });
-      const payloads = Object.fromEntries(invitation.event.locales.map((locale) => [locale, { ...buildInvitationContent({ ...invitation, ...plan,
-        blocks: plan.blocks.filter((block) => block.enabled), template: { ...target, id: target.templateId, key: target.key }, media: source.media }, locale),
-        isPreview: true, isAcceptingResponses: false }]));
-      return { previewId: preview.id, sourceVersionId: invitation.templateVersionId, targetVersionId: target.id,
-        expectedDesignRevision: String(invitation.designRevision), sourceHash: source.hash, targetHash: target.contentHash,
-        expiresAt: preview.expiresAt, changes: plan.changes, payloads };
+      const preparation = await prepareTemplateMaterialization(tx, { previewId: preview.id, actorUserId: userId, invitation, target, sourceHash: source.hash, expiresAt: preview.expiresAt });
+      if (preparation) return { previewId: preview.id, state: 'PROCESSING', expiresAt: preview.expiresAt, pollUrl: `/api/v1/invitations/${slug}/template-upgrade-previews/${preview.id}` };
+      return describeUpgrade({ invitation, target, preview, media: source.media });
     }, { isolationLevel: 'RepeatableRead' });
+  }
+  async poll(userId: string, slug: string, previewId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const preview = await tx.templatePreview.findUnique({ where: { id: previewId } });
+      if (!preview?.targetVersionId || preview.actorUserId !== userId || preview.expiresAt <= new Date()) throw new DomainHttpException('TEMPLATE_PREVIEW_STALE', 'Preview expired or belongs to another requester');
+      const { invitation, target } = await lockAdoption(tx, { userId, slug, targetVersionId: preview.targetVersionId });
+      const source = await loadSource(tx, invitation);
+      await requireUpgradePreview(tx, { invitation, target, userId, sourceHash: source.hash, previewId });
+      const preparation = await tx.templateMaterialization.findUnique({ where: { previewId } });
+      if (preparation && preparation.state !== 'READY') return { previewId, state: preparation.state, expiresAt: preview.expiresAt };
+      const defaults = preparation ? await readTemplateDefaultMedia(tx, { versionId: target.id, materializationId: preparation.id }) : undefined;
+      return describeUpgrade({ invitation, target, preview, media: source.media, defaultMedia: defaults?.media });
+    });
   }
   async apply(userId: string, slug: string, intent: UpgradeApplyIntent) {
     this.gates.require('ADOPTION'); const requestHash = hashTemplateContent({ slug, ...intent });
@@ -42,14 +54,15 @@ export class TemplateAdoptionService {
       const scopeKey = `adopt:${invitation.id}`;
       const prior = await tx.templateReceipt.findUnique({ where: { scopeKey_idempotencyKey: { scopeKey, idempotencyKey: intent.idempotencyKey } } });
       if (prior) {
-        if (prior.actorUserId !== userId || prior.requestHash !== requestHash) throw new ConflictException('TEMPLATE_IDEMPOTENCY_CONFLICT');
+        if (prior.actorUserId !== userId || prior.requestHash !== requestHash) throw new DomainHttpException('TEMPLATE_IDEMPOTENCY_CONFLICT', 'TEMPLATE_IDEMPOTENCY_CONFLICT');
         return prior.result;
       }
-      if (intent.templateKey !== target.key || intent.expectedTemplateVersionId !== invitation.templateVersionId) throw new ConflictException('TEMPLATE_PREVIEW_STALE');
+      if (intent.templateKey !== target.key || intent.expectedTemplateVersionId !== invitation.templateVersionId) throw new DomainHttpException('TEMPLATE_PREVIEW_STALE', 'TEMPLATE_PREVIEW_STALE');
       assertDesignRevision(invitation.designRevision, intent.expectedDesignRevision);
       const source = await loadSource(tx, invitation);
       await requireUpgradePreview(tx, { invitation, userId, sourceHash: source.hash, target, previewId: intent.previewId });
       const plan = planTemplateAdoption(invitation, target);
+      await bindTemplateMaterialization(tx, { previewId: intent.previewId, invitationId: invitation.id, targetVersionId: target.id, hasArtwork: Array.isArray(target.assetManifest) && target.assetManifest.length > 0 });
       await tx.invitation.update({ where: { id: invitation.id }, data: { templateId: target.templateId, templateVersionId: target.id,
         templateOwnerScopeKey: target.ownerScopeKey, theme: plan.theme as Prisma.InputJsonValue } });
       await Promise.all(plan.blocks.map((block) => tx.invitationBlock.update({ where: { id: block.id }, data: { enabled: block.enabled, variant: block.variant } })));
@@ -64,11 +77,11 @@ export class TemplateAdoptionService {
 async function lockAdoption(tx: Prisma.TransactionClient, intent: { userId: string; slug: string; targetVersionId: string }) {
   const identity = await tx.invitation.findUnique({ where: { slug: intent.slug }, select: { organizationId: true, eventId: true, id: true } });
   if (!identity) throw new NotFoundException('No such invitation');
-  await tx.$queryRaw`SELECT id FROM organizations WHERE id=${identity.organizationId} FOR SHARE`;
+  await lockOrganizationStanding(tx, { organizationId: identity.organizationId });
   const selected = await selectAvailableTemplate(tx, { organizationId: identity.organizationId, templateVersionId: intent.targetVersionId });
-  if (!selected) throw new NotFoundException('TEMPLATE_NOT_FOUND');
+  if (!selected) throw new DomainHttpException('TEMPLATE_NOT_FOUND', 'TEMPLATE_NOT_FOUND');
   const target = await tx.designTemplateVersion.findUniqueOrThrow({ where: { id: selected.templateVersionId } });
-  if (Array.isArray(target.assetManifest) && target.assetManifest.length) throw new ConflictException({ code: 'TEMPLATE_ASSET_NOT_READY', message: 'Private artwork materialization is required before adoption' });
+
   await tx.$queryRaw`SELECT id FROM events WHERE id=${identity.eventId} FOR UPDATE`;
   const event = await tx.event.findUniqueOrThrow({ where: { id: identity.eventId }, select: { status: true } });
   if (event.status === 'ARCHIVED') throw new ConflictException('Archived events cannot change design');
@@ -78,26 +91,34 @@ async function lockAdoption(tx: Prisma.TransactionClient, intent: { userId: stri
   return { invitation, target: { ...target, key: selected.key } };
 }
 async function requireDesigner(tx: Prisma.TransactionClient, intent: { userId: string; eventId: string; organizationId: string }) {
-  await tx.$queryRaw`SELECT id FROM users WHERE id=${intent.userId} FOR SHARE`;
-  const user = await tx.user.findUniqueOrThrow({ where: { id: intent.userId }, select: { isActive: true, deletedAt: true, platformRole: true,
-    eventMemberships: { where: { eventId: intent.eventId }, select: { role: true } }, organizationMemberships: { where: { organizationId: intent.organizationId }, select: { role: true } } } });
-  const actor = { userId: intent.userId, email: '', platformRole: user.platformRole, eventRole: user.eventMemberships[0]?.role, organizationRole: user.organizationMemberships[0]?.role } satisfies RequestActor;
-  if (!user.isActive || user.deletedAt || !actorCan(actor, 'invitation:design')) throw new NotFoundException('No such invitation');
+  await requireCurrentEventPermission(tx, { actor: { userId: intent.userId }, eventId: intent.eventId, permission: 'invitation:design' });
 }
 async function loadSource(tx: Prisma.TransactionClient, invitation: AdoptionInvitation) {
   const assets = await tx.mediaAsset.findMany({ where: { eventId: invitation.eventId, id: { in: invitation.blocks.flatMap((block) => block.assetIds) } }, select: blockMediaSelect });
   const media = new Map(assets.map((asset) => [asset.id, asset]));
-  const payload = buildInvitationContent({ ...invitation, template: pinnedTemplate(invitation), media });
+  const defaults = await readTemplateDefaultMedia(tx, { invitationId: invitation.id, versionId: invitation.templateVersionId });
+  const payload = buildInvitationContent({ ...invitation, template: pinnedTemplate(invitation), media, defaultMedia: defaults.media });
   const hash = hashTemplateContent({ templateVersionId: invitation.templateVersionId, theme: invitation.theme, rsvpFields: invitation.rsvpFields,
-    blocks: invitation.blocks, questions: invitation.questions, payload: { ...payload, isAcceptingResponses: undefined }, assets });
+    blocks: invitation.blocks, questions: invitation.questions, payload: { ...payload, isAcceptingResponses: undefined }, assets, defaults: defaults.bindings });
   return { hash, media };
 }
 function assertDesignRevision(actual: bigint, expected: string) {
-  if (String(actual) !== expected) throw new ConflictException({ code: 'TEMPLATE_PREVIEW_STALE', message: 'Design changed; generate a fresh preview' });
+  if (String(actual) !== expected) throw new DomainHttpException('TEMPLATE_PREVIEW_STALE', 'Design changed; generate a fresh preview');
 }
 async function requireUpgradePreview(tx: Prisma.TransactionClient, intent: { invitation: AdoptionInvitation; userId: string; sourceHash: string; target: { id: string; contentHash: string }; previewId: string }) {
   const preview = await tx.templatePreview.findUnique({ where: { id: intent.previewId } });
   if (!preview || preview.actorUserId !== intent.userId || preview.invitationId !== intent.invitation.id || preview.expiresAt <= new Date()
     || preview.sourceHash !== intent.sourceHash || preview.sourceVersionId !== intent.invitation.templateVersionId
-    || preview.targetVersionId !== intent.target.id || preview.targetHash !== intent.target.contentHash) throw new ConflictException('TEMPLATE_PREVIEW_STALE');
+    || preview.targetVersionId !== intent.target.id || preview.targetHash !== intent.target.contentHash) throw new DomainHttpException('TEMPLATE_PREVIEW_STALE', 'TEMPLATE_PREVIEW_STALE');
+}
+
+type UpgradeTarget = Awaited<ReturnType<typeof lockAdoption>>['target'];
+function describeUpgrade(intent: { invitation: AdoptionInvitation; target: UpgradeTarget; preview: { id: string; sourceHash: string; expiresAt: Date }; media: Awaited<ReturnType<typeof loadSource>>['media']; defaultMedia?: Awaited<ReturnType<typeof readTemplateDefaultMedia>>['media'] }) {
+  const { invitation, target, preview } = intent; const plan = planTemplateAdoption(invitation, target);
+  const payloads = Object.fromEntries(invitation.event.locales.map((locale) => [locale, { ...buildInvitationContent({ ...invitation, ...plan,
+    blocks: plan.blocks.filter((block) => block.enabled), template: { ...target, id: target.templateId, key: target.key }, templateVersion: target, media: intent.media, defaultMedia: intent.defaultMedia }, locale),
+    isPreview: true, isAcceptingResponses: false }]));
+  return { previewId: preview.id, state: 'READY', sourceVersionId: invitation.templateVersionId, targetVersionId: target.id,
+    expectedDesignRevision: String(invitation.designRevision), sourceHash: preview.sourceHash, targetHash: target.contentHash,
+    expiresAt: preview.expiresAt, changes: plan.changes, payloads: projectTemplateAssetPaths(payloads, `/api/v1/events/${invitation.eventId}/design-assets`) };
 }

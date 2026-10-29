@@ -1,3 +1,4 @@
+import { DomainHttpException } from '../../../common/domain-http.exception';
 import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { pinnedTemplate } from './template-content';
@@ -17,7 +18,7 @@ export async function selectAvailableTemplate(tx: Prisma.TransactionClient, inte
     }, include: { activeVersion: true }, orderBy: [{ name: 'asc' }, { key: 'asc' }, { id: 'asc' }],
   });
   if (!template) {
-    if (intent.templateKey || intent.templateVersionId) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND', message: 'No available template in this event organization' });
+    if (intent.templateKey || intent.templateVersionId) throw new DomainHttpException('TEMPLATE_NOT_FOUND', 'No available template in this event organization');
     return null;
   }
   await tx.$queryRaw`SELECT id FROM design_templates WHERE id=${template.id} FOR SHARE`;

@@ -1,0 +1,108 @@
+import { reserveInitialTemplateArtwork } from '../../src/modules/design/templates/template-materialization';
+import { PublishingService } from '../../src/modules/invitations/publishing.service';
+import { ConfigService } from '@nestjs/config';
+import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import sharp from 'sharp';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { PrivateStorageService } from '../../src/infra/storage/private/private-storage';
+import { TemplateAssetsService } from '../../src/modules/design/templates/template-assets.service';
+import { TemplateAssetRunner } from '../../src/modules/design/templates/template-asset-runner';
+import { TemplateMaterializationRunner } from '../../src/modules/design/templates/template-materialization-runner';
+import { TemplateAuthoringService } from '../../src/modules/design/templates/template-authoring.service';
+import { TemplateAdoptionService } from '../../src/modules/design/templates/template-adoption.service';
+import { TemplateGatesService } from '../../src/modules/design/templates/template-gates.service';
+import { InvitationsService } from '../../src/modules/invitations/invitations.service';
+import { DesignAssetFilesService } from '../../src/modules/invitations/design-asset-files.service';
+import { AnalyticsService } from '../../src/infra/analytics/analytics.service';
+import { CacheService } from '../../src/infra/cache/cache.service';
+import { testTemplateCapabilities } from '../fixtures/template.fixture';
+import { seedEvent } from '../fixtures/event.fixture';
+import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
+const definition = { name: 'Art', allowedFonts: ['Inter'], palettes: [{ name: 'paper', colors: ['#FFFFFF'] }], supportedBlocks: ['HERO'], blockVariants: { HERO: ['split'] }, defaultTheme: { bodyFont: 'Inter', palette: 'paper' }, rendererKey: 'invitation-v1' };
+describe('event-private immutable template artwork', () => {
+  let prisma: PrismaClient; let author: TemplateAuthoringService; let assets: TemplateAssetsService; let runner: TemplateAssetRunner;
+  let materializer: TemplateMaterializationRunner; let adoption: TemplateAdoptionService; let invitations: InvitationsService; let files: DesignAssetFilesService;
+  const objects = new Map<string, Buffer>(); const cached: string[] = [];
+  const storage = { put: (key: string, buffer: Buffer) => { objects.set(key, buffer); return Promise.resolve(); }, get: (key: string) => Promise.resolve(objects.get(key)!), remove: (key: string) => { objects.delete(key); return Promise.resolve(); } };
+  const cache = { invalidateInvitation: jest.fn(), shareLoad: (_key: string, load: () => Promise<unknown>) => load(),
+    readVersioned: async (_key: string, _revision: string, _ttl: number, load: () => Promise<unknown>) => { const result = await load(); cached.push(JSON.stringify(result)); return result; }, rememberVersioned: jest.fn() };
+  beforeAll(() => {
+    prisma = testPrisma(); const database = prisma as unknown as PrismaService; const store = storage as unknown as PrivateStorageService;
+    const config = new ConfigService({ TEMPLATE_AUTHORING_ENABLED: 'true', TEMPLATE_ASSETS_ENABLED: 'true', TEMPLATE_PUBLISH_ENABLED: 'true', TEMPLATE_ADOPTION_ENABLED: 'true' });
+    const gates = new TemplateGatesService(config); const capabilities = testTemplateCapabilities(['HERO']);
+    author = new TemplateAuthoringService(database, gates, capabilities); assets = new TemplateAssetsService(database, store, gates, capabilities);
+    runner = new TemplateAssetRunner(database, store); materializer = new TemplateMaterializationRunner(database, store);
+    adoption = new TemplateAdoptionService(database, cache as unknown as CacheService, gates);
+    invitations = new InvitationsService(database, cache as unknown as CacheService, { recordInvitationView: jest.fn() } as unknown as AnalyticsService, config);
+    files = new DesignAssetFilesService(database, store, invitations);
+  });
+  beforeEach(async () => { await resetTestDatabase(); objects.clear(); cached.length = 0; }); afterAll(() => disconnectTestDatabase());
+  const setup = async () => {
+    const event = await seedEvent(prisma, { visibility: 'UNLISTED' });
+    const user = await prisma.user.create({ data: { name: 'Admin', email: `${randomUUID()}@test.local`, platformRole: 'ADMIN' } });
+    const template = await author.create(user.id, { key: 'art', definition });
+    const buffer = await sharp({ create: { width: 8, height: 6, channels: 3, background: '#ffffff' } }).png().toBuffer();
+    const upload = await assets.upload(user.id, { templateId: template.templateId, draftId: template.draft.id, expectedRevision: 1, kind: 'COVER', idempotencyKey: randomUUID(), file: { buffer, mimetype: 'image/png' } });
+    await runner.runOne();
+    await assets.attach(user.id, { templateId: template.templateId, draftId: template.draft.id, expectedRevision: 2, artwork: [{ slot: 'HERO', assetId: upload.assetId }] });
+    const preview = await author.preview(user.id, { templateId: template.templateId, draftId: template.draft.id });
+    await author.publish(user.id, { templateId: template.templateId, draftId: template.draft.id, dto: { expectedRevision: 3, contentHash: preview.contentHash, previewId: preview.previewId, idempotencyKey: randomUUID() } });
+    const selected = await prisma.designTemplate.findUniqueOrThrow({ where: { id: template.templateId } });
+    const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: event.slug } });
+    const intent = { targetVersionId: selected.activeVersionId!, expectedDesignRevision: String(invitation.designRevision) };
+    const pending = await adoption.preview(user.id, event.slug, intent);
+    return { event, user, template, invitation, intent, pending, sourceBuffer: buffer };
+  };
+  it('prepares private bytes before adoption, projects credentials after caching and preserves sources on event deletion', async () => {
+    const state = await setup(); expect(state.pending.state).toBe('PROCESSING');
+    await expect(adoption.apply(state.user.id, state.event.slug, { ...state.intent, templateKey: 'art', previewId: state.pending.previewId, expectedTemplateVersionId: state.invitation.templateVersionId, idempotencyKey: randomUUID() })).rejects.toMatchObject({ status: 409 });
+    expect(await materializer.runOne()).toBe(true);
+    const ready = await adoption.poll(state.user.id, state.event.slug, state.pending.previewId); expect(ready.state).toBe('READY');
+    await adoption.apply(state.user.id, state.event.slug, { ...state.intent, templateKey: 'art', previewId: state.pending.previewId, expectedTemplateVersionId: state.invitation.templateVersionId, idempotencyKey: randomUUID() });
+    const page = await invitations.getPublicInvitation(state.event.slug, state.event.primaryGuestToken, 'en');
+    expect(page.coverUrl).toContain(`/g/${state.event.primaryGuestToken}/design-assets/`);
+    expect(page).toMatchObject({ resolvedTheme: { palette: { name: 'paper', roles: { background: '#FFFFFF' } } } });
+    expect(cached.join('')).not.toContain(state.event.primaryGuestToken); expect(cached.join('')).toContain('template-asset:');
+    const binding = await prisma.invitationTemplateAsset.findFirstOrThrow({ where: { invitationId: state.invitation.id, state: 'BOUND' } });
+    expect((await files.readGuest({ slug: state.event.slug, token: state.event.primaryGuestToken, assetId: binding.id })).mimeType).toBe('image/png');
+    const source = await prisma.designTemplateAsset.findFirstOrThrow({ where: { templateId: state.template.templateId } });
+    await expect(prisma.$executeRaw`UPDATE design_template_assets SET width=999 WHERE id=${source.id}`).rejects.toThrow('immutable');
+    await expect(prisma.$executeRaw`DELETE FROM design_template_asset_references WHERE "versionId"=${state.intent.targetVersionId}`).rejects.toThrow('immutable');
+    const override = await prisma.mediaAsset.create({ data: { eventId: state.event.eventId, kind: 'COVER', url: 'https://example.test/event-override.png' } });
+    await prisma.invitationBlock.updateMany({ where: { invitationId: state.invitation.id, type: 'HERO' }, data: { assetIds: [override.id] } });
+    expect((await invitations.getPublicInvitation(state.event.slug, state.event.primaryGuestToken, 'en')).coverUrl).toBe(override.url);
+    await prisma.invitationBlock.updateMany({ where: { invitationId: state.invitation.id, type: 'HERO' }, data: { assetIds: [] } });
+    expect((await invitations.getPublicInvitation(state.event.slug, state.event.primaryGuestToken, 'en')).coverUrl).toContain('/design-assets/');
+    await prisma.guest.updateMany({ where: { eventId: state.event.eventId }, data: { anonymizedAt: new Date() } });
+    await expect(files.readGuest({ slug: state.event.slug, token: state.event.primaryGuestToken, assetId: binding.id })).rejects.toMatchObject({ status: 404 });
+    await prisma.event.delete({ where: { id: state.event.eventId } }); await runner.cleanup();
+    expect(objects.has(binding.objectKey)).toBe(false);
+    expect(await prisma.designTemplateVersion.count({ where: { templateId: state.template.templateId } })).toBe(1);
+    expect(await prisma.designTemplateAsset.count({ where: { templateId: state.template.templateId, state: 'AVAILABLE' } })).toBe(1);
+  });
+  it('keeps initial drafts unpublished until worker binding and refuses a late initial pin change', async () => {
+    const state = await setup(); const event = await seedEvent(prisma, { isPublished: false });
+    const initial = await prisma.$transaction(async (tx) => {
+      const invitation = await tx.invitation.update({ where: { slug: event.slug }, data: { templateId: state.template.templateId, templateVersionId: state.intent.targetVersionId } });
+      return { invitation, preparation: await reserveInitialTemplateArtwork(tx, { userId: state.user.id, invitation }) };
+    });
+    expect(initial.preparation.state).toBe('PROCESSING');
+    const publishing = new PublishingService(prisma as unknown as PrismaService, cache as unknown as CacheService);
+    await expect(publishing.publish(event.slug)).rejects.toMatchObject({ status: 409 });
+    await materializer.runOne(); await materializer.runOne();
+    expect(await prisma.invitationTemplateAsset.count({ where: { invitationId: initial.invitation.id, state: 'BOUND' } })).toBe(1);
+    expect(await publishing.publish(event.slug)).toMatchObject({ status: 'PUBLISHED' });
+    const later = await seedEvent(prisma, { isPublished: false });
+    const baseline = await prisma.invitation.findUniqueOrThrow({ where: { slug: later.slug } });
+    await prisma.$transaction(async (tx) => {
+      const invitation = await tx.invitation.update({ where: { id: baseline.id }, data: { templateId: state.template.templateId, templateVersionId: state.intent.targetVersionId } });
+      await reserveInitialTemplateArtwork(tx, { userId: state.user.id, invitation });
+    });
+    await prisma.invitation.update({ where: { id: baseline.id }, data: { templateId: baseline.templateId, templateVersionId: baseline.templateVersionId } });
+    await materializer.runOne();
+    expect(await prisma.invitationTemplateAsset.count({ where: { invitationId: baseline.id, state: 'BOUND' } })).toBe(0);
+    expect(await prisma.templateMaterialization.findFirstOrThrow({ where: { invitationId: baseline.id } })).toMatchObject({ state: 'RETIRED' });
+  });
+
+});

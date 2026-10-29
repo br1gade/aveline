@@ -30,6 +30,7 @@ class CityQuery {
 
 @ApiTags('design')
 @Controller()
+@EventScope('eventId')
 export class DesignController {
   constructor(
     private readonly design: DesignService,

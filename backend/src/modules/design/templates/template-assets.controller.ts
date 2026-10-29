@@ -1,13 +1,20 @@
-import { BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, Param, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsUUID, Max, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsString, IsUUID, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import type { Response } from 'express';
 import { CurrentActor, RequestActor, RequirePermission } from '../../../infra/auth/actor';
 import { TEMPLATE_UPLOAD_BYTES } from './template-raster';
 import { TemplateAssetsService } from './template-assets.service';
 import { TemplateRevisionDto } from './template.dto';
+class TemplateArtworkReferenceDto {
+  @ApiProperty() @IsString() @MaxLength(128) assetId!: string;
+  @ApiProperty({ enum: ['HERO', 'GALLERY'] }) @IsIn(['HERO', 'GALLERY']) slot!: string;
+}
+class AttachTemplateArtworkDto extends TemplateRevisionDto {
+  @ApiProperty({ type: [TemplateArtworkReferenceDto] }) @IsArray() @ArrayMaxSize(20) @ValidateNested({ each: true }) @Type(() => TemplateArtworkReferenceDto) artwork!: TemplateArtworkReferenceDto[];
+}
 class TemplateAssetUploadDto {
   @ApiProperty() @Type(() => Number) @IsInt() @Min(1) @Max(2147483647) expectedRevision!: number;
   @ApiProperty() @IsUUID() idempotencyKey!: string;
@@ -25,6 +32,12 @@ export class TemplateAssetsController {
   upload(@CurrentActor() actor: RequestActor, @Param() params: { templateId: string; draftId: string }, @Body() dto: TemplateAssetUploadDto, @UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('file: one raster image required');
     return this.assets.upload(actor.userId, { ...params, ...dto, file });
+  }
+  @RequirePermission('template:author') @Patch('drafts/:draftId/artwork')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Replace ordered same-template artwork defaults in reviewed renderer slots' })
+  attach(@CurrentActor() actor: RequestActor, @Param() params: { templateId: string; draftId: string }, @Body() dto: AttachTemplateArtworkDto) {
+    return this.assets.attach(actor.userId, { ...params, ...dto });
   }
   @RequirePermission('template:author') @Get('assets/:assetId/file')
   @Header('Cache-Control', 'private, no-store')

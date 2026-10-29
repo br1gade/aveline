@@ -1326,6 +1326,66 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/design-assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_generic",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a published public/unlisted invitation private design asset without redirect",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/design-assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_personal",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read private design artwork through the live guest capability and pin",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/design-templates/{templateKey}/assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_catalogue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read published catalogue sample artwork within the authorized event organization",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/design-assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_editor",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read authorized event-private design or ready preview artwork",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
     "/api/v1/invitations/{slug}": {
       "get": {
         "operationId": "InvitationsController_getBySlug",
@@ -5215,6 +5275,38 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/template-upgrade-previews/{previewId}": {
+      "get": {
+        "operationId": "TemplateAdoptionController_poll",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "previewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Poll event-private artwork preparation for an exact requester-bound preview",
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/assets": {
       "post": {
         "operationId": "TemplateAssetsController_upload",
@@ -5235,6 +5327,31 @@
           }
         },
         "summary": "Stage private raster artwork for background sanitization; no public source URL",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/artwork": {
+      "patch": {
+        "operationId": "TemplateAssetsController_attach",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachTemplateArtworkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Replace ordered same-template artwork defaults in reviewed renderer slots",
         "tags": [
           "template-authoring"
         ]
@@ -5281,6 +5398,19 @@
       }
     },
     "/api/v1/design-templates": {
+      "get": {
+        "operationId": "TemplateAuthoringController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Page the authorized staff template inventory; SUPPORT sees assigned templates only",
+        "tags": [
+          "template-authoring"
+        ]
+      },
       "post": {
         "operationId": "TemplateAuthoringController_create",
         "parameters": [],
@@ -5383,6 +5513,31 @@
           }
         },
         "summary": "Merge renderer definition fields with revision checking",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/discard": {
+      "post": {
+        "operationId": "TemplateAuthoringController_discard",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Discard an exact draft revision and retire eligible transient artwork",
         "tags": [
           "template-authoring"
         ]
@@ -9308,6 +9463,43 @@
           "kind"
         ]
       },
+      "TemplateArtworkReferenceDto": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "HERO",
+              "GALLERY"
+            ]
+          }
+        },
+        "required": [
+          "assetId",
+          "slot"
+        ]
+      },
+      "AttachTemplateArtworkDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "artwork": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateArtworkReferenceDto"
+            }
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "artwork"
+        ]
+      },
       "TemplateRevisionDto": {
         "type": "object",
         "properties": {
@@ -10377,6 +10569,20 @@
               "IDEMPOTENCY_CONFLICT",
               "SUBJECT_ERASED",
               "NO_CHANGE",
+              "TEMPLATE_REVISION_CONFLICT",
+              "TEMPLATE_OPEN_DRAFT_EXISTS",
+              "TEMPLATE_IDEMPOTENCY_CONFLICT",
+              "TEMPLATE_PREVIEW_STALE",
+              "TEMPLATE_PREVIEW_REQUIRED",
+              "TEMPLATE_ASSET_NOT_READY",
+              "TEMPLATE_REFERENCED",
+              "TEMPLATE_CAPABILITY_NOT_DEPLOYED",
+              "TEMPLATE_ACTION_FORBIDDEN",
+              "TEMPLATE_DRAFT_NOT_FOUND",
+              "TEMPLATE_ASSET_NOT_FOUND",
+              "TEMPLATE_FEATURE_DISABLED",
+              "TEMPLATE_ASSET_TYPE_UNSUPPORTED",
+              "TEMPLATE_ASSET_INVALID",
               "TEMPLATE_VALIDATION_FAILED",
               "TEMPLATE_CAPABILITY_REQUIRED",
               "TEMPLATE_STATE_CHANGED",
@@ -10468,6 +10674,20 @@
               "IDEMPOTENCY_CONFLICT",
               "SUBJECT_ERASED",
               "NO_CHANGE",
+              "TEMPLATE_REVISION_CONFLICT",
+              "TEMPLATE_OPEN_DRAFT_EXISTS",
+              "TEMPLATE_IDEMPOTENCY_CONFLICT",
+              "TEMPLATE_PREVIEW_STALE",
+              "TEMPLATE_PREVIEW_REQUIRED",
+              "TEMPLATE_ASSET_NOT_READY",
+              "TEMPLATE_REFERENCED",
+              "TEMPLATE_CAPABILITY_NOT_DEPLOYED",
+              "TEMPLATE_ACTION_FORBIDDEN",
+              "TEMPLATE_DRAFT_NOT_FOUND",
+              "TEMPLATE_ASSET_NOT_FOUND",
+              "TEMPLATE_FEATURE_DISABLED",
+              "TEMPLATE_ASSET_TYPE_UNSUPPORTED",
+              "TEMPLATE_ASSET_INVALID",
               "TEMPLATE_VALIDATION_FAILED",
               "TEMPLATE_CAPABILITY_REQUIRED",
               "TEMPLATE_STATE_CHANGED",

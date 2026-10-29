@@ -1,3 +1,6 @@
+import { assertAuthoredTheme } from './templates/template-theme';
+import { lockLiveEvent } from '../events/event-lock';
+import { DomainHttpException } from '../../common/domain-http.exception';
 import { TemplateAdoptionService } from './templates/template-adoption.service';
 import { listEventTemplates, selectAvailableTemplate } from './templates/template-reader';
 import { versionStatement } from '../guest-contributions/statements';
@@ -54,7 +57,7 @@ export class DesignService {
   async chooseTemplate(slug: string, dto: ChooseTemplateDto, userId?: string) {
     if (dto.templateVersionId) {
       if (!dto.previewId || !dto.expectedTemplateVersionId || !dto.expectedDesignRevision || !dto.idempotencyKey || !userId) {
-        throw new ConflictException({ code: 'TEMPLATE_PREVIEW_REQUIRED', message: 'Exact version adoption requires previewId, expectedTemplateVersionId, expectedDesignRevision and idempotencyKey' });
+        throw new DomainHttpException('TEMPLATE_PREVIEW_REQUIRED', 'Exact version adoption requires previewId, expectedTemplateVersionId, expectedDesignRevision and idempotencyKey');
       }
       return this.adoption.apply(userId, slug, { targetVersionId: dto.templateVersionId, templateKey: dto.templateKey,
         previewId: dto.previewId, expectedTemplateVersionId: dto.expectedTemplateVersionId, expectedDesignRevision: dto.expectedDesignRevision, idempotencyKey: dto.idempotencyKey });
@@ -67,7 +70,7 @@ export class DesignService {
     await this.prisma.$transaction(async (tx) => {
       const template = await selectAvailableTemplate(tx, { organizationId: invitation.organizationId, templateKey: dto.templateKey });
       if (!template) throw new NotFoundException('No such template');
-      if (template.provenance !== 'LEGACY_BASELINE') throw new ConflictException({ code: 'TEMPLATE_PREVIEW_REQUIRED', message: 'Explicit version preview and confirmation required' });
+      if (template.provenance !== 'LEGACY_BASELINE') throw new DomainHttpException('TEMPLATE_PREVIEW_REQUIRED', 'Explicit version preview and confirmation required');
       await tx.$queryRaw`SELECT id FROM invitations WHERE id=${invitation.id} FOR UPDATE`;
       await tx.invitation.update({ where: { id: invitation.id }, data: {
         templateId: template.id, templateVersionId: template.templateVersionId,
@@ -91,32 +94,20 @@ export class DesignService {
    * colour, which looks like a bug to the person who paid for it.
    */
   async updateTheme(slug: string, dto: UpdateThemeDto) {
-    const invitation = await this.prisma.invitation.findUnique({
-      where: { slug },
-      select: {
-        id: true,
-        theme: true,
-        templateVersion: { select: { allowedFonts: true, palettes: true } },
-      },
+    const identity = await this.requireInvitation(slug);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await lockLiveEvent(tx, identity.eventId);
+      await tx.$queryRaw`SELECT id FROM invitations WHERE id=${identity.id} FOR UPDATE`;
+      const invitation = await tx.invitation.findUniqueOrThrow({ where: { id: identity.id }, select: {
+        theme: true, templateVersion: { select: { allowedFonts: true, palettes: true, provenance: true, rendererManifest: true } },
+      } });
+      const merged = mergeTheme(asObject(invitation.theme), { ...dto });
+      const result = validateTheme(merged, { allowedFonts: invitation.templateVersion.allowedFonts, palettes: asPalettes(invitation.templateVersion.palettes) });
+      if (!result.isValid) throw new BadRequestException(result.errors);
+      assertAuthoredTheme(merged, invitation.templateVersion);
+      return tx.invitation.update({ where: { id: identity.id }, data: { theme: result.theme as Prisma.InputJsonValue }, select: { theme: true } });
     });
-    if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
-
-    const merged = mergeTheme(asObject(invitation.theme), { ...dto });
-    const result = validateTheme(merged, {
-      allowedFonts: invitation.templateVersion.allowedFonts,
-      palettes: asPalettes(invitation.templateVersion.palettes),
-    });
-
-    if (!result.isValid) throw new BadRequestException(result.errors);
-
-    const updated = await this.prisma.invitation.update({
-      where: { id: invitation.id },
-      data: { theme: result.theme as Prisma.InputJsonValue },
-      select: { theme: true },
-    });
-
-    await this.cache.invalidateInvitation(slug);
-    return { slug, theme: updated.theme };
+    await this.cache.invalidateInvitation(slug); return { slug, theme: updated.theme };
   }
 
   /**
@@ -128,16 +119,15 @@ export class DesignService {
    */
   async updateBlock(slug: string, type: BlockType, dto: UpdateBlockDto) {
     const invitation = await this.requireInvitation(slug);
-    const template = await this.prisma.designTemplateVersion.findFirstOrThrow({
-      where: { invitations: { some: { id: invitation.id } } },
-      select: { supportedBlocks: true, blockVariants: true },
-    });
-    assertBlockEdit(template, type, dto);
     assertLanguages(['content', dto.content]);
 
     if (dto.assetIds) await this.assertAttachable(invitation.eventId, type, dto.assetIds);
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      await lockLiveEvent(tx, invitation.eventId);
+      await tx.$queryRaw`SELECT id FROM invitations WHERE id=${invitation.id} FOR UPDATE`;
+      const current = await tx.invitation.findUniqueOrThrow({ where: { id: invitation.id }, select: { templateVersion: { select: { supportedBlocks: true, blockVariants: true } } } });
+      assertBlockEdit(current.templateVersion, type, dto);
       const block = await tx.invitationBlock.findUnique({
         where: { invitationId_type: { invitationId: invitation.id, type } },
         select: { id: true },

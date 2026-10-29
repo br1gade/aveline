@@ -1,4 +1,5 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { DomainHttpException } from '../../../../common/domain-http.exception';
+import { Injectable } from '@nestjs/common';
 import { TemplateDefinition } from '../template-validation';
 import { hashTemplateContent } from '../template-content';
 
@@ -26,7 +27,7 @@ export class TemplateCapabilitiesService {
   }
   require(definition: TemplateDefinition): RendererCapability {
     const capability = this.match(definition);
-    if (!capability) throw new ServiceUnavailableException({ code: 'TEMPLATE_CAPABILITY_NOT_DEPLOYED', message: 'A reviewed deployed renderer capability and frontend acceptance are required' });
+    if (!capability) throw new DomainHttpException('TEMPLATE_CAPABILITY_NOT_DEPLOYED', 'A reviewed deployed renderer capability and frontend acceptance are required');
     return capability;
   }
 }

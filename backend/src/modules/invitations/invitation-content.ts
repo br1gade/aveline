@@ -1,3 +1,4 @@
+import { AuthoredTemplateVersion, resolvedTemplateTheme } from '../design/templates/resolved-template-theme';
 import { BlockType, DesignTemplate, Event, Invitation, InvitationBlock, MediaAsset, RsvpQuestion, TimelineEntry, Venue } from '@prisma/client';
 import { translatedField } from '../../common/field-translations';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
@@ -13,10 +14,12 @@ type ContentEvent = Pick<Event, 'type' | 'title' | 'hostsLabel' | 'translations'
 export type ContentTemplate = Pick<DesignTemplate, 'id' | 'key' | 'allowedFonts' | 'defaultTheme' | 'supportedBlocks' | 'blockVariants'>;
 export type InvitationContent = Pick<Invitation, 'slug' | 'status' | 'expiresAt' | 'theme' | 'rsvpFields'> & {
   template: ContentTemplate;
+  templateVersion?: AuthoredTemplateVersion;
   event: ContentEvent;
   blocks: ContentBlock[];
   questions: Pick<RsvpQuestion, 'id' | 'type' | 'required' | 'prompt' | 'options' | 'statementVersionId'>[];
   media: Map<string, ContentMedia>;
+  defaultMedia?: Map<BlockType, ContentMedia[]>;
 };
 type Translate = <T>(content: unknown) => T | null;
 
@@ -31,6 +34,7 @@ export function buildInvitationContent(invitation: InvitationContent, requestedL
     template: invitation.template.key,
     theme: { ...asRecord(invitation.template.defaultTheme), ...asRecord(invitation.theme) },
     allowedFonts: invitation.template.allowedFonts,
+    ...resolvedTemplateTheme(invitation.templateVersion, { ...asRecord(invitation.template.defaultTheme), ...asRecord(invitation.theme) }),
     musicUrl: firstMediaUrl(invitation, BlockType.MUSIC),
     coverUrl: firstMediaUrl(invitation, BlockType.HERO),
     locale, availableLocales: event.locales,
@@ -44,7 +48,7 @@ export function buildInvitationContent(invitation: InvitationContent, requestedL
     guest: null,
     blocks: invitation.blocks.map((block) => ({
       type: block.type, sortOrder: block.sortOrder, variant: block.variant, settings: block.settings,
-      content: translate(block.content) ?? {}, media: mediaFor(block, invitation.media, translate),
+      content: translate(block.content) ?? {}, media: mediaFor(block, invitation.media, translate, invitation.defaultMedia),
       data: hydrateBlock(block.type, invitation, translate, locale),
     })),
     rsvpFields: fieldsForPage(invitation.rsvpFields, locale, event.defaultLocale),
@@ -74,18 +78,22 @@ function hydrateBlock(type: BlockType, invitation: InvitationContent, translate:
   }
 }
 
-function mediaFor(block: ContentBlock, media: Map<string, ContentMedia>, translate: Translate) {
-  return block.assetIds.flatMap((id) => {
-    const asset = media.get(id);
-    return asset ? [{ id: asset.id, url: asset.url, kind: asset.kind, altText: translate<string>(asset.altText),
-      width: asset.width, height: asset.height, variants: asset.variants }] : [];
-  });
+function mediaFor(block: ContentBlock, media: Map<string, ContentMedia>, translate: Translate, defaults?: Map<BlockType, ContentMedia[]>) {
+  const assets = block.assetIds.length ? block.assetIds.flatMap((id) => media.get(id) ?? []) : defaults?.get(block.type) ?? [];
+  return assets.map((asset) => ({ id: asset.id, url: asset.url, kind: asset.kind, altText: translate<string>(asset.altText),
+    width: asset.width, height: asset.height, variants: asset.variants }));
 }
 function firstMediaUrl(invitation: InvitationContent, type: BlockType): string | null {
   const block = invitation.blocks.find((candidate) => candidate.type === type);
   const firstId = block?.assetIds.find((id) => invitation.media.has(id));
-  return firstId ? invitation.media.get(firstId)?.url ?? null : null;
+  if (firstId) return invitation.media.get(firstId)?.url ?? null;
+  return defaultMediaUrl(invitation, block, type);
 }
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function defaultMediaUrl(invitation: InvitationContent, block: ContentBlock | undefined, type: BlockType): string | null {
+  if (!block || block.assetIds.length) return null;
+  return invitation.defaultMedia?.get(type)?.[0]?.url ?? null;
 }

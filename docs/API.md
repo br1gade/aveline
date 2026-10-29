@@ -3714,3 +3714,34 @@ template rolls the complete setup back. Detail recovery states distinguish
 QUEUED/NEEDS_REVIEW/CANCELLED without exposing invitation credentials. The
 organization-invitation pre-send check rejects withdrawn, expired, accepted or
 privacy-invalid source invitations. Consultation messages remain manual.
+F44 inventory/artwork additions:
+
+| Method | Endpoint | Request/result |
+|---|---|---|
+| GET | `/design-templates` | `{items,nextCursor}`; cursor query; 50 rows, assigned SUPPORT inventory only |
+| POST | `/design-templates/:templateId/drafts/:draftId/discard` | `{expectedRevision}` freezes the discarded draft and queues unreferenced transient cleanup |
+| PATCH | `/design-templates/:templateId/drafts/:draftId/artwork` | `{expectedRevision,artwork:[{slot:'HERO'|'GALLERY',assetId}]}` replaces ordered defaults; max20, one HERO, same-template AVAILABLE assets and tested slots only |
+| GET | `/invitations/:slug/template-upgrade-previews/:previewId` | Requester-bound ready preview or processing state; expired/stale context409 |
+| GET | `/invitations/:slug/design-assets/:assetId/file` | Live PUBLIC/UNLISTED invitation/pin-authorized private bytes |
+| GET | `/invitations/:slug/g/:guestToken/design-assets/:assetId/file` | Live guest capability and current pin required |
+| GET | `/events/:eventId/design-assets/:assetId/file` | Authenticated invitation:read, bound or ready-preview event copy |
+| GET | `/events/:eventId/design-templates/:templateKey/assets/:assetId/file` | Authenticated event catalogue sample, shared/same-org published source only |
+
+A preview needing artwork returns202 `{previewId,state:'PROCESSING',expiresAt,
+pollUrl}`; polling supplies the normal complete ready preview after the separate
+worker prepares event-owned private copies. The final confirm is still one atomic
+intent; no network/storage work occurs under its database locks. Initial event
+creation retains its201 event response and may add setup state; its DRAFT cannot
+publish until required default artwork is BOUND. Publication/retirement never
+rewrites existing invitations. Removing an event override reveals its immutable
+version default; disabling its block hides both. No source storage URLs/redirects
+are issued. Guest-specific file paths are projected only after shared-cache reads.
+
+New AUTHORED payloads add `templateVersion:{id,rendererKey,capabilityVersion,
+capabilityDigest,contentHash}` and `resolvedTheme:{headingFont,bodyFont,
+palette:{name,roles}}` from the immutable reviewed manifest. Legacy fields/values
+are unchanged and no positional roles are invented for old palettes. Theme edits
+cannot name unmanifested fields or provide fewer custom colors than required roles.
+Verified DSAR export adds `templateAuthorship` with only the subject's factual
+identity links; account closure revokes assignments/previews/unbound worker access,
+retaining immutable design/version history and other events' artwork.

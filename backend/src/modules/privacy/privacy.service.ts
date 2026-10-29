@@ -1,5 +1,6 @@
 import { EnquiryPrivacyService } from '../sales/enquiry-privacy.service';
 import { EnquiryPrivacySubject } from '../sales/enquiry-privacy';
+import { exportTemplateAuthorship } from '../design/templates/template-privacy';
 import { reconcileInactiveOwnerReviews } from '../organizations/organization-reviews.service';
 import { exportContributions } from '../guest-contributions/contribution-privacy';
 import { attendeeSubject, exportAttendees } from '../ticketing/attendee-privacy';
@@ -191,14 +192,14 @@ export class PrivacyService {
   private async assembleExport(subject: EnquiryPrivacySubject, requestId: string) {
     const legacy = subject.email ? await this.assembleEmailExport(subject.email, requestId) : {
       subjectEmail: null, assembledAt: new Date().toISOString(), account: null, guestRecords: [],
-      contributions: [], ticketAttendees: [], ticketOrders: [], messagesSent: [], suppressions: [],
+      contributions: [], templateAuthorship: null, ticketAttendees: [], ticketOrders: [], messagesSent: [], suppressions: [],
     };
     const enquiries = this.enquiryPrivacy ? await this.enquiryPrivacy.exportSubject(subject) : [];
     return { ...legacy, enquiries };
   }
 
   private async assembleEmailExport(subjectEmail: string, requestId: string) {
-    const [user, guests, ticketOrders, messages, suppressions, ticketAttendees, contributions] = await Promise.all([
+    const [user, guests, ticketOrders, messages, suppressions, ticketAttendees, contributions, templateAuthorship] = await Promise.all([
       this.prisma.user.findFirst({
         where: { email: sameAddress(subjectEmail) },
         select: { email: true, name: true, createdAt: true, lastLoginAt: true },
@@ -243,6 +244,7 @@ export class PrivacyService {
       this.suppressionsOf(subjectEmail),
       exportAttendees(this.prisma, subjectEmail),
       exportContributions(this.prisma, subjectEmail, requestId),
+      exportTemplateAuthorship(this.prisma, subjectEmail),
     ]);
 
     return {
@@ -250,7 +252,7 @@ export class PrivacyService {
       assembledAt: new Date().toISOString(),
       account: user,
       guestRecords: guests,
-      contributions,
+      contributions, templateAuthorship,
       ticketAttendees,
       ticketOrders: ticketOrders.map((order) => ({ ...order, totalMinor: order.totalMinor.toString() })),
       messagesSent: messages,

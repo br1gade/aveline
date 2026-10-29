@@ -1,3 +1,4 @@
+import { assertTemplateArtworkReady } from '../design/templates/template-materialization';
 import { captureInvitationLifetime, hasInvitationExpired, LIFETIME_SELECT } from './lifetime';
 import { lockLiveEvent } from '../events/event-lock';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -82,6 +83,7 @@ export class PublishingService {
       if (to === InvitationStatus.PUBLISHED) {
         await lockLiveEvent(tx, invitation.eventId);
         await tx.$queryRaw`SELECT id FROM invitations WHERE id = ${invitation.id} FOR UPDATE`;
+        await assertTemplateArtworkReady(tx, invitation.id);
         await captureInvitationLifetime(tx, invitation.id);
       }
       const moved = await tx.invitation.updateMany({

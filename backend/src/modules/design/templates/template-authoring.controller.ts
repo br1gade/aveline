@@ -1,13 +1,21 @@
-import { Body, Controller, Get, Header, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Patch, Post, Query } from '@nestjs/common';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, RequestActor, RequirePermission } from '../../../infra/auth/actor';
 import { TemplateAuthoringService } from './template-authoring.service';
 import { CreateTemplateDto, PatchTemplateDraftDto, PublishTemplateDto, TemplateAssignmentDto, TemplateRevisionDto } from './template.dto';
 
+class TemplateInventoryQuery {
+  @IsOptional() @IsString() @MaxLength(128) cursor?: string;
+}
 @ApiTags('template-authoring')
 @Controller('design-templates')
 export class TemplateAuthoringController {
   constructor(private readonly templates: TemplateAuthoringService) {}
+  @Header('Cache-Control', 'private, no-store')
+  @RequirePermission('template:author') @Get()
+  @ApiOperation({ summary: 'Page the authorized staff template inventory; SUPPORT sees assigned templates only' })
+  list(@CurrentActor() actor: RequestActor, @Query() query: TemplateInventoryQuery) { return this.templates.list(actor.userId, query.cursor); }
   @Header('Cache-Control', 'private, no-store')
   @RequirePermission('template:assign') @Post()
   @ApiOperation({ summary: 'ADMIN creates an inactive shared or organization-private template with its first draft' })
@@ -24,6 +32,10 @@ export class TemplateAuthoringController {
   @RequirePermission('template:author') @Patch(':templateId/drafts/:draftId')
   @ApiOperation({ summary: 'Merge renderer definition fields with revision checking' })
   patch(@CurrentActor() actor: RequestActor, @Param() params: { templateId: string; draftId: string }, @Body() dto: PatchTemplateDraftDto) { return this.templates.patch(actor.userId, { ...params, dto }); }
+  @Header('Cache-Control', 'private, no-store')
+  @RequirePermission('template:author') @Post(':templateId/drafts/:draftId/discard')
+  @ApiOperation({ summary: 'Discard an exact draft revision and retire eligible transient artwork' })
+  discard(@CurrentActor() actor: RequestActor, @Param() params: { templateId: string; draftId: string }, @Body() dto: TemplateRevisionDto) { return this.templates.discard(actor.userId, { ...params, ...dto }); }
   @Header('Cache-Control', 'private, no-store')
   @RequirePermission('template:author') @Post(':templateId/drafts/:draftId/validate')
   @ApiOperation({ summary: 'Validate backend structure; publication remains closed until tested frontend capabilities are deployed' })

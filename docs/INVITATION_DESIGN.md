@@ -276,6 +276,16 @@ staff assignment before and after IO. Metadata is stripped; SVG, animation,
 multiframe files and oversized/decompression-heavy input are refused. Unreferenced
 objects use durable tombstones/leases; referenced immutable bytes are retained.
 
-Not yet built: deployed frontend capability and visual acceptance, default-artwork
-slot activation and event-private artwork materialization acceptance. These remain
-closed; a version requiring unprepared private artwork cannot be adopted.
+Default artwork uses normalized same-template slot references and immutable hashes.
+A preview reserves event-private copies and returns processing state until the
+worker finishes; confirmation atomically binds ready copies and the target pin.
+Initial selection reserves only database intents, leaves the invitation DRAFT,
+and blocks publishing until binding. Late workers cannot bind a changed pin.
+Guest/editor file reads recheck live capabilities and pin after storage reads;
+shared caches contain internal descriptors projected to request-specific paths
+only after retrieval. Deleting an event retires its copies, preserving reusable art.
+
+Not yet accepted: deployed frontend capability/visual evidence and production
+private-storage/worker isolation/load evidence. The backend materialization path is
+implemented and exercised with synthetic trusted capabilities; production slots
+remain closed until the actual reviewed renderer release exists.

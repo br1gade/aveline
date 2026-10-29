@@ -21,6 +21,7 @@ class TemplatePreviewQuery extends PreviewLocaleQuery {
 
 @ApiTags('design')
 @Controller()
+@EventScope('eventId')
 export class TemplatePreviewsController {
   constructor(private readonly previews: TemplatePreviewsService) {}
 

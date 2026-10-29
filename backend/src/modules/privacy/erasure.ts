@@ -1,4 +1,5 @@
 import { EnquiryPrivacySubject, eraseEnquirySubjects } from '../sales/enquiry-privacy';
+import { revokeTemplateAuthorship } from '../design/templates/template-privacy';
 import { eraseContributions } from '../guest-contributions/contribution-privacy';
 import { revokeSubjectExports } from '../exports/export-privacy';
 import { attendeeSubject, eraseAttendees, lockSubjectOrders } from '../ticketing/attendee-privacy';
@@ -305,6 +306,7 @@ async function closeAccount(tx: Tx, email: string, now: Date): Promise<string | 
       deletedAt: now,
     },
   });
+  await revokeTemplateAuthorship(tx, user.id, now);
   await tx.seatingJob.updateMany({ where: { requestedByUserId: user.id, status: { in: ['QUEUED', 'RUNNING'] } }, data: { status: 'FAILED', failureReason: 'ACCESS_REVOKED', leaseOwner: null, leaseUntil: null } });
   await tx.exportSnapshot.updateMany({ where: { requestedByUserId: user.id, status: { in: ['QUEUED', 'RUNNING'] } }, data: { status: 'FAILED', failureReason: 'ACCESS_REVOKED', revokedAt: now, leaseOwner: null, leaseUntil: null } });
   await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } });
