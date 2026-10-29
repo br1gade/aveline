@@ -71,7 +71,8 @@ async function resolveSelectedContext(tx: OrganizationDatabase, input: Organizat
 
 async function resolveEventContext(tx: OrganizationDatabase, input: OrganizationResolution): Promise<OrganizationContext | null> {
   const event = await tx.event.findUnique({ where: { id: input.eventId }, select: { organizationId: true, organization: { select: { deletedAt: true } } } });
-  if (!isOpenEvent(event)) return null;
+  if (!event) return null;
+  assertEventOrganizationOpen(event.organization);
   const [membership, direct] = await Promise.all([
     tx.organizationMembership.findUnique({ where: { userId_organizationId: { userId: input.userId, organizationId: event.organizationId } }, select: { role: true } }),
     tx.eventMembership.findUnique({ where: { userId_eventId: { userId: input.userId, eventId: input.eventId! } }, select: { role: true } }),
@@ -111,8 +112,8 @@ function assertSelectionMatchesRoute(input: OrganizationResolution): void {
 function canTargetOrganization(input: OrganizationResolution): boolean {
   return input.platformRole !== PlatformRole.NONE && can({ kind: 'staff', role: input.platformRole }, input.platformPermission ?? 'member:manage');
 }
-function isOpenEvent(event: { organizationId: string; organization?: { deletedAt: Date | null } } | null): event is { organizationId: string; organization?: { deletedAt: Date | null } } {
-  return Boolean(event && !event.organization?.deletedAt);
+function assertEventOrganizationOpen(organization: { deletedAt: Date | null } | undefined): void {
+  if (organization?.deletedAt) throw accessDenied();
 }
 function assertEventSelection(input: OrganizationResolution, organizationId: string, hasMembership: boolean): void {
   if ((hasMembership || input.platformRole !== PlatformRole.NONE) && input.selector && input.selector !== organizationId) throw contextMismatch();

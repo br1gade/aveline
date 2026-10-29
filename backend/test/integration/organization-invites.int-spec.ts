@@ -1,3 +1,4 @@
+import { lockOwnerAddress } from '../../src/infra/auth/access-locks';
 import { ConfigService } from '@nestjs/config';
 import { hash } from 'bcrypt';
 import { AccountService } from '../../src/infra/auth/account.service';
@@ -21,6 +22,20 @@ async function fixture() {
 describe('organization invite lifecycle', () => {
   beforeEach(resetTestDatabase);
   afterAll(disconnectTestDatabase);
+  it('rolls a new organization, credential invitation and protected message back together', async () => {
+    const { owner } = await fixture();
+    await expect(prisma.$transaction(async (tx) => {
+      await lockOwnerAddress(tx, 'rollback@test.local');
+      const organization = await tx.organization.create({ data: { name: 'Must roll back' } });
+      const invitation = await accounts.inviteMemberInTransaction(tx, { organizationId: organization.id, invitedByUserId: owner.id,
+        dto: { email: 'rollback@test.local', role: 'OWNER' }, isConcierge: true });
+      expect(invitation.messageId).toEqual(expect.any(String));
+      throw new Error('forced rollback');
+    })).rejects.toThrow('forced rollback');
+    expect(await prisma.organization.count()).toBe(1);
+    expect(await prisma.organizationInvite.count()).toBe(1);
+    expect(await prisma.message.count()).toBe(1);
+  });
   it('same accepted token returns current role without restoring an older invite role', async () => {
     const { token, organization } = await fixture();
     const dto = { token, name: 'Member', password: 'correct password 123' };

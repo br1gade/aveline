@@ -397,3 +397,9 @@ publication/retirement does not invalidate consuming event caches: those read
 immutable pins. Explicit adoption advances durable invitation design/shared page
 revisions; Redis failure remains a cache miss. No guest credentials/source object
 URLs enter template catalogues or shared cached payloads.
+
+Authority-change evidence is domain data in PostgreSQL, committed with the role
+mutation. Generic Mongo request audit remains append-only observability. The
+organization aggregate uses NO KEY UPDATE for lifecycle changes: it excludes role
+writers' SHARE fences while permitting KEY SHARE taken implicitly by privacy FK
+inserts after invitation locks. Organization primary keys are immutable.

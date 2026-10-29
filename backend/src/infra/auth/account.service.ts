@@ -1,4 +1,6 @@
 import { fenceOwnerInviteAcceptance } from '../../modules/sales/owner-invite-privacy';
+
+import { recordOrganizationAccessChange } from '../../modules/organizations/organization-access-evidence';
 import { lockOwnerAddress, lockOrganizationStanding, lockEventOrganization, requireCurrentOrganizationPermission, requireCurrentEventPermission } from './access-locks';
 import { canAddOrganizationMembership } from './organization-write-gate';
 import { incrementOrganizationRevision } from '../../modules/organizations/organization-membership';
@@ -323,7 +325,11 @@ export class AccountService {
       if (!canAddMembership) await this.assertNoOtherOrganization(tx, user.id, invite.organizationId);
       assertClaimed(await tx.organizationInvite.updateMany({ where: { ...liveInvite(invite.id), tokenHash }, data: { acceptedAt: new Date(), acceptedByUserId: user.id } }));
       const membership = current ?? await tx.organizationMembership.create({ data: { userId: user.id, organizationId: invite.organizationId, role: invite.role } });
-      if (!current) await incrementOrganizationRevision(tx, invite.organizationId);
+      if (!current) {
+        const accessRevision = await incrementOrganizationRevision(tx, invite.organizationId);
+        await recordOrganizationAccessChange(tx, { organizationId: invite.organizationId, actorUserId: user.id, subjectUserId: user.id,
+          action: 'JOINED', role: invite.role, accessRevision });
+      }
       return { membership, accountCreated: admit.isNewAccount };
     }, { timeout: 10_000, maxWait: 5000 });
     return { ok: true as const, organizationId: result.membership.organizationId, role: result.membership.role, accountCreated: result.accountCreated };

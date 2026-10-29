@@ -326,3 +326,10 @@ creates a global suppression or deletes finance/account records.
 Not yet enabled: intake HTTP/conversion rollout, independent production journal
 storage acceptance and four-language frontend acceptance. No historical enquiry
 rows are inferred during migration.
+
+OrganizationAccessChange is minimal transactional authority evidence: organization,
+actor/subject IDs, action, previous/current role, access revision and revoked event
+role count. It contains no email, notes, invitation token or message body. Rows
+commit with create/join/role change/departure/ADMIN resolution and survive account
+soft erasure. Accepted invitation user IDs have nullable SET NULL foreign keys;
+legacy accepted rows remain null and cannot become replay credentials.

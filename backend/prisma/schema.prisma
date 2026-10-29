@@ -43,6 +43,7 @@ model Organization {
   promoCodes       PromoCode[]
   createIntents OrganizationCreateIntent[]
   accessReviews OrganizationAccessReview[]
+  accessChanges OrganizationAccessChange[]
 
   enquiries SalesEnquiry[]
   enquiryConversions EnquiryConversion[]
@@ -86,6 +87,10 @@ model User {
   verificationTokens      VerificationToken[]
   deviceTokens            DeviceToken[]
   organizationCreateIntents OrganizationCreateIntent[]
+  acceptedOrganizationInvites OrganizationInvite[] @relation("AcceptedOrganizationInvites")
+  acceptedEventInvites EventInvite[] @relation("AcceptedEventInvites")
+  organizationChangesActed OrganizationAccessChange[] @relation("OrganizationChangeActor")
+  organizationChangesReceived OrganizationAccessChange[] @relation("OrganizationChangeSubject")
 
   assignedEnquiries SalesEnquiry[]
   consultations Consultation[]
@@ -1762,6 +1767,7 @@ model EventInvite {
   createdAt  DateTime  @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  acceptedBy User? @relation("AcceptedEventInvites", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
 
   /// One live invitation per address per event; re-inviting replaces.
   @@unique([eventId, email])
@@ -1785,6 +1791,7 @@ model OrganizationInvite {
   createdAt  DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  acceptedBy User? @relation("AcceptedOrganizationInvites", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
 
   /// One live invitation per address per organization; re-inviting replaces.
   @@unique([organizationId, email])
@@ -2889,4 +2896,23 @@ model InvitationTemplateAsset {
   @@index([invitationId, templateVersionId, state])
   @@index([state, leaseUntil, createdAt])
   @@map("invitation_template_assets")
+}
+
+/// Minimal transactional authority evidence. No emails, notes or capabilities.
+model OrganizationAccessChange {
+  id String @id @default(cuid())
+  organizationId String
+  actorUserId String?
+  subjectUserId String?
+  action String
+  previousRole OrganizationRole?
+  role OrganizationRole?
+  accessRevision Int
+  revokedEventRoles Int @default(0)
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor User? @relation("OrganizationChangeActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  subject User? @relation("OrganizationChangeSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  @@index([organizationId, accessRevision])
+  @@map("organization_access_changes")
 }

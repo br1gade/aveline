@@ -1,3 +1,5 @@
+import { PlatformRole } from '@prisma/client';
+import { seedEvent } from '../fixtures/event.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -20,6 +22,16 @@ describe('organization context HTTP', () => {
   });
   beforeEach(resetTestDatabase);
   afterAll(async () => { await app.close(); await disconnectTestDatabase(); });
+  it.each([PlatformRole.NONE, PlatformRole.SUPPORT, PlatformRole.ADMIN])('closed event tenant refuses %s writes while keeping published guest capabilities unchanged', async (platformRole) => {
+    const event = await seedEvent(prisma);
+    const { authorization, userId } = await authenticateAs(app, prisma, { eventId: event.eventId });
+    await prisma.user.update({ where: { id: userId }, data: { platformRole } });
+    await prisma.organization.updateMany({ where: { events: { some: { id: event.eventId } } }, data: { deletedAt: new Date() } });
+    const response = await http().patch(`/api/v1/events/${event.eventId}`).set('Authorization', authorization).send({ title: 'Should not change' }).expect(403);
+    expect(response.body.code).toBe('ORGANIZATION_ACCESS_DENIED');
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.eventId } })).title).not.toBe('Should not change');
+    await http().get(`/api/v1/invitations/${event.slug}/g/${event.primaryGuestToken}`).expect(200);
+  });
   it('returns bounded minimal own memberships and validates selector headers only for scoped calls', async () => {
     const { authorization, userId } = await authenticateAs(app, prisma);
     const organization = await prisma.organization.create({ data: { name: 'Family' } });

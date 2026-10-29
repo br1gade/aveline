@@ -37,3 +37,15 @@ Outstanding acceptance: full reader/writer operational inventory, frontend tab a
 language acceptance, measured P95 and off-host restore evidence. Local integration
 fixtures exercise controlled index drop and recreate it after truncating only the
 isolated test database; this does not authorize a real cutover.
+
+Authority fence detail: lifecycle and recovery acquire Organization FOR NO KEY
+UPDATE, not FOR UPDATE. IDs never change. SHARE role/worker fences still serialize
+against departure, but erasure may insert its organization suppression FK (KEY
+SHARE) while holding an invitation lock. Blocking that FK with FOR UPDATE would
+create an org→invite / invite→org cycle. Do not strengthen this lock without
+reviewing every implicit foreign-key lock. Event/domain fences retain their own
+existing strengths and order.
+
+For authorized incident review, inspect organization_access_changes ordered by
+organizationId/accessRevision; the matching index serves that exact query. These
+rows contain only IDs/roles/state and are not a customer-contact export.

@@ -1,3 +1,4 @@
+import { recordOrganizationAccessChange } from './organization-access-evidence';
 import { pageOf, parseOrganizationCursor } from './organization-pagination';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -45,7 +46,10 @@ export class OrganizationReviewsService {
       if (current.status !== 'OPEN') throw new ForbiddenException('Review is already resolved');
       await resolveDecision(tx, review.organizationId, input);
       await tx.organizationAccessReview.update({ where: { id: reviewId }, data: { status: input.decision, revision: { increment: 1 }, resolvedAt: new Date(), resolvedByUserId: actor.userId } });
-      return { reviewId, status: input.decision, accessRevision: await incrementOrganizationRevision(tx, review.organizationId) };
+      const accessRevision = await incrementOrganizationRevision(tx, review.organizationId);
+      await recordOrganizationAccessChange(tx, { organizationId: review.organizationId, actorUserId: actor.userId, subjectUserId: input.decision === 'HANDOVER' ? input.successorUserId : undefined,
+        action: REVIEW_ACTIONS[input.decision], role: input.decision === 'HANDOVER' ? 'OWNER' : undefined, accessRevision });
+      return { reviewId, status: input.decision, accessRevision };
     }, { timeout: 10_000, maxWait: 5000 });
   }
 }
@@ -77,7 +81,7 @@ export async function reconcileInactiveOwnerReviews(prisma: PrismaService, userI
   const ids = memberships.map((membership) => membership.organizationId);
   if (!ids.length) return;
   await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT id FROM organizations WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM organizations WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR NO KEY UPDATE`;
     await tx.$executeRaw`INSERT INTO organization_access_reviews (id, "organizationId", status, reason, "openedAt", revision)
       SELECT gen_random_uuid()::text, organization.id, 'OPEN', 'INACTIVE_OWNER_RECOVERY', CURRENT_TIMESTAMP, 0
       FROM organizations organization WHERE organization.id IN (${Prisma.join(ids)}) AND organization."deletedAt" IS NULL
@@ -88,3 +92,5 @@ export async function reconcileInactiveOwnerReviews(prisma: PrismaService, userI
       WHERE organization_access_reviews.status <> 'OPEN'`;
   }, { timeout: 10_000, maxWait: 5000 });
 }
+
+const REVIEW_ACTIONS = { HANDOVER: 'REVIEW_HANDOVER', CLOSE: 'REVIEW_CLOSE', DECLINE: 'REVIEW_DECLINE' } as const;

@@ -1,3 +1,4 @@
+import { recordOrganizationAccessChange } from './organization-access-evidence';
 import { NotFoundException } from '@nestjs/common';
 import { OrganizationRole, Prisma } from '@prisma/client';
 import { DomainHttpException } from '../../common/domain-http.exception';
@@ -64,6 +65,8 @@ export async function removeOrganizationAccess(tx: Prisma.TransactionClient, inp
   await revokeAddressedInvites(tx, input.organizationId, target.email);
   await revokeOrganizationJobs(tx, input.organizationId, input.userId);
   const accessRevision = await incrementOrganizationRevision(tx, input.organizationId);
+  await recordOrganizationAccessChange(tx, { organizationId: input.organizationId, actorUserId: input.actor.userId, subjectUserId: input.userId,
+    action: input.actor.userId === input.userId ? 'LEFT' : 'REMOVED', previousRole: membership.role, accessRevision, revokedEventRoles: deleted.count });
   return { organizationId: input.organizationId, removedUserId: input.userId, revokedEventRoles: deleted.count, accessRevision };
 }
 export async function lockAddressedInvites(tx: Prisma.TransactionClient, organizationId: string, email?: string): Promise<void> {
@@ -77,7 +80,13 @@ export async function revokeAddressedInvites(tx: Prisma.TransactionClient, organ
   await tx.eventInvite.updateMany({ where: { ...where, event: { organizationId } }, data: { revokedAt: new Date() } });
 }
 export async function revokeOrganizationJobs(tx: Prisma.TransactionClient, organizationId: string, requestedByUserId?: string): Promise<void> {
+  if (requestedByUserId && await hasIndependentStaffAuthority(tx, requestedByUserId)) return;
   const where = { requestedByUserId, event: { organizationId }, status: { in: ['QUEUED', 'RUNNING'] as ('QUEUED' | 'RUNNING')[] } };
   await tx.seatingJob.updateMany({ where, data: { status: 'FAILED', failureReason: 'ACCESS_REVOKED', leaseOwner: null, leaseUntil: null } });
   await tx.exportSnapshot.updateMany({ where, data: { status: 'FAILED', failureReason: 'ACCESS_REVOKED', revokedAt: new Date(), leaseOwner: null, leaseUntil: null } });
+}
+
+async function hasIndependentStaffAuthority(tx: Prisma.TransactionClient, userId: string): Promise<boolean> {
+  const user = await tx.user.findUnique({ where: { id: userId }, select: { isActive: true, platformRole: true } });
+  return Boolean(user?.isActive && user.platformRole !== 'NONE');
 }

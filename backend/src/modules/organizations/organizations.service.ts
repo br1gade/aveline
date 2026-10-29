@@ -1,6 +1,7 @@
+import { recordOrganizationAccessChange } from './organization-access-evidence';
 import { Prisma } from '@prisma/client';
 import { BadRequestException } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { webcrypto } from 'node:crypto';
 import { RequestActor } from '../../infra/auth/actor';
 import { lockOwnerAddress, lockOrganizationStanding, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
 import { accessDenied } from '../../infra/auth/organization-context';
@@ -21,7 +22,8 @@ export class OrganizationsService {
 
   async create(userId: string, dto: CreateOrganizationDto, key?: string) {
     if (key !== undefined && !/^[A-Za-z0-9_-]{1,120}$/.test(key)) throw new BadRequestException('Idempotency-Key: must match 1–120 letters, digits, underscores or hyphens');
-    const fingerprint = createHash('sha256').update(JSON.stringify({ name: dto.name, kind: dto.kind ?? OrgKind.HOST })).digest('hex');
+    const requestBody = Buffer.from(JSON.stringify({ name: dto.name, kind: dto.kind ?? OrgKind.HOST }));
+    const fingerprint = Buffer.from(await webcrypto.subtle.digest('SHA-256', requestBody)).toString('hex');
     const organizationId = await this.prisma.$transaction(async (tx) => {
       const identity = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
       await lockOwnerAddress(tx, identity.email);
@@ -40,6 +42,7 @@ export class OrganizationsService {
       const created = await tx.organization.create({ data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST } });
       await tx.organizationMembership.create({ data: { userId, organizationId: created.id, role: OrganizationRole.OWNER } });
       if (key) await tx.organizationCreateIntent.create({ data: { actorUserId: userId, key, fingerprint, organizationId: created.id } });
+      await recordOrganizationAccessChange(tx, { organizationId: created.id, actorUserId: userId, subjectUserId: userId, action: 'CREATED', role: 'OWNER', accessRevision: 0 });
       return created.id;
     }, { timeout: 10_000, maxWait: 5000 }).catch((error: unknown) => {
       if (isUniqueViolation(error)) throw new ConflictException('You already belong to an organization; one organization per account for now');
@@ -76,7 +79,10 @@ export class OrganizationsService {
       const member = await requireActiveMember(tx, organizationId, input.userId);
       if (member.role === 'OWNER' && input.role !== 'OWNER') await assertOtherOrganizationOwner(tx, organizationId, input.userId);
       await tx.organizationMembership.update({ where: { id: member.id }, data: { role: input.role } });
-      return { organizationId, userId: input.userId, role: input.role, accessRevision: await incrementOrganizationRevision(tx, organizationId) };
+      const accessRevision = await incrementOrganizationRevision(tx, organizationId);
+      await recordOrganizationAccessChange(tx, { organizationId, actorUserId: actor.userId, subjectUserId: input.userId,
+        action: 'ROLE_CHANGED', previousRole: member.role, role: input.role, accessRevision });
+      return { organizationId, userId: input.userId, role: input.role, accessRevision };
     }, { timeout: 10_000, maxWait: 5000 });
   }
 

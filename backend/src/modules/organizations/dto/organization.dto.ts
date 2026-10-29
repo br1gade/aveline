@@ -10,7 +10,7 @@ export class CreateOrganizationDto {
   @MaxLength(160)
   name!: string;
 
-  @ApiPropertyOptional({ enum: OrgKind, description: 'HOST for a couple, AGENCY for a planner' })
+  @ApiPropertyOptional({ enum: OrgKind, description: 'HOST for a couple, PLANNER for a planner, CORPORATE for a company' })
   @IsOptional()
   @IsEnum(OrgKind)
   kind?: OrgKind;

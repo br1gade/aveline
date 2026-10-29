@@ -336,7 +336,9 @@ Any member may leave; managing peers requires current `member:manage`. Each writ
 checks accessRevision and current standing under the organization fence. The last
 active organization OWNER or existing direct-event OWNER must hand over first.
 Departure removes all direct roles and pending invites in that tenant atomically;
-other tenants and independent staff powers survive. ADMIN alone resolves closure
+other tenants and independent staff powers survive. Active ADMIN/SUPPORT work is
+not blanket-cancelled by customer departure; each worker rechecks its current
+operation/contact rights. Reviewed tenant closure cancels all tenant jobs. ADMIN alone resolves closure
 or inactive-owner recovery. Verified erasure deactivates across all organizations,
 retains tombstone roles/history, revokes pending work and opens recovery reviews.
 
@@ -362,3 +364,13 @@ creates identities, assigns/revokes SUPPORT, publishes or retires. Organization
 OWNER and event DESIGNER do not inherit these permissions. Author file reads
 recheck live account/assignment authority after private storage reads. Assignment
 never grants a customer membership.
+
+Organization create/join/role/departure and reviewed resolution record minimal
+transactional authority evidence (IDs, roles, revision and revoked-role count),
+without contacts or capability tokens. A rejected mutation leaves neither a role
+change nor evidence of one.
+
+A reviewed closed organization denies authenticated event-resource requests even
+for ADMIN/SUPPORT, preventing new staff mutations through independent platform
+permissions. Public invitation/guest capability behavior retains its existing
+contract. Closure preserves the underlying event/financial history.

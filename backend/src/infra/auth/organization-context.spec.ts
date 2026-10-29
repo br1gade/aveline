@@ -28,6 +28,11 @@ describe('organization selection', () => {
     const tx = database([{ organizationId: 'sole', role: 'VIEWER' }]);
     await expect(resolveOrganizationContext(tx as never, { userId: 'user', platformRole: PlatformRole.NONE, mode: 'required' })).resolves.toMatchObject({ organizationId: 'sole', organizationRole: 'VIEWER', source: 'sole-membership' });
   });
+  it.each([PlatformRole.NONE, PlatformRole.SUPPORT, PlatformRole.ADMIN])('refuses authenticated %s access to an event in a closed organization', async (platformRole) => {
+    const tx = database([]);
+    tx.event.findUnique.mockResolvedValue({ organizationId: 'target', organization: { deletedAt: new Date() } });
+    await expect(resolveOrganizationContext(tx as never, { userId: 'user', platformRole, mode: 'event', eventId: 'event' })).rejects.toMatchObject({ code: 'ORGANIZATION_ACCESS_DENIED' });
+  });
   it('preserves an event-only grant and refuses an authorized resource mismatch', async () => {
     const tx = database([]);
     const input = { userId: 'user', platformRole: PlatformRole.NONE, mode: 'event' as const, eventId: 'event' };

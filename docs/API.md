@@ -1730,8 +1730,8 @@ organization.
 }
 ```
 
-The caller becomes `OWNER`. `kind` is `HOST` for a couple or `AGENCY` for a
-planner, and only affects presentation today.
+The caller becomes `OWNER`. `kind` is `HOST`, `PLANNER` or `CORPORATE`, and
+only affects presentation today.
 
 Organization selection uses optional `X-Aveline-Organization-Id` on scoped calls.
 It is a single 1–64 character ASCII ID (`[A-Za-z0-9_-]`), never a role grant.
@@ -1768,13 +1768,18 @@ Both lists default to 50, max 100, cursor max 256. Self-leave is available to ev
 member. Revision mismatches return `409 REVISION_CHANGED`; last active organization
 or direct-event owners require a handover (`409 OWNER_HANDOVER_REQUIRED`).
 Promotion leaves the caller OWNER. Departure atomically removes every direct role
-and pending invite in this tenant and revokes their unfinished seating/export jobs;
-unrelated organizations, direct event grants and independent staff permissions remain.
+and pending invite in this tenant and revokes customer-authorized unfinished seating/export jobs;
+unrelated organizations, direct event grants and independently authorized active
+staff work remain. Every worker still rechecks current operation/contact permission.
 Closure reviews remove nothing until an ADMIN resolves HANDOVER, CLOSE or DECLINE.
 CLOSE preserves events and financial history, soft-closes the tenant and revokes its
-customer memberships/invites/jobs. SUPPORT and customers cannot resolve reviews.
+customer memberships/invites/jobs. Authenticated event routes deny closed tenants
+for every platform role, including ADMIN/SUPPORT; published guest capability
+contracts retain their existing behavior. SUPPORT and customers cannot resolve reviews.
 
-Invite issue and protected Message outbox now commit together. Correct-password
+Invite issue and protected Message outbox now commit together. Organization
+authority changes record only transactional IDs, roles, revisions and revoked-role
+counts; evidence contains no contacts or capability tokens. Correct-password
 same-user replay returns the current role without restoring a departed membership;
 rotated/revoked/expired tokens keep the existing 400 invalid-invitation contract.
 

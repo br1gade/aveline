@@ -1,6 +1,20 @@
 # F38 execution blueprint — organization selection and membership lifecycle
 
-Planning only, against `bb01a61` on `codex/post-pilot-backend`, 25 October 2026. No implementation, migration, tests, providers or deployments have been run. All new symbols, tables and endpoints below are **unimplemented proposals**. Relative links assume this document is eventually placed at `docs/post-pilot/execution/ORGANIZATIONS.md`.
+Original execution blueprint prepared against `bb01a61` on `codex/post-pilot-backend`,
+25 October 2026. Backend compatibility selection, membership lifecycle, protected
+invitation outbox, ownership recovery, worker fences and controlled cutover are now
+implemented. The current HTTP contract is [API.md](../../API.md); actual schema and
+operator gates are in [the cutover runbook](../../../backend/docs/ORGANIZATION_CUTOVER.md).
+SQL and DTO sketches below retain the original engineering proposal where their
+shape differs from the implementation; they are not a substitute for current code.
+
+Local verification covers 0/1/many selection, actual two-organization writes in an
+isolated controlled-cutover fixture, populated additive migration safety, authority
+evidence, invitation/outbox rollback, owner deactivation races, FK fence compatibility,
+and customer versus independent staff worker revocation. No provider, production
+cutover, deployment or frontend tab/language acceptance has been run. Additional
+membership writes remain disabled until the runbook's external acceptance gates
+are completed; the legacy user-only unique index remains in automatic migrations.
 
 Authority: [PP-D44–49](../DECISIONS.md), [organization proposal](../ORGANIZATIONS_DESIGN_AND_OPERATIONS.md), [delivery plan](../../POST_PILOT_IMPLEMENTATION_PLAN.md), [current access policy](../../ACCESS_CONTROL.md), [current HTTP contract](../../API.md), [backend rules](../../../backend/CLAUDE.md), and [feature workflow](../../../.claude/skills/feature/SKILL.md). The interview is complete; transport, DTO and concurrency choices here are engineering decisions implementing it. No new entitlement limits, financial authority, cross-organization corporate grants or customer-contact exposure are introduced. A customer membership exit revokes customer-derived rights while independent platform permissions remain governed by their own policy. Initial single-payer F37 can ship independently.
 
@@ -215,11 +229,19 @@ Use real PostgreSQL rows, not Redis locks. Proposed helpers `lockOrganizationSta
 **Smallest safe protocol: one organization access fence, preserving existing domain lock chains.** Leave/remove changes memberships, so it does **not** need target User UPDATE. Existing seating role-row SHARE locks already make deletions wait, but cannot lock a missing role row or stop event invite acceptance creating a new role after the remover enumerates events. Organization fencing supplies that aggregate boundary; no universal user-first rewrite is justified.
 
 1. Export privacy fence stays first **only when already touched**: capture/publish SHARE, erasure exclusive/update. No new org/user acquisition is inserted ahead of this existing global fence.
-2. Target Organization row: `FOR UPDATE` for org membership/OWNER change, leave/remove and reviewed closure; `FOR SHARE` for event-member grants/changes/invites, event creation and actor-authorized worker queue/capture/apply/publish. Event routes discover actual org, lock it, then reread relation under event lock; events do not change org in F38. F38 lifecycle transactions affect one org; future multi-org operations must sort IDs.
+2. Target Organization row: `FOR NO KEY UPDATE` for org membership/OWNER change, leave/remove and reviewed closure; `FOR SHARE` for event-member grants/changes/invites, event creation and actor-authorized worker queue/capture/apply/publish. Event routes discover actual org, lock it, then reread relation under event lock; events do not change org in F38. F38 lifecycle transactions affect one org; future multi-org operations must sort IDs.
 3. Event rows sorted by ID where needed. Preserve seating's existing event UPDATE before User SHARE. Departure enumerates direct role events after org UPDATE, so concurrent grants cannot appear: every grant needs org SHARE first.
 4. Invitation rows touched, in deterministic table/key order where a set is needed, **before** current User SHARE checks. Org fence serializes same-org invite writers. Accept locks/claims invite before locking/rechecking existing invitee User, agreeing with legal erasure's existing `withdrawInvites` before `closeAccount` User update. Never take User SHARE and then wait for an invite addressed to that same user: that would invert erasure.
 5. Current actor/successor/invitee User SHARE, sorted if several, then membership rows and domain job/artifact rows. No User UPDATE for membership changes. Recheck activity/current roles and active successor. Existing seating keeps User SHARE → event-membership SHARE → org-membership SHARE. Password/deactivation writers naturally conflict with User SHARE and need no org lock.
 6. Preserve downstream event attendance policy → ticket order → guest → ticket and seating arrangement/input order. No new helper acquires org/user/role locks for the first time after these domain locks. Creating an entirely new organization has no existing aggregate to fence; its identity/intent constraints do not lock an old org.
+
+Implementation refinement: organization IDs never change, so lifecycle/recovery
+use PostgreSQL `FOR NO KEY UPDATE` rather than `FOR UPDATE`. It still conflicts
+with role/worker `FOR SHARE`, but permits implicit FK `FOR KEY SHARE` acquired by
+privacy suppression inserts after invitation locks. A stronger org row lock would
+create org→invite / invite→org cycles with verified erasure. Deterministic tests
+exercise invitation-before-FK insertion and SHARE exclusion. References below to
+an org UPDATE fence mean this non-key-changing aggregate exclusion.
 
 F39 integration adds an owner-address identity boundary, not a second organization resolver. Self-create, concierge setup and invitation acceptance that can race owner setup acquire the same canonical owner-address advisory lock before any organization/invitation/current-user lock. Use `resolveCustomerOrganizations(tx,input)` for explicit 0/1/many resolution. Enquiry conversion can lock its own command/case before the organization prefix; F38 never locks an enquiry after taking organization/User locks, and verified enquiry erasure never acquires an organization fence. Credential-bearing invitations use the same `enqueueInTransaction` Message helper described below. Implement and test these shared seams once; neither lane introduces a duplicate resolver or outbox.
 
@@ -235,7 +257,7 @@ No locks across bcrypt/SMTP/storage/CPU. Verify/hash outside; under User SHARE c
 
 ## 5. Operation algorithms and route/DTO proposals
 
-All paths in this section are **not implemented** except explicitly marked existing. Base `/api/v1`. UTC dates; no user email in a tenant selector response. IDs 1–64 as above; UUID-like idempotency key 1–120 `[A-Za-z0-9_-]`; `expectedRevision` integer 0–2^31−1; enum role validation. Existing name 2–160, kind `HOST|PLANNER|CORPORATE`, normalized email max 200, invite token 32–200, password 10–200, name 2–120 remain. No array of arbitrary organization IDs or PII-bearing notes.
+This section records the route/DTO engineering specification; consult the current API contract and implementation for exact response/model shapes. Base `/api/v1`. UTC dates; no user email in a tenant selector response. IDs 1–64 as above; UUID-like idempotency key 1–120 `[A-Za-z0-9_-]`; `expectedRevision` integer 0–2^31−1; enum role validation. Existing name 2–160, kind `HOST|PLANNER|CORPORATE`, normalized email max 200, invite token 32–200, password 10–200, name 2–120 remain. No array of arbitrary organization IDs or PII-bearing notes.
 
 **Create, existing `POST /organizations`.** Session-only, selection-independent; supplied header cannot affect target or inherited privileges. Optional `Idempotency-Key` initially preserves old-client compatibility. Validate DTO/hash outside transaction; lock actor User UPDATE and recheck activity before create-intent and new-organization writes. This UPDATE serializes create requests while the compatibility write gate is false after unique-index removal; it locks no pre-existing organization, so it does not impose a user→existing-org inversion. Under false write gate, query existing org memberships inside that User UPDATE transaction and retain one-org denial; under true gate prior memberships do not deny. Claim `(actor,key)` and compare normalized request fingerprint; an existing intent requires current membership/read access before returning organization details (a departed creator cannot recover billing through replay); create Organization + OWNER membership + intent link in same transaction, return existing description shape (plan permissible because creator is OWNER) with additive `accessRevision`. Distinct keys represent distinct intents; same key different body 409. Org creation never copies subscription, role, events or plan eligibility from another organization. Staff creating their own customer org uses this same membership path; acting for someone else uses concierge.
 
@@ -293,7 +315,7 @@ Seating capture and apply re-resolve actual event org, active user, exact org/ev
 
 Export capture and publish use privacy SHARE → org SHARE → current User SHARE/authorization → job/artifact updates. Remove/leave cannot commit while publish holds org SHARE; later publish fails current authority. Storage upload has no locks; artifact reservation ledger/cleanup handles uploaded-but-unpublished bytes. Download rechecks current event/contact access after storage I/O and revocation. The removal transaction revokes only customer-derived access; a current ADMIN or legitimately authorized SUPPORT worker may still act through independent platform standing. Test that distinction rather than assuming removal must make every staff account fail actorCan. No attempt to revoke raw already-downloaded copies or promise exactly-once external delivery. Other private-media/background paths must be classified by who authorizes them: guest capability jobs keep guest/invitation privacy checks; host-requested new workers must use this actor fence protocol before publication. Scheduled guest communications are event workflows, not grants stored on the former member; don't cancel legitimate tenant reminders because one operator left.
 
-## 7. Red-first verification map (commands proposed, not executed)
+## 7. Red-first verification map and remaining acceptance
 
 Avoid duplicating each rule at every layer. Pure branch/shape policy belongs in unit tests, real relational/concurrency invariants in integration, HTTP behavior in e2e. Existing tests asserting one-organization forever are replaced in activation commit; compatibility-flag tests retain the protected old behavior until then.
 
@@ -316,7 +338,7 @@ Avoid duplicating each rule at every layer. Pure branch/shape policy belongs in 
 
 First red coding action: add `organization-context.spec.ts` with no-header 0/1/2, exact header lookup and event-derived role tests **while user uniqueness remains**. Confirm failure due missing resolver, then implement compatibility resolver/wire the guard. Do not start by deleting the index.
 
-Proposed targeted commands from repository root (no commands have been run here):
+Targeted commands from repository root; local slice evidence is summarized above, and combined full verification is recorded by the integration owner:
 
 ```sh
 cd backend

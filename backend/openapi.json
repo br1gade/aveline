@@ -9313,7 +9313,7 @@
               "PLANNER",
               "CORPORATE"
             ],
-            "description": "HOST for a couple, AGENCY for a planner"
+            "description": "HOST for a couple, PLANNER for a planner, CORPORATE for a company"
           }
         },
         "required": [
@@ -9387,7 +9387,7 @@
               "PLANNER",
               "CORPORATE"
             ],
-            "description": "HOST for a couple, AGENCY for a planner"
+            "description": "HOST for a couple, PLANNER for a planner, CORPORATE for a company"
           },
           "ownerEmail": {
             "type": "string",
@@ -10235,7 +10235,7 @@
               "PLANNER",
               "CORPORATE"
             ],
-            "description": "HOST for a couple, AGENCY for a planner"
+            "description": "HOST for a couple, PLANNER for a planner, CORPORATE for a company"
           },
           "ownerEmail": {
             "type": "string"

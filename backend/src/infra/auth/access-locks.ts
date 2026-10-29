@@ -9,7 +9,8 @@ export async function lockOwnerAddress(tx: Prisma.TransactionClient, normalizedE
 }
 
 export async function lockOrganizationStanding(tx: Prisma.TransactionClient, input: { organizationId: string; mode?: 'share' | 'update' }): Promise<void> {
-  const lock = input.mode === 'update' ? Prisma.sql`FOR UPDATE` : Prisma.sql`FOR SHARE`;
+  // IDs never change: exclude role-writer SHARE while allowing privacy FK KEY SHARE.
+  const lock = input.mode === 'update' ? Prisma.sql`FOR NO KEY UPDATE` : Prisma.sql`FOR SHARE`;
   const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM organizations WHERE id = ${input.organizationId} AND "deletedAt" IS NULL ${lock}`;
   if (!rows.length) throw accessDenied();
 }
