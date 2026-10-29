@@ -33,15 +33,20 @@ const VENUE_COUNTS = ['attending', 'declined', 'undecided', 'pending'] as const;
 
 /**
  * Each venue guests see, when they answer per venue (design PD-53): someone coming to the
- * ceremony and not the dinner counts once above, and here at each.
+ * ceremony and not the dinner counts once above, and here at each. On a narrow screen the table
+ * scrolls sideways, so its box takes the focus and is named by the caption: a keyboard can scroll
+ * it, and a screen reader says what it is (WCAG 2.1.1).
  */
 function VenueTable({ venues }: { venues: readonly VenueHeadcount[] }) {
   const { t, i18n } = useTranslation('events');
+  const captionId = useId();
   const number = new Intl.NumberFormat(formatLocale(i18n.language));
   return (
-    <div className="overflow-x-auto">
+    <div role="region" aria-labelledby={captionId} tabIndex={0} className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
-        <caption className="mb-2 text-left font-medium">{t('headcount.byVenue')}</caption>
+        <caption id={captionId} className="mb-2 text-left font-medium">
+          {t('headcount.byVenue')}
+        </caption>
         <thead>
           <tr>
             <th scope="col" className="text-muted-foreground py-1 pr-4 text-left font-normal">

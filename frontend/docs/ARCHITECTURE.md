@@ -339,6 +339,13 @@ request. The guest list with the report was on screen 1,301 ms after the click a
 input event while typing a name took 40 ms, both with the machine's load average near 20 from
 other programs, so not comparable with 24 October's figures. Request bodies were read at the mock:
 this headless shell gives Playwright no body for a `fetch`.
+On 29 October 2026 the walk of the backend's `eb77cd4` work ran again with French added, and axe
+at 360 px on every app page rather than only the attendance page: the guest reply in hy, ru, fr
+and en, the overview, attendance, guest list, invitation and venue pages in all four, and a
+French pass of sign-in and six app pages at 360 and 1280 px (`<html lang="fr">`, no raw keys, no
+horizontal scroll). It found one serious violation, in every language: the overview's "By venue"
+table scrolled sideways in a box no keyboard could reach (`scrollable-region-focusable`). The
+box is now a focusable region named by the table's caption. No token appeared anywhere.
 The real end-to-end tests still wait for the backend.
 
 ## 11. Decision log
@@ -410,6 +417,7 @@ The real end-to-end tests still wait for the backend.
 | 28 Oct 2026 | The new refusals that share a status are recognised by their exact text, each in its own feature's `refusals.ts` (design PD-54, PD-55) | The backend's `code` is one per status (FR-28); as with PD-49, a reworded sentence falls back to the status's words, never to a wrong reason |
 | 28 Oct 2026 | **French is the fourth interface language** (`fr`, after hy, ru and en), without a native reading or French screens in the design specs (design C-23, decided 29 October). It is everywhere a language is listed or negotiated: the switcher, `?lang=`, `Accept-Language`, an invitation's `?locale=` and the event form's languages | A deviation from A2, which chose hy, ru and en: the pilot plan requires en, ru, fr and hy in both interfaces, and the backend already answers in French. Added last so existing orders stay. C-5 is unchanged |
 | 28 Oct 2026 | Each guest's attendance history is not shown yet | The plan put it last, to be cut first; the list's own answers and "asked to answer again" carry the essentials |
+| 29 Oct 2026 | Lint allows `tabIndex` on `role="region"`, beside the plugin's default `tabpanel` | A box that scrolls sideways must take the focus for a keyboard to scroll it (WCAG 2.1.1). The overview's "By venue" table is the first; the walkthrough's axe found it. The rule still refuses every other non-interactive element |
 
 ## 12. Not yet built
 

@@ -375,6 +375,10 @@ describe('How guests answer, on the overview', () => {
     const table = await screen.findByRole('table', { name: 'By venue' });
     expect(within(table).getByRole('rowheader', { name: 'Church' })).toBeInTheDocument();
     expect(within(table).getAllByRole('row')).toHaveLength(3);
+    // On a narrow screen the table scrolls sideways: its box is reachable and named for keyboards.
+    const scroller = screen.getByRole('region', { name: 'By venue' });
+    expect(scroller).toContainElement(table);
+    expect(scroller).toHaveAttribute('tabindex', '0');
     cleanup();
     overview({ event: EVENT, headcount: { kind: 'ready', headcount } });
     await screen.findByText('Not answered');

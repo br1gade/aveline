@@ -144,6 +144,6 @@ shared-document process, with the backend developer's review. This work did not 
   [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) still holds their reasoning.
 - **The launch gates are not yet in `docs/GOING_LIVE.md`** (§6).
 - **The guest, account, event, guest-list, venue, invitation and attendance pages have not run against the real backend.** They were
-  checked against a mock of the API (those of 28 October by unit and component tests only, not yet
-  walked through in a browser); the end-to-end and accessibility tests wait for the local backend
+  checked against a mock of the API, and walked through in a browser against it, in all four
+  languages on 29 October; the end-to-end and accessibility tests wait for the local backend
   ([ARCHITECTURE §12](../ARCHITECTURE.md#12-not-yet-built)).

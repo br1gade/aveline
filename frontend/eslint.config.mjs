@@ -73,6 +73,15 @@ export default defineConfig(
         { allow: [{ from: 'lib', name: 'Response' }] },
       ],
 
+      // A box that scrolls sideways must take the focus so a keyboard can scroll it (WCAG 2.1.1,
+      // axe's scrollable-region-focusable). The pattern is a named `region` with tabIndex 0, so
+      // that role joins the plugin's default `tabpanel`; every other non-interactive role is
+      // still refused.
+      'jsx-a11y-x/no-noninteractive-tabindex': [
+        'error',
+        { tags: [], roles: ['tabpanel', 'region'], allowExpressionValues: true },
+      ],
+
       // ── Async correctness ──
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': [
