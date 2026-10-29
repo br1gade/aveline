@@ -5,7 +5,7 @@ import { capabilityDigest, RendererCapability, TemplateCapabilitiesService } fro
 export function testTemplateCapabilities(mediaSlots: string[] = []): TemplateCapabilitiesService {
   const content: Omit<RendererCapability, 'digest'> = { rendererKey: 'invitation-v1', capabilityVersion: 'backend-test-only-v1', schemaVersion: 1,
     frontendRevision: 'TEST_FIXTURE_NOT_DEPLOYED', locales: ['en', 'ru', 'fr', 'hy'], fonts: [{ id: 'Inter', bundledHash: 'a'.repeat(64) }],
-    blocks: { HERO: { canDefault: true, variants: ['split'] } }, themeKeys: ['bodyFont', 'palette'], paletteRoles: { background: 0 }, mediaSlots };
+    blocks: { HERO: { canDefault: true, variants: ['split'] }, GALLERY: { canDefault: true, variants: [] } }, themeKeys: ['bodyFont', 'palette'], paletteRoles: { background: 0 }, mediaSlots };
   const service = new TemplateCapabilitiesService();
   jest.spyOn(service, 'approved').mockReturnValue([{ ...content, digest: capabilityDigest(content) }]);
   return service;

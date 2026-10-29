@@ -1,3 +1,4 @@
+import { TemplateContextInterceptor } from './templates/template-context.interceptor';
 import { TemplateAdoptionController } from './templates/template-adoption.controller';
 import { TemplateAdoptionService } from './templates/template-adoption.service';
 import { PrivateStorageModule } from '../../infra/storage/private/private-storage.module';
@@ -26,7 +27,7 @@ import { VenuesService } from './venues.service';
 @Module({
   imports: [PrivateStorageModule],
   controllers: [TemplateAdoptionController, TemplateAssetsController, TemplateAuthoringController, TemplatePreviewsController, DesignController, VenueDirectoryController],
-  providers: [TemplateAdoptionService, TemplateAssetsService, TemplateCapabilitiesService, TemplateAuthoringService, TemplateGatesService, TemplatePreviewsService, DesignService, VenuesService, TimelineService, DraftReaderService],
+  providers: [TemplateContextInterceptor, TemplateAdoptionService, TemplateAssetsService, TemplateCapabilitiesService, TemplateAuthoringService, TemplateGatesService, TemplatePreviewsService, DesignService, VenuesService, TimelineService, DraftReaderService],
   exports: [DesignService, VenuesService, TimelineService],
 })
 export class DesignModule {}

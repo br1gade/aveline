@@ -29,22 +29,38 @@ export class EnquiryConversionService {
     return runEnquiryTransaction(this.prisma, async (tx) => {
       await lockExportPrivacy(tx);
       await lockIntake(tx);
+      const command = { userId, enquiryId, ...input };
+      const knownReplay = await this.replayIfKnown(tx, command);
+      if (knownReplay) return knownReplay;
       if (input.dto.organization.create) await lockOwnerAddress(tx, input.dto.organization.create.ownerEmail);
       const root = await lockEnquiry(tx, enquiryId);
+      // Another same-case conversion may have committed while the owner/root lock waited.
+      const committedReplay = await this.replayIfKnown(tx, command);
+      if (committedReplay) return committedReplay;
       const candidate = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, platformRole: true, isActive: true, deletedAt: true } });
       assertEnquiryAccess(candidate, root.assignedUserId);
       const target = await resolveConversionTarget(tx, input.dto, this.events);
       if (input.organizationSelector && input.organizationSelector !== target.organizationId) throw new DomainHttpException('ORGANIZATION_CONTEXT_MISMATCH', 'organization selector does not match conversion target');
       await authorizeCase(tx, { userId, enquiryId }, this.config);
-      const intent = { ...input.dto, userId, enquiryId, operation: 'CONVERT' };
-      const replay = await replayCommand(tx, { userId, enquiryId, operation: 'CONVERT', key: input.key, intent }, this.config);
-      if (replay) return { ...replay, wasExisting: true };
       if (root.personalDataClearedAt) throw new DomainHttpException('SUBJECT_ERASED', 'SUBJECT_ERASED');
       const existing = await tx.enquiryConversion.findUnique({ where: { enquiryId } });
       if (existing && (existing.eventId || !input.dto.event)) return this.returnExisting(tx, { userId, root, existing, target, input });
       return { ...await applyCommand(tx, { userId, enquiryId }, { key: input.key, operation: 'CONVERT', intent: input.dto, expectedRevision: input.dto.expectedRevision,
         apply: (transaction) => this.linkSetup(transaction, { userId, root, target, dto: input.dto, existing }) }, this.config), wasExisting: Boolean(existing) };
     });
+  }
+
+  private async replayIfKnown(tx: Prisma.TransactionClient, input: { userId: string; enquiryId: string; key: string; dto: ConvertEnquiryDto; organizationSelector?: string }) {
+    const receipt = await tx.enquiryCommand.findUnique({ where: { actorUserId_operation_idempotencyKey: { actorUserId: input.userId, operation: 'CONVERT', idempotencyKey: input.key } }, select: { id: true } });
+    if (!receipt) return null;
+    // A receipt reference grants no access. Live root/User standing must hold
+    // before either checking a spent intent or projecting current case data.
+    await authorizeCase(tx, { userId: input.userId, enquiryId: input.enquiryId }, this.config);
+    const intent = { ...input.dto, userId: input.userId, enquiryId: input.enquiryId, operation: 'CONVERT' };
+    const replay = await replayCommand(tx, { userId: input.userId, enquiryId: input.enquiryId, operation: 'CONVERT', key: input.key, intent }, this.config);
+    if (!replay) throw new DomainHttpException('IDEMPOTENCY_CONFLICT', 'IDEMPOTENCY_CONFLICT');
+    if (input.organizationSelector && input.organizationSelector !== replay.enquiry.organizationId) throw new DomainHttpException('ORGANIZATION_CONTEXT_MISMATCH', 'organization selector does not match conversion target');
+    return { ...replay, wasExisting: true };
   }
 
   private async linkSetup(tx: Prisma.TransactionClient, input: { userId: string; root: SalesEnquiry; target: ConversionTarget; dto: ConvertEnquiryDto; existing: EnquiryConversion | null }) {

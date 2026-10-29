@@ -139,4 +139,50 @@ describe('explicit atomic draft enquiry conversion', () => {
     expect(await prisma.organizationInvite.count()).toBe(1);
   });
 
+  it('replays the current case after the selected template retires and created event publishes', async () => {
+    const { staff, result } = await createCase('retired-replay');
+    const dto = { expectedRevision: 1, organization: { create: { name: 'Family', ownerEmail: 'anna@example.am' } }, event: { create: { type: 'WEDDING' as const, title: 'Anna and Davit', startsAt: '2027-06-12T15:00:00Z', templateKey: 'classic' } } };
+    const converted = await conversion.convert(staff.id, result.enquiry.id, { key: 'retired-template-replay', dto });
+    await prisma.designTemplate.update({ where: { key: 'classic' }, data: { isActive: false } });
+    await prisma.event.update({ where: { id: converted.enquiry.eventId! }, data: { status: 'PUBLISHED' } });
+    await enquiries.stage(staff.id, result.enquiry.id, { key: 'after-conversion-stage', dto: { expectedRevision: 2, stage: 'CONTACTED' } });
+    const replay = await conversion.convert(staff.id, result.enquiry.id, { key: 'retired-template-replay', dto });
+    expect(replay.commandId).toBe(converted.commandId);
+    expect(replay.appliedRevision).toBe(2);
+    expect(replay.enquiry.revision).toBe(3);
+    expect(await prisma.message.count()).toBe(1);
+    expect(await prisma.event.count()).toBe(1);
+  });
+  it('replays an existing-event conversion after that event leaves DRAFT', async () => {
+    const { staff, result } = await createCase('published-replay');
+    const organization = await prisma.organization.create({ data: { name: 'Existing family' } });
+    const event = await prisma.event.create({ data: { organizationId: organization.id, type: 'WEDDING', title: 'Existing event', hostsLabel: 'Family', startsAt: new Date('2027-06-12T15:00:00Z') } });
+    const dto = { expectedRevision: 1, organization: { existingId: organization.id }, event: { existingId: event.id } };
+    const converted = await conversion.convert(staff.id, result.enquiry.id, { key: 'published-event-replay', dto });
+    await prisma.event.update({ where: { id: event.id }, data: { status: 'PUBLISHED' } });
+    const replay = await conversion.convert(staff.id, result.enquiry.id, { key: 'published-event-replay', dto });
+    expect(replay.commandId).toBe(converted.commandId);
+    expect(await prisma.enquiryCommand.count()).toBe(2);
+  });
+  it('keeps an invalidated conversion receipt spent even when its resources are unavailable', async () => {
+    const { staff, result } = await createCase('erased-replay');
+    const dto = { expectedRevision: 1, organization: { create: { name: 'Family', ownerEmail: 'anna@example.am' } }, event: { create: { type: 'WEDDING' as const, title: 'Anna and Davit', startsAt: '2027-06-12T15:00:00Z', templateKey: 'classic' } } };
+    await conversion.convert(staff.id, result.enquiry.id, { key: 'erased-conversion-replay', dto });
+    const privacy = module.get(EnquiryPrivacyService);
+    await prisma.$transaction((tx) => privacy.eraseInTransaction(tx, { subject: { email: null, verifiedContactIds: [result.enquiry.contact!.id] }, now: new Date() }));
+    await prisma.designTemplate.update({ where: { key: 'classic' }, data: { isActive: false } });
+    await expect(conversion.convert(staff.id, result.enquiry.id, { key: 'erased-conversion-replay', dto })).rejects.toThrow('SUBJECT_ERASED');
+    expect(await prisma.enquiryConversion.count()).toBe(1);
+  });
+  it('refuses a former assignee conversion replay before unavailable-resource preparation', async () => {
+    const { staff, result } = await createCase('transferred-replay');
+    const dto = { expectedRevision: 1, organization: { create: { name: 'Family', ownerEmail: 'anna@example.am' } }, event: { create: { type: 'WEDDING' as const, title: 'Anna and Davit', startsAt: '2027-06-12T15:00:00Z', templateKey: 'classic' } } };
+    await conversion.convert(staff.id, result.enquiry.id, { key: 'transferred-conversion-replay', dto });
+    const admin = await prisma.user.create({ data: { email: 'transfer-admin@example.am', name: 'Admin', platformRole: 'ADMIN' } });
+    const other = await prisma.user.create({ data: { email: 'next-support@example.am', name: 'Operator', platformRole: 'SUPPORT' } });
+    await enquiries.assign(admin.id, result.enquiry.id, { key: 'transfer-converted-case', dto: { expectedRevision: 2, assignedUserId: other.id } });
+    await prisma.designTemplate.update({ where: { key: 'classic' }, data: { isActive: false } });
+    await expect(conversion.convert(staff.id, result.enquiry.id, { key: 'transferred-conversion-replay', dto })).rejects.toThrow('No such enquiry');
+  });
+
 });

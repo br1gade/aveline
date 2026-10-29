@@ -1,3 +1,5 @@
+import { bindTemplateMaterialization } from './templates/template-materialization';
+import { lockOrganizationStanding, requireCurrentEventPermission } from '../../infra/auth/access-locks';
 import { assertAuthoredTheme } from './templates/template-theme';
 import { lockLiveEvent } from '../events/event-lock';
 import { DomainHttpException } from '../../common/domain-http.exception';
@@ -54,9 +56,9 @@ export class DesignService {
    * template does not ship would produce exactly the broken render that theme
    * validation exists to prevent.
    */
-  async chooseTemplate(slug: string, dto: ChooseTemplateDto, userId?: string) {
+  async chooseTemplate(slug: string, dto: ChooseTemplateDto, userId: string) {
     if (dto.templateVersionId) {
-      if (!dto.previewId || !dto.expectedTemplateVersionId || !dto.expectedDesignRevision || !dto.idempotencyKey || !userId) {
+      if (!dto.previewId || !dto.expectedTemplateVersionId || !dto.expectedDesignRevision || !dto.idempotencyKey) {
         throw new DomainHttpException('TEMPLATE_PREVIEW_REQUIRED', 'Exact version adoption requires previewId, expectedTemplateVersionId, expectedDesignRevision and idempotencyKey');
       }
       return this.adoption.apply(userId, slug, { targetVersionId: dto.templateVersionId, templateKey: dto.templateKey,
@@ -68,10 +70,14 @@ export class DesignService {
       if (current.key === dto.templateKey) return this.describe(slug);
     }
     await this.prisma.$transaction(async (tx) => {
+      await lockOrganizationStanding(tx, { organizationId: invitation.organizationId });
       const template = await selectAvailableTemplate(tx, { organizationId: invitation.organizationId, templateKey: dto.templateKey });
       if (!template) throw new NotFoundException('No such template');
       if (template.provenance !== 'LEGACY_BASELINE') throw new DomainHttpException('TEMPLATE_PREVIEW_REQUIRED', 'Explicit version preview and confirmation required');
+      await lockLiveEvent(tx, invitation.eventId);
       await tx.$queryRaw`SELECT id FROM invitations WHERE id=${invitation.id} FOR UPDATE`;
+      await requireCurrentEventPermission(tx, { actor: { userId }, eventId: invitation.eventId, permission: 'invitation:design' });
+      await bindTemplateMaterialization(tx, { previewId: '', invitationId: invitation.id, targetVersionId: template.templateVersionId, hasArtwork: false });
       await tx.invitation.update({ where: { id: invitation.id }, data: {
         templateId: template.id, templateVersionId: template.templateVersionId,
         templateOwnerScopeKey: template.ownerScopeKey, theme: template.defaultTheme as Prisma.InputJsonValue,

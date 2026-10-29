@@ -18,10 +18,22 @@ export class TemplateMaterializationRunner {
       await this.putCopy(copy, buffer);
       await this.finalize(copy, buffer.length);
     } catch {
-      const retired = await this.prisma.invitationTemplateAsset.updateMany({ where: { id: copy.id, leaseOwner: copy.leaseOwner, leaseGeneration: copy.leaseGeneration }, data: { state: 'RETIRED', leaseOwner: null, leaseUntil: null } });
-      if (retired.count) await this.prisma.designTemplateStoredObject.updateMany({ where: { key: copy.objectKey }, data: { state: 'RETIRED', cleanupAfter: new Date() } });
+      await this.fail(copy);
     } finally { clearInterval(heartbeat); }
     return true;
+  }
+  private fail(copy: InvitationTemplateAsset) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM template_materializations WHERE id=${copy.materializationId} FOR UPDATE`;
+      const preparation = await tx.templateMaterialization.findUnique({ where: { id: copy.materializationId } });
+      if (preparation?.state !== 'PROCESSING') return;
+      const failed = await tx.invitationTemplateAsset.updateMany({ where: { id: copy.id, state: 'PROCESSING', leaseOwner: copy.leaseOwner, leaseGeneration: copy.leaseGeneration },
+        data: { state: 'RETIRED', leaseOwner: null, leaseUntil: null } });
+      if (!failed.count) return;
+      await tx.templateMaterialization.update({ where: { id: preparation.id }, data: { state: 'FAILED' } });
+      await tx.invitationTemplateAsset.updateMany({ where: { materializationId: preparation.id, state: { in: ['PROCESSING', 'AVAILABLE'] } }, data: { state: 'RETIRED' } });
+      await tx.designTemplateStoredObject.updateMany({ where: { materializationId: preparation.id, state: { not: 'DELETED' } }, data: { state: 'RETIRED', cleanupAfter: new Date() } });
+    });
   }
   private async putCopy(copy: InvitationTemplateAsset, buffer: Buffer) {
     try { await this.storage.put(copy.objectKey, buffer, copy.mimeType); }
@@ -45,8 +57,10 @@ export class TemplateMaterializationRunner {
       await tx.$queryRaw`SELECT id FROM design_templates WHERE id=${copy.templateId} FOR SHARE`;
       await tx.$queryRaw`SELECT id FROM events WHERE id=${copy.eventId} FOR SHARE`;
       await tx.$queryRaw`SELECT id FROM invitations WHERE id=${copy.invitationId} FOR SHARE`;
+      const requester = await tx.templateMaterialization.findUniqueOrThrow({ where: { id: copy.materializationId }, select: { actorUserId: true } });
+      await requireCurrentEventPermission(tx, { actor: { userId: requester.actorUserId }, eventId: copy.eventId, permission: 'invitation:design' });
+      await tx.$queryRaw`SELECT id FROM template_materializations WHERE id=${copy.materializationId} FOR UPDATE`;
       const materialization = await tx.templateMaterialization.findUniqueOrThrow({ where: { id: copy.materializationId } });
-      await requireCurrentEventPermission(tx, { actor: { userId: materialization.actorUserId }, eventId: copy.eventId, permission: 'invitation:design' });
       await tx.$queryRaw`SELECT id FROM invitation_template_assets WHERE id=${copy.id} FOR UPDATE`;
       await tx.$queryRaw`SELECT key FROM design_template_stored_objects WHERE key=${copy.objectKey} FOR UPDATE`;
       const current = await tx.invitationTemplateAsset.findUniqueOrThrow({ where: { id: copy.id } });

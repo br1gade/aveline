@@ -19,6 +19,7 @@ export async function prepareTemplateMaterialization(tx: Prisma.TransactionClien
   return materialization;
 }
 export async function bindTemplateMaterialization(tx: Prisma.TransactionClient, intent: { previewId: string; invitationId: string; targetVersionId: string; hasArtwork: boolean }) {
+  await tx.$queryRaw`SELECT id FROM template_materializations WHERE "previewId"=${intent.previewId} FOR UPDATE`;
   const materialization = await tx.templateMaterialization.findUnique({ where: { previewId: intent.previewId } });
   if (intent.hasArtwork && (!materialization || materialization.state !== 'READY' || materialization.expiresAt <= new Date())) throw new DomainHttpException('TEMPLATE_ASSET_NOT_READY', 'Event artwork is not prepared');
   const previous = await tx.invitationTemplateAsset.findMany({ where: { invitationId: intent.invitationId, state: 'BOUND' }, select: { objectKey: true } });

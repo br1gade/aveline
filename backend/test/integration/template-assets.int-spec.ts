@@ -27,8 +27,9 @@ describe('template private artwork ledger', () => {
     const user = await prisma.user.create({ data: { name: 'Admin', email: `${randomUUID()}@test.local`, platformRole: 'ADMIN' } });
     const template = await author.create(user.id, { key: 'art', definition });
     const buffer = await sharp({ create: { width: 8, height: 6, channels: 3, background: '#ffffff' } }).png().toBuffer();
-    const upload = await assets.upload(user.id, { templateId: template.templateId, draftId: template.draft.id, expectedRevision: 1, kind: 'COVER', idempotencyKey: randomUUID(), file: { buffer, mimetype: 'image/png' } });
-    return { user, templateId: template.templateId, draftId: template.draft.id, upload };
+    const intent = { templateId: template.templateId, draftId: template.draft.id, expectedRevision: 1, kind: 'COVER', idempotencyKey: randomUUID(), file: { buffer, mimetype: 'image/png' } };
+    const upload = await assets.upload(user.id, intent);
+    return { user, templateId: template.templateId, draftId: template.draft.id, upload, intent };
   };
   it('sanitizes in the worker and cleans retired bytes with durable late-upload tombstones', async () => {
     const state = await setup(); expect(state.upload.state).toBe('PROCESSING');
@@ -48,4 +49,15 @@ describe('template private artwork ledger', () => {
     storage.get.mockImplementationOnce(async (key: string) => { await prisma.user.update({ where: { id: state.user.id }, data: { isActive: false } }); return objects.get(key)!; });
     await expect(assets.read(state.user.id, { templateId: state.templateId, assetId: state.upload.assetId })).rejects.toMatchObject({ status: 403 });
   });
+  it('replays a matching upload without rewriting its object or changing the draft revision', async () => {
+    const state = await setup();
+    expect(await assets.upload(state.user.id, state.intent)).toEqual(state.upload);
+    expect(await prisma.designTemplateStoredObject.count()).toBe(1);
+    expect((await prisma.templateDraft.findUniqueOrThrow({ where: { id: state.draftId } })).revision).toBe(2);
+    expect(storage.put).toHaveBeenCalledTimes(1);
+    await author.discard(state.user.id, { templateId: state.templateId, draftId: state.draftId, expectedRevision: 2 });
+    expect(await assets.upload(state.user.id, state.intent)).toEqual({ assetId: state.upload.assetId, state: 'RETIRED' });
+    expect(storage.put).toHaveBeenCalledTimes(1);
+  });
+
 });

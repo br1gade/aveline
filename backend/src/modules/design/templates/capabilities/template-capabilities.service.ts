@@ -33,13 +33,26 @@ export class TemplateCapabilitiesService {
 }
 export function capabilityDigest(manifest: Omit<RendererCapability, 'digest'>): string { return hashTemplateContent(manifest); }
 function isAcceptedDefinition(manifest: RendererCapability, definition: TemplateDefinition): boolean {
-  const { digest, ...content } = manifest;
   const hasLanguages = ['en', 'ru', 'fr', 'hy'].every((locale) => manifest.locales.includes(locale));
   const hasFonts = definition.allowedFonts.every((font) => manifest.fonts.some((entry) => entry.id === font && /^[a-f0-9]{64}$/.test(entry.bundledHash)));
   const hasBlocks = definition.supportedBlocks.every((block) => manifest.blocks[block]?.canDefault && (definition.blockVariants[block] ?? []).every((variant) => manifest.blocks[block].variants.includes(variant)));
   const hasTheme = Object.keys(definition.defaultTheme).every((key) => manifest.themeKeys.includes(key));
   const rolePositions = Object.values(manifest.paletteRoles);
   const hasRoles = rolePositions.length > 0 && rolePositions.every((position) => Number.isInteger(position) && position >= 0 && definition.palettes.every((palette) => position < palette.colors.length));
-  return digest === capabilityDigest(content) && manifest.rendererKey === definition.rendererKey && manifest.schemaVersion === 1
-    && manifest.frontendRevision.length > 0 && hasLanguages && hasFonts && hasBlocks && hasTheme && hasRoles;
+  return isMatchingRelease(manifest, definition) && hasLanguages && hasFonts && hasBlocks && hasTheme && hasRoles && hasResolvedDefaults(manifest, definition);
+}
+
+function hasResolvedDefaults(manifest: RendererCapability, definition: TemplateDefinition): boolean {
+  const theme = definition.defaultTheme;
+  const bodyFont = theme.bodyFont ?? theme.headingFont; const headingFont = theme.headingFont ?? theme.bodyFont;
+  const hasFonts = [bodyFont, headingFont].every((font) => manifest.fonts.some((entry) => entry.id === font));
+  const palette = definition.palettes.find((entry) => entry.name === theme.palette);
+  const colors = Array.isArray(theme.colors) ? theme.colors : palette?.colors;
+  return hasFonts && Boolean(colors) && Object.values(manifest.paletteRoles).every((position) => colors !== undefined && typeof colors[position] === 'string');
+}
+
+function isMatchingRelease(manifest: RendererCapability, definition: TemplateDefinition): boolean {
+  const { digest, ...content } = manifest;
+  return digest === capabilityDigest(content) && manifest.rendererKey === definition.rendererKey
+    && manifest.schemaVersion === 1 && manifest.frontendRevision.length > 0;
 }

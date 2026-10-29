@@ -7,7 +7,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID, createHash } from 'node:crypto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrivateStorageService } from '../../../infra/storage/private/private-storage';
-import { assertRevision, lockAuthorTemplate, requireOpenDraft } from './template-authoring.service';
+import { assertRevision, lockAuthorTemplate, requireOpenDraft, requireTemplateDraft } from './template-authoring.service';
 import { assertTemplateAuthor } from './template-policy';
 import { TemplateGatesService } from './template-gates.service';
 import { TEMPLATE_UPLOAD_BYTES } from './template-raster';
@@ -26,6 +26,9 @@ export class TemplateAssetsService {
     const requestHash = hashTemplateContent({ ...intent, file: createHash('sha256').update(intent.file.buffer).digest('hex') });
     const asset = await this.reserve(userId, intent, requestHash);
     if (asset.state !== 'PROCESSING') return { assetId: asset.id, state: asset.state };
+    const source = await this.prisma.designTemplateStoredObject.findUniqueOrThrow({ where: { key: asset.sourceKey } });
+    if (source.state === 'AVAILABLE') return { assetId: asset.id, state: asset.state };
+    if (source.state !== 'RESERVED') throw new DomainHttpException('TEMPLATE_STATE_CHANGED', 'Upload reservation was retired');
     try {
       await this.storage.put(asset.sourceKey, intent.file.buffer, intent.file.mimetype);
     } catch (error) {
@@ -37,6 +40,8 @@ export class TemplateAssetsService {
       await assertTemplateAuthor(tx, { userId, templateId: intent.templateId });
       const current = await tx.designTemplateAsset.findUniqueOrThrow({ where: { id: asset.id } });
       if (current.state !== 'PROCESSING') throw new DomainHttpException('TEMPLATE_ASSET_NOT_READY', 'Upload was retired during storage IO');
+      const ledger = await tx.designTemplateStoredObject.findUniqueOrThrow({ where: { key: asset.sourceKey } });
+      if (ledger.state === 'AVAILABLE') return;
       const finalized = await tx.designTemplateStoredObject.updateMany({ where: { key: asset.sourceKey, state: 'RESERVED' }, data: { state: 'AVAILABLE', sizeBytes: intent.file.buffer.length } });
       if (!finalized.count) throw new DomainHttpException('TEMPLATE_ASSET_NOT_READY', 'Upload reservation expired');
     });
@@ -45,7 +50,7 @@ export class TemplateAssetsService {
   private async reserve(userId: string, intent: TemplateAssetUpload, requestHash: string) {
     return this.prisma.$transaction(async (tx) => {
       await lockAuthorTemplate(tx, intent.templateId);
-      const draft = await requireOpenDraft(tx, intent);
+      const draft = await requireTemplateDraft(tx, intent);
       await assertTemplateAuthor(tx, { userId, templateId: intent.templateId });
       const scopeKey = `upload:${intent.draftId}`;
       const receipt = await tx.templateReceipt.findUnique({ where: { scopeKey_idempotencyKey: { scopeKey, idempotencyKey: intent.idempotencyKey } } });
@@ -53,6 +58,7 @@ export class TemplateAssetsService {
         if (receipt.actorUserId !== userId || receipt.requestHash !== requestHash) throw new DomainHttpException('TEMPLATE_IDEMPOTENCY_CONFLICT', 'TEMPLATE_IDEMPOTENCY_CONFLICT');
         return tx.designTemplateAsset.findUniqueOrThrow({ where: { id: String((receipt.result as { assetId: string }).assetId) } });
       }
+      if (draft.state !== 'OPEN') throw new DomainHttpException('TEMPLATE_STATE_CHANGED', 'This draft is frozen');
       assertRevision(draft.revision, intent.expectedRevision);
       if (await tx.designTemplateAsset.count({ where: { draftId: draft.id, state: { not: 'RETIRED' } } }) >= 20) throw new BadRequestException('assets: at most 20 per draft');
       const asset = await tx.designTemplateAsset.create({ data: { templateId: intent.templateId, draftId: draft.id, ownerScopeKey: draft.ownerScopeKey, kind: intent.kind, sourceKey: randomUUID(), createdByUserId: userId } });

@@ -1,3 +1,4 @@
+import { TemplateContextInterceptor } from './template-context.interceptor';
 import { BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
@@ -22,6 +23,7 @@ class TemplateAssetUploadDto {
 }
 @ApiTags('template-authoring')
 @Controller('design-templates/:templateId')
+@UseInterceptors(TemplateContextInterceptor)
 export class TemplateAssetsController {
   constructor(private readonly assets: TemplateAssetsService) {}
   @RequirePermission('template:author') @Post('drafts/:draftId/assets') @HttpCode(202)

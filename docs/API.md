@@ -3783,3 +3783,32 @@ batch without dropping earlier subjects; the request can therefore include more
 than 100 reviewed cases. Rebinding replaces account verification unless it is
 explicitly restated, and every batch needs its verification evidence reference.
 Erasure and export act on the complete bound scope, never only the latest page.
+
+A successful conversion key replays its current authorized case projection even
+after the selected template retires or the linked event becomes published.
+Receipt lookup is followed by live case/staff authorization before any setup
+preparation. Erased receipts remain spent with SUBJECT_ERASED, and reassignment
+immediately removes the former operator's replay access. New conversion intents
+still validate current organization, template and draft-event targets.
+Private template author requests also validate `X-Aveline-Organization-Id` against
+the explicit body/resource owner using the shared organization resolver; a stale
+selector returns `ORGANIZATION_CONTEXT_MISMATCH` before any write. Assignment and
+current staff authority remain separate checks. Matching adoption receipt retries
+return the original successful result even if the target has since been retired;
+current event authority and tenant scope are still required. A frozen existing
+draft returns409 state change; an unknown draft returns404.
+
+Matching raster-upload retries reuse the original ledger/object and do not advance
+the draft revision; matching receipt replay is also valid after that draft freezes.
+Concurrent event-copy completions serialize on the materialization row before
+asset locks so a ready set cannot remain stuck in processing.
+
+An unrecoverable event-copy failure polls as `{state:'FAILED',
+code:'TEMPLATE_ASSET_INVALID',action:'REGENERATE'}`. It never selects the target
+pin or exposes partial files; transient event copies are retired for cleanup.
+
+New authored defaults must explicitly resolve a bundled font and named palette or
+complete custom colors. Publication/adoption retry only PostgreSQL serialization
+or deadlock rollbacks, at most three attempts with the original dedupe intent;
+retry exhaustion returns a recoverable409. Explicit legacy switching retires prior
+private artwork bindings atomically while retaining reusable immutable source art.

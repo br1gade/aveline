@@ -127,3 +127,10 @@ Candidate search returns items/nextCursor. Review every relevant page and use
 append:true for additional verified binding batches after the first verified
 replacement. Each call remains bounded to 100 IDs, while the complete reviewed
 request scope can exceed100 cases. No unseen page is silently discarded.
+
+Committed conversion receipts are checked under the privacy/case/live-User locks
+before preparing organization, template or event setup. Retries therefore retain
+the original command effect after a template retires or an event is published,
+while returning the current authorized case projection. Privacy-invalidated keys
+stay spent and reassigned operators lose replay access immediately. New intents
+retain the complete setup validation and lock order.

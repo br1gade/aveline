@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Header, Param, Patch, Post, Query } from '@nestjs/common';
+import { TemplateContextInterceptor } from './template-context.interceptor';
+import { Body, Controller, Get, Header, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, RequestActor, RequirePermission } from '../../../infra/auth/actor';
@@ -10,6 +11,7 @@ class TemplateInventoryQuery {
 }
 @ApiTags('template-authoring')
 @Controller('design-templates')
+@UseInterceptors(TemplateContextInterceptor)
 export class TemplateAuthoringController {
   constructor(private readonly templates: TemplateAuthoringService) {}
   @Header('Cache-Control', 'private, no-store')

@@ -2719,6 +2719,8 @@ model DesignTemplateVersion {
   @@unique([templateId, versionNumber])
   @@unique([id, templateId, ownerScopeKey])
   @@map("design_template_versions")
+  @@index([publishedByUserId])
+
 }
 
 model TemplateDraft {
@@ -2735,6 +2737,8 @@ model TemplateDraft {
   template DesignTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
   @@index([templateId, state])
   @@map("template_drafts")
+  @@index([createdByUserId, createdAt])
+
 }
 
 model TemplateAssignment {
@@ -2759,6 +2763,8 @@ model TemplateAudit {
   createdAt DateTime @default(now())
   @@index([templateId, createdAt])
   @@map("template_audits")
+  @@index([actorUserId, createdAt])
+
 }
 
 model TemplatePreview {
@@ -2778,6 +2784,8 @@ model TemplatePreview {
   createdAt DateTime @default(now())
   @@index([expiresAt])
   @@map("template_previews")
+  @@index([actorUserId, expiresAt])
+
 }
 
 model TemplateReceipt {
@@ -2790,6 +2798,8 @@ model TemplateReceipt {
   createdAt DateTime @default(now())
   @@unique([scopeKey, idempotencyKey])
   @@map("template_receipts")
+  @@index([actorUserId, createdAt])
+
 }
 
 
@@ -2817,6 +2827,8 @@ model DesignTemplateAsset {
   @@unique([id, templateId, ownerScopeKey])
   @@index([state, leaseUntil, createdAt])
   @@map("design_template_assets")
+  @@index([createdByUserId, createdAt])
+
 }
 
 model DesignTemplateStoredObject {
@@ -2833,6 +2845,9 @@ model DesignTemplateStoredObject {
   createdAt DateTime @default(now())
   @@index([state, cleanupAfter, key])
   @@map("design_template_stored_objects")
+  @@index([assetId])
+  @@index([materializationId])
+
 }
 
 model DesignTemplateAssetReference {
@@ -2869,6 +2884,10 @@ model TemplateMaterialization {
   createdAt DateTime @default(now())
   @@index([state, expiresAt])
   @@map("template_materializations")
+  @@index([actorUserId, expiresAt])
+  @@index([eventId])
+  @@index([invitationId])
+
 }
 
 model InvitationTemplateAsset {

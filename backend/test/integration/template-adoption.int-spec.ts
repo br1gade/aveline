@@ -24,6 +24,8 @@ describe('explicit template preview and adoption', () => {
     const intent = { targetVersionId: state.targetVersionId, expectedDesignRevision: state.expectedDesignRevision, templateKey: state.template.key, expectedTemplateVersionId: state.invitation.templateVersionId, previewId: preview.previewId, idempotencyKey: randomUUID() };
     const first = await service.apply(state.user.id, state.slug, intent);
     expect(await service.apply(state.user.id, state.slug, intent)).toEqual(first);
+    await prisma.designTemplate.update({ where: { id: state.template.id }, data: { isActive: false, retiredAt: new Date() } });
+    expect(await service.apply(state.user.id, state.slug, intent)).toEqual(first);
     const after = await prisma.invitation.findUniqueOrThrow({ where: { slug: state.slug }, include: { blocks: true } });
     expect(after.templateVersionId).toBe(state.targetVersionId);
     expect(after.blocks.find((block) => block.type === 'RSVP')?.enabled).toBe(false);

@@ -403,3 +403,13 @@ mutation. Generic Mongo request audit remains append-only observability. The
 organization aggregate uses NO KEY UPDATE for lifecycle changes: it excludes role
 writers' SHARE fences while permitting KEY SHARE taken implicitly by privacy FK
 inserts after invitation locks. Organization primary keys are immutable.
+Organization compatibility, idempotency intents and access reviews live in PostgreSQL.
+Credential invitations enqueue their protected Message in the same transaction;
+provider dispatch remains after commit. No credential enters an access-review row.
+
+Template privacy queries are indexed by the subject actor ID; asset/object cleanup
+has owner/materialization indexes. Event-copy completion and failure use the
+materialization row as their aggregate fence before asset/object rows, so parallel
+copies cannot lose the READY transition. A failed preparation becomes terminal
+and retires its event-copy objects; expiry retires unbound work. Reusable immutable
+sources and already-bound invitations are preserved.

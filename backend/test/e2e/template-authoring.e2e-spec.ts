@@ -55,4 +55,19 @@ describe('template authoring HTTP contract', () => {
     expect((catalogue.body as { key: string }[]).map((template) => template.key)).toEqual(['test-template']);
     await http().get(`/api/v1/events/${seeded.eventId}/design-templates/foreign-private/preview`).set('Authorization', auth.authorization).expect(404);
   });
+  it('rejects a private author request whose tab selector belongs to another organization', async () => {
+    const admin = await actor('ADMIN');
+    const first = await prisma.organization.create({ data: { name: 'First', kind: 'HOST' } });
+    const second = await prisma.organization.create({ data: { name: 'Second', kind: 'HOST' } });
+    const mismatch = await http().post('/api/v1/design-templates').set('Authorization', admin.authorization).set('X-Aveline-Organization-Id', first.id)
+      .send({ organizationId: second.id, definition }).expect(409);
+    expect(mismatch.body.code).toBe('ORGANIZATION_CONTEXT_MISMATCH');
+    expect(await prisma.designTemplate.count()).toBe(0);
+    const created = await http().post('/api/v1/design-templates').set('Authorization', admin.authorization).set('X-Aveline-Organization-Id', second.id)
+      .send({ organizationId: second.id, definition }).expect(201);
+    const detail = await http().get(`/api/v1/design-templates/${created.body.templateId as string}`).set('Authorization', admin.authorization)
+      .set('X-Aveline-Organization-Id', first.id).expect(409);
+    expect(detail.body.code).toBe('ORGANIZATION_CONTEXT_MISMATCH');
+  });
+
 });

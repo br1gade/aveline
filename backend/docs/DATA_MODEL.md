@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 65 models across three
+The authoritative map of what is stored and where. 95 PostgreSQL models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 65 |
+| **PostgreSQL** | The entire domain. The only source of truth | 95 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -29,6 +29,10 @@ lives outside Postgres.
 | `OrganizationInvite` | Adding a teammate, addressed to an email |
 | `EventInvite` | Bringing someone onto one event with a role; grants nothing in the organization |
 | `OrganizationMembership` · `EventMembership` | Standing on an organization / one event |
+| `RuntimeCompatibility` | Minimum supported backend reader and explicit additional-membership write gate |
+| `OrganizationCreateIntent` | Actor-bound idempotency for additional organization creation |
+| `OrganizationAccessReview` | ADMIN-reviewed closure or ownership recovery |
+| `OrganizationAccessChange` | Transactional role and departure evidence without contacts or credentials |
 
 ### The event
 | Model | Purpose |
@@ -45,7 +49,14 @@ with a different organization. This adds no event-transfer behavior.
 ### Invitation and design
 | Model | Purpose |
 |---|---|
-| `DesignTemplate` | Fonts, palettes and blocks a template renders correctly |
+| `DesignTemplate` | Stable shared or organization-private template identity |
+| `DesignTemplateVersion` | Immutable published definition, renderer manifest and content hash |
+| `TemplateDraft` · `TemplateAssignment` | Revision-checked authoring and explicit SUPPORT assignment |
+| `TemplateAudit` · `TemplateReceipt` | Authoring history and actor-bound idempotency receipts |
+| `TemplatePreview` | Expiring actor-bound publication or adoption preview |
+| `DesignTemplateAsset` · `DesignTemplateStoredObject` | Sanitized private sources and durable object cleanup ledger |
+| `DesignTemplateAssetReference` | Ordered draft/version artwork references |
+| `TemplateMaterialization` · `InvitationTemplateAsset` | Durable event-copy preparation and exact-version private bindings |
 | `Invitation` | Published page; captured first publication, duration/source/plan key, expiry and processed marker |
 | `GuestPageVersion` · `GuestPageChange` | Coarse compatibility revision and committed per-event transaction ledger |
 | `GuestPayloadVersion` · `GuestPayloadChange` | Independent shared-content and household payload counters; append-only writes, bounded atomic compaction, no parent FKs to preserve domain lock order |
@@ -54,11 +65,24 @@ with a different organization. This adds no event-transfer behavior.
 | `GuestMedia` | Private raw/derived keys, processing/moderation, reserved bytes and durable deletion tombstones |
 | `QuestionStatement` · `GuestAcknowledgement` | Immutable question versions and actual signer/represented subject evidence |
 
+### Staff enquiry intake
+| Model | Purpose |
+|---|---|
+| `SalesEnquiry` · `EnquiryContact` | Assigned internal case and separately redactable contact |
+| `EnquiryContactAddress` | Historical address fingerprints for verified subject discovery |
+| `EnquiryNote` · `Consultation` | Internal notes and nonoverlapping operator appointments |
+| `EnquiryActivity` · `EnquiryCommand` | Revision history and actor-bound command receipts |
+| `EnquiryConversion` · `OwnerInviteDelivery` | Explicit draft setup links and privacy-checked owner invitation provenance |
+| `EnquiryPrivacyFence` | Serializes subject erasure with intake and conversion writes |
+| `EnquiryErasureTombstone` · `EnquiryPrivacyRedaction` | Erasure state and independently journaled recovery checkpoints |
+| `DataSubjectRequestEnquirySubject` | Explicitly reviewed contact scope for a privacy request |
+
 ### Guest graph — the core asset
 | Model | Purpose |
 |---|---|
 | `Household` | The unit invitations and seating operate on |
 | `Guest` | A person, reached by capability token |
+| `GuestChannel` | Channel addresses and opt-in evidence for a guest |
 | `AttendancePolicy` · `AttendanceResponse` | Versioned attendance modes and person/venue answers; one active policy per event |
 | `Rsvp` · `RsvpQuestion` · `RsvpAnswer` | The response, and host-authored questions |
 | `GuestImport` | One upload, with per-row errors |
@@ -81,6 +105,7 @@ with a different organization. This adds no event-transfer behavior.
 | Model | Purpose |
 |---|---|
 | `Payment` · `PaymentEvent` | A charge, and every state transition with the provider's payload |
+| `InvoiceCounter` | Atomic invoice-number sequence per configured series |
 | `Refund` | Individual refunds; `Payment.refundedMinor` is the running total |
 | `Plan` · `Subscription` · `Invoice` | Recurring billing (PRODUCT_SPEC §9.4). `Plan.invitationLifetimeDays` is how long an invitation stays live — null means indefinitely |
 

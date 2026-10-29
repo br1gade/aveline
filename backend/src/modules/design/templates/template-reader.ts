@@ -49,3 +49,13 @@ export async function listEventTemplates(tx: Prisma.TransactionClient, eventId: 
 function assertAvailableScope(template: { isActive: boolean; retiredAt: Date | null; organizationId: string | null }, organizationId: string) {
   if (!template.isActive || template.retiredAt || (template.organizationId !== null && template.organizationId !== organizationId)) throw new NotFoundException('No available template');
 }
+
+/** Receipt replay may read a retired immutable target, but still cannot cross its owner scope. */
+export async function readScopedTemplateVersion(tx: Prisma.TransactionClient, intent: { organizationId: string; templateVersionId: string }) {
+  const version = await tx.designTemplateVersion.findUnique({ where: { id: intent.templateVersionId } });
+  if (!version) throw new DomainHttpException('TEMPLATE_NOT_FOUND', 'No such immutable version');
+  await tx.$queryRaw`SELECT id FROM design_templates WHERE id=${version.templateId} FOR SHARE`;
+  const identity = await tx.designTemplate.findUniqueOrThrow({ where: { id: version.templateId } });
+  if (identity.organizationId !== null && identity.organizationId !== intent.organizationId) throw new DomainHttpException('TEMPLATE_NOT_FOUND', 'No such immutable version');
+  return { ...version, key: identity.key, canSelect: identity.isActive && identity.retiredAt === null && identity.activeVersionId === version.id };
+}

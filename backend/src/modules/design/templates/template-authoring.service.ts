@@ -1,3 +1,4 @@
+import { retryTemplateTransaction } from './template-transaction';
 import { hashDraftSnapshot, lockDraftArtwork, readDraftArtwork } from './template-artwork';
 import { DomainHttpException } from '../../../common/domain-http.exception';
 import { TemplateCapabilitiesService } from './capabilities/template-capabilities.service';
@@ -144,7 +145,7 @@ export class TemplateAuthoringService {
 
   async publish(userId: string, intent: { templateId: string; draftId: string; dto: PublishTemplateDto }) {
     const requestHash = hashTemplateContent(intent);
-    return this.prisma.$transaction(async (tx) => {
+    return retryTemplateTransaction(() => this.prisma.$transaction(async (tx) => {
       const template = await lockAuthorTemplate(tx, intent.templateId);
       const prior = await tx.templateReceipt.findUnique({ where: { scopeKey_idempotencyKey: { scopeKey: template.id, idempotencyKey: intent.dto.idempotencyKey } } });
       if (prior) {
@@ -178,7 +179,7 @@ export class TemplateAuthoringService {
       await tx.templateReceipt.create({ data: { scopeKey: template.id, idempotencyKey: intent.dto.idempotencyKey, actorUserId: userId, requestHash, result } });
       await recordAudit(tx, { templateId: template.id, userId, action: 'PUBLISH', revision: template.revision + 1 });
       return result;
-    });
+    }));
   }
 
   async retire(userId: string, templateId: string, expectedRevision: number) {
@@ -226,12 +227,18 @@ export async function lockAuthorTemplate(tx: Prisma.TransactionClient, templateI
   await tx.$queryRaw`SELECT id FROM design_templates WHERE id=${templateId} FOR UPDATE`;
   return tx.designTemplate.findUniqueOrThrow({ where: { id: templateId } });
 }
-export async function requireOpenDraft(tx: Prisma.TransactionClient, intent: { templateId: string; draftId: string }) {
+export async function requireTemplateDraft(tx: Prisma.TransactionClient, intent: { templateId: string; draftId: string }) {
   await tx.$queryRaw`SELECT id FROM template_drafts WHERE id=${intent.draftId} AND "templateId"=${intent.templateId} FOR UPDATE`;
-  const draft = await tx.templateDraft.findFirst({ where: { id: intent.draftId, templateId: intent.templateId, state: 'OPEN' } });
-  if (!draft) throw new DomainHttpException('TEMPLATE_DRAFT_NOT_FOUND', 'No open draft on this template');
+  const draft = await tx.templateDraft.findFirst({ where: { id: intent.draftId, templateId: intent.templateId } });
+  if (!draft) throw new DomainHttpException('TEMPLATE_DRAFT_NOT_FOUND', 'No such draft on this template');
   return draft;
 }
+export async function requireOpenDraft(tx: Prisma.TransactionClient, intent: { templateId: string; draftId: string }) {
+  const draft = await requireTemplateDraft(tx, intent);
+  if (draft.state !== 'OPEN') throw new DomainHttpException('TEMPLATE_STATE_CHANGED', 'This draft is frozen');
+  return draft;
+}
+
 export function assertRevision(current: number, expected: number) {
   if (current !== expected) throw new DomainHttpException('TEMPLATE_REVISION_CONFLICT', 'Reload before changing this revision');
 }

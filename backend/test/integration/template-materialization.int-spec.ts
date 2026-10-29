@@ -1,3 +1,4 @@
+import { DesignService } from '../../src/modules/design/design.service';
 import { reserveInitialTemplateArtwork } from '../../src/modules/design/templates/template-materialization';
 import { PublishingService } from '../../src/modules/invitations/publishing.service';
 import { ConfigService } from '@nestjs/config';
@@ -30,7 +31,7 @@ describe('event-private immutable template artwork', () => {
   beforeAll(() => {
     prisma = testPrisma(); const database = prisma as unknown as PrismaService; const store = storage as unknown as PrivateStorageService;
     const config = new ConfigService({ TEMPLATE_AUTHORING_ENABLED: 'true', TEMPLATE_ASSETS_ENABLED: 'true', TEMPLATE_PUBLISH_ENABLED: 'true', TEMPLATE_ADOPTION_ENABLED: 'true' });
-    const gates = new TemplateGatesService(config); const capabilities = testTemplateCapabilities(['HERO']);
+    const gates = new TemplateGatesService(config); const capabilities = testTemplateCapabilities(['HERO', 'GALLERY']);
     author = new TemplateAuthoringService(database, gates, capabilities); assets = new TemplateAssetsService(database, store, gates, capabilities);
     runner = new TemplateAssetRunner(database, store); materializer = new TemplateMaterializationRunner(database, store);
     adoption = new TemplateAdoptionService(database, cache as unknown as CacheService, gates);
@@ -38,14 +39,14 @@ describe('event-private immutable template artwork', () => {
     files = new DesignAssetFilesService(database, store, invitations);
   });
   beforeEach(async () => { await resetTestDatabase(); objects.clear(); cached.length = 0; }); afterAll(() => disconnectTestDatabase());
-  const setup = async () => {
+  const setup = async (templateDefinition = definition) => {
     const event = await seedEvent(prisma, { visibility: 'UNLISTED' });
     const user = await prisma.user.create({ data: { name: 'Admin', email: `${randomUUID()}@test.local`, platformRole: 'ADMIN' } });
-    const template = await author.create(user.id, { key: 'art', definition });
+    const template = await author.create(user.id, { key: 'art', definition: templateDefinition });
     const buffer = await sharp({ create: { width: 8, height: 6, channels: 3, background: '#ffffff' } }).png().toBuffer();
     const upload = await assets.upload(user.id, { templateId: template.templateId, draftId: template.draft.id, expectedRevision: 1, kind: 'COVER', idempotencyKey: randomUUID(), file: { buffer, mimetype: 'image/png' } });
     await runner.runOne();
-    await assets.attach(user.id, { templateId: template.templateId, draftId: template.draft.id, expectedRevision: 2, artwork: [{ slot: 'HERO', assetId: upload.assetId }] });
+    await assets.attach(user.id, { templateId: template.templateId, draftId: template.draft.id, expectedRevision: 2, artwork: templateDefinition.supportedBlocks.map((slot) => ({ slot, assetId: upload.assetId })) });
     const preview = await author.preview(user.id, { templateId: template.templateId, draftId: template.draft.id });
     await author.publish(user.id, { templateId: template.templateId, draftId: template.draft.id, dto: { expectedRevision: 3, contentHash: preview.contentHash, previewId: preview.previewId, idempotencyKey: randomUUID() } });
     const selected = await prisma.designTemplate.findUniqueOrThrow({ where: { id: template.templateId } });
@@ -103,6 +104,60 @@ describe('event-private immutable template artwork', () => {
     await materializer.runOne();
     expect(await prisma.invitationTemplateAsset.count({ where: { invitationId: baseline.id, state: 'BOUND' } })).toBe(0);
     expect(await prisma.templateMaterialization.findFirstOrThrow({ where: { invitationId: baseline.id } })).toMatchObject({ state: 'RETIRED' });
+  });
+
+  it('serializes two completed copy workers at the materialization fence so readiness cannot be lost', async () => {
+    const state = await setup({ ...definition, supportedBlocks: ['HERO', 'GALLERY'], blockVariants: { HERO: ['split'] } });
+    let releasePuts!: () => void; const bothPuts = new Promise<void>((resolve) => { releasePuts = resolve; });
+    let putCount = 0;
+    const concurrentStorage = { ...storage, put: async (key: string, buffer: Buffer) => {
+      objects.set(key, buffer); putCount += 1;
+      if (putCount === 2) releasePuts(); await bothPuts;
+    } };
+    const first = new TemplateMaterializationRunner(prisma as unknown as PrismaService, concurrentStorage as unknown as PrivateStorageService);
+    const second = new TemplateMaterializationRunner(prisma as unknown as PrismaService, concurrentStorage as unknown as PrivateStorageService);
+    expect(await Promise.all([first.runOne(), second.runOne()])).toEqual([true, true]);
+    const preparation = await prisma.templateMaterialization.findUniqueOrThrow({ where: { previewId: state.pending.previewId } });
+    expect(preparation.state).toBe('READY');
+    expect(await prisma.invitationTemplateAsset.count({ where: { materializationId: preparation.id, state: 'AVAILABLE' } })).toBe(2);
+    expect(await materializer.runOne()).toBe(false);
+    expect((await adoption.poll(state.user.id, state.event.slug, state.pending.previewId)).state).toBe('READY');
+  });
+
+  it('makes a failed preparation terminal and cleans only event copies while retaining immutable sources', async () => {
+    const state = await setup();
+    const failedStorage = { ...storage, get: () => Promise.reject<Buffer>(new Error('private storage unavailable')) };
+    const worker = new TemplateMaterializationRunner(prisma as unknown as PrismaService, failedStorage as unknown as PrivateStorageService);
+    expect(await worker.runOne()).toBe(true);
+    const preparation = await prisma.templateMaterialization.findUniqueOrThrow({ where: { previewId: state.pending.previewId } });
+    expect(preparation.state).toBe('FAILED');
+    expect(await adoption.poll(state.user.id, state.event.slug, state.pending.previewId)).toMatchObject({ state: 'FAILED', action: 'REGENERATE' });
+    await runner.cleanup();
+    expect(await prisma.designTemplateStoredObject.count({ where: { materializationId: preparation.id, state: 'DELETED' } })).toBe(1);
+    expect(await prisma.designTemplateAsset.count({ where: { templateId: state.template.templateId, state: 'AVAILABLE' } })).toBe(1);
+    expect(await materializer.runOne()).toBe(false);
+  });
+  it('expires unbound preparations into durable cleanup without permitting a late confirmation', async () => {
+    const state = await setup();
+    await prisma.templatePreview.update({ where: { id: state.pending.previewId }, data: { expiresAt: new Date(0) } });
+    await prisma.templateMaterialization.update({ where: { previewId: state.pending.previewId }, data: { expiresAt: new Date(0) } });
+    await runner.cleanup();
+    expect(await materializer.runOne()).toBe(false);
+    expect(await prisma.templateMaterialization.findUniqueOrThrow({ where: { previewId: state.pending.previewId } })).toMatchObject({ state: 'RETIRED' });
+    await expect(adoption.poll(state.user.id, state.event.slug, state.pending.previewId)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('clears prior private bindings atomically when explicitly switching back to a legacy baseline', async () => {
+    const state = await setup(); await materializer.runOne();
+    await adoption.apply(state.user.id, state.event.slug, { ...state.intent, templateKey: 'art', previewId: state.pending.previewId,
+      expectedTemplateVersionId: state.invitation.templateVersionId, idempotencyKey: randomUUID() });
+    const design = new DesignService(prisma as unknown as PrismaService, cache as unknown as CacheService, adoption);
+    await design.chooseTemplate(state.event.slug, { templateKey: 'test-template' }, state.user.id);
+    const invitation = await prisma.invitation.findUniqueOrThrow({ where: { id: state.invitation.id } });
+    expect(invitation.templateVersionId).toBe(state.invitation.templateVersionId);
+    expect(await prisma.invitationTemplateAsset.count({ where: { invitationId: invitation.id, state: 'BOUND' } })).toBe(0);
+    expect(await prisma.designTemplateAsset.count({ where: { templateId: state.template.templateId, state: 'AVAILABLE' } })).toBe(1);
+    expect(invitation.expiresAt).toEqual(state.invitation.expiresAt);
   });
 
 });
