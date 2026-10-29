@@ -31,6 +31,8 @@ describe('money', () => {
   it('formats in the given locale', () => {
     expect(formatMinor('1050', 'USD', 'en')).toContain('10.50');
     expect(formatMinor('25000', 'AMD', 'en')).toContain('25,000');
+    // French groups with a narrow no-break space, which the fonts carry (styles/fonts.test.ts).
+    expect(formatMinor('25000', 'AMD', 'fr')).toContain('25\u202f000');
   });
 
   it.each([

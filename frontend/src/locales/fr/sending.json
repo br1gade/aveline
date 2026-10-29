@@ -1,0 +1,155 @@
+{
+  "page": {
+    "back": "Retour à l’événement",
+    "title": "Publier et envoyer",
+    "status": "L’invitation",
+    "state": {
+      "DRAFT": "Brouillon : les invités ne peuvent pas encore l’ouvrir",
+      "PUBLISHED": "Publiée : les invités peuvent ouvrir leur lien et répondre",
+      "CLOSED": "Réponses arrêtées : les invités peuvent encore l’ouvrir, mais pas répondre"
+    },
+    "slug": "Nom du lien",
+    "noInvitation": "Cet événement n’a pas encore d’invitation.",
+    "lifetime": "Les invités peuvent l’ouvrir",
+    "openUntil": "jusqu’au {{date}}, {{time}}",
+    "noExpiry": "sans date de fin",
+    "expired": "plus maintenant : son délai est écoulé"
+  },
+  "status": {
+    "published": "L’invitation est publiée.",
+    "closed": "Les réponses sont arrêtées. Les invités peuvent encore ouvrir l’invitation.",
+    "reopened": "Les invités peuvent à nouveau répondre."
+  },
+  "publish": {
+    "title": "Publier",
+    "lead": "Publier met l’invitation en ligne : les invités peuvent ouvrir leur lien, et vous pouvez l’envoyer.",
+    "blockedTitle": "Avant de pouvoir publier :",
+    "ready": "Rien n’empêche la publication.",
+    "blockersRefused": "Ce qui bloque encore la publication n’est pas affiché pour votre rôle. La publication indiquera s’il reste quelque chose.",
+    "button": "Publier l’invitation",
+    "waiting": "La publication attend les points ci-dessus.",
+    "confirmTitle": "Publier l’invitation ?",
+    "confirmBody": "Les invités pourront ouvrir leur lien dès maintenant, et vous pourrez envoyer l’invitation.",
+    "noWayBack": "Une fois publiée, elle ne peut plus redevenir un brouillon. Vous pouvez arrêter les réponses à tout moment, puis les reprendre.",
+    "cancel": "Annuler",
+    "confirm": "Publier",
+    "publishing": "Publication…"
+  },
+  "blockers": {
+    "rsvp": "La section de réponse est désactivée dans la conception de l’invitation : les invités n’auraient aucun moyen de répondre. Elle ne peut pas encore être activée ici.",
+    "venue": "Ajoutez un lieu avec une adresse, pour que les invités sachent où aller.",
+    "venueFix": "Ajouter un lieu",
+    "started": "L’événement a déjà commencé : une invitation arriverait trop tard. Si sa date est erronée, corrigez-la.",
+    "startedFix": "Modifier les informations",
+    "inEnglish": "Certains de ces points sont en anglais pour l’instant."
+  },
+  "replies": {
+    "title": "Réponses",
+    "open": "Les invités peuvent répondre. Arrêter les réponses laisse l’invitation lisible, car le lieu, l’heure et la tenue comptent toujours pour ceux qui viennent. Vous pourrez reprendre les réponses plus tard.",
+    "closed": "Les réponses sont arrêtées. Les invités peuvent encore ouvrir l’invitation. Reprendre les réponses leur permet de répondre, et vous permet de l’envoyer.",
+    "close": "Arrêter les réponses",
+    "reopen": "Reprendre les réponses",
+    "expired": "Son délai est écoulé : reprendre les réponses ne permettra pas aux invités de l’ouvrir."
+  },
+  "send": {
+    "title": "Envoyer l’invitation",
+    "lead": "Chaque foyer reçoit un seul message avec son propre lien, par e-mail, ou sur Telegram s’il l’utilise. Renvoyer est sans risque : un foyer déjà invité n’en reçoit pas d’autre, et celui dont le message a échoué est réessayé.",
+    "everyone": "Envoyer à tous les foyers pas encore invités",
+    "sending": "Envoi…",
+    "closed": "Les réponses sont arrêtées, l’invitation ne peut donc pas être envoyée. Reprenez les réponses pour l’envoyer.",
+    "expired": "Le délai de cette invitation est écoulé : les invités ne peuvent plus l’ouvrir, elle ne peut donc pas être envoyée."
+  },
+  "summary": {
+    "invited_one": "{{count, number}} foyer invité",
+    "invited_many": "{{count, number}} foyers invités",
+    "invited_other": "{{count, number}} foyers invités",
+    "notSent_one": "{{count, number}} pas encore",
+    "notSent_many": "{{count, number}} pas encore",
+    "notSent_other": "{{count, number}} pas encore",
+    "unreachable_one": "{{count, number}} injoignable",
+    "unreachable_many": "{{count, number}} injoignables",
+    "unreachable_other": "{{count, number}} injoignables",
+    "seeEach": "Voir chaque foyer sur la liste des invités",
+    "refused": "Les personnes invitées ne sont pas affichées pour votre rôle sur cet événement."
+  },
+  "confirm": {
+    "title_one": "Envoyer l’invitation à {{count, number}} foyer ?",
+    "title_many": "Envoyer l’invitation à {{count, number}} foyers ?",
+    "title_other": "Envoyer l’invitation à {{count, number}} foyers ?",
+    "titleUnknown": "Envoyer l’invitation ?",
+    "body": "Chaque foyer reçoit un seul message avec son propre lien. Les messages envoyés ne peuvent pas être rappelés.",
+    "unreachable_one": "{{count, number}} foyer n’a pas d’adresse utilisable et ne recevra rien. La liste des invités explique pourquoi.",
+    "unreachable_many": "{{count, number}} foyers n’ont pas d’adresse utilisable et ne recevront rien. La liste des invités explique pourquoi.",
+    "unreachable_other": "{{count, number}} foyers n’ont pas d’adresse utilisable et ne recevront rien. La liste des invités explique pourquoi.",
+    "cancel": "Annuler",
+    "send": "Envoyer"
+  },
+  "outcome": {
+    "title": "Ce qui s’est passé",
+    "queued_one": "En route vers {{count, number}} foyer. Rien d’autre à faire.",
+    "queued_many": "En route vers {{count, number}} foyers. Rien d’autre à faire.",
+    "queued_other": "En route vers {{count, number}} foyers. Rien d’autre à faire.",
+    "seeWho": "Voir qui",
+    "alreadySent_one": "{{count, number}} foyer l’avait déjà, il n’en a donc pas reçu d’autre.",
+    "alreadySent_many": "{{count, number}} foyers l’avaient déjà, ils n’en ont donc pas reçu d’autre.",
+    "alreadySent_other": "{{count, number}} foyers l’avaient déjà, ils n’en ont donc pas reçu d’autre.",
+    "suppressedTitle_one": "Non envoyée : {{count, number}} foyer",
+    "suppressedTitle_many": "Non envoyée : {{count, number}} foyers",
+    "suppressedTitle_other": "Non envoyée : {{count, number}} foyers",
+    "suppressedHelp": "Ils ont demandé à ne pas être contactés, ou un message précédent leur est revenu. Pour un message revenu, corrigez l’adresse sur la liste des invités et renvoyez. S’ils ont demandé à ne pas être contactés, parlez-leur.",
+    "unreachableTitle_one": "Injoignable : {{count, number}} foyer",
+    "unreachableTitle_many": "Injoignables : {{count, number}} foyers",
+    "unreachableTitle_other": "Injoignables : {{count, number}} foyers",
+    "unreachableHelp": "Il n’y a aucune adresse utilisable pour eux. Ajoutez-en ou corrigez-en une sur la liste des invités, puis renvoyez.",
+    "inEnglish": "Les raisons sont en anglais pour l’instant.",
+    "fixOnList": "Les afficher sur la liste des invités",
+    "nobody": "Il n’y avait personne à qui envoyer."
+  },
+  "channel": {
+    "EMAIL": "par e-mail",
+    "TELEGRAM": "sur Telegram",
+    "WHATSAPP": "sur WhatsApp",
+    "SMS": "par SMS",
+    "withAddress": "{{how}}, {{address}}"
+  },
+  "delivery": {
+    "status": {
+      "NOT_SENT": "Pas encore envoyée",
+      "QUEUED": "En attente d’envoi",
+      "RETRYING": "Nouvel essai après un échec temporaire",
+      "SENDING": "Envoi en cours",
+      "SENT": "Envoyée",
+      "DELIVERED": "Remise",
+      "FAILED": "N’a pas pu être envoyée",
+      "BOUNCED": "Revenue",
+      "SUPPRESSED": "Non envoyée : ils ne peuvent pas être contactés",
+      "CANCELLED": "Retirée avant l’envoi",
+      "UNKNOWN": "Statut inconnu"
+    },
+    "to": "à {{name}}",
+    "sentAt": "{{date}}, {{time}}",
+    "reminders_one": "relancé une fois",
+    "reminders_many": "relancé {{count, number}} fois",
+    "reminders_other": "relancé {{count, number}} fois",
+    "unreachable": "Ne peut pas être envoyée",
+    "action": {
+      "FAILED": "Renvoyez pour réessayer.",
+      "BOUNCED": "Corrigez l’adresse, puis renvoyez.",
+      "SUPPRESSED": "Ils ont demandé à ne pas être contactés, ou un message précédent est revenu. Corrigez une adresse erronée et renvoyez, ou parlez-leur.",
+      "CANCELLED": "Renvoyez s’ils doivent toujours la recevoir.",
+      "UNKNOWN": "Rechargez la page plus tard pour voir ce qui s’est passé.",
+      "UNREACHABLE": "Ajoutez ou corrigez une adresse, puis renvoyez.",
+      "CONFIGURATION": "L’envoi sur ce canal n’est pas correctement configuré, ce que l’invité ne peut pas corriger. Réessayez plus tard."
+    },
+    "readAt": "lue le {{date}}, {{time}}"
+  },
+  "problems": {
+    "forbidden": "Votre rôle sur cet événement ne permet pas de publier ou d’envoyer l’invitation. Le propriétaire de l’événement peut modifier votre rôle.",
+    "state": "Impossible dans l’état actuel de l’invitation. La page a été rechargée.",
+    "missing": "Cette invitation n’est plus disponible. La page a été rechargée.",
+    "conflict": "Quelqu’un vient de modifier l’invitation. La page a été rechargée ; réessayez.",
+    "sendRefused": "L’invitation ne peut pas être envoyée pour le moment.",
+    "other": "Cela n’a pas été accepté. Réessayez.",
+    "expired": "Le délai de cette invitation est écoulé, elle ne peut donc pas être envoyée. La page a été rechargée."
+  }
+}

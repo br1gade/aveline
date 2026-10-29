@@ -1,0 +1,116 @@
+{
+  "occasion": {
+    "WEDDING": "Mariage",
+    "ENGAGEMENT": "Fiançailles",
+    "BAPTISM": "Baptême",
+    "BIRTHDAY": "Anniversaire",
+    "ANNIVERSARY": "Anniversaire de mariage",
+    "CORPORATE": "Événement d’entreprise",
+    "OTHER": "Célébration"
+  },
+  "timeZone": {
+    "yerevan": "heure d’Erevan",
+    "moscow": "heure de Moscou"
+  },
+  "personal": {
+    "label": "Votre invitation",
+    "greeting": "{{name}},",
+    "welcome": "Nous serions honorés de célébrer ce jour avec vous.",
+    "seats": "Places réservées : {{count}}",
+    "seatsToName_one": "{{count}} place à attribuer",
+    "seatsToName_many": "{{count}} places à attribuer",
+    "seatsToName_other": "{{count}} places à attribuer",
+    "repliedOn": "Envoyée le {{date}}",
+    "reply": "Répondre",
+    "changeReply": "Modifier la réponse"
+  },
+  "status": {
+    "ATTENDING": "Vous serez des nôtres",
+    "DECLINED": "Vous ne serez pas des nôtres",
+    "UNDECIDED": "Pas encore décidé",
+    "withCount": "{{status}} · {{count}}"
+  },
+  "story": {
+    "label": "Notre histoire"
+  },
+  "countdown": {
+    "label": "Avant la célébration",
+    "days_one": "jour",
+    "days_many": "jours",
+    "days_other": "jours",
+    "hours_one": "heure",
+    "hours_many": "heures",
+    "hours_other": "heures",
+    "minutes_one": "minute",
+    "minutes_many": "minutes",
+    "minutes_other": "minutes",
+    "daysToGo_one": "Plus que {{count}} jour",
+    "daysToGo_many": "Plus que {{count}} jours",
+    "daysToGo_other": "Plus que {{count}} jours"
+  },
+  "music": {
+    "label": "Musique",
+    "on": "Musique : activée",
+    "off": "Musique : désactivée",
+    "pause": "Mettre la musique en pause"
+  },
+  "venue": {
+    "label": "Lieux",
+    "heading": "Où nous retrouver",
+    "role": {
+      "CEREMONY": "Cérémonie",
+      "RECEPTION": "Réception",
+      "AFTER_PARTY": "Soirée",
+      "PREPARATION": "Préparatifs",
+      "OTHER": "Autre"
+    },
+    "arriveBy": "Arrivée avant {{time}}",
+    "directions": "Itinéraire",
+    "copyAddress": "Copier l’adresse",
+    "copied": "Adresse copiée"
+  },
+  "map": {
+    "label": "Itinéraire",
+    "heading": "Comment s’y rendre",
+    "open": "Ouvrir dans Plans"
+  },
+  "timeline": {
+    "label": "Programme",
+    "heading": "La journée"
+  },
+  "dressCode": {
+    "label": "Tenue",
+    "swatches": "Couleurs suggérées"
+  },
+  "notes": {
+    "label": "Informations",
+    "heading": "Quelques demandes"
+  },
+  "gallery": {
+    "label": "Galerie",
+    "heading": "Moments"
+  },
+  "reply": {
+    "label": "Merci de répondre",
+    "heading": "Serez-vous des nôtres ?",
+    "closed": "Les réponses sont closes. Les informations restent disponibles ici.",
+    "generic": "Pour répondre, ouvrez le lien personnel que vous avez reçu.",
+    "skip": "Aller à la réponse"
+  },
+  "chat": {
+    "label": "Discussion des invités",
+    "join": "Rejoindre la discussion des invités"
+  },
+  "contact": {
+    "label": "Des questions ?",
+    "call": "Appeler"
+  },
+  "notFound": {
+    "title": "Cette invitation n’est pas disponible",
+    "body": "Vérifiez le lien que vous avez reçu, ou demandez à la personne qui vous a invité.",
+    "sentence": "Cette invitation n’est pas disponible. Vérifiez le lien que vous avez reçu, ou demandez à la personne qui vous a invité."
+  },
+  "footer": {
+    "logo": "Aveline Events"
+  }
+}

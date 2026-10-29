@@ -1,0 +1,28 @@
+{
+  "appName": "Aveline",
+  "home": {
+    "title": "Aveline",
+    "body": "Des invitations pour les jours qui comptent. Ouvrez le lien personnel que vous avez reçu pour voir votre invitation."
+  },
+  "notFound": {
+    "title": "Cette page n’est pas disponible",
+    "body": "Vérifiez le lien que vous avez reçu."
+  },
+  "error": {
+    "title": "Une erreur s’est produite",
+    "body": "Veuillez réessayer dans un instant.",
+    "reference": "Référence : {{requestId}}"
+  },
+  "language": {
+    "label": "Langue",
+    "hy": "Հայերեն",
+    "ru": "Русский",
+    "en": "English",
+    "fr": "Français"
+  },
+  "problems": {
+    "rate-limited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+    "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez.",
+    "server": "Une erreur s’est produite de notre côté. Veuillez réessayer dans un instant."
+  }
+}

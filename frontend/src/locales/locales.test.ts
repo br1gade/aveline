@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { LANGUAGES } from '@/lib/i18n';
+
 import { resources } from './index';
 
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
@@ -19,6 +21,12 @@ function baseKeys(tree: Tree): string[] {
   return [...new Set(flatten(tree).map((key) => key.replace(PLURAL_SUFFIX, '')))].sort();
 }
 
+function strings(tree: Tree): string[] {
+  return Object.values(tree).flatMap((value) =>
+    typeof value === 'string' ? [value] : strings(value),
+  );
+}
+
 function pluralForms(tree: Tree): Map<string, Set<string>> {
   const forms = new Map<string, Set<string>>();
   for (const key of flatten(tree)) {
@@ -35,6 +43,10 @@ const languages = Object.keys(resources) as Array<keyof typeof resources>;
 const namespaces = Object.keys(resources.en) as Array<keyof (typeof resources)['en']>;
 
 describe('interface strings', () => {
+  it('exist for every interface language, and only those', () => {
+    expect([...languages].sort()).toEqual([...LANGUAGES].sort());
+  });
+
   it.each(namespaces)('namespace %s has the same keys in every language', (namespace) => {
     const source = baseKeys(resources.en[namespace]);
     for (const language of languages) {
@@ -51,5 +63,15 @@ describe('interface strings', () => {
         }
       }
     }
+  });
+
+  /**
+   * French sets a space before ; : ! ? and inside « », and it must not break there: a narrow
+   * no-break space (U+202F), or a no-break space (U+00A0) before a colon.
+   */
+  it.each(namespaces)('namespace %s keeps French spaces unbreakable', (namespace) => {
+    const breakable = / [;:!?»]|« /;
+    const offending = strings(resources.fr[namespace]).filter((text) => breakable.test(text));
+    expect(offending).toEqual([]);
   });
 });

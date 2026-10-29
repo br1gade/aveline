@@ -7,6 +7,15 @@ import enInvitation from './en/invitation.json';
 import enReply from './en/reply.json';
 import enSending from './en/sending.json';
 import enVenues from './en/venues.json';
+import frAccount from './fr/account.json';
+import frApp from './fr/app.json';
+import frCommon from './fr/common.json';
+import frEvents from './fr/events.json';
+import frGuests from './fr/guests.json';
+import frInvitation from './fr/invitation.json';
+import frReply from './fr/reply.json';
+import frSending from './fr/sending.json';
+import frVenues from './fr/venues.json';
 import hyAccount from './hy/account.json';
 import hyApp from './hy/app.json';
 import hyCommon from './hy/common.json';
@@ -28,7 +37,7 @@ import ruVenues from './ru/venues.json';
 
 /**
  * Every namespace in every language. English is the source of the keys; Armenian and Russian are
- * drafts until a native reader checks them (design PD-9).
+ * drafts until a native reader checks them (design PD-9). French ships as translated (design C-23).
  */
 export const resources = {
   en: {
@@ -41,6 +50,17 @@ export const resources = {
     reply: enReply,
     sending: enSending,
     venues: enVenues,
+  },
+  fr: {
+    account: frAccount,
+    app: frApp,
+    common: frCommon,
+    events: frEvents,
+    guests: frGuests,
+    invitation: frInvitation,
+    reply: frReply,
+    sending: frSending,
+    venues: frVenues,
   },
   hy: {
     account: hyAccount,

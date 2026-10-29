@@ -29,7 +29,7 @@ function closeList(event: MouseEvent<HTMLAnchorElement>) {
 /**
  * Each language named in itself, never a flag (design R-17). A native disclosure, so it works
  * before the page hydrates. Shown only when there is more than one language to choose: on an
- * invitation, the ones its event publishes; on the account and app pages, all three (PD-40).
+ * invitation, the ones its event publishes; on the account and app pages, all four (PD-40, C-23).
  */
 export function LanguageSwitcher({
   current,

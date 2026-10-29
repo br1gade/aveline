@@ -126,9 +126,9 @@ describe('updatePayload', () => {
 });
 
 describe('languages', () => {
-  it('offers Armenian, Russian and English, and keeps any other the event already has', () => {
-    expect(languageOptions()).toEqual(['hy', 'ru', 'en']);
-    expect(languageOptions(['en', 'fr'])).toEqual(['hy', 'ru', 'en', 'fr']);
+  it('offers Armenian, Russian, English and French, and keeps any other the event already has', () => {
+    expect(languageOptions()).toEqual(['hy', 'ru', 'en', 'fr']);
+    expect(languageOptions(['en', 'de'])).toEqual(['hy', 'ru', 'en', 'fr', 'de']);
   });
 
   it('keeps the ticked languages in the order they are offered', () => {

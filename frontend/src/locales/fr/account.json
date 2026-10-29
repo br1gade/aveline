@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "signIn": "Se connecter · Aveline",
+    "register": "Créer un compte · Aveline",
+    "resetPassword": "Réinitialiser votre mot de passe · Aveline",
+    "verifyEmail": "Confirmer votre adresse e-mail · Aveline",
+    "invite": "Accepter une invitation · Aveline"
+  },
+  "fields": {
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "newPassword": "Nouveau mot de passe",
+    "name": "Votre nom",
+    "passwordHelp": "Au moins 10 caractères.",
+    "errors": {
+      "required": "Remplissez ce champ.",
+      "email": "Saisissez une adresse e-mail, par exemple nom@example.com.",
+      "passwordShort": "Utilisez au moins 10 caractères.",
+      "nameShort": "Utilisez au moins 2 caractères.",
+      "tooLong": "C’est trop long.",
+      "other": "Vérifiez ce champ."
+    }
+  },
+  "problems": {
+    "check": "Certaines informations n’ont pas été acceptées. Vérifiez-les et réessayez."
+  },
+  "links": {
+    "signIn": "Se connecter",
+    "register": "Créer un compte",
+    "forgotPassword": "Mot de passe oublié ?",
+    "requestNewLink": "Demander un nouveau lien"
+  },
+  "signIn": {
+    "title": "Se connecter",
+    "submit": "Se connecter",
+    "submitting": "Connexion…",
+    "refused": "Cet e-mail et ce mot de passe ne correspondent à aucun compte."
+  },
+  "register": {
+    "title": "Créez votre compte",
+    "lead": "Configurez ensuite votre organisation et votre premier événement.",
+    "submit": "Créer le compte",
+    "submitting": "Création de votre compte…",
+    "checkEmail": {
+      "title": "Consultez vos e-mails",
+      "body": "Nous avons envoyé à cette adresse un message expliquant comment vous connecter."
+    }
+  },
+  "resetPassword": {
+    "title": "Réinitialiser votre mot de passe",
+    "lead": "Nous vous enverrons par e-mail un lien pour en choisir un nouveau.",
+    "submit": "Envoyer le lien",
+    "submitting": "Envoi…",
+    "sent": {
+      "title": "Consultez vos e-mails",
+      "body": "Si un compte utilise cette adresse, nous lui avons envoyé un lien pour choisir un nouveau mot de passe. Seul le lien le plus récent fonctionne, et une seule fois."
+    },
+    "choose": {
+      "title": "Choisissez un nouveau mot de passe",
+      "lead": "Tous les appareils connectés à votre compte seront déconnectés.",
+      "submit": "Enregistrer le nouveau mot de passe",
+      "submitting": "Enregistrement…"
+    },
+    "linkInvalid": "Ce lien a expiré, a déjà été utilisé, ou un lien plus récent a été envoyé.",
+    "done": {
+      "title": "Mot de passe modifié",
+      "body": "Tous les appareils ont été déconnectés. Connectez-vous avec votre nouveau mot de passe."
+    }
+  },
+  "verifyEmail": {
+    "title": "Confirmer votre adresse e-mail",
+    "pending": "Confirmation de votre adresse e-mail…",
+    "done": "Votre adresse e-mail est confirmée.",
+    "invalid": "Ce lien a expiré ou a déjà été utilisé.",
+    "missing": "Ce lien est incomplet. Ouvrez-le à nouveau depuis votre e-mail."
+  },
+  "invite": {
+    "title": {
+      "organization": "Rejoignez votre équipe sur Aveline",
+      "event": "Rejoignez un événement sur Aveline"
+    },
+    "lead": "Choisissez un mot de passe. Si cette adresse a déjà un compte Aveline, utilisez plutôt son mot de passe.",
+    "submit": "Accepter l’invitation",
+    "submitting": "Acceptation…",
+    "invalid": "Cette invitation n’est plus valable. Demandez-en une nouvelle à la personne qui vous a invité.",
+    "accountExists": "Cette adresse a déjà un compte et ce n’est pas son mot de passe, ou le compte appartient déjà à une autre organisation. Connectez-vous avec son mot de passe, ou réinitialisez-le d’abord.",
+    "missing": "Ce lien d’invitation est incomplet. Ouvrez-le à nouveau depuis votre e-mail.",
+    "done": {
+      "title": "C’est fait",
+      "created": "Votre compte est prêt. Connectez-vous avec cette adresse e-mail et le mot de passe que vous avez choisi.",
+      "existing": "L’invitation fait désormais partie de votre compte. Connectez-vous pour continuer."
+    }
+  }
+}

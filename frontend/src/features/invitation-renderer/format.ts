@@ -11,7 +11,7 @@ import {
  * year on a 24-hour clock (PD-11).
  */
 
-/** Intl gives Russian and Armenian weekdays in lower case; a display line starts with a capital. */
+/** Intl gives Russian, Armenian and French weekdays in lower case; a display line starts with a capital. */
 export function capitalise(text: string, locale: string): string {
   const first = text.charAt(0);
   return first ? first.toLocaleUpperCase(formatLocale(locale)) + text.slice(1) : text;

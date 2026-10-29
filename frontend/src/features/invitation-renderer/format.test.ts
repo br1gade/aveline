@@ -8,6 +8,7 @@ describe('displayDate', () => {
   it.each([
     ['en', 'Saturday, 12 June 2027'],
     ['ru', 'Суббота, 12 июня 2027 г.'],
+    ['fr', 'Samedi 12 juin 2027'],
   ])('starts the %s date line with a capital', (locale, expected) => {
     expect(displayDate(STARTS, { timeZone: 'Asia/Yerevan', locale })).toBe(expected);
   });

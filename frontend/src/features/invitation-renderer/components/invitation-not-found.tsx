@@ -24,7 +24,7 @@ function Message({ language }: { language: Language }) {
 
 /**
  * A link that opens no invitation: wrong, a draft, or past its retention date (spec §7, C-22).
- * Nothing is known about the event or the guest's language, so it says so in all three, English
+ * Nothing is known about the event or the guest's language, so it says so in all four, English
  * first, and shows no event details.
  */
 export function InvitationNotFound() {

@@ -5,7 +5,12 @@
  * English dates are day, month, year with a 24-hour clock (design R-24, provisional default
  * PD-11), so English formats with the en-GB conventions.
  */
-const FORMAT_LOCALES: Readonly<Record<string, string>> = { en: 'en-GB', hy: 'hy-AM', ru: 'ru-RU' };
+const FORMAT_LOCALES: Readonly<Record<string, string>> = {
+  en: 'en-GB',
+  hy: 'hy-AM',
+  ru: 'ru-RU',
+  fr: 'fr-FR',
+};
 
 export interface EventZone {
   timeZone: string;

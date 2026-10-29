@@ -47,7 +47,7 @@ function cookieValue(header: string | null, name: string): string | undefined {
   return undefined;
 }
 
-/** The first of hy, ru and en the browser prefers, by quality; a region tag counts as its language. */
+/** The first of hy, ru, en and fr the browser prefers, by quality; a region tag counts as its language. */
 export function fromAcceptLanguage(header: string | null): Language {
   const ranked = (header ?? '')
     .split(',')

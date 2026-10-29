@@ -1,0 +1,84 @@
+{
+  "roles": {
+    "choose": "Choisir…",
+    "CEREMONY": "Cérémonie",
+    "RECEPTION": "Réception",
+    "AFTER_PARTY": "Soirée",
+    "PREPARATION": "Préparatifs",
+    "OTHER": "Autre"
+  },
+  "fields": {
+    "role": "Ce qui s’y passe",
+    "roleHelp": "« Préparatifs » est pour vous et votre équipe : les invités ne le voient pas sur l’invitation.",
+    "name": "Nom",
+    "nameHelp": "Tel que les invités le verront, par exemple « Église Sainte-Hripsimé ».",
+    "address": "Adresse",
+    "addressHelp": "Affichée aux invités. L’invitation peut être publiée dès qu’un lieu a une adresse.",
+    "mapUrl": "Lien vers une carte (facultatif)",
+    "mapUrlHelp": "Un lien vers le lieu sur une carte, commençant par https://. Les invités le voient sous le nom « Itinéraire ».",
+    "arrival": "Heure d’arrivée des invités (facultatif)",
+    "arrivalHelp": "Dans le fuseau horaire de l’événement, {{timeZone}}, où que soient vos invités. Laissez les deux vides pour ne pas fixer d’heure.",
+    "arrivalDate": "Date",
+    "arrivalTime": "Heure",
+    "errors": {
+      "required": "Remplissez ce champ.",
+      "choose": "Choisissez une option.",
+      "tooLong": "C’est trop long.",
+      "mapUrl": "Utilisez une adresse web commençant par https:// ou http://. Rien d’autre ne serait montré aux invités.",
+      "arrivalPair": "Remplissez la date et l’heure, ou laissez les deux vides.",
+      "dateInvalid": "Saisissez une date valide.",
+      "timeSkipped": "On avance l’heure à ce moment-là : cette heure n’existe pas ce jour-là dans ce fuseau horaire. Choisissez une autre heure.",
+      "refused": "Cela n’a pas été accepté. Vérifiez.",
+      "other": "Vérifiez ce champ."
+    }
+  },
+  "form": {
+    "newTitle": "Ajouter un lieu",
+    "editTitle": "Modifier {{name}}",
+    "lead": "Les invités qui ouvrent l’invitation voient immédiatement le changement.",
+    "newSubmit": "Ajouter le lieu",
+    "adding": "Ajout…",
+    "editSubmit": "Enregistrer les modifications",
+    "saving": "Enregistrement…",
+    "cancel": "Annuler",
+    "goneTitle": "Ce lieu ne fait plus partie de l’événement",
+    "goneBody": "Quelqu’un l’a peut-être retiré."
+  },
+  "list": {
+    "back": "Retour à l’événement",
+    "title": "Lieux",
+    "lead": "Où vont vos invités. L’invitation présente chaque lieu avec son adresse et son itinéraire, et peut être publiée dès que l’un d’eux a une adresse.",
+    "add": "Ajouter un lieu",
+    "empty": "Aucun lieu pour l’instant.",
+    "arrival": "Arrivée des invités à {{time}}, {{date}} ({{timeZone}})",
+    "directions": "Itinéraire",
+    "newTab": "(s’ouvre dans un nouvel onglet)",
+    "mapUnusable": "Le lien vers la carte n’est pas une adresse web, il n’est donc pas montré aux invités. Modifiez le lieu pour le corriger.",
+    "hiddenRole": "{{role}} : non visible des invités",
+    "edit": "Modifier",
+    "remove": "Retirer",
+    "removed": "{{name}} a été retiré."
+  },
+  "actionFor": "{{action}} : {{name}}",
+  "remove": {
+    "title": "Retirer {{name}} ?",
+    "body": "Les invités ne le verront plus sur l’invitation.",
+    "confirm": "Retirer",
+    "removing": "Retrait…",
+    "cancel": "Annuler"
+  },
+  "notify": {
+    "back": "Retour aux lieux"
+  },
+  "problems": {
+    "forbidden": "Votre rôle sur cet événement ne permet pas d’en modifier les lieux. Le propriétaire de l’événement peut modifier votre rôle.",
+    "missing": "Ce lieu ne fait plus partie de l’événement. La liste a été rechargée.",
+    "eventMissing": "Cet événement n’est plus disponible.",
+    "conflict": "Impossible dans l’état actuel de l’événement. Rechargez la page pour le voir tel qu’il est maintenant.",
+    "inUse": "Ce lieu ne peut pas être retiré tant que le programme, une table ou une place libérée y renvoie. Déplacez-les ou écartez-les d’abord.",
+    "check": "Certaines informations n’ont pas été acceptées. Vérifiez-les et réessayez.",
+    "other": "Cela n’a pas été accepté. Réessayez.",
+    "hasAnswers": "Des invités ont déjà répondu pour ce lieu, il ne peut donc pas être retiré : leurs réponses y restent attachées. Vous pouvez toujours corriger ses informations.",
+    "guestFacing": "Des invités ont répondu, choisi ou été placés pour ce lieu, il doit donc rester visible des invités. Gardez ce qui s’y passe tel quel."
+  }
+}

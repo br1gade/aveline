@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "home": "Vos événements · Aveline",
+    "welcome": "Configurer votre organisation · Aveline",
+    "newEvent": "Créer un événement · Aveline",
+    "event": "Votre événement · Aveline",
+    "editEvent": "Modifier les informations · Aveline",
+    "guests": "Invités · Aveline",
+    "importGuests": "Importer des invités · Aveline",
+    "named": "{{title}} · Aveline",
+    "venues": "Lieux · Aveline",
+    "newVenue": "Ajouter un lieu · Aveline",
+    "editVenue": "Modifier un lieu · Aveline",
+    "invitation": "Publier et envoyer · Aveline",
+    "attendance": "Comment les invités répondent · Aveline"
+  },
+  "shell": {
+    "loading": "Chargement…",
+    "signOut": "Se déconnecter",
+    "signOutEverywhere": "Se déconnecter sur tous les appareils",
+    "confirm": {
+      "title": "Se déconnecter sur tous les appareils ?",
+      "body": "Chaque navigateur et téléphone connecté à votre compte devra se reconnecter, celui-ci compris.",
+      "action": "Se déconnecter partout",
+      "cancel": "Annuler"
+    },
+    "signOutFailed": "Impossible de déconnecter vos autres appareils. Veuillez réessayer."
+  },
+  "home": {
+    "title": "Vos événements",
+    "empty": "Vos événements apparaîtront ici.",
+    "create": "Créer un événement",
+    "createFirst": "Créer votre premier événement"
+  },
+  "welcome": {
+    "title": "Configurer votre organisation",
+    "lead": "Vos événements, vos invités et votre équipe s’y trouvent.",
+    "name": "Nom",
+    "nameHelp": "Les prénoms d’un couple, ou le nom de votre entreprise.",
+    "kind": {
+      "legend": "Pour qui ?",
+      "HOST": "Un couple ou une famille",
+      "PLANNER": "Un organisateur ou une agence",
+      "CORPORATE": "Une entreprise"
+    },
+    "submit": "Continuer",
+    "submitting": "Configuration…"
+  }
+}

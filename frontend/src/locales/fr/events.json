@@ -1,0 +1,177 @@
+{
+  "types": {
+    "choose": "Choisir…",
+    "WEDDING": "Mariage",
+    "ENGAGEMENT": "Fiançailles",
+    "BAPTISM": "Baptême",
+    "BIRTHDAY": "Anniversaire",
+    "ANNIVERSARY": "Anniversaire de mariage",
+    "CORPORATE": "Événement d’entreprise",
+    "OTHER": "Autre"
+  },
+  "fields": {
+    "type": "Type d’événement",
+    "title": "Titre",
+    "titleHelp": "Pour vous et votre équipe, par exemple « Le mariage d’Anna et Davit ».",
+    "hostsLabel": "Hôtes",
+    "hostsHelpNew": "Affiché sur l’invitation, par exemple « Anna & Davit ». Laissez vide pour utiliser le titre.",
+    "hostsHelp": "Affiché sur l’invitation.",
+    "date": "Date",
+    "time": "Heure",
+    "timezone": "Fuseau horaire",
+    "timezoneHelp": "La date et l’heure sont dans ce fuseau, où que soient vos invités.",
+    "languages": "Langues",
+    "languagesHelp": "Les langues dans lesquelles l’invitation est rédigée.",
+    "defaultLanguage": "Langue par défaut",
+    "defaultLanguageHelp": "Affichée aux invités dont l’invitation n’a pas la langue.",
+    "errors": {
+      "required": "Remplissez ce champ.",
+      "choose": "Choisissez une option.",
+      "tooLong": "C’est trop long.",
+      "titleShort": "Utilisez au moins 2 caractères.",
+      "dateInvalid": "Saisissez une date valide.",
+      "timeSkipped": "On avance l’heure à ce moment-là : cette heure n’existe pas ce jour-là dans ce fuseau horaire. Choisissez une autre heure.",
+      "languages": "Cochez au moins une langue.",
+      "defaultLanguage": "Choisissez l’une des langues cochées.",
+      "timezone": "Choisissez un fuseau horaire dans la liste.",
+      "endsBefore": "L’heure de fin de l’événement est antérieure, et elle ne peut pas encore être modifiée ici.",
+      "refused": "Cela n’a pas été accepté. Vérifiez.",
+      "other": "Vérifiez ce champ."
+    }
+  },
+  "problems": {
+    "conflict": "Impossible dans l’état actuel de l’événement. Rechargez la page pour le voir tel qu’il est maintenant.",
+    "createForbidden": "Ce compte ne peut pas créer d’événements : son rôle dans l’organisation est en lecture seule, ou il n’appartient encore à aucune organisation. Demandez au propriétaire de l’organisation.",
+    "editForbidden": "Votre rôle sur cet événement ne permet pas d’en modifier les informations.",
+    "notifyForbidden": "Votre rôle sur cet événement ne permet pas d’écrire à ses invités.",
+    "notifyDraft": "Cette invitation n’est pas encore publiée : aucun invité ne l’a reçue."
+  },
+  "create": {
+    "title": "Créer un événement",
+    "lead": "Vous pourrez tout modifier plus tard. L’invitation commence comme un brouillon que vous seul voyez.",
+    "submit": "Créer l’événement",
+    "submitting": "Création…"
+  },
+  "overview": {
+    "back": "Vos événements",
+    "edit": "Modifier les informations",
+    "guests": "Liste des invités",
+    "type": "Type",
+    "hosts": "Hôtes",
+    "when": "Quand",
+    "whenValue": "{{date}}, {{time}} ({{timeZone}})",
+    "languages": "Langues",
+    "defaultMark": "{{language}} (par défaut)",
+    "invitation": "Invitation",
+    "slug": "Nom du lien",
+    "noInvitation": "Pas encore d’invitation.",
+    "status": {
+      "DRAFT": "Brouillon : les invités ne peuvent pas encore l’ouvrir",
+      "PUBLISHED": "Publiée",
+      "CLOSED": "Close : les réponses ne sont plus acceptées"
+    },
+    "venues": "Lieux",
+    "publishSend": "Publier et envoyer",
+    "attendance": "Comment les invités répondent",
+    "attendanceChange": "Modifier"
+  },
+  "headcount": {
+    "title": "Invités",
+    "invited": "Sur la liste",
+    "households": "Foyers",
+    "attending": "Viennent",
+    "declined": "Ne viennent pas",
+    "undecided": "Pas encore sûrs",
+    "pending": "Sans réponse",
+    "responseRate": "Ont répondu",
+    "empty": "Aucun invité sur la liste pour l’instant.",
+    "refused": "Les chiffres des invités ne sont pas accessibles à votre rôle sur cet événement.",
+    "failed": "Les chiffres des invités n’ont pas pu être chargés. Rechargez la page pour réessayer.",
+    "byVenue": "Par lieu",
+    "venue": "Lieu"
+  },
+  "edit": {
+    "title": "Modifier les informations",
+    "lead": "Les invités qui ouvrent l’invitation voient immédiatement le changement.",
+    "submit": "Enregistrer les modifications",
+    "submitting": "Enregistrement…",
+    "cancel": "Annuler"
+  },
+  "notify": {
+    "title": "Vos modifications sont enregistrées",
+    "body_one": "{{count}} foyer a déjà l’invitation. Les invités ne sont pas prévenus automatiquement des changements.",
+    "body_many": "{{count}} foyers ont déjà l’invitation. Les invités ne sont pas prévenus automatiquement des changements.",
+    "body_other": "{{count}} foyers ont déjà l’invitation. Les invités ne sont pas prévenus automatiquement des changements.",
+    "note": "Un mot pour vos invités (facultatif)",
+    "noteHelp": "Ajouté au message, par exemple « Nous avons déménagé dans le jardin. »",
+    "send": "Prévenir vos invités",
+    "sending": "Envoi…",
+    "later": "Pas maintenant",
+    "sent_one": "La mise à jour est en route vers {{count}} foyer.",
+    "sent_many": "La mise à jour est en route vers {{count}} foyers.",
+    "sent_other": "La mise à jour est en route vers {{count}} foyers.",
+    "already_one": "{{count}} foyer a été prévenu il y a moins d’une minute ; il n’est pas prévenu à nouveau.",
+    "already_many": "{{count}} foyers ont été prévenus il y a moins d’une minute ; ils ne sont pas prévenus à nouveau.",
+    "already_other": "{{count}} foyers ont été prévenus il y a moins d’une minute ; ils ne sont pas prévenus à nouveau.",
+    "unreachable_one": "{{count}} foyer n’a pas pu être joint.",
+    "unreachable_many": "{{count}} foyers n’ont pas pu être joints.",
+    "unreachable_other": "{{count}} foyers n’ont pas pu être joints.",
+    "nobody": "Il n’y avait personne à prévenir.",
+    "back": "Retour à l’événement"
+  },
+  "unavailable": {
+    "title": "Cet événement n’est pas disponible",
+    "body": "Il n’existe peut-être pas, ou votre compte n’y a pas accès.",
+    "failed": "L’événement n’a pas pu être chargé. Veuillez réessayer dans un instant.",
+    "rateLimited": "Trop de requêtes pour le moment. Attendez une minute, puis rechargez la page.",
+    "back": "Vos événements"
+  },
+  "attendance": {
+    "back": "Retour à l’événement",
+    "title": "Comment les invités répondent",
+    "now": {
+      "EVENT_WIDE": "Une seule réponse pour tout l’événement.",
+      "PER_VENUE": "Une réponse pour chaque lieu visible des invités."
+    },
+    "explain": {
+      "PER_VENUE": "Demander par lieu permet à chaque invité d’indiquer à quelles parties il vient, comme la cérémonie et la réception. Chaque lieu visible des invités fait l’objet d’une question.",
+      "EVENT_WIDE": "Demander une seule fois signifie que chaque invité indique seulement s’il vient, pour tout l’événement."
+    },
+    "see": "Voir ce qui changerait",
+    "notice": {
+      "stale": "Quelque chose a changé depuis cet aperçu, donc rien n’a été modifié. Consultez-le à nouveau.",
+      "noVenue": "Les invités pourront répondre par lieu dès que l’événement aura un lieu qu’ils peuvent voir.",
+      "sameMode": "Les invités répondent déjà de cette façon. La page a été rechargée."
+    },
+    "toVenues": "Ajouter un lieu",
+    "preview": {
+      "title": "Si vous changez cela",
+      "answers_one": "La {{count, number}} réponse donnée jusqu’ici redevient « sans réponse », et chaque foyer est invité à répondre à nouveau.",
+      "answers_many": "Les {{count, number}} réponses données jusqu’ici redeviennent « sans réponse », et chaque foyer est invité à répondre à nouveau.",
+      "answers_other": "Les {{count, number}} réponses données jusqu’ici redeviennent « sans réponse », et chaque foyer est invité à répondre à nouveau.",
+      "seats_one": "{{count, number}} invité placé garde sa place, réservée jusqu’à ce qu’il réponde à nouveau.",
+      "seats_many": "{{count, number}} invités placés gardent leur place, réservée jusqu’à ce qu’ils répondent à nouveau.",
+      "seats_other": "{{count, number}} invités placés gardent leur place, réservée jusqu’à ce qu’ils répondent à nouveau."
+    },
+    "change": {
+      "PER_VENUE": "Demander par lieu",
+      "EVENT_WIDE": "Demander une fois pour l’événement"
+    },
+    "cancel": "Annuler",
+    "confirmTitle": {
+      "PER_VENUE": "Demander aux invités de répondre pour chaque lieu ?",
+      "EVENT_WIDE": "Demander aux invités de répondre une fois pour l’événement ?"
+    },
+    "confirmBody": "Chaque réponse redevient « sans réponse », et les invités sont sollicités à nouveau. Revenir en arrière plus tard les sollicitera aussi à nouveau.",
+    "confirm": "Modifier",
+    "notifyLead": "Les invités sont désormais invités à répondre à nouveau. Ils ne sont pas prévenus automatiquement.",
+    "done": {
+      "PER_VENUE": "Les invités répondent maintenant pour chaque lieu.",
+      "EVENT_WIDE": "Les invités répondent maintenant une seule fois pour tout l’événement."
+    },
+    "problems": {
+      "forbidden": "Votre rôle sur cet événement ne permet pas de changer la façon dont les invités répondent. Le propriétaire de l’événement peut modifier votre rôle.",
+      "other": "Cela n’a pas été accepté. Réessayez."
+    }
+  }
+}

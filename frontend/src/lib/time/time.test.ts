@@ -33,6 +33,11 @@ describe('event time', () => {
     expect(formatEventDay('2027-06-12T12:00:00Z', yerevan('hy'))).toContain('հունիսի');
   });
 
+  it('formats French dates with Intl, day, month, year', () => {
+    expect(formatEventDate('2027-06-12T12:00:00Z', yerevan('fr'))).toBe('samedi 12 juin 2027');
+    expect(formatEventDay('2027-06-12T12:00:00Z', yerevan('fr'))).toBe('12 juin 2027');
+  });
+
   it('composes Armenian dates in the design’s form, not Intl’s', () => {
     expect(formatEventDate('2027-06-12T12:00:00Z', yerevan('hy'))).toBe(
       'շաբաթ, 12 հունիսի 2027 թ.',
@@ -52,7 +57,7 @@ describe('event time', () => {
   });
 
   it('uses a 24-hour clock in every language', () => {
-    for (const locale of ['en', 'ru', 'hy']) {
+    for (const locale of ['en', 'ru', 'hy', 'fr']) {
       expect(formatEventTime('2027-06-12T14:30:00Z', yerevan(locale))).toBe('18:30');
     }
   });

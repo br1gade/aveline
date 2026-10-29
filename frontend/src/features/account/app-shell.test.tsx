@@ -116,6 +116,10 @@ describe('AppShell', () => {
       'href',
       '/app/events/e1/guests?lang=ru&q=Ani&answer=pending',
     );
+    expect(screen.getByRole('link', { name: 'Français', hidden: true })).toHaveAttribute(
+      'href',
+      '/app/events/e1/guests?lang=fr&q=Ani&answer=pending',
+    );
   });
 
   it('signs out here and goes to sign in', async () => {

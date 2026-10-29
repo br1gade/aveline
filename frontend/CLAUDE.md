@@ -75,8 +75,9 @@ From the template; getting them wrong breaks users.
 - **Server state** through route loaders now, TanStack Query when the app needs caching; filters
   and tabs in the URL.
 - **Forms:** React Hook Form with Zod. The server stays the authority; a `400` maps onto fields.
-- **No hard-coded user-facing strings.** i18next namespaces in `src/locales/<hy|ru|en>/`.
-  Armenian and Russian strings are drafts until a native reader checks them (PD-9).
+- **No hard-coded user-facing strings.** i18next namespaces in `src/locales/<hy|ru|en|fr>/`.
+  Armenian and Russian strings are drafts until a native reader checks them (PD-9); French ships
+  as translated, without a native reading (C-23).
 - **No browser globals at module scope**; every module must be safe to render on the server.
 - **Lint limits** match the backend: complexity 10, depth 3, 60 lines per function, 4 parameters,
   zero warnings. Extract rather than disable.

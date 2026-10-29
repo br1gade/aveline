@@ -32,8 +32,8 @@ export function formValuesOf(event: EventDetail): EventFormValues {
 }
 
 /**
- * The languages a host may tick: Aveline's three (C-5), and any other the event already has, so an
- * edit never drops one it cannot show.
+ * The languages a host may tick: Aveline's three (C-5) and French (C-23), and any other the event
+ * already has, so an edit never drops one it cannot show.
  */
 export function languageOptions(eventLocales: readonly string[] = []): string[] {
   const offered: readonly string[] = LANGUAGES;

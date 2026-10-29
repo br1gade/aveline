@@ -26,7 +26,8 @@
   October an event's guest list and its import exist too, on PD-44 and PD-45, and since 25
   October its venues and its invitation's publishing and sending, on PD-46 to PD-49. On 28
   October the frontend followed the backend's `eb77cd4`: answering per venue, agreeing to the
-  hosts' statements, typed or drawn, and changing how guests answer, on PD-50 to PD-55. See
+  hosts' statements, typed or drawn, and changing how guests answer, on PD-50 to PD-55. French
+  joined as the fourth interface language by the frontend lead's decision C-23. See
   [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## 2. This folder
@@ -66,7 +67,7 @@ with them, the spec and the code govern and the difference is a review finding
 
 | Kind | IDs | Where | State on 18 October |
 |---|---|---|---|
-| **Confirmed** | C-1 to C-22 | [DESIGN_DECISIONS §2](DESIGN_DECISIONS.md#2-confirmed) | Binding. C-21 and C-22 were verified in the backend code on 18 October |
+| **Confirmed** | C-1 to C-23 | [DESIGN_DECISIONS §2](DESIGN_DECISIONS.md#2-confirmed) | Binding. C-21 and C-22 were verified in the backend code on 18 October. C-23, French without a native reading or French screens, was decided by the frontend lead on 29 October |
 | **Recommendations** | R-1 to R-33 | [DESIGN_DECISIONS §3](DESIGN_DECISIONS.md#3-recommendations) | None accepted yet |
 | **Assumptions** | AS-1 to AS-12 | [DESIGN_DECISIONS §4](DESIGN_DECISIONS.md#4-assumptions) | Unverified |
 | **Open questions** | DQ-1 to DQ-19 (designer), PQ-1 to PQ-11 (product and the frontend lead), BQ-1 to BQ-11 (backend) | [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) | 37 open. The review's Q10 was answered by the code (C-21); BQ-4, BQ-5, BQ-8 and BQ-9 by the backend on 23 October. DQ-13, DQ-14, DQ-15, PQ-10 and PQ-11 were added that day, DQ-16 on 24 October, DQ-17 on 25 October, DQ-18 and DQ-19 on 28 October |
@@ -113,7 +114,7 @@ invitation is sent:
 | Gate | Why | Register |
 |---|---|---|
 | Every placeholder photograph is replaced | Third-party images, not licensed to Aveline | C-10, PQ-7, [PLACEHOLDER_IMAGES.md](PLACEHOLDER_IMAGES.md) |
-| Native readers have checked the Armenian and Russian copy | Every string in both languages is a draft | DQ-9, PD-9 |
+| Native readers have checked the Armenian and Russian copy | Every string in both languages is a draft. French is not gated: it ships without a native reading (C-23) | DQ-9, PD-9 |
 | The designer has approved or corrected the visual system, the account, event, guest-list, venue, invitation and attendance pages, and the reply form's venues and agreements, included | Unapproved recommendations shown to guests and hosts would become the brand by default | DQ-2, DQ-6, DQ-7, DQ-10, DQ-12, DQ-13, DQ-14, DQ-15, DQ-16, DQ-17, DQ-18, DQ-19 |
 | Product has set the default dietary and drink choices offered to hosts, and which questions are on by default | Hosts now choose per invitation, but a host who changes nothing gets free text, which the catering sheet cannot count | PQ-1 to PQ-3 |
 | ~~A required SIGNATURE question can no longer block attending guests~~ **Met 23 October 2026:** the backend refuses to create one (B69). It opened again with the backend's `eb77cd4`, which allows them again, and **was met again on 28 October 2026:** the reply form asks for the agreement, typed or drawn, for everyone coming ([BACKEND_REQUESTS §5](../BACKEND_REQUESTS.md#5-the-pull-of-eb77cd4)) | Those guests could not reply at all | BQ-5 (answered), PD-52 |
@@ -146,5 +147,3 @@ shared-document process, with the backend developer's review. This work did not 
   checked against a mock of the API (those of 28 October by unit and component tests only, not yet
   walked through in a browser); the end-to-end and accessibility tests wait for the local backend
   ([ARCHITECTURE §12](../ARCHITECTURE.md#12-not-yet-built)).
-- **French is not built.** The pilot asks for it in the host and guest interfaces
-  (`docs/PILOT_IMPLEMENTATION_PLAN.md`); a French reader would join the native-reader gate.

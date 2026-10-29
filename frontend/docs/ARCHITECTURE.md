@@ -12,7 +12,8 @@
 > its venues, and its invitation can be published and sent, with who was invited shown on the
 > guest list. Since 28 October it follows the backend's `eb77cd4`: guests answer per venue when the
 > host asks so, and agree to the host's statements, typed or drawn; the host can change how guests
-> answer, and sees the invitation's lifetime.
+> answer, and sees the invitation's lifetime. Also on 28 October, French joined as the fourth
+interface language (design C-23).
 
 ## 1. Stack
 
@@ -25,7 +26,7 @@
 | Forms | React Hook Form with Zod 4 |
 | Styling | Tailwind CSS 4, with tokens generated from the design system's `tokens.json` |
 | App UI kit | shadcn/ui on Radix (C-14), in `src/ui/kit/`, mapped onto the tokens (§8) |
-| Languages | i18next with react-i18next (A2): hy, ru, en |
+| Languages | i18next with react-i18next (A2): hy, ru, en, and fr since 28 October 2026 (§11) |
 | Time | `Intl` in the event's time zone (`src/lib/time`), both ways: what is shown, and what a host types; no date library |
 | Money | Our own `src/lib/money`, on strings and `BigInt` |
 | Tests | Vitest 5 with Testing Library and MSW; Playwright against the real local backend; axe |
@@ -139,14 +140,17 @@ What the backend does since 23 October 2026 (`docs/API.md` §2, `docs/ACCESS_CON
   `aveline-lang` cookie, then `Accept-Language`, then English (`src/lib/i18n/negotiate.ts`). The
   switcher is shared (`src/ui/language-switcher.tsx`); on these pages it navigates client-side, so
   a reset or invitation page keeps the token it holds in memory.
-- **Interface strings** live in `src/locales/<hy|ru|en>/<namespace>.json`. English is the source;
-  Armenian and Russian are drafts until a native reader checks them (design PD-9). A test checks
-  that every language has the same keys.
-- **Plurals** use `Intl.PluralRules`, which covers Russian's four categories. Counts in sentences
+- **Interface strings** live in `src/locales/<hy|ru|en|fr>/<namespace>.json`. English is the
+  source; Armenian and Russian are drafts until a native reader checks them (design PD-9). French
+  is translated from English and ships without a native reading (design C-23). A test checks that every language has the same keys and the plural forms it needs, and
+  that French spaces before `; : ! ?` and inside « » are unbreakable (U+202F, or U+00A0 before a
+  colon).
+- **Plurals** use `Intl.PluralRules`, which covers Russian's four categories and French's three
+  (`one` takes 0 and 1; `many` takes round millions and is worded as `other`). Counts in sentences
   ("2,000 guests") go through i18next's `number` format, on `Intl.NumberFormat`; the app pages
   that use it render in the browser only, so the server's ICU never formats them.
-- **Time** (`src/lib/time`) formats in `event.timezone`. English and Russian dates use
-  `Intl.DateTimeFormat`. **Armenian dates are composed by hand** in the design's form
+- **Time** (`src/lib/time`) formats in `event.timezone`. English, Russian and French (`fr-FR`)
+  dates use `Intl.DateTimeFormat`; Node's and Chrome's French data agree. **Armenian dates are composed by hand** in the design's form
   ("շաբաթ, 12 հունիսի 2027 թ.") and **times are built from numeric parts** in every language,
   because the server's and the browser's ICU disagree: Chrome ships no Armenian date data and
   falls back to US English. Anything the two runtimes format differently breaks hydration.
@@ -219,7 +223,10 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   packages, each split into script subsets by `unicode-range`, so a page downloads only the scripts
   it uses. The stacks follow `tokens.json`: the Armenian family first, then base Noto. The Armenian
   families carry a Latin in the same design (DESIGN_SYSTEM §3.1), so Armenian, Latin and digits
-  come from them; Cyrillic, `№` and `₽` fall through to base Noto. `font-synthesis: none`.
+  come from them, French accents, « », `’` and the narrow no-break space included (their `latin`
+  and `latin-ext` subsets); Cyrillic, `№` and `₽` fall through to base Noto. A test
+  (`src/styles/fonts.test.ts`) checks that both stacks' subsets cover every interface string.
+  `font-synthesis: none`.
 - **The invitation keeps its palette** whatever the device's dark mode (`color-scheme: light`).
 
 ## 9. Errors, headers and observability
@@ -244,7 +251,7 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   of the address bar straight after hydration. It never goes into a link on the page, so the
   server's HTML does not hold it.
 - **Not found:** a guest link that opens nothing (wrong, a draft, past its retention date) is a
-  404 with the invitation's own not-found page, in all three languages.
+  404 with the invitation's own not-found page, in all four languages.
 - **A guest's token** (their personal link segment) arrives in `GET /events/:eventId/guests` and
   in the answers to adding and correcting a guest (FR-29). It stops where the response arrives:
   `features/guests/read.ts` builds every object by naming its fields, and the write calls resolve
@@ -401,6 +408,7 @@ The real end-to-end tests still wait for the backend.
 | 28 Oct 2026 | Signatures are drawn on a plain `<canvas>` with pointer events; the strokes are kept apart from the canvas, and the PNG is uploaded, then polled for about half a minute | No library was added. jsdom has no canvas, so the stroke model and the poll are tested on their own and the canvas is stubbed in component tests |
 | 28 Oct 2026 | Changing how guests answer is previewed, then confirmed in an alert dialog; the retry id is made per preview and reused on a second press (design PD-53) | The change sets every answer back; the backend asks for the preview's token and a retry id so a lost answer is not applied twice. `NotifyGuests` takes a `lead` for this notice, which gives no household count (FR-39) |
 | 28 Oct 2026 | The new refusals that share a status are recognised by their exact text, each in its own feature's `refusals.ts` (design PD-54, PD-55) | The backend's `code` is one per status (FR-28); as with PD-49, a reworded sentence falls back to the status's words, never to a wrong reason |
+| 28 Oct 2026 | **French is the fourth interface language** (`fr`, after hy, ru and en), without a native reading or French screens in the design specs (design C-23, decided 29 October). It is everywhere a language is listed or negotiated: the switcher, `?lang=`, `Accept-Language`, an invitation's `?locale=` and the event form's languages | A deviation from A2, which chose hy, ru and en: the pilot plan requires en, ru, fr and hy in both interfaces, and the backend already answers in French. Added last so existing orders stay. C-5 is unchanged |
 | 28 Oct 2026 | Each guest's attendance history is not shown yet | The plan put it last, to be cut first; the list's own answers and "asked to answer again" carry the essentials |
 
 ## 12. Not yet built
@@ -430,9 +438,8 @@ The real end-to-end tests still wait for the backend.
 - Of the guest's reply: agreeing outside a reply (the standalone `POST …/acknowledgements`, and
   ticket holders before check-in); showing a drawn signature on the saved reply; a "please answer
   again" line on the personal card; correcting one's own name (`PATCH …/g/:guestToken/name`).
-- **French** as a fourth interface language (the pilot plan asks for en, ru, fr and hy), and the
-  rest of the pilot plan: gallery, snapshot exports, seating jobs, ticket attendees, previews,
-  question order, logos, share tags, venue profiles, and the four-language walkthroughs.
+- The rest of the pilot plan: gallery, snapshot exports, seating jobs, ticket attendees, previews, question order, logos, share tags,
+  venue profiles, and the four-language walkthroughs.
 - A "verify your email" banner and a way to ask for the email again: nothing says whether an
   address is verified (FR-5).
 - Capability pages: tickets and briefs, and the ticket buyer's return from the bank,

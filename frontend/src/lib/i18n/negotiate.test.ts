@@ -12,7 +12,9 @@ describe('fromAcceptLanguage', () => {
     ['en-GB,en;q=0.9', 'en'],
     ['de-DE,ru;q=0.7,en;q=0.5', 'ru'],
     ['en;q=0.4,ru;q=0.9', 'ru'],
-    ['fr,de', 'en'],
+    ['fr,de', 'fr'],
+    ['fr-CA,fr;q=0.9,en;q=0.8', 'fr'],
+    ['de,es', 'en'],
     ['hy;q=0,ru', 'ru'],
     ['', 'en'],
   ])('%s → %s', (header, expected) => {
@@ -34,6 +36,13 @@ describe('negotiateLanguage', () => {
     );
     expect(result.language).toBe('hy');
     expect(result.setCookie).toBe(`${LANGUAGE_COOKIE}=hy; Path=/; Max-Age=31536000; SameSite=Lax`);
+  });
+
+  it('takes French from ?lang like any other language', () => {
+    expect(negotiateLanguage(request('http://app/sign-in?lang=fr'))).toEqual({
+      language: 'fr',
+      setCookie: `${LANGUAGE_COOKIE}=fr; Path=/; Max-Age=31536000; SameSite=Lax`,
+    });
   });
 
   it('marks the cookie Secure over https', () => {

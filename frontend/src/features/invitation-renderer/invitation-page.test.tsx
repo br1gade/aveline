@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createI18n, type Language } from '@/lib/i18n';
 
+import { InvitationNotFound } from './components/invitation-not-found';
 import { block, invitationFixture } from './fixtures';
 import { InvitationPage, type InvitationPageProps } from './invitation-page';
 
@@ -153,6 +154,24 @@ describe('InvitationPage', () => {
     expect(screen.getAllByText('Суббота, 12 июня 2027 г.').length).toBeGreaterThan(0);
   });
 
+  it('renders French when the response names it, and offers the event’s languages', () => {
+    renderPage(
+      {
+        invitation: invitationFixture({ locale: 'fr', availableLocales: ['fr', 'en'] }),
+        languageHref: (language) => `?locale=${language}`,
+      },
+      'fr',
+    );
+
+    // The no-break space before the colon reads as a space once Testing Library normalises text.
+    expect(screen.getByText('Places réservées : 3')).toBeInTheDocument();
+    expect(screen.getAllByText('Samedi 12 juin 2027').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'English', hidden: true })).toHaveAttribute(
+      'href',
+      '?locale=en',
+    );
+  });
+
   it('names the venue of a timeline entry that has one', () => {
     renderPage({ invitation: invitationFixture() });
 
@@ -168,5 +187,23 @@ describe('InvitationPage', () => {
     });
 
     expect(screen.getByRole('link', { name: 'Հայերեն' })).toHaveAttribute('href', '?locale=hy');
+  });
+});
+
+describe('InvitationNotFound', () => {
+  it('says so in every interface language, English first', () => {
+    const { container } = render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <InvitationNotFound />
+      </I18nextProvider>,
+    );
+
+    const languages = [...container.querySelectorAll('main > [lang]')].map((node) =>
+      node.getAttribute('lang'),
+    );
+    expect(languages).toEqual(['en', 'hy', 'ru', 'fr']);
+    expect(container.querySelector('[lang="fr"]')).toHaveTextContent(
+      'Cette invitation n’est pas disponible.',
+    );
   });
 });

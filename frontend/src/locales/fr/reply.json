@@ -1,0 +1,130 @@
+{
+  "answer": {
+    "legend": "Votre réponse",
+    "ATTENDING": "Avec joie, je serai là",
+    "DECLINED": "À regret, je ne pourrai pas venir",
+    "UNDECIDED": "Je ne sais pas encore",
+    "undecidedNote": "Vous pourrez modifier votre réponse plus tard, quand vous saurez."
+  },
+  "household": {
+    "title": "Qui vient",
+    "seats": "Places réservées : {{count}}",
+    "ATTENDING": "Présent",
+    "DECLINED": "Absent",
+    "UNDECIDED": "Incertain",
+    "dietaryFor": "Régime alimentaire de {{name}}"
+  },
+  "party": {
+    "title": "Ajouter un invité",
+    "add": "Ajouter un invité",
+    "remove": "Retirer",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "remaining": "Places restantes : {{count}}",
+    "guest": "Invité {{number}}"
+  },
+  "side": {
+    "title": "Qui vous a invité ?",
+    "both": "Les deux"
+  },
+  "dietary": {
+    "title": "Régime alimentaire",
+    "notes": "Autre chose que nous devrions savoir ?"
+  },
+  "drink": {
+    "title": "Boisson préférée"
+  },
+  "song": {
+    "title": "Votre chanson",
+    "help": "Quelle chanson vous fera danser ?"
+  },
+  "message": {
+    "title": "Un message pour les hôtes"
+  },
+  "question": {
+    "required": "Obligatoire",
+    "optional": "Facultatif",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "counter": "{{count}} / {{limit}}",
+  "send": {
+    "button": "Envoyer la réponse",
+    "sending": "Envoi…",
+    "reassurance": "Vous pouvez modifier votre réponse avec ce lien tant que les réponses sont ouvertes."
+  },
+  "summary": {
+    "label": "Votre réponse",
+    "attending_one": "Présent · {{count}} personne",
+    "attending_many": "Présents · {{count}} personnes",
+    "attending_other": "Présents · {{count}} personnes",
+    "DECLINED": "Absent",
+    "UNDECIDED": "Pas encore sûr",
+    "sentOn": "Envoyée le {{date}}",
+    "change": "Modifier la réponse"
+  },
+  "sent": {
+    "heading": "Merci",
+    "body": "Votre réponse a bien été reçue.",
+    "comingLabel": "Viennent :"
+  },
+  "errors": {
+    "summaryTitle": "Veuillez vérifier votre réponse",
+    "chooseAnswer": "Choisissez une réponse.",
+    "firstName": "Saisissez un prénom.",
+    "tooLong": "C’est trop long.",
+    "required": "Cette question demande une réponse.",
+    "invalidAnswer": "Vérifiez cette réponse.",
+    "members": "Vérifiez les réponses de votre foyer.",
+    "party": "Vérifiez les invités que vous ajoutez.",
+    "seats": "Vous avez nommé plus d’invités que vos places ne le permettent ({{count}}).",
+    "other": "Certaines réponses n’ont pas pu être enregistrées. Vérifiez-les et réessayez.",
+    "rateLimited": "Trop de tentatives. Veuillez attendre une minute et réessayer.",
+    "failed": "Impossible d’envoyer votre réponse. Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer",
+    "reference": "Référence : {{id}}",
+    "loadFailed": "Impossible de charger votre réponse. Veuillez recharger la page.",
+    "chooseVenue": "Choisissez une réponse pour cette partie.",
+    "changed": "L’invitation a changé pendant que vous répondiez. Rechargez-la pour voir le changement : ce que vous avez saisi est conservé.",
+    "reload": "Recharger",
+    "gone": "Cette invitation n’est plus disponible, votre réponse n’a donc pas pu être envoyée.",
+    "agree": "Acceptez la déclaration pour répondre au nom de toutes les personnes qui viennent.",
+    "signerName": "Saisissez votre nom complet.",
+    "drawing": "Dessinez votre signature et choisissez « Utiliser cette signature », ou saisissez plutôt votre nom.",
+    "onBehalf": "Confirmez que vous acceptez au nom des autres personnes qui viennent."
+  },
+  "venues": {
+    "lead": "Indiquez aux hôtes votre réponse pour chaque partie de la célébration.",
+    "memberAt": "{{name}} · {{venue}}",
+    "line": "{{venue}} : {{answer}}",
+    "pending": "pas encore de réponse",
+    "reconfirm": "Les hôtes ont changé la façon dont les invités répondent, les réponses précédentes ne comptent donc plus. Veuillez répondre à nouveau."
+  },
+  "signature": {
+    "legend": "Veuillez lire et accepter",
+    "for": "Pour : {{names}}",
+    "already": "Déjà accepté : {{names}}",
+    "agree": "J’accepte",
+    "onBehalf": "J’accepte au nom de {{names}}",
+    "method": "Comment souhaitez-vous signer ?",
+    "TYPED": "Saisir mon nom",
+    "DRAWN": "Dessiner ma signature",
+    "signerName": "Votre nom complet",
+    "typedHelp": "Saisir votre nom vaut signature.",
+    "drawnHelp": "Votre nom est conservé à côté de votre signature.",
+    "saved": "Accepté : {{names}}"
+  },
+  "pad": {
+    "label": "Zone de dessin de la signature",
+    "help": "Dessinez avec le doigt, un stylet ou la souris. Si c’est difficile, saisissez plutôt votre nom.",
+    "clear": "Effacer",
+    "use": "Utiliser cette signature",
+    "empty": "Dessinez d’abord votre signature.",
+    "uploading": "Enregistrement de votre signature…",
+    "checking": "Vérification de votre signature…",
+    "ready": "Votre signature est prête.",
+    "failed": "Votre signature n’a pas pu être enregistrée. Dessinez-la à nouveau, ou saisissez plutôt votre nom.",
+    "again": "Dessiner à nouveau",
+    "typeInstead": "Saisir plutôt mon nom"
+  }
+}
