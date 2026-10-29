@@ -99,6 +99,21 @@ describe('InvitationPage', () => {
     expect(within(section as HTMLElement).getByText('the reply form')).toBeInTheDocument();
   });
 
+  it('says a preview collects no replies, in place of the closed notice', () => {
+    const renderReply = vi.fn(() => <p>form</p>);
+    renderPage({
+      invitation: invitationFixture({ guest: null, isAcceptingResponses: false, isPreview: true }),
+      renderReply,
+    });
+
+    expect(
+      screen.getByText('Guests answer here, on their own link. A preview collects no replies.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Replies are closed/)).toBeNull();
+    expect(screen.queryByText(/To reply, open/)).toBeNull();
+    expect(renderReply).not.toHaveBeenCalled();
+  });
+
   it('says replies are closed, and offers no Reply button', () => {
     renderPage({
       invitation: invitationFixture({ isAcceptingResponses: false }),

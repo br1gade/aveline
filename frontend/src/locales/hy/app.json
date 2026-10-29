@@ -12,7 +12,15 @@
     "newVenue": "Ավելացնել վայր · Aveline",
     "editVenue": "Խմբագրել վայրը · Aveline",
     "invitation": "Հրապարակել և ուղարկել · Aveline",
-    "attendance": "Ինչպես են պատասխանում հյուրերը · Aveline"
+    "attendance": "Ինչպես են պատասխանում հյուրերը · Aveline",
+    "design": "Հրավերի ձևավորում · Aveline",
+    "designLook": "Ձևանմուշ և տեսք · Aveline",
+    "designSection": "Բաժնի խմբագրում · Aveline",
+    "designQuestions": "Հարցեր հյուրերին · Aveline",
+    "newDesignQuestion": "Հարցի ավելացում · Aveline",
+    "editDesignQuestion": "Հարցի խմբագրում · Aveline",
+    "designMedia": "Լուսանկարներ և երաժշտություն · Aveline",
+    "designPreview": "Նախադիտում · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

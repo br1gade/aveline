@@ -43,4 +43,15 @@ export const APP_PATHS = {
   invitation: '/app/events/:eventId/invitation',
   /** How guests answer: once for the event, or per venue. */
   attendance: '/app/events/:eventId/attendance',
+  /** Designing the invitation: its sections, then each part on a page of its own. */
+  design: '/app/events/:eventId/design',
+  designLook: '/app/events/:eventId/design/look',
+  designSection: '/app/events/:eventId/design/sections/:blockType',
+  designQuestions: '/app/events/:eventId/design/questions',
+  /** Static, so it ranks above `editDesignQuestion`'s `:questionId`. */
+  newDesignQuestion: '/app/events/:eventId/design/questions/new',
+  editDesignQuestion: '/app/events/:eventId/design/questions/:questionId',
+  designMedia: '/app/events/:eventId/design/media',
+  /** Outside the app's frame: the invitation needs the whole window. */
+  designPreview: '/app/events/:eventId/design/preview',
 } as const;

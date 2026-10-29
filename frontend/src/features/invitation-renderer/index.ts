@@ -3,6 +3,14 @@
  * form is not part of it; a route passes it in through `renderReply`. Server-only loading is in
  * index.server.ts.
  */
+export {
+  BLOCK_EDITING,
+  type BlockEditing,
+  type BlockMediaUse,
+  type ContentField,
+  type ContentFieldKind,
+} from './blocks/fields';
+export { imageSource, type ImageSource } from './components/image-source';
 export { InvitationNotFound } from './components/invitation-not-found';
 export {
   REPLY_HEADING_ID,
@@ -17,8 +25,11 @@ export {
   type PreviewMeta,
 } from './page-data';
 export { invitationPalette } from './theme';
+export { BLOCK_TYPES, BUILT_IN_FIELDS } from './types';
 export type {
   AttendanceView,
+  BlockMedia,
+  BlockType,
   BuiltInField,
   Invitation,
   InvitationBlock,

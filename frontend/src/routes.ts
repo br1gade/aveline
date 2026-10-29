@@ -44,6 +44,17 @@ export default [
       route(underApp(APP_PATHS.editVenue), 'routes/app/venue-edit.tsx'),
       route(underApp(APP_PATHS.invitation), 'routes/app/invitation.tsx'),
       route(underApp(APP_PATHS.attendance), 'routes/app/event-attendance.tsx'),
+      route(underApp(APP_PATHS.design), 'routes/app/design.tsx'),
+      route(underApp(APP_PATHS.designLook), 'routes/app/design-look.tsx'),
+      route(underApp(APP_PATHS.designSection), 'routes/app/design-section.tsx'),
+      route(underApp(APP_PATHS.designQuestions), 'routes/app/design-questions.tsx'),
+      route(underApp(APP_PATHS.newDesignQuestion), 'routes/app/design-question-new.tsx'),
+      route(underApp(APP_PATHS.editDesignQuestion), 'routes/app/design-question-edit.tsx'),
+      route(underApp(APP_PATHS.designMedia), 'routes/app/design-media.tsx'),
+    ]),
+    // Signed in, without the app's frame: the invitation's preview needs the whole window.
+    layout('routes/app/preview-layout.tsx', [
+      route(underApp(APP_PATHS.designPreview), 'routes/app/design-preview.tsx'),
     ]),
   ]),
 

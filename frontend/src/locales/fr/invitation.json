@@ -95,7 +95,8 @@
     "heading": "Serez-vous des nôtres ?",
     "closed": "Les réponses sont closes. Les informations restent disponibles ici.",
     "generic": "Pour répondre, ouvrez le lien personnel que vous avez reçu.",
-    "skip": "Aller à la réponse"
+    "skip": "Aller à la réponse",
+    "preview": "Les invités répondent ici, depuis leur lien personnel. Un aperçu ne recueille aucune réponse."
   },
   "chat": {
     "label": "Discussion des invités",

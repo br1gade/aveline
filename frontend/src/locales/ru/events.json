@@ -73,7 +73,8 @@
     "venues": "Места",
     "publishSend": "Публикация и рассылка",
     "attendance": "Как отвечают гости",
-    "attendanceChange": "Изменить"
+    "attendanceChange": "Изменить",
+    "design": "Оформить приглашение"
   },
   "headcount": {
     "title": "Гости",

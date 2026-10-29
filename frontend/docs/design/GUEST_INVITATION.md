@@ -396,6 +396,7 @@ on; sending one it switches off is refused (docs/API.md §4).
 | **Only the default blocks** | HERO, VENUE, TIMELINE, COUNTDOWN and RSVP (`backend/src/modules/events/default-blocks.ts`) still make a complete page |
 | **No music** | No control |
 | **200 % text zoom, 320 px wide** | One column; nothing scrolls sideways |
+| **A host's preview** (`isPreview`) | The page as guests will read it, in the language asked for, with no personal card and no form: the reply section says guests answer there, on their own link, and that a preview collects no replies. Built on design PD-59 since 29 October 2026, not drawn |
 
 ## 8. Layout by screen size
 

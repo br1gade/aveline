@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRevalidator } from 'react-router';
 
-/** What the invitation page's panels need from it after an action. */
+/** What a page's panels need from it after an action. */
 export interface PageActions {
   /** After an action went through: reload the page, then say what happened, with the focus. */
   done: (message: string) => Promise<void>;

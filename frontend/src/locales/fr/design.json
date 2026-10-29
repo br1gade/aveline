@@ -1,0 +1,398 @@
+{
+  "actionFor": "{{action}} : {{name}}",
+  "back": {
+    "event": "Retour à l’événement",
+    "design": "Retour à la conception",
+    "questions": "Retour aux questions"
+  },
+  "noInvitation": "Cet événement n’a pas d’invitation à concevoir. Un événement créé avant l’existence d’un modèle n’en a pas.",
+  "nav": {
+    "preview": "Aperçu",
+    "look": "Modèle et style",
+    "questions": "Questions aux invités",
+    "media": "Photos et musique"
+  },
+  "overview": {
+    "title": "Concevoir l’invitation",
+    "state": {
+      "DRAFT": "Un brouillon : les invités ne peuvent pas encore l’ouvrir.",
+      "PUBLISHED": "Publiée.",
+      "CLOSED": "Publiée, réponses arrêtées."
+    },
+    "live": "Les modifications enregistrées apparaissent aussitôt sur les pages des invités.",
+    "blockersTitle": "Avant de publier",
+    "template": "Modèle : {{name}}.",
+    "changeLook": "Changer de modèle ou de style",
+    "sectionsTitle": "Sections de la page",
+    "sectionsLead": "Dans l’ordre où les invités les lisent. Une section masquée garde son texte et peut être réaffichée.",
+    "isShown": "Affichée aux invités",
+    "isHidden": "Masquée",
+    "unknown": "Cette application ne connaît pas encore cette section : elle ne peut pas être modifiée ici.",
+    "cannotShow": "Ce modèle ne peut pas afficher cette section.",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "edit": "Modifier",
+    "shownStatus": "La section « {{name}} » est affichée aux invités.",
+    "hiddenStatus": "La section « {{name}} » est masquée.",
+    "movedUp": "La section « {{name}} » est montée.",
+    "movedDown": "La section « {{name}} » est descendue.",
+    "addedStatus": "La section « {{name}} » est ajoutée en fin de page.",
+    "addTitle": "Sections que vous pouvez ajouter",
+    "addLead": "Ce modèle peut aussi afficher celles-ci. Une section ajoutée va en fin de page, affichée.",
+    "add": "Ajouter"
+  },
+  "hideReply": {
+    "title": "Masquer la section de réponse ?",
+    "body": "Les invités qui ouvrent leur lien n’auront aucun moyen de répondre tant que vous ne la réafficherez pas. Les réponses déjà données sont conservées.",
+    "cancel": "La garder affichée",
+    "confirm": "La masquer",
+    "hiding": "Masquage…"
+  },
+  "blocks": {
+    "HERO": {
+      "name": "Couverture",
+      "about": "Ce que les invités voient en premier : les noms, l’occasion et la date, avec la photo de couverture."
+    },
+    "STORY": {
+      "name": "Texte de l’invitation",
+      "about": "Vos mots à vos invités, avec une photo dans certaines mises en page."
+    },
+    "COUNTDOWN": {
+      "name": "Compte à rebours",
+      "about": "Le temps qui reste avant le début de l’événement."
+    },
+    "MUSIC": {
+      "name": "Musique",
+      "about": "Un morceau de musique. Les invités le lancent eux-mêmes : il ne joue jamais seul."
+    },
+    "VENUE": {
+      "name": "Lieux",
+      "about": "Où cela se passe : chaque lieu montré aux invités, avec son adresse."
+    },
+    "MAP": {
+      "name": "Itinéraire",
+      "about": "Un lien vers chaque lieu sur une carte, quand il en a un."
+    },
+    "TIMELINE": {
+      "name": "Déroulé",
+      "about": "Ce qui se passe, et quand, le jour même."
+    },
+    "DRESS_CODE": {
+      "name": "Tenue",
+      "about": "Quoi porter, avec des couleurs suggérées."
+    },
+    "NOTES": {
+      "name": "Demandes",
+      "about": "De courtes notes pour les invités, sur les fleurs, les photos ou les enfants par exemple."
+    },
+    "GALLERY": {
+      "name": "Galerie",
+      "about": "Des photos, dans l’ordre que vous choisissez."
+    },
+    "RSVP": {
+      "name": "Section de réponse",
+      "about": "Là où les invités répondent. Sans elle, ils n’ont aucun moyen de répondre."
+    },
+    "SIGNATURE": {
+      "name": "Signature",
+      "about": "Une ligne de conclusion, avec votre signature ou votre monogramme."
+    },
+    "CHAT": {
+      "name": "Discussion des invités",
+      "about": "Un lien vers la discussion de groupe de vos invités."
+    },
+    "CONTACT": {
+      "name": "Contact",
+      "about": "Qui les invités peuvent appeler pour leurs questions."
+    }
+  },
+  "fields": {
+    "title": "Titre",
+    "subtitle": "Ligne sous les noms",
+    "body": "Texte",
+    "closing": "Ligne de conclusion",
+    "url": "Lien vers la discussion",
+    "label": "Texte du bouton",
+    "organizer": "Qui contacter",
+    "phone": "Numéro de téléphone"
+  },
+  "help": {
+    "heroTitle": "Les noms sur la couverture. Laissé vide, ce sont les noms des hôtes de l’événement qui s’affichent.",
+    "contactTitle": "Une courte étiquette au-dessus du contact, comme « Des questions ? »",
+    "paragraphs": "Laissez une ligne vide entre les paragraphes.",
+    "musicTitle": "Affiché uniquement avec la mise en page « Carte ».",
+    "chatUrl": "Un lien web commençant par https://"
+  },
+  "layouts": {
+    "full-bleed": "Pleine largeur",
+    "split": "Partagée",
+    "stacked": "Empilée",
+    "arch": "Arche",
+    "letter": "Lettre",
+    "with-photo": "Avec une photo",
+    "numerals": "Chiffres",
+    "days": "Jours seulement",
+    "card": "Carte",
+    "cards": "Cartes",
+    "list": "Liste",
+    "vertical": "Verticale",
+    "compact": "Compacte",
+    "editorial": "Éditoriale",
+    "grid": "Grille",
+    "carousel": "Carrousel"
+  },
+  "section": {
+    "isShown": "Les invités voient cette section.",
+    "isHidden": "Masquée : les invités ne voient pas cette section.",
+    "cannotShow": "Le modèle {{template}} ne peut pas afficher cette section.",
+    "chooseTemplate": "Choisir un autre modèle",
+    "missing": "L’invitation n’a pas encore cette section. Ajoutée, elle va en fin de page, affichée.",
+    "add": "Ajouter la section",
+    "unknown": "Cette application ne connaît pas encore cette section.",
+    "data": {
+      "venues": "Les lieux viennent de la liste des lieux de l’événement, dans la langue de chaque invité.",
+      "venuesLink": "Aller aux lieux",
+      "timeline": "Le déroulé vient de l’événement lui-même ; il ne peut pas encore être modifié dans l’application.",
+      "countdown": "Il compte jusqu’au début de l’événement, dans le fuseau horaire de l’événement."
+    },
+    "layout": "Mise en page",
+    "layoutHelp": "L’aperçu ne sait pas encore dessiner les mises en page de ce modèle : votre choix est conservé pour le jour où il le pourra.",
+    "defaultLayout": "Celle du modèle par défaut",
+    "noLayouts": "Les mises en page du modèle n’ont pas pu être chargées : la mise en page reste telle quelle.",
+    "defaultLanguage": "langue par défaut",
+    "noCopy": "Pas encore de texte dans cette langue : les invités qui la lisent voient celui de la langue par défaut.",
+    "item": "Note {{number}}",
+    "addItem": "Ajouter une note",
+    "removeItem": "Retirer la note {{number}}",
+    "colours": "Couleurs suggérées",
+    "coloursHelp": "Affichées en petits carrés sous la tenue. Dites dans le texte quoi porter : une couleur ne peut pas être lue à voix haute.",
+    "colour": "Couleur {{number}}",
+    "addColour": "Ajouter une couleur",
+    "removeColour": "Retirer la couleur {{number}}",
+    "media": {
+      "image": "Image",
+      "images": "Photos",
+      "audio": "Fichier musical"
+    },
+    "onlyFirst": "Seul le premier est affiché dans la section « {{name}} ».",
+    "noMedia": "Rien n’est encore choisi.",
+    "candidates": "Parmi vos envois",
+    "noCandidates": "Aucun envoi du bon type pour l’instant.",
+    "upload": "Envoyer des photos et de la musique",
+    "mediaUp": "Monter l’élément {{number}}",
+    "mediaDown": "Descendre l’élément {{number}}",
+    "mediaRemove": "Retirer l’élément {{number}}",
+    "mediaAdd": "Ajouter l’envoi {{number}}",
+    "mediaUse": "Utiliser l’envoi {{number}}",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "cancel": "Retour à la conception",
+    "saved": "Enregistré.",
+    "savedLive": "Enregistré. Les invités le voient aussitôt.",
+    "nothing": "Rien n’avait changé : rien n’a été envoyé."
+  },
+  "look": {
+    "title": "Modèle et style",
+    "lead": "Le modèle décide des sections que l’invitation peut avoir, et propose les polices et les couleurs conçues pour lui.",
+    "current": "Le modèle de cette invitation : {{name}}",
+    "standIn": "Pour l’instant, l’aperçu et les pages des invités utilisent les polices et les couleurs d’Aveline. Les polices et couleurs choisies ici sont conservées et apparaîtront dès qu’elles pourront être fournies.",
+    "headingFont": "Police des titres",
+    "bodyFont": "Police du texte",
+    "palette": "Couleurs",
+    "templateChoice": "Comme le modèle le définit",
+    "notOffered": "{{name}} (non proposée par ce modèle)",
+    "save": "Enregistrer le style",
+    "saving": "Enregistrement…",
+    "saved": "Style enregistré.",
+    "nothing": "Rien n’avait changé : rien n’a été envoyé.",
+    "preview": "Voir l’aperçu de l’invitation",
+    "othersTitle": "Autres modèles",
+    "noOthers": "Il n’y a pas d’autre modèle à choisir.",
+    "templatesRefused": "Votre rôle ne permet pas de voir les modèles.",
+    "fonts": "Polices : {{fonts}}",
+    "cannotShow": "Ne peut pas afficher : {{sections}}",
+    "showsAll": "Peut afficher toutes les sections que cette invitation affiche.",
+    "previewMine": "Aperçu avec mon invitation",
+    "previewSample": "Aperçu avec un texte d’exemple",
+    "use": "Utiliser ce modèle"
+  },
+  "switch": {
+    "title": "Utiliser {{name}} ?",
+    "body": "Voici ce qui change.",
+    "look": "Le style revient à celui du modèle : {{look}}.",
+    "lookPlain": "Le style revient à celui du modèle.",
+    "hidden": "Ces sections sont masquées, leur texte conservé : {{sections}}.",
+    "layouts": "Ces sections reviennent à la mise en page par défaut : {{sections}}.",
+    "missing": "Il peut aussi afficher {{sections}} ; vous pourrez les ajouter ensuite.",
+    "kept": "Les textes et photos de chaque section, et toutes les questions, sont conservés.",
+    "cancel": "Garder {{name}}",
+    "confirm": "Utiliser {{name}}",
+    "switching": "Changement…",
+    "done": "L’invitation utilise désormais {{name}}."
+  },
+  "questions": {
+    "title": "Questions aux invités",
+    "lead": "Ce que demande le formulaire de réponse, en plus de savoir si chaque invité vient.",
+    "builtInTitle": "Les questions d’Aveline",
+    "attendance": "Savoir si chaque invité vient est toujours demandé.",
+    "fields": {
+      "dietary": "Régime alimentaire",
+      "drinkPreference": "Boisson",
+      "songRequest": "Une chanson souhaitée",
+      "message": "Un message aux hôtes",
+      "attribution": "De qui ils sont les invités"
+    },
+    "attributionHelp": "Demandé seulement quand l’événement nomme les deux côtés, et seulement aux invités dont vous n’avez pas indiqué le côté.",
+    "ask": "Le demander",
+    "answerKind": "Comment les invités répondent",
+    "freeText": "Les invités écrivent leur réponse",
+    "fixedChoices": "Les invités choisissent dans une liste",
+    "choicesHelp": "Donnez chaque choix dans au moins une langue : les invités qui en lisent une autre voient le premier donné. Les fiches du traiteur et du bar comptent un choix une seule fois, quelle que soit la langue.",
+    "choiceIn": "Choix {{number}}, {{language}}",
+    "addChoice": "Ajouter un choix",
+    "removeChoice": "Retirer le choix {{number}}",
+    "saveBuiltIn": "Enregistrer ces questions",
+    "saving": "Enregistrement…",
+    "saved": "Questions enregistrées.",
+    "nothing": "Rien n’avait changé : rien n’a été envoyé.",
+    "ownTitle": "Vos propres questions",
+    "ownLead": "Dans l’ordre où elles sont posées aux invités.",
+    "none": "Pas encore de questions à vous.",
+    "add": "Ajouter une question",
+    "required": "Obligatoire",
+    "optional": "Facultative",
+    "answered_one": "Réponse de {{count}} invité",
+    "answered_many": "Réponses de {{count}} invités",
+    "answered_other": "Réponses de {{count}} invités",
+    "noWording": "Pas encore de formulation",
+    "cannotRemove": "Des invités y ont répondu : elle ne peut pas être retirée. Rendez-la plutôt facultative.",
+    "edit": "Modifier",
+    "remove": "Retirer",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "movedUp": "« {{prompt}} » est montée.",
+    "movedDown": "« {{prompt}} » est descendue.",
+    "removed": "« {{prompt}} » est retirée.",
+    "types": {
+      "TEXT": "Une ligne de texte",
+      "LONG_TEXT": "Plusieurs lignes de texte",
+      "SINGLE_CHOICE": "Un choix dans une liste",
+      "MULTI_CHOICE": "Plusieurs choix dans une liste",
+      "BOOLEAN": "Oui ou non",
+      "SIGNATURE": "Un accord que les invités signent"
+    }
+  },
+  "removeQuestion": {
+    "title": "Retirer « {{prompt}} » ?",
+    "body": "Elle ne sera plus posée aux invités.",
+    "cancel": "La garder",
+    "confirm": "La retirer",
+    "removing": "Retrait…"
+  },
+  "question": {
+    "newTitle": "Ajouter une question",
+    "editTitle": "Modifier une question",
+    "type": "Type de question",
+    "typeLocked": "Des invités y ont répondu : son type ne peut pas changer.",
+    "signatureHelp": "Les invités acceptent votre formulation en tapant leur nom ou en dessinant une signature. Chaque accord est conservé avec la formulation à laquelle il a été donné.",
+    "required": "Obligatoire : toute personne qui vient doit répondre",
+    "prompt": "Formulation",
+    "promptHelp": "Dans au moins une langue. Les invités qui en lisent une autre voient celle de la langue par défaut, ou la première donnée.",
+    "choices": "Choix",
+    "choicesHelp": "Donnez chaque choix dans toutes les langues que vous utilisez : une langue à laquelle il manque des choix ne peut pas être enregistrée.",
+    "answeredChoices": "Des invités y ont répondu : ses choix peuvent être reformulés, ou ajoutés à la fin, mais pas retirés.",
+    "add": "Ajouter la question",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "cancel": "Retour aux questions",
+    "gone": "Cette question n’est plus dans l’invitation."
+  },
+  "media": {
+    "title": "Photos et musique",
+    "lead": "Vos envois pour cette invitation. Une section en affiche un dès que vous le choisissez sur la page de la section.",
+    "kinds": {
+      "PHOTO": "Photo",
+      "COVER": "Photo de couverture",
+      "LOGO": "Logo",
+      "AUDIO": "Audio"
+    },
+    "uploadTitle": "Envoyer",
+    "file": "Fichier",
+    "fileHelp": "Une image JPEG, PNG, WebP ou AVIF, ou une musique MP3 ou M4A, jusqu’à 10 Mo.",
+    "kind": "Type d’image",
+    "kindHelp": "Pour une image seulement. Un logo convient à un événement d’entreprise ou à un monogramme.",
+    "upload": "Envoyer",
+    "uploading": "Envoi…",
+    "uploaded": "{{name}} est envoyé.",
+    "problems": {
+      "noFile": "Choisissez d’abord un fichier.",
+      "type": "Ce type de fichier ne peut pas être utilisé. Choisissez une image ou un fichier musical d’un type indiqué.",
+      "size": "Ce fichier dépasse 10 Mo."
+    },
+    "libraryTitle": "Vos envois",
+    "empty": "Rien n’a encore été envoyé.",
+    "refused": "Votre rôle ne permet pas de voir les envois.",
+    "usedBy": "Affiché dans : {{sections}}",
+    "notUsed": "Affiché dans aucune section.",
+    "listing": "Utilisé dans l’annonce publique.",
+    "cannotRemove": "Quelque chose l’affiche : il ne peut pas être retiré. Retirez-le d’abord de là.",
+    "noDescription": "Pas encore de description",
+    "gone": "Un envoi qui n’est plus dans votre bibliothèque",
+    "describe": "Le décrire",
+    "describeHelp": "Ce que montre l’image, pour les invités qui ne peuvent pas la voir, dans chaque langue. 300 caractères au plus.",
+    "saveDescription": "Enregistrer la description",
+    "saving": "Enregistrement…",
+    "described": "Description enregistrée.",
+    "nothing": "Rien n’avait changé : rien n’a été envoyé.",
+    "remove": "Retirer",
+    "removed": "Envoi retiré."
+  },
+  "removeMedia": {
+    "title": "Retirer cet envoi ?",
+    "body": "Son fichier est supprimé aussi.",
+    "cancel": "Le garder",
+    "confirm": "Le retirer",
+    "removing": "Retrait…"
+  },
+  "preview": {
+    "bar": "Aperçu",
+    "lead": "Un aperçu : les invités verront ceci une fois l’invitation publiée et envoyée. Rien n’est recueilli ici.",
+    "sample": "Avec le texte d’exemple du modèle, pas celui de votre invitation.",
+    "otherTemplate": "Affiché avec {{name}}, que cette invitation n’utilise pas.",
+    "chooseIt": "Le choisir sur la page des modèles"
+  },
+  "problems": {
+    "forbidden": "Votre rôle sur cet événement permet de voir la conception de l’invitation, mais pas de la modifier. Le propriétaire de l’événement peut changer votre rôle.",
+    "check": "Cela n’a pas pu être enregistré tel quel. Vérifiez les champs signalés.",
+    "stale": "La page n’était plus à jour : rien n’a changé. Elle a été rechargée : réessayez.",
+    "cannotShow": "Ce modèle ne peut pas afficher cette section.",
+    "sectionMissing": "Cette section n’est plus dans l’invitation. La page a été rechargée.",
+    "questionMissing": "Cette question n’est plus dans l’invitation. La page a été rechargée.",
+    "mediaMissing": "Cet envoi n’est plus dans la bibliothèque. La page a été rechargée.",
+    "templateMissing": "Ce modèle n’est plus disponible.",
+    "missing": "Cette invitation n’est plus disponible.",
+    "answered": "Des invités ont répondu à cette question : elle ne peut pas être retirée. Rendez-la plutôt facultative.",
+    "orderChanged": "Les questions ont changé depuis le chargement de la page : leur ordre n’a pas changé. La page a été rechargée : réessayez.",
+    "inUse": "Une section ou l’annonce publique affiche encore cet envoi : il ne peut pas être retiré. Retirez-le d’abord de là.",
+    "tooLarge": "Ce fichier dépasse 10 Mo.",
+    "wrongType": "Ce type de fichier ne peut pas être utilisé.",
+    "conflict": "Quelque chose a changé entre-temps. La page a été rechargée : réessayez.",
+    "other": "Cela n’a pas pu être fait."
+  },
+  "errors": {
+    "url": "Donnez un lien web commençant par https:// ou http://",
+    "colour": "Choisissez une couleur.",
+    "noPrompt": "Donnez la formulation dans au moins une langue.",
+    "noChoices": "Donnez au moins un choix, dans au moins une langue.",
+    "halfFilled": "Donnez tous les choix dans une langue, ou aucun.",
+    "halfFilledIn": "Donnez tous les choix en {{languages}}, ou aucun.",
+    "noLabel": "Donnez ce choix dans au moins une langue.",
+    "labelTooLong": "Un choix compte 80 caractères au plus.",
+    "tooManyChoices": "30 choix au plus.",
+    "altTooLong": "300 caractères au plus.",
+    "refused": "Cela n’a pas été accepté. Vérifiez.",
+    "other": "Vérifiez ceci."
+  }
+}

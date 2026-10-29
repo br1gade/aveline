@@ -1,3 +1,5 @@
+export { readBlockers } from './blockers';
+export { BlockerList } from './components/blocker-list';
 export { DeliveryLine } from './components/delivery-line';
 export { InvitationPage } from './components/invitation-page';
 export { LoadedProblem } from './components/loaded-problem';

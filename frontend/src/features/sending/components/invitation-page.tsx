@@ -1,29 +1,14 @@
-import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { eventPath, type EventDetail } from '@/features/events';
 import { formatEventDay, formatEventTime } from '@/lib/time';
+import { StatusLine, usePageStatus } from '@/ui/app-form';
 
 import type { InvitationPageData } from '../load';
-import { usePageStatus } from './page-status';
 import { PublishPanel } from './publish-panel';
 import { RepliesPanel } from './replies-panel';
 import { SendPanel } from './send-panel';
-
-function StatusLine({
-  statusRef,
-  children,
-}: {
-  statusRef: RefObject<HTMLParagraphElement | null>;
-  children: string;
-}) {
-  return (
-    <p ref={statusRef} role="status" tabIndex={-1} className="m-0 text-sm font-medium outline-none">
-      {children}
-    </p>
-  );
-}
 
 /**
  * How long guests can open it (design PD-55): set when it is first published, from the event's plan

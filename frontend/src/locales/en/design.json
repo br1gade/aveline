@@ -1,0 +1,397 @@
+{
+  "actionFor": "{{action}}: {{name}}",
+  "back": {
+    "event": "Back to the event",
+    "design": "Back to the design",
+    "questions": "Back to the questions"
+  },
+  "noInvitation": "This event has no invitation to design. An event created before any design template existed has none.",
+  "nav": {
+    "preview": "Preview",
+    "look": "Template and look",
+    "questions": "Questions for guests",
+    "media": "Photos and music"
+  },
+  "overview": {
+    "title": "Design the invitation",
+    "state": {
+      "DRAFT": "A draft: guests can’t open it yet.",
+      "PUBLISHED": "Published.",
+      "CLOSED": "Published, with replies stopped."
+    },
+    "live": "Changes you save show on guests’ pages straight away.",
+    "blockersTitle": "Before you can publish",
+    "template": "Template: {{name}}.",
+    "changeLook": "Change the template or the look",
+    "sectionsTitle": "Sections of the page",
+    "sectionsLead": "In the order guests read them. A hidden section keeps its words and can be shown again.",
+    "isShown": "Shown to guests",
+    "isHidden": "Hidden",
+    "unknown": "This app doesn’t know this section yet, so it can’t be edited here.",
+    "cannotShow": "This template can’t show this section.",
+    "show": "Show",
+    "hide": "Hide",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "edit": "Edit",
+    "shownStatus": "{{name}} is shown to guests.",
+    "hiddenStatus": "{{name}} is hidden.",
+    "movedUp": "{{name}} moved up.",
+    "movedDown": "{{name}} moved down.",
+    "addedStatus": "{{name}} added at the end of the page.",
+    "addTitle": "Sections you can add",
+    "addLead": "This template can show these too. An added section goes at the end of the page, shown.",
+    "add": "Add"
+  },
+  "hideReply": {
+    "title": "Hide the reply section?",
+    "body": "Guests who open their link will have no way to answer until you show it again. Answers already given are kept.",
+    "cancel": "Keep it shown",
+    "confirm": "Hide it",
+    "hiding": "Hiding…"
+  },
+  "blocks": {
+    "HERO": {
+      "name": "Cover",
+      "about": "The first thing guests see: the names, the occasion and the date, with the cover photo."
+    },
+    "STORY": {
+      "name": "Invitation text",
+      "about": "Your own words to your guests, with a photo in some layouts."
+    },
+    "COUNTDOWN": {
+      "name": "Countdown",
+      "about": "The time left until the event starts."
+    },
+    "MUSIC": {
+      "name": "Music",
+      "about": "One piece of music. Guests start it themselves: it never plays on its own."
+    },
+    "VENUE": {
+      "name": "Venues",
+      "about": "Where it happens: each venue guests are shown, with its address."
+    },
+    "MAP": {
+      "name": "Directions",
+      "about": "A link to each venue on a map, where it has one."
+    },
+    "TIMELINE": {
+      "name": "Running order",
+      "about": "What happens when, on the day."
+    },
+    "DRESS_CODE": {
+      "name": "Dress code",
+      "about": "What to wear, with suggested colours."
+    },
+    "NOTES": {
+      "name": "Requests",
+      "about": "Short notes for guests, about flowers, photos or children, say."
+    },
+    "GALLERY": {
+      "name": "Gallery",
+      "about": "Photos, in the order you choose."
+    },
+    "RSVP": {
+      "name": "Reply section",
+      "about": "Where guests answer. Without it, they have no way to reply."
+    },
+    "SIGNATURE": {
+      "name": "Signature",
+      "about": "A closing line, with your signature or monogram."
+    },
+    "CHAT": {
+      "name": "Guest chat",
+      "about": "A link to your guests’ group chat."
+    },
+    "CONTACT": {
+      "name": "Contact",
+      "about": "Who guests can call with questions."
+    }
+  },
+  "fields": {
+    "title": "Heading",
+    "subtitle": "Line under the names",
+    "body": "Text",
+    "closing": "Closing line",
+    "url": "Link to the chat",
+    "label": "Words on the button",
+    "organizer": "Who to ask",
+    "phone": "Phone number"
+  },
+  "help": {
+    "heroTitle": "The names on the cover. Left empty, the hosts’ names from the event are shown.",
+    "contactTitle": "A short label above the contact, such as “Questions?”",
+    "paragraphs": "Leave a blank line between paragraphs.",
+    "musicTitle": "Shown in the “Card” layout only.",
+    "chatUrl": "A web link starting with https://"
+  },
+  "layouts": {
+    "full-bleed": "Full bleed",
+    "split": "Split",
+    "stacked": "Stacked",
+    "arch": "Arch",
+    "letter": "Letter",
+    "with-photo": "With a photo",
+    "numerals": "Numerals",
+    "days": "Days only",
+    "card": "Card",
+    "cards": "Cards",
+    "list": "List",
+    "vertical": "Vertical",
+    "compact": "Compact",
+    "editorial": "Editorial",
+    "grid": "Grid",
+    "carousel": "Carousel"
+  },
+  "section": {
+    "isShown": "Guests see this section.",
+    "isHidden": "Hidden: guests don’t see this section.",
+    "cannotShow": "The template {{template}} can’t show this section.",
+    "chooseTemplate": "Choose another template",
+    "missing": "The invitation doesn’t have this section yet. Added, it goes at the end of the page, shown.",
+    "add": "Add the section",
+    "unknown": "This app doesn’t know this section yet.",
+    "data": {
+      "venues": "The venues come from the event’s venue list, in each guest’s language.",
+      "venuesLink": "Go to the venues",
+      "timeline": "The running order comes from the event itself; it can’t be edited in the app yet.",
+      "countdown": "It counts down to the event’s start, in the event’s time zone."
+    },
+    "layout": "Layout",
+    "layoutHelp": "The preview can’t draw this template’s layouts yet: your choice is kept for when it can.",
+    "defaultLayout": "The template’s default",
+    "noLayouts": "The template’s layouts couldn’t be loaded, so the layout stays as it is.",
+    "defaultLanguage": "default language",
+    "noCopy": "No words in this language yet: guests reading it see the default language’s.",
+    "item": "Note {{number}}",
+    "addItem": "Add a note",
+    "removeItem": "Remove note {{number}}",
+    "colours": "Suggested colours",
+    "coloursHelp": "Shown as small squares under the dress code. Say in the text what to wear: a colour can’t be read aloud.",
+    "colour": "Colour {{number}}",
+    "addColour": "Add a colour",
+    "removeColour": "Remove colour {{number}}",
+    "media": {
+      "image": "Picture",
+      "images": "Photos",
+      "audio": "Music file"
+    },
+    "onlyFirst": "Only the first is shown in the {{name}} section.",
+    "noMedia": "Nothing chosen yet.",
+    "candidates": "From your uploads",
+    "noCandidates": "No upload of the right kind yet.",
+    "upload": "Upload photos and music",
+    "mediaUp": "Move item {{number}} up",
+    "mediaDown": "Move item {{number}} down",
+    "mediaRemove": "Take item {{number}} off",
+    "mediaAdd": "Add upload {{number}}",
+    "mediaUse": "Use upload {{number}}",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Back to the design",
+    "saved": "Saved.",
+    "savedLive": "Saved. Guests see it straight away.",
+    "nothing": "Nothing had changed, so nothing was sent."
+  },
+  "look": {
+    "title": "Template and look",
+    "lead": "The template decides which sections the invitation can have, and offers the fonts and colours made for it.",
+    "current": "This invitation’s template: {{name}}",
+    "standIn": "For now, the preview and guests’ pages use Aveline’s own typefaces and colours. The fonts and colours chosen here are kept, and will show once they can be delivered.",
+    "headingFont": "Font for headings",
+    "bodyFont": "Font for text",
+    "palette": "Colours",
+    "templateChoice": "As the template sets it",
+    "notOffered": "{{name}} (not offered by this template)",
+    "save": "Save the look",
+    "saving": "Saving…",
+    "saved": "Look saved.",
+    "nothing": "Nothing had changed, so nothing was sent.",
+    "preview": "Preview the invitation",
+    "othersTitle": "Other templates",
+    "noOthers": "There is no other template to choose.",
+    "templatesRefused": "Your role can’t see the templates.",
+    "fonts": "Fonts: {{fonts}}",
+    "cannotShow": "Can’t show: {{sections}}",
+    "showsAll": "Can show every section this invitation shows.",
+    "previewMine": "Preview with my invitation",
+    "previewSample": "Preview with sample text",
+    "use": "Use this template"
+  },
+  "switch": {
+    "title": "Use {{name}}?",
+    "body": "Here is what changes.",
+    "look": "The look goes back to this template’s own: {{look}}.",
+    "lookPlain": "The look goes back to this template’s own.",
+    "hidden": "These sections are hidden, keeping their words: {{sections}}.",
+    "layouts": "These sections go back to the default layout: {{sections}}.",
+    "missing": "It can also show {{sections}}; you can add them afterwards.",
+    "kept": "Every section’s words and photos, and every question, are kept.",
+    "cancel": "Keep {{name}}",
+    "confirm": "Use {{name}}",
+    "switching": "Changing…",
+    "done": "The invitation now uses {{name}}."
+  },
+  "questions": {
+    "title": "Questions for guests",
+    "lead": "What the reply form asks, besides whether each guest is coming.",
+    "builtInTitle": "Questions Aveline asks",
+    "attendance": "Whether each guest is coming is always asked.",
+    "fields": {
+      "dietary": "Dietary needs",
+      "drinkPreference": "Drink",
+      "songRequest": "A song request",
+      "message": "A message to the hosts",
+      "attribution": "Whose guest they are"
+    },
+    "attributionHelp": "Asked only when the event names both sides, and only of guests whose side you haven’t set.",
+    "ask": "Ask this",
+    "answerKind": "How guests answer",
+    "freeText": "Guests write their answer",
+    "fixedChoices": "Guests choose from a list",
+    "choicesHelp": "Give each choice in at least one language: guests reading another see the first one given. The catering and bar sheets count a choice once, whatever the language.",
+    "choiceIn": "Choice {{number}}, {{language}}",
+    "addChoice": "Add a choice",
+    "removeChoice": "Remove choice {{number}}",
+    "saveBuiltIn": "Save these questions",
+    "saving": "Saving…",
+    "saved": "Questions saved.",
+    "nothing": "Nothing had changed, so nothing was sent.",
+    "ownTitle": "Your own questions",
+    "ownLead": "In the order guests are asked them.",
+    "none": "No questions of your own yet.",
+    "add": "Add a question",
+    "required": "Required",
+    "optional": "Optional",
+    "answered_one": "Answered by {{count}} guest",
+    "answered_other": "Answered by {{count}} guests",
+    "noWording": "No wording yet",
+    "cannotRemove": "Guests have answered it, so it can’t be removed. Make it optional instead.",
+    "edit": "Edit",
+    "remove": "Remove",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "movedUp": "“{{prompt}}” moved up.",
+    "movedDown": "“{{prompt}}” moved down.",
+    "removed": "“{{prompt}}” removed.",
+    "types": {
+      "TEXT": "One line of text",
+      "LONG_TEXT": "Several lines of text",
+      "SINGLE_CHOICE": "One choice from a list",
+      "MULTI_CHOICE": "Several choices from a list",
+      "BOOLEAN": "Yes or no",
+      "SIGNATURE": "An agreement guests sign"
+    }
+  },
+  "removeQuestion": {
+    "title": "Remove “{{prompt}}”?",
+    "body": "Guests won’t be asked it any more.",
+    "cancel": "Keep it",
+    "confirm": "Remove it",
+    "removing": "Removing…"
+  },
+  "question": {
+    "newTitle": "Add a question",
+    "editTitle": "Edit a question",
+    "type": "Kind of question",
+    "typeLocked": "Guests have answered it, so its kind can’t change.",
+    "signatureHelp": "Guests agree to your wording by typing their name or drawing a signature. Each agreement is kept with the wording it was given to.",
+    "required": "Required: everyone coming must answer",
+    "prompt": "Wording",
+    "promptHelp": "In at least one language. Guests reading another see the default language’s, or the first one given.",
+    "choices": "Choices",
+    "choicesHelp": "Give each choice in every language you use: a language with some choices missing can’t be saved.",
+    "answeredChoices": "Guests have answered it, so its choices can be reworded, or added at the end, but not removed.",
+    "add": "Add the question",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Back to the questions",
+    "gone": "This question is no longer on the invitation."
+  },
+  "media": {
+    "title": "Photos and music",
+    "lead": "Your uploads for this invitation. A section shows one once you choose it on the section’s page.",
+    "kinds": {
+      "PHOTO": "Photo",
+      "COVER": "Cover photo",
+      "LOGO": "Logo",
+      "AUDIO": "Audio"
+    },
+    "uploadTitle": "Upload",
+    "file": "File",
+    "fileHelp": "A JPEG, PNG, WebP or AVIF picture, or MP3 or M4A music, up to 10 MB.",
+    "kind": "Kind of picture",
+    "kindHelp": "For a picture only. A logo suits a corporate event or a monogram.",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "uploaded": "{{name}} uploaded.",
+    "problems": {
+      "noFile": "Choose a file first.",
+      "type": "This kind of file can’t be used. Choose a picture or a music file of a kind listed.",
+      "size": "This file is larger than 10 MB."
+    },
+    "libraryTitle": "Your uploads",
+    "empty": "Nothing uploaded yet.",
+    "refused": "Your role can’t see the uploads.",
+    "usedBy": "Shown in: {{sections}}",
+    "notUsed": "Not shown in any section.",
+    "listing": "Used on the public listing.",
+    "cannotRemove": "Something shows it, so it can’t be removed. Take it off there first.",
+    "noDescription": "No description yet",
+    "gone": "An upload no longer in your library",
+    "describe": "Describe it",
+    "describeHelp": "What the picture shows, for guests who can’t see it, in each language. At most 300 characters.",
+    "saveDescription": "Save the description",
+    "saving": "Saving…",
+    "described": "Description saved.",
+    "nothing": "Nothing had changed, so nothing was sent.",
+    "remove": "Remove",
+    "removed": "Upload removed."
+  },
+  "removeMedia": {
+    "title": "Remove this upload?",
+    "body": "Its file is deleted too.",
+    "cancel": "Keep it",
+    "confirm": "Remove it",
+    "removing": "Removing…"
+  },
+  "preview": {
+    "bar": "Preview",
+    "lead": "A preview: guests see this once the invitation is published and sent. Nothing is collected here.",
+    "sample": "With the template’s sample text, not your invitation’s.",
+    "otherTemplate": "Shown in {{name}}, which this invitation doesn’t use.",
+    "chooseIt": "Choose it on the template page"
+  },
+  "problems": {
+    "forbidden": "Your role on this event can see the invitation’s design but not change it. The event’s owner can change your role.",
+    "check": "This couldn’t be saved as it is. Check the fields marked.",
+    "stale": "The page was out of date, so nothing changed. It has been reloaded: try again.",
+    "cannotShow": "This template can’t show this section.",
+    "sectionMissing": "This section is no longer on the invitation. The page has been reloaded.",
+    "questionMissing": "This question is no longer on the invitation. The page has been reloaded.",
+    "mediaMissing": "This upload is no longer in the library. The page has been reloaded.",
+    "templateMissing": "This template is no longer available.",
+    "missing": "This invitation is no longer available.",
+    "answered": "Guests have answered this question, so it can’t be removed. Make it optional instead.",
+    "orderChanged": "The questions changed since this page was loaded, so their order didn’t. The page has been reloaded: try again.",
+    "inUse": "A section or the public listing still shows this upload, so it can’t be removed. Take it off there first.",
+    "tooLarge": "This file is larger than 10 MB.",
+    "wrongType": "This kind of file can’t be used.",
+    "conflict": "Something changed meanwhile. The page has been reloaded: try again.",
+    "other": "This couldn’t be done."
+  },
+  "errors": {
+    "url": "Give a web link starting with https:// or http://",
+    "colour": "Choose a colour.",
+    "noPrompt": "Give the wording in at least one language.",
+    "noChoices": "Give at least one choice, in at least one language.",
+    "halfFilled": "Give every choice in a language, or none.",
+    "halfFilledIn": "Give every choice in {{languages}}, or none.",
+    "noLabel": "Give this choice in at least one language.",
+    "labelTooLong": "A choice has at most 80 characters.",
+    "tooManyChoices": "At most 30 choices.",
+    "altTooLong": "At most 300 characters.",
+    "refused": "This wasn’t accepted. Check it.",
+    "other": "Check this."
+  }
+}

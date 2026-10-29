@@ -36,12 +36,13 @@
     "publishing": "Publication…"
   },
   "blockers": {
-    "rsvp": "La section de réponse est désactivée dans la conception de l’invitation : les invités n’auraient aucun moyen de répondre. Elle ne peut pas encore être activée ici.",
+    "rsvp": "La section de réponse est désactivée dans la conception de l’invitation : les invités n’auraient aucun moyen de répondre.",
     "venue": "Ajoutez un lieu avec une adresse, pour que les invités sachent où aller.",
     "venueFix": "Ajouter un lieu",
     "started": "L’événement a déjà commencé : une invitation arriverait trop tard. Si sa date est erronée, corrigez-la.",
     "startedFix": "Modifier les informations",
-    "inEnglish": "Certains de ces points sont en anglais pour l’instant."
+    "inEnglish": "Certains de ces points sont en anglais pour l’instant.",
+    "rsvpFix": "Afficher la section de réponse"
   },
   "replies": {
     "title": "Réponses",

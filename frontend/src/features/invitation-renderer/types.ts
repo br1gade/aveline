@@ -212,4 +212,9 @@ export interface Invitation {
   /** Which built-in questions the reply form asks. A disabled one must not be sent. */
   rsvpFields?: Partial<Record<BuiltInField, RsvpFieldConfig>>;
   rsvpQuestions: RsvpQuestion[];
+  /**
+   * `true` on a template preview for the host (docs/API.md §6, "Previewing a template"), which
+   * collects nothing; absent on a guest's page.
+   */
+  isPreview?: boolean;
 }

@@ -36,12 +36,13 @@
     "publishing": "Publishing…"
   },
   "blockers": {
-    "rsvp": "The reply section is switched off in the invitation’s design, so guests would have no way to answer. It can’t be switched on here yet.",
+    "rsvp": "The reply section is switched off in the invitation’s design, so guests would have no way to answer.",
     "venue": "Add a venue with an address, so guests know where to go.",
     "venueFix": "Add a venue",
     "started": "The event has already started, so an invitation would arrive late. If its date is wrong, correct it.",
     "startedFix": "Edit the details",
-    "inEnglish": "Some of these are in English for now."
+    "inEnglish": "Some of these are in English for now.",
+    "rsvpFix": "Show the reply section"
   },
   "replies": {
     "title": "Replies",

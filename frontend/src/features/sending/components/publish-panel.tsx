@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
+import type { PageActions } from '@/ui/app-form';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -21,7 +22,6 @@ import type { DesignStatus } from '../types';
 import { BlockerList } from './blocker-list';
 import { LoadedProblem } from './loaded-problem';
 import { RefusalAlert } from './refusal-alert';
-import type { PageActions } from './page-status';
 
 interface PublishProps {
   eventId: string;

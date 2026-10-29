@@ -16,7 +16,15 @@ type AppPage =
   | 'newVenue'
   | 'editVenue'
   | 'invitation'
-  | 'attendance';
+  | 'attendance'
+  | 'design'
+  | 'designLook'
+  | 'designSection'
+  | 'designQuestions'
+  | 'newDesignQuestion'
+  | 'editDesignQuestion'
+  | 'designMedia'
+  | 'designPreview';
 
 export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
   const t = createI18n(language).getFixedT(language, 'account');

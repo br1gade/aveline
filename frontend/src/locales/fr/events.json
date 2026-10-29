@@ -73,7 +73,8 @@
     "venues": "Lieux",
     "publishSend": "Publier et envoyer",
     "attendance": "Comment les invités répondent",
-    "attendanceChange": "Modifier"
+    "attendanceChange": "Modifier",
+    "design": "Concevoir l’invitation"
   },
   "headcount": {
     "title": "Invités",

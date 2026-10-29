@@ -278,11 +278,15 @@ describe('EventOverview', () => {
     );
   });
 
-  it('links to the venues, and to publishing and sending the invitation', async () => {
+  it('links to the venues, to designing the invitation, and to publishing and sending it', async () => {
     overview();
     expect(await screen.findByRole('link', { name: 'Venues' })).toHaveAttribute(
       'href',
       '/app/events/e1/venues',
+    );
+    expect(screen.getByRole('link', { name: 'Design the invitation' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/design',
     );
     expect(screen.getByRole('link', { name: 'Publish and send' })).toHaveAttribute(
       'href',
@@ -333,6 +337,7 @@ describe('EventOverview', () => {
     overview({ event: { ...EVENT, invitation: null } });
     expect(await screen.findByText('No invitation yet.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Publish and send' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Design the invitation' })).not.toBeInTheDocument();
   });
 });
 

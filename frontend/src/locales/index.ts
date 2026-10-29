@@ -1,6 +1,7 @@
 import enAccount from './en/account.json';
 import enApp from './en/app.json';
 import enCommon from './en/common.json';
+import enDesign from './en/design.json';
 import enEvents from './en/events.json';
 import enGuests from './en/guests.json';
 import enInvitation from './en/invitation.json';
@@ -10,6 +11,7 @@ import enVenues from './en/venues.json';
 import frAccount from './fr/account.json';
 import frApp from './fr/app.json';
 import frCommon from './fr/common.json';
+import frDesign from './fr/design.json';
 import frEvents from './fr/events.json';
 import frGuests from './fr/guests.json';
 import frInvitation from './fr/invitation.json';
@@ -19,6 +21,7 @@ import frVenues from './fr/venues.json';
 import hyAccount from './hy/account.json';
 import hyApp from './hy/app.json';
 import hyCommon from './hy/common.json';
+import hyDesign from './hy/design.json';
 import hyEvents from './hy/events.json';
 import hyGuests from './hy/guests.json';
 import hyInvitation from './hy/invitation.json';
@@ -28,6 +31,7 @@ import hyVenues from './hy/venues.json';
 import ruAccount from './ru/account.json';
 import ruApp from './ru/app.json';
 import ruCommon from './ru/common.json';
+import ruDesign from './ru/design.json';
 import ruEvents from './ru/events.json';
 import ruGuests from './ru/guests.json';
 import ruInvitation from './ru/invitation.json';
@@ -44,6 +48,7 @@ export const resources = {
     account: enAccount,
     app: enApp,
     common: enCommon,
+    design: enDesign,
     events: enEvents,
     guests: enGuests,
     invitation: enInvitation,
@@ -55,6 +60,7 @@ export const resources = {
     account: frAccount,
     app: frApp,
     common: frCommon,
+    design: frDesign,
     events: frEvents,
     guests: frGuests,
     invitation: frInvitation,
@@ -66,6 +72,7 @@ export const resources = {
     account: hyAccount,
     app: hyApp,
     common: hyCommon,
+    design: hyDesign,
     events: hyEvents,
     guests: hyGuests,
     invitation: hyInvitation,
@@ -77,6 +84,7 @@ export const resources = {
     account: ruAccount,
     app: ruApp,
     common: ruCommon,
+    design: ruDesign,
     events: ruEvents,
     guests: ruGuests,
     invitation: ruInvitation,

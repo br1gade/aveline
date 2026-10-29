@@ -53,6 +53,7 @@ afterAll(() => server.close());
 
 const VENUE = 'Add a venue with an address, so guests know where to go';
 const STARTED = 'This event has already started; an invitation now would arrive late';
+const RSVP = 'Turn on the RSVP block, or guests will have no way to answer';
 
 function event(status: InvitationStatus | null, lifetime: Lifetime = {}): EventDetail {
   return {
@@ -218,6 +219,20 @@ describe('InvitationPage: a draft', () => {
     );
     expect(await publishButton()).toBeDisabled();
     expect(screen.getByText('Publishing waits for the items above.')).toBeInTheDocument();
+  });
+
+  it('links the switched-off reply section to its page in the design', async () => {
+    serve({ blockers: [RSVP] });
+    renderPage();
+    expect(
+      await screen.findByText(
+        'The reply section is switched off in the invitation’s design, so guests would have no way to answer.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Show the reply section' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/design/sections/RSVP',
+    );
   });
 
   it('shows a blocker it does not know in English, marked as English', async () => {

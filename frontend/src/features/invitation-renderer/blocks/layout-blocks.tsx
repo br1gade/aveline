@@ -51,16 +51,28 @@ function ReplyHeading({ block }: BlockProps) {
   );
 }
 
+/** Under the heading: the form, or why there is none. */
+function ReplyBody({ block }: Pick<BlockProps, 'block'>) {
+  const { t } = useTranslation('invitation');
+  const { invitation, renderReply } = useInvitation();
+  const isOpen = invitation.isAcceptingResponses;
+  // A host's preview is never open and has no guest; it says what guests get instead (PD-59).
+  if (invitation.isPreview) return <Notice>{t('reply.preview')}</Notice>;
+  return (
+    <>
+      {isOpen ? null : <Notice>{t('reply.closed')}</Notice>}
+      {invitation.guest ? renderReply?.(block) : null}
+      {!invitation.guest && isOpen ? <p className="m-0">{t('reply.generic')}</p> : null}
+    </>
+  );
+}
+
 /**
  * The reply band (spec §4.5): a burgundy section wherever the host placed the RSVP block. The form
  * itself comes from the route through `renderReply`, on a light card, because the error and
  * success colours pass only there. The generic link cannot reply: it says how to.
  */
 export function ReplyBlock({ block, index }: BlockProps) {
-  const { t } = useTranslation('invitation');
-  const { invitation, renderReply } = useInvitation();
-  const isOpen = invitation.isAcceptingResponses;
-
   return (
     <section
       id={REPLY_SECTION_ID}
@@ -69,9 +81,7 @@ export function ReplyBlock({ block, index }: BlockProps) {
     >
       <div className={cx(COLUMN, 'flex flex-col gap-6')}>
         <ReplyHeading block={block} index={index} />
-        {isOpen ? null : <Notice>{t('reply.closed')}</Notice>}
-        {invitation.guest ? renderReply?.(block) : null}
-        {!invitation.guest && isOpen ? <p className="m-0">{t('reply.generic')}</p> : null}
+        <ReplyBody block={block} />
       </div>
     </section>
   );

@@ -12,7 +12,15 @@
     "newVenue": "Добавить место · Aveline",
     "editVenue": "Изменить место · Aveline",
     "invitation": "Публикация и рассылка · Aveline",
-    "attendance": "Как отвечают гости · Aveline"
+    "attendance": "Как отвечают гости · Aveline",
+    "design": "Оформление приглашения · Aveline",
+    "designLook": "Шаблон и стиль · Aveline",
+    "designSection": "Изменить раздел · Aveline",
+    "designQuestions": "Вопросы гостям · Aveline",
+    "newDesignQuestion": "Добавить вопрос · Aveline",
+    "editDesignQuestion": "Изменить вопрос · Aveline",
+    "designMedia": "Фото и музыка · Aveline",
+    "designPreview": "Предпросмотр · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

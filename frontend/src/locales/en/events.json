@@ -73,7 +73,8 @@
     "venues": "Venues",
     "publishSend": "Publish and send",
     "attendance": "How guests answer",
-    "attendanceChange": "Change"
+    "attendanceChange": "Change",
+    "design": "Design the invitation"
   },
   "headcount": {
     "title": "Guests",

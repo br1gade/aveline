@@ -90,7 +90,8 @@
     "heading": "Will you join us?",
     "closed": "Replies are closed. The details remain here for you.",
     "generic": "To reply, open the personal link you received.",
-    "skip": "Skip to reply"
+    "skip": "Skip to reply",
+    "preview": "Guests answer here, on their own link. A preview collects no replies."
   },
   "chat": {
     "label": "Guest chat",

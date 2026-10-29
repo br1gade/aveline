@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
 import type { InvitationStatus } from '@/features/events';
+import type { PageActions } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { closeInvitation, reopenInvitation } from '../api';
 import { refusalOf, type Refusal } from '../refusals';
-import type { PageActions } from './page-status';
 import { RefusalAlert } from './refusal-alert';
 
 interface RepliesProps {

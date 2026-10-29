@@ -25,3 +25,7 @@ export function invitationPath(eventId: string): string {
 export function attendancePath(eventId: string): string {
   return generatePath(APP_PATHS.attendance, { eventId });
 }
+
+export function designPath(eventId: string): string {
+  return generatePath(APP_PATHS.design, { eventId });
+}

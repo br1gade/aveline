@@ -1,28 +1,11 @@
 import type { ApiClient } from '@/api/client';
-import { isApiError } from '@/api/errors';
-import { problemFrom, type Problem } from '@/api/problems';
+import { loaded, type Loaded } from '@/api/loaded';
 import { getEvent, type EventDetail } from '@/features/events';
 
 import { getDelivery, getDesignStatus } from './api';
 import type { DeliveryReport, DesignStatus } from './types';
 
-/**
- * A part of a page that loads on its own: ready, refused to this role (a 403), or failed, which
- * leaves the rest of the page standing and says why.
- */
-export type Loaded<T> =
-  { kind: 'ready'; value: T } | { kind: 'refused' } | { kind: 'failed'; problem: Problem };
-
-async function loaded<T>(load: Promise<T>): Promise<Loaded<T>> {
-  try {
-    return { kind: 'ready', value: await load };
-  } catch (error) {
-    if (!isApiError(error)) throw error;
-    return error.status === 403
-      ? { kind: 'refused' }
-      : { kind: 'failed', problem: problemFrom(error) };
-  }
-}
+export type { Loaded };
 
 /**
  * The delivery report, once the invitation has been published: a draft has sent nothing, and its

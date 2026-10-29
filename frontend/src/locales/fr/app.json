@@ -12,7 +12,15 @@
     "newVenue": "Ajouter un lieu · Aveline",
     "editVenue": "Modifier un lieu · Aveline",
     "invitation": "Publier et envoyer · Aveline",
-    "attendance": "Comment les invités répondent · Aveline"
+    "attendance": "Comment les invités répondent · Aveline",
+    "design": "Concevoir l’invitation · Aveline",
+    "designLook": "Modèle et style · Aveline",
+    "designSection": "Modifier une section · Aveline",
+    "designQuestions": "Questions aux invités · Aveline",
+    "newDesignQuestion": "Ajouter une question · Aveline",
+    "editDesignQuestion": "Modifier une question · Aveline",
+    "designMedia": "Photos et musique · Aveline",
+    "designPreview": "Aperçu · Aveline"
   },
   "shell": {
     "loading": "Chargement…",

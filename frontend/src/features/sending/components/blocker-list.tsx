@@ -7,17 +7,21 @@ import type { Blocker, BlockerCode } from '../blockers';
 
 interface Fix {
   to: string;
-  label: 'venueFix' | 'startedFix';
+  label: 'venueFix' | 'startedFix' | 'rsvpFix';
 }
 
-/** Where each known blocker is fixed. The RSVP block is switched on in the design, not built yet. */
-function fixOf(code: BlockerCode, eventId: string): Fix | null {
-  if (code === 'venue')
+/** Where each known blocker is fixed. The reply section is shown, or added, on its design page. */
+function fixOf(code: BlockerCode, eventId: string): Fix {
+  if (code === 'venue') {
     return { to: generatePath(APP_PATHS.newVenue, { eventId }), label: 'venueFix' };
+  }
   if (code === 'started') {
     return { to: generatePath(APP_PATHS.editEvent, { eventId }), label: 'startedFix' };
   }
-  return null;
+  return {
+    to: generatePath(APP_PATHS.designSection, { eventId, blockType: 'RSVP' }),
+    label: 'rsvpFix',
+  };
 }
 
 function KnownBlocker({ code, eventId }: { code: BlockerCode; eventId: string }) {
@@ -26,14 +30,12 @@ function KnownBlocker({ code, eventId }: { code: BlockerCode; eventId: string })
   return (
     <li className="flex flex-col gap-1">
       <span>{t(`blockers.${code}`)}</span>
-      {fix ? (
-        <Link
-          to={fix.to}
-          className="text-primary self-start underline underline-offset-4 hover:no-underline"
-        >
-          {t(`blockers.${fix.label}`)}
-        </Link>
-      ) : null}
+      <Link
+        to={fix.to}
+        className="text-primary self-start underline underline-offset-4 hover:no-underline"
+      >
+        {t(`blockers.${fix.label}`)}
+      </Link>
     </li>
   );
 }

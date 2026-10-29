@@ -8,7 +8,14 @@ import { APP_PATHS } from '@/route-paths';
 import { Button } from '@/ui/kit/button';
 
 import type { EventOverviewData } from '../load';
-import { attendancePath, editEventPath, guestListPath, invitationPath, venuesPath } from '../paths';
+import {
+  attendancePath,
+  designPath,
+  editEventPath,
+  guestListPath,
+  invitationPath,
+  venuesPath,
+} from '../paths';
 import type { EventDetail } from '../types';
 import { HeadcountSummary } from './headcount-summary';
 
@@ -100,9 +107,14 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
             <Link to={venuesPath(event.id)}>{t('overview.venues')}</Link>
           </Button>
           {event.invitation ? (
-            <Button asChild variant="outline">
-              <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
-            </Button>
+            <>
+              <Button asChild variant="outline">
+                <Link to={designPath(event.id)}>{t('overview.design')}</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
+              </Button>
+            </>
           ) : null}
           <Button asChild variant="outline">
             <Link to={editEventPath(event.id)}>{t('overview.edit')}</Link>
