@@ -31,6 +31,15 @@ human retyping something another human already typed.
 | Authentication, sessions, the guard | — |
 | Scheduled sweeps behind a distributed lock | — |
 | Health, request correlation, one error shape | — |
+| F38 exact organization context and membership lifecycle, activation-gated | Ambiguous tenant selection and manual ownership/revocation handling |
+| F39 staff intake, consultations, atomic draft setup and privacy/recovery | Contact and follow-up records spread across private chats |
+| F44 immutable template pins, private authoring/artwork and explicit adoption | Editing shared template data in place |
+
+Backend delivery above does not activate the new features. F38 additional
+memberships, F39 production intake and F44 authored publication retain frontend,
+operator, recovery and capability gates; see
+[current implementation status](../../docs/post-pilot/execution/IMPLEMENTATION_STATUS.md).
+Later F31–F44 commerce, corporate/resource and logistics slices remain planned.
 
 ## 2. Blocking — nothing ships without these
 

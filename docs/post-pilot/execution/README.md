@@ -1,15 +1,18 @@
 # First implementation wave — execution coordination
 
-Prepared 25 October 2026 against `bb01a61` on `codex/post-pilot-backend`.
-Three parallel agents translate the approved [PP-D01–58](../DECISIONS.md) into
-file-level implementation batches. These are plans; no proposed route, schema,
-permission or migration in this directory has been implemented or applied.
+Updated **30 October 2026**. F38, F39 and F44 backend implementation is delivered
+for final integrated verification; frontend, operational and activation gates
+remain open. [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) is the current
+status. The detailed blueprints preserve their 25 October planning history;
+proposed routes/SQL and “not run” labels there are not today's runtime contract.
+Use [API.md](../../API.md), generated [OpenAPI](../../../backend/openapi.json) and
+the governing domain docs for actual behavior.
 
-| Workstream | Execution plan | First production-oriented deliverable |
+| Workstream | Execution plan | Delivered backend slice |
 |---|---|---|
-| F39 enquiry/consultation intake | [Intake](INTAKE.md) | Staff-only cases with assigned access, revision-safe writes, privacy and approved retention |
-| F38 multiple organizations | [Organizations](ORGANIZATIONS.md) | Exact organization-context compatibility before allowing a second membership |
-| F44 template authoring | [Templates](TEMPLATES.md) | Exact legacy baseline version pinning, then private drafts/validation/preview |
+| F39 enquiry/consultation intake | [Intake](INTAKE.md) | Staff-only cases, consultations, atomic draft conversion, verified privacy/retention and recovery journal |
+| F38 multiple organizations | [Organizations](ORGANIZATIONS.md) | Exact organization context/lifecycle with operator-controlled second-membership activation |
+| F44 template authoring | [Templates](TEMPLATES.md) | Immutable pins, private authoring/artwork, gated publication and explicit adoption |
 
 Other F31–F44 features retain their [broader plans](../../POST_PILOT_IMPLEMENTATION_PLAN.md).
 This wave deliberately picks independent nonfinancial slices. It does not move
@@ -30,19 +33,20 @@ by completing this wave.
   explicit platform/assignment grants. New staff-only permissions must be added
   to PLATFORM_ONLY; otherwise current CUSTOMER_OWNED derivation grants them to
   organization owners automatically.
-- Resource paths use named parameters such as enquiryId/templateId. AuthGuard
-  currently falls back to params.id as an event ID even without EventScope;
-  do not accidentally run new non-event resources through that inference.
+- Resource paths use named parameters such as enquiryId/templateId. Event
+  scoping is explicit through EventScope; non-event author resources do not
+  borrow a generic id as an event ID.
 - F39 owns the minimal transaction-aware concierge/event conversion seam; event
-  creation keeps centralized defaults and template validation. F44 adapts that
-  same creation/selection boundary to pinned, tenant-visible versions later.
+  creation keeps centralized defaults and template validation. F44 supplies
+  pinned, tenant-visible version selection at that same boundary.
   Neither agent should clone EventsService or create competing event builders.
 - F38 owns membership/selection refactors. F44 owns template catalogue/version
   selection and invitation serialization changes. Their reviewers reconcile
   EventsService, AuthGuard, access-policy, Prisma and API/OpenAPI edits together.
-- F38's narrow access fence is organization SHARE before existing event locks
-  for role writers and actor-authorized worker apply/publish; leave/remove takes
-  organization UPDATE first. Keep existing export privacy fences first and the
+- Organization standing is fenced before existing event locks for role writers
+  and actor-authorized workers. Lifecycle writes use the shared helper's
+  reviewed lock strength (NO KEY UPDATE); do not strengthen it without checking
+  implicit foreign-key locks. Keep existing export privacy fences first and the
   downstream domain lock order. Do not introduce User-to-organization inversions
   in conversion or template paths. With F44, template selection SHARE sits
   after organization and before event/invitation/current User; author publication
@@ -87,10 +91,9 @@ by completing this wave.
    need concurrent DB suites, separately provision guarded test stores first.
    Measured load runs separately from build/tests.
 
-Use separate implementation branches/worktrees per accepted batch and one
-integration owner for shared schema, permission and migration changes. Suggested
-future branches: codex/post-pilot-intake, codex/post-pilot-organizations and
-codex/post-pilot-templates; this planning task does not create those branches.
+Implementation used isolated branches/worktrees with one integration owner for
+shared schema, permission, migration and API changes. Activation remains a
+separate reviewed operator step; branch creation is not a rollout action.
 
 ## Evidence found during review
 
@@ -103,7 +106,7 @@ publication waits for a verified capability manifest, theme/preview parity and
 four-language acceptance. These mismatches are concrete implementation gates,
 not reasons to repeat the approved product-policy interview.
 
-First red tests are explicit: F39 platform-only permissions and assignment
+The blueprints specified first red tests for: F39 platform-only permissions and assignment
 revocation; F38 0/1/many organization selection while uniqueness remains; F44
 serialized legacy invitation compatibility before version pinning. See each
 blueprint for file paths, opposing race cases and the small commit sequence.
@@ -113,6 +116,6 @@ blueprint for file paths, opposing race cases and the small commit sequence.
 No live charges, sends, account purchases, transfers or external deployment.
 Native F22 and entitlement enforcement remain deferred. Existing pilot frontend,
 provider, host/TLS, backup, alerts and human-language acceptance gates remain.
-Planning validation checks docs/relative links/whitespace and repository-required
-lint before committing documentation; proposed functional test cases are not
-reported as executed tests.
+The implementation status separates local automated evidence from open release
+acceptance. This documentation-only update runs docs:check; it does not assert a
+new final combined functional verification result.

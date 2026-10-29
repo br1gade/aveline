@@ -26,7 +26,7 @@ Sizes: **S** under half a day · **M** one to two days · **L** more.
 | | P0 | P1 | P2 | After the pilot |
 |---|---|---|---|---|
 | Bugfixes | 0 open | 0 open | 0 open | — |
-| Features | 1 open (F1, frontend integration) | 0 open | 16 backend features implemented, acceptance open; native F22 deferred | 14 revenue and services (F31–F44); F45 is now a pilot gate |
+| Features | 1 open (F1, frontend integration) | 0 open | 16 backend features implemented, acceptance open; native F22 deferred | F38/F39/F44 backend delivered, activation/acceptance open; other F31–F44 planned; F45 is a pilot gate |
 | Decisions | 38 decided (D1–D38) | | | |
 
 All ten P0 bugs were fixed on 8 October 2026, and the two backend P0
@@ -146,13 +146,13 @@ it needs a cancellation during the event itself, at the door.
 | F35 | Tax on invoices | — | S–M |
 | F36 | Vendor referral payouts | §9.3 | M |
 | F37 | Corporate contracts, branded | §9.5 | L |
-| F38 | More than one organization per account | — | M |
-| F39 | Enquiry and consultation intake | §7.4 | M |
+| F38 | **Backend implemented; activation pending:** exact organization context/lifecycle. Additional memberships remain operator-gated pending frontend and cutover acceptance | — | M |
+| F39 | **Backend implemented; enablement pending:** staff/assigned intake, consultations, atomic draft conversion and privacy/recovery. Frontend and production operational acceptance remain | §7.4 | M |
 | F40 | Design components and quotes (event type × component) | §7.1 | L |
 | F41 | Vendor availability calendar | GAPS #23 | M |
 | F42 | Logistics, print orders, on-site staff, paper ticket fallback | GAPS #24–27 | L |
 | F43 | Vendor listing fees — §9.3 names "margin or listing fee"; F36 covers only the margin | §7.3, §9.3 | M |
-| F44 | Template authoring for the Production tier's custom design — templates exist only as seed data, with no way to make one | §8 | M–L |
+| F44 | **Backend implemented; renderer/activation pending:** immutable pins, private drafts/artwork, gated ADMIN publication and explicit adoption. Production approved capability registry remains empty | §8 | M–L |
 | — | **Deferred:** enforcing plan limits — decided 8 October 2026, until after the pilot | §8 | — |
 
 ---
@@ -164,7 +164,9 @@ D23–D38 were decided on 13 October while planning the expanded pilot scope.
 All recorded pilot product questions have answers. The subsequent interactive
 post-pilot review recorded **58 decisions (PP-D01–58)** in the
 [decision register](post-pilot/DECISIONS.md). These govern planned F31–F44 initial
-workflows and deferrals; they do not mark any feature complete. Bank choice,
+workflows and deferrals; decisions alone do not mark a feature complete. F38,
+F39 and F44 backend delivery and remaining gates are recorded in
+[implementation status](post-pilot/execution/IMPLEMENTATION_STATUS.md). Bank choice,
 tax/protected-evidence rules and actual provider acceptance remain external
 inputs, while prices/terms/retry values are ADMIN configuration before use. See
 the [delivery plan](POST_PILOT_IMPLEMENTATION_PLAN.md) for dependencies.

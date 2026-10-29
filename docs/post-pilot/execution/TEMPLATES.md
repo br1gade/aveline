@@ -1,6 +1,15 @@
 # F44 execution plan — immutable invitation templates and controlled authoring
 
-Planning artifact for `docs/post-pilot/execution/TEMPLATES.md`. Prepared from backend `bb01a61` on `codex/post-pilot-backend`. No implementation, migrations, tests, database, provider, network, checkout, branch or commit actions were performed. All new names below are implementation proposals, not implemented routes. Repository paths are relative to its root unless linked otherwise.
+> **Delivery update — 30 October 2026:** F44 immutable pinning/authoring/private-artwork/adoption backend is now implemented; real renderer acceptance and production activation remain gated.
+> See [current implementation status](IMPLEMENTATION_STATUS.md). The remainder is
+> the historical 25 October blueprint: “NOT IMPLEMENTED”, “NOT EXECUTED”, “NOT RUN”
+> and proposed-command labels describe that planning pass, not today's backend.
+> Superseded route/runtime details defer to [API.md](../../API.md), generated
+> [OpenAPI](../../../backend/openapi.json) and the linked governing domain docs.
+> Planning commands are not proof of execution or approval to run a real cutover.
+
+
+**Historical planning artifact** for `docs/post-pilot/execution/TEMPLATES.md`. Prepared from backend `bb01a61` on `codex/post-pilot-backend`. No implementation, migrations, tests, database, provider, network, checkout, branch or commit actions were performed during that planning pass. All new names below are implementation proposals, not implemented routes. Repository paths are relative to its root unless linked otherwise.
 
 Authority: [PP-D50](../DECISIONS.md), [the feature design](../ORGANIZATIONS_DESIGN_AND_OPERATIONS.md#5-f44--controlled-template-authoring), [delivery dependencies](../../POST_PILOT_IMPLEMENTATION_PLAN.md), and `CLAUDE.md`, `backend/CLAUDE.md`, `.claude/skills/feature/SKILL.md`. The interview is complete. No additional product questionnaire or mandatory second reviewer is introduced. This is an engineering sequence that a coding agent can execute in small commits.
 

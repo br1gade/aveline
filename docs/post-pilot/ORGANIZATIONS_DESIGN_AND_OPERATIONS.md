@@ -1,5 +1,13 @@
 # Organizations, corporate contracts, template authoring and operations
 
+> **Delivery update — 30 October 2026:** this is the historical broad design.
+> F38/F39/F44 backend slices are now implemented; other commercial/resource/
+> logistics slices remain planned. See [current implementation status](execution/IMPLEMENTATION_STATUS.md).
+> Proposed or “unimplemented” route/runtime examples below are superseded where
+> delivered by [API.md](../API.md), generated [OpenAPI](../../backend/openapi.json)
+> and governing domain docs. This design does not establish deployment acceptance.
+
+
 **Decision precedence:** confirmed choices and explicitly delegated defaults in [DECISIONS.md](DECISIONS.md) supersede unresolved alternatives in this proposal. All other options remain proposals until answered.
 
 Production implementation proposal for F38, F37, F44, F41 and F42. Prepared 25 October 2026 against `eb1b6e2` and the dependency refinement in the parent delivery plan. **Planning only; none of the models, operations or routes proposed below is implemented by this document.** Names and state machines are engineering proposals, not approved product policy. No code, database, branch, deployment or provider action was performed for this plan.

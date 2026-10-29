@@ -1,6 +1,15 @@
 # F39 execution blueprint — staff enquiry and consultation intake
 
-Status: **BACKEND IMPLEMENTED, RELEASE GATED** (27 October 2026). This remains the original execution blueprint; its verification matrix describes intended coverage, not a claim every proposed test was run. Actual API behavior is documented in `docs/API.md` and `backend/docs/SALES_INTAKE.md`. The implementation includes staff routes, consultation exclusion, explicit draft conversion, reviewed phone-only privacy, latest-close retention, outside-transaction OS-locked signed journal checkpoint/replay and offline recovery. Production journal preservation, operational acceptance and frontend four-language acceptance remain open; all write flags default false. No provider sends, charges or deployment were performed. Original planning baseline: `bb01a61`, `codex/post-pilot-backend`. This document is intended to become `docs/post-pilot/execution/INTAKE.md`; all inline code paths below are repository-relative. [Decisions](../DECISIONS.md) PP-D01–09, PP-D20 and PP-D03 are authoritative; [Sales design](../SALES_AND_BOOKINGS.md) and [master delivery plan](../../POST_PILOT_IMPLEMENTATION_PLAN.md) supply context, not alternative policy. Follow `CLAUDE.md`, `backend/CLAUDE.md`, `.claude/skills/feature/SKILL.md` for implementation.
+> **Delivery update — 30 October 2026:** F39 staff intake backend is now implemented; frontend, operational privacy-journal/restore acceptance and production enablement remain gated.
+> See [current implementation status](IMPLEMENTATION_STATUS.md). The remainder is
+> the historical 25 October blueprint: “NOT IMPLEMENTED”, “NOT EXECUTED”, “NOT RUN”
+> and proposed-command labels describe that planning pass, not today's backend.
+> Superseded route/runtime details defer to [API.md](../../API.md), generated
+> [OpenAPI](../../../backend/openapi.json) and the linked governing domain docs.
+> Planning commands are not proof of execution or approval to run a real cutover.
+
+
+**Historical planning status — 25 October 2026: NOT IMPLEMENTED.** Prepared 25 October 2026 against `bb01a61`, `codex/post-pilot-backend`. No source changes, migrations, tests, database/provider operations or sends were performed during that planning pass. Its intended path was `docs/post-pilot/execution/INTAKE.md`; all inline code paths below are repository-relative. [Decisions](../DECISIONS.md) PP-D01–09, PP-D20 and PP-D03 are authoritative; [Sales design](../SALES_AND_BOOKINGS.md) and [master delivery plan](../../POST_PILOT_IMPLEMENTATION_PLAN.md) supply context, not alternative policy. Follow `CLAUDE.md`, `backend/CLAUDE.md`, `.claude/skills/feature/SKILL.md` for implementation.
 
 ## 1. Shippable result and limits
 

@@ -498,8 +498,12 @@ operations dashboard.
 The **25 October post-pilot initial-workflow review is complete**, with
 [PP-D01–58](post-pilot/DECISIONS.md) defining planned F31–F44 behavior. Read that
 register alongside this specification when implementing the new commercial,
-organization, template and operational workflows. These are agreed requirements,
-not implemented APIs. Bank/tax/protected-evidence inputs and paid-operation
+organization, template and operational workflows. F38 organization context, F39
+staff intake and F44 immutable template authoring are implemented in the backend;
+see [delivery status](post-pilot/execution/IMPLEMENTATION_STATUS.md). Their frontend,
+activation and operational gates remain open. Other F31–F44 commercial/resource/
+logistics workflows remain planned; decisions alone do not implement an API.
+Bank/tax/protected-evidence inputs and paid-operation
 acceptance remain open; actual ADMIN-configured prices/terms are not hard-coded
 by the review. Existing pilot scope, lifetime and retention decisions still apply.
 

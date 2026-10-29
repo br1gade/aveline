@@ -92,7 +92,7 @@ block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 | Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
 | Invoice tax | `taxMinor` is always zero, so an invoice is not a tax document |
 | Entitlement enforcement | Plans publish limits that nothing refuses an action against |
-| Multiple organizations per account | One per account today; a planner with two agencies cannot be served |
+| Multiple organizations per account | Context/lifecycle backend is built; second-membership writes remain disabled and automatic migration retains the user-only index. Operator cutover and frontend acceptance remain |
 | Structured log shipping | Logs are JSON in production and go nowhere |
 
 ---
@@ -179,3 +179,29 @@ new publication closed until actual frontend four-language/font/named palette/
 inert preview and mobile/desktop visual acceptance. Private artwork slot activation
 and event materialization need separate storage/privacy/worker acceptance; staging
 sanitizer tests do not prove production object isolation or frontend rendering.
+
+
+### First post-pilot wave — backend delivery is not activation
+
+F38/F39/F44 backend slices are implemented; see [current status](post-pilot/execution/IMPLEMENTATION_STATUS.md).
+Keep additional memberships, intake/support/conversion and new template features
+behind their current gates until their separate acceptance is recorded. This
+wave does not approve paid operation or implement later quotes, fiscal documents,
+corporate contracts, vendor revenue, calendars or logistics.
+
+- Organization activation needs compatible APIs/workers/maintenance readers and
+  writers, old-runtime exclusion, reviewed cutover/restore/performance evidence
+  and four-language per-tab client acceptance. No real uniqueness cutover is
+  established by isolated test fixtures.
+- Production intake needs retained intent keys, an independently preserved latest
+  signed privacy journal/manifest, verified restore replay, retention/alert and
+  owner-setup/outbox operation, frontend languages and operator acceptance.
+  Accepted-owner account identity requires its own proof; a phone-only prospect
+  binding does not prove account ownership.
+- Authored template publication needs an actual reviewed deployed renderer
+  capability, four-language/font/palette/variant/inert-preview visual acceptance,
+  private artwork worker/storage proof and the compatible pinned-reader rollback
+  floor. Synthetic capability fixtures establish backend behavior only.
+
+Final combined backend verification is recorded by the integration owner; it
+cannot replace these activation or existing pilot launch requirements.

@@ -6,7 +6,18 @@ for F31–F44. It does not approve paid operation or close pilot acceptance.
 [TODO.md](TODO.md) remains the execution handoff; [BACKLOG.md](BACKLOG.md)
 retains feature IDs. The groupings below refine PP1–PP7 without assigning dates.
 
-## 1. Audit of the starting implementation
+## Current delivery update — 30 October 2026
+
+F38 organization context/lifecycle, F39 staff enquiry/consultation intake and F44
+immutable template authoring/private artwork/adoption are implemented in the
+backend. Their frontend, activation and operational gates remain open; see
+[current implementation status](post-pilot/execution/IMPLEMENTATION_STATUS.md).
+Final combined verification is recorded by the integration owner. No production
+cutover, real provider acceptance or completion of the other F31–F44 features is
+claimed. The 25 October audit/proposals and PP1a verification below are retained
+as historical context, not a description of today's missing backend features.
+
+## 1. Historical audit of the starting implementation — 25 October
 
 | Scope | What exists | What remains |
 |---|---|---|
@@ -55,8 +66,9 @@ HTTP endpoints.
 The interactive review is complete: [PP-D01–58](post-pilot/DECISIONS.md) records
 all 58 initial-workflow decisions, including the delegated enquiry-retention
 default. That register is authoritative over unresolved alternatives in the
-three design proposals. These are requirements for future implementation, not
-claims that new endpoints or permissions already exist.
+three design proposals. These are approved requirements. F38/F39/F44 backend delivery is recorded in the
+current status; the other commercial/operational slices remain planned. Decisions
+alone are not evidence that an endpoint or permission exists.
 
 The confirmed scope covers staff intake/assigned access and privacy; reviewed
 AMD quotes and named acceptance; charged fixed deposits, deadlines, balance,
@@ -262,12 +274,11 @@ the pilot and its outstanding external/frontend acceptance work.
 | Template/design/print snapshot | Design owns versions/capabilities; print consumes approved snapshots | Templates may select only layouts the renderer actually supports. Published versions and print approvals retain exact inputs; current invitation lifetime/export snapshots must not be silently rewritten |
 | Durable notification intent | Domain owner writes intent; communications delivers | Current enqueue API is not caller-transaction-aware. Persist recoverable intent with business writes, then enqueue using a stable dedupe key and repair scan, or first implement/review a transaction-aware enqueue boundary. No provider call while domain locks are held |
 
-PP-D45 confirms explicit per-tab organization selection. Its proposed transport
-in the platform plan is optional
-`X-Aveline-Organization-Id`: validate membership each request, retain the single-
-membership fallback, and reject ambiguous multi-membership requests without
-a selector. The transport is a concrete engineering/frontend proposal awaiting integration review,
-not a header already accepted by the API. Event tenancy remains resource-derived.
+PP-D45's explicit per-tab selection is implemented through optional
+`X-Aveline-Organization-Id`. The backend validates current standing, retains the
+single-membership fallback and rejects ambiguity or resource/selector mismatch.
+Event tenancy remains resource-derived. Client tab/language acceptance and the
+operator-controlled additional-membership cutover remain open.
 
 Commerce's concrete proposed exchange contracts are `IssueInvoiceFromSource`,
 `VerifiedPaymentEvidence`, `ConfirmedRefundEvidence`, `FulfilPaidLine` and
@@ -381,9 +392,10 @@ relative links and Git whitespace are checked after assembling the package;
 functional suites are not rerun for unchanged product code.
 
 
-## 7. First execution wave — three implementation blueprints
+## 7. First execution wave — implementation and historical blueprints
 
-The next parallel planning wave narrows the broad designs to F39, F38 and F44.
+The first execution wave narrowed the broad designs to F39, F38 and F44; these
+backend streams are now implemented, with status and gates recorded separately.
 [Execution coordination](post-pilot/execution/README.md) defines their shared
 interfaces, migration ownership, integration order and evidence gates:
 
@@ -399,13 +411,14 @@ interfaces, migration ownership, integration order and evidence gates:
 
 Each blueprint identifies source touchpoints, proposed schema and HTTP contracts,
 red-first tests, concurrency cases, small commits and rollout/recovery evidence.
-All proposed behavior remains unimplemented. These plans do not modify the live
-API contract or close backlog features. Source review found renderer/seed and
+Their historical proposal wording is superseded by the implemented API/domain
+contracts where this wave delivered behavior. Backend implementation does not
+close frontend or activation acceptance. Source review found renderer/seed and
 French-support mismatches in the locally available frontend snapshot; the F44
 plan records that evidence without claiming it represents the latest remote work.
 
-The current branch remains `codex/post-pilot-backend`. Future implementation
-branches in the coordination document are proposals; this planning pass creates
-no feature branch, applies no migration and executes no functional test suite.
-Documentation checks, relative links, whitespace and repository-required lint
-are validated for this documentation change.
+The original blueprint-writing pass did not implement code or execute functional
+suites. Subsequent isolated implementation streams did; see
+[implementation status](post-pilot/execution/IMPLEMENTATION_STATUS.md) for their
+boundaries. The integration owner supplies the final combined verification
+record. Historical per-slice counts above do not represent that final result.

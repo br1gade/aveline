@@ -1,20 +1,15 @@
 # F38 execution blueprint — organization selection and membership lifecycle
 
-Original execution blueprint prepared against `bb01a61` on `codex/post-pilot-backend`,
-25 October 2026. Backend compatibility selection, membership lifecycle, protected
-invitation outbox, ownership recovery, worker fences and controlled cutover are now
-implemented. The current HTTP contract is [API.md](../../API.md); actual schema and
-operator gates are in [the cutover runbook](../../../backend/docs/ORGANIZATION_CUTOVER.md).
-SQL and DTO sketches below retain the original engineering proposal where their
-shape differs from the implementation; they are not a substitute for current code.
+> **Delivery update — 30 October 2026:** F38 organization-context/lifecycle backend is now implemented; additional-membership activation and frontend/operational cutover remain gated.
+> See [current implementation status](IMPLEMENTATION_STATUS.md). The remainder is
+> the historical 25 October blueprint: “NOT IMPLEMENTED”, “NOT EXECUTED”, “NOT RUN”
+> and proposed-command labels describe that planning pass, not today's backend.
+> Superseded route/runtime details defer to [API.md](../../API.md), generated
+> [OpenAPI](../../../backend/openapi.json) and the linked governing domain docs.
+> Planning commands are not proof of execution or approval to run a real cutover.
 
-Local verification covers 0/1/many selection, actual two-organization writes in an
-isolated controlled-cutover fixture, populated additive migration safety, authority
-evidence, invitation/outbox rollback, owner deactivation races, FK fence compatibility,
-and customer versus independent staff worker revocation. No provider, production
-cutover, deployment or frontend tab/language acceptance has been run. Additional
-membership writes remain disabled until the runbook's external acceptance gates
-are completed; the legacy user-only unique index remains in automatic migrations.
+
+**Historical planning record.** Prepared against `bb01a61` on `codex/post-pilot-backend`, 25 October 2026. No implementation, migrations, tests, providers or deployments were run during that planning pass. All new symbols, tables and endpoints below are **unimplemented proposals**. Relative links assume this document is eventually placed at `docs/post-pilot/execution/ORGANIZATIONS.md`.
 
 Authority: [PP-D44–49](../DECISIONS.md), [organization proposal](../ORGANIZATIONS_DESIGN_AND_OPERATIONS.md), [delivery plan](../../POST_PILOT_IMPLEMENTATION_PLAN.md), [current access policy](../../ACCESS_CONTROL.md), [current HTTP contract](../../API.md), [backend rules](../../../backend/CLAUDE.md), and [feature workflow](../../../.claude/skills/feature/SKILL.md). The interview is complete; transport, DTO and concurrency choices here are engineering decisions implementing it. No new entitlement limits, financial authority, cross-organization corporate grants or customer-contact exposure are introduced. A customer membership exit revokes customer-derived rights while independent platform permissions remain governed by their own policy. Initial single-payer F37 can ship independently.
 

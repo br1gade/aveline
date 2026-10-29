@@ -1,5 +1,13 @@
 # Sales and bookings — production implementation design
 
+> **Delivery update — 30 October 2026:** this is the historical broad design.
+> F38/F39/F44 backend slices are now implemented; other commercial/resource/
+> logistics slices remain planned. See [current implementation status](execution/IMPLEMENTATION_STATUS.md).
+> Proposed or “unimplemented” route/runtime examples below are superseded where
+> delivered by [API.md](../API.md), generated [OpenAPI](../../backend/openapi.json)
+> and governing domain docs. This design does not establish deployment acceptance.
+
+
 **Decision precedence:** confirmed choices and explicitly delegated defaults in [DECISIONS.md](DECISIONS.md) supersede unresolved alternatives in this proposal. All other options remain proposals until answered.
 
 Prepared 25 October 2026 (Asia/Yerevan), against `eb1b6e2` and the working dependency refinement. Covers **F39 enquiry/consultation intake, F40 component quotes, F33 deposit-confirmed bookings**. This is a design proposal, not an implemented API, a product-policy decision, or paid-launch approval. No database or provider operation was performed for this design.
