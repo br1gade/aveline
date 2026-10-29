@@ -647,6 +647,32 @@ describe('agreeing to the hosts’ statement', () => {
   });
 });
 
+describe('a name corrected on the card above (PD-64)', () => {
+  it('shows in the form at once, keeping what was chosen', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <I18nextProvider i18n={createI18n('en')}>{children}</I18nextProvider>
+    );
+    const props: GuestReplyProps = {
+      invitation: INVITATION,
+      link: LINK,
+      record: recordWith(),
+      onReplied: vi.fn(),
+      onSentChange: vi.fn(),
+    };
+    const { rerender } = render(<GuestReply {...props} />, { wrapper });
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('Joyfully attending'));
+    expect(screen.getByText('Armen Petrosyan')).toBeInTheDocument();
+
+    const corrected = { ...props.record, guest: { ...props.record.guest, lastName: null } };
+    rerender(<GuestReply {...props} record={corrected} />);
+
+    expect(screen.getByText('Armen', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText('Armen Petrosyan')).toBeNull();
+    expect(screen.getByLabelText('Joyfully attending')).toBeChecked();
+  });
+});
+
 describe('before hydration', () => {
   it('posts, and keeps Send disabled, so a reply never lands in the link’s address', () => {
     const html = renderToString(

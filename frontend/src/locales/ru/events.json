@@ -74,7 +74,9 @@
     "publishSend": "Публикация и рассылка",
     "attendance": "Как отвечают гости",
     "attendanceChange": "Изменить",
-    "design": "Оформить приглашение"
+    "design": "Оформить приглашение",
+    "photos": "Фото гостей",
+    "agreements": "Согласия"
   },
   "headcount": {
     "title": "Гости",

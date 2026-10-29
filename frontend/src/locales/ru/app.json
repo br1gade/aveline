@@ -20,7 +20,9 @@
     "newDesignQuestion": "Добавить вопрос · Aveline",
     "editDesignQuestion": "Изменить вопрос · Aveline",
     "designMedia": "Фото и музыка · Aveline",
-    "designPreview": "Предпросмотр · Aveline"
+    "designPreview": "Предпросмотр · Aveline",
+    "photos": "Фото гостей · Aveline",
+    "agreements": "Согласия · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

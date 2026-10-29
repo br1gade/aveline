@@ -1,0 +1,40 @@
+{
+  "back": "Retour à l’événement",
+  "title": "Accords",
+  "intro": "Ce que les invités ont accepté sur leur invitation, et qui a accepté pour qui. Seule la formulation actuelle d’une déclaration compte à l’entrée.",
+  "refused": "Les accords ne sont pas disponibles pour votre rôle : ils demandent l’accès aux coordonnées des invités.",
+  "none": "Cette invitation ne demande aux invités d’accepter aucune déclaration.",
+  "partial_one": "Le dernier accord ({{count, number}}) est affiché.",
+  "partial_many": "Les {{count, number}} derniers accords sont affichés.",
+  "partial_other": "Les {{count, number}} derniers accords sont affichés.",
+  "older": "Voir les accords plus anciens",
+  "loadingOlder": "Chargement…",
+  "olderFailed": "Les accords plus anciens n’ont pas pu être chargés. Veuillez réessayer.",
+  "statement": {
+    "unlisted": "Une déclaration qui n’est plus sur l’invitation",
+    "nobody": "Personne n’a encore accepté.",
+    "noCurrent": "Personne n’a encore accepté la formulation actuelle. Les accords précédents sont conservés ci-dessous."
+  },
+  "wording": {
+    "current": "Formulation actuelle",
+    "earlier": "Formulation précédente",
+    "count_one": "{{count, number}} accord",
+    "count_many": "{{count, number}} accords",
+    "count_other": "{{count, number}} accords",
+    "shown": "Telle que lue par les invités"
+  },
+  "row": {
+    "unknownGuest": "Nom indisponible",
+    "self": "Accord donné par l’invité",
+    "onBehalf": "Accord donné en son nom par {{name}}",
+    "typed": "Nom saisi : {{name}}",
+    "drawn": "Signature dessinée, au nom de {{name}}",
+    "at": "Le {{when}}",
+    "showDrawing": "Voir la signature",
+    "hideDrawing": "Masquer la signature",
+    "drawingAlt": "Signature de {{name}}",
+    "drawingFailed": "La signature n’a pas pu être chargée.",
+    "retry": "Réessayer"
+  },
+  "olderRestarted": "Les accords ont changé entre-temps ; la liste repart donc des plus récents."
+}

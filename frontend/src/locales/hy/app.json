@@ -20,7 +20,9 @@
     "newDesignQuestion": "Հարցի ավելացում · Aveline",
     "editDesignQuestion": "Հարցի խմբագրում · Aveline",
     "designMedia": "Լուսանկարներ և երաժշտություն · Aveline",
-    "designPreview": "Նախադիտում · Aveline"
+    "designPreview": "Նախադիտում · Aveline",
+    "photos": "Հյուրերի լուսանկարներ · Aveline",
+    "agreements": "Համաձայնություններ · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

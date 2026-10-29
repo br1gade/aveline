@@ -21,7 +21,30 @@
     "seatsToName_other": "{{count}} seats to name",
     "repliedOn": "Sent on {{date}}",
     "reply": "Reply",
-    "changeReply": "Change reply"
+    "changeReply": "Change reply",
+    "name": {
+      "open": "Correct my name",
+      "help": "Only your own name changes here. Your hosts will see the correction.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "optional": "optional",
+      "lastNameHelp": "Leave it empty to remove it.",
+      "save": "Save name",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "saved": "Your name is saved.",
+      "errors": {
+        "required": "Enter your first name.",
+        "tooLong": "Use at most {{limit}} characters.",
+        "invalid": "This name contains a character that can’t be saved.",
+        "refused": "This name couldn’t be saved. Check it and try again."
+      },
+      "gone": "This link no longer opens your invitation, so your name can’t be changed here.",
+      "rateLimited": "Too many attempts. Please wait a minute and try again.",
+      "unreachable": "We couldn’t reach Aveline. Check your connection and try again.",
+      "failed": "Your name couldn’t be saved. Please try again in a moment.",
+      "reference": "Reference: {{id}}"
+    }
   },
   "status": {
     "ATTENDING": "You’re attending",

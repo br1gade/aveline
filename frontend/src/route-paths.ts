@@ -54,4 +54,8 @@ export const APP_PATHS = {
   designMedia: '/app/events/:eventId/design/media',
   /** Outside the app's frame: the invitation needs the whole window. */
   designPreview: '/app/events/:eventId/design/preview',
+  /** Guests' photos to moderate; the API calls it the gallery. */
+  photos: '/app/events/:eventId/photos',
+  /** Who agreed to the hosts' statements, read-only. */
+  agreements: '/app/events/:eventId/agreements',
 } as const;

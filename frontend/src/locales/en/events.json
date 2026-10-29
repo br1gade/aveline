@@ -74,7 +74,9 @@
     "publishSend": "Publish and send",
     "attendance": "How guests answer",
     "attendanceChange": "Change",
-    "design": "Design the invitation"
+    "design": "Design the invitation",
+    "photos": "Guests’ photos",
+    "agreements": "Agreements"
   },
   "headcount": {
     "title": "Guests",

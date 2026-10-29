@@ -20,3 +20,5 @@ export {
   loadDesignSection,
   previewRequestOf,
 } from './load';
+export { getDesign } from './api';
+export type { Question } from './types';

@@ -17,7 +17,7 @@ import {
   replyFromInvitation,
   type ReplySummary,
 } from './components/reply-summary';
-import { COLUMN, GUTTERS } from './components/section';
+import { COLUMN, GUTTERS, Section } from './components/section';
 import { useStatusText } from './components/status-text';
 import { invitationPalette } from './theme';
 import type { Invitation, InvitationBlock } from './types';
@@ -35,6 +35,10 @@ export interface InvitationPageProps {
   languageHref?: ((language: Language) => string) | undefined;
   /** Replaces the reply section's heading: "Thank you" once a reply is sent (PD-36). */
   replyHeading?: string | undefined;
+  /** On personal links, inside the personal card under the names: correcting one's name (PD-64). */
+  renderPersonal?: (() => ReactNode) | undefined;
+  /** On personal links, a section after the letter: the guests' photos (PD-63). */
+  renderContributions?: (() => ReactNode) | undefined;
 }
 
 function TopBar({ languageHref }: Pick<InvitationPageProps, 'languageHref'>) {
@@ -89,6 +93,8 @@ interface LayoutProps {
   languageHref: InvitationPageProps['languageHref'];
 }
 
+type Slots = Pick<InvitationPageProps, 'renderPersonal' | 'renderContributions'>;
+
 function Letter({ blocks }: { blocks: InvitationBlock[] }) {
   return blocks.map((block, index) => {
     const Block = blockComponent(block.type);
@@ -137,7 +143,15 @@ function PlainHeader({ languageHref }: Pick<LayoutProps, 'languageHref'>) {
 }
 
 /** On phones the card overlaps the cover by 32 px, like a card tucked into a folder (spec §4.3). */
-function PersonalCardSlot({ reply, hasCover }: { reply: ReplySummary | null; hasCover: boolean }) {
+function PersonalCardSlot({
+  reply,
+  hasCover,
+  renderPersonal,
+}: {
+  reply: ReplySummary | null;
+  hasCover: boolean;
+  renderPersonal: Slots['renderPersonal'];
+}) {
   const { invitation } = useInvitation();
   if (!invitation.guest) return null;
   return (
@@ -146,6 +160,7 @@ function PersonalCardSlot({ reply, hasCover }: { reply: ReplySummary | null; has
         guest={invitation.guest}
         reply={reply}
         replyButtonId={CARD_REPLY_ID}
+        extra={renderPersonal?.()}
         className={cx(COLUMN, hasCover && 'shadow-(--shadow-card) lg:shadow-none')}
       />
     </div>
@@ -157,7 +172,13 @@ function PersonalCardSlot({ reply, hasCover }: { reply: ReplySummary | null; has
  * card: the cover pinned in the left 5/12, the letter scrolling on the right. Otherwise one
  * centred column with the cover in place.
  */
-function Layout({ invitation, reply, languageHref }: LayoutProps) {
+function Layout({
+  invitation,
+  reply,
+  languageHref,
+  renderPersonal,
+  renderContributions,
+}: LayoutProps & Slots) {
   const cover = invitation.blocks[0]?.type === 'HERO' ? invitation.blocks[0] : undefined;
   const isBarWanted = canReply(invitation);
   const isNothingInView =
@@ -187,8 +208,15 @@ function Layout({ invitation, reply, languageHref }: LayoutProps) {
         )}
         {/* 80 px before the footer, unless the letter already ends on a burgundy band. */}
         <main className="min-w-0 pb-20 has-[>section[data-theme=bordeaux]:last-child]:pb-0 lg:pb-24">
-          <PersonalCardSlot reply={reply} hasCover={Boolean(cover)} />
+          <PersonalCardSlot
+            reply={reply}
+            hasCover={Boolean(cover)}
+            renderPersonal={renderPersonal}
+          />
           <Letter blocks={invitation.blocks} />
+          {invitation.guest && renderContributions ? (
+            <Section>{renderContributions()}</Section>
+          ) : null}
         </main>
         <FooterMark />
       </div>
@@ -208,6 +236,8 @@ export function InvitationPage({
   renderReply,
   languageHref,
   replyHeading,
+  renderPersonal,
+  renderContributions,
 }: InvitationPageProps) {
   const zone = { timeZone: invitation.event.timezone, locale: invitation.locale };
   const palette = invitationPalette(invitation.theme);
@@ -216,7 +246,13 @@ export function InvitationPage({
     <InvitationProvider value={{ invitation, zone, renderReply, replyHeading }}>
       <MusicProvider url={invitation.musicUrl}>
         <div data-palette={palette.name} data-theme={palette.letterTheme}>
-          <Layout invitation={invitation} reply={summary} languageHref={languageHref} />
+          <Layout
+            invitation={invitation}
+            reply={summary}
+            languageHref={languageHref}
+            renderPersonal={renderPersonal}
+            renderContributions={renderContributions}
+          />
         </div>
       </MusicProvider>
     </InvitationProvider>

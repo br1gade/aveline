@@ -126,6 +126,8 @@ From top to bottom, phone first:
    - the greeting with the guest's name;
    - one sentence of welcome;
    - "Seats reserved: 3", and the names in the household;
+   - **⚠** "Correct my name", a quiet button under the names that opens the guest's first and
+     last name in place (PD-64; not drawn, DQ-21);
    - the reply status chip, if they have replied;
    - a **Reply** button, which scrolls to the reply section and moves focus to its heading.
 4. **The letter:** the blocks in the host's order ([§5](#5-blocks)). Each section has:
@@ -134,6 +136,8 @@ From top to bottom, phone first:
    - 64–96 px of space above it.
 
    The ornament divider is used once or twice on a page, not between every pair of sections.
+   **⚠** On personal links, **"Photos from guests"** follows the letter: sharing photos, the
+   guest's own in each state, and other guests' approved ones (PD-63; not drawn, DQ-21).
 5. **The reply section** (the RSVP block, wherever the host placed it). A burgundy band with the
    heading in blush, and the form on a **porcelain card** set into the band ([§6](#6-replying-rsvp)).
    The form stays on a light surface because the error and success colours pass only there.

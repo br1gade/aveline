@@ -202,6 +202,7 @@ const ANSWERED: Question = {
   prompt: { hy: 'Ինչպե՞ս', en: 'How?', fr: 'Comment ?' },
   options: { hy: ['Մեքենա', 'Տրանսֆեր'], en: ['Car', 'Shuttle'] },
   answerCount: 4,
+  statementVersionId: null,
 };
 
 describe('choiceLists', () => {

@@ -22,7 +22,30 @@
     "seatsToName_other": "{{count}} places à attribuer",
     "repliedOn": "Envoyée le {{date}}",
     "reply": "Répondre",
-    "changeReply": "Modifier la réponse"
+    "changeReply": "Modifier la réponse",
+    "name": {
+      "open": "Corriger mon nom",
+      "help": "Seul votre propre nom change ici. Vos hôtes verront la correction.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "optional": "facultatif",
+      "lastNameHelp": "Laissez vide pour le retirer.",
+      "save": "Enregistrer le nom",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler",
+      "saved": "Votre nom est enregistré.",
+      "errors": {
+        "required": "Saisissez votre prénom.",
+        "tooLong": "{{limit}} caractères au maximum.",
+        "invalid": "Ce nom contient un caractère qui ne peut pas être enregistré.",
+        "refused": "Ce nom n’a pas pu être enregistré. Vérifiez-le et réessayez."
+      },
+      "gone": "Ce lien n’ouvre plus votre invitation ; votre nom ne peut donc pas être modifié ici.",
+      "rateLimited": "Trop de tentatives. Veuillez attendre une minute et réessayer.",
+      "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez.",
+      "failed": "Votre nom n’a pas pu être enregistré. Veuillez réessayer dans un instant.",
+      "reference": "Référence : {{id}}"
+    }
   },
   "status": {
     "ATTENDING": "Vous serez des nôtres",

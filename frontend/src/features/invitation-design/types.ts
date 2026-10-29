@@ -99,6 +99,8 @@ export interface Question {
   options: Readonly<Record<string, readonly string[]>>;
   /** Live RSVP answers. A removal or a change of shape is refused once there are any. */
   answerCount: number;
+  /** A SIGNATURE question's current wording; agreements to another are to an earlier one. */
+  statementVersionId: string | null;
 }
 
 export interface DesignEvent {
@@ -178,6 +180,7 @@ export interface QuestionWire {
   prompt: unknown;
   options: unknown;
   answerCount?: number;
+  statementVersionId?: string | null;
 }
 
 export interface DesignWire {

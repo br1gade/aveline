@@ -29,3 +29,11 @@ export function attendancePath(eventId: string): string {
 export function designPath(eventId: string): string {
   return generatePath(APP_PATHS.design, { eventId });
 }
+
+export function photosPath(eventId: string): string {
+  return generatePath(APP_PATHS.photos, { eventId });
+}
+
+export function agreementsPath(eventId: string): string {
+  return generatePath(APP_PATHS.agreements, { eventId });
+}

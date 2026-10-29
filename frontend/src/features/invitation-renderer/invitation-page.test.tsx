@@ -99,6 +99,34 @@ describe('InvitationPage', () => {
     expect(within(section as HTMLElement).getByText('the reply form')).toBeInTheDocument();
   });
 
+  it('puts the route’s own parts in the personal card and after the letter (PD-63, PD-64)', () => {
+    renderPage({
+      invitation: invitationFixture(),
+      renderPersonal: () => <button type="button">Correct my name</button>,
+      renderContributions: () => <h2>Photos from guests</h2>,
+    });
+
+    const card = screen.getByRole('heading', { name: 'Dear Armen Petrosyan,' }).closest('article');
+    expect(within(card as HTMLElement).getByRole('button', { name: 'Correct my name' }));
+    const main = screen.getByRole('main');
+    const last = main.lastElementChild;
+    expect(last?.tagName).toBe('SECTION');
+    expect(within(last as HTMLElement).getByRole('heading', { name: 'Photos from guests' }));
+  });
+
+  it('leaves both parts off a generic link', () => {
+    const renderPersonal = vi.fn(() => <p>name</p>);
+    const renderContributions = vi.fn(() => <p>photos</p>);
+    renderPage({
+      invitation: invitationFixture({ guest: null }),
+      renderPersonal,
+      renderContributions,
+    });
+
+    expect(renderPersonal).not.toHaveBeenCalled();
+    expect(renderContributions).not.toHaveBeenCalled();
+  });
+
   it('says a preview collects no replies, in place of the closed notice', () => {
     const renderReply = vi.fn(() => <p>form</p>);
     renderPage({

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ButtonLink, cx, Eyebrow, StatusChip } from '@/ui';
@@ -13,6 +14,8 @@ interface PersonalCardProps {
   reply: ReplySummary | null;
   /** The Reply button's id, so the reply bar can hide while it is on screen (PD-31). */
   replyButtonId?: string | undefined;
+  /** Under the names: what the page adds on a personal link, such as correcting one's name. */
+  extra?: ReactNode;
   className?: string;
 }
 
@@ -51,7 +54,7 @@ function HouseholdNames({
  * Tells guests the invitation is theirs: their name, their seats, their reply (spec §4.3). Only on
  * personal links. No gendered forms in any language (R-25).
  */
-export function PersonalCard({ guest, reply, replyButtonId, className }: PersonalCardProps) {
+export function PersonalCard({ guest, reply, replyButtonId, extra, className }: PersonalCardProps) {
   const { t } = useTranslation('invitation');
   const { invitation, zone } = useInvitation();
   const statusText = useStatusText(reply);
@@ -74,6 +77,7 @@ export function PersonalCard({ guest, reply, replyButtonId, className }: Persona
           {t('personal.seats', { count: guest.household.seatsAllotted })}
         </p>
         <HouseholdNames guest={guest} saved={reply?.householdNames} />
+        {extra}
       </div>
       {reply && statusText ? (
         <div className="flex flex-col gap-1">

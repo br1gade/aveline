@@ -190,6 +190,7 @@ function readQuestion(question: QuestionWire): Question {
     prompt: readTranslated(question.prompt),
     options: readOptions(question.options),
     answerCount: question.answerCount ?? 0,
+    statementVersionId: question.statementVersionId ?? null,
   };
 }
 

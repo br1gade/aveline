@@ -1,0 +1,167 @@
+{
+  "guest": {
+    "label": "Gallery",
+    "heading": "Photos from guests",
+    "intro": "Share your photos of the celebration. Other guests see them once the hosts approve them.",
+    "limits": "Up to {{limit}} photos each, {{size}} MB per photo: JPEG, PNG, WebP or AVIF."
+  },
+  "share": {
+    "choose": "Choose photos",
+    "help": "You can choose several at once, up to {{limit}}.",
+    "errors": {
+      "none": "Choose at least one photo.",
+      "tooMany": "Choose at most {{limit}} photos.",
+      "allRefused": "None of the chosen photos can be shared."
+    },
+    "problems": {
+      "type": "Not a JPEG, PNG, WebP or AVIF photo",
+      "size": "Larger than 10 MB",
+      "empty": "The file is empty"
+    },
+    "ready": "Ready to share",
+    "caption": "Caption",
+    "optional": "optional",
+    "captionHelp": "Shown under your photo.",
+    "captionErrors": {
+      "tooLong": "Use at most {{limit}} characters.",
+      "invalid": "The caption contains a character that can’t be saved.",
+      "refused": "This caption couldn’t be saved. Check it and try again."
+    },
+    "counter": "{{used}} / {{limit}}",
+    "oneCaption": "A caption can be added when you share one photo at a time.",
+    "submit_one": "Share {{count}} photo",
+    "submit_other": "Share {{count}} photos",
+    "stop": "Stop",
+    "sending": "Sharing {{current}} of {{total}}…",
+    "done": "Shared: {{shared}} of {{total}}.",
+    "sendRest": "Send the rest ({{rest}})",
+    "submitNone": "Share photos"
+  },
+  "outcomes": {
+    "shared": "Shared: the hosts check it before other guests see it",
+    "notSent": "Not sent",
+    "refused": {
+      "type": "Not shared: not a JPEG, PNG, WebP or AVIF photo",
+      "size": "Not shared: larger than 10 MB",
+      "empty": "Not shared: the file is empty",
+      "refused": "Not shared: this file was refused",
+      "caption": "Not shared: check its caption"
+    }
+  },
+  "stops": {
+    "limit": "You have shared {{limit}} photos, the most one guest can. Remove one of yours to share another.",
+    "full": "The gallery is full for now. Please try again later.",
+    "conflict": "This photo couldn’t be added just now. Please try again.",
+    "closed": "This invitation can no longer be opened, so no more photos can be shared.",
+    "rate-limited": "Too many photos at once. Wait a minute, then send the rest.",
+    "busy": "Photos can’t be saved just now. Please try again in a few minutes.",
+    "unreachable": "We couldn’t reach Aveline. Check your connection, then send the rest.",
+    "failed": "Something went wrong on our side. Please try again in a moment.",
+    "stopped": "Stopped. The photos not sent are still chosen."
+  },
+  "reference": "Reference: {{id}}",
+  "picture": {
+    "failed": "This photo couldn’t be loaded.",
+    "retry": "Try again"
+  },
+  "viewer": {
+    "close": "Close"
+  },
+  "own": {
+    "heading": "Your photos",
+    "none": "You haven’t shared any photos yet.",
+    "alt": "Your photo",
+    "states": {
+      "preparing": "Being prepared",
+      "waiting": "Waiting for the hosts’ approval",
+      "shown": "Shown to other guests",
+      "notApproved": "Not approved by the hosts",
+      "failed": "Couldn’t be used"
+    },
+    "failures": {
+      "invalid": "The file couldn’t be read as a photo. Remove it and try another.",
+      "ours": "Something went wrong on our side. Remove it and share it again."
+    },
+    "sharedOn": "Shared on {{date}}",
+    "remove": "Remove",
+    "confirm": "Remove this photo?",
+    "confirmShown": "Remove this photo? Other guests will no longer see it.",
+    "removeConfirm": "Remove photo",
+    "keep": "Keep it",
+    "removeFailed": "The photo couldn’t be removed. Please try again.",
+    "removed": "Photo removed.",
+    "gone": "This photo was already removed."
+  },
+  "others": {
+    "heading": "From other guests",
+    "none": "No photos from other guests yet.",
+    "alt": "A photo from a guest",
+    "open": "See larger: {{name}}"
+  },
+  "problems": {
+    "rate-limited": "Too many requests. Wait a minute, then try again.",
+    "unreachable": "We couldn’t reach Aveline. Check your connection and try again."
+  },
+  "list": {
+    "loading": "Loading photos…",
+    "closed": "This invitation can no longer be opened, so its photos can’t be seen or shared here.",
+    "failed": "The photos couldn’t be loaded.",
+    "retry": "Try again",
+    "more": "Show more photos",
+    "loadingMore": "Loading…",
+    "moreFailed": "More photos couldn’t be loaded. Please try again."
+  },
+  "host": {
+    "back": "Back to the event",
+    "title": "Guests’ photos",
+    "intro": "Photos guests share from their personal invitations. Other guests see a photo only once you approve it.",
+    "refused": "Moderating guests’ photos is not available to your role.",
+    "refusedAction": "Your role can’t moderate guests’ photos.",
+    "failed": "This couldn’t be done. Please try again.",
+    "count_one": "{{count, number}} photo of the {{limit, number}} the event can hold.",
+    "count_other": "{{count, number}} photos of the {{limit, number}} the event can hold.",
+    "limits": "Each guest can share up to {{limit}} photos. The event holds up to 2 GB of photos; how much is used isn’t shown yet.",
+    "partial": "Only the newest photos are listed here.",
+    "tabs": "Photos by status",
+    "tab": {
+      "review_one": "To review ({{count, number}})",
+      "review_other": "To review ({{count, number}})",
+      "approved_one": "Shown to guests ({{count, number}})",
+      "approved_other": "Shown to guests ({{count, number}})",
+      "hidden_one": "Not approved ({{count, number}})",
+      "hidden_other": "Not approved ({{count, number}})",
+      "other_one": "Preparing or failed ({{count, number}})",
+      "other_other": "Preparing or failed ({{count, number}})"
+    },
+    "empty": {
+      "review": "No photos are waiting for review.",
+      "approved": "No photos are shown to guests yet.",
+      "hidden": "No photos have been turned down.",
+      "other": "No photos are being prepared, and none failed."
+    },
+    "approve": "Approve",
+    "reject": "Don’t approve",
+    "hide": "Hide from guests",
+    "remove": "Remove",
+    "approved": "Approved. Guests can see it now.",
+    "rejected": "Done. Guests don’t see this photo.",
+    "removed": "Photo removed.",
+    "stale": "This photo changed meanwhile. The list is up to date again.",
+    "alt": "A photo from a guest",
+    "view": "See larger: {{name}}",
+    "close": "Close",
+    "noCaption": "No caption",
+    "sharedAt": "Shared {{when}}",
+    "preparing": "Being prepared",
+    "failures": {
+      "invalid": "Couldn’t be read as a photo",
+      "ours": "Couldn’t be processed"
+    },
+    "more": "Show more",
+    "removeTitle": "Remove this photo?",
+    "removeBody": "It is removed for everyone, and the guest who shared it can’t bring it back.",
+    "keep": "Keep it",
+    "removing": "Removing…",
+    "removeConfirm": "Remove photo"
+  }
+}

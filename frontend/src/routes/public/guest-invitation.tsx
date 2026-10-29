@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data } from 'react-router';
 
+import { GuestGallery } from '@/features/gallery';
+import { NameCorrection, withCorrectedName, type CorrectedName } from '@/features/guest-name';
 import { GuestReply, replySummaryFrom, type ReplyRecord } from '@/features/guest-reply';
 import { loadReply } from '@/features/guest-reply/index.server';
 import {
@@ -48,10 +50,33 @@ interface PersonalPageProps {
   link: { slug: string; guestToken: string };
 }
 
-function PersonalPage({ invitation, savedRecord, link }: PersonalPageProps) {
+/** The reply as read, with the guest's own name as they last corrected it (PD-64). */
+function withName(record: ReplyRecord, corrected: CorrectedName): ReplyRecord {
+  const { firstName, lastName } = corrected;
+  return { ...record, guest: { ...record.guest, firstName, lastName } };
+}
+
+function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps) {
   const { t } = useTranslation('reply');
   const [record, setRecord] = useState(savedRecord);
   const [isSent, setIsSent] = useState(false);
+  const [corrected, setCorrected] = useState<CorrectedName | null>(null);
+  const invitation = corrected ? withCorrectedName(read, corrected) : read;
+  const onCorrected = (name: CorrectedName) => {
+    setCorrected(name);
+    setRecord((current) => current && withName(current, name));
+  };
+  // Correcting needs both names apart, which only the reply read holds.
+  const renderPersonal = record
+    ? () => (
+        <NameCorrection
+          saved={record.guest}
+          link={link}
+          locale={invitation.locale}
+          onCorrected={onCorrected}
+        />
+      )
+    : undefined;
   const renderReply = () =>
     record ? (
       <GuestReply
@@ -71,6 +96,8 @@ function PersonalPage({ invitation, savedRecord, link }: PersonalPageProps) {
       renderReply={renderReply}
       replyHeading={isSent ? t('sent.heading') : undefined}
       languageHref={languageHref}
+      renderPersonal={renderPersonal}
+      renderContributions={() => <GuestGallery invitation={invitation} link={link} />}
     />
   );
 }

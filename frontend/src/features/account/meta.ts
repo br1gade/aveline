@@ -24,7 +24,9 @@ type AppPage =
   | 'newDesignQuestion'
   | 'editDesignQuestion'
   | 'designMedia'
-  | 'designPreview';
+  | 'designPreview'
+  | 'photos'
+  | 'agreements';
 
 export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
   const t = createI18n(language).getFixedT(language, 'account');

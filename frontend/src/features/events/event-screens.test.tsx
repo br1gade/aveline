@@ -294,6 +294,18 @@ describe('EventOverview', () => {
     );
   });
 
+  it('links to guests’ photos and their agreements (PD-65, PD-66)', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Guests’ photos' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/photos',
+    );
+    expect(screen.getByRole('link', { name: 'Agreements' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/agreements',
+    );
+  });
+
   it('shows the headcount', async () => {
     overview();
     const numbers = await screen.findByRole('region', { name: 'Guests' });
@@ -338,6 +350,7 @@ describe('EventOverview', () => {
     expect(await screen.findByText('No invitation yet.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Publish and send' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Design the invitation' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Guests’ photos' })).not.toBeInTheDocument();
   });
 });
 

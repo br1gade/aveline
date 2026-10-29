@@ -74,7 +74,9 @@
     "publishSend": "Publier et envoyer",
     "attendance": "Comment les invités répondent",
     "attendanceChange": "Modifier",
-    "design": "Concevoir l’invitation"
+    "design": "Concevoir l’invitation",
+    "photos": "Photos des invités",
+    "agreements": "Accords"
   },
   "headcount": {
     "title": "Invités",

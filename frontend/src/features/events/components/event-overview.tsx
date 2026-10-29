@@ -9,11 +9,13 @@ import { Button } from '@/ui/kit/button';
 
 import type { EventOverviewData } from '../load';
 import {
+  agreementsPath,
   attendancePath,
   designPath,
   editEventPath,
   guestListPath,
   invitationPath,
+  photosPath,
   venuesPath,
 } from '../paths';
 import type { EventDetail } from '../types';
@@ -113,6 +115,12 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
               </Button>
               <Button asChild variant="outline">
                 <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to={photosPath(event.id)}>{t('overview.photos')}</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to={agreementsPath(event.id)}>{t('overview.agreements')}</Link>
               </Button>
             </>
           ) : null}

@@ -1,3 +1,5 @@
+import { pollUntil, waitFor } from '@/lib/poll';
+
 import type { UploadStatus } from './signatures';
 
 /**
@@ -16,24 +18,14 @@ export interface PollDependencies {
   signal: AbortSignal;
 }
 
-/** Reads after each wait until the drawing is READY or FAILED, the waits run out, or it stops. */
-export async function pollUpload({ read, wait, signal }: PollDependencies): Promise<PollOutcome> {
-  for (const delay of POLL_DELAYS_MS) {
-    await wait(delay, signal);
-    if (signal.aborted) return 'TIMEOUT';
-    const status = await read().catch(() => undefined);
-    if (status === 'READY' || status === 'FAILED') return status;
-  }
-  return 'TIMEOUT';
+function isSettled(status: UploadStatus): status is 'READY' | 'FAILED' {
+  return status === 'READY' || status === 'FAILED';
 }
 
-/** A timer that ends early, quietly, when the page stops waiting. */
-export function waitFor(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener('abort', () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
+/** Reads after each wait until the drawing is READY or FAILED, the waits run out, or it stops. */
+export async function pollUpload({ read, wait, signal }: PollDependencies): Promise<PollOutcome> {
+  const status = await pollUntil({ read, isDone: isSettled, delays: POLL_DELAYS_MS, wait, signal });
+  return status !== undefined && isSettled(status) ? status : 'TIMEOUT';
 }
+
+export { waitFor };

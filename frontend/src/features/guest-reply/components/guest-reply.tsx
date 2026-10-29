@@ -141,7 +141,17 @@ function agreedNames(record: ReplyRecord, signatures: SignatureContext | null): 
 
 /** The page's state: the reply as last read, which view shows, and when to read agreements. */
 function useReplyState(props: GuestReplyProps) {
-  const [record, setRecord] = useState(props.record);
+  const [stored, setRecord] = useState(props.record);
+  // The guest's own name follows the page's: they may correct it on the card above (PD-64),
+  // without the form starting again.
+  const { firstName, lastName } = props.record.guest;
+  const record = useMemo(
+    () =>
+      stored.guest.firstName === firstName && stored.guest.lastName === lastName
+        ? stored
+        : { ...stored, guest: { ...stored.guest, firstName, lastName } },
+    [stored, firstName, lastName],
+  );
   const [view, setView] = useState<View>(record.rsvp.status === 'PENDING' ? 'form' : 'saved');
   const [names, setNames] = useState<string[]>([]);
   const [refresh, setRefresh] = useState(0);

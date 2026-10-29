@@ -7,4 +7,5 @@ export { Notice, type NoticeTone } from './notice';
 export { Eyebrow, SectionHeading } from './section-heading';
 export { StatusChip, type ReplyStatus } from './status-chip';
 export { EXTERNAL_LINK, TextLink } from './text-link';
+export { PrivateImage, useNearScreen, type PrivateImageProps } from './private-image';
 export { useIsHydrated } from './use-is-hydrated';

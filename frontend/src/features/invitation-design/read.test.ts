@@ -132,6 +132,7 @@ describe('readDesign', () => {
         prompt: { en: 'How?' },
         options: { en: ['Car', 'Shuttle'] },
         answerCount: 12,
+        statementVersionId: null,
       },
       {
         id: 'q1',
@@ -140,6 +141,7 @@ describe('readDesign', () => {
         prompt: { en: 'Kids?' },
         options: {},
         answerCount: 0,
+        statementVersionId: null,
       },
     ]);
   });
