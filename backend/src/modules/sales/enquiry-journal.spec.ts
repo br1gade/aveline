@@ -1,3 +1,6 @@
+import { ConfigService } from '@nestjs/config';
+import { EnquiryPrivacyService } from './enquiry-privacy.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { mkdtemp, rm, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -31,4 +34,14 @@ describe('independent protected journal writers', () => {
     expect((await journal.readVerified()).map((entry) => entry.id)).toEqual(['crashed', 'after-crash']);
     expect((await journal.append([receipt('crashed')], 2))[0].sequence).toBe(1);
   });
+  it('blocks enabled intake startup with a missing signed manifest', async () => {
+    await unlink(join(directory, 'manifest.json'));
+    const privacy = new EnquiryPrivacyService({} as PrismaService, new ConfigService({ SALES_INTAKE_ENABLED: 'true', SALES_PRIVACY_JOURNAL_DIR: directory, SALES_PRIVACY_JOURNAL_KEY: key }));
+    await expect(privacy.onModuleInit()).rejects.toThrow('Protected journal writer failed');
+  });
+  it('keeps default-disabled startup compatible without journal configuration', async () => {
+    const privacy = new EnquiryPrivacyService({} as PrismaService, new ConfigService({ SALES_INTAKE_ENABLED: 'false' }));
+    await expect(privacy.onModuleInit()).resolves.toBeUndefined();
+  });
+
 });

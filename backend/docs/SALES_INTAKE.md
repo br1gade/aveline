@@ -37,7 +37,7 @@ is a deployment-owner acceptance record, not successful compilation.
 
 ## Normal recovery and monitoring
 
-The minute privacy sweep continues while writes are disabled. It claims due
+The minute privacy sweep continues while writes are disabled and while Redis is unavailable. PostgreSQL SKIP LOCKED/idempotence and the process-owned filesystem flock provide cross-instance correctness; this sweep reports directly through a Sentry monitor rather than requiring the Redis job lease. It claims due
 CLOSED cases with SKIP LOCKED in batches of 100, at most five batches per run.
 Closing records six calendar months from that closure in UTC with end-of-month
 clamping. Reopening cancels the active deadline and never restores cleared data.
@@ -102,3 +102,28 @@ erasure also cancels subject-derived owner setup; independently supplied owners
 are not inferred to be the prospect. Converted cases stay internal. Linked events
 cannot be silently deleted through ordinary event deletion while their sales
 references remain; reviewed link repair is a future staff command.
+
+## Accepted-owner and large-scope privacy review
+
+A phone-only contact binding does not prove the identity of an accepted account.
+Binding reports candidate account IDs reached only through explicit primary-
+contact invitation provenance. Before full ERASURE can complete, ADMIN must
+separately verify the exact accepted account ID and record its evidence reference.
+The backend then uses the account's real verified email through the existing
+privacy workflow. Independent owners are not inferred from equal addresses;
+multiple distinct accounts require separate reviewed scopes. Missing/changed proof
+leaves IN_PROGRESS, with no automatic account closure.
+
+Only the opaque additionally verified User ID is added to a signed receipt.
+Actual old-dump restore tests prove replay closes that restored account and
+revokes its sessions again; the journal never stores its email or credentials.
+A scoped pre-existing hashed unsubscribe is promoted to ERASED rather than left
+removable, including known historical contact-address fingerprints. Only this
+linked organization/channel guard retains those hashes after contact history
+clearing; another organization's row remains untouched. Replay restores that
+ERASED guard before removing the old restored addresses.
+
+Candidate search returns items/nextCursor. Review every relevant page and use
+append:true for additional verified binding batches after the first verified
+replacement. Each call remains bounded to 100 IDs, while the complete reviewed
+request scope can exceed100 cases. No unseen page is silently discarded.

@@ -3760,3 +3760,26 @@ cannot name unmanifested fields or provide fewer custom colors than required rol
 Verified DSAR export adds `templateAuthorship` with only the subject's factual
 identity links; account closure revokes assignments/previews/unbound worker access,
 retaining immutable design/version history and other events' artwork.
+
+Accepted owner accounts require additional identity review for a staff enquiry
+ERASURE request. Contact binding alone, including a shared contact email, does
+not authorize account closure. The binding response adds
+`ownerAccountCandidates:[{id,email}]`, limited to accepted owner IDs reached
+through the bound contacts' explicit PRIMARY_CONTACT invitation provenance.
+A separate owner remains outside that scope. To include an accepted account,
+ADMIN supplies `verifiedOwnerUserId` and `ownerVerificationNote` with distinct
+identity evidence. The ID must match the exact accepted owner. The request then
+stores that account's real verified email and uses the existing verified email
+erasure path; no address is fabricated from a phone number. Missing or changed
+owner proof keeps the request IN_PROGRESS. Distinct candidate accounts require
+separate explicitly reviewed subject scopes.
+
+`POST /privacy/enquiry-subject-candidates` takes exactly one email or E.164 phone,
+plus optional `limit` (1–100, default 50) and opaque `cursor`, and returns
+`{items,nextCursor}`. Review every relevant page; shared addresses remain
+candidates and do not merge people. Binding calls accept at most 100 contact IDs.
+After the first verified replacement binding, `append:true` adds another reviewed
+batch without dropping earlier subjects; the request can therefore include more
+than 100 reviewed cases. Rebinding replaces account verification unless it is
+explicitly restated, and every batch needs its verification evidence reference.
+Erasure and export act on the complete bound scope, never only the latest page.

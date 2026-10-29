@@ -301,9 +301,10 @@ export class PrivacyService {
       const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: completion.requestId } });
       if (request.status !== 'IN_PROGRESS') throw new ConflictException('This request is being carried out by someone else, or already was');
       if (request.erasureAppliedAt) return { counts: request.erasureResult as Record<string, number>, afterwards: null };
-      const erased = subject.email
-        ? await eraseSubject(tx, subject.email, new Date(), subject)
-        : { counts: await this.enquiryPrivacy!.eraseInTransaction(tx, { subject, now: new Date(), requestId: request.id }), afterwards: null };
+      const verified = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveForErasure(tx, request.id) : subject;
+      const erased = verified.email
+        ? await eraseSubject(tx, verified.email, new Date(), verified)
+        : { counts: await this.enquiryPrivacy!.eraseInTransaction(tx, { subject: verified, now: new Date(), requestId: request.id }), afterwards: null };
       const pending = await tx.enquiryPrivacyRedaction.count({ where: { contactId: { in: subject.verifiedContactIds }, checkpointedAt: null } });
       const hasIntakeRedactions = erased.counts.enquiriesCleared > 0 || pending > 0;
       await tx.dataSubjectRequest.update({ where: { id: request.id }, data: hasIntakeRedactions

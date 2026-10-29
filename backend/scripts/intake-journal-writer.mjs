@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
-import { mkdir, open, readFile, rename, readdir } from 'node:fs/promises';
+import { mkdir, open, readFile, rename, readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /** Executed by flock: the process doing writes owns the lock through fsync. */
@@ -46,6 +46,13 @@ try {
   manifest = { sequence: interrupted.sequence, signature };
   await write('manifest.json', { ...manifest, checksum: sign(manifest) });
 } catch (error) { if (error.code !== 'ENOENT') throw error; }
+if (!input.receipts.length) {
+  const probe = `.readiness-${randomUUID()}`;
+  await write(probe, { sequence: manifest.sequence });
+  await unlink(join(input.directory, probe));
+  const directory = await open(input.directory, 'r');
+  try { await directory.sync(); } finally { await directory.close(); }
+}
 const results = [];
 for (const receipt of input.receipts) {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(receipt.id)) throw new Error('Invalid receipt identity');

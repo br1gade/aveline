@@ -10209,7 +10209,17 @@
               "type": "string"
             }
           },
+          "append": {
+            "type": "boolean",
+            "default": false
+          },
           "verificationNote": {
+            "type": "string"
+          },
+          "verifiedOwnerUserId": {
+            "type": "string"
+          },
+          "ownerVerificationNote": {
             "type": "string"
           }
         },
@@ -10221,6 +10231,15 @@
       "EnquirySubjectCandidatesDto": {
         "type": "object",
         "properties": {
+          "limit": {
+            "type": "number",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string"
+          },
           "email": {
             "type": "string"
           },

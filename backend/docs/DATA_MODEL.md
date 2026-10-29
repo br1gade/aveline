@@ -333,3 +333,26 @@ role count. It contains no email, notes, invitation token or message body. Rows
 commit with create/join/role change/departure/ADMIN resolution and survive account
 soft erasure. Accepted invitation user IDs have nullable SET NULL foreign keys;
 legacy accepted rows remain null and cannot become replay credentials.
+### Organization compatibility records
+
+Organization.accessRevision fences member lifecycle writes. Invitations retain the
+accepted user ID for password-proven replay without restoring removed roles.
+OrganizationCreateIntent binds actor/key/fingerprint to the created tenant;
+OrganizationAccessReview stores minimal ADMIN closure/recovery state without contacts.
+RuntimeCompatibility is the shared revision and additional-membership write gate.
+The user-only membership unique index remains until an explicit maintenance cutover.
+
+Staff enquiry requests may additionally store a nullable `verifiedOwnerUserId`
+and `ownerAccountVerifiedAt` after separate ADMIN identity verification of an
+exact accepted owner reached through PRIMARY_CONTACT provenance. STAFF_ENQUIRY
+rows keep null email until that separate proof supplies the real account email.
+An equal/shared email does not infer account identity. Reviewed candidate lookup
+is cursor-paged and binding batches may append to a larger verified subject set.
+
+`EnquiryPrivacyRedaction.verifiedOwnerUserId` is an optional opaque ID in signed
+receipts, allowing old-backup replay to reapply erasure to that specifically
+verified account and revoke restored sessions. No account email or identity
+evidence enters the external journal. Existing rows need no backfill. Linked
+organization/channel/address suppressions are atomically promoted to ERASED,
+including an existing hashed unsubscribe; unrelated scopes and ordinary retention
+are unaffected.

@@ -1591,6 +1591,8 @@ model DataSubjectRequest {
   subjectEmail   String?
   subjectSource DataSubjectSource @default(EMAIL)
   enquirySubjectsVerifiedAt DateTime?
+  verifiedOwnerUserId String?
+  ownerAccountVerifiedAt DateTime?
   erasureAppliedAt DateTime?
   erasureCheckpointId String?
   erasureResult Json?
@@ -2632,6 +2634,7 @@ model EnquiryPrivacyRedaction {
   reason             EnquiryClearanceReason
   privacyRevision    Int
   redactedAt         DateTime
+  verifiedOwnerUserId String?
   checkpointSequence BigInt?                @unique
   checkpointedAt     DateTime?
 

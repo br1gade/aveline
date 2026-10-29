@@ -3,7 +3,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 
-export interface RedactionReceipt { id: string; enquiryId: string; contactId: string; reason: 'RETENTION' | 'VERIFIED_ERASURE'; privacyRevision: number; redactedAt: string }
+export interface RedactionReceipt { id: string; enquiryId: string; contactId: string; reason: 'RETENTION' | 'VERIFIED_ERASURE'; privacyRevision: number; redactedAt: string; verifiedOwnerUserId?: string }
 export interface ReplayedRedactionReceipt extends RedactionReceipt { sequence: number }
 interface SignedRecord { sequence: number; previous: string; receipt: RedactionReceipt; signature: string }
 interface Manifest { sequence: number; signature: string; checksum: string }
