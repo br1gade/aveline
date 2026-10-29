@@ -1,4 +1,4 @@
-import { lockOrganizationStanding, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
+import { lockOrganizationStanding, requireCurrentEventPermission, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
 import { hasInvitationExpired } from '../invitations/lifetime';
 import {
   BadRequestException,
@@ -9,7 +9,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventStatus, EventVisibility, InvitationStatus, PlatformRole, Prisma } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
 import { AuditService } from '../../infra/audit/audit.service';
 import { RequestActor, actorCan } from '../../infra/auth/actor';
 import { CacheService } from '../../infra/cache/cache.service';
@@ -17,14 +16,15 @@ import { StorageService } from '../../infra/storage/storage.service';
 import { urlsOf } from '../media/media.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { PrismaService } from '../../prisma/prisma.service';
-import { defaultBlocksFor } from './default-blocks';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventDetails, NOTICE_WORTHY, changedFields, detailsProblem } from './event-details';
 import { EVENT_TRANSLATABLE, translationsProblem } from '../../common/field-translations';
 import { mergeTranslations } from '../design/translated-content';
 import { lockRow } from '../../common/row-lock';
-import { invitationSlug } from './invitation-slug';
+import { createEventInvitation } from './event-invitation';
+import { selectAvailableTemplate } from '../design/templates/template-reader';
+import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { resolveEventCreatorRole } from './event-creator-role';
 
 const STAFF_PAGE_SIZE = 100;
@@ -77,7 +77,8 @@ export class EventsService {
     const event = await this.prisma.$transaction((tx) => this.createInTransaction(tx, { organizationId, userId, dto, options }));
 
     this.logger.log(`event ${event.id} created in organization ${organizationId}`);
-    return this.findOne(event.id);
+    const detail = await this.findOne(event.id);
+    return event.templateSetup ? { ...detail, templateSetup: event.templateSetup } : detail;
   }
 
   async prepareCreation(tx: Prisma.TransactionClient, input: { organizationId: string; dto: CreateEventDto }) {
@@ -91,7 +92,7 @@ export class EventsService {
     const problem = detailsProblem({ startsAt, endsAt, timezone, locales, defaultLocale });
     if (problem) throw new BadRequestException(problem);
 
-    const template = await this.pickTemplate(dto.templateKey, tx);
+    const template = await selectAvailableTemplate(tx, { organizationId: input.organizationId, templateKey: dto.templateKey, templateVersionId: dto.templateVersionId });
     const hostsLabel = dto.hostsLabel ?? dto.title;
 
     return { startsAt, endsAt, locales, timezone, defaultLocale, template, hostsLabel };
@@ -132,19 +133,10 @@ export class EventsService {
       });
     }
 
-    if (template) {
-      await tx.invitation.create({
-        data: {
-          eventId: created.id,
-          slug: invitationSlug(hostsLabel, randomBytes(4).toString('hex')),
-          templateId: template.id,
-          theme: template.defaultTheme as Prisma.InputJsonValue,
-          // Without these the host opens a blank page and can publish it.
-          blocks: { create: defaultBlocksFor(template.supportedBlocks) },
-        },
-      });
-    }
-    return created;
+    const invitation = template ? await createEventInvitation(tx, {
+      eventId: created.id, organizationId, userId, hostsLabel, template,
+    }) : null;
+    return { ...created, templateSetup: invitation?.templateSetup };
   }
 
   /**
@@ -155,54 +147,18 @@ export class EventsService {
    * folded into `create` so that case is recoverable without deleting the
    * event.
    */
-  async createInvitation(eventId: string, templateKey?: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      select: { id: true, hostsLabel: true, invitation: { select: { slug: true } } },
-    });
-    if (!event) throw new NotFoundException(`No event ${eventId}`);
-    if (event.invitation) {
-      throw new BadRequestException(
-        `This event already has an invitation at "${event.invitation.slug}"`,
-      );
-    }
-
-    const template = await this.pickTemplate(templateKey);
-    if (!template) {
-      throw new BadRequestException('No design template is available to build an invitation from');
-    }
-
-    return this.prisma.invitation.create({
-      data: {
-        eventId,
-        slug: invitationSlug(event.hostsLabel, randomBytes(4).toString('hex')),
-        templateId: template.id,
-        theme: template.defaultTheme as Prisma.InputJsonValue,
-        blocks: { create: defaultBlocksFor(template.supportedBlocks) },
-      },
-      select: { slug: true, status: true, template: { select: { key: true } } },
-    });
-  }
-
-  /**
-   * The named template, or whichever is first when none was named.
-   *
-   * Defaulting rather than demanding one: a host creating their first event has
-   * not seen the catalogue yet, and an event with a draft invitation they can
-   * restyle is more useful than a form that refuses to submit.
-   */
-  private async pickTemplate(templateKey?: string, tx: Prisma.TransactionClient = this.prisma) {
-    if (templateKey) {
-      const named = await tx.designTemplate.findFirst({
-        where: { key: templateKey, isActive: true },
-      });
-      if (!named) throw new NotFoundException(`No template "${templateKey}" is available`);
-      return named;
-    }
-
-    return tx.designTemplate.findFirst({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
+  async createInvitation(eventId: string, userId: string, dto: CreateInvitationDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const found = await tx.event.findUnique({ where: { id: eventId }, select: { organizationId: true } });
+      if (!found) throw new NotFoundException(`No event ${eventId}`);
+      await lockOrganizationStanding(tx, { organizationId: found.organizationId });
+      const template = await selectAvailableTemplate(tx, { organizationId: found.organizationId, templateKey: dto.templateKey, templateVersionId: dto.templateVersionId });
+      if (!template) throw new BadRequestException('No design template is available to build an invitation from');
+      await lockRow(tx, 'events', eventId);
+      await requireCurrentEventPermission(tx, { actor: { userId }, eventId, permission: 'event:write' });
+      const event = await tx.event.findUniqueOrThrow({ where: { id: eventId }, select: { hostsLabel: true, invitation: { select: { slug: true } } } });
+      if (event.invitation) throw new BadRequestException(`This event already has an invitation at "${event.invitation.slug}"`);
+      return createEventInvitation(tx, { eventId, organizationId: found.organizationId, userId, hostsLabel: event.hostsLabel, template });
     });
   }
 
@@ -245,7 +201,7 @@ export class EventsService {
       },
     });
     if (!event) throw new NotFoundException(`No event ${id}`);
-    return { ...event, invitation: event.invitation ? { ...event.invitation, isExpired: hasInvitationExpired(event.invitation) } : null };
+    return { ...event, invitation: event.invitation ? { ...event.invitation, designRevision: String(event.invitation.designRevision), isExpired: hasInvitationExpired(event.invitation) } : null };
   }
   /**
    * Corrects an event's core details after it was created.

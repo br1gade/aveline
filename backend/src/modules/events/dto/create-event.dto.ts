@@ -85,6 +85,13 @@ export class CreateEventDto {
   })
   @IsOptional()
   @IsString()
+  @MinLength(1)
   @MaxLength(64)
   templateKey?: string;
+  @ApiPropertyOptional({ description: 'Exact active version from the selected organization catalogue; a stale or unavailable version is 404.' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  templateVersionId?: string;
 }

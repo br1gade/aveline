@@ -815,3 +815,10 @@ payloads add exact capability identity and named `resolvedTheme`; legacy payload
 retain their exact old fields and values. Verified DSAR export includes only the
 subject's authorship/assignment/publication/audit/receipt facts, and closure revokes
 active assignments, preview sessions and unbound work without deleting versions.
+
+Event and missing-invitation creation share immutable, tenant-scoped template
+selection. Optional `templateVersionId` must match the currently active version;
+unavailable/foreign/stale selections return `404` without a partial event. Both
+creation routes retain `201` and add `templateSetup` only when initial private
+artwork is processing. New drafts cannot publish until their copies are BOUND.
+Existing invitations keep their captured version and lifetime.

@@ -92,7 +92,7 @@ export class EventsController {
   @ApiOperation({
     summary: 'Create an event, with its draft invitation',
     description:
-      'The caller becomes its OWNER. An invitation is created alongside, so ' +
+      'The exact organization OWNER becomes its event OWNER; a MANAGER becomes COORDINATOR. An invitation is created alongside, so ' +
       'there is something to design immediately.',
   })
   create(@CurrentActor() actor: RequestActor, @Body() dto: CreateEventDto) {
@@ -106,8 +106,8 @@ export class EventsController {
     summary: 'Add an invitation to an event that has none',
     description: 'Only needed when no design template existed when the event was created.',
   })
-  createInvitation(@Param('id') id: string, @Body() dto: CreateInvitationDto) {
-    return this.events.createInvitation(id, dto.templateKey);
+  createInvitation(@Param('id') id: string, @CurrentActor() actor: RequestActor, @Body() dto: CreateInvitationDto) {
+    return this.events.createInvitation(id, actor.userId, dto);
   }
 
   @RequirePermission('event:read')

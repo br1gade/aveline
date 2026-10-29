@@ -315,3 +315,10 @@ invitation before current-user locks. Export privacy remains first when touched.
 Shared resolver and lock contracts live in infra/auth; independent platform powers
 are preserved. The database compatibility gate and explicit operator cutover keep
 new memberships disabled until acceptance evidence excludes old runtimes.
+
+Event setup, enquiry conversion and missing-invitation recovery use one
+transaction-aware creation path. Template selection is fenced before existing
+event/invitation/current-user rows; default blocks and theme come from the
+selected immutable version. Initial artwork preparation inserts only durable
+jobs, with publication blocked until the private materialization worker binds
+all copies. Storage IO remains outside request transactions.

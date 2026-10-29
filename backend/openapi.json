@@ -414,7 +414,7 @@
         ]
       },
       "post": {
-        "description": "The caller becomes its OWNER. An invitation is created alongside, so there is something to design immediately.",
+        "description": "The exact organization OWNER becomes its event OWNER; a MANAGER becomes COORDINATOR. An invitation is created alongside, so there is something to design immediately.",
         "operationId": "EventsController_create",
         "parameters": [],
         "requestBody": {
@@ -7781,6 +7781,10 @@
           "templateKey": {
             "type": "string",
             "description": "A template key from GET /events/:id/design-templates. Omitted picks the first active template, so an event always comes with a draft invitation."
+          },
+          "templateVersionId": {
+            "type": "string",
+            "description": "Exact active version from the selected organization catalogue; a stale or unavailable version is 404."
           }
         },
         "required": [
@@ -7795,6 +7799,10 @@
           "templateKey": {
             "type": "string",
             "description": "Omitted picks the first active template"
+          },
+          "templateVersionId": {
+            "type": "string",
+            "description": "Exact active version from the selected organization catalogue; a stale or unavailable version is 404."
           }
         }
       },

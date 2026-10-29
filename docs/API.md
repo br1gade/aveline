@@ -2382,7 +2382,7 @@ POST /api/v1/events
 ```
 
 **This is step two of onboarding**, after `POST /organizations`. It creates the
-event, its draft invitation and the caller's ownership in one request, because
+event, its draft invitation and the caller's event role in one request, because
 nothing can be done with an event that has no invitation and an event nobody
 owns cannot be read back.
 
@@ -2398,7 +2398,11 @@ owns cannot be read back.
 `type` is `WEDDING`, `ENGAGEMENT`, `BAPTISM`, `BIRTHDAY`, `ANNIVERSARY`,
 `CORPORATE` or `OTHER`. Optional: `hostsLabel` (defaults to the title),
 `endsAt`, `timezone` (defaults to `Asia/Yerevan`), `locales`, `defaultLocale`,
-`sideALabel` / `sideBLabel`, `visibility`, and `templateKey`.
+`sideALabel` / `sideBLabel`, `visibility`, `templateKey`, and optional
+`templateVersionId`. Selection is limited to active shared or same-organization
+private templates and uses that exact immutable version's defaults and block
+order. A supplied version must still be active. Unknown, foreign, retired or
+stale selections return `404`.
 
 **The slug is generated, not chosen.** It reads as the hosts' names where they
 are URL-safe and falls back to `event-<random>` otherwise — an Armenian title
@@ -2452,7 +2456,13 @@ A change of wording alone never suggests it. Venue writes return the same
 `notice`, with `changed: ["venues"]`.
 
 If no design template existed when the event was created, `invitation` comes
-back `null` and `POST /events/:id/invitation` adds one later.
+back `null` and `POST /events/:id/invitation` adds one later, accepting the same
+optional template key/version. Both paths keep their `201` response and return
+additive `templateSetup:{state:"PROCESSING",materializationId}` when private
+artwork needs preparation. They reserve durable jobs in the same transaction;
+no file copy occurs inside it. The invitation stays DRAFT and publishing returns
+`409 TEMPLATE_ASSET_NOT_READY` until the worker binds every exact-version copy.
+A retry of invitation recovery cannot create a second invitation or preparation.
 
 ### The running order
 
