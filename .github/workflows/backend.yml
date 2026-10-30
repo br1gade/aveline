@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -63,6 +63,14 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - name: Use PostgreSQL 16 recovery clients
+        if: matrix.layer == 'integration'
+        run: |
+          test -x /usr/lib/postgresql/16/bin/pg_dump
+          test -x /usr/lib/postgresql/16/bin/pg_restore
+          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
+          /usr/lib/postgresql/16/bin/pg_dump --version
+          /usr/lib/postgresql/16/bin/pg_restore --version
       - if: matrix.layer == 'quality'
         run: npm run lint && npm run docs:check && npm run openapi:check && npx tsc --noEmit --incremental false && npm run build && npm run test:unit && npm run test:pilot && npm run test:backup && npm run test:ops && node --test scripts/ci-test-results.test.mjs
       - if: matrix.layer == 'integration'

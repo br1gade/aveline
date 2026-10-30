@@ -23,6 +23,9 @@ or old-image restart is attempted. API and all four workers share one image.
 Failed integration/HTTP suites emit bounded assertion diagnostics as GitHub check
 annotations; the original test command still fails. Test results use disposable
 data and contain no production credentials.
+The test matrix pins Ubuntu 24.04, and integration tests explicitly select its
+PostgreSQL 16 dump/restore clients to match the PostgreSQL 16 service. Newer
+runner-default clients can emit settings unsupported by the target server.
 
 ## Configure GitHub once
 
