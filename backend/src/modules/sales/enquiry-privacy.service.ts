@@ -55,15 +55,15 @@ export class EnquiryPrivacyService implements OnModuleInit {
     return findSubjectCandidates(this.prisma, { ...input, kind: input.email ? 'EMAIL' : 'PHONE', fingerprint: addressFingerprint(channel, address) });
   }
 
-  async resolveSubject(requestId: string): Promise<EnquiryPrivacySubject> {
-    const request = await this.prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: requestId }, include: { enquirySubjects: { select: { contactId: true } } } });
+  async resolveSubject(requestId: string, tx: Prisma.TransactionClient = this.prisma): Promise<EnquiryPrivacySubject> {
+    const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: requestId }, include: { enquirySubjects: { select: { contactId: true } } } });
     if (request.enquirySubjects.length && !request.enquirySubjectsVerifiedAt) throw new BadRequestException('Enquiry subjects must be verified');
     if (!request.subjectEmail && (!request.enquirySubjectsVerifiedAt || !request.enquirySubjects.length)) throw new BadRequestException('Phone-only enquiry subjects must be verified');
     if (request.subjectEmail && !request.enquirySubjectsVerifiedAt) {
-      const candidates = await this.candidates({ email: request.subjectEmail, limit: 1 });
+      const candidates = await findSubjectCandidates(tx, { kind: 'EMAIL', fingerprint: addressFingerprint(MessageChannel.EMAIL, request.subjectEmail), limit: 1 });
       if (candidates.items.length) throw new BadRequestException('Enquiry subjects must be verified, including historical address matches');
     }
-    return resolveVerifiedEnquiryOwner(this.prisma, request, request.enquirySubjects.map((subject) => subject.contactId));
+    return resolveVerifiedEnquiryOwner(tx, request, request.enquirySubjects.map((subject) => subject.contactId));
   }
 
   async resolveForErasure(tx: Prisma.TransactionClient, requestId: string): Promise<EnquiryPrivacySubject> {
@@ -74,11 +74,12 @@ export class EnquiryPrivacyService implements OnModuleInit {
     return resolveVerifiedEnquiryOwner(tx, request, request.enquirySubjects.map((subject) => subject.contactId));
   }
 
-  exportSubject(subject: EnquiryPrivacySubject) {
-    return this.prisma.$transaction(async (tx) => {
-      await lockIntake(tx);
-      return tx.salesEnquiry.findMany({ where: { contact: { id: { in: subject.verifiedContactIds } } }, include: { contact: true, notes: true, activities: true, consultations: true, conversion: true } });
-    });
+  exportSubject(subject: EnquiryPrivacySubject, tx?: Prisma.TransactionClient) {
+    const project = async (transaction: Prisma.TransactionClient) => {
+      await lockIntake(transaction);
+      return transaction.salesEnquiry.findMany({ where: { contact: { id: { in: subject.verifiedContactIds } } }, include: { contact: true, notes: true, activities: true, consultations: true, conversion: true } });
+    };
+    return tx ? project(tx) : this.prisma.$transaction(project);
   }
 
   eraseInTransaction(tx: Prisma.TransactionClient, input: { subject: EnquiryPrivacySubject; now: Date; requestId?: string }) {

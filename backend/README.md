@@ -688,7 +688,9 @@ the off-host destination remains an operator gate.
 Scoped calls accept `X-Aveline-Organization-Id`; one membership defaults as before,
 multiple require explicit selection. Additional writes are off by default in
 `runtime_compatibility`, checked under a transaction lock for create/join. API and
-standalone workers refuse schema revisions newer than 2 at startup. The migration
+standalone workers check the shared reader floor at startup; revision 3 supports
+floors 2/3 and refuses missing or newer floors. Exclude already-running older
+replicas before any F39/F44 activation, even with extra memberships disabled. The migration
 retains the user-only unique index; automatic deploy never drops it. See
 [organization cutover](docs/ORGANIZATION_CUTOVER.md) for the explicit operator command.
 

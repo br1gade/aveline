@@ -2,10 +2,8 @@
 
 Updated **30 October 2026**. This is the current delivery-status companion to the
 25 October execution blueprints. The F38, F39 and F44 backend streams have been
-implemented and integrated for final release verification. Backend delivery does
-not mean production activation, frontend acceptance or paid-operation approval.
-The integration owner records the final combined verification result; no final
-whole-branch test totals or production acceptance are asserted here.
+implemented, integrated and functionally verified as recorded below. Production
+activation, frontend acceptance and paid-operation approval remain separate gates.
 
 The current HTTP contract is [API.md](../../API.md) and generated
 [OpenAPI](../../../backend/openapi.json). Domain behavior is governed by
@@ -29,6 +27,13 @@ copies. A draft cannot publish before required copies are bound. Template
 publication does not upgrade existing invitations, reset captured lifetime,
 change attendance/acknowledgements or rewrite fixed exports.
 
+The shared reader protocol is revision 3. A forward migration raises its minimum
+reader floor while preserving the additional-membership write gate. Older
+revision-2 runtimes refuse that schema on startup; before any F39/F44 activation,
+operators must also exclude already-running older API, worker and maintenance
+processes and their database access. This requirement is independent of enabling
+multiple memberships; startup checks cannot stop an old process already running.
+
 ## Evidence and operating boundaries
 
 Implementation includes unit, real-PostgreSQL integration and HTTP regression
@@ -39,9 +44,33 @@ trusted renderer manifests exercise backend transactions only; they are not
 frontend capability or visual acceptance. Disposable-database tests do not
 activate additional memberships or certify production journal/object preservation.
 
-The final integrated `npm run verify` result and any reader-floor follow-up belong
-to the integration owner's release record. Measured load and operational restore
-acceptance run separately from functional verification. Current setup and recovery
+Verification on **30 October 2026** used isolated PostgreSQL test databases and
+local test services:
+
+| Check | Result |
+|---|---|
+| Lint, source/test TypeScript, build and documentation checks | Passed; zero lint warnings |
+| Generated OpenAPI | 200 paths match the source |
+| Unit tests | 113 suites, 1,288 cases passed |
+| Integration coverage | 70 suites, 602 unique cases green across full runs and affected-suite reruns |
+| HTTP coverage | 45 suites, 676 unique cases green across the full run and affected-suite reruns |
+| Pilot script tests | 10 passed |
+| Backup script tests | 8 passed |
+
+The full runs exposed legacy fixtures that needed the template-adoption dependency,
+transactional invitation-mail setup and current safe retry semantics. The committed
+revision race now uses two independent attached-media updates: design edits
+intentionally share the invitation preview fence, while both exact cache-counter
+assertions remain intact. Isolated resets retry only a rolled-back PostgreSQL
+`40P01` deadlock, at most three attempts, with scheduled jobs still enabled.
+Single-membership creation errors retain the helpful organization name; multiple
+memberships remain generic and cannot create another organization while gated off.
+
+Counts above are unique cases rather than sums of reruns. The final checks were
+completed through full runs followed by scoped reruns of corrected suites; a fresh
+uninterrupted `npm run verify` was not repeated after those fixes.
+Measured load and operational restore acceptance run separately from functional
+verification. Current setup and recovery
 procedures live in the [organization cutover runbook](../../../backend/docs/ORGANIZATION_CUTOVER.md)
 and [staff intake recovery runbook](../../../backend/docs/SALES_INTAKE.md); the renderer gate is described in
 [the capability contract](../../contracts/invitation-renderer-capabilities/README.md).

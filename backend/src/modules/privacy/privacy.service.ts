@@ -1,3 +1,5 @@
+import { lockExportPrivacy } from '../exports/export-privacy';
+import { lockIntake } from '../sales/enquiry-lock';
 import { EnquiryPrivacyService } from '../sales/enquiry-privacy.service';
 import { EnquiryPrivacySubject } from '../sales/enquiry-privacy';
 import { exportTemplateAuthorship } from '../design/templates/template-privacy';
@@ -169,17 +171,26 @@ export class PrivacyService {
       );
     }
 
-    const subject = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveSubject(requestId) : { email: request.subjectEmail, verifiedContactIds: [] };
     const completion = { requestId, userId };
-    const result =
-      request.kind === DataSubjectRequestKind.EXPORT
-        ? await this.assembleExport(subject, request.id)
-        : await this.erase(subject, completion);
+    const result = request.kind === DataSubjectRequestKind.EXPORT
+      ? await this.fulfilExport(completion)
+      : await this.erase(this.enquiryPrivacy ? await this.enquiryPrivacy.resolveSubject(requestId) : { email: request.subjectEmail, verifiedContactIds: [] }, completion);
 
-    if (request.kind === DataSubjectRequestKind.EXPORT) {
-      await this.prisma.dataSubjectRequest.updateMany({ where: { id: requestId }, data: completedBy(userId) });
-    }
     return { reference: requestId, kind: request.kind, ...result };
+  }
+
+  private fulfilExport(completion: { requestId: string; userId: string }) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id=${completion.requestId} FOR UPDATE`;
+      const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: completion.requestId } });
+      if (request.status !== 'IN_PROGRESS' || request.kind !== 'EXPORT') throw new ConflictException('This export request changed or was already carried out');
+      await lockExportPrivacy(tx);
+      await lockIntake(tx);
+      const subject = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveSubject(request.id, tx) : { email: request.subjectEmail, verifiedContactIds: [] };
+      const result = await this.assembleExport(subject, request.id, tx);
+      await tx.dataSubjectRequest.updateMany({ where: { id: request.id, status: 'IN_PROGRESS' }, data: completedBy(completion.userId) });
+      return result;
+    }, { timeout: ERASURE_TIMEOUT_MS });
   }
 
   /**
@@ -189,22 +200,22 @@ export class PrivacyService {
    * in object storage waiting to be collected is a second place it can leak
    * from.
    */
-  private async assembleExport(subject: EnquiryPrivacySubject, requestId: string) {
-    const legacy = subject.email ? await this.assembleEmailExport(subject.email, requestId) : {
+  private async assembleExport(subject: EnquiryPrivacySubject, requestId: string, tx: Prisma.TransactionClient) {
+    const legacy = subject.email ? await this.assembleEmailExport(subject.email, requestId, tx) : {
       subjectEmail: null, assembledAt: new Date().toISOString(), account: null, guestRecords: [],
       contributions: [], templateAuthorship: null, ticketAttendees: [], ticketOrders: [], messagesSent: [], suppressions: [],
     };
-    const enquiries = this.enquiryPrivacy ? await this.enquiryPrivacy.exportSubject(subject) : [];
+    const enquiries = this.enquiryPrivacy ? await this.enquiryPrivacy.exportSubject(subject, tx) : [];
     return { ...legacy, enquiries };
   }
 
-  private async assembleEmailExport(subjectEmail: string, requestId: string) {
+  private async assembleEmailExport(subjectEmail: string, requestId: string, tx: Prisma.TransactionClient) {
     const [user, guests, ticketOrders, messages, suppressions, ticketAttendees, contributions, templateAuthorship] = await Promise.all([
-      this.prisma.user.findFirst({
+      tx.user.findFirst({
         where: { email: sameAddress(subjectEmail) },
         select: { email: true, name: true, createdAt: true, lastLoginAt: true },
       }),
-      this.prisma.guest.findMany({
+      tx.guest.findMany({
         where: { OR: [{ email: sameAddress(subjectEmail) }, { ticket: { attendee: attendeeSubject(subjectEmail) } }] },
         select: {
           firstName: true,
@@ -223,7 +234,7 @@ export class PrivacyService {
           checkIn: { select: { arrivedAt: true } },
         },
       }),
-      this.prisma.ticketOrder.findMany({
+      tx.ticketOrder.findMany({
         where: { buyerEmail: sameAddress(subjectEmail) },
         select: {
           buyerName: true,
@@ -236,15 +247,15 @@ export class PrivacyService {
           event: { select: { title: true } },
         },
       }),
-      this.prisma.message.findMany({
+      tx.message.findMany({
         where: { toAddress: sameAddress(subjectEmail) },
         select: { channel: true, templateKey: true, status: true, sentAt: true, subject: true },
         take: 500,
       }),
-      this.suppressionsOf(subjectEmail),
-      exportAttendees(this.prisma, subjectEmail),
-      exportContributions(this.prisma, subjectEmail, requestId),
-      exportTemplateAuthorship(this.prisma, subjectEmail),
+      this.suppressionsOf(subjectEmail, tx),
+      exportAttendees(tx, subjectEmail),
+      exportContributions(tx, subjectEmail, requestId),
+      exportTemplateAuthorship(tx, subjectEmail),
     ]);
 
     return {
@@ -261,8 +272,8 @@ export class PrivacyService {
   }
 
   /** Their do-not-contact records, including those an earlier erasure left hashed. */
-  private suppressionsOf(subjectEmail: string) {
-    return this.prisma.suppression.findMany({
+  private suppressionsOf(subjectEmail: string, tx: Prisma.TransactionClient) {
+    return tx.suppression.findMany({
       where: {
         OR: [
           { address: sameAddress(subjectEmail) },
@@ -289,7 +300,7 @@ export class PrivacyService {
     if (!request.erasureAppliedAt) return applied.counts;
     try { if (this.enquiryPrivacy) await this.enquiryPrivacy.checkpoint(); }
     catch { this.logger.error('Intake erasure applied; protected journal checkpoint recovery is pending'); return { ...applied.counts, recoveryPending: true }; }
-    const outstanding = await this.prisma.enquiryPrivacyRedaction.count({ where: { contactId: { in: subject.verifiedContactIds }, checkpointedAt: null } });
+    const outstanding = await this.prisma.enquiryPrivacyRedaction.count({ where: { contactId: { in: applied.subject.verifiedContactIds }, checkpointedAt: null } });
     if (outstanding) return { ...applied.counts, recoveryPending: true };
     await this.prisma.dataSubjectRequest.updateMany({ where: { id: completion.requestId, status: 'IN_PROGRESS', erasureAppliedAt: { not: null } }, data: completedBy(completion.userId) });
     return applied.counts;
@@ -300,22 +311,22 @@ export class PrivacyService {
       await tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id=${completion.requestId} FOR UPDATE`;
       const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: completion.requestId } });
       if (request.status !== 'IN_PROGRESS') throw new ConflictException('This request is being carried out by someone else, or already was');
-      if (request.erasureAppliedAt) return { counts: request.erasureResult as Record<string, number>, afterwards: null };
-      const verified = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveForErasure(tx, request.id) : subject;
+      const verified = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveForErasure(tx, request.id) : { ...subject, email: request.subjectEmail };
+      if (request.erasureAppliedAt) return { counts: request.erasureResult as Record<string, number>, afterwards: null, subject: verified };
       const erased = verified.email
         ? await eraseSubject(tx, verified.email, new Date(), verified)
         : { counts: await this.enquiryPrivacy!.eraseInTransaction(tx, { subject: verified, now: new Date(), requestId: request.id }), afterwards: null };
-      const pending = await tx.enquiryPrivacyRedaction.count({ where: { contactId: { in: subject.verifiedContactIds }, checkpointedAt: null } });
+      const pending = await tx.enquiryPrivacyRedaction.count({ where: { contactId: { in: verified.verifiedContactIds }, checkpointedAt: null } });
       const hasIntakeRedactions = erased.counts.enquiriesCleared > 0 || pending > 0;
       await tx.dataSubjectRequest.update({ where: { id: request.id }, data: hasIntakeRedactions
         ? { erasureAppliedAt: new Date(), erasureCheckpointId: request.id, erasureResult: erased.counts, handledByUserId: completion.userId }
         : completedBy(completion.userId) });
-      return erased;
+      return { ...erased, subject: verified };
     }, { timeout: ERASURE_TIMEOUT_MS });
     if (applied.afterwards?.userId) await reconcileInactiveOwnerReviews(this.prisma, applied.afterwards.userId);
-    if (applied.afterwards && subject.email) await Promise.all([
+    if (applied.afterwards) await Promise.all([
       Promise.allSettled(applied.afterwards.fileUrls.map((url) => this.storage.removeByUrl(url))),
-      this.audit.forgetPerson({ email: subject.email, userId: applied.afterwards.userId }),
+      ...(applied.subject.email ? [this.audit.forgetPerson({ email: applied.subject.email, userId: applied.afterwards.userId })] : []),
       this.analytics.forgetGuests(applied.afterwards.guestIds),
     ]);
     return applied;

@@ -1,3 +1,6 @@
+import { ConfigService } from '@nestjs/config';
+import { TemplateAdoptionService } from '../../src/modules/design/templates/template-adoption.service';
+import { TemplateGatesService } from '../../src/modules/design/templates/template-gates.service';
 import { DesignService } from '../../src/modules/design/design.service';
 import { TicketSetupService } from '../../src/modules/ticketing/ticket-setup.service';
 import { CacheService } from '../../src/infra/cache/cache.service';
@@ -182,7 +185,9 @@ describe('Named ticket attendees (integration)', () => {
     const order = await ticketing.createOrder(event.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local', provider: 'FAKE', idempotencyKey: randomUUID(),
       items: [{ ticketTypeId: event.ticketTypeId, quantity: 1 }], attendees: [{ ticketTypeId: event.ticketTypeId, firstName: 'Anna', answers: [{ questionId: question.id, value: 'Fish' }] }] });
     const cache = { invalidateInvitation: jest.fn().mockResolvedValue(undefined) } as unknown as CacheService;
-    const design = new DesignService(prisma as unknown as PrismaService, cache);
+    const database = prisma as unknown as PrismaService;
+    const gates = new TemplateGatesService(new ConfigService({ TEMPLATE_ADOPTION_ENABLED: 'false' }));
+    const design = new DesignService(database, cache, new TemplateAdoptionService(database, cache, gates));
     await expect(design.removeQuestion(event.invitationSlug, question.id)).rejects.toThrow('answered');
     await expect(design.updateQuestion(event.invitationSlug, question.id, { type: 'BOOLEAN' })).rejects.toThrow();
     await fulfilment.markPaid(order.orderId);

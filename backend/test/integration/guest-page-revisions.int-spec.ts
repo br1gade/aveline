@@ -17,15 +17,21 @@ describe('Committed guest-page revisions (integration)', () => {
   it('advances when an older transaction commits after a newer transaction', async () => {
     const event = await seedEvent(prisma); const pending = deferred(); const release = deferred();
     const blocks = await prisma.invitationBlock.findMany({ where: { invitation: { eventId: event.eventId } }, orderBy: { sortOrder: 'asc' } });
+    const assets = await prisma.mediaAsset.createManyAndReturn({ data: [
+      { eventId: event.eventId, kind: 'PHOTO', url: 'https://media.test/first.jpg' },
+      { eventId: event.eventId, kind: 'PHOTO', url: 'https://media.test/second.jpg' },
+    ] });
+    await prisma.invitationBlock.update({ where: { id: blocks[0].id }, data: { assetIds: assets.map((asset) => asset.id) } });
     const beforeMeta = (await readGuestPageMeta(prisma, event.slug))[0];
     const before = beforeMeta.revision;
     const older = prisma.$transaction(async (tx) => {
-      await tx.invitationBlock.update({ where: { id: blocks[0].id }, data: { content: { en: { title: 'Late commit' } } } });
+      // Design edits intentionally share an invitation fence; independent media edits test commit ordering.
+      await tx.mediaAsset.update({ where: { id: assets[0].id }, data: { altText: { en: 'Late commit' } } });
       pending.resolve(); await release.promise;
     }, { timeout: 10000 });
     try {
       await pending.promise;
-      await prisma.invitationBlock.update({ where: { id: blocks[1].id }, data: { enabled: false } });
+      await prisma.mediaAsset.update({ where: { id: assets[1].id }, data: { altText: { en: 'First commit' } } });
       expect((await readGuestPageMeta(prisma, event.slug))[0].revision).toBe(before + 1n);
       expect((await readGuestPageMeta(prisma, event.slug))[0].sharedRevision).toBe(beforeMeta.sharedRevision! + 1n);
     } finally { release.resolve(); await older; }

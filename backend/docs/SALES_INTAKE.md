@@ -134,3 +134,12 @@ the original command effect after a template retires or an event is published,
 while returning the current authorized case projection. Privacy-invalidated keys
 stay spent and reassigned operators lose replay access immediately. New intents
 retain the complete setup validation and lock order.
+
+Privacy fulfilment uses the subject resolved under its request and privacy fences
+for both the database effect and postcommit file/audit/analytics cleanup. Pending
+checkpoint checks use the complete captured contact set; a reviewed append before
+execution cannot be skipped by an older preflight snapshot. Applied markers
+freeze binding and resume from the persisted scope. Subject EXPORT likewise
+holds its request lock through projection and completion and reads its sections
+through the same transaction, preventing a concurrent rebind from relabelling
+an earlier subject's data.

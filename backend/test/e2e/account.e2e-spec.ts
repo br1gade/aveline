@@ -232,6 +232,7 @@ describe('Account lifecycle (e2e)', () => {
   describe('organization invitations', () => {
     const asOwner = async () => {
       const { tokens, user } = await register();
+      await prisma.messageTemplate.create({ data: { key: 'organization.invite', channel: 'EMAIL', body: { en: '{{link}}' } } });
       const organization = await prisma.organization.create({ data: { name: 'Acme Events' } });
       await prisma.organizationMembership.create({
         data: { userId: user.id, organizationId: organization.id, role: 'OWNER' },
@@ -365,7 +366,7 @@ describe('Account lifecycle (e2e)', () => {
       });
     });
 
-    it('refuses the same invitation twice', async () => {
+    it('replays an accepted invitation only with current password proof', async () => {
       const { authorization } = await asOwner();
       const invited = await http()
         .post('/api/v1/organization/invites')
@@ -376,7 +377,10 @@ describe('Account lifecycle (e2e)', () => {
       const accept = { token, name: 'New Person', password: 'a-long-enough-password' };
 
       await http().post('/api/v1/invites/accept').send(accept).expect(201);
-      await http().post('/api/v1/invites/accept').send(accept).expect(400);
+      await http().post('/api/v1/invites/accept').send({ ...accept, password: 'a-different-password' }).expect(409);
+      const replay = await http().post('/api/v1/invites/accept').send(accept).expect(201);
+      expect(replay.body).toMatchObject({ ok: true, role: 'MEMBER', accountCreated: false });
+      expect(await prisma.organizationMembership.count({ where: { user: { email: 'new@test.local' } } })).toBe(1);
     });
 
     // B87: accepting checked the invite, then wrote; a revoke between the two was ignored.

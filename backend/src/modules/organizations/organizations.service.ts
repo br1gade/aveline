@@ -132,5 +132,13 @@ export class OrganizationsService {
 }
 
 async function assertOrganizationCreationAllowed(tx: Prisma.TransactionClient, userId: string, canAddMembership: boolean): Promise<void> {
-  if (!canAddMembership && await tx.organizationMembership.count({ where: { userId } })) throw new ConflictException('You already belong to an organization; one organization per account for now');
+  if (canAddMembership) return;
+  const memberships = await tx.organizationMembership.findMany({
+    where: { userId }, select: { organization: { select: { name: true } } }, take: 2,
+  });
+  if (!memberships.length) return;
+  if (memberships.length === 1) {
+    throw new ConflictException(`You already belong to "${memberships[0].organization.name}"; one organization per account for now`);
+  }
+  throw new ConflictException('You already belong to an organization; one organization per account for now');
 }

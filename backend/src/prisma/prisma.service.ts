@@ -1,12 +1,12 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { requireReaderCompatibility } from './reader-compatibility';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     await this.$connect();
-    const gate = await this.runtimeCompatibility.findUnique({ where: { id: 'organization-context' } });
-    if (!gate || gate.minimumRevision > 2) throw new Error('Unsupported organization schema revision');
+    await requireReaderCompatibility(this);
   }
 
   async onModuleDestroy(): Promise<void> {

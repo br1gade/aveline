@@ -140,7 +140,7 @@ enum PlatformRole {
 /// forced together.
 model OrganizationMembership {
   id             String           @id @default(cuid())
-  /// Retained until the operator-controlled revision-2 cutover. Readers already
+  /// Retained until the operator-controlled revision-3 cutover. Readers already
   /// resolve exact tenant standing; never drop this through automatic migration.
   userId         String           @unique
   organizationId String
@@ -2654,7 +2654,7 @@ model DataSubjectRequestEnquirySubject {
 
 model RuntimeCompatibility {
   id String @id
-  minimumRevision Int @default(2)
+  minimumRevision Int @default(3)
   multiOrganizationWrites Boolean @default(false)
   @@map("runtime_compatibility")
 }

@@ -20,11 +20,26 @@ describe('controlled multiple-organization cutover', () => {
   it('keeps additional creation disabled after index cutover until the shared gate enables it', async () => {
     const user = await prisma.user.create({ data: { email: 'member@example.test', name: 'Member' } });
     await organizations.create(user.id, { name: 'First' }, 'first');
-    await expect(organizations.create(user.id, { name: 'Second' }, 'second')).rejects.toThrow('one organization');
+    await expect(organizations.create(user.id, { name: 'Second' }, 'second')).rejects.toThrow('You already belong to "First"; one organization per account for now');
     await prisma.runtimeCompatibility.update({ where: { id: 'organization-context' }, data: { multiOrganizationWrites: true } });
     const second = await organizations.create(user.id, { name: 'Second' }, 'second');
     await expect(organizations.create(user.id, { name: 'Second' }, 'second')).resolves.toMatchObject({ id: second.id });
     expect(await prisma.organizationMembership.count({ where: { userId: user.id } })).toBe(2);
+  });
+  it('keeps a multi-membership refusal generic after additional writes are disabled', async () => {
+    const user = await prisma.user.create({ data: { email: 'member@example.test', name: 'Member' } });
+    const first = await prisma.organization.create({ data: { name: 'First customer tenant' } });
+    const second = await prisma.organization.create({ data: { name: 'Second customer tenant' } });
+    await prisma.organizationMembership.createMany({ data: [
+      { userId: user.id, organizationId: first.id, role: 'OWNER' },
+      { userId: user.id, organizationId: second.id, role: 'MANAGER' },
+    ] });
+    await expect(organizations.create(user.id, { name: 'Must not exist' }, 'third')).rejects.toMatchObject({
+      status: 409, message: 'You already belong to an organization; one organization per account for now',
+    });
+    expect(await prisma.organization.count()).toBe(2);
+    expect(await prisma.organizationMembership.count({ where: { userId: user.id } })).toBe(2);
+    expect(await prisma.organizationCreateIntent.count()).toBe(0);
   });
   it('uses only the exact selected role and preserves another organization when leaving', async () => {
     const user = await prisma.user.create({ data: { email: 'member@example.test', name: 'Member' } });

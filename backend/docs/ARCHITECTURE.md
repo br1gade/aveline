@@ -322,3 +322,8 @@ event/invitation/current-user rows; default blocks and theme come from the
 selected immutable version. Initial artwork preparation inserts only durable
 jobs, with publication blocked until the private materialization worker binds
 all copies. Storage IO remains outside request transactions.
+The shared reader compatibility floor is revision 3 for combined organization,
+enquiry and template readers. Startup and locked membership writes share one
+compatibility helper. A forward migration preserves an activated membership gate;
+operators must exclude already-running older readers before any F39/F44 activation,
+independently of second-membership cutover.

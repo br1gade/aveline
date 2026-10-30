@@ -53,16 +53,9 @@ export class EventsService {
   }
 
   /**
-   * Creates an event, its draft invitation, and the caller's ownership of it.
-   *
-   * All three in one request because they are one intent: nothing can be done
-   * with an event that has no invitation, and an event nobody owns is
-   * unreachable the moment the request ends. Until this existed, events could
-   * only be made by the seed script — so a real customer could register,
-   * create an organization, and then stop.
-   *
-   * One transaction, because a half-created event is worse than none: an event
-   * with no membership cannot be read back to be fixed.
+   * Event, optional draft invitation and creator access are one atomic intent.
+   * Exact tenant membership determines the creator's event role; concierge
+   * setup relies on current platform authority and separate owner handover.
    */
   async create(organizationId: string, userId: string, dto: CreateEventDto, options = { isOnBehalf: false }) {
     // An authenticated account with no organization has nowhere to put an
@@ -123,10 +116,9 @@ export class EventsService {
       },
     });
 
-    // The creator owns it. Without this the event exists and its creator
-    // cannot read it back, because the guard resolves access from membership.
-    // Not when Aveline staff set it up for a customer: they act through
-    // their platform role, and the customer becomes its owner.
+    // Preserve the creator's exact tenant authority: OWNER becomes event OWNER;
+    // another authorized creator becomes COORDINATOR. Concierge staff instead
+    // act through platform authority while customer ownership is handed over.
     if (!options.isOnBehalf) {
       await tx.eventMembership.create({
         data: { eventId: created.id, userId, role: await resolveEventCreatorRole(tx, { userId, organizationId }) },

@@ -1746,8 +1746,14 @@ Session-only create, own memberships and invite-token acceptance ignore selectio
 digits, `_` or `-`). Same actor/key/body replays the existing organization while
 access remains; a different body returns `409 IDEMPOTENCY_KEY_REUSED`.
 Additional memberships remain disabled by the shared database compatibility gate
-and existing single-membership index until the controlled cutover. No environment
-flag enables them. Organization descriptions add `accessRevision`.
+and existing single-membership index until the controlled cutover. While that gate
+is disabled, a create refusal names the caller's organization only when exactly
+one membership exists; multiple memberships receive a generic 409 without choosing
+an arbitrary tenant. Failed create attempts leave no new organization or intent. No environment
+flag enables them. Shared organization/enquiry/template readers require floor 3
+for combined activation; older running replicas must be excluded before any new
+enquiry/template behavior is enabled, even while additional memberships are off.
+Organization descriptions add `accessRevision`.
 
 ```http
 GET /api/v1/me/organizations?limit=50&cursor=<opaque>
@@ -3812,3 +3818,10 @@ complete custom colors. Publication/adoption retry only PostgreSQL serialization
 or deadlock rollbacks, at most three attempts with the original dedupe intent;
 retry exhaustion returns a recoverable409. Explicit legacy switching retires prior
 private artwork bindings atomically while retaining reusable immutable source art.
+
+Privacy fulfilment captures the authoritative verified scope under the request
+lock. Erasure cleanup and checkpoint completion use that captured scope,
+including any reviewed contact/owner change committed before execution starts.
+Once erasure is applied, binding changes are refused and retries resume the
+frozen applied scope. EXPORT holds the request scope stable through projection
+and completion, so a concurrent binding cannot relabel another person's result.

@@ -1,5 +1,6 @@
+import { CURRENT_READER_REVISION } from '../../src/prisma/reader-compatibility';
 import { execSync } from 'node:child_process';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { assertTestDatabaseUrl } from '../../src/common/test-database-url';
 
 /**
@@ -39,13 +40,28 @@ export async function resetTestDatabase(): Promise<void> {
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables
     WHERE schemaname = 'public' AND tablename NOT LIKE '_prisma%'
+    ORDER BY tablename
   `;
 
   if (tables.length === 0) return;
 
   const list = tables.map((t) => `"public"."${t.tablename}"`).join(', ');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
-  await prisma.runtimeCompatibility.create({ data: { id: 'organization-context' } });
+  await truncateTestTables(prisma, list);
+  await prisma.runtimeCompatibility.create({ data: { id: 'organization-context', minimumRevision: CURRENT_READER_REVISION } });
+}
+
+/** Cron jobs remain active in HTTP tests; a deadlock rolls back the entire reset. */
+async function truncateTestTables(prisma: PrismaClient, tables: string): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
+      return;
+    } catch (error) {
+      const isDeadlock = error instanceof Prisma.PrismaClientKnownRequestError
+        && error.code === 'P2010' && error.meta?.code === '40P01';
+      if (!isDeadlock || attempt === 2) throw error;
+    }
+  }
 }
 
 export async function disconnectTestDatabase(): Promise<void> {

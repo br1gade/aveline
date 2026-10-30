@@ -381,3 +381,8 @@ evidence enters the external journal. Existing rows need no backfill. Linked
 organization/channel/address suppressions are atomically promoted to ERASED,
 including an existing hashed unsubscribe; unrelated scopes and ordinary retention
 are unaffected.
+
+RuntimeCompatibility.minimumRevision now defaults to 3 for combined F38/F39/F44
+readers. Its forward migration raises an existing lower floor without downgrading
+a future floor or changing multiOrganizationWrites. Historical migration-only
+fixtures retain the original revision-2 state they are intended to verify.
