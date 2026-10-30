@@ -20,6 +20,9 @@ and both OCI attestations before transferring tracked source. The remote
 controller handles maintenance, backups, compatibility checks and migration.
 Only success updates the host's `current` symlink. No automatic database rollback
 or old-image restart is attempted. API and all four workers share one image.
+Failed integration/HTTP suites emit bounded assertion diagnostics as GitHub check
+annotations; the original test command still fails. Test results use disposable
+data and contain no production credentials.
 
 ## Configure GitHub once
 
