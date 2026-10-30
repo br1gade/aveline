@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -43,7 +43,9 @@ async function executePipeline(ctx, summary, jobs) {
   await output('git', ['archive', '--format=tar', '--output', archive, summary.commit], { cwd: ctx.root });
   await output('tar', ['--no-same-owner', '-xf', archive, '-C', ctx.source]);
   const buildLog = join(ctx.evidence, 'setup.log');
-  await stage('workflow lint', () => logged('docker', ['run', '--rm', '--network', 'none', '--name', `${ctx.scope}-lint`, '-v', `${ctx.source}:/repo:ro`, '-w', '/repo', WORKFLOW_LINTER, '-color'], { log: buildLog, stage: 'workflow lint' }));
+  const workflows = (await readdir(join(ctx.source, '.github/workflows'))).filter((name) => /\.ya?ml$/.test(name)).map((name) => `.github/workflows/${name}`);
+  if (!workflows.length) throw new Error('No workflows found in committed snapshot');
+  await stage('workflow lint', () => logged('docker', ['run', '--rm', '--network', 'none', '--user', `${process.getuid()}:${process.getgid()}`, '--name', `${ctx.scope}-lint`, '-v', `${ctx.source}:/repo:ro`, '-w', '/repo', WORKFLOW_LINTER, '-color', ...workflows], { log: buildLog, stage: 'workflow lint' }));
   await stage('runner image', () => logged('docker', ['build', '-f', join(ctx.source, 'backend/Dockerfile.ci'), '-t', ctx.image, ctx.source], { log: buildLog, stage: 'runner image', timeout: 1200000 }));
   summary.imageId = await output('docker', ['image', 'inspect', '--format', '{{.Id}}', ctx.image]);
   await stage('quality', () => runLayer(ctx, 'quality')); summary.layers.push('quality');

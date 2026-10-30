@@ -42,7 +42,8 @@ not a source-controlled server policy or a replacement for protected-branch chec
 
 1. Archive the requested commit into a new private directory. Ignored local env
    files, credentials, development databases and untracked files never enter the snapshot.
-2. Lint GitHub workflows with the pinned actionlint image and build the CI runner.
+2. Lint explicit workflow files with the pinned actionlint image (the snapshot
+   contains no Git metadata), then build the CI runner.
 3. Run lint, docs/OpenAPI, source/test type checks, build, all unit tests, and
    pilot/backup/operations/CI-tool regression tests.
 4. Build the application/backup images and exercise real Caddy TLS/privacy,

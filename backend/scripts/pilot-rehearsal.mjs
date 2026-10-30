@@ -95,7 +95,7 @@ try {
   console.error(error instanceof assert.AssertionError ? error.message : 'Rehearsal failed; inspect the relevant stage without printing environment values.');
   process.exitCode = 1;
 } finally {
-  await Promise.all(containers.map((name) => docker('rm', '-f', name).catch(() => undefined)));
+  await Promise.all(containers.map((name) => docker('rm', '-f', '-v', name).catch(() => undefined)));
   if (wasNetworkCreated) await docker('network', 'rm', scope);
   await docker('run', '--rm', '--user', '0:0', '-v', `${directory}:/rehearsal`, image, 'chown', '-R', `${process.getuid()}:${process.getgid()}`, '/rehearsal').catch(() => undefined);
   await rm(directory, { recursive: true, force: true });

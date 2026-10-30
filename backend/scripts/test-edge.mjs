@@ -94,7 +94,7 @@ try {
   if (process.env.GITHUB_ACTIONS === 'true') console.error(`::error file=backend/scripts/test-edge.mjs::${message}`);
   throw error;
 } finally {
-  if (child) await execute('docker', ['rm', '-f', name]).catch(() => undefined);
+  if (child) await execute('docker', ['rm', '-f', '-v', name]).catch(() => undefined);
   await new Promise((resolve) => server.close(resolve));
   await rm(directory, { recursive: true, force: true });
 }

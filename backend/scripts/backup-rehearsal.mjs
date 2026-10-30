@@ -105,7 +105,7 @@ try {
   report.finishedAt = new Date().toISOString();
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(`Sanitized recovery evidence: ${join(output, 'report.json')}`);
-  await Promise.all(containers.map((name) => docker('rm', '-f', name).catch(() => undefined)));
+  await Promise.all(containers.map((name) => docker('rm', '-f', '-v', name).catch(() => undefined)));
   if (wasNetworkCreated) await docker('network', 'rm', scope);
   // Capture/restore writes are root-owned and private. Give only this caller
   // ownership of this drill's generated directory before deleting it.
