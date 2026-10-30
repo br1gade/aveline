@@ -1,357 +1,218 @@
 # Deployment
 
-How Aveline runs in production, and what to do when something is wrong.
+Aveline runs on one Linux Docker host. Deployment tooling is implemented and
+rehearsed locally; no production host, public certificate or GitHub environment
+has been configured by this delivery. See [RELEASES.md](RELEASES.md) for GitHub
+release/promotion setup and [GOING_LIVE](../../docs/GOING_LIVE.md) for activation gates.
 
-Written for whoever is holding the pager, which early on is the person who
-wrote it. Everything here has been run; where something has not, it says so.
+## Stack and prerequisites
 
----
+`docker-compose.prod.yml` runs Caddy, API, PostgreSQL, Redis, MongoDB, Garage and
+four workers: `export-worker`, `seating-worker`, `private-media-worker` and
+`template-asset-worker`. All workers and migrations use the same API image.
+One-shot services perform migrations, seeding, privacy recovery and backups.
+The app image runs as `node` under `tini`; only Caddy publishes production ports
+80/443. Docker logs rotate at 10 MB with three files per service.
 
-## 1. What this is
+Use Linux, Docker Engine with **Compose 2.30+**, Node **24+** on the host, Bash,
+`flock` and sufficient disk/RAM for the configured container limits and backup
+sets. Containers use Node 26. The local overlay adds Mailpit and publishes only
+loopback API/media/mail UI ports; it never reuses the development Compose names.
+This packages the backend. A frontend application has not been built here.
 
-Seven long-running services on one host, plus one-shot migrations and backup tasks:
+Postgres holds the domain. Redis/Mongo outages degrade optional capabilities;
+scheduled sweeps deliberately pause without Redis locks. Garage outages prevent
+media work. API readiness requires Postgres; worker heartbeat checks are
+separate. An external uptime/worker/backup alert receiver remains operator work.
 
-```
-            ┌─────────────────────────────────────────┐
-   :443 ──▶ │ caddy      TLS, obtained and renewed    │
-            │   │                                     │
-            │   └──▶ api        the application        │
-            │          │                              │
-            │          ├──▶ postgres   the whole domain│
-            │          ├──▶ redis      cache, locks    │
-            │          ├──▶ mongo      analytics, audit│
-            │          └──▶ garage     media, exports  │
-            │                                         │
-            │        export-worker → postgres/garage   │
-            │        seating-worker → postgres         │
-            │        backup      quiesced capture      │
-            │        backup-check freshness and space  │
-            └─────────────────────────────────────────┘
-```
+## Local full-stack wizard
 
-The `seating-worker` service uses the API release image with a separate entry
-point, a 256 MiB JS heap/384 MiB container limit and no HTTP port. It requires
-Postgres only. Migrations must complete first; deploy API and both workers from
-the same release. Automatic seating now returns queued jobs, so coordinate the
-frontend polling cutover. Alert on its heartbeat and failed/stalled jobs; rehearse
-termination, lease recovery, concurrent manual edits and attendance changes on
-the real host. See [SEATING_WORKER.md](SEATING_WORKER.md). Production operation
-of the expanded worker stack remains unverified.
-
-The `export-worker` service is new in the CSV snapshot batch. Compose syntax
-and process recovery are tested locally, but the expanded production stack and
-its private bucket still require rehearsal. Set `PRIVATE_S3_BUCKET` separately
-from public media, disable anonymous reads, and run the same image/migrations
-in API and worker. Its healthcheck reads a process heartbeat; it has no HTTP
-port. See [EXPORT_WORKER.md](EXPORT_WORKER.md) for limits, recovery and cleanup.
-
-**One machine, deliberately.** Replication and failover cost more to run than
-the product earns at this stage, and an architecture nobody can operate is
-worse than a simple one whose limits are written down. The limits are in
-§7, and in [`../../docs/GOING_LIVE.md`](../../docs/GOING_LIVE.md).
-
-## 2. First deployment
-
-> The earlier stack, before the export worker, was run end to end locally —
-> all seven services (including migrations) healthy,
-> migrations applied, TLS served by Caddy, the API answering through it, a
-> backup taken and verified, and a full customer journey from `register` to a
-> published invitation page. What it has **not** had is a real host, a real
-> domain, or a real certificate from Let's Encrypt.
-
-Requires a host with Docker, and DNS for `API_DOMAIN` already pointing at it —
-Caddy asks Let's Encrypt for a certificate on first start and that fails if
-the name does not resolve to this machine yet.
+From `backend/`:
 
 ```bash
-git clone <repo> && cd aveline/backend
-
-cp .env.production.example .env.production
-chmod 600 .env.production
-$EDITOR .env.production          # see §3
-
-# Garage needs its own config and keys. Follow docs/STORAGE.md, then put the
-# access key and secret into .env.production.
-cp garage/garage.toml.example garage/garage.toml
-
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+npm run ops -- init --mode local --project aveline-local
+npm run ops -- check
+npm run ops -- plan
+npm run ops -- apply --confirm aveline-local
+npm run ops -- status
 ```
 
-Then check it came up:
+The wizard writes `.deployment/local/` with private directory/file permissions
+0700/0600. Initialization refuses to overwrite an existing profile. Local mode
+builds both images, provisions fresh storage, applies migrations, seeds reference
+data and waits for API/worker/gateway health. It runs `NODE_ENV=production`, with
+SMTP captured by Mailpit. Defaults: API `http://127.0.0.1:8080/api/v1`, media
+`:8081`, Mailpit `http://127.0.0.1:8026`. Swagger is disabled. No demo users,
+organizations or events are seeded; only the free plan is active.
+
+Interactive initialization asks for local/production mode. For automation use a
+private 0600 JSON answers file with `--answers /private/answers.json`. Local
+answers support `apiPort`, `mediaPort`, `mailPort`; production answers use
+`apiDomain`, `mediaDomain`, `appUrl`, `acmeEmail`, `smtpHost`, `mailFrom`, and
+optional `smtpPort`, `smtpUser`, `smtpPassword`, plus `mode` and `project`.
+Do not pass passwords on the command line or upload answers as CI artifacts.
+
+`npm run ops:rehearsal` expects prebuilt `aveline-api:ops-test` and
+`aveline-backup:ops-test` (override `OPS_REHEARSAL_IMAGE` and
+`OPS_REHEARSAL_BACKUP_IMAGE`). It uses a unique disposable project, real stores,
+migrations, all workers, literal-secret checks, redeployment and local capture.
+It deletes only its own containers/volumes and retains protected failure diagnostics.
+
+## Production profile and first release
+
+Prepare DNS for both API and media hosts, ports 80/443, the frontend HTTPS
+origin, SMTP sending credentials and authenticated sending-domain DNS. On the
+host, initialize a private profile **outside the release checkout**:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml ps
-curl -fsS https://$API_DOMAIN/api/v1/health/ready && echo
+node backend/scripts/ops.mjs init --mode production --project aveline-production --directory /etc/aveline/production
+node backend/scripts/ops.mjs check --directory /etc/aveline/production
 ```
 
-`migrate` runs once and exits; `docker compose ps` showing it as `exited (0)`
-is correct. The API will not start until it has succeeded — a failed migration
-stops the deploy instead of leaving an API restarting against a schema it
-cannot use.
+The wizard generates separate database/JWT/Garage/privacy secrets. It defaults
+`PILOT_MODE=true` and keeps enquiry/template feature flags off. It does not
+select a bank, tax treatment, prices or turn on paid features. Follow the
+feature-specific operational acceptance gates before changing those flags.
+Never initialize over a populated installation or rotate restored keys by rerunning
+`init`. `import --mode production --project PROJECT --source-env FILE
+--garage-config FILE --directory NEW_PROFILE` preserves existing credentials;
+its source env must use the generated canonical format (the example also supports
+plain unquoted values). Preserve the original project and volume identities.
 
-### Seeding the platform
+The profile contains `settings.json`, canonical `.env`, literal `.runtime.env`
+and `garage.toml`. Keep all four protected. The ops overlay uses Compose raw
+`env_file` mode so dollar signs, quotes and backslashes in secrets remain literal.
+Use `configure --directory PROFILE --key SMTP_PASSWORD` for hidden entry, or
+`--stdin` from a protected secret source. Do not shell-source these files.
+After manually reviewing/editing canonical `.env`, run `sync --directory PROFILE`
+to regenerate its runtime mirror; mismatches block further deployment. Avoid
+`docker compose config` without `--quiet` because resolved configuration exposes secrets.
 
-A fresh database has no design templates, no default message copy and no
-plans — verified by running this stack from empty. Without them `POST /events`
-returns an event with `invitation: null`, `GET /plans` is empty, and sending an
-invitation fails partway through a guest list with "template not found".
+Production apply requires immutable image references from a tested release:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --entrypoint node api \
-  dist/seed-production.js
+node backend/scripts/ops.mjs plan --directory /etc/aveline/production --image ghcr.io/OWNER/REPO/api@sha256:DIGEST --backup-image ghcr.io/OWNER/REPO/backup@sha256:DIGEST
+node backend/scripts/ops.mjs apply --directory /etc/aveline/production --image ghcr.io/OWNER/REPO/api@sha256:DIGEST --backup-image ghcr.io/OWNER/REPO/backup@sha256:DIGEST --confirm aveline-production
 ```
 
-It creates **no organization, user, event or guest**, deletes nothing, and is
-idempotent — safe on every deploy. A template or price adjusted in production
-is not reverted by a redeploy.
+Substitute real lowercase repository/digests. The host must be able to pull both
+images. The controller creates only a new, project-labelled external privacy
+volume; an existing volume must already have matching ownership/permissions.
+Garage bootstrapping sets up one explicitly unassigned node only, preserves an
+existing layout/key, enables website reads only on the public bucket and denies
+website access on the distinct private bucket. Secrets are saved privately.
 
-**Only the free plan is active.** The paid tiers are seeded with their
-entitlements from PRODUCT_SPEC §8 but `priceMinor: 0` and `isActive: false`,
-because the price points are still an open decision and `GET /plans` is the
-pricing page. Setting a price and activating a plan is a deliberate act.
+Apply validates configuration, pulls images, checks the candidate reader floor,
+configuration and privacy journal, backs up a populated installation, stops all
+application writers, repeats preflight while quiesced, migrates/seeds and checks
+all processes plus the public readiness endpoint. A deployment lock serializes
+configuration, backups and journal maintenance. No database reset is used.
 
-It runs with plain `node`, not `ts-node`, which is why the script lives under
-`src/` and ships compiled: the production image has no dev dependencies.
+**This is a maintenance deployment.** Writer stoppage/migrations and coordinated
+backup capture cause downtime. Schedule away from check-in. Failed migration or
+health checks leave a protected `deployment-attempt.json` and `last-error.json`.
+They never trigger database restore or an automatic restart of an older image.
+Review failure state privately, correct the cause and rerun the same candidate.
+`rollback-plan` shows previous digests; any rollback still needs candidate reader
+preflight and maintenance. It never downgrades the database. A stale lock is not
+automatically removed: verify its recorded process before operator removal.
 
-## 3. Configuration
+## Privacy journal and restore boundary
 
-**Free pilot:** production Compose defaults `PILOT_MODE` to `true`. Paid ticket
-checkout and subscription selection are refused with `403` before a payable
-order/invoice is committed; payment initiation also checks the policy centrally.
-Free tickets and free subscriptions still work. Only the exact strings `true`
-and `false` are accepted. Setting `PILOT_MODE=false` is part of a commercial
-launch, after the money requirements in GOING_LIVE are satisfied.
+The signed enquiry privacy journal is an **independent external Docker volume**.
+Ordinary database/media backups exclude it. Normal Compose volume teardown cannot
+delete it. Independently preserve the latest journal, its key/identity and
+high-water sequence off host; a database snapshot is insufficient. No deployment,
+import or ordinary boot initializes an absent journal over enquiry history.
 
-Set `MEDIA_DOMAIN` and `S3_PUBLIC_URL` to the public media origin. Caddy sends
-that hostname's requests to Garage's web endpoint with `MEDIA_BUCKET_HOST`
-(default `aveline-media.web.garage.localhost`), selecting the website-enabled
-public bucket. Both domains use filtered access logs that omit URI and headers;
-the global runtime logger applies the same filter to proxy error logs, including
-502 responses. The API retains sanitized route logs. Exports must never use
-this public bucket.
-
-Production Compose uses its env file twice: `--env-file` supplies interpolation
-for Compose itself, while each service's `env_file` supplies container variables.
-Run all commands in this document with `--env-file .env.production`.
-
-Everything comes from `.env.production`, which exists only on the host. It is
-gitignored, and `chmod 600` because every container that reads it runs as a
-different user than the one who wrote it.
-
-Five settings the app refuses to boot without, each because the default is
-dangerous rather than merely wrong:
-
-| Setting | Why it is required |
-|---|---|
-| `DATABASE_URL` | Everywhere, not just production |
-| `JWT_SECRET` | A default would let anyone mint a staff token |
-| `CORS_ORIGINS` | An open policy lets any site call the API as a signed-in user |
-| `PUBLIC_APP_URL` | Every emailed link and every bank return lands on `localhost` without it, and payment `returnUrl`s are checked against its origin |
-| `SMTP_HOST` + `MAIL_FROM` | Without them email is written to a log file, which looks exactly like delivery |
-
-**Size the database pool on purpose.** `DATABASE_URL` carries
-`connection_limit` (per API process) and `pool_timeout`, as
-`.env.production.example` shows. Left unset, Prisma's pool is 2 × CPUs + 1,
-which moves with the host and, with a second process, can pass Postgres's
-`max_connections`. The total across processes must leave room for
-migrations and the backup job.
-
-Generate secrets rather than inventing them:
+For a genuinely new installation, before enabling enquiries, stop writers and
+explicitly initialize once:
 
 ```bash
-openssl rand -base64 48
+node backend/scripts/ops.mjs stop-writers --directory PROFILE --confirm PROJECT
+node backend/scripts/ops.mjs journal-init --new-install --directory PROFILE --confirm PROJECT
 ```
 
-`TELEGRAM_WEBHOOK_SECRET` becomes required as soon as `TELEGRAM_BOT_TOKEN` is
-set: without it anyone who guessed a guest token could register their own chat
-against that guest and receive their invitation.
-
-Optional WhatsApp requires **all six** sender/receipt settings once any is
-configured in production: `WHATSAPP_ACCOUNT_ID`, `WHATSAPP_PHONE_NUMBER_ID`,
-`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_API_VERSION`, `WHATSAPP_APP_SECRET` and
-`WHATSAPP_WEBHOOK_VERIFY_TOKEN`. No API version is guessed. Leave them all
-unset until account/template setup is ready. The production compose API reads
-them from its existing private env file. Follow [WHATSAPP_SETUP.md](WHATSAPP_SETUP.md)
-for public HTTPS callback/subscription verification, raw-body proxy rules and
-real provider evidence. Monitor `whatsapp.receipts` and pending ledger lag.
-
-## 4. Deploying a change
+After restoring data, keep writers stopped, independently restore the **latest**
+journal/keys, verify the external high-water sequence and run:
 
 ```bash
-git pull
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+node backend/scripts/ops.mjs journal-recover --latest-verified --sequence VERIFIED_SEQUENCE --directory PROFILE --confirm PROJECT
 ```
 
-Migrations run first and the API only starts if they succeed. The old
-container keeps serving until the new one is up.
+These commands refuse running writers. Reapply the candidate only after replay
+and acceptance checks. See [SALES_INTAKE.md](SALES_INTAKE.md) for journal identity,
+rotation and replay rules. Do not substitute an old journal from a backup.
 
-**There is a gap here, and it is honest to name it:** with one API container
-this is a restart, not a zero-downtime deploy — requests in flight during the
-swap fail. `stop_grace_period` is 30s so shutdown is clean, but the window
-exists. For a product whose traffic is a few hundred guests opening an
-invitation, taking the deploy at a quiet hour is a reasonable answer; two
-replicas behind Caddy is the real one, and it needs the session store checked
-for anything instance-local first.
+## Backups and host jobs
 
-## 5. Backups and complete recovery
+Configure `RESTIC_REPOSITORY`, `RESTIC_PASSWORD` and credentials with `configure`,
+then `backup-init --directory PROFILE --confirm PROJECT` for a new encrypted
+repository. Keep decrypting credentials separately off host. Populated production
+releases require off-host backup configuration and a successful upload; local
+profiles deliberately perform local-only capture and cannot satisfy freshness checks.
+Maintenance uses the recorded immutable release images. Before the first release,
+pass its approved `--image` and `--backup-image` digests explicitly; production
+maintenance refuses floating-image fallbacks.
 
-`backup` is now an on-demand maintenance service, not an unattended live-volume
-copy loop. Build it first:
+`backup --directory PROFILE --confirm PROJECT` locks the operation, records running
+writers/Garage, stops them, dumps Postgres and stable Garage metadata/data, verifies
+checksums, then resumes those services **before** Restic upload. The backup
+container has no Docker socket. Capture traps resume on normal failure; the
+protected `backup-state/resume-services` journal supports recovery after power
+loss through `backup --resume-only`. If power loss also leaves a deployment lock,
+verify that its recorded process is gone before removing that stale lock and
+retrying the resume service. Privacy-journal preservation is separate.
+
+Encrypted sets include dump, Garage archives, checksums, release/architecture
+metadata and protected application/Garage configuration. Redis/Mongo are excluded.
+Default retention is 14 local days and 14 daily/8 weekly/12 monthly remote
+snapshots; encrypted pack pruning is explicit operator maintenance.
+`backup-check` rejects missing/stale/future off-host timestamps and low backup
+filesystem space (30 hours, 10 GiB free, 90% used defaults). Monitor other data
+filesystems separately. An isolated local repository cannot prove off-host recovery.
+
+Generate reviewable systemd jobs for the stable release path:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml build backup
+node backend/scripts/ops.mjs jobs --directory PROFILE --release-root /opt/aveline --operator-user aveline
 ```
 
-Choose a separate off-host Restic repository, configure `RESTIC_REPOSITORY`,
-`RESTIC_PASSWORD` and its access credentials, then initialize it explicitly:
+The private `PROFILE/systemd/` templates provide a 03:00 Asia/Yerevan backup timer,
+a 15-minute backup check, and boot resume service. Review paths, Docker permissions,
+Node PATH and `OnFailure` alert routing. Install/enable them explicitly after the
+first successful release creates `/opt/aveline/current`. Nothing is installed by
+the wizard. Check alert delivery and a real remote restore before launch.
 
-```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps backup restic init
-```
+For SFTP Restic, add a read-only protected `/root/.ssh` mount with verified
+`known_hosts` to the backup service; no SSH credentials are invented or installed.
+HTTPS/object repositories use their corresponding access credentials.
 
-Keep repository credentials and a recovery copy of the password outside this
-machine. Protected configuration is included in the encrypted recovery set;
-the password inside that set cannot bootstrap decrypting the set itself.
+For restoration, `/scripts/fetch-recovery.sh RUN_ID /recovery/download` in the
+backup image verifies/downloads the named encrypted set into a mounted private
+host directory. `/scripts/restore-recovery.sh /recovery-set` requires quiesced
+writers/Garage, `RESTORE_QUIESCED=true`, fresh writable Garage data/metadata
+volumes, target database-name confirmation and compatible architecture/Garage
+version. It validates checksums/archive paths/table names before writes and
+restores Postgres transactionally. Interrupted media copying requires fresh
+volumes again. Never restore over active data. Restore protected configuration
+without changing stored Garage identity; replay the latest independent privacy
+journal before any writer restarts. Verify invitation credentials and
+original/variant/private media on the target. `npm run backup:rehearsal` tests an
+isolated encrypted round trip; it does not mark production as protected.
 
-For an SFTP repository, mount a protected SSH directory read-only at
-`/root/.ssh` in the backup service, containing its key/config and verified
-`known_hosts`. The backup image includes an SSH client. Do not disable host-key
-verification or store SSH secrets in Git; HTTPS object/REST repositories use
-the corresponding repository credentials instead.
+## Diagnostics and remaining work
 
-### Capture and upload
+`status --directory PROFILE` reports service state without dumping environment
+values. Inspect private Docker logs and `deployment-attempt.json`/`last-error.json`
+locally. API readiness is `/api/v1/health/ready`; worker health uses heartbeat
+files. Caddy strips URI/headers from access and proxy-error logs because URLs
+contain credentials. Public media routing uses its own hostname/bucket host.
 
-Run `bash scripts/capture-backup.sh` on the Docker host. It locks against another
-capture, records which API/worker/Garage services were running, stops them, takes
-a Postgres dump and stable Garage data/metadata archives, verifies checksums,
-and resumes those services **before** uploading. The backup container never
-receives a Docker socket. Capturing without this quiesced boundary is refused.
-
-**The capture is a maintenance window.** API calls and media reads can fail
-while these services are stopped. Choose a quiet time, measure the window on
-the real dataset and never schedule it across event-day check-in. Upload speed
-does not extend this window. The resume journal and boot recovery unit handle a
-power loss during capture; traps handle normal command failures/signals.
-
-Restic encrypts/authenticates the recovery set, verifies repository data and
-records `offhost-success.json` only after success. Failed uploads retain local
-sets and the previous success timestamp. Default retention: 14 local days,
-14 remote daily, 8 weekly and 12 monthly snapshots. Remote snapshot expiration
-uses one host group despite per-run paths; pruning unused encrypted packs is an
-explicit operator maintenance task.
-
-Set includes `postgres.dump`, both Garage archives, release/architecture/version
-metadata, checksums, and the protected Garage/application configuration. Redis
-and Mongo remain excluded by the existing data-store decision.
-
-### Scheduling
-
-The sample systemd units live in `scripts/systemd/`. Adjust `/opt/aveline` to
-the actual checkout, install the service/timer plus boot recovery unit, and
-then enable them. The timer template schedules **03:00 Asia/Yerevan**, not the
-execution host's timezone. Nothing is installed/enabled automatically here.
-`journalctl -u aveline-backup` shows failures.
-
-The additional `aveline-backup-check` service/timer checks every fifteen minutes.
-It exits non-zero for missing/stale off-host success (default 30 hours), a future
-timestamp, or low backup-volume space (default less than 10GiB free or over 90%
-used). Run it manually with `docker compose --env-file .env.production -f
-docker-compose.prod.yml run --rm --no-deps backup-check`. A local rehearsal
-marker cannot satisfy it. It checks the backup filesystem only; separately
-monitor any data volumes placed on other filesystems. Configure the operator's
-alerting for failed units and external uptime, and prove alerts arrive before
-holding real guest data. Templates do not install an alert destination.
-
-### Restore onto a fresh environment
-
-Download a named recovery set into a new directory, using the same external
-repository credentials and password:
-
-```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps \
-  -v /secure/recovery:/recovery backup /bin/sh /scripts/fetch-recovery.sh RUN_ID /recovery/download
-```
-
-`fetch-recovery.sh` uses Restic verification and checks the file manifest. The
-set is under `/secure/recovery/download/backups/RUN_ID` on the host.
-
-Provision empty Garage volumes and a target Postgres database. Stop the API,
-workers and Garage, mount that set read-only and both **fresh Garage volumes
-writable**, then run `/bin/sh /scripts/restore-recovery.sh /recovery-set` in the
-backup image with `RESTORE_QUIESCED=true`. It checks format, architecture,
-checksums, archive paths/types and the required Aveline tables **before** writes.
-It requires interactive database-name confirmation outside a disposable test.
-Existing media volumes are refused rather than overwritten. Postgres restoration
-is transactional. If copying media is interrupted, start again with fresh
-volumes and the same checked set; do not try to serve a partial copy.
-
-Install the protected configuration for the new host, adjusting its DNS/RPC
-address rather than changing stored Garage keys or identity. Use the recorded
-Garage version and compatible CPU architecture. Start Garage, then the API,
-and verify existing invitation credentials, original media and image variants.
-The legacy `restore.sh` remains for older Postgres-only dumps; it does not
-recover a complete event on its own.
-
-`npm run backup:rehearsal` exercises a real PostgreSQL/Garage round trip through
-an encrypted, isolated local repository. It never marks that local test as
-off-host protection. Actual off-host recovery and alert delivery still require
-the selected destination and operator configuration.
-
-## 6. When something is wrong
-
-```bash
-# What is running, and what keeps restarting
-docker compose --env-file .env.production -f docker-compose.prod.yml ps
-
-# The app's own logs. JSON in production; pipe through jq to read them.
-docker compose --env-file .env.production -f docker-compose.prod.yml logs api --tail 100 -f
-
-# Is it the app or a dependency?
-curl -s https://$API_DOMAIN/api/v1/health/ready | jq
-```
-
-`/health/ready` names Postgres, Redis, Mongo and storage. **Only Postgres is
-required**: optional outages return 200 with `degraded`; media operations can
-fail during a storage outage. Mongo is checked with a real server command,
-and storage with a bucket/filesystem probe. Dependency monitoring reports an
-outage already present at startup and one recovery message; sweeps propagate
-failures to Sentry monitors. Actual notifications need a configured DSN/receiver.
-
-| Symptom | Where to look first |
-|---|---|
-| API restarting | `logs api` — a missing required setting fails at boot, by design |
-| `migrate` exited non-zero | `logs migrate`. The API will not start; fix the migration, do not bypass it |
-| TLS not working | `logs caddy`. Usually DNS not pointing here yet, or Let's Encrypt rate limits from repeated attempts |
-| Mail not arriving | `logs api` for the send, then the provider. SPF/DKIM/DMARC missing means sent-and-filed-as-spam, which looks like delivery |
-| Everyone rate-limited at once | `TRUST_PROXY_HOPS` not `1`, so the limiter sees every request as one client |
-| Sweeps stopped | Redis down means no sweeps run, deliberately — unguarded they could double-send. Sentry check-ins should have alerted |
-
-## 7. What this deployment does not do
-
-Stated plainly, because an operator discovering these during an incident is
-worse than knowing them now. Each is a row in
-[`../../docs/GOING_LIVE.md`](../../docs/GOING_LIVE.md).
-
-- **No failover.** One of everything. The host going down is an outage.
-- **No verified off-host protection** until the Restic destination is configured and a remote restore drill succeeds.
-- **No zero-downtime deploys.** See §4.
-- **No log shipping.** Logs are JSON on this host and rotate with Docker's
-  defaults. An incident older than that is not investigable.
-- **Backups are not tested on a schedule.** The restore works; nothing proves
-  it still works next month.
-- **Mongo credentials are required** — it is on the internal network only,
-  and nothing is published except Caddy's ports.
-- **The image is ~960MB.** Mostly Prisma's engines and runtime plus Sentry.
-  It costs a slower first pull, not money.
-
-
-## Private media worker
-
-Compose includes `private-media-worker` from the API image, with one CPU, 768 MiB
-process memory, private storage settings and heartbeat healthcheck. Start it for
-signatures/gallery; the API only stages uploads. Include it in release health,
-restart and backup/restore procedures. Capture stops it alongside other writers.
-Monitor queued/failed media and physical cleanup; verify private bucket isolation
-and actual image memory/recovery before pilot. See
-[GUEST_CONTRIBUTIONS.md](GUEST_CONTRIBUTIONS.md). No production deployment has been
-performed as part of the backend delivery.
+Not yet completed: production provisioning/DNS/TLS, real SMTP delivery, GitHub
+reviewer/secret setup, off-host journal and database/media restore drills,
+external alert delivery, performance/capacity evidence, scheduled restore drills,
+log shipping, failover and zero-downtime deployment. Refer to
+[EXPORT_WORKER](EXPORT_WORKER.md), [SEATING_WORKER](SEATING_WORKER.md),
+[GUEST_CONTRIBUTIONS](GUEST_CONTRIBUTIONS.md) and
+[TEMPLATES](../../docs/post-pilot/execution/TEMPLATES.md) for feature-specific acceptance.

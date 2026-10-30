@@ -1,0 +1,17 @@
+# Full backend stack on an isolated bridge network; no dependency ports are public.
+# Generated profiles are used by `npm run ops -- init` / `npm run ops -- apply`.
+services:
+  caddy:
+    ports: !override
+      - '127.0.0.1:${LOCAL_API_PORT:-8080}:8080'
+      - '127.0.0.1:${LOCAL_MEDIA_PORT:-8081}:8081'
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${LOCAL_MAIL_PORT:-8026}:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 3s
+      retries: 10

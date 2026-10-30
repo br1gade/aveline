@@ -52,8 +52,8 @@ describe('invitation loop (integration)', () => {
       [
         MessageChannel.EMAIL,
         new SmtpTransport({
-          host: 'localhost',
-          port: 1025,
+          host: process.env.SMTP_HOST ?? 'localhost',
+          port: Number(process.env.SMTP_PORT ?? 1025),
           isSecure: false,
           from: 'Aveline <hello@aveline.test>',
         }),

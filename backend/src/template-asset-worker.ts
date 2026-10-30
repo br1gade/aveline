@@ -2,6 +2,7 @@ import { TemplateMaterializationRunner } from './modules/design/templates/templa
 import { initialiseSentry } from './infra/observability/sentry';
 initialiseSentry(process.env);
 import sharp from 'sharp';
+import { writeFile } from 'node:fs/promises';
 import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -31,4 +32,5 @@ void main().catch(() => { new Logger('TemplateAssetWorker').error('Template artw
 async function runIteration(runner: TemplateAssetRunner, materializations: TemplateMaterializationRunner, config: ConfigService) {
   await runner.cleanup();
   if (config.get('TEMPLATE_ASSETS_ENABLED') === 'true') { await runner.runOne(); await materializations.runOne(); }
+  await writeFile(process.env.TEMPLATE_ASSET_WORKER_HEARTBEAT_PATH ?? '/tmp/aveline-template-asset-worker-heartbeat', String(Date.now()), { mode: 0o600 });
 }

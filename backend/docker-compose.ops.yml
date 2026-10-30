@@ -1,0 +1,15 @@
+# The wizard writes literal values to a private raw env file. Requires Compose 2.30+.
+# Keep legacy hand-written .env.production behavior in the base production file.
+x-runtime: &runtime
+  env_file: !override
+    - path: ${AVELINE_RUNTIME_ENV_FILE:?use the operations CLI}
+      format: raw
+services:
+  migrate: *runtime
+  api: *runtime
+  export-worker: *runtime
+  seating-worker: *runtime
+  private-media-worker: *runtime
+  template-asset-worker: *runtime
+  privacy-recovery: *runtime
+  backup: *runtime

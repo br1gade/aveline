@@ -13,6 +13,8 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Every model and the database's invariants |
 | [`docs/DATA_STORES.md`](docs/DATA_STORES.md) | Postgres / Redis / MongoDB |
 | [`docs/STORAGE.md`](docs/STORAGE.md) | Garage object storage |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Docker full-stack wizard, deployment and recovery |
+| [`docs/RELEASES.md`](docs/RELEASES.md) | CI, attested releases and staged SSH promotion |
 | [`docs/GAPS.md`](docs/GAPS.md) | What is still unbuilt, prioritised |
 | [`../docs/API.md`](../docs/API.md) | **The client contract — update it when a response shape changes** |
 | [`../docs/PRODUCT_SPEC.md`](../docs/PRODUCT_SPEC.md) | Product definition and domain model |
@@ -59,6 +61,17 @@ API at `http://localhost:3000/api`, OpenAPI docs at `http://localhost:3000/docs`
 > serves correctly — the invitation payload is rebuilt from Postgres and the
 > engagement panel reports zero. Only latency and insight degrade.
 
+## Full app in Docker
+
+From `backend/`, `npm run ops -- init --mode local --project aveline-local`, then
+`npm run ops -- apply --confirm aveline-local` builds the backend, runs migrations
+and starts real stores, all four workers, Caddy and a private mail sink. API is
+`http://127.0.0.1:8080/api/v1`; Mailpit is `http://127.0.0.1:8026`. Existing dev
+containers are independent. Secrets are generated into ignored private profiles.
+See [the deployment runbook](docs/DEPLOYMENT.md) for configuration/backup/job
+wizards and [release setup](docs/RELEASES.md) for CI/GHCR/SSH promotion. Paid and
+new feature gates remain closed. No production deployment is performed by setup.
+
 ## Mail in development
 
 `npm run db:up` starts a local SMTP server alongside the databases. Mail is
@@ -69,6 +82,9 @@ Dev inbox   http://localhost:8025
 SMTP        localhost:1025   (no credentials; anything is accepted)
 Clear it    curl -X DELETE http://localhost:8025/api/v1/messages
 ```
+
+Integration tests can use an isolated mail sink by setting `SMTP_HOST`,
+`SMTP_PORT` and `MAILPIT_API` together; the mail fixtures honor those settings.
 
 Leaving `SMTP_HOST` unset falls back to writing email to the log — acceptable
 locally, and a **startup failure** under `NODE_ENV=production`, because an

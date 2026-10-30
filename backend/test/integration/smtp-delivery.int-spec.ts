@@ -33,8 +33,8 @@ async function bodyOf(id: string): Promise<{ Text: string; HTML: string }> {
 
 const transport = () =>
   new SmtpTransport({
-    host: 'localhost',
-    port: 1025,
+    host: process.env.SMTP_HOST ?? 'localhost',
+    port: Number(process.env.SMTP_PORT ?? 1025),
     isSecure: false,
     from: 'Aveline <hello@aveline.test>',
   });

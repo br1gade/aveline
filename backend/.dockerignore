@@ -29,3 +29,8 @@ storage
 
 # Local rehearsal evidence is retained outside source and runtime images.
 test-results
+
+# Private deployment profiles never enter image layers.
+.deployment
+
+release-manifest.json

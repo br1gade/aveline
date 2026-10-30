@@ -59,7 +59,7 @@ block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
 | 9b | **`PUBLIC_APP_URL` must be the client's real origin** | Enforced at boot. Guest links, account emails and the bank's return page are all built from it, and a payment `returnUrl` on any other origin is refused — so a wrong value breaks checkout rather than opening a redirect |
 | 10 | **A verified off-host recovery destination** | Quiesced paired database/media capture, encrypted Restic upload and complete restoration tooling are built. An isolated round trip preserved a guest credential and original/variant media. Configure a real separate destination, install the timer/boot recovery units, verify remote restoration and missed-backup alerts |
-| 11 | **A host and a domain** | The stack has now been run end to end locally — seven services healthy, migrations applied, TLS served by Caddy, a verified backup taken, and a full journey from `register` to a published invitation page. What it has never had is a real host, a real domain, or a certificate from Let's Encrypt |
+| 11 | **A host and a domain** | The Docker/Compose profile wizard and release/promotion jobs are implemented. Local stack/worker/migration/backup rehearsals exist. Provision a real host, API/media DNS, public TLS and SMTP; configure GitHub environments, reviewers and verified SSH. See [release setup](../backend/docs/RELEASES.md). No live deployment has been performed |
 | 12b | **An SMS provider** | The channel is built and inert. Choose a provider that reaches Armenian numbers, write its adapter (one class), and set `SMS_PROVIDER`. Until then guests with only a phone number are reported unreachable |
 | 12 | **WhatsApp account and live acceptance** | Transport and signed/scoped receipt backend are built; no account/test number exists yet. Verify account/number/permissions, supported API version, approved four-language templates/consent, real subscription and send/receipt evidence using the [setup checklist](../backend/docs/WHATSAPP_SETUP.md). External approval can move the pilot date |
 | 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
@@ -68,7 +68,7 @@ block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 
 | # | Blocker | Why |
 |---|---|---|
-| 14 | **Zero-downtime deploys** | One API container, so a deploy is a restart and requests in flight fail. Acceptable at a few hundred guests; two replicas is the real answer |
+| 14 | **Zero-downtime deploys** | The controller deliberately stops all writers for migration and quiesced capture. Schedule maintenance away from check-in; failover and zero-downtime rollout are not built |
 | 15 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
 | 16 | **Two dependency advisories accepted, not fixed** | Both reached only through code a request cannot touch — a Prisma config file we own, and Swagger, which is disabled in production. Each is fixed by a migration named in `backend/docs/DEPENDENCIES.md`: Prisma 7 needs a driver adapter, and NestJS 12 needs ESM |
 | 17 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |

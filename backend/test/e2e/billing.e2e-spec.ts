@@ -209,7 +209,10 @@ describe('Billing (e2e)', () => {
         .send({ planKey: 'managed', provider: 'FAKE' })
         .expect(201);
 
-      expect(body.payment.redirectUrl).toMatch(/^http:\/\/localhost:5173\/billing\/return\?/);
+      const redirect = new URL(body.payment.redirectUrl as string);
+      expect(redirect.origin).toBe(new URL(process.env.PUBLIC_APP_URL ?? 'http://localhost:5173').origin);
+      expect(redirect.pathname).toBe('/billing/return');
+      expect(redirect.searchParams.has('fakePayment')).toBe(true);
     });
 
     it('lists the invoice it issued', async () => {

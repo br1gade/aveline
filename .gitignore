@@ -356,3 +356,9 @@ docker-compose.override.yml
 .claudeignore.local
 .aider*
 .cursorignore.local
+
+# Generated deployment profiles contain credentials and host state.
+.deployment/
+
+# Generated non-secret release artifact.
+release-manifest.json

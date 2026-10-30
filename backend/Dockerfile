@@ -12,13 +12,14 @@ ARG NODE_VERSION=26-alpine@sha256:143494b1da2945f061539253adc65e4f1569ddf07da2d3
 
 # ── deps: every dependency, needed to build ──────────────────────────────
 FROM node:${NODE_VERSION} AS deps
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Copied before the source so a source change does not reinstall everything.
 COPY package.json package-lock.json ./
 # Prisma's postinstall generates the client, which needs the schema present.
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci && npx prisma generate
 
 # ── build: compile TypeScript ────────────────────────────────────────────
 FROM node:${NODE_VERSION} AS build
@@ -29,6 +30,7 @@ COPY . .
 RUN npm run build
 RUN test -f dist/seating-worker.js
 RUN test -f dist/private-media-worker.js
+RUN test -f dist/template-asset-worker.js && test -f dist/intake-privacy-recovery.js
 
 # Fails the build rather than shipping an image that cannot start. The entry
 # point went missing once already, when stale incremental build state was
@@ -47,13 +49,13 @@ ENV NODE_ENV=production
 # handlers — so a deploy would wait out the stop timeout and kill the process
 # before Nest's shutdown hooks could close the Postgres, Redis and Mongo
 # connections.
-RUN apk add --no-cache tini util-linux
+RUN apk add --no-cache tini util-linux openssl
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 # `npm ci --omit=dev` still runs Prisma's postinstall, so the client is
 # generated here against the same schema that will be migrated.
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev && npx prisma generate && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY scripts ./scripts
@@ -61,6 +63,7 @@ COPY assets ./assets
 RUN test -s assets/fonts/DejaVuSans.ttf && test -s assets/fonts/DejaVuSans-Bold.ttf
 
 # node's own unprivileged user, so a container escape is not already root.
+RUN mkdir -p /app/privacy-journal && chown node:node /app/privacy-journal && chmod 700 /app/privacy-journal
 USER node
 
 EXPOSE 3000
