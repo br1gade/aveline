@@ -134,3 +134,20 @@ test('installation persists across branch file removal and preserves custom hook
     assert.equal(git('config', '--get', 'core.hooksPath'), 'custom');
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('a new failed validation invalidates old proof and concurrent runs are refused', async () => {
+  const { withRunLock, saveProof, cachedProof } = await import('./local-ci/state.mjs');
+  const { mkdtemp, rm, readFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os'); const { join } = await import('node:path');
+  const root = await mkdtemp(join(tmpdir(), 'aveline-ci-lock-'));
+  try {
+    await saveProof(root, proof);
+    await assert.rejects(withRunLock(root, tree, async () => {
+      assert.equal(await cachedProof(root, tree), null);
+      await assert.rejects(withRunLock(root, tree, async () => {}), /already running/);
+      throw new Error('synthetic failure');
+    }), /synthetic failure/);
+    assert.equal(await cachedProof(root, tree), null);
+    await assert.rejects(readFile(join(root, '.local-ci/run.lock')), /ENOENT/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

@@ -56,6 +56,7 @@ images, `npm ci` from the lockfile and explicit PostgreSQL 16 clients. No host
 PostgreSQL client or host node_modules is used for those layers. The host Node
 24+ process orchestrates Docker rehearsals; tested API/worker code runs inside
 the production Node 26 image. No Docker socket is mounted in the test runners.
+Shell prerequisites such as `jq` and `flock` are included in the runner image.
 All flags, SMTP and database endpoints are synthetic isolated settings, not the
 host's application env. No bank/provider/production credentials are required.
 
@@ -73,6 +74,9 @@ Git tree can reuse a complete proof for 24 hours; changing source, configuration
 lockfiles or workflow files invalidates it. Commit-message-only amendments can
 reuse the same tree. Missing, incomplete, malformed, future-dated or stale proofs
 trigger a complete local run. Failed/interrupted runs never create a success proof.
+Starting a fresh validation invalidates any earlier proof for that tree. A local
+run lock prevents duplicate concurrent work and blocks pushes during validation.
+After a crash, inspect the recorded PID before removing a stale `.local-ci/run.lock`.
 Repeated pushes of already-verified source therefore avoid rerunning local CI.
 
 ## Isolation and cleanup

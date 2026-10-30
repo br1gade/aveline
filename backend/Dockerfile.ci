@@ -11,6 +11,9 @@ COPY backend/package.json backend/package-lock.json ./
 COPY backend/prisma ./prisma
 RUN node --version | grep '^v26\.' && pg_restore --version | grep ' 16\.'
 RUN npm ci && npx prisma generate
+# Updating shell-test tools should not reinstall all application dependencies.
+RUN apt-get update && apt-get install -y --no-install-recommends jq \
+    && rm -rf /var/lib/apt/lists/*
 COPY . /workspace/
 ENV NODE_ENV=test
 CMD ["node", "scripts/ci-job.mjs", "quality"]

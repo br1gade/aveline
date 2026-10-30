@@ -4,9 +4,12 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { checkDocker, runLayer, cleanup, WORKFLOW_LINTER } from './docker.mjs';
 import { output, logged, checkInterrupted } from './process.mjs';
-import { saveJson, saveProof } from './state.mjs';
+import { saveJson, saveProof, withRunLock } from './state.mjs';
 import { LAYERS } from './policy.mjs';
 export async function runCi(root, target, jobs) {
+  return withRunLock(root, target.tree, () => runSnapshot(root, target, jobs));
+}
+async function runSnapshot(root, target, jobs) {
   const scope = `av-ci-${randomBytes(6).toString('hex')}`;
   const evidence = join(root, '.local-ci/runs', `${target.commit.slice(0, 12)}-${scope}`);
   await mkdir(evidence, { recursive: true, mode: 0o700 });
