@@ -59,7 +59,11 @@
     "askedAgain": "Asked to answer again",
     "tableAt": "Seated at {{table}} ({{venue}})",
     "held": "{{seat}}, held until they answer",
-    "venueAnswer": "{{venue}}: {{answer}}"
+    "venueAnswer": "{{venue}}: {{answer}}",
+    "history": "Answer history",
+    "released": "A decline freed their seat at {{table}}, {{when}}",
+    "releasedAt": "A decline freed their seat at {{table}} ({{venue}}), {{when}}",
+    "releasedNoTable": "A decline freed their seat, {{when}}"
   },
   "fields": {
     "firstName": "First name",
@@ -214,5 +218,24 @@
     "sending": "Sending…",
     "none": "Tick the households to send the invitation to.",
     "tooMany": "Choose up to {{limit, number}} households at a time, or send to everyone not yet invited from Publish and send."
+  },
+  "history": {
+    "title": "Answer history: {{name}}",
+    "loading": "Loading…",
+    "empty": "No answers have been recorded yet.",
+    "refused": "Answer history is not available to your role.",
+    "missing": "This guest is no longer on the list.",
+    "failed": "The answer history couldn’t be loaded.",
+    "close": "Close",
+    "current": "current",
+    "earlier": "before the change",
+    "group": "{{way}} · {{state}}",
+    "mode": {
+      "EVENT_WIDE": "Asked once for the event",
+      "PER_VENUE": "Asked per venue"
+    },
+    "venueAnswer": "{{venue}}: {{answer}}",
+    "answered": "answered {{when}}",
+    "timeUnknown": "time not known"
   }
 }

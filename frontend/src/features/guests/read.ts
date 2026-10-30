@@ -1,9 +1,12 @@
 import {
   ANSWERS,
   type Answer,
+  type AttendanceRecord,
+  type AttendanceRecordWire,
   type Contact,
   type Guest,
   type GuestWire,
+  type Release,
   type Seat,
   type VenueAnswer,
   type Household,
@@ -35,15 +38,36 @@ function answerOf(value: string): Answer {
 /** Every seat by venue; from a backend before `eb77cd4`, the one table it names. */
 function seatsOf(guest: GuestWire): Seat[] {
   if (!guest.seating) {
-    return guest.table ? [{ venue: null, table: guest.table, isReservation: false }] : [];
+    if (!guest.table) return [];
+    const legacy = { arrangementId: null, tableId: null, venue: null, table: guest.table };
+    return [{ ...legacy, isReservation: false }];
   }
-  return guest.seating.map(({ venue, table, isReservation }) => ({ venue, table, isReservation }));
+  return guest.seating.map((seat) => ({
+    arrangementId: seat.arrangementId ?? null,
+    tableId: seat.tableId ?? null,
+    venue: seat.venue,
+    table: seat.table,
+    isReservation: seat.isReservation,
+  }));
+}
+
+function releasesOf(guest: GuestWire): Release[] {
+  return (guest.seatReleases ?? []).map((release) => ({
+    arrangementId: release.arrangementId,
+    venueId: release.venueId,
+    table: release.table,
+    releasedAt: release.releasedAt,
+  }));
 }
 
 function venueAnswersOf(guest: GuestWire): VenueAnswer[] {
   const { attendance } = guest;
   if (attendance?.mode !== 'PER_VENUE') return [];
-  return attendance.venues.map(({ venue, status }) => ({ venue, answer: answerOf(status) }));
+  return attendance.venues.map(({ venueId, venue, status }) => ({
+    venueId,
+    venue,
+    answer: answerOf(status),
+  }));
 }
 
 function readGuest(guest: GuestWire): Guest {
@@ -60,6 +84,7 @@ function readGuest(guest: GuestWire): Guest {
     answer: guest.rsvpStatus,
     table: guest.table,
     seats: seatsOf(guest),
+    releases: releasesOf(guest),
     venueAnswers: venueAnswersOf(guest),
     isAskedAgain: guest.attendance?.needsReconfirmation ?? false,
     isCheckedIn: guest.isCheckedIn,
@@ -101,5 +126,19 @@ export function readImportHistory(records: readonly ImportRecordWire[]): ImportR
     rowsFailed: record.rowsFailed,
     errors: (record.errors ?? []).map(readRowError),
     createdAt: record.createdAt,
+  }));
+}
+
+/** A guest's answers across the ways guests were asked, in the order the API gives: newest first. */
+export function readAttendanceHistory(
+  records: readonly AttendanceRecordWire[],
+): AttendanceRecord[] {
+  return records.map((record) => ({
+    revision: record.revision,
+    mode: record.policy?.mode ?? '',
+    isCurrent: record.policy?.isActive ?? false,
+    venue: record.venue?.name ?? null,
+    answer: answerOf(record.status),
+    respondedAt: record.respondedAt,
   }));
 }

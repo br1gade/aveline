@@ -1,8 +1,10 @@
 import { expectData, type ApiClient } from '@/api/client';
 import type { components } from '@/api/schema';
 
-import { readHouseholds, readImportHistory, readImportResult } from './read';
+import { readAttendanceHistory, readHouseholds, readImportHistory, readImportResult } from './read';
 import type {
+  AttendanceRecord,
+  AttendanceRecordWire,
   Household,
   HouseholdWire,
   ImportRecord,
@@ -107,4 +109,18 @@ export async function listImports(api: ApiClient, eventId: string): Promise<Impo
     api.GET('/api/v1/events/{eventId}/guests/imports', { params: { path: { eventId } } }),
   );
   return readImportHistory(records);
+}
+
+/** Every answer this guest gave, under each way guests were asked; up to 1,000, newest first. */
+export async function getAttendanceHistory(
+  api: ApiClient,
+  eventId: string,
+  guestId: string,
+): Promise<AttendanceRecord[]> {
+  const records = await expectData<AttendanceRecordWire[]>(
+    api.GET('/api/v1/events/{eventId}/guests/{guestId}/attendance-history', {
+      params: { path: { eventId, guestId } },
+    }),
+  );
+  return readAttendanceHistory(records);
 }

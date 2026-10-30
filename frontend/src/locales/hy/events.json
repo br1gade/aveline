@@ -76,7 +76,8 @@
     "attendanceChange": "Փոխել",
     "design": "Ձևավորել հրավերը",
     "photos": "Հյուրերի լուսանկարներ",
-    "agreements": "Համաձայնություններ"
+    "agreements": "Համաձայնություններ",
+    "seating": "Նստեցում"
   },
   "headcount": {
     "title": "Հյուրեր",

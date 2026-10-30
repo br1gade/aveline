@@ -93,9 +93,11 @@ Every element maps to a field the API returns. Nothing on the page comes from an
 (B33), the language switcher on personal links (F16), alt text (F11), and smaller copies of each
 photograph (F18).
 
+**⚠ Available and shown, but not designed:** the guest's table, in `guest.seating`, once the host
+publishes the seating (B16 / D4), on the personal card since 30 October 2026 (PD-71, DQ-22).
+
 **Available, but not designed yet, so not shown:**
 
-- the guest's table, in `guest.seating`, once the host publishes the seating (B16 / D4);
 - map coordinates (F9). The page keeps its links rather than an embedded map (R-19);
 - a link to get reminders on Telegram, `guest.telegramLink`, which carries the guest's token
   (BQ-11).
@@ -128,6 +130,10 @@ From top to bottom, phone first:
    - "Seats reserved: 3", and the names in the household;
    - **⚠** "Correct my name", a quiet button under the names that opens the guest's first and
      last name in place (PD-64; not drawn, DQ-21);
+   - **⚠** "Your table", once the host publishes the seating: each of the guest's seats at its
+     venue, a held one marked, and the household's members who sit apart, or that the guest has no
+     seat yet when only the household does; nothing before then, or when nobody in the household
+     has a seat (PD-71; not drawn, DQ-22);
    - the reply status chip, if they have replied;
    - a **Reply** button, which scrolls to the reply section and moves focus to its heading.
 4. **The letter:** the blocks in the host's order ([§5](#5-blocks)). Each section has:

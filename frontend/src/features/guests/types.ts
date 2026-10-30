@@ -42,6 +42,8 @@ export interface Guest {
   table: string | null;
   /** Every seat, each at its venue's plan (design PD-54). */
   seats: Seat[];
+  /** Seats a decline freed, one per plan, until the host seats them again or dismisses it (PD-72). */
+  releases: Release[];
   /** In PER_VENUE, the answer at each venue guests see; empty for one answer for the event. */
   venueAnswers: VenueAnswer[];
   /** The host changed how guests answer and this guest has not answered again yet. */
@@ -52,6 +54,9 @@ export interface Guest {
 }
 
 export interface Seat {
+  /** The seating plan it belongs to; `null` from a backend before `eb77cd4`. */
+  arrangementId: string | null;
+  tableId: string | null;
   /** The venue's name; `null` for a plan that names none. */
   venue: string | null;
   table: string;
@@ -59,7 +64,18 @@ export interface Seat {
   isReservation: boolean;
 }
 
+/** A seat their decline freed (docs/API.md §6, `seatReleases`). */
+export interface Release {
+  arrangementId: string;
+  venueId: string | null;
+  /** `null` once the table itself was removed. */
+  table: string | null;
+  /** ISO 8601 UTC; shown in the event's zone. */
+  releasedAt: string;
+}
+
 export interface VenueAnswer {
+  venueId: string;
   venue: string;
   answer: Answer;
 }
@@ -120,6 +136,7 @@ export interface GuestWire {
   /** Since `eb77cd4`: how they answer, and their seats per venue. */
   attendance?: AttendanceWire;
   seating?: SeatWire[];
+  seatReleases?: ReleaseWire[];
   isCheckedIn: boolean;
 }
 
@@ -130,9 +147,18 @@ export interface AttendanceWire {
 }
 
 export interface SeatWire {
+  arrangementId?: string;
+  tableId?: string;
   venue: string | null;
   table: string;
   isReservation: boolean;
+}
+
+export interface ReleaseWire {
+  arrangementId: string;
+  venueId: string | null;
+  table: string | null;
+  releasedAt: string;
 }
 
 export interface HouseholdWire {
@@ -171,4 +197,32 @@ export interface ImportRecordWire {
 export interface RemovedWire {
   removed: string;
   isHouseholdRemoved: boolean;
+}
+
+/**
+ * One answer as it was recorded under one way of answering (docs/API.md §4, "Attendance modes";
+ * `GET …/guests/:guestId/attendance-history`), newest way first.
+ */
+export interface AttendanceRecord {
+  /** The attendance policy's revision it was given under. */
+  revision: number;
+  /** `EVENT_WIDE` or `PER_VENUE`; anything else is shown as it came. */
+  mode: string;
+  /** Under the way guests answer now, rather than one since changed. */
+  isCurrent: boolean;
+  /** The venue's name in PER_VENUE; `null` for an answer for the whole event. */
+  venue: string | null;
+  answer: Answer;
+  /** `null` when it is not known, as for an imported answer (never guessed). */
+  respondedAt: string | null;
+}
+
+export interface AttendanceRecordWire {
+  revision: number;
+  status: string;
+  respondedAt: string | null;
+  updatedAt: string;
+  venueId: string | null;
+  venue: { name: string } | null;
+  policy: { mode: string; isActive: boolean } | null;
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import type { EventDetail } from '@/features/events';
+import { formatEventDay } from '@/lib/time';
 import {
   deliveryGroupOf,
   useDeliveryTexts,
@@ -25,7 +26,14 @@ import { importGuestsPath } from '../paths';
 import type { Household } from '../types';
 import type { DialogTarget } from './dialog-target';
 import { GuestDialog } from './guest-dialog';
-import { HouseholdCard, type OnChoose, type OpenDialog, type SideNames } from './household-card';
+import { AttendanceHistoryDialog } from './attendance-history-dialog';
+import {
+  HouseholdCard,
+  type FormatDay,
+  type OnChoose,
+  type OpenDialog,
+  type SideNames,
+} from './household-card';
 import { HouseholdDialog } from './household-dialog';
 import { ListToolbar } from './list-toolbar';
 import { RemoveGuestDialog } from './remove-guest-dialog';
@@ -84,6 +92,15 @@ function DialogHost({ event, households, target, isListContactShown, host }: Dia
           host={host}
         />
       );
+    case 'history':
+      return (
+        <AttendanceHistoryDialog
+          key={target.guest.id}
+          event={event}
+          guest={target.guest}
+          host={host}
+        />
+      );
     case 'remove':
       return (
         <RemoveGuestDialog
@@ -111,9 +128,18 @@ interface ResultsProps {
   sending: Sending;
   onOpen: OpenDialog;
   onClear: () => void;
+  formatDay: FormatDay;
 }
 
-function Results({ households, visible, sides, sending, onOpen, onClear }: ResultsProps) {
+function Results({
+  households,
+  visible,
+  sides,
+  sending,
+  onOpen,
+  onClear,
+  formatDay,
+}: ResultsProps) {
   const { t } = useTranslation('guests');
   if (households.length === 0)
     return <p className="text-muted-foreground m-0">{t('list.empty')}</p>;
@@ -140,6 +166,7 @@ function Results({ households, visible, sides, sending, onOpen, onClear }: Resul
           delivery={sending.texts.get(household.id)}
           isChosen={sending.chosen ? sending.chosen.has(household.id) : null}
           onChoose={sending.onChoose}
+          formatDay={formatDay}
         />
       ))}
     </div>
@@ -205,6 +232,17 @@ function useGroupOf(report: DeliveryReport | null): GroupOf | undefined {
   );
 }
 
+/** One function per zone and language, so the memoized households redraw only when either changes. */
+function useFormatDay(event: EventDetail): FormatDay {
+  const { i18n } = useTranslation();
+  const { timezone } = event;
+  const { language } = i18n;
+  return useMemo(
+    () => (iso: string) => formatEventDay(iso, { timeZone: timezone, locale: language }),
+    [timezone, language],
+  );
+}
+
 /** Adding a guest, and importing a spreadsheet. */
 function ListActions({ eventId, onOpen }: { eventId: string; onOpen: OpenDialog }) {
   const { t } = useTranslation('guests');
@@ -267,6 +305,7 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
     [households],
   );
   const sides = useSideNames(event);
+  const formatDay = useFormatDay(event);
   const { target, open, host, status, statusRef } = useListDialogs(households);
   const { sender, sending, isSendable } = useSending(event, households, report);
 
@@ -301,6 +340,7 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
           sending={sending}
           onOpen={open}
           onClear={clear}
+          formatDay={formatDay}
         />
       </div>
       <DialogHost

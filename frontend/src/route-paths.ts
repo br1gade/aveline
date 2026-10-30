@@ -58,4 +58,6 @@ export const APP_PATHS = {
   photos: '/app/events/:eventId/photos',
   /** Who agreed to the hosts' statements, read-only. */
   agreements: '/app/events/:eventId/agreements',
+  /** Tables and seats per venue, automatic seating, and showing guests their tables. */
+  seating: '/app/events/:eventId/seating',
 } as const;

@@ -16,6 +16,7 @@ import {
   guestListPath,
   invitationPath,
   photosPath,
+  seatingPath,
   venuesPath,
 } from '../paths';
 import type { EventDetail } from '../types';
@@ -85,7 +86,7 @@ function EventDetails({ event }: { event: EventDetail }) {
 
 /**
  * One event: its details and its headcount (design PD-42), and the ways to its guest list (PD-44),
- * its venues (PD-46) and its invitation's publishing and sending (PD-47). Every action is offered
+ * its venues (PD-46), its seating (PD-67) and its invitation's publishing and sending (PD-47). Every action is offered
  * to every role; one that may not do it is told so when it tries (FR-6).
  */
 export function EventOverview({ data }: { data: EventOverviewData }) {
@@ -107,6 +108,9 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
           </Button>
           <Button asChild variant="outline">
             <Link to={venuesPath(event.id)}>{t('overview.venues')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={seatingPath(event.id)}>{t('overview.seating')}</Link>
           </Button>
           {event.invitation ? (
             <>

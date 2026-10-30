@@ -45,6 +45,13 @@
       "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez.",
       "failed": "Votre nom n’a pas pu être enregistré. Veuillez réessayer dans un instant.",
       "reference": "Référence : {{id}}"
+    },
+    "table": {
+      "title": "Votre table",
+      "none": "Vous n’avez pas encore de place.",
+      "at": "{{venue}} : {{table}}",
+      "held": "{{seat}}, réservée pour vous jusqu’à votre réponse",
+      "member": "{{name}} : {{seats}}"
     }
   },
   "status": {

@@ -44,6 +44,13 @@
       "unreachable": "We couldn’t reach Aveline. Check your connection and try again.",
       "failed": "Your name couldn’t be saved. Please try again in a moment.",
       "reference": "Reference: {{id}}"
+    },
+    "table": {
+      "title": "Your table",
+      "none": "You don’t have a seat yet.",
+      "at": "{{venue}}: {{table}}",
+      "held": "{{seat}}, held for you until you answer",
+      "member": "{{name}}: {{seats}}"
     }
   },
   "status": {

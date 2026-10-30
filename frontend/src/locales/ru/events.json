@@ -76,7 +76,8 @@
     "attendanceChange": "Изменить",
     "design": "Оформить приглашение",
     "photos": "Фото гостей",
-    "agreements": "Согласия"
+    "agreements": "Согласия",
+    "seating": "Рассадка"
   },
   "headcount": {
     "title": "Гости",

@@ -8,6 +8,7 @@ import enGallery from './en/gallery.json';
 import enGuests from './en/guests.json';
 import enInvitation from './en/invitation.json';
 import enReply from './en/reply.json';
+import enSeating from './en/seating.json';
 import enSending from './en/sending.json';
 import enVenues from './en/venues.json';
 import frAccount from './fr/account.json';
@@ -20,6 +21,7 @@ import frGallery from './fr/gallery.json';
 import frGuests from './fr/guests.json';
 import frInvitation from './fr/invitation.json';
 import frReply from './fr/reply.json';
+import frSeating from './fr/seating.json';
 import frSending from './fr/sending.json';
 import frVenues from './fr/venues.json';
 import hyAccount from './hy/account.json';
@@ -32,6 +34,7 @@ import hyGallery from './hy/gallery.json';
 import hyGuests from './hy/guests.json';
 import hyInvitation from './hy/invitation.json';
 import hyReply from './hy/reply.json';
+import hySeating from './hy/seating.json';
 import hySending from './hy/sending.json';
 import hyVenues from './hy/venues.json';
 import ruAccount from './ru/account.json';
@@ -44,6 +47,7 @@ import ruGallery from './ru/gallery.json';
 import ruGuests from './ru/guests.json';
 import ruInvitation from './ru/invitation.json';
 import ruReply from './ru/reply.json';
+import ruSeating from './ru/seating.json';
 import ruSending from './ru/sending.json';
 import ruVenues from './ru/venues.json';
 
@@ -63,6 +67,7 @@ export const resources = {
     guests: enGuests,
     invitation: enInvitation,
     reply: enReply,
+    seating: enSeating,
     sending: enSending,
     venues: enVenues,
   },
@@ -77,6 +82,7 @@ export const resources = {
     guests: frGuests,
     invitation: frInvitation,
     reply: frReply,
+    seating: frSeating,
     sending: frSending,
     venues: frVenues,
   },
@@ -91,6 +97,7 @@ export const resources = {
     guests: hyGuests,
     invitation: hyInvitation,
     reply: hyReply,
+    seating: hySeating,
     sending: hySending,
     venues: hyVenues,
   },
@@ -105,6 +112,7 @@ export const resources = {
     guests: ruGuests,
     invitation: ruInvitation,
     reply: ruReply,
+    seating: ruSeating,
     sending: ruSending,
     venues: ruVenues,
   },

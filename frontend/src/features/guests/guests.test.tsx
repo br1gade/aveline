@@ -368,6 +368,116 @@ describe('GuestList: answers and seats per venue', () => {
   });
 });
 
+describe('GuestList: seats a decline freed and each guest’s answer history (PD-72)', () => {
+  const declined = () => [
+    householdWire({
+      guests: [
+        guestWire({
+          table: null,
+          rsvpStatus: 'DECLINED',
+          attendance: {
+            mode: 'PER_VENUE',
+            needsReconfirmation: false,
+            venues: [{ venueId: 'v2', venue: 'Hall', status: 'DECLINED' }],
+          },
+          seating: [],
+          seatReleases: [
+            {
+              arrangementId: 'a2',
+              venueId: 'v2',
+              table: 'Table 4',
+              releasedAt: '2027-05-01T10:00:00.000Z',
+            },
+            {
+              arrangementId: 'a0',
+              venueId: null,
+              table: 'Garden 1',
+              releasedAt: '2027-05-02T10:00:00.000Z',
+            },
+            {
+              arrangementId: 'a3',
+              venueId: 'v3',
+              table: null,
+              releasedAt: '2027-05-03T10:00:00.000Z',
+            },
+          ],
+        }),
+      ],
+    }),
+  ];
+
+  it('says each seat a decline freed, at its venue when the guest’s answers name it', async () => {
+    serve(declined());
+    renderList();
+    expect(
+      await screen.findByText('A decline freed their seat at Table 4 (Hall), 1 May 2027'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('A decline freed their seat at Garden 1, 2 May 2027'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('A decline freed their seat, 3 May 2027')).toBeInTheDocument();
+  });
+
+  it('reads the answer history only when asked, newest way first, an unknown time said', async () => {
+    serve();
+    let reads = 0;
+    server.use(
+      http.get(`${API}/events/e1/guests/g1/attendance-history`, () => {
+        reads += 1;
+        return HttpResponse.json([
+          {
+            revision: 2,
+            status: 'ATTENDING',
+            respondedAt: '2027-05-04T08:30:00.000Z',
+            updatedAt: '2027-05-04T08:30:00.000Z',
+            venueId: 'v1',
+            venue: { name: 'Church' },
+            policy: { mode: 'PER_VENUE', isActive: true },
+          },
+          {
+            revision: 1,
+            status: 'DECLINED',
+            respondedAt: null,
+            updatedAt: '2027-04-01T08:00:00.000Z',
+            venueId: null,
+            venue: null,
+            policy: { mode: 'EVENT_WIDE', isActive: false },
+          },
+        ]);
+      }),
+    );
+    const user = renderList();
+    const button = await screen.findByRole('button', { name: 'Answer history: Armen Petrosyan' });
+    expect(reads).toBe(0);
+    await user.click(button);
+    const dialog = await screen.findByRole('dialog', { name: 'Answer history: Armen Petrosyan' });
+    expect(await within(dialog).findByText('Asked per venue · current')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Asked once for the event · before the change'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText(/Church: Coming/).textContent).toContain(
+      'answered 4 May 2027, 12:30',
+    );
+    expect(within(dialog).getByText(/Not coming/).textContent).toContain('time not known');
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(button).toHaveFocus());
+    expect(reads).toBe(1);
+  });
+
+  it.each([
+    [403, 'Answer history is not available to your role.'],
+    [404, 'This guest is no longer on the list.'],
+  ])('words a history refused with %i', async (status, words) => {
+    serve();
+    server.use(http.get(`${API}/events/e1/guests/g1/attendance-history`, refusal(status)));
+    const user = renderList();
+    await user.click(
+      await screen.findByRole('button', { name: 'Answer history: Armen Petrosyan' }),
+    );
+    expect(await screen.findByText(words)).toBeInTheDocument();
+  });
+});
+
 describe('GuestList: contact details this role cannot see', () => {
   const hidden = () => [householdWire({ id: 'h1', guests: [guestWithoutContact({ id: 'g1' })] })];
 

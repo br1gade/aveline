@@ -37,3 +37,7 @@ export function photosPath(eventId: string): string {
 export function agreementsPath(eventId: string): string {
   return generatePath(APP_PATHS.agreements, { eventId });
 }
+
+export function seatingPath(eventId: string): string {
+  return generatePath(APP_PATHS.seating, { eventId });
+}

@@ -76,7 +76,8 @@
     "attendanceChange": "Modifier",
     "design": "Concevoir l’invitation",
     "photos": "Photos des invités",
-    "agreements": "Accords"
+    "agreements": "Accords",
+    "seating": "Placement"
   },
   "headcount": {
     "title": "Invités",

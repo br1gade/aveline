@@ -127,6 +127,86 @@ describe('InvitationPage', () => {
     expect(renderContributions).not.toHaveBeenCalled();
   });
 
+  it('shows the guest’s table at each venue and who of the household sits apart (PD-71)', () => {
+    const guest = invitationFixture().guest;
+    if (!guest) throw new Error('no guest');
+    const own = [
+      {
+        venueId: 'v1',
+        venue: 'Reception',
+        table: 'Table 4',
+        isReservation: false,
+        arrangementId: 'a1',
+        tableId: 't4',
+        position: null,
+      },
+      { venueId: null, venue: null, table: 'Garden 1', isReservation: true },
+    ];
+    const seating = {
+      table: null,
+      assignments: own,
+      household: [
+        { id: 'guest-1', name: 'Armen Petrosyan', table: null, assignments: own },
+        {
+          id: 'guest-2',
+          name: 'Lusine Petrosyan',
+          table: 'Table 5',
+          assignments: [
+            { venueId: 'v1', venue: 'Reception', table: 'Table 5', isReservation: false },
+          ],
+        },
+      ],
+    };
+    renderPage({ invitation: invitationFixture({ guest: { ...guest, seating } }) });
+
+    const card = screen.getByRole('heading', { name: 'Dear Armen Petrosyan,' }).closest('article');
+    const inCard = within(card as HTMLElement);
+    expect(inCard.getByText('Your table')).toBeInTheDocument();
+    expect(inCard.getByText('Reception: Table 4')).toBeInTheDocument();
+    expect(inCard.getByText('Garden 1, held for you until you answer')).toBeInTheDocument();
+    expect(inCard.getByText('Lusine Petrosyan: Reception: Table 5')).toBeInTheDocument();
+  });
+
+  it('says the guest has no seat yet when only their household does', () => {
+    const guest = invitationFixture().guest;
+    if (!guest) throw new Error('no guest');
+    const seating = {
+      table: null,
+      assignments: [],
+      household: [
+        {
+          id: 'guest-2',
+          name: 'Lusine Petrosyan',
+          table: 'Table 5',
+          assignments: [{ venueId: null, venue: null, table: 'Table 5', isReservation: false }],
+        },
+      ],
+    };
+    renderPage({ invitation: invitationFixture({ guest: { ...guest, seating } }) });
+
+    expect(screen.getByText('Your table')).toBeInTheDocument();
+    expect(screen.getByText('You don’t have a seat yet.')).toBeInTheDocument();
+    expect(screen.getByText('Lusine Petrosyan: Table 5')).toBeInTheDocument();
+  });
+
+  it('shows no table before the seating is published, for a guest with none, or on the generic link', () => {
+    const guest = invitationFixture().guest;
+    if (!guest) throw new Error('no guest');
+    const { unmount } = renderPage({
+      invitation: invitationFixture({ guest: { ...guest, seating: null } }),
+    });
+    expect(screen.queryByText('Your table')).toBeNull();
+    unmount();
+    const empty = { table: null, assignments: [], household: [] };
+    const second = renderPage({
+      invitation: invitationFixture({ guest: { ...guest, seating: empty } }),
+    });
+    expect(screen.queryByText('Your table')).toBeNull();
+    second.unmount();
+    renderPage({ invitation: invitationFixture({ guest: null }) });
+    expect(screen.queryByText('Your table')).toBeNull();
+  });
+
   it('says a preview collects no replies, in place of the closed notice', () => {
     const renderReply = vi.fn(() => <p>form</p>);
     renderPage({

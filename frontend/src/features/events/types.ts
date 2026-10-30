@@ -56,6 +56,12 @@ export interface EventDetail extends EventSummary {
   /** How guests answer, and the policy's revision, which a change raises. Absent before `eb77cd4`. */
   attendanceMode?: AttendanceMode;
   attendanceRevision?: number;
+  /** Since when guests see their tables on their personal links; `null` while they don't. */
+  seatingPublishedAt?: string | null;
+  /** The venues in the host's order; the seating page reads which ones guests see (FR-52). */
+  venues?: Array<{ id: string; role: string }>;
+  /** The running order; only which venue each entry is at, and whether guests see it. */
+  timeline?: Array<{ venueId: string | null; isInternal: boolean }>;
 }
 
 /** Whether to offer "let your guests know" after an edit: never sent by itself. */

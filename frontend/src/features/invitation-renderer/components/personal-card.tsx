@@ -8,6 +8,7 @@ import { displayDay } from '../format';
 import type { InvitationGuest } from '../types';
 import { REPLY_HEADING_ID, type ReplySummary } from './reply-summary';
 import { useStatusText } from './status-text';
+import { YourTable } from './your-table';
 
 interface PersonalCardProps {
   guest: InvitationGuest;
@@ -51,8 +52,9 @@ function HouseholdNames({
 }
 
 /**
- * Tells guests the invitation is theirs: their name, their seats, their reply (spec §4.3). Only on
- * personal links. No gendered forms in any language (R-25).
+ * Tells guests the invitation is theirs: their name, their seats, their table once the hosts publish
+ * the seating (PD-71), their reply (spec §4.3). Only on personal links. No gendered forms in any
+ * language (R-25).
  */
 export function PersonalCard({ guest, reply, replyButtonId, extra, className }: PersonalCardProps) {
   const { t } = useTranslation('invitation');
@@ -78,6 +80,7 @@ export function PersonalCard({ guest, reply, replyButtonId, extra, className }: 
         </p>
         <HouseholdNames guest={guest} saved={reply?.householdNames} />
         {extra}
+        <YourTable guest={guest} />
       </div>
       {reply && statusText ? (
         <div className="flex flex-col gap-1">

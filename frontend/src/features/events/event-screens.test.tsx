@@ -294,6 +294,14 @@ describe('EventOverview', () => {
     );
   });
 
+  it('links to the seating, with or without an invitation (PD-67)', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Seating' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/seating',
+    );
+  });
+
   it('links to guests’ photos and their agreements (PD-65, PD-66)', async () => {
     overview();
     expect(await screen.findByRole('link', { name: 'Guests’ photos' })).toHaveAttribute(

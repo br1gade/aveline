@@ -124,11 +124,17 @@ export interface AttendanceView {
   venues: Array<{ venueId: string; venue: string; status: RsvpStatus; respondedAt: string | null }>;
 }
 
-/** One seat at one venue's seating plan. */
+/** One seat at one venue's seating plan (docs/API.md §4, "Find your seat"). */
 export interface SeatAssignment {
-  venueId: string;
-  venue: string;
+  arrangementId?: string;
+  /** `null` for a seat in the plan that names no venue. */
+  venueId: string | null;
+  /** In the page's language; `null` with no venue. */
+  venue: string | null;
+  tableId?: string;
   table: string;
+  position?: number | null;
+  /** Held for them while they have not said they are coming there. */
   isReservation: boolean;
 }
 

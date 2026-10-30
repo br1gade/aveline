@@ -7,7 +7,7 @@ import { Checkbox } from '@/ui/kit/checkbox';
 import { Label } from '@/ui/kit/label';
 
 import { hasFreeSeat } from '../form-model';
-import type { Guest, Household, Seat, Side } from '../types';
+import type { Guest, Household, Release, Seat, Side } from '../types';
 import { AnswerChip } from './answer-chip';
 import type { DialogTarget } from './dialog-target';
 
@@ -16,12 +16,16 @@ export type SideNames = Readonly<Record<Side, string>>;
 
 export type OpenDialog = (target: DialogTarget, opener: HTMLElement) => void;
 
+/** A day in the event's own zone, never the device's. */
+export type FormatDay = (iso: string) => string;
+
 interface RowProps {
   guest: Guest;
   household: Household;
   sides: SideNames;
   t: TFunction<'guests'>;
   onOpen: OpenDialog;
+  formatDay: FormatDay;
 }
 
 function notesOf(guest: Guest, t: TFunction<'guests'>): string[] {
@@ -54,6 +58,27 @@ function VenueAnswers({ guest, t }: { guest: Guest; t: TFunction<'guests'> }) {
   );
 }
 
+/**
+ * A seat their decline freed, kept until the host seats them again or dismisses it (design PD-72).
+ * The venue is named from their own answers there, the only place the list names it (FR-57).
+ */
+function releaseText(release: Release, guest: Guest, t: TFunction<'guests'>, formatDay: FormatDay) {
+  const when = formatDay(release.releasedAt);
+  const venue = guest.venueAnswers.find((answer) => answer.venueId === release.venueId)?.venue;
+  if (release.table === null) return t('row.releasedNoTable', { when });
+  if (venue) return t('row.releasedAt', { table: release.table, venue, when });
+  return t('row.released', { table: release.table, when });
+}
+
+function Releases({ guest, t, formatDay }: Pick<RowProps, 'guest' | 't' | 'formatDay'>) {
+  if (guest.releases.length === 0) return null;
+  return guest.releases.map((release) => (
+    <p key={release.arrangementId} className="text-muted-foreground m-0 text-sm">
+      {releaseText(release, guest, t, formatDay)}
+    </p>
+  ));
+}
+
 /** Email and phone only when they arrived: missing is not this role's to see (docs/API.md §6). */
 function ContactLines({ guest }: { guest: Guest }) {
   if (!guest.contact.isShown) return null;
@@ -69,7 +94,7 @@ function ContactLines({ guest }: { guest: Guest }) {
  * One guest. No hooks of its own: a list of two thousand renders these, and the card above gives
  * them its words. An erased guest is never edited (the backend refuses it), so has no "Edit".
  */
-function GuestRow({ guest, household, sides, t, onOpen }: RowProps) {
+function GuestRow({ guest, household, sides, t, onOpen, formatDay }: RowProps) {
   const open = (kind: 'edit' | 'remove') => (event: MouseEvent<HTMLButtonElement>) =>
     onOpen({ kind, guest, household }, event.currentTarget);
   const facts = [sides[guest.side], ...guest.seats.map((seat) => seatText(seat, t))]
@@ -88,9 +113,10 @@ function GuestRow({ guest, household, sides, t, onOpen }: RowProps) {
           ))}
         </div>
         <VenueAnswers guest={guest} t={t} />
+        <Releases guest={guest} t={t} formatDay={formatDay} />
         <ContactLines guest={guest} />
       </div>
-      <div className="flex flex-none gap-2">
+      <div className="flex flex-none flex-wrap gap-2">
         {guest.isErased ? null : (
           <Button
             variant="outline"
@@ -106,6 +132,13 @@ function GuestRow({ guest, household, sides, t, onOpen }: RowProps) {
           onClick={open('remove')}
         >
           {t('row.remove')}
+        </Button>
+        <Button
+          variant="ghost"
+          aria-label={t('actionFor', { action: t('row.history'), name: guest.name })}
+          onClick={(event) => onOpen({ kind: 'history', guest }, event.currentTarget)}
+        >
+          {t('row.history')}
         </Button>
       </div>
     </li>
@@ -127,6 +160,7 @@ interface HouseholdCardProps {
   /** `null` while the invitation cannot be sent; otherwise whether this household is chosen. */
   isChosen: boolean | null;
   onChoose: OnChoose;
+  formatDay: FormatDay;
 }
 
 /**
@@ -204,6 +238,7 @@ export const HouseholdCard = memo(function HouseholdCard({
   delivery,
   isChosen,
   onChoose,
+  formatDay,
 }: HouseholdCardProps) {
   const titleId = useId();
   return (
@@ -238,6 +273,7 @@ export const HouseholdCard = memo(function HouseholdCard({
             sides={sides}
             t={t}
             onOpen={onOpen}
+            formatDay={formatDay}
           />
         ))}
       </ul>

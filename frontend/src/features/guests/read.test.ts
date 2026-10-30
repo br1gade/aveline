@@ -83,7 +83,7 @@ describe('seats and answers per venue', () => {
     ],
   };
 
-  it('keeps every seat with its venue, a held one marked, beside no single table', () => {
+  it('keeps every seat with its plan, table and venue, a held one marked, beside no single table', () => {
     const [household] = readHouseholds([
       householdWire({
         guests: [
@@ -109,22 +109,74 @@ describe('seats and answers per venue', () => {
     expect(household?.guests[0]).toMatchObject({
       table: null,
       seats: [
-        { venue: 'Church', table: 'Pew 2', isReservation: false },
-        { venue: 'Hall', table: 'Table 4', isReservation: true },
+        {
+          arrangementId: 'a1',
+          tableId: 't1',
+          venue: 'Church',
+          table: 'Pew 2',
+          isReservation: false,
+        },
+        {
+          arrangementId: null,
+          tableId: null,
+          venue: 'Hall',
+          table: 'Table 4',
+          isReservation: true,
+        },
       ],
       venueAnswers: [
-        { venue: 'Church', answer: 'ATTENDING' },
-        { venue: 'Hall', answer: 'PENDING' },
+        { venueId: 'v1', venue: 'Church', answer: 'ATTENDING' },
+        { venueId: 'v2', venue: 'Hall', answer: 'PENDING' },
       ],
       isAskedAgain: true,
     });
-    expect(JSON.stringify(household)).not.toContain('arrangementId');
+    expect(Object.keys(household?.guests[0]?.seats[0] ?? {})).not.toContain('position');
+  });
+
+  it('keeps each seat a decline freed, by plan, without its other fields', () => {
+    const [household] = readHouseholds([
+      householdWire({
+        guests: [
+          guestWire({
+            table: null,
+            seating: [],
+            seatReleases: [
+              {
+                arrangementId: 'a2',
+                venueId: 'v2',
+                table: 'Table 4',
+                releasedAt: '2027-05-01T10:00:00.000Z',
+                tableId: 't4',
+              } as never,
+              {
+                arrangementId: 'a3',
+                venueId: null,
+                table: null,
+                releasedAt: '2027-05-02T10:00:00.000Z',
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+    expect(household?.guests[0]?.releases).toEqual([
+      {
+        arrangementId: 'a2',
+        venueId: 'v2',
+        table: 'Table 4',
+        releasedAt: '2027-05-01T10:00:00.000Z',
+      },
+      { arrangementId: 'a3', venueId: null, table: null, releasedAt: '2027-05-02T10:00:00.000Z' },
+    ]);
   });
 
   it('reads one table, and no venue answers, from a backend before the change', () => {
     const [household] = readHouseholds([householdWire()]);
     expect(household?.guests[0]).toMatchObject({
-      seats: [{ venue: null, table: 'Table 4', isReservation: false }],
+      seats: [
+        { arrangementId: null, tableId: null, venue: null, table: 'Table 4', isReservation: false },
+      ],
+      releases: [],
       venueAnswers: [],
       isAskedAgain: false,
     });

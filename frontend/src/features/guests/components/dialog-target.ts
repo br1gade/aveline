@@ -5,4 +5,5 @@ export type DialogTarget =
   | { kind: 'add'; householdId: string }
   | { kind: 'edit'; guest: Guest; household: Household }
   | { kind: 'remove'; guest: Guest; household: Household }
-  | { kind: 'household'; household: Household };
+  | { kind: 'household'; household: Household }
+  | { kind: 'history'; guest: Guest };
