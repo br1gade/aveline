@@ -26,6 +26,9 @@ data and contain no production credentials.
 The test matrix pins Ubuntu 24.04, and integration tests explicitly select its
 PostgreSQL 16 dump/restore clients to match the PostgreSQL 16 service. Newer
 runner-default clients can emit settings unsupported by the target server.
+Container rehearsals run independently alongside the test matrix; all four jobs
+must pass. The edge rehearsal pulls a missing Caddy image before timing startup,
+so a cold runner's download does not consume the readiness window.
 
 ## Configure GitHub once
 

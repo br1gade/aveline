@@ -11,6 +11,7 @@ const execute = promisify(execFile);
 const root = new URL('../', import.meta.url);
 const directory = await mkdtemp(join(tmpdir(), 'aveline-edge-'));
 const name = `aveline-edge-${process.pid}`;
+const caddyImage = 'caddy:2-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9';
 const logs = [];
 const server = createServer((request, response) => {
   response.setHeader('content-type', 'application/json');
@@ -40,6 +41,9 @@ function call(path, host, headers = {}) {
   });
 }
 try {
+  // Download time is not proxy startup time. Fresh CI runners have no cache.
+  try { await execute('docker', ['image', 'inspect', caddyImage]); }
+  catch { await execute('docker', ['pull', caddyImage], { timeout: 180000 }); }
   const source = await readFile(new URL('Caddyfile', root), 'utf8');
   const config = source.replace('\n{\n', '\n{\n\tadmin off\n\tlocal_certs\n\tauto_https disable_redirects\n')
     .replace('api:3000', `127.0.0.1:${upstream}`)
@@ -49,7 +53,7 @@ try {
     '-v', `${directory}/Caddyfile:/etc/caddy/Caddyfile:ro`,
     '-e', `API_DOMAIN=${api}`, '-e', `MEDIA_DOMAIN=${media}`,
     '-e', 'MEDIA_BUCKET_HOST=aveline-media.web.garage.localhost',
-    '-e', 'ACME_EMAIL=ops@aveline.test', 'caddy:2-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    '-e', 'ACME_EMAIL=ops@aveline.test', caddyImage], { stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout.on('data', (chunk) => logs.push(chunk.toString()));
   child.stderr.on('data', (chunk) => logs.push(chunk.toString()));
   let isReady = false;
@@ -84,6 +88,10 @@ try {
     assert.equal(entry.request.headers, undefined);
   }
   console.log('Production Caddy: verified local TLS, routing preserved, media bucket selected, credentials absent from success and 502 error logs.');
+} catch (error) {
+  const message = String(error.message).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+  if (process.env.GITHUB_ACTIONS === 'true') console.error(`::error file=backend/scripts/test-edge.mjs::${message}`);
+  throw error;
 } finally {
   if (child) await execute('docker', ['rm', '-f', name]).catch(() => undefined);
   await new Promise((resolve) => server.close(resolve));
