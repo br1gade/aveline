@@ -6,11 +6,12 @@ import { join } from 'node:path';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import assert from 'node:assert/strict';
+import { localResourceName } from './local-ci/scope.mjs';
 
 const execute = promisify(execFile);
 const root = new URL('../', import.meta.url);
 const directory = await mkdtemp(join(tmpdir(), 'aveline-edge-'));
-const name = `aveline-edge-${process.pid}`;
+const name = localResourceName(`aveline-edge-${process.pid}`, 'e');
 const caddyImage = 'caddy:2-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9';
 const logs = [];
 const server = createServer((request, response) => {

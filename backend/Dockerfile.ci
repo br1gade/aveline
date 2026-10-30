@@ -1,0 +1,16 @@
+# Match GitHub's test OS, Node major and database recovery clients.
+FROM node:26-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f4a5d687a77d280c1d9 AS node
+FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates git openssl postgresql-client-16 util-linux python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=node /usr/local/ /usr/local/
+ENV PATH="/usr/lib/postgresql/16/bin:${PATH}"
+WORKDIR /workspace/backend
+COPY backend/package.json backend/package-lock.json ./
+COPY backend/prisma ./prisma
+RUN node --version | grep '^v26\.' && pg_restore --version | grep ' 16\.'
+RUN npm ci && npx prisma generate
+COPY . /workspace/
+ENV NODE_ENV=test
+CMD ["node", "scripts/ci-job.mjs", "quality"]

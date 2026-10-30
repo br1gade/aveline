@@ -91,6 +91,10 @@ because it is believed.
   the gitignore blocks the usual shapes. The repository is currently public.
 - Never commit secrets. `.env`, `garage/garage.toml` and credentials of any
   kind are ignored; templates are committed in their place.
+- Before pushing, use the local gate: `cd backend && npm run ci:install-hook`
+  once per clone, then commit changes and run `npm run ci:local`. The pre-push
+  hook checks each pushed tree and reuses a complete 24-hour proof. Never bypass
+  a failed gate to use hosted CI for debugging. See `backend/docs/LOCAL_CI.md`.
 
 ## 6. Area rules
 

@@ -1,0 +1,61 @@
+# One private project per local CI layer. No host database/mail ports or real volumes.
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    environment:
+      POSTGRES_USER: aveline
+      POSTGRES_PASSWORD: aveline
+      POSTGRES_DB: aveline_test
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aveline -d aveline_test']
+      interval: 2s
+      timeout: 3s
+      retries: 40
+  redis:
+    image: redis:7.4.8-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  mongo:
+    image: mongo:7@sha256:1f995ad6fdb93244a1addab1b58f934a0bc2f5643c38e02f5e9d7f0c7d227a7b
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: aveline
+      MONGO_INITDB_ROOT_PASSWORD: aveline
+    volumes: [mongodata:/data/db]
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand({ping:1})']
+      interval: 2s
+      timeout: 5s
+      retries: 40
+  mailpit:
+    image: axllent/mailpit:v1.21
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  runner:
+    image: ${LOCAL_CI_IMAGE:?run npm run ci:local}
+    working_dir: /workspace/backend
+    init: true
+    mem_limit: 3g
+    environment:
+      NODE_ENV: test
+      NODE_OPTIONS: --max-old-space-size=2048
+      PILOT_MODE: 'false'
+      DATABASE_URL: postgresql://aveline:aveline@postgres:5432/aveline_test?schema=public
+      TEST_DATABASE_URL: postgresql://aveline:aveline@postgres:5432/aveline_test?schema=public
+      REDIS_URL: redis://redis:6379
+      MONGO_URL: mongodb://aveline:aveline@mongo:27017/aveline_test?authSource=admin
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      MAILPIT_API: http://mailpit:8025
+      MAIL_FROM: pilot@aveline.test
+      STORAGE_ROOT: /tmp/aveline-ci-media
+      PUBLIC_APP_URL: http://localhost:3000
+volumes:
+  pgdata:
+  mongodata:

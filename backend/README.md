@@ -15,6 +15,7 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`docs/STORAGE.md`](docs/STORAGE.md) | Garage object storage |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Docker full-stack wizard, deployment and recovery |
 | [`docs/RELEASES.md`](docs/RELEASES.md) | CI, attested releases and staged SSH promotion |
+| [`docs/LOCAL_CI.md`](docs/LOCAL_CI.md) | Full local checks and the pre-push gate |
 | [`docs/GAPS.md`](docs/GAPS.md) | What is still unbuilt, prioritised |
 | [`../docs/API.md`](../docs/API.md) | **The client contract — update it when a response shape changes** |
 | [`../docs/PRODUCT_SPEC.md`](../docs/PRODUCT_SPEC.md) | Product definition and domain model |
@@ -71,6 +72,14 @@ containers are independent. Secrets are generated into ignored private profiles.
 See [the deployment runbook](docs/DEPLOYMENT.md) for configuration/backup/job
 wizards and [release setup](docs/RELEASES.md) for CI/GHCR/SSH promotion. Paid and
 new feature gates remain closed. No production deployment is performed by setup.
+
+## Check before pushing
+
+Run `npm run ci:install-hook` once, commit your work, then `npm run ci:local`.
+The pre-push hook blocks pushes until the exact committed tree passes all four
+CI layers and reuses a complete result for 24 hours. Tests use disposable Docker
+services and Node 26/Ubuntu 24.04/PostgreSQL 16 tools. Logs stay under ignored
+`.local-ci/` at the repository root. See [local CI](docs/LOCAL_CI.md).
 
 ## Mail in development
 

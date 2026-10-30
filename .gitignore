@@ -362,3 +362,6 @@ docker-compose.override.yml
 
 # Generated non-secret release artifact.
 release-manifest.json
+
+# Local-only CI proofs and private diagnostic logs.
+.local-ci/

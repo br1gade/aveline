@@ -6,10 +6,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { localResourceName } from './local-ci/scope.mjs';
 
 const execute = promisify(execFile);
 const docker = (...args) => execute('docker', args, { timeout: 120000, maxBuffer: 2 * 1024 * 1024 });
-const scope = `aveline-rehearsal-${process.pid}`;
+const scope = localResourceName(`aveline-rehearsal-${process.pid}`, 'p');
 const image = process.env.PILOT_REHEARSAL_IMAGE ?? 'aveline-api:pilot-readiness';
 const directory = await mkdtemp(join(tmpdir(), 'aveline-rehearsal-'));
 const containers = [];

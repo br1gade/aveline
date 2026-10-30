@@ -8,10 +8,11 @@ import assert from 'node:assert/strict';
 import { buildConfiguration, writeProfile, readProfile } from './ops/config.mjs';
 import { applyRelease } from './ops/deploy.mjs';
 import { context, compose, docker } from './ops/runtime.mjs';
+import { localResourceName } from './local-ci/scope.mjs';
 async function reservePort() { const server = createServer(); await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)); const port = server.address().port; await new Promise((resolve) => server.close(resolve)); return port; }
 const root = await mkdtemp(join(tmpdir(), 'aveline-compose-'));
 const profilePath = join(root, 'profile');
-const project = `aveline-compose-${process.pid}-${randomBytes(3).toString('hex')}`;
+const project = localResourceName(`aveline-compose-${process.pid}-${randomBytes(3).toString('hex')}`, 'c');
 const images = { api: process.env.OPS_REHEARSAL_IMAGE ?? 'aveline-api:ops-test', backup: process.env.OPS_REHEARSAL_BACKUP_IMAGE ?? 'aveline-backup:ops-test' };
 let ctx; let wasScopeAccepted = false; let didSucceed = false;
 try {

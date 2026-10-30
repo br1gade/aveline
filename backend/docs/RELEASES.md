@@ -30,6 +30,13 @@ Container rehearsals run independently alongside the test matrix; all four jobs
 must pass. The edge rehearsal pulls a missing Caddy image before timing startup,
 so a cold runner's download does not consume the readiness window.
 
+## Validate locally before pushing
+
+Use `npm run ci:local` and install `npm run ci:install-hook` once per clone.
+GitHub and local CI share `scripts/ci-job.mjs`; the local runner snapshots the
+exact committed tree and provisions isolated services. A complete 24-hour proof
+lets the pre-push hook reuse unchanged results. See [LOCAL_CI.md](LOCAL_CI.md).
+
 ## Configure GitHub once
 
 1. Protect the default branch and require the quality, integration, HTTP and
@@ -101,6 +108,6 @@ Official platform references: [Compose raw env files](https://docs.docker.com/re
 [deployment environments](https://docs.github.com/en/actions/concepts/workflows-and-actions/deployment-environments),
 [artifact attestations](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
 
-Not yet completed: live Actions execution, actual reviewer/secret/registry setup,
+Not yet completed: release/deploy Actions execution, actual reviewer/secret/registry setup,
 provisioning, external alerting and remote restore/production acceptance. No
 frontend container, multi-host orchestration or zero-downtime rollout is supplied.

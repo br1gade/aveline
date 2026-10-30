@@ -71,16 +71,10 @@ jobs:
           echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
           /usr/lib/postgresql/16/bin/pg_dump --version
           /usr/lib/postgresql/16/bin/pg_restore --version
-      - if: matrix.layer == 'quality'
-        run: npm run lint && npm run docs:check && npm run openapi:check && npx tsc --noEmit --incremental false && npm run build && npm run test:unit && npm run test:pilot && npm run test:backup && npm run test:ops && node --test scripts/ci-test-results.test.mjs
-      - if: matrix.layer == 'integration'
-        run: npm run test:int -- --json --outputFile=/tmp/aveline-integration-results.json
-      - if: matrix.layer == 'http'
-        run: npm run test:e2e -- --json --outputFile=/tmp/aveline-http-results.json
-      - if: failure() && matrix.layer == 'integration'
-        run: node scripts/ci-test-results.mjs /tmp/aveline-integration-results.json
-      - if: failure() && matrix.layer == 'http'
-        run: node scripts/ci-test-results.mjs /tmp/aveline-http-results.json
+      - name: Run shared CI job
+        env:
+          CI_JOB: ${{ matrix.layer }}
+        run: node scripts/ci-job.mjs "$CI_JOB"
   container-checks:
     if: inputs.container_checks || github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -95,17 +89,4 @@ jobs:
           node-version: '26'
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
-      - run: npm run test:edge
-      - run: docker build --tag aveline-api:ci .
-      - run: docker build --file Dockerfile.backup --tag aveline-backup:pilot-readiness .
-      - run: npm run ops:rehearsal
-        env:
-          OPS_REHEARSAL_IMAGE: aveline-api:ci
-          OPS_REHEARSAL_BACKUP_IMAGE: aveline-backup:pilot-readiness
-      - run: npm run pilot:rehearsal
-        env:
-          PILOT_REHEARSAL_IMAGE: aveline-api:ci
-      - run: npm run backup:rehearsal
-        env:
-          PILOT_REHEARSAL_IMAGE: aveline-api:ci
+      - run: node scripts/ci-job.mjs containers

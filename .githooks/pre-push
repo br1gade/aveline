@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+if [ ! -f backend/scripts/local-ci.mjs ]; then
+  echo 'Local CI tooling is missing from this branch. Carry the local CI files onto it before pushing.' >&2
+  exit 1
+fi
+exec node backend/scripts/local-ci.mjs pre-push

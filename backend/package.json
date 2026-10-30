@@ -46,7 +46,11 @@
     "pilot:production-rehearsal": "node scripts/pilot/run.mjs",
     "ops": "node scripts/ops.mjs",
     "test:ops": "node --test --test-isolation=none scripts/ops.test.mjs",
-    "ops:rehearsal": "node scripts/ops-rehearsal.mjs"
+    "ops:rehearsal": "node scripts/ops-rehearsal.mjs",
+    "test:ci": "node --test --test-isolation=none scripts/ci-test-results.test.mjs scripts/local-ci.test.mjs",
+    "ci:local": "node scripts/local-ci.mjs run",
+    "ci:status": "node scripts/local-ci.mjs status",
+    "ci:install-hook": "node scripts/local-ci.mjs install-hook"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
