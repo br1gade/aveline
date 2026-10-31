@@ -65,8 +65,8 @@ describe('AuditInterceptor (coverage)', () => {
     expect(Object.keys(recorded[0]).sort()).toEqual(
       ['action', 'at', 'email', 'eventId', 'method', 'organizationId', 'requestId', 'route', 'statusCode', 'userId'],
     );
-    // The version prefix is left optional: docs/API.md shows the route without it.
-    expect(recorded[0].route).toMatch(/^(\/api\/v1)?\/events\/:eventId\/tickets\/:code\/admit$/);
+    // Without the version prefix, as docs/API.md shows it.
+    expect(recorded[0].route).toBe('/events/:eventId/tickets/:code/admit');
     expect(recorded[0]).toMatchObject({
       action: 'events.tickets.admit.create',
       method: 'POST',
@@ -85,7 +85,13 @@ describe('AuditInterceptor (coverage)', () => {
   it('falls back to the request path when no route pattern is known', async () => {
     await run({ method: 'DELETE', baseUrl: '/api/v1', path: '/events/e1/guests/g1', params: {}, actor });
 
-    expect(recorded[0].route).toMatch(/^(\/api\/v1)?\/events\/e1\/guests\/g1$/);
+    expect(recorded[0].route).toBe('/events/e1/guests/g1');
+  });
+
+  it('records the same route whichever API version carried the write', async () => {
+    await run({ method: 'POST', baseUrl: '', route: { path: '/api/v2/events/:eventId/guests' }, params: { eventId: 'e1' }, actor });
+
+    expect(recorded[0]).toMatchObject({ route: '/events/:eventId/guests', action: 'events.guests.create' });
   });
 
   it('records a capability-token caller with no account as null actor fields', async () => {

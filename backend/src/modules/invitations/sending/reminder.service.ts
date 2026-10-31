@@ -5,6 +5,7 @@ import {
   InvitationStatus,
   MessageChannel,
   MessageStatus,
+  Prisma,
   RsvpStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -23,7 +24,7 @@ import {
 import { INVITATION_REACHED, channelsWithCopy, loadSendableHouseholds } from './audience';
 import { eventWording } from './event-wording';
 import { REACHED_STATUSES } from './previous-attempts';
-import { SendableHousehold, displayName, planInvitationSend } from './send-plan';
+import { SendableHousehold, SkippedHousehold, displayName, planInvitationSend } from './send-plan';
 
 /** Whether a thank-you went to guests who arrived or guests who accepted. */
 type ThankYouBasis = 'ARRIVED' | 'ACCEPTED';
@@ -60,6 +61,17 @@ const TEMPLATE_KEY = REMINDER_TEMPLATE_KEY;
 const INVITATION_TEMPLATE_KEY = 'invitation.send';
 const THANK_YOU_TEMPLATE_KEY = 'thankyou.send';
 const DETAILS_CHANGED_TEMPLATE_KEY = 'event.details-changed';
+
+/** For a household that can be invited but has not been reached: the fix is to send. */
+const NOT_REACHED_REASON = 'The invitation has not reached this household; send it to them instead';
+
+/**
+ * A guest who has not answered. A guest with no RSVP row has not answered
+ * either: treating "pending" as the only unanswered state would silently
+ * exclude anyone created by a path that has not written one yet, and never
+ * chasing someone is a failure nobody notices.
+ */
+const UNANSWERED: Prisma.GuestWhereInput = { OR: [{ rsvp: null }, { rsvp: { status: RsvpStatus.PENDING } }] };
 
 /** How far ahead the sweep looks. Beyond the widest milestone there is nothing
  *  to do, and scanning every future event every hour is wasted work. */
@@ -111,22 +123,27 @@ export class ReminderService implements OnModuleInit {
    */
   async remindNow(slug: string) {
     const invitation = await this.loadRemindable(slug);
-    const pending = await this.pendingHouseholds(invitation.eventId);
+    const [pending, notInvited, available] = await Promise.all([
+      this.pendingHouseholds(invitation.eventId),
+      this.notReachedYet(invitation),
+      channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels),
+    ]);
 
     if (pending.length === 0) {
-      return { queued: 0, alreadyRemindedToday: 0, recipients: [], notInvited: [] };
+      return { queued: 0, alreadyRemindedToday: 0, recentlyInvited: 0, recipients: [], notInvited };
     }
 
     const now = new Date();
-    const available = await channelsWithCopy(this.prisma, invitation.organizationId, TEMPLATE_KEY, this.configuredChannels);
-
-    return this.remind({
+    const result = await this.remind({
       invitation,
       households: pending,
       available,
       templateKey: TEMPLATE_KEY,
       dedupeKeyFor: (householdId) => manualDedupeKey(invitation.id, householdId, now),
     });
+    // Reached but no longer addressable, and never reached at all: either way
+    // the host's next step is to send, so both are reported together.
+    return { ...result, notInvited: byHouseholdName([...result.notInvited, ...notInvited]) };
   }
 
   /**
@@ -479,18 +496,30 @@ export class ReminderService implements OnModuleInit {
   private async pendingHouseholds(eventId: string): Promise<SendableHousehold[]> {
     return loadSendableHouseholds(this.prisma, this.guestChannels, {
       eventId,
-      guests: {
-        some: {
-          // A guest with no RSVP row has not answered either. Treating
-          // "pending" as the only unanswered state would silently exclude
-          // anyone created by a path that has not written one yet, and never
-          // chasing someone is a failure nobody notices.
-          OR: [{ rsvp: null }, { rsvp: { status: RsvpStatus.PENDING } }],
-          // Invited means the invitation reached them, not that one was tried.
-          messages: INVITATION_REACHED,
-        },
-      },
+      // Invited means the invitation reached them, not that one was tried.
+      guests: { some: { ...UNANSWERED, messages: INVITATION_REACHED } },
     });
+  }
+
+  /**
+   * Undecided households the invitation never reached — never sent, or sent
+   * and failed, bounced or suppressed. A reminder is the wrong message for
+   * them, but the host pressing "remind" needs to hear that they exist, or
+   * they are silently never chased by anything.
+   */
+  private async notReachedYet(invitation: Remindable): Promise<SkippedHousehold[]> {
+    const [households, available] = await Promise.all([
+      loadSendableHouseholds(this.prisma, this.guestChannels, {
+        eventId: invitation.eventId,
+        guests: { some: { ...UNANSWERED, anonymizedAt: null }, none: { messages: INVITATION_REACHED } },
+      }),
+      channelsWithCopy(this.prisma, invitation.organizationId, INVITATION_TEMPLATE_KEY, this.configuredChannels),
+    ]);
+    // Planned as an invitation, so a household with no usable address is told
+    // what to fix rather than told to send what cannot be sent.
+    const plan = planInvitationSend(households, available);
+    const sendable = plan.recipients.map(({ householdId, householdName }) => ({ householdId, householdName, reason: NOT_REACHED_REASON }));
+    return byHouseholdName([...sendable, ...plan.skipped]);
   }
 
   private async loadRemindable(slug: string) {
@@ -543,4 +572,8 @@ export class ReminderService implements OnModuleInit {
       defaultLocale: invitation.event.defaultLocale,
     };
   }
+}
+
+function byHouseholdName(households: SkippedHousehold[]): SkippedHousehold[] {
+  return [...households].sort((a, b) => a.householdName.localeCompare(b.householdName));
 }

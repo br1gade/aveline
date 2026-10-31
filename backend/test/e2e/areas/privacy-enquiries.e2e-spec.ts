@@ -81,6 +81,15 @@ describe('Phone-only privacy requests (e2e coverage)', () => {
     expect((await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: requestId } })).dueAt.getTime()).toBe(dueAt);
   });
 
+  it('names contactIds in details when one of its items is not a string', async () => {
+    const authorization = await admin();
+
+    const { body } = await http().post('/api/v1/privacy/enquiry-requests').set('Authorization', authorization).send({ kind: 'ERASURE', contactIds: [42] }).expect(400);
+
+    expect(body.message).toContain('each value in contactIds must be a string');
+    expect(body.details).toContainEqual({ field: 'contactIds', code: 'INVALID_STRING', userMessage: expect.any(String) });
+  });
+
   it('exports a verified phone-only subject’s enquiry with empty legacy sections, and completes', async () => {
     const authorization = await admin();
     const { contactId, requestId, body } = await phoneOnlyRequest(authorization, 'EXPORT');

@@ -59,6 +59,7 @@ validation items answered on 31 October 2026 are listed in
 | 3 | **Ameriabank certification not done** | Requires at least five successful completed REST payments in their test environment before production access is granted |
 | 4 | **One-step vs two-step not decided** | Deposits probably want authorize-then-capture, which must be requested from the bank separately |
 | 4b | **Three suspected field mismatches** | Ameriabank's `OrderID` may need to be an integer; ArCa may expect AMD in luma (× 100); Ameriabank's `OrderStatus` is read with ArCa's codes. Each must be confirmed against the bank's own specification — see PAYMENTS.md §6 |
+| 4c | **The bank's order lifetime is not tied to ours** | We expire an unpaid order after an hour, but `registerOrder` sends the bank no session timeout, so its form may stay payable longer. A payment the bank captures after we wrote it off is never asked about again (`EXPIRED` is final), and a retried paid subscribe now starts a fresh payment for the invoice — two charges for one invoice. Send the bank a lifetime no longer than `ORDER_LIFETIME_MS`, or keep asking about recently expired orders |
 | 5 | **Refunds never executed for real** | The claim-then-call ordering is tested against a fake gateway. It has never moved actual money |
 
 ### Communication

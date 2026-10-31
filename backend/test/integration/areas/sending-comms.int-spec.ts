@@ -6,6 +6,7 @@ import {
   MessageChannel,
   MessageStatus,
   PrismaClient,
+  RsvpStatus,
 } from '@prisma/client';
 import {
   DeliveryResult,
@@ -18,6 +19,7 @@ import { SuppressionService } from '../../../src/modules/communications/suppress
 import { TelegramWebhookController } from '../../../src/modules/communications/telegram-webhook.controller';
 import { InvitationSenderService } from '../../../src/modules/invitations/sending/invitation-sender.service';
 import { ReminderService } from '../../../src/modules/invitations/sending/reminder.service';
+import { RsvpConfirmerService } from '../../../src/modules/invitations/sending/rsvp-confirmer.service';
 import { PrivacyService } from '../../../src/modules/privacy/privacy.service';
 import { AnalyticsService } from '../../../src/infra/analytics/analytics.service';
 import { AuditService } from '../../../src/infra/audit/audit.service';
@@ -60,6 +62,7 @@ describe('sending and communications (integration, coverage)', () => {
   let communications: CommunicationsService;
   let sender: InvitationSenderService;
   let reminders: ReminderService;
+  let confirmer: RsvpConfirmerService;
   let webhook: TelegramWebhookController;
   let email: RecordingTransport;
   let telegram: RecordingTransport;
@@ -87,6 +90,7 @@ describe('sending and communications (integration, coverage)', () => {
     });
     sender = new InvitationSenderService(service, communications, guestChannels, config);
     reminders = new ReminderService(service, communications, guestChannels, config);
+    confirmer = new RsvpConfirmerService(service, communications, guestChannels, config);
     // What Nest does at boot: each sender registers its last-moment check.
     sender.onModuleInit();
     reminders.onModuleInit();
@@ -108,7 +112,7 @@ describe('sending and communications (integration, coverage)', () => {
       where: { id: seeded.eventId },
       data: { startsAt: new Date(Date.now() + 10 * DAY_MS) },
     });
-    for (const key of ['invitation.send', 'rsvp.reminder']) {
+    for (const key of ['invitation.send', 'rsvp.reminder', 'event.details-changed', 'rsvp.confirmation.attending']) {
       for (const channel of channels) {
         await prisma.messageTemplate.create({
           data: {
@@ -184,6 +188,51 @@ describe('sending and communications (integration, coverage)', () => {
       expect(messages.map((message) => message.channel)).toEqual([MessageChannel.EMAIL]);
       expect(telegram.sent).toHaveLength(0);
       expect(email.sent).toHaveLength(1);
+    });
+  });
+
+  describe('a guest who links Telegram after being invited by email, when the details change', () => {
+    it('is told on Telegram, the channel they chose since, not the email the invitation went to', async () => {
+      const { slug, eventId, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
+      await sender.send(slug);
+      await communications.dispatchDue();
+      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+
+      const notified = await reminders.notifyDetailsChanged(slug, 'We have moved to the garden.');
+
+      expect(notified.recipients).toEqual([expect.objectContaining({ channel: MessageChannel.TELEGRAM, toAddress: '777' })]);
+      const notice = await prisma.message.findFirstOrThrow({ where: { eventId, templateKey: 'event.details-changed' } });
+      expect(notice).toMatchObject({ channel: MessageChannel.TELEGRAM, toAddress: '777' });
+    });
+
+    it('has their answer confirmed on Telegram too', async () => {
+      const { slug, eventId, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
+      await sender.send(slug);
+      await communications.dispatchDue();
+      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+
+      await confirmer.confirm(guest.id, RsvpStatus.ATTENDING);
+
+      const confirmation = await prisma.message.findFirstOrThrow({ where: { eventId, templateKey: 'rsvp.confirmation.attending' } });
+      expect(confirmation).toMatchObject({ channel: MessageChannel.TELEGRAM, toAddress: '777' });
+    });
+  });
+
+  describe('a host pressing remind before the invitation has reached anyone', () => {
+    it('reminds nobody and still lists every undecided household, with what to do for each', async () => {
+      const { slug, eventId } = await eventWithCopy();
+      await prisma.household.create({
+        data: { eventId, name: 'Aaa Unaddressed', guests: { create: { eventId, firstName: 'Nobody', isPrimary: true, token: `sending-comms-${eventId}-none` } } },
+      });
+
+      const reminded = await reminders.remindNow(slug);
+
+      expect(reminded).toMatchObject({ queued: 0, recentlyInvited: 0, recipients: [] });
+      expect(reminded.notInvited).toEqual([
+        expect.objectContaining({ householdName: 'Aaa Unaddressed', reason: expect.stringMatching(/address/i) }),
+        expect.objectContaining({ householdName: 'Fixture Household', reason: expect.stringMatching(/send it/) }),
+      ]);
+      expect(await prisma.message.count({ where: { eventId } })).toBe(0);
     });
   });
 

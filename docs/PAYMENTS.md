@@ -101,7 +101,11 @@ identical requests resulting in exactly one payment.
 reverting to pending inexpressible. Transitions are a compare-and-set on the
 status we read, so two concurrent callbacks cannot both apply. The one that
 loses answers with what the winner recorded, whichever side of its read the
-winner committed on — a win before the read used to surface as a `409`.
+winner committed on — a win before the read used to surface as a `409`. The
+exception is a disagreement rather than a race: the bank reports `AUTHORIZED`
+or `CAPTURED` for a payment recorded `FAILED`, `CANCELLED` or `EXPIRED`
+meanwhile. That stays a `409` and is logged, because answering "expired" for
+money the bank took would invite the payer to pay again.
 
 **Reconciliation is not optional.** Callbacks get lost — an abandoned redirect,
 a timed-out webhook. Without the sweep, a customer the bank charged has an
@@ -233,6 +237,10 @@ commit.
 **Confirmation emails cannot be lost.** They are queued after settlement with
 a dedupe key; a retried settlement queues again (a no-op if it exists), and a
 sweep queues any paid or cancelled order from the last week that has none.
+An order whose notice keeps failing (its organization has no copy for it, say)
+stays eligible all week, so the sweep does not start from the top each run: it
+takes the batch after the last one and starts over when it reaches the end. A
+full batch of failing orders cannot keep every other buyer waiting.
 
 These are covered by `test/integration/transaction-safety.int-spec.ts` and
 `ticket-settlement.int-spec.ts`, which run the concurrent cases rather than

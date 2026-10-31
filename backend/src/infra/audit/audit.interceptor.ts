@@ -3,7 +3,7 @@ import { Observable, tap } from 'rxjs';
 import type { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../auth/actor';
 import { AuditService } from './audit.service';
-import { actionNameFor, isAuditable } from './audit';
+import { actionNameFor, isAuditable, normalizeRoute } from './audit';
 
 /**
  * Records every write that someone has to account for.
@@ -57,11 +57,12 @@ export class AuditInterceptor implements NestInterceptor {
  *
  * `/events/:eventId/guests` groups; `/events/clz123/guests` does not, and
  * recording the latter would make "who touched guest lists this week"
- * unanswerable.
+ * unanswerable. Stored without the version prefix, as docs/API.md shows it,
+ * for the same reason the action name is: the trail must survive `/api/v2`.
  */
 function routeOf(request: Request): string {
   const route = (request.route as { path?: string } | undefined)?.path;
-  return `${request.baseUrl ?? ''}${route ?? request.path}`;
+  return normalizeRoute(`${request.baseUrl ?? ''}${route ?? request.path}`);
 }
 
 /**

@@ -294,7 +294,10 @@ actual production recovery acceptance remain open.
 `src/application.ts` exports the application factory used by `src/main.ts` and
 the disposable batch J server. Prefix, validation, serialization, route body
 parsing, static files, CORS, proxy trust and shutdown hooks have one definition.
-The normal entry point still initializes Sentry before importing the application.
+On shutdown the cache and analytics modules disconnect, and `CommunicationsModule`
+closes every message transport that holds connections (the pooled SMTP sockets),
+so a process that has sent mail still exits on SIGTERM. The normal entry point
+still initializes Sentry before importing the application.
 The rehearsal adds only private local timing diagnostics; see
 [PILOT_REHEARSAL.md](PILOT_REHEARSAL.md).
 

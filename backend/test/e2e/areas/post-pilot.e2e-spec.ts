@@ -116,7 +116,17 @@ describe('staff intake HTTP contract (e2e coverage)', () => {
       expect(second.body.items[0].id).not.toBe(first.body.items[0].id);
       expect(second.body.nextCursor).toBeNull();
       const reused = await http().get(`/api/v1/sales/enquiries?limit=1&search=bob&cursor=${cursor}`).set('Authorization', admin.authorization).expect(400);
-      expect(reused.body.message).toBe('cursor is invalid for these filters');
+      expect(reused.body.message).toBe('cursor: invalid for these filters');
+    });
+
+    it('names cursor in details when a queue cursor is reused with different filters', async () => {
+      const admin = await operator('ADMIN');
+      await createCase(admin.authorization, { name: 'Anna', email: 'anna@example.am' });
+      await createCase(admin.authorization, { name: 'Annabel', email: 'annabel@example.am' });
+      const first = await http().get('/api/v1/sales/enquiries?limit=1&search=ann').set('Authorization', admin.authorization).expect(200);
+      const cursor = encodeURIComponent(first.body.nextCursor as string);
+      const reused = await http().get(`/api/v1/sales/enquiries?limit=1&search=bob&cursor=${cursor}`).set('Authorization', admin.authorization).expect(400);
+      expect(fields(reused.body)).toContain('cursor');
     });
   });
 
@@ -146,6 +156,23 @@ describe('staff intake HTTP contract (e2e coverage)', () => {
       expect(moved.body).toMatchObject({ appliedRevision: 2, enquiry: { stage: 'READY_FOR_QUOTE' } });
       const same = await http().post(`/api/v1/sales/enquiries/${id}/stage`).set('Authorization', support.authorization).set('Idempotency-Key', 'stage-same-key').send({ expectedRevision: 2, stage: 'READY_FOR_QUOTE' }).expect(409);
       expect(same.body.code).toBe('NO_CHANGE');
+    });
+
+    it('names closureReason in details when CLOSED is requested without a reason', async () => {
+      const support = await operator('SUPPORT');
+      const id = await createCase(support.authorization);
+      const response = await http().post(`/api/v1/sales/enquiries/${id}/stage`).set('Authorization', support.authorization).set('Idempotency-Key', 'close-without-reason').send({ expectedRevision: 1, stage: 'CLOSED' }).expect(400);
+      expect(fields(response.body)).toContain('closureReason');
+    });
+
+    it.each([
+      ['closureReason', { closureReason: 'OTHER' }],
+      ['closureNote', { closureNote: 'Lost' }],
+    ])('names %s in details when it is sent for a non-CLOSED stage', async (field, extra) => {
+      const support = await operator('SUPPORT');
+      const id = await createCase(support.authorization);
+      const response = await http().post(`/api/v1/sales/enquiries/${id}/stage`).set('Authorization', support.authorization).set('Idempotency-Key', `${field}-on-contacted`).send({ expectedRevision: 1, stage: 'CONTACTED', ...extra }).expect(400);
+      expect(fields(response.body)).toContain(field);
     });
   });
 
@@ -226,6 +253,35 @@ describe('staff intake HTTP contract (e2e coverage)', () => {
       await convert(customer.authorization, id, 'customer-conversion').send({ expectedRevision: 1, organization: { create: { name: 'Family', ownerEmail: 'anna@example.am' } } }).expect(403);
       const invalid = await convert(support.authorization, id, 'bad-email-conversion').send({ expectedRevision: 1, organization: { create: { name: 'Family', ownerEmail: 'not-an-email' } } }).expect(400);
       expect(fields(invalid.body).some((field) => field?.endsWith('ownerEmail'))).toBe(true);
+    });
+
+    it('names organization in details when both organization target forms are sent', async () => {
+      const support = await operator('SUPPORT');
+      const id = await createCase(support.authorization);
+      const existing = await prisma.organization.create({ data: { name: 'Existing family' } });
+      const response = await convert(support.authorization, id, 'both-organization-forms')
+        .send({ expectedRevision: 1, organization: { existingId: existing.id, create: { name: 'Family', ownerEmail: 'anna@example.am' } } }).expect(400);
+      expect(fields(response.body)).toEqual(['organization']);
+    });
+
+    it('names event in details when both event target forms are sent', async () => {
+      const support = await operator('SUPPORT');
+      const id = await createCase(support.authorization);
+      const existing = await prisma.organization.create({ data: { name: 'Existing family' } });
+      const event = await prisma.event.create({ data: { organizationId: existing.id, type: 'WEDDING', title: 'Existing', hostsLabel: 'Family', startsAt: new Date('2027-06-12T15:00:00Z') } });
+      const response = await convert(support.authorization, id, 'both-event-forms')
+        .send({ expectedRevision: 1, organization: { existingId: existing.id }, event: { existingId: event.id, create: NEW_EVENT } }).expect(400);
+      expect(fields(response.body)).toEqual(['event']);
+    });
+
+    it('names event.existingId in details when it is sent with organization.create', async () => {
+      const support = await operator('SUPPORT');
+      const id = await createCase(support.authorization);
+      const existing = await prisma.organization.create({ data: { name: 'Existing family' } });
+      const event = await prisma.event.create({ data: { organizationId: existing.id, type: 'WEDDING', title: 'Existing', hostsLabel: 'Family', startsAt: new Date('2027-06-12T15:00:00Z') } });
+      const response = await convert(support.authorization, id, 'event-existing-with-create')
+        .send({ expectedRevision: 1, organization: { create: { name: 'Family', ownerEmail: 'anna@example.am' } }, event: { existingId: event.id } }).expect(400);
+      expect(fields(response.body)).toEqual(['event.existingId']);
     });
   });
 });

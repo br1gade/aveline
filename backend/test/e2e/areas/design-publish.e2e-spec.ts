@@ -318,5 +318,35 @@ describe('Invitation design and publishing coverage (e2e)', () => {
       expect(body.message).toMatch(/^options:.*1 guest/);
       expect(await prisma.rsvpQuestion.findUniqueOrThrow({ where: { id: question.id as string } })).toMatchObject({ options: { en: ['Meat', 'Fish', 'Vegan'] } });
     });
+
+    async function answeredQuestion(options: Record<string, string[]>) {
+      const { slug, eventId, authorization } = await draftAs(EventRole.DESIGNER);
+      const { body: question } = await addQuestion(slug, authorization, {
+        type: QuestionType.SINGLE_CHOICE, prompt: { en: 'Meal?' }, options,
+      }).expect(201);
+      const guest = await prisma.guest.findFirstOrThrow({ where: { eventId } });
+      const rsvp = await prisma.rsvp.upsert({ where: { guestId: guest.id }, create: { guestId: guest.id, status: 'ATTENDING' }, update: { status: 'ATTENDING' } });
+      await prisma.rsvpAnswer.create({ data: { rsvpId: rsvp.id, questionId: question.id as string, value: 1 } });
+      return (edit: object) => http().patch(`/api/v1/invitations/${slug}/questions/${question.id as string}`).set('Authorization', authorization).send(edit);
+    }
+
+    it.each([
+      ['a new option put first', { en: ['Meat', 'Fish', 'Vegan'] }, { en: ['Chicken', 'Meat', 'Fish', 'Vegan'] }],
+      ['the second language reordered', { en: ['Meat', 'Fish'], hy: ['Միս', 'Ձուկ'] }, { hy: ['Ձուկ', 'Միս'] }],
+    ])('refuses %s', async (_case, options, edit) => {
+      const { body } = await (await answeredQuestion(options))({ options: edit }).expect(400);
+
+      expect(body.message).toMatch(/^options:.*1 guest/);
+    });
+
+    // A form that saves the whole question re-sends its options unchanged; a
+    // repeated label used to read as "moved" and blocked every later save.
+    it('accepts its options sent back unchanged, even with a repeated label', async () => {
+      const options = { en: ['Meat', 'Fish', 'Meat'] };
+
+      const { body } = await (await answeredQuestion(options))({ prompt: { en: 'Main course?' }, options }).expect(200);
+
+      expect(body).toMatchObject({ prompt: { en: 'Main course?' }, options });
+    });
   });
 });

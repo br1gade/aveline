@@ -173,7 +173,7 @@ describe('Journey 2: ticketed public event, from setup to refund (e2e)', () => {
     const [cathedral, hall] = detail.checkout.venues as { id: string }[];
 
     const basket = [{ ticketTypeId: sale.typeId, quantity: 2 }];
-    const { body: quote } = await http().post(`/api/v1/public/events/${sale.slug}/promo-check`).send({ code: 'autumn25', items: basket }).expect(201);
+    const { body: quote } = await http().post(`/api/v1/public/events/${sale.slug}/promo-check`).send({ code: 'autumn25', items: basket }).expect(200);
     expect(quote).toMatchObject({ isApplicable: true, subtotalMinor: '20000', discountMinor: '5000', totalMinor: '15000' });
 
     const { body: order } = await http()

@@ -37,9 +37,10 @@ export async function changeEnquiryStage(tx: Prisma.TransactionClient, root: Sal
 }
 
 function validateStage(root: SalesEnquiry, dto: StageEnquiryDto): void {
-  if (dto.stage !== 'CLOSED' && (dto.closureReason || dto.closureNote)) throw new BadRequestException('closureReason and closureNote are only accepted for CLOSED');
+  const closureOnly = dto.stage === 'CLOSED' ? undefined : (['closureReason', 'closureNote'] as const).find((field) => dto[field]);
+  if (closureOnly) throw new BadRequestException(`${closureOnly}: only accepted for CLOSED`);
   if (root.stage === dto.stage) throw new DomainHttpException('NO_CHANGE', 'NO_CHANGE');
-  if (dto.stage === 'CLOSED' && !dto.closureReason) throw new BadRequestException('closureReason is required for CLOSED');
+  if (dto.stage === 'CLOSED' && !dto.closureReason) throw new BadRequestException('closureReason: is required for CLOSED');
   if (root.personalDataClearedAt && dto.closureNote) throw new DomainHttpException('SUBJECT_ERASED', 'SUBJECT_ERASED');
 
 }

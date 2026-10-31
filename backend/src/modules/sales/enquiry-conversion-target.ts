@@ -12,9 +12,9 @@ export interface ConversionTarget {
 }
 
 export function validateConversionTarget(dto: ConvertEnquiryDto): void {
-  if (Boolean(dto.organization.existingId) === Boolean(dto.organization.create)) throw new BadRequestException('organization requires exactly one existingId or create');
-  if (dto.event && Boolean(dto.event.existingId) === Boolean(dto.event.create)) throw new BadRequestException('event requires exactly one existingId or create');
-  if (dto.organization.create && dto.event?.existingId) throw new BadRequestException('event.existingId requires organization.existingId');
+  if (Boolean(dto.organization.existingId) === Boolean(dto.organization.create)) throw new BadRequestException('organization: requires exactly one existingId or create');
+  if (dto.event && Boolean(dto.event.existingId) === Boolean(dto.event.create)) throw new BadRequestException('event: requires exactly one existingId or create');
+  if (dto.organization.create && dto.event?.existingId) throw new BadRequestException('event.existingId: requires organization.existingId');
 }
 
 export async function resolveConversionTarget(tx: Prisma.TransactionClient, dto: ConvertEnquiryDto, events: EventsService): Promise<ConversionTarget> {

@@ -559,6 +559,15 @@ describe('Ticketing contract (e2e coverage)', () => {
       expect((await prisma.promoCode.findUniqueOrThrow({ where: { id: code.id } })).redemptions).toBe(0);
     });
 
+    it('answers 200, not 201, because a promo check is a preview that creates nothing', async () => {
+      const shop = await sale();
+      await promoFor(shop, { maxRedemptions: 1 });
+
+      const { body } = await check(shop.slug, { code: 'half', items: basket(shop.typeId) }).expect(200);
+
+      expect(body).toMatchObject({ code: 'HALF', isApplicable: true, totalMinor: '10000' });
+    });
+
     it.each([
       { label: 'has run out', data: { maxRedemptions: 1, redemptions: 1 }, code: 'HALF', reason: /run out/ },
       { label: 'has expired', data: { validUntil: new Date(Date.now() - 86_400_000) }, code: 'HALF', reason: /expired/ },
@@ -567,9 +576,8 @@ describe('Ticketing contract (e2e coverage)', () => {
       const shop = await sale();
       await promoFor(shop, data);
 
-      const { body, status } = await check(shop.slug, { code, items: basket(shop.typeId) });
+      const { body } = await check(shop.slug, { code, items: basket(shop.typeId) }).expect(200);
 
-      expect(status).toBeLessThan(300);
       expect(body).toMatchObject({ isApplicable: false, subtotalMinor: '20000', discountMinor: '0', totalMinor: '20000' });
       expect(body.reason).toMatch(reason);
     });

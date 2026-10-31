@@ -53,7 +53,13 @@ host or guest interface copy. A supported `?locale=` takes precedence; otherwise
 the fallback is English. These UI strings do not change the event's published
 content language. Keep using the original `message` and status for compatibility.
 Field paths identify invalid inputs; an unidentifiable business error has a null
-field. Details are bounded to 100 entries. Display the translated `userMessage`
+field. An unknown body property is named by its path too (`isAdmin`, or
+`organization.create.role` when nested), a rule on each item of a list names the
+list (`contactIds` for `each value in contactIds must be a string`; `items.0.tags`
+when nested), and a business refusal about one input
+— a stage's `closureReason` or `closureNote`, a reused queue `cursor`, a conversion's
+`organization`, `event` or `event.existingId` — names that input. Details are
+bounded to 100 entries. Display the translated `userMessage`
 and map field paths to the form's translated labels.
 
 `attendanceRevision:` conflicts have code `ATTENDANCE_CHANGED` and action
@@ -185,6 +191,12 @@ fraction and offset optional). Compact or week forms (`20270612`,
 **Translated content is keyed by language codes** (`hy`, `en`, `ru`, `en-GB`).
 Any other key — in block copy, a question's prompt or options, a timeline
 label, alt text — is a `400` naming the field.
+
+### IDs are opaque strings
+
+Store and compare them, never parse or pattern-check them. Formats differ by
+resource and may change: most ids are cuids, design template ids created since
+31 October 2026 are UUIDs, and older templates keep their cuids.
 
 ---
 
@@ -556,8 +568,10 @@ changed answer, so a guest who switches from attending to declined sees it
 acknowledged. There is different copy for each answer: attending, declined and
 undecided.
 
-It goes to the household's own recipient on the channel they were invited on,
-and carries their personal link so they can change their answer later. Two
+It goes to the household's own recipient on the channel they are reached on now
+— the same rule as every message after the invitation, so a guest invited by
+email who has since opened the Telegram link is confirmed on Telegram — and
+carries their personal link so they can change their answer later. Two
 identical submissions in the same minute produce one confirmation; a changed
 answer is always confirmed, so the last confirmation matches the answer that
 stands.
@@ -1899,8 +1913,11 @@ POST /api/v1/invoices/:number/confirm
 
 which asks the bank server-to-server and activates the subscription. Safe to
 call twice, at once too: a call overtaken by another one answers with the
-payment as recorded, never a `409`; a second call never double-activates or
-double-counts.
+payment as recorded, not a `409`; a second call never double-activates or
+double-counts. The one `409` left is a real disagreement: the bank reports the
+money taken for a payment already recorded as ended without it (expired by our
+clock, say). It is logged for staff, and the client should show it as an
+error to contact support about, not offer a fresh payment.
 
 Changing plan is the same call with a different `planKey`. Asking for the
 same plan again while its invoice is open — a double click, a retry — returns
@@ -2150,8 +2167,9 @@ become a formula in whoever's spreadsheet opens it.
 
 The guest list carries a `Dietary notes` column and one column per host
 question, headed `Q1: <prompt>` in the event's language, with each answer in
-words. The catering sheet lists every dietary note under its counts, with
-the guest it belongs to.
+words. The ticket manifest's `Type` cell is the ticket type's name in the
+event's language, never its translation JSON. The catering sheet lists every
+dietary note under its counts, with the guest it belongs to.
 
 Requires `operations:read`.
 
@@ -2861,8 +2879,11 @@ POST /api/v1/invitations/:slug/remind
 {
   "queued": 42,
   "alreadyRemindedToday": 0,
-  "recipients": [{ "householdName": "Petrosyan family", "toAddress": "armen@example.am" }],
-  "notInvited": [{ "householdId": "clz...", "householdName": "No Contact",
+  "recentlyInvited": 0,
+  "recipients": [{ "householdName": "Petrosyan family", "toAddress": "armen@example.am", "channel": "EMAIL" }],
+  "notInvited": [{ "householdId": "clz...", "householdName": "Hakobyan family",
+                   "reason": "The invitation has not reached this household; send it to them instead" },
+                 { "householdId": "clz...", "householdName": "No Contact",
                    "reason": "No email address for anyone in this household" }]
 }
 ```
@@ -2871,6 +2892,13 @@ Reminds the households that **were invited and have not answered**. A guest who
 replied — attending or declined — is never chased; that is what turns a
 reminder into a nuisance. Nor is a guest who never received the invitation:
 `notInvited` lists them, and the fix for those is to send, not to remind.
+
+`notInvited` holds every undecided household the invitation has not reached —
+never sent, or sent and then failed, bounced or suppressed — sorted by name,
+each with a `reason` saying what to do: send it, or fix the address first when
+there is none it could go to. A household that was reached but has since lost
+every usable address is listed too. Even when nobody is due a reminder
+(`queued: 0`), `notInvited` is still filled in.
 
 **No reminder until a household has had its invitation for 3 days** — 1 day
 if the event is under a week away (decided 10 October 2026). `recentlyInvited`
@@ -2891,7 +2919,9 @@ POST /api/v1/invitations/:slug/notify-changes   { "note": "We have moved to the 
 
 Needs `invitation:publish`. Sends an "updated details" message to every
 household the invitation **reached** — someone who never received it has
-nothing to update — on the channel each was invited on, carrying their own
+nothing to update — on the channel each is reached on now, which is not
+always the one the invitation went by: a guest invited by email who has since
+opened the Telegram link is told on Telegram. It carries their own
 link, which always shows the current details. `note` is optional, up to 500
 characters, and is added to the message.
 
@@ -3084,8 +3114,9 @@ at the end, never removed or reordered, and the type cannot change — each a
 removed option would silently turn every later answer into a different one).
 A reorder is any existing option text sent at a different position in the
 same language — `["Meat","Fish","Vegan"]` → `["Fish","Meat","Vegan"]` is
-refused, while rewording in place (`"Meat"` → `"Beef"`) is not. Each position
-keeps its meaning: a reworded option must still mean the same choice.
+refused, while rewording in place (`"Meat"` → `"Beef"`) is not, and neither is
+sending the options back unchanged. Each position keeps its meaning: a reworded
+option must still mean the same choice.
 
 **Deleting is refused once any guest has answered**, with a `400` saying how
 many and suggesting you make it optional instead — deleting would discard what
@@ -3389,6 +3420,10 @@ GET /api/v1/events/:eventId/audit-trail
   "requestId": "...", "at": "2026-10-05T18:02:11.000Z"
 }]
 ```
+
+`route` is the route pattern without the `/api/v1` version prefix, the same
+across API versions, so entries group by what was done, not which version
+was called.
 
 Successful writes only, newest first, up to 100. Requires `member:manage`
 rather than `event:read`, because the trail names the people who did things —

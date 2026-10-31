@@ -421,17 +421,16 @@ function assertAnsweredQuestionKeepsShape(
 /**
  * Whether a choice that was offered now sits at another position in the same
  * language. A list of the same length passed as a rewording, so swapping Meat
- * and Fish turned every "Fish" answer into "Meat".
+ * and Fish turned every "Fish" answer into "Meat". A position that keeps its
+ * text is never a move, so a list sent back unchanged passes even when two
+ * positions share a label.
  */
 function movesAnOption(before: Prisma.JsonValue, after: unknown): boolean {
   const had = asObject(before);
   return Object.entries(asObject(after as Prisma.JsonValue)).some(([language, list]) => {
     const old = had[language];
     if (!Array.isArray(old) || !Array.isArray(list)) return false;
-    return list.some((choice, position) => {
-      const was = old.indexOf(choice);
-      return was !== -1 && was !== position;
-    });
+    return list.some((choice, position) => choice !== old[position] && old.includes(choice));
   });
 }
 

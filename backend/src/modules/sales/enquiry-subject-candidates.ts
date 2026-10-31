@@ -19,5 +19,5 @@ function decodeCandidateCursor(input: SubjectCandidateQuery): string | null {
     const value = JSON.parse(Buffer.from(input.cursor, 'base64url').toString()) as { id: string; fingerprint: string; kind: string };
     if (typeof value.id !== 'string' || value.id.length > 128 || value.fingerprint !== input.fingerprint || value.kind !== input.kind) throw new Error();
     return value.id;
-  } catch { throw new BadRequestException('cursor is invalid for these subject candidate filters'); }
+  } catch { throw new BadRequestException('cursor: invalid for these subject candidate filters'); }
 }

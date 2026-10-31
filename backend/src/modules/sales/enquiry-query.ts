@@ -16,7 +16,7 @@ function decodeCursor(value: string | undefined, filters: object): PageCursor | 
     const cursor = JSON.parse(Buffer.from(value, 'base64url').toString()) as PageCursor;
     if (cursor.filtersDigest !== digest(filters) || typeof cursor.id !== 'string' || cursor.id.length > 128 || !Number.isFinite(Date.parse(cursor.createdAt))) throw new Error();
     return cursor;
-  } catch { throw new BadRequestException('cursor is invalid for these filters'); }
+  } catch { throw new BadRequestException('cursor: invalid for these filters'); }
 }
 function page<T extends { id: string; createdAt: Date }>(rows: T[], limit: number, filters: object) {
   const items = rows.slice(0, limit);

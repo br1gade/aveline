@@ -76,9 +76,9 @@ describe('staff enquiry command refusals (integration coverage)', () => {
 
   describe('stage', () => {
     it.each([
-      { label: 'CLOSED without a closureReason', dto: { stage: 'CLOSED' as const }, message: 'closureReason is required for CLOSED' },
-      { label: 'a closureReason on CONTACTED', dto: { stage: 'CONTACTED' as const, closureReason: 'OTHER' as const }, message: 'closureReason and closureNote are only accepted for CLOSED' },
-      { label: 'a closureNote on READY_FOR_QUOTE', dto: { stage: 'READY_FOR_QUOTE' as const, closureNote: 'Lost' }, message: 'closureReason and closureNote are only accepted for CLOSED' },
+      { label: 'CLOSED without a closureReason', dto: { stage: 'CLOSED' as const }, message: 'closureReason: is required for CLOSED' },
+      { label: 'a closureReason on CONTACTED', dto: { stage: 'CONTACTED' as const, closureReason: 'OTHER' as const }, message: 'closureReason: only accepted for CLOSED' },
+      { label: 'a closureNote on READY_FOR_QUOTE', dto: { stage: 'READY_FOR_QUOTE' as const, closureNote: 'Lost' }, message: 'closureNote: only accepted for CLOSED' },
     ])('refuses $label with 400 and changes nothing', async ({ dto, message }) => {
       const support = await staff('SUPPORT');
       const enquiry = await createCase(support.id);
@@ -158,9 +158,9 @@ describe('staff enquiry command refusals (integration coverage)', () => {
       const first = await enquiries.list(admin.id, { limit: 1, search: 'ann' });
       expect(first.nextCursor).not.toBeNull();
       const cursor = first.nextCursor!;
-      await expect(enquiries.list(admin.id, { limit: 1, search: 'bob', cursor })).rejects.toMatchObject({ status: 400, message: 'cursor is invalid for these filters' });
-      await expect(enquiries.list(other.id, { limit: 1, search: 'ann', cursor })).rejects.toMatchObject({ status: 400, message: 'cursor is invalid for these filters' });
-      await expect(enquiries.list(admin.id, { cursor: 'not-a-cursor' })).rejects.toMatchObject({ status: 400, message: 'cursor is invalid for these filters' });
+      await expect(enquiries.list(admin.id, { limit: 1, search: 'bob', cursor })).rejects.toMatchObject({ status: 400, message: 'cursor: invalid for these filters' });
+      await expect(enquiries.list(other.id, { limit: 1, search: 'ann', cursor })).rejects.toMatchObject({ status: 400, message: 'cursor: invalid for these filters' });
+      await expect(enquiries.list(admin.id, { cursor: 'not-a-cursor' })).rejects.toMatchObject({ status: 400, message: 'cursor: invalid for these filters' });
       expect(ids(await enquiries.list(admin.id, { limit: 1, search: 'ann', cursor }))).toHaveLength(1);
     });
 

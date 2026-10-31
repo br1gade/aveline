@@ -163,6 +163,23 @@ describe('payments and billing, the remaining properties (integration)', () => {
       expect(retried.payment).toMatchObject({ status: PaymentStatus.PENDING, redirectUrl: expect.any(String) });
       expect(retried.payment!.orderNumber).not.toBe(first.payment!.orderNumber);
     });
+
+    it('gives concurrent retries after a spent payment one new payment between them', async () => {
+      await plan('managed', 25_000n);
+      const subscribe = () => subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
+      const first = await subscribe();
+      await prisma.payment.update({ where: { orderNumber: first.payment!.orderNumber }, data: { expiresAt: new Date(Date.now() - 1000) } });
+      await payments.reconcile();
+
+      const retries = await Promise.all([subscribe(), subscribe(), subscribe()]);
+
+      const orderNumbers = new Set(retries.map((retry) => retry.payment!.orderNumber));
+      expect(orderNumbers.size).toBe(1);
+      expect(retries[0].payment).toMatchObject({ status: PaymentStatus.PENDING, redirectUrl: expect.any(String) });
+      expect(await prisma.payment.count({ where: { organizationId } })).toBe(2);
+      const invoice = await prisma.invoice.findFirstOrThrow({ where: { organizationId } });
+      expect(invoice.paymentOrderNumber).toBe(retries[0].payment!.orderNumber);
+    });
   });
 
   describe('the audit trail', () => {
@@ -265,6 +282,20 @@ describe('payments and billing, the remaining properties (integration)', () => {
 
       await expect(slow).resolves.toMatchObject({ orderNumber: row.orderNumber, status: PaymentStatus.CAPTURED });
     });
+
+    it('still refuses when the bank reports a capture for a payment expired meanwhile', async () => {
+      const row = await paidAtTheBank();
+      const held = holdNextStatusCall();
+
+      const slow = payments.confirm(row.orderNumber, PaymentEventSource.API);
+      await held.isReached;
+      // The sweep asked a moment earlier, heard "unpaid", and wrote it off on the clock.
+      await prisma.payment.update({ where: { id: row.id }, data: { status: PaymentStatus.EXPIRED } });
+      held.release();
+
+      await expect(slow).rejects.toThrow('Cannot move a payment from EXPIRED to CAPTURED');
+    });
+
     /**
      * A second service on the same database whose next transition pauses just
      * after its transaction has read the payment, so another confirmation can

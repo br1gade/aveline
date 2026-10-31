@@ -110,6 +110,16 @@ describe('The audit trail (coverage, e2e)', () => {
     expect(JSON.stringify(body)).not.toMatch(/Hakobyan|ani@example\.am|remindersEnabled/);
   });
 
+  it('records the route without the version prefix, as documented', async () => {
+    const { eventId, authorization } = await owned();
+    await http().post(`/api/v1/events/${eventId}/guests`).set('Authorization', authorization)
+      .send({ firstName: 'Ani', lastName: 'Hakobyan', attribution: 'SIDE_A' }).expect(201);
+
+    const { body } = await trail(eventId, authorization).expect(200);
+
+    expect(body[0]).toMatchObject({ action: 'events.guests.create', route: '/events/:eventId/guests' });
+  });
+
   it('records neither reads nor refused writes, only the write that succeeded', async () => {
     const { eventId, authorization } = await owned();
     await http().get(`/api/v1/events/${eventId}/guests`).set('Authorization', authorization).expect(200);
@@ -126,7 +136,7 @@ describe('The audit trail (coverage, e2e)', () => {
     const { eventId, authorization } = await owned();
     const start = Date.UTC(2026, 9, 1);
     mongo.rows(AUDIT_COLLECTION).push(...Array.from({ length: 120 }, (_, index) => ({
-      action: 'events.update', method: 'PATCH', route: '/api/v1/events/:id', userId: null, email: null,
+      action: 'events.update', method: 'PATCH', route: '/events/:id', userId: null, email: null,
       organizationId: null, eventId, statusCode: 200, requestId: `r${index}`, at: new Date(start + index * 60_000),
     })));
 

@@ -102,7 +102,7 @@ describe('Exports (e2e coverage)', () => {
       expect(rows).toEqual([['water', '1', '100']]);
     });
 
-    it('lists each paid ticket code with its holder and buyer email in the ticket manifest', async () => {
+    it('lists each paid ticket code with its resolved type name, holder and buyer email in the ticket manifest', async () => {
       const seeded = await ticketEvent(prisma);
       const event = await owned(seeded);
       const order = await ticketServices(prisma).ticketing.createOrder(seeded.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local',
@@ -110,10 +110,18 @@ describe('Exports (e2e coverage)', () => {
       const ticket = await prisma.ticket.findFirstOrThrow({ where: { orderId: order.orderId } });
       const [header, ...rows] = await legacyCsv(event.base, event.owner, 'TICKET_MANIFEST');
       expect(header).toEqual(['Code', 'Type', 'Holder', 'Buyer', 'Buyer email', 'Status', 'Used at']);
-      expect(rows).toHaveLength(1);
-      // The Type cell is left out on purpose: the legacy route writes the raw translation JSON there (reported separately).
-      const [code, , ...rest] = rows[0];
-      expect([code, ...rest]).toEqual([ticket.code, 'Holder', 'Buyer', 'buyer@test.local', 'VALID', '']);
+      // The type name is translated content: resolved in the event's language, never its raw JSON.
+      expect(rows).toEqual([[ticket.code, 'Entry', 'Holder', 'Buyer', 'buyer@test.local', 'VALID', '']]);
+    });
+
+    it('names a ticket type in the event language when it is translated into several in the ticket manifest', async () => {
+      const seeded = await ticketEvent(prisma);
+      const event = await owned(seeded);
+      await prisma.ticketType.update({ where: { id: seeded.ticketTypeId }, data: { name: { en: 'Entry', hy: 'Մուտք' } } });
+      await ticketServices(prisma).ticketing.createOrder(seeded.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local',
+        items: [{ ticketTypeId: seeded.ticketTypeId, quantity: 1 }], attendees: [{ ticketTypeId: seeded.ticketTypeId, firstName: 'Holder' }], idempotencyKey: randomUUID() });
+      const [, ...rows] = await legacyCsv(event.base, event.owner, 'TICKET_MANIFEST');
+      expect(rows.map((row) => row[1])).toEqual(['Մուտք']);
     });
   });
 

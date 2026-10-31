@@ -63,12 +63,12 @@ describe('enquiry conversion targets (integration coverage)', () => {
 
   describe('target shape', () => {
     it.each([
-      { label: 'both organization.existingId and organization.create', message: 'organization requires exactly one existingId or create',
+      { label: 'both organization.existingId and organization.create', message: 'organization: requires exactly one existingId or create',
         dto: (orgId: string) => ({ organization: { existingId: orgId, create: { name: 'Family', ownerEmail: 'anna@example.am' } } }) },
-      { label: 'neither organization form', message: 'organization requires exactly one existingId or create', dto: () => ({ organization: {} }) },
-      { label: 'both event.existingId and event.create', message: 'event requires exactly one existingId or create',
+      { label: 'neither organization form', message: 'organization: requires exactly one existingId or create', dto: () => ({ organization: {} }) },
+      { label: 'both event.existingId and event.create', message: 'event: requires exactly one existingId or create',
         dto: (orgId: string, eventId: string) => ({ organization: { existingId: orgId }, event: { existingId: eventId, create: NEW_EVENT } }) },
-      { label: 'event.existingId with organization.create', message: 'event.existingId requires organization.existingId',
+      { label: 'event.existingId with organization.create', message: 'event.existingId: requires organization.existingId',
         dto: (_orgId: string, eventId: string) => ({ organization: { create: { name: 'Family', ownerEmail: 'anna@example.am' } }, event: { existingId: eventId } }) },
     ])('refuses $label with 400 before writing', async ({ dto, message }) => {
       const state = await createCase();

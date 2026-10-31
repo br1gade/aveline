@@ -87,6 +87,7 @@ describe('createApplication() under NODE_ENV=production (e2e)', () => {
       const { body } = await http().post('/api/v1/auth/password-reset').send({ email: 'someone@test.local', isAdmin: true }).expect(400);
 
       expect(body.message).toEqual(['property isAdmin should not exist']);
+      expect(body.details).toEqual([{ field: 'isAdmin', code: 'INVALID_FIELD', userMessage: expect.any(String) }]);
     });
 
     // Most money fields are converted by hand before they reach it, so the

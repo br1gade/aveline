@@ -82,7 +82,9 @@ describe('critique gaps (integration coverage)', () => {
   describe('recovering lost cancellation and refund notices', () => {
     let notifier: TicketNotifierService;
 
-    beforeAll(() => {
+    // Fresh each test: the sweep remembers where it stopped, and a cursor left
+    // by one test would skip the next test's orders on its first run.
+    beforeEach(() => {
       const database = prisma as unknown as PrismaService;
       const transports = new Map<MessageChannel, MessageTransport>(Object.values(MessageChannel).map((channel) => [channel, new ConsoleTransport(channel)]));
       notifier = new TicketNotifierService(database, new CommunicationsService(database, transports, new SuppressionService(database)),
@@ -129,6 +131,39 @@ describe('critique gaps (integration coverage)', () => {
       await notifier.sendMissing();
 
       expect(await noticesFor(order.id)).toHaveLength(0);
+    });
+
+    it('still tells a buyer whose notice can be queued when a full batch of other orders keeps failing', async () => {
+      // No ticket.cancelled copy for this organization, so its orders throw on every run.
+      const withoutCopy = await seedEvent(prisma);
+      const failing = [
+        await ticketOrder(withoutCopy.eventId, { status: TicketOrderStatus.CANCELLED }),
+        await ticketOrder(withoutCopy.eventId, { status: TicketOrderStatus.CANCELLED }),
+      ];
+      const withCopy = await seedEvent(prisma);
+      const { organizationId } = await prisma.event.findUniqueOrThrow({ where: { id: withCopy.eventId } });
+      await cancellationCopy(organizationId);
+      const told = await ticketOrder(withCopy.eventId, { status: TicketOrderStatus.CANCELLED });
+
+      for (let run = 0; run < 3; run += 1) await notifier.sendMissing(failing.length);
+
+      expect(await noticesFor(told.id)).toHaveLength(1);
+    });
+
+    it('comes back for an order that became due behind where the sweep stopped', async () => {
+      const withCopy = await seedEvent(prisma);
+      const { organizationId } = await prisma.event.findUniqueOrThrow({ where: { id: withCopy.eventId } });
+      await cancellationCopy(organizationId);
+      // Created first, so it sorts ahead of the failing orders; cancelled only once the sweep has moved past it.
+      const lateCancel = await ticketOrder(withCopy.eventId);
+      const withoutCopy = await seedEvent(prisma);
+      for (let count = 0; count < 3; count += 1) await ticketOrder(withoutCopy.eventId, { status: TicketOrderStatus.CANCELLED });
+      await notifier.sendMissing(2);
+      await prisma.ticketOrder.update({ where: { id: lateCancel.id }, data: { status: TicketOrderStatus.CANCELLED } });
+
+      for (let run = 0; run < 2; run += 1) await notifier.sendMissing(2);
+
+      expect(await noticesFor(lateCancel.id)).toHaveLength(1);
     });
   });
 });

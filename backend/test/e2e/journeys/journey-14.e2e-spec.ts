@@ -335,6 +335,19 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
     expect((body.households as ReportRow[]).find((row) => row.household === 'Petrosyan')).toMatchObject({ status: 'FAILED', deliveryErrorCode: 131026 });
   };
 
+  it('lists a household whose WhatsApp invitation failed under notInvited when the host reminds', async () => {
+    const wedding = await hostPreparesTheEvent();
+    const sent = await invitationGoesOutOverWhatsApp(wedding);
+    await metaReportsBack(wedding, sent);
+    await prisma.message.updateMany({ where: { eventId: wedding.eventId, templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
+
+    const { body: reminded } = await wedding.host.post(`/invitations/${wedding.slug}/remind`).expect(201);
+
+    // Gohar's invitation came back FAILED: she is told apart from the reminded, so the host re-sends to her.
+    expect(reminded.notInvited).toEqual([expect.objectContaining({ householdName: 'Petrosyan', reason: expect.any(String) })]);
+    expect((reminded.recipients as { householdName: string }[]).map((row) => row.householdName).sort()).toEqual(['Hakobyan', 'Sargsyan']);
+  });
+
   it('reaches guests on WhatsApp, reports Meta receipts to the host, follows a Telegram opt-in and forgets the channel on erasure', async () => {
     const wedding = await hostPreparesTheEvent();
     const sent = await invitationGoesOutOverWhatsApp(wedding);

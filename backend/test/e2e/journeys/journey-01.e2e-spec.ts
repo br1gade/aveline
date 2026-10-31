@@ -125,10 +125,6 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
   });
 
   afterAll(async () => {
-    // The pooled SMTP connections outlive app.close(): nothing in the module
-    // closes them on shutdown, and an open socket keeps Jest from exiting.
-    const email = app.get<Map<MessageChannel, MessageTransport>>(MESSAGE_TRANSPORTS).get(MessageChannel.EMAIL);
-    if (email instanceof SmtpTransport) email.close();
     await app.close();
     await disconnectTestDatabase();
   });
@@ -596,5 +592,28 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
       await seatingPerPerson(authorization, venues);
       await arriveAndThank(authorization, venues);
     }, 120_000);
+  });
+});
+
+describe('Journey 01: shutdown (e2e)', () => {
+  afterAll(() => disconnectTestDatabase());
+
+  it('closes the pooled SMTP connections when the application shuts down', async () => {
+    const close = jest.spyOn(SmtpTransport.prototype, 'close');
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PrismaService)
+      .useValue(testPrisma())
+      .compile();
+    const app = moduleRef.createNestApplication();
+    await app.init();
+    const email = app.get<Map<MessageChannel, MessageTransport>>(MESSAGE_TRANSPORTS).get(MessageChannel.EMAIL);
+    expect(email).toBeInstanceOf(SmtpTransport);
+
+    await app.close();
+    const callsAtShutdown = close.mock.calls.length;
+    // So a failing run does not also leave the pool holding Jest open.
+    if (callsAtShutdown === 0) (email as SmtpTransport).close();
+    close.mockRestore();
+    expect(callsAtShutdown).toBe(1);
   });
 });

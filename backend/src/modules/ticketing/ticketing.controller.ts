@@ -1,5 +1,5 @@
 import { EventScope } from '../../infra/auth/actor';
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -24,8 +24,11 @@ export class TicketingController {
     return this.ticketing.createOrder(slug, dto);
   }
 
+  // 200, not Nest's POST default: a preview creates nothing, and a code that
+  // does not apply is an answer, not an error (docs/API.md §6).
   @Public()
   @Post('public/events/:slug/promo-check')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'What a promo code is worth on this basket',
     description:
