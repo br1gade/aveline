@@ -3,7 +3,9 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleIni
 import {
   BillingInterval,
   InvoiceStatus,
+  PaymentProvider,
   PaymentPurpose,
+  PaymentStatus,
   Prisma,
   SubscriptionStatus,
 } from '@prisma/client';
@@ -16,6 +18,9 @@ import { SubscribeDto } from './dto/subscription.dto';
 
 /** How long a customer has to pay an issued invoice before it is overdue. */
 const PAYMENT_TERMS_DAYS = 7;
+
+/** A payment that ended without money moving: its invoice is still owed. */
+const SPENT_PAYMENT_STATUSES: readonly PaymentStatus[] = [PaymentStatus.FAILED, PaymentStatus.CANCELLED, PaymentStatus.EXPIRED];
 
 @Injectable()
 export class SubscriptionsService implements OnModuleInit {
@@ -130,28 +135,71 @@ export class SubscriptionsService implements OnModuleInit {
       return { subscription: existing, invoice: issued };
     });
 
-    const payment = await this.payments.start({
-      organizationId,
-      purpose: PaymentPurpose.SUBSCRIPTION,
-      provider: dto.provider,
-      amountMinor: invoice.totalMinor.toString(),
-      currency: invoice.currency,
-      returnUrl: dto.returnUrl ?? appPage('/billing/return'),
-      description: `${plan.name} — invoice ${invoice.number}`,
-      // One payment per invoice, whatever the client retries.
-      idempotencyKey: `invoice-${invoice.id}`,
+    const payment = await this.payInvoice(invoice, {
+      organizationId, planName: plan.name, provider: dto.provider, returnUrl: dto.returnUrl,
     });
-
-    const linked = await this.prisma.invoice.update({
-      where: { id: invoice.id },
-      data: { paymentOrderNumber: payment.orderNumber },
-    });
+    const linked = await this.prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
 
     return {
       subscription: subscription ? describeSubscription(subscription) : null,
       invoice: describeInvoice(linked),
       payment,
     };
+  }
+
+  /**
+   * Starts — or, for a retry, returns — the payment for an invoice, and links
+   * it. The invoice is linked even to an attempt the bank refused, so the next
+   * retry knows that attempt is spent.
+   */
+  private async payInvoice(
+    invoice: InvoiceRow,
+    request: { organizationId: string; planName: string; provider: PaymentProvider; returnUrl?: string },
+  ) {
+    const idempotencyKey = await this.paymentKeyFor(invoice);
+    // Only over the link this attempt was chosen from: a slower request must
+    // not point the invoice back at a payment a newer one replaced.
+    const link = (orderNumber: string) =>
+      this.prisma.invoice.updateMany({
+        where: { id: invoice.id, paymentOrderNumber: invoice.paymentOrderNumber },
+        data: { paymentOrderNumber: orderNumber },
+      });
+
+    try {
+      const payment = await this.payments.start({
+        organizationId: request.organizationId,
+        purpose: PaymentPurpose.SUBSCRIPTION,
+        provider: request.provider,
+        amountMinor: invoice.totalMinor.toString(),
+        currency: invoice.currency,
+        returnUrl: request.returnUrl ?? appPage('/billing/return'),
+        description: `${request.planName} — invoice ${invoice.number}`,
+        idempotencyKey,
+      });
+      await link(payment.orderNumber);
+      return payment;
+    } catch (error) {
+      const attempt = await this.prisma.payment.findUnique({ where: { idempotencyKey }, select: { orderNumber: true } });
+      if (attempt) await link(attempt.orderNumber);
+      throw error;
+    }
+  }
+
+  /**
+   * One payment per invoice, whatever the client retries — until that payment
+   * ends without money moving. A refused registration, a declined card or an
+   * expired order leaves the invoice owed, and returning the dead payment left
+   * it unpayable; the retry starts the next attempt instead, keyed by the one
+   * it replaces so concurrent retries still share it.
+   */
+  private async paymentKeyFor(invoice: { id: string; paymentOrderNumber: string | null }): Promise<string> {
+    const firstKey = `invoice-${invoice.id}`;
+    const last = await this.prisma.payment.findUnique({
+      where: invoice.paymentOrderNumber ? { orderNumber: invoice.paymentOrderNumber } : { idempotencyKey: firstKey },
+      select: { orderNumber: true, status: true, idempotencyKey: true },
+    });
+    if (!last) return firstKey;
+    return SPENT_PAYMENT_STATUSES.includes(last.status) ? `invoice-${invoice.id}-after-${last.orderNumber}` : last.idempotencyKey;
   }
 
   /**

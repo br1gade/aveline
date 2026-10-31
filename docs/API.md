@@ -1898,11 +1898,16 @@ POST /api/v1/invoices/:number/confirm
 ```
 
 which asks the bank server-to-server and activates the subscription. Safe to
-call twice; a second call never double-activates or double-counts.
+call twice, at once too: a call overtaken by another one answers with the
+payment as recorded, never a `409`; a second call never double-activates or
+double-counts.
 
 Changing plan is the same call with a different `planKey`. Asking for the
 same plan again while its invoice is open — a double click, a retry — returns
-that invoice and its payment, never a second one. **Nothing changes
+that invoice and its payment, never a second one. If that payment ended
+without money moving — the bank refused to register it, declined the card, or
+it expired — the retry answers the same invoice with a fresh payment and a new
+`redirectUrl` rather than the dead one, so a retry is always payable. **Nothing changes
 until the new invoice is paid**: the current plan and status stay as they are,
 and paying applies the invoice's plan with a period starting then. A paid
 change abandoned at the bank leaves the customer exactly where they were. A
@@ -3077,6 +3082,10 @@ answerable: emptying a choice question's `options` is a `400` naming
 at the end, never removed or reordered, and the type cannot change — each a
 `400` saying how many have answered (answers are stored by position, so a
 removed option would silently turn every later answer into a different one).
+A reorder is any existing option text sent at a different position in the
+same language — `["Meat","Fish","Vegan"]` → `["Fish","Meat","Vegan"]` is
+refused, while rewording in place (`"Meat"` → `"Beef"`) is not. Each position
+keeps its meaning: a reworded option must still mean the same choice.
 
 **Deleting is refused once any guest has answered**, with a `400` saying how
 many and suggesting you make it optional instead — deleting would discard what

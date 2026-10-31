@@ -99,7 +99,9 @@ identical requests resulting in exactly one payment.
 
 **Status only moves forwards.** The transition table makes a captured payment
 reverting to pending inexpressible. Transitions are a compare-and-set on the
-status we read, so two concurrent callbacks cannot both apply.
+status we read, so two concurrent callbacks cannot both apply. The one that
+loses answers with what the winner recorded, whichever side of its read the
+winner committed on — a win before the read used to surface as a `409`.
 
 **Reconciliation is not optional.** Callbacks get lost — an abandoned redirect,
 a timed-out webhook. Without the sweep, a customer the bank charged has an
@@ -181,7 +183,10 @@ seats still free (`sellLate`), or — when they were sold meanwhile — refunded
 in full, claim-first, and the buyer told (decided 9 October 2026). A refused
 refund reopens the claim for the next sweep. Invoices follow the same rule:
 captured pays them, unless a newer plan change had voided them, in which case
-the payment is refunded.
+the payment is refunded. An invoice whose payment ended without money moving
+(`FAILED`, `CANCELLED`, `EXPIRED`) is still owed: a retry starts its next
+payment under a key derived from the spent one, and the invoice is linked even
+to an attempt the bank refused, so concurrent retries share one new payment.
 
 **Every reconciliation is followed by settlement.** `MoneySweepService`
 reconciles, then settles captured ticket orders and invoices — the customers

@@ -119,6 +119,50 @@ describe('payments and billing, the remaining properties (integration)', () => {
       expect(payment).toMatchObject({ purpose: PaymentPurpose.SUBSCRIPTION, status: PaymentStatus.FAILED });
       expect(await prisma.subscription.count({ where: { organizationId } })).toBe(0);
     });
+
+    it('answers a retried paid subscribe with a payable payment after the bank refused registration', async () => {
+      await plan('managed', 25_000n);
+      jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new Error('bank unreachable'));
+      await expect(
+        subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE }),
+      ).rejects.toThrow('bank unreachable');
+
+      const retried = await subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
+
+      expect(retried.payment).toMatchObject({ status: PaymentStatus.PENDING, redirectUrl: expect.any(String) });
+      expect(retried.invoice!.paymentOrderNumber).toBe(retried.payment!.orderNumber);
+    });
+
+    it('keeps starting a payable payment for the open invoice however many registrations the bank refuses', async () => {
+      await plan('managed', 25_000n);
+      const subscribe = () => subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
+      jest.spyOn(fake, 'registerOrder')
+        .mockRejectedValueOnce(new Error('bank unreachable'))
+        .mockRejectedValueOnce(new Error('bank unreachable'));
+      await expect(subscribe()).rejects.toThrow('bank unreachable');
+      await expect(subscribe()).rejects.toThrow('bank unreachable');
+
+      const retried = await subscribe();
+      const again = await subscribe();
+
+      expect(retried.payment).toMatchObject({ status: PaymentStatus.PENDING, redirectUrl: expect.any(String) });
+      expect(again.payment!.orderNumber).toBe(retried.payment!.orderNumber);
+      expect(await prisma.invoice.count({ where: { organizationId } })).toBe(1);
+      expect(await prisma.payment.count({ where: { organizationId } })).toBe(3);
+    });
+
+    it('starts a fresh payment for the open invoice once its payment expired at the bank', async () => {
+      await plan('managed', 25_000n);
+      const first = await subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
+      await prisma.payment.update({ where: { orderNumber: first.payment!.orderNumber }, data: { expiresAt: new Date(Date.now() - 1000) } });
+      await payments.reconcile();
+
+      const retried = await subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
+
+      expect(retried.invoice!.number).toBe(first.invoice!.number);
+      expect(retried.payment).toMatchObject({ status: PaymentStatus.PENDING, redirectUrl: expect.any(String) });
+      expect(retried.payment!.orderNumber).not.toBe(first.payment!.orderNumber);
+    });
   });
 
   describe('the audit trail', () => {
@@ -208,6 +252,18 @@ describe('payments and billing, the remaining properties (integration)', () => {
       expect(fast.status).toBe(PaymentStatus.CAPTURED);
       const captures = await prisma.paymentEvent.count({ where: { paymentId: row.id, toStatus: PaymentStatus.CAPTURED } });
       expect(captures).toBe(1);
+    });
+
+    it('answers the recorded capture when overtaken between its bank call and its write', async () => {
+      const row = await paidAtTheBank();
+      const held = holdNextStatusCall();
+
+      const slow = payments.confirm(row.orderNumber, PaymentEventSource.API);
+      await held.isReached;
+      await payments.confirm(row.orderNumber, PaymentEventSource.RECONCILIATION);
+      held.release();
+
+      await expect(slow).resolves.toMatchObject({ orderNumber: row.orderNumber, status: PaymentStatus.CAPTURED });
     });
     /**
      * A second service on the same database whose next transition pauses just

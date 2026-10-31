@@ -1,4 +1,7 @@
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { ConfigService } from '@nestjs/config';
 import { DiscountKind, MessageChannel, PaymentProvider, PaymentPurpose, PaymentStatus, PlanTier, BillingInterval, PrismaClient, RefundStatus, TicketOrderStatus } from '@prisma/client';
 import { ConsoleTransport } from '../../../src/modules/communications/channels/console.transport';
@@ -8,7 +11,7 @@ import { SuppressionService } from '../../../src/modules/communications/suppress
 import { TicketNotifierService } from '../../../src/modules/ticketing/ticket-notifier.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { seedEvent } from '../../fixtures/event.fixture';
-import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
+import { disconnectTestDatabase, resetTestDatabase, TEST_DATABASE_URL, testPrisma } from '../../setup/test-database';
 
 /**
  * Money invariants GOING_LIVE.md §3 says the database enforces, tried against
@@ -67,6 +70,14 @@ describe('critique gaps (integration coverage)', () => {
       await expect(prisma.$executeRawUnsafe(belowSmallest)).rejects.toThrow(constraint);
     });
   });
+
+  it('describes in prisma/schema.prisma the database the migrations build, so a generated migration drops nothing', async () => {
+    const run = promisify(execFile);
+    const { stdout } = await run('npx', ['prisma', 'migrate', 'diff', '--from-url', TEST_DATABASE_URL,
+      '--to-schema-datamodel', 'prisma/schema.prisma', '--script'], { cwd: join(__dirname, '..', '..', '..') });
+
+    expect(stdout.split('\n').filter((line) => /^(ALTER|DROP|CREATE)/.test(line))).toEqual([]);
+  }, 60_000);
 
   describe('recovering lost cancellation and refund notices', () => {
     let notifier: TicketNotifierService;

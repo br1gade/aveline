@@ -88,6 +88,10 @@ Aveline is IO-bound. Re-read what you wrote and confirm:
   table in one step.
 - Generate SQL with `prisma migrate diff`, then edit it to be backfill-safe.
   `migrate dev` needs a TTY and will not run here.
+- Declare every foreign key, unique and index you write in SQL in
+  `schema.prisma` as well (`map:` + exact referential actions), so the next
+  diff does not drop it. The critique integration spec checks that the diff
+  against a freshly migrated database is empty.
 - Never edit an applied migration. Write a new one.
 - `migrate reset` destroys data and needs explicit human consent. Do not run it
   on anything you did not create moments ago.

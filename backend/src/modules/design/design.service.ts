@@ -412,9 +412,27 @@ function assertAnsweredQuestionKeepsShape(
     throw new BadRequestException(`type: ${who}; its type cannot change. Add a new question instead`);
   }
   const had = Math.min(...choiceListLengths(before.options), Number.POSITIVE_INFINITY);
-  if (Number.isFinite(had) && choiceListLengths(after.options).some((length) => length < had)) {
+  const didShrink = Number.isFinite(had) && choiceListLengths(after.options).some((length) => length < had);
+  if (didShrink || movesAnOption(before.options, after.options)) {
     throw new BadRequestException(`options: ${who}; options can be reworded or added at the end, not removed or reordered`);
   }
+}
+
+/**
+ * Whether a choice that was offered now sits at another position in the same
+ * language. A list of the same length passed as a rewording, so swapping Meat
+ * and Fish turned every "Fish" answer into "Meat".
+ */
+function movesAnOption(before: Prisma.JsonValue, after: unknown): boolean {
+  const had = asObject(before);
+  return Object.entries(asObject(after as Prisma.JsonValue)).some(([language, list]) => {
+    const old = had[language];
+    if (!Array.isArray(old) || !Array.isArray(list)) return false;
+    return list.some((choice, position) => {
+      const was = old.indexOf(choice);
+      return was !== -1 && was !== position;
+    });
+  });
 }
 
 /** A JSON object column as a record; anything else as empty. */

@@ -212,6 +212,11 @@ than once.
   shadow database. Generate SQL with `migrate diff --from-url "$DATABASE_URL"
   --to-schema-datamodel …` (no shadow), as the feature skill says. Passing the
   dev URL as the shadow wiped the dev database on 9 October 2026.
+- **A key written in SQL is declared in `schema.prisma` too** — a relation with
+  `map:` and the exact `onDelete`/`onUpdate`, or `@@unique`/`@@index` with
+  `map:`. Otherwise that diff emits a drop for it. `critique.int-spec.ts` fails
+  when the diff against a freshly migrated database is not empty. Triggers,
+  checks and partial indexes stay SQL-only; Prisma does not diff them.
 
 ## 12. Definition of done
 

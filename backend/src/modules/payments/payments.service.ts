@@ -190,9 +190,23 @@ export class PaymentsService {
       // Another confirmation — the buyer's return page and the sweep, say —
       // recorded the bank's answer first. That is the outcome wanted, not a
       // failure; anything else still is.
-      if (!isRecordNotFound(error)) throw error;
-      return this.describe(await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }));
+      const overtaken = await this.paymentThatOvertook(payment, error);
+      if (!overtaken) throw error;
+      return this.describe(overtaken);
     }
+  }
+
+  /**
+   * The payment as another confirmation left it, if one overtook this one.
+   * Committed after our transaction read, the compare-and-set misses; before
+   * it, the move we wanted is no longer legal from what it now holds — that
+   * second ordering once answered 409 for a payment that was captured.
+   */
+  private async paymentThatOvertook(payment: { id: string; status: PaymentStatus }, error: unknown) {
+    const isMissedWrite = isRecordNotFound(error);
+    if (!isMissedWrite && !(error instanceof ConflictException)) return null;
+    const current = await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+    return isMissedWrite || current.status !== payment.status ? current : null;
   }
 
   /**

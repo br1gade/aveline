@@ -209,10 +209,23 @@ reject the bad row.
 The multi-venue migration creates arrangements, backfills existing tables/seats
 and release markers, then constrains the new columns. Missing venue membership
 stays unspecified. Triggers create event/venue arrangements, derive table/seat
-write fields and enforce release-table scope, including bulk writes; their `NULL::text` Prisma
-defaults are filled before NOT NULL checks. A conflicting explicit field is
-rejected. Keep triggers and partial indexes in SQL migrations; Prisma does not
-model them. Legacy release columns remain historical input, not current view data.
+write fields and enforce release-table scope, including bulk writes. The schema
+declares those columns `@default(dbgenerated())` so a create may omit them, and
+the trigger fills them before NOT NULL checks. A conflicting explicit field is
+rejected. Keep triggers, checks and partial indexes in SQL migrations; Prisma
+does not model or diff them. Legacy release columns remain historical input, not
+current view data.
+
+**`schema.prisma` declares every foreign key, unique and index the migrations
+build**, including the template owner-scope fences (`(templateId,
+ownerScopeKey)` and `(id, templateId, ownerScopeKey)` keys on versions, drafts,
+assets, artwork references, bindings and invitations) and the event-tenant keys
+`(eventId, organizationId)`. Each is a relation with `map:` set to the SQL name
+and its exact `onDelete`/`onUpdate`; a constraint Prisma does not see is one the
+next `migrate diff` drops. `critique.int-spec.ts` fails when that diff against a
+freshly migrated database is not empty. Because `design_templates.id` sits
+inside the active-version fence, Prisma will not generate it: the database does,
+as `gen_random_uuid()::text`. Template ids are opaque strings either way.
 
 ### Durable automatic seating
 

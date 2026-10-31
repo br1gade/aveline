@@ -296,4 +296,27 @@ describe('Invitation design and publishing coverage (e2e)', () => {
       expect(body.message).toMatch(/No such question/);
     });
   });
+
+  // Answers are stored by position, so moving an option relabels every answer
+  // that picked it (docs/API.md "Custom RSVP questions").
+  describe('an answered choice question', () => {
+    it('refuses reordering its options, and keeps the stored order', async () => {
+      const { slug, eventId, authorization } = await draftAs(EventRole.DESIGNER);
+      const { body: question } = await addQuestion(slug, authorization, {
+        type: QuestionType.SINGLE_CHOICE, prompt: { en: 'Meal?' }, options: { en: ['Meat', 'Fish', 'Vegan'] },
+      }).expect(201);
+      const guest = await prisma.guest.findFirstOrThrow({ where: { eventId } });
+      const rsvp = await prisma.rsvp.upsert({ where: { guestId: guest.id }, create: { guestId: guest.id, status: 'ATTENDING' }, update: { status: 'ATTENDING' } });
+      await prisma.rsvpAnswer.create({ data: { rsvpId: rsvp.id, questionId: question.id as string, value: 1 } });
+
+      const { body } = await http()
+        .patch(`/api/v1/invitations/${slug}/questions/${question.id as string}`)
+        .set('Authorization', authorization)
+        .send({ options: { en: ['Fish', 'Meat', 'Vegan'] } })
+        .expect(400);
+
+      expect(body.message).toMatch(/^options:.*1 guest/);
+      expect(await prisma.rsvpQuestion.findUniqueOrThrow({ where: { id: question.id as string } })).toMatchObject({ options: { en: ['Meat', 'Fish', 'Vegan'] } });
+    });
+  });
 });
