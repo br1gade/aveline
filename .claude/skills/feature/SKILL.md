@@ -19,7 +19,7 @@ Read the doc that governs the area you are about to change:
 | Roles, permissions, who-can-do-what | `docs/ACCESS_CONTROL.md` |
 | Venues, tables, seats, seating rules | `docs/VENUES_AND_SEATING.md` |
 | Templates, blocks, media, RSVP questions | `docs/INVITATION_DESIGN.md` |
-| Caching, queues, analytics, store choice | `../../../backend/docs/DATA_STORES.md` |
+| Caching, queues, analytics, store choice | `backend/docs/DATA_STORES.md` |
 | Payments, refunds, providers, money handling | `docs/PAYMENTS.md` |
 | Endpoints, setup | `backend/README.md` |
 | **Anything a client can see** | **`docs/API.md` — a contract, not a description** |
@@ -113,6 +113,16 @@ permissions. It cannot catch a "not yet built" list that has become false —
 re-read that section and delete what you just built.
 
 ## 7. Verify
+
+While iterating, run only the spec you are working on — it is seconds, not
+minutes:
+
+```bash
+npx jest src/modules/<area>/<file>.spec.ts -t "<behaviour>"
+npx jest -c test/jest-integration.json test/integration/<file>.int-spec.ts
+```
+
+Once, at the end:
 
 ```bash
 cd backend && npm run verify

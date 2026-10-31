@@ -18,8 +18,12 @@ Everything else an agent needs is shared, not tool-specific:
 
 - [`docs/`](docs/) — the product and the API contract, written for both teams
 - [`backend/docs/`](backend/docs/) — architecture, data model, stores, gaps
-- `.claude/skills/feature/SKILL.md` — the order to apply the backend rules in.
-  `.agents/skills/feature/SKILL.md` is a symlink to it.
+- `.claude/skills/` — `feature` (the order to apply the backend rules in),
+  `review`, `ship` and `readiness`. Each `.agents/skills/<name>/SKILL.md` is a
+  symlink to the same file.
+- `.claude/agents/` — read-only reviewers the skills call: code, test,
+  contract, security and readiness. Plain Markdown prompts; any agent can
+  read one as instructions.
 - `.claude/hooks/` — lint, schema and docs-sync checks. `.codex/hooks/` holds
   symlinks to the same scripts, so there is one copy of each to maintain.
 

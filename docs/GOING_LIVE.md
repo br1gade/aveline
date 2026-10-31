@@ -33,6 +33,23 @@ all eight local latency gates. Actual-host performance acceptance, required
 human review of export/recovery-message translations and external/frontend acceptance still
 block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 
+**The client is partial and unmerged.** It lives on `frontend/guest-invitation`
+and `frontend/publish-send`, not on `main` or `dev`. As of 29 October 2026 it
+covers accounts, events, venues, the guest list and import, the invitation
+designer, publishing, sending and the guest reply. Seating, the door
+(check-in), exports, tickets and checkout, billing, the event team,
+acknowledgements, the gallery and archiving have no screens yet. The client's
+own "not yet built" list is its `frontend/docs/ARCHITECTURE.md` §12.
+
+Backend items the client team raised that still hold in the code
+(30 October 2026; IDs are in its `frontend/docs/BACKEND_REQUESTS.md`):
+
+| Item | Why it blocks |
+|---|---|
+| **FR-7** `GET …/rsvp` has no `@Throttle(GUEST_PAGE_LIMITS)` | The guest page's server renderer reads it for every guest from one address, so a real event exhausts the default per-address limit |
+| **FR-27** Guest CSV import reads comma-delimited UTF-8 only | Excel set to Russian or Armenian saves `;`-delimited files, often in a Windows code page; every row is refused or garbled for the target market |
+| **FR-11** No web service in `docker-compose.prod.yml`; Caddy serves only `API_DOMAIN` | The client has nowhere to run in production, and one-origin vs. separate-origin (CORS, `PUBLIC_APP_URL`, payment `returnUrl`) is not agreed |
+
 ### Money
 
 | # | Blocker | Why |

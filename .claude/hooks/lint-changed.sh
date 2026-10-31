@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PostToolUse(Write|Edit): lint a backend TypeScript file right after it changes.
 # Non-blocking: reports problems back to the model instead of failing the turn,
-# so a mid-refactor edit is not interrupted. See CLAUDE.md §7.
+# so a mid-refactor edit is not interrupted. See backend/CLAUDE.md §9.
 set -uo pipefail
 
 file=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty')

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stop: warn when backend source or schema changed in the working tree but no
-# doc did. CLAUDE.md §8 requires them to move together.
+# doc did. backend/CLAUDE.md §10 requires them to move together.
 set -uo pipefail
 
 root="${CLAUDE_PROJECT_DIR:-$PWD}"

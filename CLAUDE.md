@@ -96,7 +96,49 @@ because it is believed.
   hook checks each pushed tree and reuses a complete 24-hour proof. Never bypass
   a failed gate to use hosted CI for debugging. See `backend/docs/LOCAL_CI.md`.
 
-## 6. Area rules
+## 6. Code and tests — both teams
+
+Area files add the stack rules; these hold everywhere. Lint enforces the size
+limits; these are the judgement it cannot.
+
+- **Smallest correct change.** No layer, wrapper, option or abstraction a
+  second caller does not need yet. Delete code the change made dead.
+- **Derive, don't restate.** Types come from the schema or the DTO; constants
+  from one table. A value written twice drifts.
+- **Validate at the edge, trust inside.** DTOs and route loaders check input
+  once; inner code does not re-check what its types guarantee.
+- **Pick the data structure first.** Lookup by key is a `Map`/`Set`, not
+  `find` in a loop. Joins and counts belong to Postgres. Anything over an
+  unbounded list is O(n) or O(n log n), paginated, or a job.
+- **Names are domain words.** A reader should not need the body to know what
+  a function returns or a boolean asserts.
+- **Errors are values the caller can act on**: a status, a field, a stable
+  code. Never swallow one; never log a capability token with it.
+- **A test proves one behaviour at the cheapest layer that can fail for the
+  real reason.** Boundaries, not one happy value. Build data with the existing
+  factories and fixtures; never copy a setup block. No sleeps, no real clock
+  or randomness, no order between tests, no snapshot of a large object.
+- **A bug fix starts with the test that reproduces it.**
+
+## 7. Agent economy
+
+Fast, correct work wastes no context.
+
+- **Search, then read the range.** `grep`/`rg` for the symbol, read the lines
+  around it. Do not read a 3,000-line doc to find one section — `docs/API.md`
+  has headings.
+- **Run the narrowest check first.** One spec file (`npx jest path -t name`)
+  while iterating; the full gate once, before pushing.
+- **Delegate wide reads, not decisions.** A subagent may sweep the codebase;
+  the conclusion and the edit stay with you.
+- **Report, don't narrate.** State what changed, what was verified and what
+  was not.
+
+Skills in `.claude/skills/`: `feature` (build or fix in `backend/`),
+`review` (review a change), `ship` (gate and push), `readiness` (what is left
+before going live). Reviewers they call are in `.claude/agents/`.
+
+## 8. Area rules
 
 | Working in | Read |
 |---|---|
