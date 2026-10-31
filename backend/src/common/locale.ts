@@ -49,3 +49,17 @@ export function negotiateLocale(
 
 /** A language code as events declare them: hy, en, ru, or a regional form like en-GB. */
 export const LOCALE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
+
+/**
+ * The language a guest's own page is shown in: the one asked for if the event
+ * publishes it, else the guest's own, else the event's default. One function,
+ * so the personal page and the reply form never disagree.
+ */
+export function guestPageLocale(
+  requested: string | undefined,
+  guestLocale: string | null,
+  event: { locales: readonly string[]; defaultLocale: string },
+): string {
+  const asked = requested ? negotiateLocale(requested, event.locales, '') : '';
+  return negotiateLocale(asked || (guestLocale ?? undefined), event.locales, event.defaultLocale);
+}

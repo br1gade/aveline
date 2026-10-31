@@ -1,6 +1,7 @@
 import type { OrganizationContext, OrganizationResolution } from './organization-context';
 import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
 import type { Request } from 'express';
+import type { SessionContext } from './auth.service';
 import { EventRole, OrganizationRole, PlatformRole } from '@prisma/client';
 import { Actor, Permission, can } from '../../modules/access/access-policy';
 
@@ -71,8 +72,8 @@ export const CurrentActor = createParamDecorator(
  * than with `@Headers('user-agent')`, which the schema declared a required
  * header that a browser's own code is not allowed to set (FR-3).
  */
-export const ClientSession = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): { userAgent?: string; ipAddress?: string } => {
+export const ClientContext = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): SessionContext => {
     const request = context.switchToHttp().getRequest<Request>();
     return { userAgent: request.headers['user-agent'], ipAddress: request.ip };
   },

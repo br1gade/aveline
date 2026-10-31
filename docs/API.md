@@ -1299,7 +1299,8 @@ for the file itself: `"The file is not UTF-8 text. …"` or
 `side` accepts `a`, `side a`, `b`, `side b`, `both` or `shared`, in any
 case; anything else is recorded as unknown. `seats` must be a whole number
 from 1 to 20. A row with no first name is rejected; everything else is
-optional.
+optional. A `locale` the event does not publish is left out, and the guest
+imported without one.
 
 ```json
 {

@@ -28,13 +28,12 @@ export class FakeGateway implements PaymentGateway {
       outcome: { outcome: { kind: 'pending' }, raw: { simulated: true } },
     });
 
-    // Appended, so a return URL that carries its own query keeps it. Not
-    // parsed: the DTOs accept a URL without a scheme, which URL would refuse.
-    const separator = params.returnUrl.includes('?') ? '&' : '?';
-    return Promise.resolve({
-      providerRef,
-      redirectUrl: `${params.returnUrl}${separator}fakePayment=${providerRef}`,
-    });
+    // Added to the query, before any fragment, so a return URL keeps its own
+    // query and anchor. Not parsed: the DTOs accept a URL without a scheme.
+    const [base, fragment] = params.returnUrl.split('#', 2);
+    const separator = base.includes('?') ? '&' : '?';
+    const redirectUrl = `${base}${separator}fakePayment=${providerRef}${fragment === undefined ? '' : `#${fragment}`}`;
+    return Promise.resolve({ providerRef, redirectUrl });
   }
 
   getStatus(providerRef: string): Promise<ProviderStatus> {

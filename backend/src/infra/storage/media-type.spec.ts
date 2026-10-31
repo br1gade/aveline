@@ -24,6 +24,9 @@ describe('detectMediaType', () => {
     ['text', bytes('png')],
     ['nothing', bytes()],
     ['a truncated PNG signature', bytes([0x89], 'PN')],
+    ['a WAV file, which is RIFF too', bytes('RIFF', [0, 0, 0, 0], 'WAVEfmt ')],
+    ['a QuickTime movie', bytes([0, 0, 0, 0x20], 'ftypqt  ')],
+    ['a HEIC photo', bytes([0, 0, 0, 0x20], 'ftypheic')],
   ])('recognises nothing in %s', (_, content) => {
     expect(detectMediaType(content)).toBeNull();
   });

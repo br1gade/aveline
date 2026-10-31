@@ -147,6 +147,15 @@ describe('Guest management (e2e)', () => {
       expect(body.locale).toBeNull();
     });
 
+    it('is kept by a correction that does not mention it', async () => {
+      const { eventId, authorization } = await signedIn();
+      const added = await addGuest(eventId, authorization, { firstName: 'Ani', locale: 'en' }).expect(201);
+
+      const { body } = await patchGuest(eventId, added.body.id as string, authorization, { firstName: 'Anya' }).expect(200);
+
+      expect(body.locale).toBe('en');
+    });
+
     it('is refused, naming the field, when adding names one the event does not publish', async () => {
       const { eventId, authorization } = await signedIn();
 
@@ -155,7 +164,7 @@ describe('Guest management (e2e)', () => {
         locale: 'fr',
       }).expect(400);
 
-      expect(body.message).toMatch(/^locale: /);
+      expect(body.details).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'locale' })]));
       expect(await prisma.guest.count({ where: { eventId, firstName: 'Ani' } })).toBe(0);
     });
 
@@ -170,7 +179,7 @@ describe('Guest management (e2e)', () => {
         locale: 'fr',
       }).expect(400);
 
-      expect(body.message).toMatch(/^locale: /);
+      expect(body.details).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'locale' })]));
       expect(
         await prisma.guest.findUniqueOrThrow({ where: { id: added.body.id as string } }),
       ).toMatchObject({ locale: 'en' });

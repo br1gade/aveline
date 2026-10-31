@@ -83,6 +83,44 @@ describe('Guest operations (e2e)', () => {
       expect(households.find((h) => h.name === 'Petrosyan family')?.guests).toHaveLength(3);
     });
 
+    // FR-27: what Russian Excel writes — a BOM, ";" between columns, Russian
+    // headings — and what it writes when "CSV UTF-8" is not chosen.
+    it('imports a semicolon-separated file with Russian headings', async () => {
+      const { eventId, authorization } = await coordinator();
+
+      const { body } = await importCsv(eventId, authorization, '\uFEFFИмя;Фамилия;Места\nАрмен;Петросян;2\n').expect(201);
+
+      expect(body).toMatchObject({ status: 'COMPLETED', rowsImported: 1 });
+      expect(await prisma.guest.count({ where: { eventId, firstName: 'Армен', lastName: 'Петросян' } })).toBe(1);
+    });
+
+    it('refuses a Windows-1251 file whole instead of importing garbled names', async () => {
+      const { eventId, authorization } = await coordinator();
+      const windows1251 = Buffer.from([0xc8, 0xec, 0xff, 0x0a, 0xc0, 0xf0, 0xec, 0xe5, 0xed, 0x0a]);
+      const before = await prisma.guest.count({ where: { eventId } });
+
+      const { body } = await http()
+        .post(`/api/v1/events/${eventId}/guests/import`)
+        .set('Authorization', authorization)
+        .attach('file', windows1251, { filename: 'guests.csv', contentType: 'text/csv' })
+        .expect(201);
+
+      expect(body).toMatchObject({ status: 'FAILED', rowsImported: 0, errors: [{ row: 0, message: expect.stringMatching(/not UTF-8/) }] });
+      expect(await prisma.guest.count({ where: { eventId } })).toBe(before);
+    });
+
+    // Adding a guest by hand refuses a language the event does not publish;
+    // an import keeps the guest and leaves the language out.
+    it('imports a guest whose language the event does not publish, without it', async () => {
+      const { eventId, authorization } = await coordinator();
+
+      const { body } = await importCsv(eventId, authorization, 'name,language\nArmen,fr\nMariam,en\n').expect(201);
+
+      expect(body).toMatchObject({ status: 'COMPLETED', rowsImported: 2 });
+      const guests = await prisma.guest.findMany({ where: { eventId, firstName: { in: ['Armen', 'Mariam'] } }, orderBy: { firstName: 'asc' } });
+      expect(guests.map((guest) => guest.locale)).toEqual([null, 'en']);
+    });
+
     // The primary guest holds the household's invitation link. Marking all
     // three Petrosyans primary would send the same family three links and
     // make the guest list's ordering meaningless.

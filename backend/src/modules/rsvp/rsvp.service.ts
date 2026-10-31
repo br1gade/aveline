@@ -1,4 +1,4 @@
-import { negotiateLocale } from '../../common/locale';
+import { guestPageLocale } from '../../common/locale';
 import { readGuestAccess } from '../guest-contributions/guest-access';
 import { assertRequiredAcknowledgements } from '../guest-contributions/acknowledgement-writes';
 import { AttendanceContext, lockAttendancePolicy, normalizeHouseholdAttendance } from './attendance/attendance-context';
@@ -130,8 +130,7 @@ export class RsvpService {
     });
     if (!guest) throw new NotFoundException('Invitation link not recognised');
     await readGuestAccess(this.prisma, slug, token);
-    // As the personal page chooses it, so the two name venues alike.
-    const locale = negotiateLocale(requestedLocale || (guest.locale ?? undefined), guest.event.locales, guest.event.defaultLocale);
+    const locale = guestPageLocale(requestedLocale, guest.locale, guest.event);
 
     return {
       guest: { id: guest.id, firstName: guest.firstName, lastName: guest.lastName, attribution: guest.attribution },

@@ -12,6 +12,8 @@ describe('RsvpController rate limits', () => {
   });
 
   it('keeps the default mutation limits on submit', () => {
+    // Read beside the read's, so a renamed metadata key fails here too.
+    expect(limitOf(RsvpController.prototype.get, 'short')).toBeDefined();
     expect(limitOf(RsvpController.prototype.submit, 'short')).toBeUndefined();
   });
 });

@@ -347,7 +347,7 @@ function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[], canSeeCo
     channel: recipient.via.channel,
     status: latest?.status ?? 'NOT_SENT',
     attempts: latest?.attempts ?? 0,
-    ...contactOf(recipient, latest, canSeeContacts),
+    ...contactRevealingFields(recipient, latest, canSeeContacts),
     sentAt: latest?.sentAt ?? null,
     ...deliveryEvidence(latest),
   };
@@ -368,7 +368,7 @@ function deliveryEvidence(latest: RecordedAttempt | undefined) {
  * <ani@…>: rejected"), so it is withheld with the address;
  * `deliveryFailureKind` still tells every reader what went wrong.
  */
-function contactOf(
+function contactRevealingFields(
   recipient: Recipient,
   latest: RecordedAttempt | undefined,
   canSeeContacts: boolean,

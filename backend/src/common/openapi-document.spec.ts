@@ -19,16 +19,16 @@ describe('completeOpenApiDocument', () => {
 
   // HTTP header names are case-insensitive; `@ApiHeader('Idempotency-Key')`
   // beside `@Headers('idempotency-key')` declared the same header twice.
-  it('keeps one declaration of a header named twice in different case, the described one', () => {
-    const document = completeOpenApiDocument(documentWith({
-      '/enquiries': { post: { responses: {}, parameters: [
-        { name: 'Idempotency-Key', in: 'header', required: true, description: '8–128 characters' },
-        { name: 'idempotency-key', in: 'header', required: true, schema: { type: 'string' } },
-      ] } },
-    }));
+  const described = { name: 'Idempotency-Key', in: 'header' as const, required: true, description: '8–128 characters' };
+  const bare = { name: 'idempotency-key', in: 'header' as const, required: true, schema: { type: 'string' as const } };
+  const others = [{ name: 'locale', in: 'query' as const, required: false }, { name: 'x-request-id', in: 'header' as const }];
 
-    expect(document.paths['/enquiries'].post?.parameters).toEqual([
-      { name: 'Idempotency-Key', in: 'header', required: true, description: '8–128 characters' },
-    ]);
-  });
+  it.each([['first', [described, bare]], ['second', [bare, described]]])(
+    'keeps the described declaration of a header named twice when it comes %s, and every other parameter',
+    (_, duplicates) => {
+      const document = completeOpenApiDocument(documentWith({ '/enquiries': { post: { responses: {}, parameters: [...others, ...duplicates] } } }));
+
+      expect(document.paths['/enquiries'].post?.parameters).toEqual([...others, described]);
+    },
+  );
 });

@@ -16,7 +16,7 @@ import { CacheService, invitationCacheKey } from '../../infra/cache/cache.servic
 import { attendanceView } from '../rsvp/attendance/attendance-view';
 import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
 import { seatingAssignments, singleTable } from '../seating/seat-view';
-import { negotiateLocale } from '../../common/locale';
+import { guestPageLocale } from '../../common/locale';
 
 export const invitationInclude = {
   template: true,
@@ -82,8 +82,7 @@ export class InvitationsService {
   private async servePage(slug: string, token?: string, requestedLocale?: string) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const meta = await this.pageMeta(slug, token);
-      const asked = requestedLocale ? negotiateLocale(requestedLocale, meta.locales, '') : '';
-      const locale = negotiateLocale(asked || (meta.guestLocale ?? undefined), meta.locales, meta.defaultLocale);
+      const locale = guestPageLocale(requestedLocale, meta.guestLocale ?? null, meta);
       const [payload, guest] = await Promise.all([this.sharedPayload(slug, locale, meta),
         meta.guestId ? this.personalPayload(meta, locale) : Promise.resolve(null)]);
       const current = await this.pageMeta(slug, token);

@@ -44,11 +44,11 @@ export class GuestImportService {
    * deleting everyone first.
    */
   async importCsv(eventId: string, filename: string, content: Buffer, uploadedBy?: string) {
-    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { id: true, organizationId: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { id: true, organizationId: true, locales: true } });
     if (!event) throw new NotFoundException(`No event ${eventId}`);
 
     const parsed = readGuestList(content);
-    const { guests, refused } = await this.withoutErased(event.organizationId, parsed.guests);
+    const { guests, refused } = await this.withoutErased(event.organizationId, withPublishedLocales(parsed.guests, event.locales));
     const errors = [...parsed.errors, ...refused];
     const seatsInFile = seatsStatedPerHousehold(guests);
 
@@ -167,6 +167,16 @@ function withoutContact({ isContact, value, ...error }: RowError): RowError {
 function importStatusFor(imported: number, failed: number): ImportStatus {
   if (failed === 0) return ImportStatus.COMPLETED;
   return imported === 0 ? ImportStatus.FAILED : ImportStatus.PARTIAL;
+}
+
+/**
+ * A language the event does not publish is left out rather than refusing the
+ * row: the guest still matters more than a column, and their messages fall
+ * back to the event's language. Adding a guest by hand refuses it instead,
+ * since a person typing can correct it.
+ */
+function withPublishedLocales(guests: ParsedGuest[], locales: string[]): ParsedGuest[] {
+  return guests.map((guest) => (guest.locale && !locales.includes(guest.locale) ? { ...guest, locale: undefined } : guest));
 }
 
 function readGuestList(content: Buffer) {

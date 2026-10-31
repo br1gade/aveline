@@ -8,22 +8,14 @@ import { randomUUID } from 'node:crypto';
 import { FileToStore, STORAGE_ADAPTER, StorageAdapter, StoredFile } from './storage-port';
 import { detectMediaType } from './media-type';
 
-/**
- * No SVG (decided 10 October 2026, D18): an SVG can carry script, which runs
- * the moment media is served from the app's own origin.
- */
-const ALLOWED_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/avif',
-  'audio/mpeg',
-  'audio/mp4',
-]);
-
 /** The largest file accepted. Also the upload limit, so a bigger one is refused before it is buffered. */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
+/**
+ * The allowlist — every type accepted, with the extension its key gets. No
+ * SVG (decided 10 October 2026, D18): an SVG can carry script, which runs the
+ * moment media is served from the app's own origin.
+ */
 const EXTENSIONS: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
@@ -88,7 +80,7 @@ function acceptedTypeOf(file: FileToStore): string {
   const detected = detectMediaType(file.buffer);
   if (
     !detected ||
-    !ALLOWED_MIME_TYPES.has(detected) ||
+    !Object.hasOwn(EXTENSIONS, detected) ||
     familyOf(detected) !== familyOf(file.mimeType)
   ) {
     throw new UnsupportedMediaTypeException(
