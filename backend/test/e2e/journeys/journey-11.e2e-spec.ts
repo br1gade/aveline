@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -60,7 +62,7 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
 
   beforeAll(async () => {
     prisma = testPrisma();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));

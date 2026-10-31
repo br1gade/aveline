@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
@@ -80,6 +82,7 @@ describe('Journey 07: plan, invoice, bank payment, entitlement on the invitation
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(prisma)
+      .overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED)
       .compile();
 
     app = moduleRef.createNestApplication();

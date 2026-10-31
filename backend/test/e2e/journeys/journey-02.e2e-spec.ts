@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -52,6 +54,7 @@ describe('Journey 2: ticketed public event, from setup to refund (e2e)', () => {
       .useValue(new FilesystemStorageAdapter(mediaRoot, '/files'))
       .overrideProvider(PrismaService)
       .useValue(prisma)
+      .overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED)
       .compile();
 
     app = moduleRef.createNestApplication();

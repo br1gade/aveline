@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { EventRole, OrganizationRole, PaymentEventSource, PaymentProvider, PaymentPurpose, PlanTier, PlatformRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
@@ -20,9 +21,6 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../set
  * window here, so a faster machine passes the address limit of a hundred and
  * 429s a test by its position. rate-limiting.e2e-spec.ts owns the throttle.
  */
-const UNTHROTTLED: ThrottlerStorage = {
-  increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
-};
 
 /**
  * The payment and billing routes over HTTP, through the real module wiring:

@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { createHmac } from 'node:crypto';
 import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -86,7 +88,7 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
     // Installed before the module compiles: the transports capture `fetch` when they are built.
     fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(providers);
     prisma = testPrisma();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
     configureWhatsAppBodyParser(app);
     app.setGlobalPrefix('api/v1');

@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -101,7 +103,7 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     prisma = testPrisma();
     const privateStorage = buildPrivateStorage(new ConfigService({ S3_ENDPOINT: '', STORAGE_ROOT: join(root, 'public'), PRIVATE_STORAGE_ROOT: join(root, 'private') }));
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService).useValue(prisma)
+      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED)
       .overrideProvider(STORAGE_ADAPTER).useValue(new FilesystemStorageAdapter(join(root, 'public'), '/files'))
       .overrideProvider(PRIVATE_STORAGE).useValue(privateStorage)
       .compile();

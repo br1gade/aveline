@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
@@ -119,7 +121,7 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     redis = new Redis(`redis://127.0.0.1:${redisLink.port}`, { maxRetriesPerRequest: 1, enableOfflineQueue: false, retryStrategy: () => 25 });
     redis.on('error', () => undefined);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService).useValue(appPrisma)
+      .overrideProvider(PrismaService).useValue(appPrisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED)
       .overrideProvider(REDIS_CLIENT).useValue(redis)
       .overrideProvider(PRIVATE_STORAGE)
       .useValue(buildPrivateStorage(new ConfigService({ S3_ENDPOINT: '', STORAGE_ROOT: join(root, 'public'), PRIVATE_STORAGE_ROOT: privateRoot() })))

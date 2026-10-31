@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -40,7 +42,7 @@ describe('journey: sales enquiry to an adopted authored template', () => {
     await new EnquiryJournal(directory, 'j'.repeat(32)).initialize();
     Object.assign(process.env, { ...INTAKE_ENV, SALES_PRIVACY_JOURNAL_DIR: directory });
     prisma = testPrisma();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma)
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED)
       .overrideProvider(TemplateGatesService).useValue(new TemplateGatesService(new ConfigService(TEMPLATE_GATES)))
       .overrideProvider(TemplateCapabilitiesService).useValue(testTemplateCapabilities()).compile();
     app = moduleRef.createNestApplication();

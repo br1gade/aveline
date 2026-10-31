@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { MessageChannel, PlatformRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
@@ -25,9 +26,6 @@ import { binaryParser, linkIn, parseCsv, pdfText, seedPlatformDefaults, workbook
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const UNTHROTTLED: ThrottlerStorage = {
-  increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
-};
 
 interface Ids { eventId: string; slug: string; mainCourseId: string; venueId: string }
 interface Snapshot { id: string; kind: string; format: string; locale: string; status: string; downloadPath: string | null; [key: string]: unknown }

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { EventRole, OrganizationRole, PlatformRole, PrismaClient, RsvpStatus, VendorCategory } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
@@ -22,9 +23,6 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../set
  * here, so on a fast machine the address limit would 429 a test by its
  * position in the file. rate-limiting.e2e-spec.ts owns the throttle.
  */
-const UNTHROTTLED: ThrottlerStorage = {
-  increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
-};
 
 describe('Vendor bookings, briefs and access (coverage e2e)', () => {
   let app: INestApplication;

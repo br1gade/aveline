@@ -4,6 +4,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { EventRole, MessageChannel, PlatformRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
@@ -20,9 +21,6 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../set
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-const UNTHROTTLED: ThrottlerStorage = {
-  increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
-};
 
 type Brief = Record<string, unknown> & { granted: { section: string }[] };
 interface Booking { id: string; briefToken: string; briefScopes: string[]; status: string }

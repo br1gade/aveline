@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { PlatformRole, PrismaClient } from '@prisma/client';
 import { hashSync } from 'bcrypt';
 import request from 'supertest';
@@ -25,9 +26,6 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../set
 const DAY_MS = 86_400_000;
 const HOST_EMAIL = 'nare.host@aveline.test';
 const HOST_PASSWORD = 'journey-04-host-password';
-const UNTHROTTLED: ThrottlerStorage = {
-  increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
-};
 /** Only the calendar is faked, and held still so the deadline is hit to the millisecond; every timer, tick and microtask stays real so Nest, Prisma and supertest run as usual. */
 const REAL_TIMERS = ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame',
   'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] as const;

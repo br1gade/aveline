@@ -1,3 +1,5 @@
+import { ThrottlerStorage } from '@nestjs/throttler';
+import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -100,7 +102,7 @@ describe('Journey 10: event lifetime expiry closes guest access and keeps host d
     root = await mkdtemp(join(tmpdir(), 'aveline-journey-10-'));
     const storage = buildPrivateStorage(new ConfigService({ S3_ENDPOINT: '', STORAGE_ROOT: join(root, 'public'), PRIVATE_STORAGE_ROOT: join(root, 'private') }));
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService).useValue(prisma)
+      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED)
       .overrideProvider(PRIVATE_STORAGE).useValue(storage)
       .compile();
     app = moduleRef.createNestApplication();
