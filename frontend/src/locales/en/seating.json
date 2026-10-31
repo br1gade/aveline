@@ -3,6 +3,7 @@
   "back": "Back to the event",
   "title": "Seating",
   "intro": "Tables for each venue, who sits where, and the tables guests see on their invitations.",
+  "exportsLink": "Seating chart and place cards: Exports",
   "refused": "Seating is not available to your role on this event.",
   "failed": "The seating couldn’t be loaded.",
   "plans": "Seating plans",

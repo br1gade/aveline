@@ -3,6 +3,7 @@
   "back": "Retour à l’événement",
   "title": "Placement",
   "intro": "Les tables de chaque lieu, qui est assis où, et les tables que les invités voient sur leur invitation.",
+  "exportsLink": "Plan de table et marque-places : Exports",
   "refused": "Le placement n’est pas disponible pour votre rôle sur cet événement.",
   "failed": "Le placement n’a pas pu être chargé.",
   "plans": "Plans de table",

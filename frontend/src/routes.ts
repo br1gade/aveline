@@ -54,6 +54,7 @@ export default [
       route(underApp(APP_PATHS.photos), 'routes/app/photos.tsx'),
       route(underApp(APP_PATHS.agreements), 'routes/app/agreements.tsx'),
       route(underApp(APP_PATHS.seating), 'routes/app/seating.tsx'),
+      route(underApp(APP_PATHS.exports), 'routes/app/exports.tsx'),
     ]),
     // Signed in, without the app's frame: the invitation's preview needs the whole window.
     layout('routes/app/preview-layout.tsx', [

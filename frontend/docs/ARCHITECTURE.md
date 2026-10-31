@@ -20,6 +20,8 @@ personal page and correct their own name, and the hosts moderate the photos and 
 to their statements. Since 30 October, pilot Milestones B and E's seating: tables for each venue,
 seating by hand and automatically, showing guests their tables, the guest's own table on the
 personal card, and on the guest list the seats declines freed and each guest's answer history.
+The same day, pilot Milestone D's exports: the seven kinds in PDF, spreadsheet and CSV, made in the
+background, followed, downloaded while signed in and made again.
 
 ## 1. Stack
 
@@ -99,6 +101,12 @@ above a `/guests/:guestId`.
 - `loaded` (`src/api/loaded.ts`) turns a part of a page that loads on its own into `Loaded<T>`:
   ready, refused to this role (403), or failed with its problem, so the rest of the page stands.
   The invitation page and the designer use it.
+- `createRetryKey` (`src/api/retry-key.ts`) keeps a queued start's client UUID for the next press
+  with the same choices after no answer or a server failure, either of which may have queued it;
+  any other answer ends it. Automatic seating and exports use it.
+- `expectFile` (`src/api/file.ts`) is `expectData` for a call made with `parseAs: 'blob'`: the
+  bytes, their type, and the name `Content-Disposition` gives when it can be read (FR-10). Exports
+  use it.
 - **Base URL:** in the browser, the same origin; the Vite proxy sends `/api`, and `/files` (the
   backend's own-disk uploads when no S3 is configured), to `API_INTERNAL_URL` (default
   `http://localhost:3000`) in development. On the server,
@@ -298,6 +306,16 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   name the households a run could not seat (FR-55), and its tests put a token into that list and
   check it went nowhere. A guest's own table comes in their personal page's `guest.seating`, which
   holds their own household only.
+- **Exports** (`features/exports`) are read through the API client with the bearer token, as a blob
+  (`src/api/file.ts`, `expectFile`), and handed to the browser from an object URL released half a
+  minute later (`src/ui/save-file.ts`). The page never links to a file and keeps no download
+  address: the readers drop `downloadPath`, and the client builds the call. The name comes from
+  `Content-Disposition`, or from the backend's own pattern when the header cannot be read
+  cross-origin (FR-10); an answer of another type than the format asked for is refused, not saved.
+  The export answers carry no guest token (checked against `export-snapshots.service.ts` and
+  `exports.service.ts` at `eb77cd4`); their readers still name every field they keep, and the
+  tests plant a token in the answers and check it went nowhere. A file's contents are never read,
+  logged or kept by the page.
 - **Addresses in the invitation's answers:** the delivery report omits `toAddress` without
   `guest:contact:read`, and the client reads a missing one as "not yours to see". Its
   `failureReason` is the mail server's own reply, which often quotes the address, so it is shown
@@ -543,18 +561,25 @@ The real end-to-end tests still wait for the backend.
 | 30 Oct 2026 | The seat refusals that share 409 are told apart by their exact text in `features/seating/refusals.ts` (FR-28) | As PD-54's: a reworded sentence falls back to the seat's own words |
 | 30 Oct 2026 | The guest's own table is drawn by the renderer in the personal card from `guest.seating`, server-rendered; no new slot | It is the page's own data, like the household's names; the preview passes no guest, so it shows none |
 | 30 Oct 2026 | **Each guest's answer history is shown** in a dialog from the guest list, read only when opened; seats a decline freed are on each guest's row (design PD-72), superseding the entry of 28 October | The plan approved for seating included them. Read on demand, the list stays one read |
+| 30 Oct 2026 | **Exports** (pilot Milestone D) are a feature of their own, `features/exports`, on one page at `/app/events/:eventId/exports`, linked from the overview and the seating page (design PD-73 to PD-77): making one, the newest fifty with where each stands, downloading, making one again, and the earlier records | Nothing of it is drawn (DQ-23). One page, as seating's: the form, the list and the earlier records share one status line and one refusal at a time |
+| 30 Oct 2026 | `createRetryKey` moved from `features/seating/idempotency.ts` to `src/api/retry-key.ts`. A key now carries an intent, so other choices are another request; and a server failure keeps the key, as no answer does | Exports are its second user and offer choices: the same key with other choices is a 409. The walkthrough met a gateway's 502 when the connection dropped after the export was queued (the development proxy; Caddy does the same), so a 5xx no more proves that nothing was queued than silence does. **Seating's start keeps its key after a 5xx too,** superseding that part of the entry on automatic seating above; its backend returns the run a key already started |
+| 30 Oct 2026 | Exports going are followed with one read a tick: the export's own while one is followed, the history while several are | The staff limit is 100 requests a minute per account (FR-7: B81 counts staff per account, though docs/API.md §1 still says per address); ten exports read one by one every five seconds would pass it |
+| 30 Oct 2026 | The export refusals that share a status are told apart without reading their sentences (FR-58): a create's 409 by whether its key was sent before and how many the history shows going, a 403 by whether the file holds contacts, a download's 409 and 410 by reading the export again | Unlike FR-28's sentences, the client's own state answers each, so nothing breaks when a sentence is reworded |
+| 30 Oct 2026 | Contact details are asked only for the guest list; the five operational kinds are made without, the ticket manifest always with (FR-60) | The frontend lead chose this when the plan was approved: only the guest list has email and phone columns, and a file asked for with contacts is refused for download once contact access is lost. A stand-in with its exit |
+| 30 Oct 2026 | Earlier export records are listed and never downloaded; "Make it again" fills the form with their kind and format | Their download builds today's lists, which would pass for the past. Their records kept no language or contacts choice, so the host makes it (chosen when the plan was approved) |
+| 30 Oct 2026 | A downloaded file is saved from an object URL released after thirty seconds, not at once | Firefox reads the URL after the click has returned, so revoking it in the same task can cancel the download |
 
 ## 12. Not yet built
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
-  seating, its invitation's design, publishing and sending, and how guests answer: door, billing
-  (with the bank's return page, `/billing/return`), the event team, and **archiving and deleting
-  events**.
+  seating, its exports, its invitation's design, publishing and sending, and how guests answer:
+  door, billing (with the bank's return page, `/billing/return`), the event team, and **archiving
+  and deleting events**.
 - Of seating: drawing the plan (a table's `posX`, `posY` and `shape`); choosing a numbered chair
   (`position`), which a move clears; moving a table to another venue; seating a household in one
-  request (FR-53); the seating chart and place-card exports; seating at check-in; unseating
-  everyone to plan again (the API has no such call); and the guest's own table shown elsewhere than
-  the personal card.
+  request (FR-53); seating at check-in; unseating everyone to plan again (the API has no such
+  call); and the guest's own table shown elsewhere than the personal card. The seating chart and
+  place cards are on the exports page since 30 October 2026.
 - Of designing the invitation: previewing edits before they are saved (the preview shows what is
   saved); a warning before leaving a form with unsaved changes; the running order (`/timeline`),
   which the TIMELINE section shows; cropping and focal points (not in the API either); host-tuned
@@ -563,11 +588,12 @@ The real end-to-end tests still wait for the backend.
   and share images (F24).
 - Of the guest list: recording an answer for a guest (`PATCH …/guests/:guestId/rsvp`); reminders
   and chasing (`remind`) and thank-you messages (`thank-you`); seating from the list itself (it is
-  on the seating page); check-in and undoing it; the export; the guest's personal link, whose token is
-  never shown; moving a guest into a household of their own (FR-30); clearing a guest's language
-  (FR-31); a household's notes, which no endpoint writes; and a household picker better than a
-  native select (DQ-16). The single-guest read (`GET …/guests/:guestId`) is not used: the list
-  holds everything the forms show.
+  on the seating page); check-in and undoing it; exporting from the list itself (it is on the
+  exports page); the guest's personal link, whose token is never shown; moving a guest into a
+  household of their own (FR-30); clearing a guest's language (FR-31); a household's notes, which
+  no endpoint writes; and a household picker better than a native select (DQ-16). The
+  single-guest read (`GET …/guests/:guestId`) is not used: the list holds everything the forms
+  show.
 - Of an event's details: the running order (`/timeline`); a venue's per-language name and address
   (`translations`), its coordinates and its capacity; the venue directory (`venue-profiles`); its
   end time, side labels and per-language title and hosts (`translations`, FR-24); adding an
@@ -587,9 +613,14 @@ The real end-to-end tests still wait for the backend.
   status read (FR-41).
 - Of the agreements: who has not agreed yet, which check-in needs, and a filter by statement
   (FR-49).
-- The rest of the pilot plan: snapshot exports, ticket attendees, share tags, venue profiles, and
-  the four-language walkthroughs against the real backend. Seating jobs (F27's automatic seating)
-  are followed in the browser since 30 October 2026. Template previews (F28),
+- Of exports: who made each (FR-61); cancelling one queued (the API has no such call); more than
+  the newest fifty (the API lists no more); choosing how long a file is kept (a server setting);
+  downloading an earlier record, deliberately (it would build today's lists); and failure words
+  finer than "something went wrong", which wait for the worker's codes (FR-59).
+- The rest of the pilot plan: ticket attendees, share tags, venue profiles, and the four-language
+  walkthroughs against the real backend. Seating jobs (F27's automatic seating) are followed in the
+  browser since 30 October 2026, and so are snapshot exports, in PDF, XLSX and CSV (F20, F49 and
+  F27's exports), the same day. Template previews (F28),
   question order (F29) and logo uploads (F48) are built in the designer; name correction (F46),
   the gallery (F19) and the hosts' view of agreements (F25) since 29 October 2026.
 - A "verify your email" banner and a way to ask for the email again: nothing says whether an

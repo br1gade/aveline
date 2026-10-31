@@ -77,7 +77,8 @@
     "design": "Оформить приглашение",
     "photos": "Фото гостей",
     "agreements": "Согласия",
-    "seating": "Рассадка"
+    "seating": "Рассадка",
+    "exports": "Экспорт"
   },
   "headcount": {
     "title": "Гости",

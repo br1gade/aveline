@@ -41,3 +41,7 @@ export function agreementsPath(eventId: string): string {
 export function seatingPath(eventId: string): string {
   return generatePath(APP_PATHS.seating, { eventId });
 }
+
+export function exportsPath(eventId: string): string {
+  return generatePath(APP_PATHS.exports, { eventId });
+}

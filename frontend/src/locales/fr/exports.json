@@ -1,0 +1,155 @@
+{
+  "actionFor": "{{action}} : {{name}}",
+  "back": "Retour à l’événement",
+  "title": "Exports",
+  "intro": "Un export est une copie des listes de l’événement telles qu’elles sont au moment où il est créé. Il se télécharge uniquement ici, une fois connecté, et il est conservé jusqu’à la date indiquée à côté.",
+  "refused": "Les exports ne sont pas accessibles à votre rôle pour cet événement.",
+  "what": "{{kind}} ({{format}})",
+  "kinds": {
+    "GUEST_LIST": {
+      "name": "Liste des invités",
+      "about": "Chaque foyer et chaque invité avec leurs réponses, ainsi que leur e-mail et leur téléphone si vous les incluez."
+    },
+    "SEATING_CHART": {
+      "name": "Plan de table",
+      "about": "Les tables de chaque lieu, leurs places et qui est assis à chacune."
+    },
+    "PLACE_CARDS": {
+      "name": "Marque-places",
+      "about": "Une carte par invité placé, avec sa table. Le PDF s’imprime par six sur une page A4, avec des repères de coupe."
+    },
+    "CATERING_SHEET": {
+      "name": "Fiche traiteur",
+      "about": "Le nombre de personnes attendues dans chaque lieu, et chaque remarque alimentaire avec l’invité concerné."
+    },
+    "BAR_SHEET": {
+      "name": "Fiche bar",
+      "about": "Les boissons choisies par les invités, pour chaque lieu."
+    },
+    "PLAYLIST": {
+      "name": "Playlist",
+      "about": "Les chansons demandées par les invités."
+    },
+    "TICKET_MANIFEST": {
+      "name": "Liste des billets",
+      "about": "Les codes d’entrée et les titulaires des billets, pour l’accueil."
+    }
+  },
+  "formats": {
+    "PDF": {
+      "short": "PDF",
+      "name": "PDF",
+      "about": "Pour imprimer ou partager."
+    },
+    "XLSX": {
+      "short": "XLSX",
+      "name": "Tableur (XLSX)",
+      "about": "Pour trier et filtrer, dans Excel ou Numbers."
+    },
+    "CSV": {
+      "short": "CSV",
+      "name": "CSV",
+      "about": "Pour d’autres logiciels."
+    }
+  },
+  "form": {
+    "title": "Créer un export",
+    "kind": "Quoi exporter",
+    "format": "Format",
+    "language": "Langue du fichier",
+    "languageHelp": "Les titres et les libellés sont dans cette langue. Les noms, les réponses et les remarques restent tels qu’ils ont été écrits.",
+    "contacts": "Coordonnées",
+    "contactsHelp": "Un fichier avec e-mails et téléphones ne peut être téléchargé que tant que votre rôle peut les voir.",
+    "withContacts": "Inclure les e-mails et les numéros de téléphone",
+    "withoutContacts": "Ne pas les inclure",
+    "manifest": "Une liste des billets contient toujours les codes d’entrée et les e-mails des acheteurs ; elle nécessite donc l’accès aux coordonnées des invités.",
+    "submit": "Créer l’export",
+    "submitting": "Envoi…"
+  },
+  "contacts": {
+    "with": "avec coordonnées",
+    "without": "sans coordonnées"
+  },
+  "list": {
+    "title": "Exports créés",
+    "empty": "Rien n’a encore été exporté.",
+    "newest": "Seuls les {{limit}} plus récents sont affichés.",
+    "timedOut": "Toujours en cours. Il se poursuit sans cette page ; vérifiez à nouveau dans un instant.",
+    "check": "Vérifier à nouveau",
+    "requested": "Demandé le {{when}}",
+    "taken": "Listes au {{when}}",
+    "until": "Disponible jusqu’au {{when}}",
+    "download": "Télécharger",
+    "downloading": "Téléchargement…",
+    "again": "Recréer",
+    "sending": "Envoi…"
+  },
+  "state": {
+    "waiting": "En attente de démarrage…",
+    "making": "En cours de création… (essai {{attempt}} sur {{total}})",
+    "retrying": "Cet essai a échoué ; nouvel essai (essai {{attempt}} sur {{total}})…",
+    "ready": "Prêt à télécharger",
+    "expired": "Expiré le {{when}}",
+    "expiredUndated": "N’est plus disponible",
+    "withdrawn": "Retiré le {{when}}",
+    "failed": "Création impossible"
+  },
+  "failure": {
+    "generation": "Une erreur s’est produite pendant la création du fichier. Recréez-le ; s’il échoue encore, l’événement est peut-être trop volumineux pour un seul fichier.",
+    "stopped": "Le travail s’est arrêté trois fois avant la fin du fichier.",
+    "erased": "Les données d’un invité ont été effacées à sa demande, et ce fichier les contenait."
+  },
+  "advice": {
+    "support": "S’il échoue encore, contactez l’assistance Aveline.",
+    "access": "Demandez l’accès au propriétaire de l’événement."
+  },
+  "legacy": {
+    "title": "Exports antérieurs",
+    "intro": "Avant que les fichiers ne soient conservés, un export était construit au moment du téléchargement. Aucune copie n’en a été gardée ; ils ne peuvent donc qu’être recréés. Choisissez la langue et les coordonnées dans le formulaire.",
+    "requested": "Demandé le {{when}}",
+    "needed": "À recréer",
+    "again": "Recréer"
+  },
+  "status": {
+    "started": "Lancé : {{what}}. Cette page indiquera quand il sera prêt.",
+    "ready": "Prêt à télécharger : {{what}}.",
+    "failed": "Création impossible : {{what}}.",
+    "downloaded": "Téléchargé : {{name}}.",
+    "prefilled": "Dans le formulaire : {{what}}. Choisissez la langue et les coordonnées, puis créez l’export."
+  },
+  "problems": {
+    "create": {
+      "contacts": "Votre rôle ne peut pas voir les coordonnées des invités ; cet export ne peut donc pas les inclure.",
+      "manifest": "Une liste des billets nécessite l’accès aux coordonnées des invités, que votre rôle n’a pas.",
+      "forbidden": "Votre rôle ne peut pas créer d’exports pour cet événement.",
+      "queueFull": "Cet événement a déjà 10 exports en cours de création. Attendez que l’un d’eux se termine, puis réessayez.",
+      "keyReused": "Cet appui a servi à un autre export. Appuyez à nouveau pour créer celui-ci.",
+      "eventMissing": "Cet événement n’est plus disponible.",
+      "check": "L’export n’a pas pu être créé comme demandé.",
+      "unreachable": "Aucune réponse. Appuyez à nouveau : cela ne créera pas de deuxième copie."
+    },
+    "download": {
+      "contacts": "Votre rôle ne peut plus voir les coordonnées des invités ; ce fichier ne peut donc pas être téléchargé.",
+      "manifest": "Une liste des billets ne peut être téléchargée qu’avec l’accès aux coordonnées des invités, que votre rôle n’a plus.",
+      "forbidden": "Votre rôle ne peut plus télécharger les exports de cet événement.",
+      "notReady": "Ce fichier est encore en cours de création. Cette page indiquera quand il sera prêt.",
+      "nowReady": "Il est prêt maintenant. Réessayez pour le télécharger.",
+      "notMade": "Ce fichier ne peut pas être téléchargé : sa ligne indique pourquoi.",
+      "expired": "Ce fichier a expiré. Recréez-le pour obtenir les listes telles qu’elles sont maintenant.",
+      "withdrawn": "Ce fichier a été retiré. Recréez-le pour obtenir les listes telles qu’elles sont maintenant.",
+      "gone": "Ce fichier n’est plus disponible. Recréez-le pour obtenir les listes telles qu’elles sont maintenant.",
+      "storage": "Le stockage des fichiers ne répond pas pour le moment. Réessayez dans quelques minutes.",
+      "missing": "Cet export n’existe plus pour cet événement.",
+      "wrongType": "Ce qui est revenu n’était pas le fichier demandé ; rien n’a été enregistré.",
+      "unreachable": "Le fichier n’est pas arrivé. Vérifiez votre connexion et réessayez."
+    },
+    "rateLimited": "Trop de demandes à la fois. Attendez une minute, puis réessayez.",
+    "server": "Une erreur s’est produite de notre côté. Veuillez réessayer dans un instant.",
+    "other": "Cela n’a pas fonctionné."
+  },
+  "offers": {
+    "redacted": "Créer sans coordonnées",
+    "makeAgain": "Recréer",
+    "tryAgain": "Réessayer"
+  }
+}

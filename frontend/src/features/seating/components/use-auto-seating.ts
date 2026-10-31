@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isApiError } from '@/api/errors';
+import { createRetryKey } from '@/api/retry-key';
 import { browserSession } from '@/api/session';
 import { waitFor } from '@/lib/poll';
 
 import { getSeatingJob, listSeatingJobs, startAutoSeating } from '../api';
-import { createRetryKey } from '../idempotency';
 import { followJob, isActive, latestJobOf } from '../jobs';
 import { refusalOf, type SeatingRefusal } from '../refusals';
 import type { SeatingJob } from '../types';

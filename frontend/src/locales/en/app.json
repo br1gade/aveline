@@ -23,7 +23,8 @@
     "designPreview": "Preview · Aveline",
     "photos": "Guests’ photos · Aveline",
     "agreements": "Agreements · Aveline",
-    "seating": "Seating · Aveline"
+    "seating": "Seating · Aveline",
+    "exports": "Exports · Aveline"
   },
   "shell": {
     "loading": "Loading…",

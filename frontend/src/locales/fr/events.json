@@ -77,7 +77,8 @@
     "design": "Concevoir l’invitation",
     "photos": "Photos des invités",
     "agreements": "Accords",
-    "seating": "Placement"
+    "seating": "Placement",
+    "exports": "Exports"
   },
   "headcount": {
     "title": "Invités",

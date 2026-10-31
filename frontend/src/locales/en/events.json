@@ -77,7 +77,8 @@
     "design": "Design the invitation",
     "photos": "Guests’ photos",
     "agreements": "Agreements",
-    "seating": "Seating"
+    "seating": "Seating",
+    "exports": "Exports"
   },
   "headcount": {
     "title": "Guests",

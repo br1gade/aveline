@@ -13,6 +13,7 @@ import {
   attendancePath,
   designPath,
   editEventPath,
+  exportsPath,
   guestListPath,
   invitationPath,
   photosPath,
@@ -111,6 +112,9 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
           </Button>
           <Button asChild variant="outline">
             <Link to={seatingPath(event.id)}>{t('overview.seating')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={exportsPath(event.id)}>{t('overview.exports')}</Link>
           </Button>
           {event.invitation ? (
             <>

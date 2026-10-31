@@ -23,7 +23,8 @@
     "designPreview": "Предпросмотр · Aveline",
     "photos": "Фото гостей · Aveline",
     "agreements": "Согласия · Aveline",
-    "seating": "Рассадка · Aveline"
+    "seating": "Рассадка · Aveline",
+    "exports": "Экспорт · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

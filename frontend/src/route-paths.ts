@@ -60,4 +60,6 @@ export const APP_PATHS = {
   agreements: '/app/events/:eventId/agreements',
   /** Tables and seats per venue, automatic seating, and showing guests their tables. */
   seating: '/app/events/:eventId/seating',
+  /** Fixed copies of the event's lists, made in the background and downloaded while signed in. */
+  exports: '/app/events/:eventId/exports',
 } as const;

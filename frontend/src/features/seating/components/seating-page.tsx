@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 
-import { eventPath, type AttendanceMode, type EventDetail } from '@/features/events';
+import { eventPath, exportsPath, type AttendanceMode, type EventDetail } from '@/features/events';
 import type { Household } from '@/features/guests';
 import { LoadedProblem } from '@/features/sending';
 import { StatusLine } from '@/ui/app-form';
@@ -153,6 +153,9 @@ function Header({ event }: { event: EventDetail }) {
         <p className="text-muted-foreground m-0">{event.title}</p>
       </div>
       <p className="m-0">{t('intro')}</p>
+      <Link to={exportsPath(event.id)} className={LINK}>
+        {t('exportsLink')}
+      </Link>
     </>
   );
 }

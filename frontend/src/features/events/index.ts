@@ -7,7 +7,7 @@ export { EventOverview } from './components/event-overview';
 export { EventUnavailable } from './components/event-unavailable';
 export { NotifyGuests, type NotifyBack, type NotifyOffer } from './components/notify-guests';
 export { loadEventOverview } from './load';
-export { eventPath } from './paths';
+export { eventPath, exportsPath } from './paths';
 export type {
   AttendanceMode,
   EventDetail,
