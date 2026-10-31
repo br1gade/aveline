@@ -107,7 +107,9 @@ describe('Exports (e2e coverage)', () => {
       const event = await owned(seeded);
       const order = await ticketServices(prisma).ticketing.createOrder(seeded.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local',
         items: [{ ticketTypeId: seeded.ticketTypeId, quantity: 1 }], attendees: [{ ticketTypeId: seeded.ticketTypeId, firstName: 'Holder' }], idempotencyKey: randomUUID() });
-      const ticket = await prisma.ticket.findFirstOrThrow({ where: { orderId: order.orderId } });
+      // A fixed code: a random one starting with "-" is written with the formula
+      // guard's leading tab (pinned in csv.spec.ts), which is not what this tests.
+      const ticket = await prisma.ticket.update({ where: { id: (await prisma.ticket.findFirstOrThrow({ where: { orderId: order.orderId } })).id }, data: { code: 'MANIFEST01' } });
       const [header, ...rows] = await legacyCsv(event.base, event.owner, 'TICKET_MANIFEST');
       expect(header).toEqual(['Code', 'Type', 'Holder', 'Buyer', 'Buyer email', 'Status', 'Used at']);
       // The type name is translated content: resolved in the event's language, never its raw JSON.
