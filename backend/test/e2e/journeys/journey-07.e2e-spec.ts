@@ -130,8 +130,8 @@ describe('Journey 07: plan, invoice, bank payment, entitlement on the invitation
       subscription: Record<string, unknown> | null;
     };
 
-  /** Steps 3–4: subscribe, pay at the bank the redirect points to, come back and confirm. */
-  const payForManaged = async (authorization: string) => {
+  /** Step 3: subscribe to the paid tier — an invoice and a bank URL, and nothing granted yet. */
+  const startManaged = async (authorization: string) => {
     const { body: started } = await http()
       .post(api('/subscription'))
       .set('Authorization', authorization)
@@ -142,22 +142,30 @@ describe('Journey 07: plan, invoice, bank payment, entitlement on the invitation
     const invoiceNumber = started.invoice.number as string;
     expect(invoiceNumber).toMatch(/^AV-\d{4}-\d{6}$/);
     expect(started.invoice.paymentOrderNumber).toBe(started.payment.orderNumber);
+    expect(await subscription(authorization)).toEqual({ subscription: null });
+    return { invoiceNumber, orderNumber: started.payment.orderNumber as string, redirectUrl: started.payment.redirectUrl as string };
+  };
 
+  /** Step 4: pay at the bank the redirect points to, come back and confirm. */
+  const payAtBankAndConfirm = async (authorization: string, started: Awaited<ReturnType<typeof startManaged>>) => {
     // The payer is sent to the bank form; the bank's reference travels on the
     // URL the payer is sent back to.
-    const redirect = new URL(started.payment.redirectUrl as string);
+    const redirect = new URL(started.redirectUrl);
     expect(redirect.pathname).toBe('/billing/return');
     const bankReference = redirect.searchParams.get('fakePayment');
-    expect(bankReference).toBe(`fake_${started.payment.orderNumber as string}`);
+    expect(bankReference).toBe(`fake_${started.orderNumber}`);
     fake.simulateSuccess(bankReference!);
 
     const { body: confirmed } = await http()
-      .post(api(`/invoices/${invoiceNumber}/confirm`))
+      .post(api(`/invoices/${started.invoiceNumber}/confirm`))
       .set('Authorization', authorization)
       .expect(201);
-    expect(confirmed).toMatchObject({ number: invoiceNumber, status: 'PAID', paidAt: expect.any(String), totalMinor: '25000' });
-    return { invoiceNumber, orderNumber: started.payment.orderNumber as string };
+    expect(confirmed).toMatchObject({ number: started.invoiceNumber, status: 'PAID', paidAt: expect.any(String), totalMinor: '25000' });
+    return { invoiceNumber: started.invoiceNumber, orderNumber: started.orderNumber };
   };
+
+  const payForManaged = async (authorization: string) =>
+    payAtBankAndConfirm(authorization, await startManaged(authorization));
 
   /** An event created, given one guest and published, as the host does it. */
   const publishEventWithGuest = async (authorization: string, title: string, firstName: string) => {
@@ -193,6 +201,7 @@ describe('Journey 07: plan, invoice, bank payment, entitlement on the invitation
       .expect(201);
     return {
       eventId: event.id as string,
+      endsAt: event.endsAt as string,
       slug,
       guestLink: api(`/invitations/${slug}/g/${guest.token as string}`),
       published: published as Record<string, unknown>,
@@ -226,12 +235,17 @@ describe('Journey 07: plan, invoice, bank payment, entitlement on the invitation
       }),
     ]);
 
-    // Before paying, the host is on the free fallback.
+    // Step 3: the invoice is issued, and nothing is granted until it is paid —
+    // an invitation published meanwhile is on the free fallback.
+    const started = await startManaged(authorization);
     const free = await publishEventWithGuest(authorization, 'Engagement', 'Lusine');
-    expect(free.published).toMatchObject({ lifetimeSource: 'FREE_DEFAULT', lifetimeDays: 90, lifetimePlanKey: null });
+    expect(free.published).toMatchObject({
+      lifetimeSource: 'FREE_DEFAULT', lifetimeDays: 90, lifetimePlanKey: null,
+      expiresAt: new Date(new Date(free.endsAt).getTime() + 90 * DAY_MS).toISOString(),
+    });
 
-    // Steps 3–4: the invoice is issued, and nothing is granted until it is paid.
-    const paid = await payForManaged(authorization);
+    // Step 4: paid at the bank and confirmed.
+    const paid = await payAtBankAndConfirm(authorization, started);
 
     // Step 5: the plan is active, and says what it entitles.
     const { subscription: active } = await subscription(authorization);
@@ -292,11 +306,13 @@ describe('Journey 07: plan, invoice, bank payment, entitlement on the invitation
     const refund = (amountMinor: string) =>
       http().post(api(`/payments/${paid.orderNumber}/refund`)).set('Authorization', admin).send({ amountMinor, reason: 'Changed their mind' });
     expect((await refund('5000').expect(201)).body).toMatchObject({ status: 'PARTIALLY_REFUNDED', refundedMinor: '5000' });
-    expect((await subscription(authorization)).subscription).toMatchObject({ status: 'ACTIVE' });
+    expect((await subscription(authorization)).subscription).toMatchObject({ status: 'ACTIVE', plan: expect.objectContaining({ key: 'managed' }) });
+    const invoiceAfter = async () =>
+      (await http().get(api(`/invoices/${paid.invoiceNumber}`)).set('Authorization', authorization).expect(200)).body as { status: string };
+    expect((await invoiceAfter()).status).toBe('PAID');
     expect((await refund('20000').expect(201)).body).toMatchObject({ status: 'REFUNDED', refundedMinor: '25000' });
 
-    const { body: invoice } = await http().get(api(`/invoices/${paid.invoiceNumber}`)).set('Authorization', authorization).expect(200);
-    expect(invoice.status).toBe('VOID');
+    expect((await invoiceAfter()).status).toBe('VOID');
     const { subscription: ended } = await subscription(authorization);
     expect(ended).toMatchObject({ status: 'CANCELLED' });
     expect(new Date(ended!.currentPeriodEnd as string).getTime()).toBeLessThanOrEqual(Date.now());
@@ -312,5 +328,4 @@ describe('Journey 07: plan, invoice, bank payment, entitlement on the invitation
     expect(await hostInvitation(authorization, wedding.eventId)).toMatchObject({ lifetimeSource: 'PLAN', lifetimePlanKey: 'managed', expiresAt: null });
     await http().get(wedding.guestLink).expect(200);
   });
-
 });

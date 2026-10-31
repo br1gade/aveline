@@ -17,8 +17,8 @@ import { PrivateMediaRunner } from '../../../src/modules/guest-contributions/pri
 import { InvitationMaintenanceService } from '../../../src/modules/invitations/invitation-maintenance.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { authenticateAs } from '../../fixtures/auth.fixture';
-import { drawing, drawn, guestBase, PNG_SIGNATURE, typed } from '../../fixtures/coverage/contributions.fixture';
-import { parseCsv } from '../../fixtures/coverage/journey-05.fixture';
+import { drawing, drawn, guestBase, PNG_SIGNATURE, typed } from '../../fixtures/areas/contributions.fixture';
+import { parseCsv } from '../../fixtures/areas/journey-05.fixture';
 import { seedEvent } from '../../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
@@ -28,7 +28,7 @@ const HOST_PASSWORD = 'journey-04-host-password';
 const UNTHROTTLED: ThrottlerStorage = {
   increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
 };
-/** Only the calendar moves; every timer, tick and microtask stays real so Nest, Prisma and supertest run as usual. */
+/** Only the calendar is faked, and held still so the deadline is hit to the millisecond; every timer, tick and microtask stays real so Nest, Prisma and supertest run as usual. */
 const REAL_TIMERS = ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame',
   'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] as const;
 
@@ -130,6 +130,7 @@ describe('Journey 04: guest acknowledgements and the moderated gallery survive i
     // Ticket and guest admission wait on the statement: Davit cannot be let in until someone signs for him.
     const refused = await checkIn(w, w.davit.id, authorization).expect(400);
     expect(refused.body.message).toMatch(/acknowledg/i);
+    expect(await prisma.checkIn.count({ where: { guestId: w.davit.id } })).toBe(0);
 
     const version = String(question.statementVersionId);
     const household = await http().post(`${w.annaLink}/acknowledgements`)
@@ -140,7 +141,8 @@ describe('Journey 04: guest acknowledgements and the moderated gallery survive i
     // Davit sees, through his own link, the record his sister signed for him.
     const seenByDavit = await http().get(`${w.davitLink}/acknowledgements`).expect(200);
     expect(seenByDavit.body.records).toEqual(expect.arrayContaining([expect.objectContaining({ subjectGuestId: w.davit.id, signerGuestId: w.anna.id, isRepresentative: true })]));
-    await checkIn(w, w.davit.id, authorization).expect(201);
+    const admitted = await checkIn(w, w.davit.id, authorization).expect(201);
+    expect(admitted.body).toMatchObject({ guestId: w.davit.id, arrivedAt: expect.any(String) });
 
     const { body: upload } = await http().post(`${w.lilitLink}/signature-uploads`).attach('file', await drawing(), { filename: 'signature.png', contentType: 'image/png' }).expect(201);
     expect(upload).toMatchObject({ kind: 'SIGNATURE', processingStatus: 'QUEUED' });
@@ -220,29 +222,24 @@ describe('Journey 04: guest acknowledgements and the moderated gallery survive i
     return { contributions: body.contributions as { acknowledgements: { id: string }[]; media: { id: string; kind: string }[] }, file };
   };
 
-  it('keeps signatures and moderated photos with the host after expiry, closed to guests and gone from exports once removed', async () => {
-    const w = await seedWedding();
-    let authorization = await signIn();
-    const { expiresAt, signatureId, lilitRecordId } = await acknowledge(w, authorization);
-    const photos = await shareAndModerate(w, authorization);
-
-    // Nothing is due yet: the sweep leaves the invitation alone.
+  /** Step 8, the boundary: still open a moment before the captured deadline, closed from that instant on, and swept once. */
+  const passDeadline = async (w: Wedding, expiresAt: Date, photos: { toast: Media; cake: Media }, signatureId: string) => {
     const maintenance = app.get(InvitationMaintenanceService);
+    // The event happens; ninety days later the clock stands one millisecond short of the deadline captured at publication.
+    jest.useFakeTimers({ now: new Date(expiresAt.getTime() - 1), doNotFake: [...REAL_TIMERS] });
+    expect(captions(await guestGallery(w.annaLink))).toEqual(['The cake']);
     expect((await maintenance.maintain()).expiriesProcessed).toBe(0);
-
-    // The event happens; ninety days later the captured deadline passes.
-    jest.useFakeTimers({ now: new Date(expiresAt.getTime() + 60_000), advanceTimers: true, doNotFake: [...REAL_TIMERS] });
+    jest.setSystemTime(expiresAt);
     await expectGuestContributionsClosed(w, photos, signatureId);
-    const swept = await maintenance.maintain();
-    expect(swept.expiriesProcessed).toBe(1);
+    expect((await maintenance.maintain()).expiriesProcessed).toBe(1);
     const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: w.slug } });
     expect(invitation.expiryProcessedAt).not.toBeNull();
     expect(invitation.expiresAt).toEqual(expiresAt);
     expect((await maintenance.maintain()).expiriesProcessed).toBe(0);
+  };
 
-    // The host's old session has lapsed with the months; she signs in again and finds everything.
-    await http().get(api(`/events/${w.eventId}`)).set('Authorization', authorization).expect(401);
-    authorization = await signIn();
+  /** After expiry the host still reads every signature record and the drawn file behind one. */
+  const expectHostKeepsSignatures = async (w: Wedding, authorization: string, expiresAt: Date, lilitRecordId: string) => {
     const event = await http().get(api(`/events/${w.eventId}`)).set('Authorization', authorization).expect(200);
     expect(event.body.invitation).toMatchObject({ isExpired: true, expiresAt: expiresAt.toISOString() });
     const records = await http().get(api(`/events/${w.eventId}/acknowledgements`)).set('Authorization', authorization).expect(200);
@@ -251,8 +248,10 @@ describe('Journey 04: guest acknowledgements and the moderated gallery survive i
       .toEqual([[w.anna.id, w.anna.id, 'TYPED'], [w.davit.id, w.anna.id, 'TYPED'], [w.lilit.id, w.lilit.id, 'DRAWN']].sort());
     const drawnFile = await http().get(api(`/events/${w.eventId}/acknowledgements/${lilitRecordId}/file`)).set('Authorization', authorization).expect(200);
     expect((drawnFile.body as Buffer).subarray(0, 8)).toEqual(PNG_SIGNATURE);
+  };
 
-    // She can still moderate: approve the cake, look at it, and take the rejected toast down for good.
+  /** After expiry the host still moderates: approves the cake, views it, and takes the rejected toast down to the bytes. */
+  const moderateAfterExpiry = async (w: Wedding, authorization: string, photos: { toast: Media; cake: Media }) => {
     const cake = await http().patch(api(`/events/${w.eventId}/gallery/${photos.cake.id}`)).set('Authorization', authorization).send({ moderationStatus: 'APPROVED' }).expect(200);
     expect(cake.body).toMatchObject({ moderationStatus: 'APPROVED', moderatedAt: expect.any(String) });
     const display = await http().get(api(`/events/${w.eventId}/gallery/${photos.cake.id}/file`)).set('Authorization', authorization).expect(200);
@@ -260,8 +259,32 @@ describe('Journey 04: guest acknowledgements and the moderated gallery survive i
     const toastLedger = await prisma.guestMedia.findUniqueOrThrow({ where: { id: photos.toast.id } });
     await http().delete(api(`/events/${w.eventId}/gallery/${photos.toast.id}`)).set('Authorization', authorization).expect(200);
     expect((await hostGallery(w, authorization)).map((item) => [item.caption, item.moderationStatus])).toEqual([['The cake', 'APPROVED']]);
+    await expect(storedFile(toastLedger.sourceKey)).resolves.toBeInstanceOf(Buffer);
     await cleanupMedia();
     await expect(storedFile(toastLedger.sourceKey)).rejects.toThrow();
+  };
+
+  it('keeps signatures and moderated photos with the host after expiry, closes them to guests at the deadline and drops removed photos from exports', async () => {
+    const w = await seedWedding();
+    const firstSession = await signIn();
+    const { expiresAt, signatureId, lilitRecordId } = await acknowledge(w, firstSession);
+    const photos = await shareAndModerate(w, firstSession);
+    await passDeadline(w, expiresAt, photos, signatureId);
+
+    // The host's old session has lapsed with the months; she signs in again and finds everything.
+    await http().get(api(`/events/${w.eventId}`)).set('Authorization', firstSession).expect(401);
+    const authorization = await signIn();
+    await expectHostKeepsSignatures(w, authorization, expiresAt, lilitRecordId);
+
+    // Lilit's subject-access export after expiry carries her drawing, her record and her rejected photo...
+    const dsar = await exportForLilit();
+    expect(dsar.contributions.acknowledgements.map((r) => r.id)).toEqual([lilitRecordId]);
+    expect(dsar.contributions.media.map((m) => [m.id, m.kind]).sort()).toEqual([[photos.toast.id, 'GALLERY'], [signatureId, 'SIGNATURE']].sort());
+    await dsar.file(photos.toast.id).expect(200);
+    // ...until the host removes that photo: then the export no longer serves it, while the drawing stays.
+    await moderateAfterExpiry(w, authorization, photos);
+    await dsar.file(photos.toast.id).expect(404);
+    await dsar.file(signatureId).expect(200);
     expect(await prisma.guest.count({ where: { eventId: w.eventId } })).toBe(3);
     expect(await prisma.guestAcknowledgement.count({ where: { eventId: w.eventId } })).toBe(3);
 
@@ -270,12 +293,5 @@ describe('Journey 04: guest acknowledgements and the moderated gallery survive i
     const csv = await http().get(api(`/events/${w.eventId}/exports/${String(exported.id)}/download`)).set('Authorization', authorization).expect(200);
     expect(parseCsv(csv.text)).toHaveLength(3);
     expect(csv.text).not.toMatch(/The cake|Blurry toast|First dance/);
-
-    // Lilit's subject-access export: her drawing and record, but not the photo the host removed.
-    const dsar = await exportForLilit();
-    expect(dsar.contributions.acknowledgements.map((r) => r.id)).toEqual([lilitRecordId]);
-    expect(dsar.contributions.media.map((m) => [m.id, m.kind])).toEqual([[signatureId, 'SIGNATURE']]);
-    await dsar.file(signatureId).expect(200);
-    await dsar.file(photos.toast.id).expect(404);
   });
 });

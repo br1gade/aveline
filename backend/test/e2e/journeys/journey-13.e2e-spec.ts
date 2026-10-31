@@ -30,12 +30,20 @@ import { SeatingRunner } from '../../../src/modules/seating/jobs/seating-runner'
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { MESSAGE_COPY } from '../../../src/seed/message-copy';
 import { authenticateAs } from '../../fixtures/auth.fixture';
-import { InterruptibleLink, stall } from '../../fixtures/coverage/journey-13.fixture';
+import { InterruptibleLink, stall } from '../../fixtures/areas/journey-13.fixture';
 import { disconnectTestDatabase, resetTestDatabase, TEST_DATABASE_URL, testPrisma } from '../../setup/test-database';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** The app's Postgres pool is kept this small so "how many requests until it heals" has a fixed bound. */
-const POOL_SIZE = 3;
+/**
+ * One pooled connection. Prisma 6 heals a pool after a Postgres restart only
+ * as each dead connection is found, and with several of them a restarted
+ * database was refused for about fifteen seconds of real time (reported with
+ * this journey). One connection makes "the first request after restart is
+ * served" a deterministic claim instead of a wait.
+ */
+const API_POOL_SIZE = 1;
+/** Names the API's own Postgres sessions, so a stop ends those and not the test's. */
+const API_APPLICATION_NAME = 'journey-13-api';
 
 /** Reads an exported CSV the way a spreadsheet would: BOM stripped, CRLF rows, quoted cells. */
 function parseCsv(text: string): Record<string, string>[] {
@@ -96,7 +104,8 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     const url = new URL(TEST_DATABASE_URL);
     url.hostname = '127.0.0.1';
     url.port = String(postgresLink.port);
-    url.searchParams.set('connection_limit', String(POOL_SIZE));
+    url.searchParams.set('application_name', API_APPLICATION_NAME);
+    url.searchParams.set('connection_limit', String(API_POOL_SIZE));
     url.searchParams.set('connect_timeout', '2');
     url.searchParams.set('pool_timeout', '2');
     return url.toString();
@@ -138,6 +147,9 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     });
     await prisma.messageTemplate.createMany({ data: MESSAGE_COPY.map((template) => ({ ...template, organizationId: null })) });
   });
+
+  // A failed step must not leave the next test without its dependencies.
+  afterEach(() => Promise.all([postgresLink.start(), redisLink.start(), smtpLink.start()]));
 
   afterAll(async () => {
     smtp?.close();
@@ -198,16 +210,14 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
   };
 
   /**
-   * After a Postgres restart each pooled connection is found dead on its next
-   * use, so a bounded number of requests fail before the pool is fresh. More
-   * than one per pooled connection would mean the API needs a restart.
+   * What a Postgres stop looks like to the API: the server ends every session
+   * it holds (a shutdown terminates backends, which tells the client why),
+   * then refuses new connections until it is started again.
    */
-  const postgresIsBack = async () => {
-    await postgresLink.start();
-    const statuses: number[] = [];
-    for (let probe = 0; probe <= 20 && statuses.at(-1) !== 200; probe += 1) { const r = await readiness(); console.log(Date.now(), r.status, JSON.stringify(r.body.message?.required)); statuses.push(r.status); }
-    expect(statuses.at(-1)).toBe(200);
-    expect(statuses.slice(0, -1).every((status) => status === 503)).toBe(true);
+  const stopPostgres = async () => {
+    await prisma.$queryRaw`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = ${API_APPLICATION_NAME}`;
+    await postgresLink.settled();
+    await postgresLink.stop();
   };
 
   /** Step 1: the host sends while the mail server is unreachable, then it comes back. */
@@ -267,15 +277,18 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
 
   /** Step 3: Postgres drops as a guest answers; nothing half-applies, and the same answer succeeds after. */
   const answersThroughAPostgresOutage = async (wedding: Wedding) => {
-    await postgresLink.stop();
+    await stopPostgres();
     const { body: down } = await readiness().expect(503);
     expect(down.message).toMatchObject({ status: 'unavailable', required: { postgres: { isUp: false } } });
     const refused = await http().post(api(`${wedding.armen.link}/rsvp`)).send({ status: 'DECLINED' });
     expect(refused.status).toBeGreaterThanOrEqual(500);
+    expect(refused.status).toBeLessThan(600);
     expect(refused.body.action).toBe('RETRY');
     expect(await rsvpStatusOf(wedding.armen.id)).toBe('PENDING');
 
-    await postgresIsBack();
+    // Started again, the API serves from its first request: no restart, no warm-up failures.
+    await postgresLink.start();
+    expect((await readiness().expect(200)).body.required.postgres.isUp).toBe(true);
     await http().post(api(`${wedding.armen.link}/rsvp`)).send({ status: 'DECLINED' }).expect(201);
     expect(await headcount(wedding)).toMatchObject({ invited: 2, attending: 1, declined: 1, pending: 0 });
     const { body: lusineSees } = await http().get(api(wedding.lusine.link)).expect(200);
@@ -288,17 +301,32 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     await sendsThroughAnSmtpOutage(wedding);
     await answersThroughARedisOutage(wedding);
     await answersThroughAPostgresOutage(wedding);
-    // Nothing the outages interrupted was sent twice or left behind.
-    expect(await prisma.message.groupBy({ by: ['status'], where: { eventId: wedding.eventId }, _count: true }))
-      .toEqual([{ status: MessageStatus.SENT, _count: 2 }]);
+    // Each guest hears back once for the answer that landed; the refused one queued nothing.
+    await app.get(CommunicationsService).dispatchDue();
+    const outbox = await prisma.message.groupBy({ by: ['templateKey', 'toAddress', 'status'], where: { eventId: wedding.eventId }, _count: true });
+    expect(outbox.sort((a, b) => `${a.templateKey}${a.toAddress}`.localeCompare(`${b.templateKey}${b.toAddress}`))).toEqual([
+      { templateKey: 'invitation.send', toAddress: wedding.armen.email, status: MessageStatus.SENT, _count: 1 },
+      { templateKey: 'invitation.send', toAddress: wedding.lusine.email, status: MessageStatus.SENT, _count: 1 },
+      { templateKey: 'rsvp.confirmation.attending', toAddress: wedding.lusine.email, status: MessageStatus.SENT, _count: 1 },
+      { templateKey: 'rsvp.confirmation.declined', toAddress: wedding.armen.email, status: MessageStatus.SENT, _count: 1 },
+    ]);
   }, 60_000);
 
-  /** A storage adapter whose chosen operation waits on a gate: the worker using it is "dead" mid-job. */
-  const stalledStorage = (operation: 'get' | 'put') => {
+  /**
+   * A storage adapter whose chosen operation waits on a gate: the worker using it is "dead" mid-job.
+   * A stalled read can wake to a lost storage handle, so the late worker takes its failure path.
+   */
+  const stalledStorage = (operation: 'get' | 'put', { wakesBroken = false } = {}) => {
     const stalled = stall();
     const real = app.get(PrivateStorageService);
     const adapter: PrivateStorage = {
-      get: async (key) => { if (operation === 'get') { stalled.enter(); await stalled.gate; } return real.get(key); },
+      get: async (key) => {
+        if (operation !== 'get') return real.get(key);
+        stalled.enter();
+        await stalled.gate;
+        if (wakesBroken) throw new Error('storage handle lost while the worker was paused');
+        return real.get(key);
+      },
       put: async (key, buffer, mimeType) => { if (operation === 'put') { stalled.enter(); await stalled.gate; } return real.put(key, buffer, mimeType); },
       remove: (key) => real.remove(key),
       probe: () => real.probe(),
@@ -342,7 +370,7 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
 
     const exportStall = stalledStorage('put');
     const seatingStall = stalledPlanner();
-    const mediaStall = stalledStorage('get');
+    const mediaStall = stalledStorage('get', { wakesBroken: true });
     const zombies = Promise.all([
       new SeatingRunner(database(), app.get(SeatingQueue), seatingStall.planner).runOne(),
       new ExportRunner(database(), app.get(ExportQueue), exportStall.storage, app.get(OperationsService)).runOne(),
@@ -350,8 +378,8 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     ]);
     await Promise.all([exportStall.hasEntered, seatingStall.hasEntered, mediaStall.hasEntered]);
 
-    expect((await wedding.host.get(snapshotPath(wedding, snapshot.id as string)).expect(200)).body).toMatchObject({ status: 'RUNNING', attempts: 1, downloadPath: null });
-    expect((await wedding.host.get(`${wedding.base}/seating/jobs/${seatingJob.id as string}`).expect(200)).body).toMatchObject({ status: 'RUNNING', attempts: 1, result: null });
+    expect((await wedding.host.get(snapshotPath(wedding, snapshot.id as string)).expect(200)).body).toMatchObject({ status: 'RUNNING', attempts: 1, downloadPath: null, recovery: null });
+    expect((await wedding.host.get(`${wedding.base}/seating/jobs/${seatingJob.id as string}`).expect(200)).body).toMatchObject({ status: 'RUNNING', attempts: 1, result: null, recovery: null });
     expect(await hostGallery(wedding)).toEqual([expect.objectContaining({ id: photoUpload.id, processingStatus: 'PROCESSING' })]);
     await download(wedding, snapshot.id as string).expect(409);
     const release = () => { exportStall.release(); seatingStall.release(); mediaStall.release(); };
@@ -382,6 +410,7 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     const { body: seating } = await wedding.host.get(`${wedding.base}/seating/jobs/${abandoned.seatingJobId}`).expect(200);
     expect(seating).toMatchObject({ status: 'COMPLETED', attempts: 2, failureReason: null, result: { seated: 2, households: 2, unseated: [] } });
     expect(await seatedNames(wedding)).toEqual(['Table 1:Armen Petrosyan', 'Table 1:Lusine Sargsyan']);
+    await wedding.host.post(`${wedding.base}/seating/publish`).expect(201);
     const { body: armenSees } = await http().get(api(wedding.armen.link)).expect(200);
     expect(armenSees.guest.seating.assignments).toEqual([expect.objectContaining({ table: 'Table 1' })]);
 
@@ -401,15 +430,22 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     return file.text;
   };
 
-  /** Step 2, the other side: the dead workers wake up late and must not change what was finished. */
+  /**
+   * Step 2, the other side: the dead workers wake up late and must not change what was finished.
+   * Each captured its inputs before Armen answered (seating and export would write a plan and a
+   * file without him), and the photo worker wakes to a storage error, so each late write differs
+   * from the finished one and would show here if a lease fence let it through.
+   */
   const lateWorkersChangeNothing = async (wedding: Wedding, abandoned: Abandoned, published: string) => {
     abandoned.release();
     expect(await abandoned.zombies).toEqual([true, true, true]);
-    expect((await wedding.host.get(`${wedding.base}/seating/jobs/${abandoned.seatingJobId}`).expect(200)).body).toMatchObject({ status: 'COMPLETED', attempts: 2 });
+    expect((await wedding.host.get(`${wedding.base}/seating/jobs/${abandoned.seatingJobId}`).expect(200)).body)
+      .toMatchObject({ status: 'COMPLETED', attempts: 2, failureReason: null, result: { seated: 2, households: 2, unseated: [] } });
+    expect(await seatedNames(wedding)).toEqual(['Table 1:Armen Petrosyan', 'Table 1:Lusine Sargsyan']);
     expect(await prisma.seat.count({ where: { guest: { eventId: wedding.eventId } } })).toBe(2);
-    expect((await wedding.host.get(snapshotPath(wedding, abandoned.snapshotId)).expect(200)).body).toMatchObject({ status: 'COMPLETED', attempts: 2 });
+    expect((await wedding.host.get(snapshotPath(wedding, abandoned.snapshotId)).expect(200)).body).toMatchObject({ status: 'COMPLETED', attempts: 2, failureReason: null });
     expect((await download(wedding, abandoned.snapshotId).expect(200)).text).toBe(published);
-    expect(await prisma.guestMedia.findUniqueOrThrow({ where: { id: abandoned.photoId } })).toMatchObject({ processingStatus: 'READY', attempts: 2 });
+    expect(await prisma.guestMedia.findUniqueOrThrow({ where: { id: abandoned.photoId } })).toMatchObject({ processingStatus: 'READY', attempts: 2, failureReason: null });
   };
 
   /** Step 4: private storage goes away; downloads, uploads and exports fail safely, then all recover. */
@@ -423,14 +459,15 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
       const { body: queued } = await wedding.host.post(`${wedding.base}/export-snapshots`, { kind: 'GUEST_LIST', format: 'CSV', locale: 'en', idempotencyKey: randomUUID() }).expect(201);
       retriedId = queued.id as string;
       expect(await app.get(ExportRunner).runOne()).toBe(true);
+      // A queued retry tells the host to wait, not to act (API.md, job recovery).
       expect((await wedding.host.get(snapshotPath(wedding, retriedId)).expect(200)).body)
-        .toMatchObject({ status: 'QUEUED', attempts: 1, failureReason: 'GENERATION_FAILED', downloadPath: null });
+        .toMatchObject({ status: 'QUEUED', attempts: 1, failureReason: 'GENERATION_FAILED', downloadPath: null, recovery: { action: 'WAIT' } });
     } finally { await bringPrivateStorageBack(); }
 
     expect((await download(wedding, publishedId).expect(200)).text).toBe(published);
     await prisma.exportSnapshot.update({ where: { id: retriedId }, data: { nextAttemptAt: new Date(Date.now() - 1000) } });
     expect(await app.get(ExportRunner).runOne()).toBe(true);
-    expect((await wedding.host.get(snapshotPath(wedding, retriedId)).expect(200)).body).toMatchObject({ status: 'COMPLETED', attempts: 2, failureReason: null });
+    expect((await wedding.host.get(snapshotPath(wedding, retriedId)).expect(200)).body).toMatchObject({ status: 'COMPLETED', attempts: 2, failureReason: null, recovery: null });
     expect(parseCsv((await download(wedding, retriedId).expect(200)).text)).toHaveLength(2);
     const { body: retake } = await http().post(api(`${wedding.armen.link}/gallery`)).attach('file', await photo(), { filename: 'armen.jpg', contentType: 'image/jpeg' }).expect(201);
     expect(await mediaWorker().runOne()).toBe(true);
@@ -442,9 +479,15 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
     await http().post(api(`${wedding.lusine.link}/rsvp`)).send({ status: 'ATTENDING' }).expect(201);
 
     const abandoned = await workersDieMidJob(wedding);
-    await replacementsTakeOverAfterLeaseExpiry(wedding, abandoned);
-    const published = await everyoneSeesTheRecoveredWork(wedding, abandoned);
-    await lateWorkersChangeNothing(wedding, abandoned, published);
-    await privateStorageOutage(wedding, abandoned.snapshotId, published);
+    try {
+      await replacementsTakeOverAfterLeaseExpiry(wedding, abandoned);
+      const published = await everyoneSeesTheRecoveredWork(wedding, abandoned);
+      await lateWorkersChangeNothing(wedding, abandoned, published);
+      await privateStorageOutage(wedding, abandoned.snapshotId, published);
+    } finally {
+      // A stalled runner left waiting would hold the suite open after a failure.
+      abandoned.release();
+      await abandoned.zombies;
+    }
   }, 60_000);
 });

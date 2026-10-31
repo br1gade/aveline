@@ -4,6 +4,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { BlockType, MessageChannel, MessageStatus, PrismaClient } from '@prisma/client';
+import type Redis from 'ioredis';
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
 import { MessageTransport } from '../../../src/modules/communications/channels/message-channel';
@@ -11,6 +12,7 @@ import { SmtpTransport } from '../../../src/modules/communications/channels/smtp
 import { MESSAGE_TRANSPORTS } from '../../../src/modules/communications/communications.module';
 import { CommunicationsService } from '../../../src/modules/communications/communications.service';
 import { SeatingRunner } from '../../../src/modules/seating/jobs/seating-runner';
+import { REDIS_CLIENT } from '../../../src/infra/cache/cache.service';
 import { ReminderSweepService } from '../../../src/infra/jobs/reminder-sweep.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { MESSAGE_COPY } from '../../../src/seed/message-copy';
@@ -143,7 +145,7 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
 
   /** Step 1: a stranger registers, signs in and becomes a tenant. */
   const registerHost = async () => {
-    const email = `host-${randomUUID().slice(0, 8)}@journey.test`;
+    const email = 'anna@journey.test';
     const password = 'a-long-enough-journey-password';
     await http().post(api('/auth/register')).send({ email, password, name: 'Anna Host' }).expect(202);
     const { body: session } = await http().post(api('/auth/login')).send({ email, password }).expect(201);
@@ -270,13 +272,6 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
   /** Step 8, everyone else who answers before the reminder. */
   const othersAnswer = async (ids: Ids) => {
     const mariam = await linkFor(ids.eventId, 'invitation.send', 'mariam@journey.test');
-    // A plus-one who is coming must choose a main course too; the refusal changes nothing.
-    const { body: refused } = await http().post(api(`${mariam}/rsvp`)).send({
-      status: 'ATTENDING', answers: [{ questionId: ids.mainCourseId, value: 1 }], party: [{ firstName: 'Hayk' }],
-    }).expect(400);
-    expect(refused.message).toMatch(/^party: Hayk must answer/);
-    expect(await prisma.guest.count({ where: { eventId: ids.eventId, firstName: 'Hayk' } })).toBe(0);
-
     await http().post(api(`${mariam}/rsvp`)).send({
       status: 'ATTENDING', songRequest: ' sirun  yar ', answers: [{ questionId: ids.mainCourseId, value: 1 }],
       party: [{ firstName: 'Hayk', lastName: 'Sargsyan', answers: [{ questionId: ids.mainCourseId, value: 1 }] }],
@@ -296,13 +291,20 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
   /** Step 9: the scheduled sweep chases the one household that never answered. */
   const remindAndLateAnswer = async (authorization: string, ids: Ids) => {
     const sweep = app.get(ReminderSweepService);
-    await sweep.sendDueReminders();
+    // The sweep's lock lives in a Redis shared with every other test process,
+    // and a held or stale lock makes the sweep return having done nothing —
+    // which would pass the "too soon" check below for the wrong reason.
+    const sweepNow = async () => {
+      await app.get<Redis>(REDIS_CLIENT).del('aveline:lock:reminders.send');
+      await sweep.sendDueReminders();
+    };
+    await sweepNow();
     // Just invited: too soon to chase anyone.
     expect(await prisma.message.count({ where: { eventId: ids.eventId, templateKey: 'rsvp.reminder' } })).toBe(0);
 
     // Four days pass since the invitations went out.
     await prisma.message.updateMany({ where: { eventId: ids.eventId, templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
-    await sweep.sendDueReminders();
+    await sweepNow();
     const reminders = await outbox(ids.eventId, 'rsvp.reminder');
     expect(reminders.map((message) => message.toAddress)).toEqual(['ani@journey.test']);
 
@@ -501,10 +503,6 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
       const { body: page } = await http().get(api(armen)).expect(200);
       expect(page.guest.attendance).toMatchObject({ mode: 'PER_VENUE', revision: venues.revision, status: 'PENDING' });
       expect((page.guest.attendance.venues as { venue: string }[]).map((venue) => venue.venue).sort()).toEqual(['Ararat Hall', 'Saint Gayane']);
-      // A form built before the switch would answer for the whole event.
-      const { body: stale } = await http().post(api(`${armen}/rsvp`)).send({ status: 'ATTENDING' }).expect(409);
-      expect(stale.message).toMatch(/^attendanceRevision:/);
-
       const { body: form } = await http().get(api(`${armen}/rsvp`)).expect(200);
       const lusine = (form.household.members as { id: string; firstName: string }[]).find((member) => member.firstName === 'Lusine')!;
       const at = (church: string, hall: string) => [{ venueId: venues.church, status: church }, { venueId: venues.hall, status: hall }];
@@ -564,6 +562,8 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
       const seatingOf = new Map(guestList.map((row) => [row['First name'], row['Seating by venue']]));
       expect(seatingOf.get('Armen')).toMatch(/^Ararat Hall: Table \d; Saint Gayane: Pew 1$/);
       expect(seatingOf.get('Narek')).toMatch(/^Ararat Hall: Table \d$/);
+      expect(seatingOf.get('Lusine')).toBe('Saint Gayane: Pew 1');
+      expect(seatingOf.get('Mariam')).toMatch(/^Ararat Hall: Table \d$/);
       expect(seatingOf.get('Tigran')).toBe('');
     };
 

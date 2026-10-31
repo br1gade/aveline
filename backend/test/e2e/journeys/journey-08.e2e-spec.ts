@@ -15,10 +15,11 @@ import { CommunicationsService } from '../../../src/modules/communications/commu
 import { SeatingRunner } from '../../../src/modules/seating/jobs/seating-runner';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { authenticateAs } from '../../fixtures/auth.fixture';
-import { guestPathIn, seedPlatformDefaults, withoutHouseholdNames } from '../../fixtures/coverage/journey-08.fixture';
+import { guestPathIn, seedPlatformDefaults, withoutHouseholdNames } from '../../fixtures/areas/journey-08.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 const UNTHROTTLED: ThrottlerStorage = {
   increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
 };
@@ -95,11 +96,13 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
   };
 
   const createEvent = async (authorization: string) => {
+    // Whole hours ten days out: far enough that no RSVP deadline or reminder is near.
+    const startsAt = new Date(Math.ceil((Date.now() + 10 * DAY_MS) / HOUR_MS) * HOUR_MS);
     const { body: event } = await http().post(api('/events')).set('Authorization', authorization).send({
       type: 'WEDDING', title: 'Anna & Davit', templateKey: 'classic', timezone: 'Asia/Yerevan',
-      startsAt: new Date(Date.now() + 10 * DAY_MS).toISOString(), locales: ['en', 'hy'], defaultLocale: 'en',
+      startsAt: startsAt.toISOString(), locales: ['en', 'hy'], defaultLocale: 'en',
     }).expect(201);
-    return { eventId: event.id as string, slug: event.invitation.slug as string };
+    return { eventId: event.id as string, slug: event.invitation.slug as string, startsAt };
   };
 
   const importGuests = async (authorization: string, eventId: string, csv: string[]) => {
@@ -152,13 +155,13 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
       }).expect(200);
       const { body: hall } = await as(http().post(api(`/events/${event.eventId}/venues`)))
         .send({ role: 'RECEPTION', name: 'Ararat Hall', address: '1 Abovyan St, Yerevan', capacity: 120 }).expect(201);
-      const at = (hours: number) => new Date(Date.now() + 10 * DAY_MS + hours * 3_600_000).toISOString();
+      const timeline = { arrives: new Date(event.startsAt.getTime() - 3 * HOUR_MS).toISOString(), dinner: new Date(event.startsAt.getTime() + HOUR_MS).toISOString() };
       await as(http().post(api(`/events/${event.eventId}/timeline`)))
-        .send({ label: { en: 'Caterer arrives', hy: 'Սննդի մատակարարը ժամանում է' }, occursAt: at(-3), venueId: hall.id, isInternal: true }).expect(201);
+        .send({ label: { en: 'Caterer arrives', hy: 'Սննդի մատակարարը ժամանում է' }, occursAt: timeline.arrives, venueId: hall.id, isInternal: true }).expect(201);
       await as(http().post(api(`/events/${event.eventId}/timeline`)))
-        .send({ label: { en: 'Dinner', hy: 'Ընթրիք' }, occursAt: at(1), venueId: hall.id }).expect(201);
+        .send({ label: { en: 'Dinner', hy: 'Ընթրիք' }, occursAt: timeline.dinner, venueId: hall.id }).expect(201);
       await importGuests(authorization, event.eventId, GUEST_CSV);
-      return event;
+      return { ...event, timeline };
     };
 
     /** Guests answer through the links they were sent. */
@@ -176,26 +179,33 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
       await http().post(api(`${links.get('tigran@journey8.test')!}/rsvp`)).send({ status: 'DECLINED' }).expect(201);
     };
 
-    /** Before anyone answers, the brief is honest zeros and the running order. */
-    const expectEmptyBriefs = (caterer: Brief, photographer: Brief) => {
+    /** Before anyone answers, the brief is honest zeros and the running order; ungranted sections are absent. */
+    const expectEmptyBriefs = (caterer: Brief, photographer: Brief, timeline: { arrives: string; dinner: string }) => {
       expect(caterer.granted.map((entry) => entry.section)).toEqual(['headcount', 'catering', 'timeline']);
+      expect(Object.keys(caterer).sort()).toEqual(['catering', 'event', 'granted', 'headcount', 'status', 'timeline', 'vendor']);
+      expect(caterer).toMatchObject({ vendor: { name: 'Tashir Catering', category: 'CATERING' }, status: 'ENQUIRED', event: { title: 'Anna & Davit', timezone: 'Asia/Yerevan' } });
       expect(caterer.headcount).toMatchObject({ invited: 5, households: 4, attending: 0, declined: 0, pending: 5, responseRate: 0 });
       expect(caterer.catering).toEqual({ covers: 0, requirements: [], notes: [] });
       // The internal entry is for the people running the day, so the vendor sees it.
       expect(caterer.timeline).toEqual([
-        { label: 'Caterer arrives', occursAt: expect.any(String), venue: 'Ararat Hall' },
-        { label: 'Dinner', occursAt: expect.any(String), venue: 'Ararat Hall' },
+        { label: 'Caterer arrives', occursAt: timeline.arrives, venue: 'Ararat Hall' },
+        { label: 'Dinner', occursAt: timeline.dinner, venue: 'Ararat Hall' },
       ]);
       expect(photographer.granted.map((entry) => entry.section)).toEqual(['households', 'contacts']);
+      expect(Object.keys(photographer).sort()).toEqual(['contacts', 'event', 'granted', 'households', 'status', 'vendor']);
       expect(photographer).toMatchObject({ households: [], contacts: [] });
     };
 
     /** The caterer's numbers are the host's numbers, without the households named. */
     const expectCatererFollowsAnswers = async (authorization: string, eventId: string, caterer: Brief) => {
       const headcount = await hostView(authorization, `/events/${eventId}/headcount`);
+      // The host sees the named breakdown; the vendor gets the same numbers without it.
+      expect(headcount).toHaveProperty('byHousehold');
+      expect(caterer.headcount).not.toHaveProperty('byHousehold');
       expect(caterer.headcount).toEqual(withoutHouseholdNames(headcount));
       expect(caterer.headcount).toMatchObject({ invited: 6, households: 4, attending: 4, declined: 1, pending: 1 });
       const bySide = new Map((caterer.headcount as { bySide: { side: string }[] }).bySide.map((side) => [side.side, side]));
+      expect(bySide.get('SIDE_A')).toMatchObject({ invited: 4, attending: 3, declined: 0, pending: 1 });
       expect(bySide.get('SIDE_B')).toMatchObject({ invited: 2, attending: 1, declined: 1, pending: 0 });
       expect(caterer.catering).toEqual(await hostView(authorization, `/events/${eventId}/catering-sheet`));
       expect(caterer.catering).toEqual({
@@ -236,7 +246,10 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
       const cancelled = (listed as (Booking & { vendor: { id: string } })[]).find((booking) => booking.id === photographer.id)!;
       expect(cancelled.status).toBe('CANCELLED');
       await http().get(api(`/briefs/${cancelled.briefToken}`)).expect(403);
-      return book(coordinator, eventId, { vendorId: cancelled.vendor.id, briefScopes: ['households', 'contacts'] });
+      const reengaged = await book(coordinator, eventId, { vendorId: cancelled.vendor.id, briefScopes: ['households', 'contacts'] });
+      expect(reengaged).toMatchObject({ id: photographer.id, status: 'ENQUIRED' });
+      expect([photographer.briefToken, cancelled.briefToken]).not.toContain(reengaged.briefToken);
+      return reengaged;
     };
 
     const eraseByRequest = async (subjectEmail: string) => {
@@ -278,7 +291,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
       const caterer = await book(coordinator, event.eventId, { vendorId: catererId, feeMinor: '1500000' });
       expect(caterer).toMatchObject({ status: 'ENQUIRED', briefScopes: ['headcount', 'catering', 'timeline'], feeMinor: '1500000', feeCurrency: 'AMD' });
       const photographer = await book(coordinator, event.eventId, { vendorId: own.id, briefScopes: ['contacts', 'households'] });
-      expectEmptyBriefs(await brief(caterer.briefToken), await brief(photographer.briefToken));
+      expectEmptyBriefs(await brief(caterer.briefToken), await brief(photographer.briefToken), event.timeline);
 
       await guestsAnswer(await publishAndSend(host, event));
       await expectCatererFollowsAnswers(host, event.eventId, await brief(caterer.briefToken));
@@ -286,7 +299,6 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
 
       const catererToken = await rotateCatererLink(coordinator, event.eventId, caterer);
       const reengaged = await cancelAndReengage(coordinator, event.eventId, photographer);
-      expect(reengaged).toMatchObject({ id: photographer.id, status: 'ENQUIRED' });
       expectPhotographerFollowsAnswers(await brief(reengaged.briefToken));
 
       await eraseByRequest('mariam@journey8.test');
@@ -370,6 +382,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
     const expectVenueBrief = async (authorization: string, venues: Venues, briefs: { venue: string; caterer: string }) => {
       const venueBrief = await brief(briefs.venue);
       expect(venueBrief.granted.map((entry) => entry.section)).toEqual(['headcount', 'timeline', 'seating']);
+      expect(Object.keys(venueBrief).sort()).toEqual(['event', 'granted', 'headcount', 'seating', 'status', 'timeline', 'vendor']);
       const dashboard = await hostView(authorization, `/events/${venues.eventId}/dashboard`);
       expect((venueBrief.headcount as { venues: unknown[] }).venues).toEqual((dashboard.headcount as { venues: unknown[] }).venues);
       expect(venueCounts(venueBrief.headcount, venues.church)).toMatchObject({ attending: 2, declined: 3, pending: 0 });

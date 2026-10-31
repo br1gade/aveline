@@ -41,8 +41,7 @@ describe('MoneySweepService', () => {
     await sweep.reconcilePayments();
 
     expect(lock.runExclusively).toHaveBeenCalledTimes(1);
-    expect(lock.runExclusively.mock.calls[0][0]).toMatchObject({ name: 'payments.reconcile' });
-    expect(lock.runExclusively.mock.calls[0][0]).toEqual(expect.objectContaining({ ttlSeconds: expect.any(Number) }));
+    expect(lock.runExclusively.mock.calls[0][0]).toMatchObject({ name: 'payments.reconcile', ttlSeconds: expect.any(Number) });
   });
 
   it('settles ticket orders and then invoices only after reconciling', async () => {
@@ -50,6 +49,9 @@ describe('MoneySweepService', () => {
 
     await sweep.reconcilePayments();
 
+    expect(payments.reconcile).toHaveBeenCalledTimes(1);
+    expect(ticketing.settleCapturedPayments).toHaveBeenCalledTimes(1);
+    expect(subscriptions.settleCapturedInvoices).toHaveBeenCalledTimes(1);
     const reconciled = payments.reconcile.mock.invocationCallOrder[0];
     const ticketsSettled = ticketing.settleCapturedPayments.mock.invocationCallOrder[0];
     const invoicesSettled = subscriptions.settleCapturedInvoices.mock.invocationCallOrder[0];
@@ -82,7 +84,10 @@ describe('MoneySweepService', () => {
 
     await sweep.releaseExpiredReservations();
 
+    expect(lock.runExclusively).toHaveBeenCalledTimes(1);
     expect(lock.runExclusively.mock.calls[0][0]).toMatchObject({ name: 'tickets.release' });
+    expect(ticketing.releaseExpiredReservations).toHaveBeenCalledTimes(1);
+    expect(ticketing.sendMissingNotices).toHaveBeenCalledTimes(1);
     expect(ticketing.releaseExpiredReservations.mock.invocationCallOrder[0])
       .toBeLessThan(ticketing.sendMissingNotices.mock.invocationCallOrder[0]);
   });

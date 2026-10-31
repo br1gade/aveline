@@ -1,7 +1,7 @@
 # Backend-local ignores (see repo root .gitignore for the rest)
 node_modules/
 dist/
-coverage/
+/coverage/
 .env
 *.tsbuildinfo
 /storage/

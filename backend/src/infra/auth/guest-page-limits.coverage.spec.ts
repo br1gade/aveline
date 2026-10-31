@@ -11,7 +11,7 @@ import { GUEST_PAGE_LIMITS } from './throttler.guard';
  * @Throttle added to a new route — a write especially — fails here rather
  * than quietly widening what a script can do to a public endpoint.
  */
-interface Route { method: RequestMethod; path: string; short?: number; medium?: number }
+interface Route { method: RequestMethod; path: string; short?: number; medium?: number; skips: string[] }
 
 const SOURCE_ROOT = join(__dirname, '..', '..');
 
@@ -34,7 +34,10 @@ function routesOf(controller: { prototype: object }): Route[] {
     const method = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod;
     const limit = (window: string) =>
       (Reflect.getMetadata(`THROTTLER:LIMIT${window}`, handler) ?? Reflect.getMetadata(`THROTTLER:LIMIT${window}`, controller)) as number | undefined;
-    return [{ method, path: joined(base, Reflect.getMetadata(PATH_METADATA, handler)), short: limit('short'), medium: limit('medium') }];
+    // @SkipThrottle() writes THROTTLER:SKIP<name> on the handler or the class.
+    const skips = [...Reflect.getMetadataKeys(handler), ...Reflect.getMetadataKeys(controller)]
+      .filter((key): key is string => typeof key === 'string' && key.startsWith('THROTTLER:SKIP'));
+    return [{ method, path: joined(base, Reflect.getMetadata(PATH_METADATA, handler)), short: limit('short'), medium: limit('medium'), skips }];
   });
 }
 
@@ -79,5 +82,11 @@ describe('guest-page rate limits', () => {
 
     expect(writes.some((route) => route.method === RequestMethod.POST && route.path === 'invitations/:slug/g/:guestToken/rsvp')).toBe(true);
     expect(writes.filter((route) => route.short !== undefined || route.medium !== undefined)).toEqual([]);
+  });
+
+  it('exempts no write from throttling altogether', () => {
+    const writes = routes.filter((route) => route.method !== RequestMethod.GET);
+
+    expect(writes.filter((route) => route.skips.length > 0).map((route) => route.path)).toEqual([]);
   });
 });

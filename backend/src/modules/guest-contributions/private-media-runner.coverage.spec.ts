@@ -1,9 +1,16 @@
-import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { renderPrivateImage } from './private-media-runner';
 
 const solid = (width: number, height: number) => sharp({ create: { width, height, channels: 3, background: '#ffffff' } });
-const noise = (width: number, height: number) => sharp(randomBytes(width * height * 3), { raw: { width, height, channels: 3 } });
+/** Deterministic high-entropy pixels (xorshift32), so the byte caps are exceeded the same way on every run. */
+const noise = (width: number, height: number) => {
+  const pixels = Buffer.alloc(width * height * 3); let state = 0x2545f491;
+  for (let index = 0; index < pixels.length; index += 1) {
+    state ^= state << 13; state ^= state >>> 17; state ^= state << 5;
+    pixels[index] = state & 255;
+  }
+  return sharp(pixels, { raw: { width, height, channels: 3 } });
+};
 const outcome = (rendering: Promise<{ mimeType: string }>) => rendering.then((result) => result.mimeType, (error: Error) => error.message);
 
 describe('Private raster processing bounds (coverage)', () => {
@@ -31,9 +38,12 @@ describe('Private raster processing bounds (coverage)', () => {
     expect((await sharp(result.display).metadata()).format).toBe('png');
   });
 
-  it('refuses a gallery photo whose WebP display would exceed 2 MiB', async () => {
-    const input = await noise(2048, 2048).png({ compressionLevel: 0 }).toBuffer();
-    await expect(renderPrivateImage(input, 'GALLERY')).rejects.toThrow('too large');
+  it.each([
+    ['solid', 'image/webp'],
+    ['noise', 'Processed image is too large'],
+  ])('bounds a gallery WebP display at 2 MiB (%s photo)', async (kind, expected) => {
+    const input = await (kind === 'noise' ? noise(2048, 2048) : solid(2048, 2048)).png({ compressionLevel: 0 }).toBuffer();
+    expect(await outcome(renderPrivateImage(input, 'GALLERY'))).toBe(expected);
   });
 
   it.each([

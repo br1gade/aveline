@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { BlockType, MessageChannel, MessageStatus, PrismaClient } from '@prisma/client';
 import request from 'supertest';
@@ -256,18 +255,22 @@ describe('Journey 09: enquiry, consultation, conversion, owner runs the event (e
     expect(dashboard.headcount).toMatchObject({ attending: 1 });
   });
 
-  it('keeps conversion closed while its rollout gate is off, leaving the case and the database untouched', async () => {
+  it('refuses a conversion made against the case as it stood before the last stage move, then converts on the current revision', async () => {
     const { support, enquiryId, revision } = await takeEnquiry();
-    const config = app.get(ConfigService);
-    config.set('SALES_ENQUIRY_CONVERSION_ENABLED', 'false');
-    try {
-      await http().post(api(`/sales/enquiries/${enquiryId}/conversion`)).set('Authorization', support.authorization).set('Idempotency-Key', 'j09-gated-convert')
-        .send({ expectedRevision: revision, organization: { create: { name: 'Petrosyan Wedding', ownerEmail: 'anna@journey09.test' } } }).expect(404);
-    } finally {
-      config.set('SALES_ENQUIRY_CONVERSION_ENABLED', 'true');
-    }
+    const conversion = (expectedRevision: number, key: string) => http().post(api(`/sales/enquiries/${enquiryId}/conversion`))
+      .set('Authorization', support.authorization).set('Idempotency-Key', key)
+      .send({ expectedRevision, organization: { create: { name: 'Petrosyan Wedding', ownerEmail: 'anna@journey09.test', ownerEmailSource: 'PRIMARY_CONTACT' } } });
+
+    const { body: stale } = await conversion(revision - 1, 'j09-stale-convert').expect(409);
+    expect(stale.message).toBe('ENQUIRY_CHANGED');
     expect(await prisma.organization.count()).toBe(0);
     expect(await prisma.organizationInvite.count()).toBe(0);
-    expect((await prisma.salesEnquiry.findUniqueOrThrow({ where: { id: enquiryId } })).revision).toBe(revision);
+    expect(await prisma.message.count({ where: { templateKey: 'organization.invite' } })).toBe(0);
+    expect(await prisma.salesEnquiry.findUniqueOrThrow({ where: { id: enquiryId } })).toMatchObject({ revision, organizationId: null, eventId: null });
+
+    const { body: current } = await conversion(revision, 'j09-current-convert').expect(201);
+    expect(current.conversion).toMatchObject({ organizationId: expect.any(String), eventId: null });
+    expect(current.enquiry).toMatchObject({ revision: revision + 1, organizationId: current.conversion.organizationId, eventId: null });
+    expect(await prisma.organization.count()).toBe(1);
   });
 });

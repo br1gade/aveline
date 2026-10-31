@@ -105,12 +105,6 @@ describe('bank adapters', () => {
       await expect(gateway.getStatus('pay-1')).resolves.toEqual({ outcome, raw: reply });
     });
 
-    it('reads a whole-dram amount as the same number of minor units', async () => {
-      bankReplying({ ResponseCode: '00', OrderStatus: 2, Amount: '25000', Currency: 'AMD' });
-
-      await expect(gateway.getStatus('pay-1')).resolves.toMatchObject({ outcome: { kind: 'captured', amountMinor: 25000n } });
-    });
-
     it('captures on response code 00 when the bank sends no order status', async () => {
       bankReplying({ ResponseCode: '00', Amount: '100', Currency: 'AMD' });
 

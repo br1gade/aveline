@@ -1,5 +1,5 @@
 import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FilesystemStorageAdapter } from './filesystem.adapter';
@@ -17,6 +17,8 @@ describe('storage probes', () => {
 
     it('creates a missing root and resolves when it is writable', async () => {
       await expect(new FilesystemStorageAdapter(join(scratch, 'media'), '/files').probe()).resolves.toBeUndefined();
+
+      expect((await stat(join(scratch, 'media'))).isDirectory()).toBe(true);
     });
 
     // A file where the root's parent should be fails for root as well as

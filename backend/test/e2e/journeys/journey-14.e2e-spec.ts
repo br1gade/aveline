@@ -140,9 +140,12 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
     return { path: `/invitations/${match[1]}/g/${match[2]}`, token: match[2] };
   };
 
-  /** What Meta posts: a signed batch of statuses for this account and sender. */
-  const metaCallback = (statuses: { id: string; status: string; errors?: { code: number; title: string }[] }[]) => {
-    const timestamp = String(Math.floor(Date.now() / 1000) - 5);
+  /** A Meta status timestamp: whole seconds, some seconds in the past. */
+  const metaSecondsAgo = (seconds: number) => Math.floor(Date.now() / 1000) - seconds;
+
+  /** What Meta posts: a signed batch of statuses for this account and sender, by default stamped five seconds ago. */
+  const metaCallback = (statuses: { id: string; status: string; errors?: { code: number; title: string }[] }[], at = metaSecondsAgo(5)) => {
+    const timestamp = String(at);
     const raw = JSON.stringify({ object: 'whatsapp_business_account', entry: [{ id: CHANNEL_ENV.WHATSAPP_ACCOUNT_ID, changes: [{ field: 'messages', value: {
       messaging_product: 'whatsapp', metadata: { phone_number_id: CHANNEL_ENV.WHATSAPP_PHONE_NUMBER_ID },
       statuses: statuses.map((status) => ({ ...status, timestamp, recipient_id: 'not-read-by-aveline' })),
@@ -201,6 +204,7 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
     expect(ani).toMatchObject({ type: 'template', template: { name: 'aveline_invitation', language: { code: 'en' } } });
     const [guestName, eventTitle, link] = ani.template.components[0].parameters.map((parameter) => parameter.text);
     expect([guestName, eventTitle]).toEqual(['Ani Hakobyan', 'Ani and Narek']);
+    expect(sentTo('37493000014').template.components[0].parameters[0].text).toBe('Gohar Petrosyan');
 
     const messages = await prisma.message.findMany({ where: { eventId: wedding.eventId, templateKey: 'invitation.send' }, orderBy: { toAddress: 'asc' } });
     expect(messages.map((message) => [message.channel, message.status])).toEqual([
@@ -209,6 +213,10 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
     expect(refOf(ANI_PHONE)).toMatch(/^wamid\.journey14\./);
     const davit = linkIn(messages.find((message) => message.toAddress === DAVIT)!.body);
     const aniGuestId = messages.find((message) => message.toAddress === ANI_PHONE)!.guestId!;
+    // The link Meta was handed is Ani's own, not merely a well-formed one.
+    const aniGuest = await prisma.guest.findUniqueOrThrow({ where: { id: aniGuestId }, select: { firstName: true, token: true } });
+    expect(aniGuest.firstName).toBe('Ani');
+    expect(linkIn(link)).toEqual({ path: `/invitations/${wedding.slug}/g/${aniGuest.token}`, token: aniGuest.token });
     return { ani: { ...linkIn(link), wamid: refOf(ANI_PHONE), guestId: aniGuestId }, goharWamid: refOf(GOHAR_PHONE), davit };
   };
   type Sent = Awaited<ReturnType<typeof invitationGoesOutOverWhatsApp>>;
@@ -228,19 +236,24 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
    * re-sent to automatically.
    */
   const metaReportsBack = async (wedding: Wedding, sent: Sent) => {
+    const reportedAt = metaSecondsAgo(5);
+    const reportedAtIso = new Date(reportedAt * 1000).toISOString();
     await metaCallback([{ id: sent.ani.wamid, status: 'delivered' }, { id: sent.ani.wamid, status: 'read' },
-      { id: sent.goharWamid, status: 'failed', errors: [{ code: 131026, title: 'Message undeliverable to +374 93 000014' }] }]).expect(200, { accepted: true });
+      { id: sent.goharWamid, status: 'failed', errors: [{ code: 131026, title: 'Message undeliverable to +374 93 000014' }] }], reportedAt).expect(200, { accepted: true });
     expect(await prisma.whatsAppReceipt.count({ where: { processedAt: null } })).toBe(3);
-    expect((await deliveryReport(wedding.host, wedding.slug)).row('Hakobyan')).toMatchObject({ status: 'SENT', deliveredAt: null, readAt: null });
+    const beforeSweep = await deliveryReport(wedding.host, wedding.slug);
+    expect(beforeSweep.row('Hakobyan')).toMatchObject({ status: 'SENT', deliveredAt: null, readAt: null });
+    expect(beforeSweep.row('Petrosyan')).toMatchObject({ status: 'SENT', deliveryFailedAt: null, deliveryErrorCode: null });
 
     await sweepReceipts();
 
     const { body, row } = await deliveryReport(wedding.host, wedding.slug);
     expect(body).toMatchObject({ invited: 3, notSent: 0, unreachable: [] });
-    expect(row('Hakobyan')).toMatchObject({ channel: 'WHATSAPP', toAddress: ANI_PHONE, status: 'DELIVERED', deliveredAt: expect.any(String), readAt: expect.any(String), deliveryErrorCode: null });
+    expect(row('Hakobyan')).toMatchObject({ channel: 'WHATSAPP', toAddress: ANI_PHONE, status: 'DELIVERED', deliveredAt: reportedAtIso, readAt: reportedAtIso, deliveryErrorCode: null });
     expect(row('Petrosyan')).toMatchObject({ channel: 'WHATSAPP', status: 'FAILED', deliveredAt: null, readAt: null,
-      deliveryFailedAt: expect.any(String), deliveryErrorCode: 131026, deliveryFailureKind: 'AMBIGUOUS' });
-    expect(row('Petrosyan').failureReason).not.toContain('+374');
+      deliveryFailedAt: reportedAtIso, deliveryErrorCode: 131026, deliveryFailureKind: 'AMBIGUOUS', failureReason: expect.any(String) });
+    // Meta's own description quotes the number; the host sees Aveline's wording, never the provider's.
+    expect(row('Petrosyan').failureReason).not.toMatch(/\+374|undeliverable/);
     expect(row('Sargsyan')).toMatchObject({ channel: 'EMAIL', status: 'SENT', deliveredAt: null });
     expect(await prisma.suppression.count()).toBe(0);
     expect(await dispatch()).toMatchObject({ sent: 0 });
@@ -254,6 +267,7 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
    */
   const aniMovesToTelegramAndIsReminded = async (wedding: Wedding, sent: Sent) => {
     const { body: page } = await http().get(`/api/v1${sent.ani.path}`).expect(200);
+    expect(page.guest.name).toBe('Ani Hakobyan');
     expect(page.guest.telegramLink).toBe(`https://t.me/${CHANNEL_ENV.TELEGRAM_BOT_USERNAME}?start=${sent.ani.token}`);
     await http().post('/api/v1/webhooks/telegram').send({ message: { chat: { id: ANI_CHAT }, text: `/start ${sent.ani.token}` } }).expect(201);
     expect(await prisma.guestChannel.findMany({ select: { channel: true, address: true, optedInAt: true } }))
@@ -264,12 +278,16 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
     await prisma.message.updateMany({ where: { eventId: wedding.eventId, templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
 
     const { body: reminded } = await wedding.host.post(`/invitations/${wedding.slug}/remind`).expect(201);
-    expect(reminded).toMatchObject({ alreadyRemindedToday: 0, recentlyInvited: 0, notInvited: [] });
-    const reminderTo = (household: string) => (reminded.recipients as { householdName: string }[]).find((row) => row.householdName === household);
-    expect(reminderTo('Hakobyan')).toEqual({ householdName: 'Hakobyan', channel: 'TELEGRAM', toAddress: String(ANI_CHAT) });
-    expect(reminderTo('Sargsyan')).toBeUndefined();
+    // Davit answered and Gohar's invitation never reached her: only Ani is chased, on the channel she chose.
+    expect(reminded).toMatchObject({ queued: 1, alreadyRemindedToday: 0, recentlyInvited: 0,
+      recipients: [{ householdName: 'Hakobyan', channel: 'TELEGRAM', toAddress: String(ANI_CHAT) }] });
 
-    await dispatch();
+    // The outbox holds Ani's Telegram reminder and Davit's own confirmation of his answer — nothing for Gohar.
+    const queued = await prisma.message.findMany({ where: { status: MessageStatus.QUEUED }, orderBy: { templateKey: 'asc' }, select: { guestId: true, templateKey: true, channel: true, toAddress: true } });
+    expect(queued).toEqual([
+      { guestId: expect.any(String), templateKey: 'rsvp.confirmation.declined', channel: MessageChannel.EMAIL, toAddress: DAVIT },
+      { guestId: sent.ani.guestId, templateKey: 'rsvp.reminder', channel: MessageChannel.TELEGRAM, toAddress: String(ANI_CHAT) }]);
+    expect(await dispatch()).toMatchObject({ sent: 2, failed: 0 });
     expect(telegramCalls()).toEqual([expect.objectContaining({ body: expect.objectContaining({ chat_id: String(ANI_CHAT) }) })]);
     expect(linkIn(String(telegramCalls()[0].body.text)).token).toBe(sent.ani.token);
     expect((await deliveryReport(wedding.host, wedding.slug)).row('Hakobyan')).toMatchObject({ status: 'DELIVERED', readAt: expect.any(String), reminders: 1 });
@@ -301,9 +319,15 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
       [MessageChannel.TELEGRAM, '[erased]', '[erased]'], [MessageChannel.WHATSAPP, '[erased]', '[erased]']]);
     expect(hers.map((message) => message.providerParams)).toEqual([[], []]);
 
+    // Late callbacks for her old message: a failure, and an earlier delivery and read that would otherwise move her
+    // receipts back an hour. Neither touches the erased record.
+    const evidence = { status: true, deliveredAt: true, readAt: true, providerStatusAt: true, deliveryFailedAt: true, deliveryErrorCode: true } as const;
+    const beforeLate = await prisma.message.findFirstOrThrow({ where: { providerRef: sent.ani.wamid }, select: evidence });
     await metaCallback([{ id: sent.ani.wamid, status: 'failed', errors: [{ code: 131026, title: 'late' }] }]).expect(200);
+    await metaCallback([{ id: sent.ani.wamid, status: 'delivered' }, { id: sent.ani.wamid, status: 'read' }], metaSecondsAgo(3600)).expect(200);
     await sweepReceipts();
-    expect(await prisma.message.findFirstOrThrow({ where: { providerRef: sent.ani.wamid } })).toMatchObject({ status: MessageStatus.DELIVERED, deliveryErrorCode: null });
+    expect(await prisma.message.findFirstOrThrow({ where: { providerRef: sent.ani.wamid }, select: evidence })).toEqual(beforeLate);
+    expect(beforeLate).toMatchObject({ status: MessageStatus.DELIVERED, deliveryErrorCode: null });
     expect(await prisma.whatsAppReceipt.count({ where: { processedAt: null } })).toBe(0);
 
     const { body } = await deliveryReport(wedding.host, wedding.slug);

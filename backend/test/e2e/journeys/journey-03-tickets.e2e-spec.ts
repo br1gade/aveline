@@ -211,6 +211,8 @@ describe('Journey 3 (tickets): checkout venue choices across an attendance mode 
     const rsvpPath = `${sale.base}/guests/${karineId}/rsvp`;
     const { body: stale } = await sale.host.patch(rsvpPath, { attendanceRevision: 2, venueAttendance: [{ venueId: sale.hall, status: 'ATTENDING' }] }).expect(409);
     expect(stale.message).toMatch(/^attendanceRevision:/);
+    const { body: refusedLeftUnchanged } = await sale.host.get(`${sale.base}/guests/${karineId}`).expect(200);
+    expect((refusedLeftUnchanged as HostGuest).attendance).toMatchObject({ revision: 3, status: 'PENDING', needsReconfirmation: true });
     await sale.host.patch(rsvpPath, { attendanceRevision: 3, status: 'ATTENDING' }).expect(200);
     expect((await guests(sale)).get('Karine')!.attendance).toMatchObject({ status: 'ATTENDING', needsReconfirmation: false });
     const counts = await headcount(sale);

@@ -21,7 +21,7 @@ import { SeatingRunner } from '../../../src/modules/seating/jobs/seating-runner'
 import { buildPrivateStorage, PRIVATE_STORAGE, PrivateStorageService } from '../../../src/infra/storage/private/private-storage';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { authenticateAs } from '../../fixtures/auth.fixture';
-import { binaryParser, linkIn, parseCsv, pdfPageCount, seedPlatformDefaults, workbookXml } from '../../fixtures/coverage/journey-05.fixture';
+import { binaryParser, linkIn, parseCsv, pdfText, seedPlatformDefaults, workbookXml } from '../../fixtures/areas/journey-05.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -255,14 +255,22 @@ describe('Journey 05: RSVPs and seating become fixed worker-made exports, revoke
   };
 
   /** The same people in the printable and spreadsheet forms, and the guest list in Armenian. */
-  const expectOtherFormatsAndLocale = async (authorization: string, eventId: string, jobs: Record<string, Snapshot>) => {
+  const expectOtherFormatsAndLocale = async (authorization: string, eventId: string, jobs: Record<string, Snapshot>, tableOf: Map<string, string>) => {
     const workbook = workbookXml(await bytesOf(authorization, eventId, jobs.placeCardsXlsx.id));
     for (const name of ['Armen Petrosyan', 'Lusine Petrosyan', 'Narek Petrosyan', 'Mariam Sargsyan']) expect(workbook).toContain(name);
     expect(workbook).not.toMatch(/Tigran|Ani Avetisyan|Sargsian/);
-    // Six cards to an A4 sheet: four attending guests fit on one page.
+    // Six cards to an A4 sheet: four attending guests fit on one page, each
+    // card its name over its table and venue, in the same order as the CSV.
     const cards = await bytesOf(authorization, eventId, jobs.placeCardsPdf.id);
     expect(cards.subarray(0, 5).toString()).toBe('%PDF-');
-    expect(pdfPageCount(cards)).toBe(1);
+    const pages = pdfText(cards);
+    expect(pages).toHaveLength(1);
+    const [page] = pages;
+    expect(page).toContain('Anna & Davit');
+    expect(page.slice(page.indexOf('Armen Petrosyan'))).toEqual(
+      ['Armen Petrosyan', 'Lusine Petrosyan', 'Narek Petrosyan', 'Mariam Sargsyan'].flatMap((name) => [name, tableOf.get(name), 'Ararat Hall']),
+    );
+    expect(page.join('\n')).not.toMatch(/Tigran|Avetisyan|Sargsian/);
 
     const armenian = await csvOf(authorization, eventId, jobs.guestListHy.id);
     const narek = armenian.find((row) => row['Անուն'] === 'Narek');
@@ -302,7 +310,10 @@ describe('Journey 05: RSVPs and seating become fixed worker-made exports, revoke
     const other = await createEvent(authorization, 'Unrelated party');
     const unrelated = await queue(authorization, other.eventId, 'PLAYLIST');
     await runExportWorker();
-    const artifactKeys = (await prisma.exportSnapshot.findMany({ where: { eventId: ids.eventId }, select: { artifactKey: true } })).map((row) => row.artifactKey!);
+    const artifactKeys = (await prisma.exportSnapshot.findMany({ where: { eventId: ids.eventId }, select: { artifactKey: true } })).map((row) => row.artifactKey);
+    // Eight first files and the regeneration, every one stored before the request.
+    expect(artifactKeys).toHaveLength(9);
+    for (const key of artifactKeys) await expect(app.get(PrivateStorageService).get(key!)).resolves.toBeInstanceOf(Buffer);
 
     await eraseByRequest('mariam@journey5.test');
 
@@ -313,11 +324,12 @@ describe('Journey 05: RSVPs and seating become fixed worker-made exports, revoke
         recovery: expect.objectContaining({ code: 'REGENERATE' }),
       });
     }
-    await bytesOf(authorization, other.eventId, unrelated.id);
 
-    // The stored bytes themselves go once cleanup runs, not merely the link to them.
+    // The stored bytes themselves go once cleanup runs, not merely the link to
+    // them; the other event's file stays.
     await app.get(ExportRunner).cleanup();
-    for (const key of artifactKeys) await expect(app.get(PrivateStorageService).get(key)).rejects.toThrow();
+    for (const key of artifactKeys) await expect(app.get(PrivateStorageService).get(key!)).rejects.toThrow();
+    expect((await bytesOf(authorization, other.eventId, unrelated.id)).toString('utf8')).toContain('Track');
 
     // Regenerated, she is "Removed" with her answer and her seat intact, and nothing names her.
     const after = await queue(authorization, ids.eventId, 'GUEST_LIST');
@@ -353,7 +365,7 @@ describe('Journey 05: RSVPs and seating become fixed worker-made exports, revoke
     const guestListBytes = await bytesOf(authorization, ids.eventId, jobs.guestList.id);
     expectGuestList(parseCsv(guestListBytes.toString('utf8')), tableOf);
     await expectOperationalSheets(authorization, ids.eventId, jobs, tableOf);
-    await expectOtherFormatsAndLocale(authorization, ids.eventId, jobs);
+    await expectOtherFormatsAndLocale(authorization, ids.eventId, jobs, tableOf);
 
     // Later edits — the host's and a guest's — leave the fixed file byte-for-byte as it was...
     await http().patch(api(`/events/${ids.eventId}`)).set('Authorization', authorization).send({ title: 'Changed after the snapshot' }).expect(200);

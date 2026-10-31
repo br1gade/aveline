@@ -31,16 +31,8 @@ describe('the daily GDPR deadline sweep', () => {
     expect(privacy.reportDueRequests).toHaveBeenCalledTimes(1);
   });
 
-  it('does not report when another instance holds the lock', async () => {
-    const runExclusively = jest.fn().mockResolvedValue(undefined);
-    const { sweep, privacy } = sweepWith(runExclusively);
-
-    await sweep.reportDueRequests();
-
-    expect(privacy.reportDueRequests).not.toHaveBeenCalled();
-  });
-
-  it('is scheduled daily at 9am, matching the crontab its monitor is registered with', () => {
+  // The lock-held refusal and the TTL bound are shared with every sweep in sweep-locks.coverage.spec.ts.
+  it('runs daily at 9am and never overlaps its own previous run', () => {
     const options = Reflect.getMetadata(
       SCHEDULE_CRON_OPTIONS,
       PrivacySweepService.prototype.reportDueRequests,

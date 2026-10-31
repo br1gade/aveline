@@ -39,6 +39,7 @@ const ANI_PHONE = '+37491000006';
 const ANI_TELEGRAM_CHAT = 660066;
 const ANI_DEVICE = 'apns-device-token-of-ani-0123456789';
 const ANI_PASSWORD = 'a-long-enough-password-for-ani';
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Reads an exported CSV the way a spreadsheet would: BOM stripped, CRLF
@@ -176,7 +177,7 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     const host = as(authorization);
     await host.post('/organizations', { name: 'Hakobyan Events' }).expect(201);
     const { body: event } = await host.post('/events', {
-      type: EventType.OTHER, title: 'Autumn Gala', templateKey: 'journey-06', startsAt: '2027-10-01T18:00:00.000Z',
+      type: EventType.OTHER, title: 'Autumn Gala', templateKey: 'journey-06', startsAt: new Date(Date.now() + 90 * DAY_MS).toISOString(),
       timezone: 'Asia/Yerevan', locales: ['en'], defaultLocale: 'en',
     }).expect(201);
     const eventId = event.id as string;
@@ -253,11 +254,13 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
   /** Ani also has an Aveline account, signed in on her phone with push turned on. */
   const aniHasAnAccount = async () => {
     await http().post('/api/v1/auth/register').send({ email: ANI, password: ANI_PASSWORD, name: 'Ani Hakobyan' }).expect(202);
-    const { body: session } = await http().post('/api/v1/auth/login').send({ email: ANI, password: ANI_PASSWORD }).expect(201);
+    const { body: session } = await http().post('/api/v1/auth/login').set('User-Agent', 'Ani iPhone').send({ email: ANI, password: ANI_PASSWORD }).expect(201);
     const account = as(`Bearer ${session.accessToken as string}`);
     await account.post('/devices', { platform: 'IOS', token: ANI_DEVICE }).expect(201);
     expect(await prisma.deviceToken.count({ where: { token: ANI_DEVICE, revokedAt: null } })).toBe(1);
     await account.get('/me/organizations').expect(200);
+    expect(await prisma.session.findMany({ where: { user: { email: ANI } }, select: { userAgent: true, ipAddress: true } }))
+      .toEqual([{ userAgent: 'Ani iPhone', ipAddress: expect.stringContaining('127.0.0.1') }]);
     return { account, refreshToken: session.refreshToken as string };
   };
 
@@ -346,6 +349,9 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     const forgetGuests = jest.spyOn(app.get(AnalyticsService), 'forgetGuests');
     const aniGuestIds = (await prisma.guest.findMany({ where: { email: ANI }, select: { id: true } })).map((guest) => guest.id).sort();
     const userId = (await prisma.user.findFirstOrThrow({ where: { email: ANI } })).id;
+    const attendanceOf = () => prisma.attendanceResponse.findMany({ where: { guestId: { in: aniGuestIds } }, select: { guestId: true, scopeId: true, status: true }, orderBy: [{ guestId: 'asc' }, { scopeId: 'asc' }] });
+    const attendanceBefore = await attendanceOf();
+    expect(attendanceBefore).toHaveLength(2);
 
     const { body: result } = await staff.post(`/privacy/requests/${requestId}/fulfil`).expect(201);
 
@@ -356,12 +362,15 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     expect(result).toMatchObject({
       reference: requestId, kind: 'ERASURE', guestsAnonymised: 2, ticketAttendeesAnonymised: 1, ticketOrdersAnonymised: 1,
       householdsRenamed: 2, acknowledgementsErased: 2, privateMediaQueuedForDeletion: 1, messagesRedacted: 3,
-      accountsClosed: 1, invitesWithdrawn: 0, enquiriesCleared: 1,
+      accountsClosed: 1, invitesWithdrawn: 0, enquiriesCleared: 1, suppressionsHashed: 0,
     });
     expect(result).not.toHaveProperty('recoveryPending');
+    // Whether she is coming is not personal data about her once her name is gone, and the headcount depends on it.
+    expect(await attendanceOf()).toEqual(attendanceBefore);
     expect(await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: requestId } })).toMatchObject({ status: 'COMPLETED' });
     // The Mongo traces go after commit: the audit trail forgets her, view analytics unlink her guests.
     expect(forgetPerson).toHaveBeenCalledWith({ email: ANI, userId });
+    expect(forgetGuests).toHaveBeenCalledTimes(1);
     expect((forgetGuests.mock.calls[0][0]).slice().sort()).toEqual(aniGuestIds);
     return { userId };
   };
@@ -370,13 +379,16 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
   const guestsSeeHerGone = async (links: Links) => {
     await http().get(`/api/v1${links.ani.path}`).expect(404);
     await http().post(`/api/v1${links.ani.path}/rsvp`).send({ status: 'DECLINED' }).expect(404);
+    // Another guest's link is untouched by her erasure.
+    const { body: davitOpens } = await http().get(`/api/v1${links.davit.path}`).expect(200);
+    expect(JSON.stringify(davitOpens)).not.toMatch(/ani@/i);
     const { body: gallery } = await http().get(`/api/v1${links.davit.path}/gallery`).expect(200);
     expect(gallery.items).toEqual([]);
   };
 
   /**
    * What the host sees: two "Removed" rows that still came, a renamed
-   * household around Narek, whose own answers and seat stay, no
+   * household around Narek, whose own answers stay, no
    * acknowledgement records signed by her, and her photo gone.
    */
   const hostSeesWhatStayed = async (gala: Gala) => {
@@ -471,6 +483,8 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     await account.account.get('/me/organizations').expect(401);
     await http().post('/api/v1/auth/refresh').send({ refreshToken: account.refreshToken }).expect(401);
     expect(await prisma.user.findUniqueOrThrow({ where: { id: userId } })).toMatchObject({ name: 'Removed', isActive: false, passwordHash: null });
+    expect(await prisma.session.findMany({ where: { userId }, select: { userAgent: true, ipAddress: true, revokedAt: true } }))
+      .toEqual([{ userAgent: null, ipAddress: null, revokedAt: expect.any(Date) }]);
 
     expect(await prisma.enquiryContact.findUniqueOrThrow({ where: { id: contactId } })).toMatchObject({ email: null, phone: null });
   };
@@ -501,9 +515,11 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     await gala.host.delete(`/suppressions/${erased[0].id}`).expect(409);
 
     const { body: reimport } = await http().post(`/api/v1${gala.base}/guests/import`).set('Authorization', gala.authorization)
-      .attach('file', Buffer.from(`${GUEST_CSV}\nAram,Petrosyan,aram@journey06.test,,Petrosyan,1`), { filename: 'guests.csv', contentType: 'text/csv' }).expect(201);
-    expect(reimport).toMatchObject({ rowsImported: 2, rowsFailed: 1 });
-    expect(JSON.stringify(reimport.errors)).toMatch(/erased/);
+      .attach('file', Buffer.from(`${GUEST_CSV}\nAram,Petrosyan,aram@journey06.test,,Petrosyan,1\nA.,H.,,${ANI_PHONE},H.,1`), { filename: 'guests.csv', contentType: 'text/csv' }).expect(201);
+    expect(reimport).toMatchObject({ rowsImported: 2, rowsFailed: 2 });
+    // Her row by email (row 2) and a row carrying only her phone (row 5) are both refused; Davit and Aram are not.
+    const refusal = 'This person asked for their data to be erased and cannot be added again';
+    expect(reimport.errors).toEqual([{ row: 2, message: refusal }, { row: 5, message: refusal }]);
     expect(await prisma.guest.count({ where: { eventId: gala.eventId, email: { equals: ANI, mode: 'insensitive' } } })).toBe(0);
   };
 
@@ -519,7 +535,9 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
 
     expect(sent.suppressed).toEqual([{ householdName: 'Ani Again', toAddress: ANI }]);
     expect((sent.recipients as { toAddress: string }[]).map((recipient) => recipient.toAddress).sort()).toEqual(['aram@journey06.test', 'lilit@journey06.test']);
-    expect(sent.unreachable).toEqual(expect.arrayContaining([expect.objectContaining({ reason: 'This guest asked for their data to be removed' })]));
+    expect(sent).toMatchObject({ queued: 2, alreadySent: 1 });
+    expect((sent.unreachable as { reason: string }[]).map((row) => row.reason).sort())
+      .toEqual(['No email address for anyone in this household', 'This guest asked for their data to be removed']);
     const toHer = await prisma.message.findMany({ where: { toAddress: ANI }, select: { status: true, failureReason: true } });
     expect(toHer).toEqual([{ status: MessageStatus.SUPPRESSED, failureReason: 'Recipient is suppressed' }]);
     expect(await dispatch()).toMatchObject({ sent: 2 });

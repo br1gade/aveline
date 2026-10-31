@@ -1,10 +1,13 @@
 import { EventRole, OrganizationRole, PlatformRole } from '@prisma/client';
-import { ALL_PERMISSIONS, Actor, Permission, can, permissionsFor } from './access-policy';
+import { Actor, Permission, permissionsFor } from './access-policy';
 
 /**
  * Each role's whole permission set, pinned against docs/ACCESS_CONTROL.md §2.
  * Sampling a few permissions per role lets a new grant slip in unnoticed;
- * comparing the full set does not.
+ * comparing the full set does not, so a role widened by one permission (a
+ * viewer gaining vendor:write, a concierge gaining billing:read) fails here.
+ * The expected sets are written out rather than read from the policy, so the
+ * test cannot agree with a mistake in it.
  */
 const staff = (role: PlatformRole): Actor => ({ kind: 'staff', role });
 const member = (organizationRole: OrganizationRole | null, eventRole: EventRole | null = null): Actor => ({
@@ -25,37 +28,19 @@ const RUN_EVENT: Permission[] = [
   'vendor:fee:read',
   'vendor:write',
 ];
-const PLATFORM_ONLY: Permission[] = [
-  'concierge:manage',
-  'directory:manage',
-  'enquiry:assign',
-  'enquiry:manage',
-  'privacy:manage',
-  'template:assign',
-  'template:author',
-  'template:publish',
-];
+const CUSTOMER_OWNED: Permission[] = [...RUN_EVENT, 'event:delete', 'member:manage', 'billing:read', 'billing:write'];
 const sorted = (permissions: readonly Permission[]) => [...new Set(permissions)].sort();
 
 describe('what each organization role holds', () => {
   it('gives an owner every customer-owned permission and nothing reserved for Aveline staff', () => {
-    expect(permissionsFor(member(OrganizationRole.OWNER))).toEqual(
-      sorted(ALL_PERMISSIONS.filter((permission) => !PLATFORM_ONLY.includes(permission))),
-    );
+    expect(permissionsFor(member(OrganizationRole.OWNER))).toEqual(sorted(CUSTOMER_OWNED));
   });
 
-  it('lets a manager run events and nothing more', () => {
+  it('lets a manager run events, without deleting them, billing or the team', () => {
     expect(permissionsFor(member(OrganizationRole.MANAGER))).toEqual(sorted(RUN_EVENT));
   });
 
-  it.each(['billing:read', 'billing:write', 'member:manage', 'event:delete'] as Permission[])(
-    'withholds %s from a manager',
-    (permission) => {
-      expect(can(member(OrganizationRole.MANAGER), permission)).toBe(false);
-    },
-  );
-
-  it.each([OrganizationRole.MEMBER, OrganizationRole.VIEWER])('keeps an organization %s read-only', (role) => {
+  it.each([OrganizationRole.MEMBER, OrganizationRole.VIEWER])('keeps an organization %s read-only, with no vendor:write', (role) => {
     expect(permissionsFor(member(role))).toEqual(sorted(READ_ONLY));
   });
 });
@@ -73,43 +58,15 @@ describe('what each event role holds', () => {
     expect(permissionsFor(member(null, EventRole.DESIGNER))).toEqual(['event:read', 'invitation:design', 'invitation:read']);
   });
 
-  it('keeps an event viewer read-only', () => {
+  it('keeps an event viewer read-only, with no vendor:write', () => {
     expect(permissionsFor(member(null, EventRole.VIEWER))).toEqual(sorted(READ_ONLY));
   });
 });
 
-describe('who may manage an event’s vendors', () => {
-  it.each([
-    { label: 'an organization member', actor: member(OrganizationRole.MEMBER) },
-    { label: 'an organization viewer', actor: member(OrganizationRole.VIEWER) },
-    { label: 'an event viewer', actor: member(null, EventRole.VIEWER) },
-    { label: 'an event designer', actor: member(null, EventRole.DESIGNER) },
-  ])('refuses $label vendor:write', ({ actor }) => {
-    expect(can(actor, 'vendor:write')).toBe(false);
-  });
-
-  it('refuses an event designer the vendor list itself', () => {
-    expect(can(member(null, EventRole.DESIGNER), 'vendor:read')).toBe(false);
-  });
-});
-
 describe('what a concierge operator holds', () => {
-  it('runs events and keeps the directory, concierge, enquiries and template authoring', () => {
+  it('runs events and keeps the directory, concierge, enquiries and template authoring, with no deletion, billing or privacy', () => {
     expect(permissionsFor(staff(PlatformRole.SUPPORT))).toEqual(
       sorted([...RUN_EVENT, 'directory:manage', 'concierge:manage', 'enquiry:manage', 'template:author']),
     );
-  });
-
-  it.each([
-    'event:delete',
-    'billing:read',
-    'billing:write',
-    'member:manage',
-    'privacy:manage',
-    'enquiry:assign',
-    'template:publish',
-    'template:assign',
-  ] as Permission[])('withholds %s', (permission) => {
-    expect(can(staff(PlatformRole.SUPPORT), permission)).toBe(false);
   });
 });

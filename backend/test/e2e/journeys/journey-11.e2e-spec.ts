@@ -49,6 +49,14 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
     delete: (path: string) => http().delete(api(path)).set('Authorization', authorization),
   });
   type Caller = ReturnType<typeof as>;
+  /** A refusal, and the reason it names: the permission the guard found missing. */
+  const refusal = async (pending: request.Test) => {
+    const { status, body } = await pending;
+    return { status, message: body.message as string };
+  };
+  const mayNot = (permission: string) => ({ status: 403, message: `This account may not ${permission}` });
+  /** Door codes and buyers' emails: a manifest needs contact permission (docs/API.md, exports). */
+  const manifestRefused = { status: 403, message: 'A ticket manifest export needs guest:contact:read' };
 
   beforeAll(async () => {
     prisma = testPrisma();
@@ -173,14 +181,18 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
       .toBe('Ani & Narek are getting married');
 
     // No guest list, contacts, operations, seating, vendors, fees, exports, signatures, ticket orders, team or publishing.
-    for (const path of [
-      `${base}/guests`, `${base}/guests/${owned.guestId}`, `${base}/dashboard`, `${base}/tables`, `${base}/vendors`,
-      `${base}/exports`, `${base}/acknowledgements`, `${base}/gallery`, `${base}/ticket-orders`, `${base}/ticket-orders/${owned.orderId}`,
-      `${base}/team`, `/invitations/${slug}/delivery`,
-    ]) await designer.get(path).expect(403);
-    await designer.post(`${base}/exports`, { kind: 'GUEST_LIST' }).expect(403);
-    await designer.post(`${base}/guests`, { firstName: 'Intruder' }).expect(403);
-    await designer.post(`/invitations/${slug}/close`).expect(403);
+    const refused = {
+      [`${base}/guests`]: 'guest:read', [`${base}/guests/${owned.guestId}`]: 'guest:read', [`${base}/dashboard`]: 'operations:read',
+      [`${base}/tables`]: 'seating:read', [`${base}/vendors`]: 'vendor:read', [`${base}/exports`]: 'operations:read',
+      [`${base}/acknowledgements`]: 'guest:contact:read', [`${base}/gallery`]: 'guest:write', [`${base}/ticket-orders`]: 'operations:read',
+      [`${base}/ticket-orders/${owned.orderId}`]: 'guest:read', [`${base}/team`]: 'member:manage', [`/invitations/${slug}/delivery`]: 'guest:read',
+    };
+    const seen: Record<string, { status: number; message: string }> = {};
+    for (const path of Object.keys(refused)) seen[path] = await refusal(designer.get(path));
+    expect(seen).toEqual(Object.fromEntries(Object.entries(refused).map(([path, permission]) => [path, mayNot(permission)])));
+    expect(await refusal(designer.post(`${base}/exports`, { kind: 'GUEST_LIST' }))).toEqual(mayNot('operations:read'));
+    expect(await refusal(designer.post(`${base}/guests`, { firstName: 'Intruder' }))).toEqual(mayNot('guest:write'));
+    expect(await refusal(designer.post(`/invitations/${slug}/close`))).toEqual(mayNot('invitation:publish'));
   };
 
   /** Step 3, viewer: read-only, without contacts, door codes or fees. */
@@ -196,12 +208,14 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
 
     const { body: tables } = await viewer.get(`${base}/tables`).expect(200);
     expect(tables).toEqual([expect.objectContaining({ name: 'Table 1', seated: 1, guests: [expect.objectContaining({ name: 'Lusine Sargsyan' })] })]);
-    await viewer.post(`${base}/tables`, { name: 'Table 2', capacity: 8 }).expect(403);
+    expect(await refusal(viewer.post(`${base}/tables`, { name: 'Table 2', capacity: 8 }))).toEqual(mayNot('seating:write'));
 
     const [booking] = (await viewer.get(`${base}/vendors`).expect(200)).body as Booking[];
     expect(booking.vendor.name).toBe('Tashir Catering');
     expect(booking).not.toHaveProperty('feeMinor');
     expect(booking).not.toHaveProperty('briefToken');
+    expect(await refusal(viewer.patch(`${base}/vendors/${booking.id}`, { feeMinor: '1' }))).toEqual(mayNot('vendor:write'));
+    // The owner, by contrast, sees the fee, and it is untouched.
     expect(((await owned.owner.get(`${base}/vendors`).expect(200)).body as Booking[])[0]).toMatchObject({ feeMinor: '150000', briefToken: expect.any(String) });
 
     const [orderRow] = (await viewer.get(`${base}/ticket-orders`).expect(200)).body as Record<string, unknown>[];
@@ -210,7 +224,9 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
     const { body: order } = await viewer.get(`${base}/ticket-orders/${owned.orderId}`).expect(200);
     expect((order.tickets as object[])[0]).not.toHaveProperty('code');
     expect((order.tickets as object[])[0]).toMatchObject({ holderName: expect.any(String) });
-    await viewer.post(`${base}/exports`, { kind: 'TICKET_MANIFEST' }).expect(403);
+    const { body: ownersOrder } = await owned.owner.get(`${base}/ticket-orders/${owned.orderId}`).expect(200);
+    expect((ownersOrder.tickets as object[])[0]).toMatchObject({ code: expect.any(String) });
+    expect(await refusal(viewer.post(`${base}/exports`, { kind: 'TICKET_MANIFEST' }))).toEqual(manifestRefused);
 
     const viewerCsv = await guestListCsv(viewer, base);
     expect(viewerCsv[0]).not.toMatch(/"Email"|"Phone"/);
@@ -220,13 +236,14 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
     expect(ownerCsv[0]).toContain('"Email"');
     expect(ownerCsv.join('\n')).toContain('lusine@journey11.test');
 
-    await viewer.get(`${base}/dashboard`).expect(200);
-    await viewer.get(`/invitations/${slug}/design`).expect(200);
-    await viewer.get(`${base}/acknowledgements`).expect(403);
-    await viewer.get(`${base}/team`).expect(403);
-    await viewer.patch(`/invitations/${slug}/theme`, { palette: 'ivory' }).expect(403);
-    await viewer.post(`${base}/guests`, { firstName: 'Intruder' }).expect(403);
-    await viewer.patch(`${base}/vendors/${booking.id}`, { feeMinor: '1' }).expect(403);
+    const { body: dashboard } = await viewer.get(`${base}/dashboard`).expect(200);
+    expect(dashboard.headcount).toMatchObject({ attending: 2 });
+    const { body: editor } = await viewer.get(`/invitations/${slug}/design`).expect(200);
+    expect(editor.theme).toMatchObject({ palette: 'sage' });
+    expect(await refusal(viewer.get(`${base}/acknowledgements`))).toEqual(mayNot('guest:contact:read'));
+    expect(await refusal(viewer.get(`${base}/team`))).toEqual(mayNot('member:manage'));
+    expect(await refusal(viewer.patch(`/invitations/${slug}/theme`, { palette: 'ivory' }))).toEqual(mayNot('invitation:design'));
+    expect(await refusal(viewer.post(`${base}/guests`, { firstName: 'Intruder' }))).toEqual(mayNot('guest:write'));
   };
 
   it('gives an invited designer only the invitation and an invited viewer a read-only event without contacts, door codes or fees', async () => {
@@ -247,6 +264,9 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
 
     await designerWalks(owned, designer.member);
     await viewerWalks(owned, viewer.member);
+    // Neither refused write landed.
+    expect((await guestsSeenBy(owned.owner, owned.base)).map((guest) => guest.firstName)).not.toContain('Intruder');
+    expect((await owned.owner.get(`/invitations/${owned.slug}/design`).expect(200)).body.theme).toMatchObject({ palette: 'sage' });
     // Accepting an event role grants nothing in the organization.
     expect(await prisma.organizationMembership.count({ where: { user: { email: { in: ['designer@journey11.test', 'viewer@journey11.test'] } } } })).toBe(0);
   });
@@ -265,23 +285,23 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
     const { body: added } = await viewer.post(`${owned.base}/guests`, { firstName: 'Armen' }).expect(201);
     expect((await guestsSeenBy(owned.owner, owned.base)).map((guest) => guest.id)).toContain(added.id);
     // Still not allowed to decide who else works on the event.
-    await viewer.post(`${owned.base}/team/invites`, { email: 'friend@journey11.test', role: 'VIEWER' }).expect(403);
+    expect(await refusal(viewer.post(`${owned.base}/team/invites`, { email: 'friend@journey11.test', role: 'VIEWER' }))).toEqual(mayNot('member:manage'));
 
     // The designer is taken off: the same session is locked out of everything at once.
     await designer.get(`/invitations/${owned.slug}/design`).expect(200);
     await owned.owner.delete(`${owned.base}/team/${await userId('designer@journey11.test')}`).expect(200);
-    await designer.get(`/invitations/${owned.slug}/design`).expect(403);
-    await designer.patch(`/invitations/${owned.slug}/theme`, { palette: 'ivory' }).expect(403);
-    await designer.get(`/events/${owned.eventId}`).expect(403);
+    expect(await refusal(designer.get(`/invitations/${owned.slug}/design`))).toEqual(mayNot('invitation:read'));
+    expect(await refusal(designer.patch(`/invitations/${owned.slug}/theme`, { palette: 'ivory' }))).toEqual(mayNot('invitation:design'));
+    expect(await refusal(designer.get(`/events/${owned.eventId}`))).toEqual(mayNot('event:read'));
     expect((await designer.get('/events').expect(200)).body).toEqual([]);
   });
 
-  it('gives an organization MANAGER every event to run and a MEMBER every event to read, through accepted invites', async () => {
+  it('gives an organization MANAGER every event to run and a MEMBER or VIEWER every event to read, through accepted invites', async () => {
     const owned = await ownedEvent();
     const { body: second } = await owned.owner.post('/events', {
       type: EventType.OTHER, title: 'Engagement dinner', templateKey: 'journey-11', startsAt: '2027-03-01T17:00:00.000Z', locales: ['en'], defaultLocale: 'en',
     }).expect(201);
-    const join = async (email: string, role: 'MANAGER' | 'MEMBER') => {
+    const join = async (email: string, role: 'MANAGER' | 'MEMBER' | 'VIEWER') => {
       await owned.owner.post('/organization/invites', { email, role }).expect(201);
       const token = await emailedToken('organization.invite', email);
       const { body: accepted } = await http().post(api('/invites/accept')).send({ token, name: role.toLowerCase(), password: `${role}-own-password` }).expect(201);
@@ -290,6 +310,7 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
     };
     const manager = await join('manager@journey11.test', 'MANAGER');
     const member = await join('member@journey11.test', 'MEMBER');
+    const viewer = await join('viewer@journey11.test', 'VIEWER');
     const eventIds = async (caller: Caller) => ((await caller.get('/events').expect(200)).body as { id: string }[]).map((event) => event.id).sort();
     const everyEvent = [owned.eventId, second.id as string].sort();
 
@@ -298,19 +319,24 @@ describe('Journey 11: a team where each role sees exactly its slice (e2e)', () =
     expect(await lusineSeenBy(manager, owned.base)).toMatchObject({ email: 'lusine@journey11.test' });
     expect(((await manager.get(`${owned.base}/vendors`).expect(200)).body as Booking[])[0]).toMatchObject({ feeMinor: '150000' });
     await manager.post(`/events/${second.id as string}/guests`, { firstName: 'Davit', email: 'davit@journey11.test' }).expect(201);
-    await manager.post('/organization/invites', { email: 'other@journey11.test', role: 'MEMBER' }).expect(403);
-    await manager.post(`${owned.base}/ticket-orders/${owned.orderId}/cancel`).expect(403);
+    expect(await refusal(manager.post('/organization/invites', { email: 'other@journey11.test', role: 'MEMBER' }))).toEqual(mayNot('member:manage'));
+    expect(await refusal(manager.get('/subscription'))).toEqual(mayNot('billing:read'));
+    await owned.owner.get('/subscription').expect(200);
+    expect(await refusal(manager.post(`${owned.base}/ticket-orders/${owned.orderId}/cancel`))).toEqual(mayNot('billing:write'));
 
-    // The member reads both events, without contacts or fees, and changes nothing.
-    expect(await eventIds(member)).toEqual(everyEvent);
-    const seen = await guestsSeenBy(member, `/events/${second.id as string}`);
-    expect(seen).toEqual([expect.objectContaining({ firstName: 'Davit' })]);
-    expect(seen[0]).not.toHaveProperty('email');
-    expect(((await member.get(`${owned.base}/vendors`).expect(200)).body as Booking[])[0]).not.toHaveProperty('feeMinor');
-    await member.post(`${owned.base}/guests`, { firstName: 'Intruder' }).expect(403);
-    await member.patch(`/invitations/${owned.slug}/theme`, { palette: 'ivory' }).expect(403);
-    await member.post(`${owned.base}/exports`, { kind: 'TICKET_MANIFEST' }).expect(403);
-    expect(await prisma.organizationMembership.findMany({ where: { user: { email: { in: ['manager@journey11.test', 'member@journey11.test'] } } }, select: { role: true }, orderBy: { role: 'asc' } }))
-      .toEqual(expect.arrayContaining([{ role: 'MANAGER' }, { role: 'MEMBER' }]));
+    // The member and the viewer each read both events, without contacts or fees, and change nothing.
+    for (const reader of [member, viewer]) {
+      expect(await eventIds(reader)).toEqual(everyEvent);
+      const seen = await guestsSeenBy(reader, `/events/${second.id as string}`);
+      expect(seen).toEqual([expect.objectContaining({ firstName: 'Davit' })]);
+      expect(seen[0]).not.toHaveProperty('email');
+      expect(((await reader.get(`${owned.base}/vendors`).expect(200)).body as Booking[])[0]).not.toHaveProperty('feeMinor');
+      expect(await refusal(reader.post(`${owned.base}/guests`, { firstName: 'Intruder' }))).toEqual(mayNot('guest:write'));
+      expect(await refusal(reader.patch(`/invitations/${owned.slug}/theme`, { palette: 'ivory' }))).toEqual(mayNot('invitation:design'));
+      expect(await refusal(reader.post(`${owned.base}/exports`, { kind: 'TICKET_MANIFEST' }))).toEqual(manifestRefused);
+    }
+    const invited = ['manager@journey11.test', 'member@journey11.test', 'viewer@journey11.test'];
+    expect(await prisma.organizationMembership.findMany({ where: { user: { email: { in: invited } } }, select: { role: true }, orderBy: { role: 'asc' } }))
+      .toEqual([{ role: 'MANAGER' }, { role: 'MEMBER' }, { role: 'VIEWER' }]);
   });
 });

@@ -8,8 +8,21 @@ const A4 = { width: 595.28, height: 841.89 };
 const placeCards = (rows: CsvRow[]): RenderInput => ({ title: 'Wedding', snapshotAt: new Date('2026-10-15T12:00:00Z'), timezone: 'Asia/Yerevan',
   locale: 'en', attendanceRevision: 1, dataRevision: '1', includesContacts: false, kind: 'PLACE_CARDS', format: 'PDF',
   sheet: { columns: ['Name', 'Venue', 'Arrangement', 'Table'], rows } });
-const guests = (count: number): CsvRow[] => Array.from({ length: count }, (_, index) => ({ Name: `Guest ${index + 1}`, Venue: 'Hall', Arrangement: 'a1', Table: 'Table 1' }));
+const guests = (count: number): CsvRow[] => Array.from({ length: count }, (_, index) => card(`Guest ${index + 1}`));
 const pageCount = (buffer: Buffer) => buffer.toString('latin1').match(/\/Type \/Page\b/g)?.length ?? 0;
+const card = (Name: string): CsvRow => ({ Name, Venue: 'Hall', Arrangement: 'a1', Table: 'Table 1' });
+type Sized = PDFKit.PDFDocument & { _fontSize: number };
+
+/** Records every printed string with the font size it was printed at. */
+function recordPrinting(): { text: string; size: number }[] {
+  const printed: { text: string; size: number }[] = [];
+  const original = PDFDocument.prototype.text as (this: Sized, ...args: unknown[]) => Sized;
+  jest.spyOn(PDFDocument.prototype, 'text').mockImplementation(function (this: Sized, ...args: unknown[]) {
+    printed.push({ text: String(args[0]), size: this._fontSize });
+    return original.apply(this, args);
+  });
+  return printed;
+}
 
 describe('Place-card PDF layout', () => {
   afterEach(() => jest.restoreAllMocks());
@@ -31,17 +44,29 @@ describe('Place-card PDF layout', () => {
       expect(x + width).toBeLessThanOrEqual(A4.width);
       expect(y + height).toBeLessThanOrEqual(A4.height);
     }
-    const origins = new Set(cards.map(([x, y]) => `${x.toFixed(1)}:${y.toFixed(1)}`));
-    expect(origins.size).toBe(6);
+    const overlaps = cards.flatMap(([ax, ay, aw, ah], index) => cards.slice(index + 1)
+      .filter(([bx, by, bw, bh]) => ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah));
+    expect(overlaps).toEqual([]);
   });
 
-  it('shrinks a long but printable name to fit its card', async () => {
-    const file = await renderExport(placeCards([{ Name: 'Anahit Hovhannisyan-Ter-Petrosyan Grigoryan', Venue: 'Hall', Arrangement: 'a1', Table: 'Table 1' }]));
-    expect(file.buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  it('prints a short name at the full 20 pt card size', async () => {
+    const printed = recordPrinting();
+    await renderExport(placeCards([card('Ani')]));
+    expect(printed.filter((line) => line.text === 'Ani')).toEqual([{ text: 'Ani', size: 20 }]);
+  });
+
+  it('wraps and shrinks a long but printable name, printing every word', async () => {
+    const words = ['Anahit', 'Hovhannisyan', 'Ter-Petrosyan', 'Grigoryan', 'Mkrtchyan', 'Khachatryan', 'Avetisyan', 'Sargsyan'];
+    const printed = recordPrinting();
+    await renderExport(placeCards([card(words.join(' '))]));
+    const nameLines = printed.filter((line) => words.some((word) => line.text.includes(word)));
+    expect(nameLines.length).toBeGreaterThan(1);
+    expect(nameLines.map((line) => line.text).join(' ')).toBe(words.join(' '));
+    expect(Math.max(...nameLines.map((line) => line.size))).toBeLessThan(20);
   });
 
   it('fails instead of clipping a name that cannot fit inside the print boundary', async () => {
-    await expect(renderExport(placeCards([{ Name: 'W'.repeat(400), Venue: 'Hall', Arrangement: 'a1', Table: 'Table 1' }])))
+    await expect(renderExport(placeCards([card('W'.repeat(400))])))
       .rejects.toThrow('print boundary');
   });
 });

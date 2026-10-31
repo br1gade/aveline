@@ -178,8 +178,11 @@ describe('Journey 3: attendance mode change, reconfirmation, seating and exports
   };
   const exportCsv = async (wedding: Wedding, kind: string) => {
     const { body: created } = await wedding.host.post(`${wedding.base}/exports`, { kind, format: 'CSV' }).expect(201);
-    return parseCsv((await http().get(created.downloadPath as string).set('Authorization', (wedding.host.get('/').get('Authorization'))).buffer(true).expect(200)).text);
+    return parseCsv((await http().get(created.downloadPath as string).set('Authorization', wedding.authorization).buffer(true).expect(200)).text);
   };
+  /** Who the printed seating chart puts in a room, by name. */
+  const chartedIn = (chart: Record<string, string>[], venue: string) =>
+    chart.filter((row) => row.Venue === venue && row.Guest).map((row) => row.Guest).sort();
   /** A stored snapshot built by the export worker, which splits operations sheets by venue. */
   const snapshotCsv = async (wedding: Wedding, kind: string) => {
     const { body: snapshot } = await wedding.host.post(`${wedding.base}/export-snapshots`, { kind, format: 'CSV', locale: 'en', idempotencyKey: randomUUID() }).expect(201);
@@ -292,15 +295,14 @@ describe('Journey 3: attendance mode change, reconfirmation, seating and exports
     const drinks = async (venueId: string) =>
       ((await sheet('bar-sheet', venueId)).preferences as { key: string; guests: number }[]).map((item) => [item.key, item.guests]);
     expect(await drinks(wedding.church)).toEqual([['wine', 1]]);
-    expect(await drinks(wedding.hall)).toEqual(expect.arrayContaining([['wine', 1], ['cognac', 1]]));
+    expect((await drinks(wedding.hall)).sort()).toEqual([['cognac', 1], ['wine', 1]]);
 
     const covers = (await snapshotCsv(wedding, 'CATERING_SHEET')).filter((row) => row.Requirement === 'Total covers');
     expect(covers.map((row) => [row.Venue, row.Guests]).sort()).toEqual([['Ararat Hall', '4'], ['Saint Gayane', '3']]);
 
     const chart = await exportCsv(wedding, 'SEATING_CHART');
-    const chartNames = (venue: string) => chart.filter((row) => row.Venue === venue && row.Guest).map((row) => row.Guest).sort();
-    expect(chartNames('Saint Gayane')).toEqual(['Ani Avetisyan', 'Armen Petrosyan', 'Lusine Petrosyan', 'Tigran Hakobyan']);
-    expect(chartNames('Ararat Hall')).toEqual(['Ani Avetisyan', 'Armen Petrosyan', 'Hayk Sargsyan', 'Mariam Sargsyan', 'Tigran Hakobyan']);
+    expect(chartedIn(chart, 'Saint Gayane')).toEqual(['Ani Avetisyan', 'Armen Petrosyan', 'Lusine Petrosyan', 'Tigran Hakobyan']);
+    expect(chartedIn(chart, 'Ararat Hall')).toEqual(['Ani Avetisyan', 'Armen Petrosyan', 'Hayk Sargsyan', 'Mariam Sargsyan', 'Tigran Hakobyan']);
     // A place card per room someone confirmed; Ani's held seats print nothing.
     const cards = (await exportCsv(wedding, 'PLACE_CARDS')).map((row) => `${row.Name}@${row.Venue}`).sort();
     expect(cards).toEqual([
@@ -318,11 +320,15 @@ describe('Journey 3: attendance mode change, reconfirmation, seating and exports
     expect(guest.attendance).toMatchObject({ mode: 'EVENT_WIDE', revision: 3, status: 'PENDING', needsReconfirmation: true });
     expect(venuesOf(guest.seating!.assignments)).toEqual(['Ararat Hall:true', 'Saint Gayane:true']);
     // Returning to event-wide does not restore old forms, and the per-venue form is now stale.
-    await submit(armen, { status: 'ATTENDING' }).expect(409);
-    await submit(armen, { attendanceRevision: 2, venueAttendance: [{ venueId: wedding.hall, status: 'ATTENDING' }] }).expect(409);
+    expect((await submit(armen, { status: 'ATTENDING' }).expect(409)).body.message).toMatch(/^attendanceRevision:/);
+    expect((await submit(armen, { attendanceRevision: 2, venueAttendance: [{ venueId: wedding.hall, status: 'ATTENDING' }] }).expect(409)).body.message)
+      .toMatch(/^attendanceRevision:/);
     expect((await wedding.host.get(`${wedding.base}/headcount`).expect(200)).body).toMatchObject({ attending: 0, pending: 6 });
     expect(await exportCsv(wedding, 'PLACE_CARDS')).toEqual([]);
-    expect((await exportCsv(wedding, 'SEATING_CHART')).filter((row) => row.Guest)).toHaveLength(9);
+    // Held seats still occupy the printed plan, exactly where they were.
+    const chart = await exportCsv(wedding, 'SEATING_CHART');
+    expect(chartedIn(chart, 'Saint Gayane')).toEqual(['Ani Avetisyan', 'Armen Petrosyan', 'Lusine Petrosyan', 'Tigran Hakobyan']);
+    expect(chartedIn(chart, 'Ararat Hall')).toEqual(['Ani Avetisyan', 'Armen Petrosyan', 'Hayk Sargsyan', 'Mariam Sargsyan', 'Tigran Hakobyan']);
     return policy.revision;
   };
 

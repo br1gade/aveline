@@ -269,13 +269,23 @@ describe('Journey 10: event lifetime expiry closes guest access and keeps host d
     expect(before).toMatchObject({ households: ['Hakobyan', 'Petrosyan', 'Sargsyan'], seated: ['Armen Petrosyan', 'Lusine Petrosyan', 'Mariam Sargsyan'], acknowledgements: 3 });
     expect(before.headcount).toMatchObject({ attending: 3, pending: 1 });
 
+    // Tigran has had his invitation for four days and still not answered: the host chases him.
+    await prisma.message.updateMany({ where: { eventId: ids.eventId, templateKey: 'invitation.send', toAddress: 'tigran@journey.test' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
+    const { body: reminded } = await http().post(api(`/invitations/${ids.slug}/remind`)).set('Authorization', authorization).send({}).expect(201);
+    expect(reminded).toMatchObject({ queued: 1, recipients: [expect.objectContaining({ toAddress: 'tigran@journey.test' })] });
+
     // The wedding happens: the host records that it was two days ago. Guests keep ninety days.
     const happenedAt = new Date(Date.now() - 2 * DAY_MS);
     const afterParty = await moveEvent(authorization, ids.eventId, { startsAt: happenedAt, endsAt: new Date(happenedAt.getTime() + 6 * HOUR_MS) });
     expect(afterParty).toMatchObject({ isExpired: false, expiresAt: new Date(happenedAt.getTime() + 6 * HOUR_MS + 90 * DAY_MS).toISOString() });
     const maintenance = app.get(InvitationMaintenanceService);
     expect(await maintenance.maintain()).toMatchObject({ expiriesProcessed: 0 });
+    // Past the event but inside the lifetime, every guest surface still answers.
     await http().get(links.armen).expect(200);
+    await http().get(`${links.tigran}/rsvp`).expect(200);
+    await http().get(`${links.mariam}/gallery`).expect(200);
+    await http().get(`${links.armen}/gallery/${links.photoId}/file`).expect(200);
+    await http().get(`${links.armen}/acknowledgements`).expect(200);
 
     // A late addition is invited, but her email is still in the outbox when access closes.
     await http().post(api(`/events/${ids.eventId}/guests`)).set('Authorization', authorization)
@@ -303,13 +313,26 @@ describe('Journey 10: event lifetime expiry closes guest access and keeps host d
     await http().post(`${links.mariam}/gallery`).attach('file', photo, { filename: 'late.png', contentType: 'image/png' }).expect(404);
     expect(await prisma.rsvp.findFirstOrThrow({ where: { guest: { eventId: ids.eventId, firstName: 'Tigran' } } })).toMatchObject({ status: 'PENDING' });
     expect(await prisma.guestMedia.count({ where: { eventId: ids.eventId } })).toBe(1);
-    expect(await prisma.guest.findFirstOrThrow({ where: { eventId: ids.eventId, firstName: 'Tigran' } })).toMatchObject({ firstName: 'Tigran' });
+    expect(await prisma.guest.count({ where: { eventId: ids.eventId, firstName: { in: ['Tigran', 'Tiko'] } } })).toBe(1);
+    expect(await prisma.guest.count({ where: { eventId: ids.eventId, firstName: 'Tiko' } })).toBe(0);
 
-    // No dead link goes out: the queued one is cancelled at dispatch, and new sends and reminders are refused.
+    // No dead link goes out: what was queued before expiry is cancelled at dispatch, and new sends and reminders are refused.
+    const queuedBeforeExpiry = () => prisma.message.findMany({
+      where: { eventId: ids.eventId, OR: [{ toAddress: 'ani@journey.test' }, { templateKey: 'rsvp.reminder' }] },
+      select: { templateKey: true, toAddress: true, status: true, failureReason: true }, orderBy: { toAddress: 'asc' },
+    });
+    expect((await queuedBeforeExpiry()).map((message) => [message.templateKey, message.toAddress, message.status])).toEqual([
+      ['invitation.send', 'ani@journey.test', MessageStatus.QUEUED], ['rsvp.reminder', 'tigran@journey.test', MessageStatus.QUEUED],
+    ]);
     await app.get(CommunicationsService).dispatchDue();
-    expect(await prisma.message.findFirstOrThrow({ where: { eventId: ids.eventId, toAddress: 'ani@journey.test' } })).toMatchObject({ status: MessageStatus.CANCELLED });
-    await http().post(api(`/invitations/${ids.slug}/send`)).set('Authorization', authorization).send({}).expect(400);
-    await http().post(api(`/invitations/${ids.slug}/remind`)).set('Authorization', authorization).send({}).expect(400);
+    expect(await queuedBeforeExpiry()).toEqual([
+      { templateKey: 'invitation.send', toAddress: 'ani@journey.test', status: MessageStatus.CANCELLED, failureReason: 'No longer applied when it was due to be sent' },
+      { templateKey: 'rsvp.reminder', toAddress: 'tigran@journey.test', status: MessageStatus.CANCELLED, failureReason: 'No longer applied when it was due to be sent' },
+    ]);
+    const resend = await http().post(api(`/invitations/${ids.slug}/send`)).set('Authorization', authorization).send({}).expect(400);
+    expect(resend.body.message).toBe('This invitation has expired');
+    const remindAgain = await http().post(api(`/invitations/${ids.slug}/remind`)).set('Authorization', authorization).send({}).expect(400);
+    expect(remindAgain.body.message).toBe('This invitation has expired');
     expect(await prisma.message.count({ where: { eventId: ids.eventId, templateKey: { in: ['invitation.send', 'rsvp.reminder'] }, status: MessageStatus.SENT } })).toBe(3);
 
     // The host keeps all of it: the event is not archived and nothing was deleted.
@@ -362,5 +385,8 @@ describe('Journey 10: event lifetime expiry closes guest access and keeps host d
     expect(page.guest).toMatchObject({ name: 'Ani' });
     await http().post(`${link}/rsvp`).send({ status: 'ATTENDING' }).expect(201);
     expect((await http().get(api(`/events/${eventId}/dashboard`)).set('Authorization', authorization).expect(200)).body.headcount).toMatchObject({ attending: 1 });
+    expect(await moveEvent(authorization, eventId, { startsAt: wrongYear })).toMatchObject({ isExpired: true });
+    expect(await app.get(InvitationMaintenanceService).maintain()).toMatchObject({ expiriesProcessed: 1 });
+    await http().get(link).expect(404);
   }, 60_000);
 });

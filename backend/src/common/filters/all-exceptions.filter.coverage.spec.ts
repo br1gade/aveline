@@ -37,6 +37,7 @@ describe('AllExceptionsFilter masking', () => {
     const { status, body } = caught('database password is hunter2');
 
     expect(status).toBe(500);
+    expect(body).toMatchObject({ statusCode: 500, message: 'Internal server error', code: 'INTERNAL_ERROR' });
     expect(JSON.stringify(body)).not.toContain('hunter2');
   });
 
