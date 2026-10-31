@@ -1,4 +1,3 @@
-import { once } from 'node:events';
 import { AddressInfo, connect, createServer, Server, Socket } from 'node:net';
 
 /**
@@ -42,8 +41,8 @@ export class InterruptibleLink {
    */
   async settled(): Promise<void> {
     await Promise.all([...this.pairs].map(async ({ client, upstream }) => {
-      if (!upstream.closed) await once(upstream, 'close');
-      if (!client.writableFinished && !client.destroyed) await once(client, 'finish');
+      if (!upstream.closed) await settledOn(upstream, 'close');
+      if (!client.writableFinished && !client.destroyed) await settledOn(client, 'finish');
     }));
   }
 
@@ -58,6 +57,15 @@ export class InterruptibleLink {
     client.pipe(upstream);
     upstream.pipe(client);
   }
+}
+
+/**
+ * Resolves on the event, never rejects. events.once would reject on a socket
+ * 'error' (a reset as the server ends the session), which here is the outage
+ * the test is causing, not a test failure; relay() already drops both sides.
+ */
+function settledOn(socket: Socket, event: 'close' | 'finish'): Promise<void> {
+  return new Promise((resolve) => { socket.once(event, () => resolve()); socket.once('close', () => resolve()); });
 }
 
 /** A promise a stalled worker waits on, plus a signal that it has started waiting. */

@@ -1,6 +1,5 @@
 import type { Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { once } from 'node:events';
 import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -206,7 +205,10 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
   /** Reconnecting is ioredis's job; the test only waits for the event that says it happened. */
   const redisIsBack = async () => {
     await redisLink.start();
-    if (redis.status !== 'ready') await once(redis, 'ready');
+    // Not events.once: it rejects on the first 'error', and a reconnect attempt
+    // ioredis scheduled before the link came back can still be refused after it
+    // has. That refusal is the outage ending, not a failure; wait for 'ready'.
+    if (redis.status !== 'ready') await new Promise<void>((resolve) => { redis.once('ready', () => resolve()); });
   };
 
   /**
