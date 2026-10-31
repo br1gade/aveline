@@ -26,6 +26,13 @@ export class CustomAnswerDto {
   // in the service. It still needs a decorator: without one the global
   // whitelist treated it as an unknown property and refused every answer.
   @ApiProperty({
+    oneOf: [
+      { type: 'string' },
+      { type: 'boolean' },
+      { type: 'number' },
+      { type: 'array', items: { type: 'integer' } },
+      { type: 'object', additionalProperties: true },
+    ],
     description:
       'TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position ' +
       'of the chosen option (0-based). MULTI_CHOICE: a list of positions. SIGNATURE: ' +

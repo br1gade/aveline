@@ -1,3 +1,4 @@
+import { OptionalQuery } from '../../common/openapi-document';
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { PaymentEventSource } from '@prisma/client';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -24,6 +25,7 @@ export class PaymentsController {
 
   @Public()
   @Post(':orderNumber/confirm')
+  @OptionalQuery('source', '"callback" when a bank callback triggered the check')
   @ApiOperation({
     summary: 'Ask the bank what happened and record it',
     description:

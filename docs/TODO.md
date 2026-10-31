@@ -61,6 +61,19 @@ branch; assess what is already implemented before treating these as new screens.
 - [ ] Review frontend adoption of the new API contracts; retire the legacy live
   CSV compatibility surface only after adoption is verified and a cutover agreed.
 
+**Backend requests from the client** (`frontend/docs/BACKEND_REQUESTS.md` on the
+frontend branches). Answered on 31 October 2026: FR-3, FR-7, FR-10, FR-13,
+FR-17, FR-19, FR-21, FR-22, FR-25, FR-27, FR-31, FR-35, FR-36, FR-38, FR-40,
+FR-45; FR-4, FR-18, FR-24 and FR-44 as far as the schema goes (every property
+typed, every path parameter declared); FR-29 and FR-34 by a policy test that
+fails if a role may write guests or send without reading contacts.
+
+- [ ] Still open on the backend, by the client's priority: FR-1 response
+  schemas (blocking typed responses), FR-6 effective permissions, FR-5 `GET /me`,
+  FR-2 per-operation security, FR-11 deployment topology (with T2), FR-26/28/32/33
+  stable codes for English-only refusals, FR-23, FR-20, FR-30, FR-37, FR-39,
+  FR-41, FR-42/43 (template layouts and block fields, a design decision).
+
 Done when: the integrated frontend demonstrates the required pilot flows against
 the current backend, with the frontend acceptance for original batches A–H closed.
 Contracts: [API](API.md), [OpenAPI](../backend/openapi.json).

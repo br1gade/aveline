@@ -1,3 +1,4 @@
+import { Trimmed } from '../../../common/trimmed';
 import { IsIsoTimestamp } from '../../../common/iso-timestamp';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { EventType } from '@prisma/client';
@@ -25,6 +26,7 @@ export class UpdateEventDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Trimmed()
   @IsString()
   @MinLength(2)
   @MaxLength(200)
@@ -32,6 +34,7 @@ export class UpdateEventDto {
 
   @ApiPropertyOptional({ description: 'Shown on the invitation' })
   @IsOptional()
+  @Trimmed()
   @IsString()
   @MinLength(1)
   @MaxLength(200)
@@ -42,7 +45,12 @@ export class UpdateEventDto {
   @IsIsoTimestamp()
   startsAt?: string;
 
-  @ApiPropertyOptional({ description: 'ISO 8601, or null to clear', nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'date-time',
+    description: 'ISO 8601, or null to clear',
+    nullable: true,
+  })
   @IsOptional()
   @IsIsoTimestamp()
   endsAt?: string | null;
@@ -67,19 +75,21 @@ export class UpdateEventDto {
   @MaxLength(10)
   defaultLocale?: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(60)
   sideALabel?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(60)
   sideBLabel?: string | null;
 
   @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
     description: 'Per-language title and hosts, edited one language at a time; null removes one',
     example: { en: { title: 'The wedding of Anna and Davit', hostsLabel: 'Anna & Davit' } },
   })

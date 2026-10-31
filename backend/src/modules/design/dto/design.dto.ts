@@ -13,31 +13,42 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsUrl,
   Matches,
   Max,
   MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
+import { Trimmed } from '../../../common/trimmed';
 
 /** Translated content arrives as { "<locale>": { ... } } and is bounded by
  *  the payload limit rather than field by field, because block content is
  *  template-shaped and varies. */
 export class UpdateBlockDto {
-  @ApiPropertyOptional({ description: 'Translated content keyed by locale' })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Translated content keyed by locale',
+  })
   @IsOptional()
   @IsObject()
   content?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: 'Block-specific, non-translated settings' })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Block-specific, non-translated settings',
+  })
   @IsOptional()
   @IsObject()
   settings?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: 'Template layout variant, e.g. "split"' })
+  @ApiPropertyOptional({ type: String, nullable: true, description: 'Template layout variant, e.g. "split"; null resets it' })
   @IsOptional()
   @IsString()
   @MaxLength(40)
-  variant?: string;
+  variant?: string | null;
 
   @ApiPropertyOptional({ isArray: true, type: String, description: 'MediaAsset ids, in order' })
   @IsOptional()
@@ -97,11 +108,19 @@ export class UpsertQuestionDto {
   @IsEnum(QuestionType)
   type!: QuestionType;
 
-  @ApiProperty({ description: 'Translated prompt keyed by locale' })
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Translated prompt keyed by locale',
+  })
   @IsObject()
   prompt!: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: 'Translated choices, for the choice types' })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Translated choices, for the choice types',
+  })
   @IsOptional()
   @IsObject()
   options?: Record<string, unknown>;
@@ -121,12 +140,16 @@ export class CreateVenueDto {
   role!: string;
 
   @ApiProperty()
+  @Trimmed()
   @IsString()
+  @MinLength(1)
   @MaxLength(160)
   name!: string;
 
   @ApiProperty()
+  @Trimmed()
   @IsString()
+  @MinLength(1)
   @MaxLength(300)
   address!: string;
 
@@ -135,39 +158,63 @@ export class CreateVenueDto {
   @IsString()
   profileId?: string;
 
-  @ApiPropertyOptional()
+  // The guest page links only http(s); anything else was stored and dropped.
+  @ApiPropertyOptional({
+    type: String,
+    description: 'An http or https link; null clears it',
+    nullable: true,
+  })
   @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(500)
-  mapUrl?: string;
+  mapUrl?: string | null;
 
-  @ApiPropertyOptional({ description: 'When guests should arrive, ISO 8601' })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'date-time',
+    description: 'When guests should arrive, ISO 8601; null clears it',
+    nullable: true,
+  })
   @IsOptional()
   @IsIsoTimestamp()
-  arriveAt?: string;
+  arriveAt?: string | null;
 
-  @ApiPropertyOptional({ minimum: -90, maximum: 90, description: 'With longitude; overrides the directory' })
+  @ApiPropertyOptional({
+    type: Number,
+    minimum: -90,
+    maximum: 90,
+    description: 'With longitude; overrides the directory; null clears it',
+    nullable: true,
+  })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   @Min(-90)
   @Max(90)
-  latitude?: number;
+  latitude?: number | null;
 
-  @ApiPropertyOptional({ minimum: -180, maximum: 180 })
+  @ApiPropertyOptional({ type: Number, minimum: -180, maximum: 180, nullable: true })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   @Min(-180)
   @Max(180)
-  longitude?: number;
+  longitude?: number | null;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100000, description: 'Seated capacity; overrides the directory' })
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    maximum: 100000,
+    description: 'Seated capacity; overrides the directory; null clears it',
+    nullable: true,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(100_000)
-  capacity?: number;
+  capacity?: number | null;
 
   @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
     description: 'Per-language name and address, edited one language at a time; null removes one',
     example: { en: { name: 'Garden Hall', address: '12 Garden Lane, Yerevan' } },
   })
@@ -185,7 +232,11 @@ export class UpdateVenueDto extends PartialType(OmitType(CreateVenueDto, ['profi
 
 /** A hall in the shared directory, which hosts copy from. */
 export class CreateVenueProfileDto {
-  @ApiPropertyOptional({ description: 'Active curated VENUE vendor operating this hall; null removes the link', nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Active curated VENUE vendor operating this hall; null removes the link',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
@@ -244,7 +295,12 @@ export class UpdateVenueProfileDto extends PartialType(CreateVenueProfileDto) {
 
 
 export class UpsertTimelineEntryDto {
-  @ApiProperty({ description: 'Translated name keyed by locale', example: { hy: 'Պսակադրություն' } })
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Translated name keyed by locale',
+    example: { hy: 'Պսակադրություն' },
+  })
   @IsObject()
   label!: Record<string, unknown>;
 
@@ -252,7 +308,11 @@ export class UpsertTimelineEntryDto {
   @IsIsoTimestamp()
   occursAt!: string;
 
-  @ApiPropertyOptional({ description: 'Which of this event’s venues it happens at; null detaches it', nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Which of this event’s venues it happens at; null detaches it',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   venueId?: string | null;
@@ -283,27 +343,39 @@ export class UpsertTimelineEntryDto {
  * The shape inside is checked by `rsvp-fields.ts`, which names the problem.
  */
 export class UpdateRsvpFieldsDto {
-  @ApiPropertyOptional({ example: { options: [{ key: 'vegan', label: { en: 'Vegan', hy: 'Վեգան' } }] } })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    example: { options: [{ key: 'vegan', label: { en: 'Vegan', hy: 'Վեգան' } }] },
+  })
   @IsOptional()
   @IsObject()
   dietary?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ example: { options: [{ key: 'wine', label: { en: 'Wine' } }] } })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    example: { options: [{ key: 'wine', label: { en: 'Wine' } }] },
+  })
   @IsOptional()
   @IsObject()
   drinkPreference?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ example: { isEnabled: false } })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    example: { isEnabled: false },
+  })
   @IsOptional()
   @IsObject()
   songRequest?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ example: { isEnabled: true } })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, example: { isEnabled: true } })
   @IsOptional()
   @IsObject()
   message?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ example: { isEnabled: true } })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, example: { isEnabled: true } })
   @IsOptional()
   @IsObject()
   attribution?: Record<string, unknown>;

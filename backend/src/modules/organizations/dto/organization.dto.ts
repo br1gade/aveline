@@ -25,7 +25,7 @@ export class RenameOrganizationDto {
 }
 
 export class MembershipPageQuery {
-  @ApiPropertyOptional({ default: 50, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({ type: 'integer', default: 50, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

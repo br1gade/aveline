@@ -1,8 +1,8 @@
-import { Body, Controller, Headers, HttpCode, HttpStatus, Ip, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentActor, Public, RequestActor } from './actor';
+import { ClientSession, CurrentActor, Public, RequestActor } from './actor';
 import { AccountService } from './account.service';
-import { AuthService } from './auth.service';
+import { AuthService, SessionContext } from './auth.service';
 import {
   ConfirmPasswordResetDto,
   RequestPasswordResetDto,
@@ -34,12 +34,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @ApiOperation({ summary: 'Exchange credentials for a token pair' })
-  login(
-    @Body() dto: LoginDto,
-    @Headers('user-agent') userAgent?: string,
-    @Ip() ipAddress?: string,
-  ) {
-    return this.auth.login(dto, { userAgent, ipAddress });
+  login(@Body() dto: LoginDto, @ClientSession() client: SessionContext) {
+    return this.auth.login(dto, client);
   }
 
   @Public()
@@ -48,12 +44,8 @@ export class AuthController {
     summary: 'Rotate a refresh token for a new pair',
     description: 'The presented token is revoked, so a stolen one works at most once.',
   })
-  refresh(
-    @Body() dto: RefreshDto,
-    @Headers('user-agent') userAgent?: string,
-    @Ip() ipAddress?: string,
-  ) {
-    return this.auth.refresh(dto.refreshToken, { userAgent, ipAddress });
+  refresh(@Body() dto: RefreshDto, @ClientSession() client: SessionContext) {
+    return this.auth.refresh(dto.refreshToken, client);
   }
 
   @Public()

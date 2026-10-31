@@ -1,3 +1,4 @@
+import { OptionalQuery } from '../../common/openapi-document';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BrowsePublicEventsQuery } from './dto/browse-public-events.dto';
@@ -18,6 +19,7 @@ export class PublicEventsController {
 
   @Public()
   @Get(':slug')
+  @OptionalQuery('locale', 'Preferred language; the response names the one it used')
   @ApiOperation({
     summary: 'One announcement, with ticket availability and preview metadata',
   })

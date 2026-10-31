@@ -1,3 +1,4 @@
+import { Trimmed } from '../../../common/trimmed';
 import { IsIsoTimestamp } from '../../../common/iso-timestamp';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EventType, EventVisibility } from '@prisma/client';
@@ -18,6 +19,7 @@ export class CreateEventDto {
   type!: EventType;
 
   @ApiProperty({ example: 'Anna & Davit' })
+  @Trimmed()
   @IsString()
   @MinLength(2)
   @MaxLength(200)
@@ -28,7 +30,9 @@ export class CreateEventDto {
     example: 'Anna & Davit',
   })
   @IsOptional()
+  @Trimmed()
   @IsString()
+  @MinLength(1)
   @MaxLength(200)
   hostsLabel?: string;
 

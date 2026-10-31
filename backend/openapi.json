@@ -30,16 +30,7 @@
     "/api/v1/auth/login": {
       "post": {
         "operationId": "AuthController_login",
-        "parameters": [
-          {
-            "name": "user-agent",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -65,16 +56,7 @@
       "post": {
         "description": "The presented token is revoked, so a stolen one works at most once.",
         "operationId": "AuthController_refresh",
-        "parameters": [
-          {
-            "name": "user-agent",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -380,15 +362,16 @@
         "parameters": [
           {
             "name": "archived",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "\"true\" lists archived events instead",
             "schema": {
               "type": "string"
             }
           },
           {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -396,7 +379,7 @@
           },
           {
             "name": "offset",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1329,7 +1312,24 @@
     "/api/v1/invitations/{slug}/design-assets/{assetId}/file": {
       "get": {
         "operationId": "DesignAssetFilesController_generic",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1344,7 +1344,32 @@
     "/api/v1/invitations/{slug}/g/{guestToken}/design-assets/{assetId}/file": {
       "get": {
         "operationId": "DesignAssetFilesController_personal",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1359,7 +1384,32 @@
     "/api/v1/events/{eventId}/design-templates/{templateKey}/assets/{assetId}/file": {
       "get": {
         "operationId": "DesignAssetFilesController_catalogue",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1374,7 +1424,24 @@
     "/api/v1/events/{eventId}/design-assets/{assetId}/file": {
       "get": {
         "operationId": "DesignAssetFilesController_editor",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1400,8 +1467,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -1483,8 +1551,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -1768,6 +1837,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "The page language, for venue names; negotiated as the personal page does",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1927,8 +2005,9 @@
           },
           {
             "name": "venueId",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "One venue; all of them when omitted",
             "schema": {
               "type": "string"
             }
@@ -1959,8 +2038,9 @@
           },
           {
             "name": "venueId",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "One venue; all of them when omitted",
             "schema": {
               "type": "string"
             }
@@ -2016,8 +2096,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -2097,8 +2178,9 @@
           },
           {
             "name": "source",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "\"callback\" when a bank callback triggered the check",
             "schema": {
               "type": "string"
             }
@@ -3059,8 +3141,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -3386,11 +3469,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -3650,11 +3729,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -3840,11 +3915,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -3920,11 +3991,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -4801,11 +4868,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 50,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -4948,11 +5011,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 50,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -5104,11 +5163,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 50,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -5310,7 +5365,24 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/assets": {
       "post": {
         "operationId": "TemplateAssetsController_upload",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5335,7 +5407,24 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/artwork": {
       "patch": {
         "operationId": "TemplateAssetsController_attach",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5360,7 +5449,24 @@
     "/api/v1/design-templates/{templateId}/assets/{assetId}/file": {
       "get": {
         "operationId": "TemplateAssetsController_file",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -5375,7 +5481,32 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/assets/{assetId}": {
       "delete": {
         "operationId": "TemplateAssetsController_remove",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5496,7 +5627,24 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}": {
       "patch": {
         "operationId": "TemplateAuthoringController_patch",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5521,7 +5669,24 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/discard": {
       "post": {
         "operationId": "TemplateAuthoringController_discard",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5546,7 +5711,24 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/validate": {
       "post": {
         "operationId": "TemplateAuthoringController_validate",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": ""
@@ -5561,7 +5743,24 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/preview": {
       "post": {
         "operationId": "TemplateAuthoringController_preview",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": ""
@@ -5576,7 +5775,24 @@
     "/api/v1/design-templates/{templateId}/drafts/{draftId}/publish": {
       "post": {
         "operationId": "TemplateAuthoringController_publish",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6275,7 +6491,16 @@
     "/api/v1/events/{eventId}/venue-profiles": {
       "get": {
         "operationId": "DesignController_listProfiles",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -7010,14 +7235,6 @@
         "operationId": "EnquiriesController_create",
         "parameters": [
           {
-            "name": "idempotency-key",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "Idempotency-Key",
             "in": "header",
             "description": "8–128 printable ASCII characters",
@@ -7133,14 +7350,6 @@
             }
           },
           {
-            "name": "idempotency-key",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "Idempotency-Key",
             "in": "header",
             "description": "8–128 printable ASCII characters",
@@ -7178,14 +7387,6 @@
             "name": "enquiryId",
             "required": true,
             "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "idempotency-key",
-            "required": true,
-            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -7233,14 +7434,6 @@
             }
           },
           {
-            "name": "idempotency-key",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "Idempotency-Key",
             "in": "header",
             "description": "8–128 printable ASCII characters",
@@ -7278,14 +7471,6 @@
             "name": "enquiryId",
             "required": true,
             "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "idempotency-key",
-            "required": true,
-            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -7446,14 +7631,6 @@
             }
           },
           {
-            "name": "idempotency-key",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "Idempotency-Key",
             "in": "header",
             "description": "8–128 printable ASCII characters",
@@ -7488,17 +7665,25 @@
         "operationId": "ConsultationsController_update",
         "parameters": [
           {
-            "name": "idempotency-key",
-            "required": true,
+            "name": "Idempotency-Key",
             "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "description": "8–128 printable ASCII characters",
+            "name": "enquiryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "consultationId",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string"
@@ -7833,7 +8018,8 @@
             "description": "ISO 8601"
           },
           "endsAt": {
-            "type": "object",
+            "type": "string",
+            "format": "date-time",
             "description": "ISO 8601, or null to clear",
             "nullable": true
           },
@@ -7857,15 +8043,16 @@
             "example": "hy"
           },
           "sideALabel": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "sideBLabel": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "translations": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Per-language title and hosts, edited one language at a time; null removes one",
             "example": {
               "en": {
@@ -7984,7 +8171,7 @@
             "maxLength": 100
           },
           "lastName": {
-            "type": "object",
+            "type": "string",
             "maxLength": 100,
             "nullable": true
           }
@@ -8007,7 +8194,8 @@
           },
           "locale": {
             "type": "string",
-            "example": "hy"
+            "example": "hy",
+            "description": "One of the event's languages"
           },
           "attribution": {
             "type": "string",
@@ -8051,7 +8239,9 @@
             "description": "An empty string removes it"
           },
           "locale": {
-            "type": "string"
+            "type": "string",
+            "description": "One of the event's languages; null or an empty string clears it",
+            "nullable": true
           },
           "attribution": {
             "type": "string",
@@ -8236,7 +8426,27 @@
             "type": "string"
           },
           "value": {
-            "type": "object",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ],
             "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions. SIGNATURE: statementVersionId, method TYPED/DRAWN, signerName, isAcknowledged true, locale, optional isRepresentative and assetId."
           }
         },
@@ -8644,6 +8854,9 @@
         "properties": {
           "name": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated name",
             "example": {
               "hy": "Ընդհանուր",
@@ -8652,6 +8865,9 @@
           },
           "description": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated description"
           },
           "priceMinor": {
@@ -8693,10 +8909,16 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "description": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "priceMinor": {
             "type": "string",
@@ -8727,12 +8949,12 @@
         "type": "object",
         "properties": {
           "heroAssetId": {
-            "type": "object",
+            "type": "string",
             "description": "Same-event PHOTO, COVER or LOGO; null clears the listing hero",
             "nullable": true
           },
           "ogImageId": {
-            "type": "object",
+            "type": "string",
             "description": "Same-event image for sharing; null falls back to the hero",
             "nullable": true
           },
@@ -8742,13 +8964,22 @@
           },
           "headline": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated headline"
           },
           "summary": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "body": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "categories": {
             "type": "array",
@@ -8758,10 +8989,16 @@
           },
           "ogTitle": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated link-preview title"
           },
           "ogDescription": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated link-preview description"
           },
           "isIndexable": {
@@ -8934,6 +9171,9 @@
         "properties": {
           "altText": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Alt text keyed by locale, e.g. { \"en\": \"Anna and Davit\" }; null removes a language",
             "example": {
               "hy": "Աննան և Դավիթը",
@@ -8944,10 +9184,6 @@
         "required": [
           "altText"
         ]
-      },
-      "Object": {
-        "type": "object",
-        "properties": {}
       },
       "SignAcknowledgementDto": {
         "type": "object",
@@ -9105,21 +9341,21 @@
             "description": "Never below the guests already seated"
           },
           "zone": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "venueId": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "description": "One of this event's venues"
           },
           "posX": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "description": "Canvas position, in the editor’s own units"
           },
           "posY": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "shape": {
@@ -9420,7 +9656,7 @@
             "description": "Customer email; staff-only resolution"
           },
           "limit": {
-            "type": "object",
+            "type": "integer",
             "default": 50,
             "maximum": 50
           },
@@ -9529,7 +9765,8 @@
             "type": "string"
           },
           "definition": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "required": [
@@ -9543,7 +9780,8 @@
             "type": "number"
           },
           "definition": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "required": [
@@ -9628,15 +9866,18 @@
         "properties": {
           "content": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Translated content keyed by locale"
           },
           "settings": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Block-specific, non-translated settings"
           },
           "variant": {
             "type": "string",
-            "description": "Template layout variant, e.g. \"split\""
+            "nullable": true,
+            "description": "Template layout variant, e.g. \"split\"; null resets it"
           },
           "assetIds": {
             "description": "MediaAsset ids, in order",
@@ -9655,6 +9896,7 @@
         "properties": {
           "dietary": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "options": [
                 {
@@ -9669,6 +9911,7 @@
           },
           "drinkPreference": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "options": [
                 {
@@ -9682,18 +9925,21 @@
           },
           "songRequest": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "isEnabled": false
             }
           },
           "message": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "isEnabled": true
             }
           },
           "attribution": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "isEnabled": true
             }
@@ -9739,10 +9985,14 @@
           },
           "prompt": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated prompt keyed by locale"
           },
           "options": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Translated choices, for the choice types"
           },
           "required": {
@@ -9770,10 +10020,14 @@
           },
           "prompt": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated prompt keyed by locale"
           },
           "options": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Translated choices, for the choice types"
           },
           "required": {
@@ -9786,6 +10040,9 @@
         "properties": {
           "label": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated name keyed by locale",
             "example": {
               "hy": "Պսակադրություն"
@@ -9796,7 +10053,7 @@
             "description": "When it happens, ISO 8601"
           },
           "venueId": {
-            "type": "object",
+            "type": "string",
             "description": "Which of this event’s venues it happens at; null detaches it",
             "nullable": true
           },
@@ -9822,6 +10079,9 @@
         "properties": {
           "label": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated name keyed by locale",
             "example": {
               "hy": "Պսակադրություն"
@@ -9832,7 +10092,7 @@
             "description": "When it happens, ISO 8601"
           },
           "venueId": {
-            "type": "object",
+            "type": "string",
             "description": "Which of this event’s venues it happens at; null detaches it",
             "nullable": true
           },
@@ -9873,31 +10133,39 @@
             "description": "Reusable directory entry this came from"
           },
           "mapUrl": {
-            "type": "string"
+            "type": "string",
+            "description": "An http or https link; null clears it",
+            "nullable": true
           },
           "arriveAt": {
             "type": "string",
-            "description": "When guests should arrive, ISO 8601"
+            "format": "date-time",
+            "description": "When guests should arrive, ISO 8601; null clears it",
+            "nullable": true
           },
           "latitude": {
             "type": "number",
             "minimum": -90,
             "maximum": 90,
-            "description": "With longitude; overrides the directory"
+            "description": "With longitude; overrides the directory; null clears it",
+            "nullable": true
           },
           "longitude": {
             "type": "number",
             "minimum": -180,
-            "maximum": 180
+            "maximum": 180,
+            "nullable": true
           },
           "capacity": {
-            "type": "number",
+            "type": "integer",
             "minimum": 1,
             "maximum": 100000,
-            "description": "Seated capacity; overrides the directory"
+            "description": "Seated capacity; overrides the directory; null clears it",
+            "nullable": true
           },
           "translations": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Per-language name and address, edited one language at a time; null removes one",
             "example": {
               "en": {
@@ -9933,31 +10201,39 @@
             "type": "string"
           },
           "mapUrl": {
-            "type": "string"
+            "type": "string",
+            "description": "An http or https link; null clears it",
+            "nullable": true
           },
           "arriveAt": {
             "type": "string",
-            "description": "When guests should arrive, ISO 8601"
+            "format": "date-time",
+            "description": "When guests should arrive, ISO 8601; null clears it",
+            "nullable": true
           },
           "latitude": {
             "type": "number",
             "minimum": -90,
             "maximum": 90,
-            "description": "With longitude; overrides the directory"
+            "description": "With longitude; overrides the directory; null clears it",
+            "nullable": true
           },
           "longitude": {
             "type": "number",
             "minimum": -180,
-            "maximum": 180
+            "maximum": 180,
+            "nullable": true
           },
           "capacity": {
-            "type": "number",
+            "type": "integer",
             "minimum": 1,
             "maximum": 100000,
-            "description": "Seated capacity; overrides the directory"
+            "description": "Seated capacity; overrides the directory; null clears it",
+            "nullable": true
           },
           "translations": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Per-language name and address, edited one language at a time; null removes one",
             "example": {
               "en": {
@@ -9972,7 +10248,7 @@
         "type": "object",
         "properties": {
           "vendorId": {
-            "type": "object",
+            "type": "string",
             "description": "Active curated VENUE vendor operating this hall; null removes the link",
             "nullable": true
           },
@@ -10013,7 +10289,7 @@
         "type": "object",
         "properties": {
           "vendorId": {
-            "type": "object",
+            "type": "string",
             "description": "Active curated VENUE vendor operating this hall; null removes the link",
             "nullable": true
           },

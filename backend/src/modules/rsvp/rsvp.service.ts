@@ -1,3 +1,4 @@
+import { negotiateLocale } from '../../common/locale';
 import { readGuestAccess } from '../guest-contributions/guest-access';
 import { assertRequiredAcknowledgements } from '../guest-contributions/acknowledgement-writes';
 import { AttendanceContext, lockAttendancePolicy, normalizeHouseholdAttendance } from './attendance/attendance-context';
@@ -24,6 +25,8 @@ interface HouseholdMember {
   anonymizedAt: Date | null;
   rsvp: { status: RsvpStatus } | null;
 }
+
+const ANSWER_VALUES = { select: { questionId: true, value: true } } as const;
 
 @Injectable()
 export class RsvpService {
@@ -105,20 +108,21 @@ export class RsvpService {
   }
 
   /** The guest's answer, and everyone in the household they can answer for. */
-  async getForGuest(slug: string, token: string) {
+  async getForGuest(slug: string, token: string, requestedLocale?: string) {
     await readGuestAccess(this.prisma, slug, token);
     const guest = await this.prisma.guest.findFirst({
       where: { token, anonymizedAt: null, event: { invitation: { slug } } },
       include: {
         ...ATTENDANCE_GUEST,
-        rsvp: { include: { answers: { select: { questionId: true, value: true } } } },
+        event: { select: { ...ATTENDANCE_GUEST.event.select, locales: true, defaultLocale: true } },
+        rsvp: { include: { answers: ANSWER_VALUES } },
         household: {
           include: {
             guests: {
               // Someone erased at their request is not anyone's to answer for.
               where: { anonymizedAt: null },
               orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
-              select: { id: true, firstName: true, lastName: true, addedByGuest: true, ...ATTENDANCE_GUEST, rsvp: true },
+              select: { id: true, firstName: true, lastName: true, addedByGuest: true, ...ATTENDANCE_GUEST, rsvp: { include: { answers: ANSWER_VALUES } } },
             },
           },
         },
@@ -126,9 +130,11 @@ export class RsvpService {
     });
     if (!guest) throw new NotFoundException('Invitation link not recognised');
     await readGuestAccess(this.prisma, slug, token);
+    // As the personal page chooses it, so the two name venues alike.
+    const locale = negotiateLocale(requestedLocale || (guest.locale ?? undefined), guest.event.locales, guest.event.defaultLocale);
 
     return {
-      guest: { id: guest.id, firstName: guest.firstName, lastName: guest.lastName },
+      guest: { id: guest.id, firstName: guest.firstName, lastName: guest.lastName, attribution: guest.attribution },
       household: {
         name: guest.household.name,
         seatsAllotted: guest.household.seatsAllotted,
@@ -139,13 +145,14 @@ export class RsvpService {
             firstName: member.firstName,
             lastName: member.lastName,
             addedByGuest: member.addedByGuest,
-            attendance: attendanceView(member),
+            attendance: attendanceView(member, locale),
             status: member.rsvp?.status ?? RsvpStatus.PENDING,
             dietary: member.rsvp?.dietary ?? [],
             dietaryNotes: member.rsvp?.dietaryNotes ?? null,
+            answers: member.rsvp?.answers ?? [],
           })),
       },
-      attendance: attendanceView(guest),
+      attendance: attendanceView(guest, locale),
       rsvp: guest.rsvp ?? { status: RsvpStatus.PENDING, answers: [] },
     };
   }

@@ -37,14 +37,22 @@ export interface ParsedGuestList {
 const MAX_SEATS = 20;
 
 const COLUMNS: Record<string, string[]> = {
-  firstName: ['firstname', 'first name', 'first', 'name', 'guest', 'անուն'],
-  lastName: ['lastname', 'last name', 'surname', 'last', 'ազգանուն'],
-  email: ['email', 'e-mail', 'mail'],
-  phone: ['phone', 'mobile', 'telephone', 'tel'],
-  household: ['household', 'family', 'group', 'party'],
-  seats: ['seats', 'seatsallotted', 'seats allotted', 'allowance', 'plusones', 'plus ones'],
+  firstName: ['firstname', 'first name', 'first', 'name', 'guest', 'անուն', 'имя'],
+  lastName: ['lastname', 'last name', 'surname', 'last', 'ազգանուն', 'фамилия'],
+  email: ['email', 'e-mail', 'mail', 'почта', 'эл. почта'],
+  phone: ['phone', 'mobile', 'telephone', 'tel', 'հեռախոս', 'телефон'],
+  household: ['household', 'family', 'group', 'party', 'ընտանիք', 'семья'],
+  seats: [
+    'seats',
+    'seatsallotted',
+    'seats allotted',
+    'allowance',
+    'plusones',
+    'plus ones',
+    'места',
+  ],
   side: ['side', 'attribution', 'invitedby', 'invited by'],
-  locale: ['locale', 'language', 'lang'],
+  locale: ['locale', 'language', 'lang', 'язык'],
 };
 
 const SIDES: Record<string, GuestAttribution> = {
@@ -174,11 +182,16 @@ export class TooManyRowsError extends Error {
   }
 }
 
-function readRows(content: string, maxRows: number): { records: Record<string, string>[] } | { error: string } {
+function readRows(
+  content: string,
+  maxRows: number,
+): { records: Record<string, string>[] } | { error: string } {
+  let headings: string[] = [];
   let records: Record<string, string>[];
   try {
     records = parse<Record<string, string>>(content, {
-      columns: (header: string[]) => header.map((name) => name.trim().toLowerCase()),
+      columns: (header: string[]) => (headings = header.map((name) => name.trim().toLowerCase())),
+      delimiter: delimiterOf(content),
       skip_empty_lines: true,
       trim: true,
       relax_column_count: true,
@@ -191,7 +204,44 @@ function readRows(content: string, maxRows: number): { records: Record<string, s
 
   if (records.length > maxRows) throw new TooManyRowsError(maxRows);
   if (records.length === 0) return { error: 'The file has a header but no rows' };
+  // Reported once for the file: otherwise every row says "No name in this
+  // row", which hides that the columns were never recognised.
+  if (!headings.some((heading) => COLUMNS.firstName.includes(heading))) {
+    return { error: `No first-name column found. Headings read: ${headings.join(', ')}` };
+  }
   return { records };
+}
+
+const DELIMITERS = [',', ';', '\t'] as const;
+
+/**
+ * The separator the header row uses most, outside quotes. Excel in Russian
+ * or Armenian writes ";" because "," is the decimal mark there; Sheets can
+ * write tabs. Read from the header alone, so a ";" inside a name in a
+ * comma-separated file is still part of the name.
+ */
+function delimiterOf(content: string): string {
+  const header = content.split('\n', 1)[0].replace(/"[^"]*"/g, '');
+  const counts = DELIMITERS.map((delimiter) => header.split(delimiter).length);
+  return DELIMITERS[counts.indexOf(Math.max(...counts))];
+}
+
+const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+
+/**
+ * Uploaded bytes as text, or why they are not. Excel writes a Windows code
+ * page unless "CSV UTF-8" is chosen; decoding that leniently would import
+ * every Cyrillic or Armenian name as replacement characters.
+ */
+export function decodeGuestCsv(bytes: Uint8Array): { text: string } | { error: string } {
+  try {
+    return { text: UTF8.decode(bytes) };
+  } catch {
+    return {
+      error:
+        'The file is not UTF-8 text. In Excel, save it as "CSV UTF-8 (comma delimited)" and import again',
+    };
+  }
 }
 
 function findValue(record: Record<string, string>, names: string[]): string {

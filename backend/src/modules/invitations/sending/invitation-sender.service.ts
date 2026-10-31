@@ -345,10 +345,9 @@ function deliveryRow(recipient: Recipient, attempts: RecordedAttempt[], canSeeCo
     household: recipient.householdName,
     guest: displayName(recipient.guest),
     channel: recipient.via.channel,
-    ...contactOf(recipient, canSeeContacts),
     status: latest?.status ?? 'NOT_SENT',
     attempts: latest?.attempts ?? 0,
-    failureReason: latest?.failureReason ?? null,
+    ...contactOf(recipient, latest, canSeeContacts),
     sentAt: latest?.sentAt ?? null,
     ...deliveryEvidence(latest),
   };
@@ -363,9 +362,19 @@ function deliveryEvidence(latest: RecordedAttempt | undefined) {
   };
 }
 
-/** Where it went, for a caller who may see guests' addresses; nothing otherwise. */
-function contactOf(recipient: Recipient, canSeeContacts: boolean): { toAddress?: string } {
-  return canSeeContacts ? { toAddress: recipient.via.address } : {};
+/**
+ * Where it went, and the mail server's reason for a failure, for a caller who
+ * may see guests' addresses. The reason usually quotes the recipient ("550
+ * <ani@…>: rejected"), so it is withheld with the address;
+ * `deliveryFailureKind` still tells every reader what went wrong.
+ */
+function contactOf(
+  recipient: Recipient,
+  latest: RecordedAttempt | undefined,
+  canSeeContacts: boolean,
+) {
+  if (!canSeeContacts) return { failureReason: null };
+  return { toAddress: recipient.via.address, failureReason: latest?.failureReason ?? null };
 }
 
 /**

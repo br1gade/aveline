@@ -14,13 +14,13 @@ export class CreateTableDto {
   @Max(100)
   capacity!: number;
 
-  @ApiPropertyOptional({ description: 'Grouping inside a venue, e.g. "terrace"' })
+  @ApiPropertyOptional({ type: String, description: 'Grouping inside a venue, e.g. "terrace"' })
   @IsOptional()
   @IsString()
   @MaxLength(60)
   zone?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
   venueId?: string;
@@ -48,25 +48,29 @@ export class UpdateTableDto {
   @Max(100)
   capacity?: number;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(60)
   zone?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, description: "One of this event's venues" })
+  @ApiPropertyOptional({ type: String, nullable: true, description: "One of this event's venues" })
   @IsOptional()
   @IsString()
   venueId?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, description: 'Canvas position, in the editor’s own units' })
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'Canvas position, in the editor’s own units',
+  })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   @Min(-100000)
   @Max(100000)
   posX?: number | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: Number, nullable: true })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   @Min(-100000)

@@ -1,3 +1,4 @@
+import { OptionalQuery } from '../../common/openapi-document';
 import { EventScope } from '../../infra/auth/actor';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -35,6 +36,7 @@ export class OperationsController {
 
   @RequirePermission('operations:read')
   @Get('catering-sheet')
+  @OptionalQuery('venueId', 'One venue; all of them when omitted')
   @ApiOperation({ summary: 'Covers and dietary requirements for the venue' })
   catering(@Param('eventId') eventId: string, @Query('venueId') venueId?: string) {
     return this.operations.cateringSheet(eventId, venueId);
@@ -42,6 +44,7 @@ export class OperationsController {
 
   @RequirePermission('operations:read')
   @Get('bar-sheet')
+  @OptionalQuery('venueId', 'One venue; all of them when omitted')
   @ApiOperation({ summary: 'Drink preferences aggregated into quantities' })
   bar(@Param('eventId') eventId: string, @Query('venueId') venueId?: string) {
     return this.operations.barSheet(eventId, venueId);
@@ -56,6 +59,7 @@ export class OperationsController {
 
   @RequirePermission('operations:read')
   @Get('answers')
+  @OptionalQuery('locale', 'Preferred language; the response names the one it used')
   @ApiOperation({
     summary: "What guests answered to the host's own questions",
     description:

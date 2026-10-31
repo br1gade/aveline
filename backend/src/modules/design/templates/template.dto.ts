@@ -3,11 +3,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateTemplateDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(128) organizationId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(64) key?: string;
-  @ApiProperty() @IsObject() definition!: Record<string, unknown>;
+  @ApiProperty({ type: 'object', additionalProperties: true }) @IsObject() definition!: Record<
+    string,
+    unknown
+  >;
 }
 export class PatchTemplateDraftDto {
   @ApiProperty() @IsInt() @Min(1) @Max(2147483647) expectedRevision!: number;
-  @ApiProperty() @IsObject() definition!: Record<string, unknown>;
+  @ApiProperty({ type: 'object', additionalProperties: true }) @IsObject() definition!: Record<
+    string,
+    unknown
+  >;
 }
 export class TemplateRevisionDto {
   @ApiProperty() @IsInt() @Min(1) @Max(2147483647) expectedRevision!: number;

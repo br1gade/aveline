@@ -1,3 +1,4 @@
+import { OptionalQuery } from '../../common/openapi-document';
 import { Body, Controller, Get, Header, Param, Patch, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
@@ -19,6 +20,7 @@ export class InvitationsController {
   @Public()
   @Throttle(GUEST_PAGE_LIMITS)
   @Get(':slug')
+  @OptionalQuery('locale', 'Preferred language; the response names the one it used')
   @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Public invitation page payload (cached per slug and locale)' })
   @ApiOkResponse({ description: 'Hydrated, locale-resolved invitation', headers: { 'Cache-Control': { schema: { type: 'string', example: 'private, no-store' } } } })
@@ -41,6 +43,7 @@ export class InvitationsController {
   @Public()
   @Throttle(GUEST_PAGE_LIMITS)
   @Get(':slug/g/:guestToken')
+  @OptionalQuery('locale', 'Preferred language; the response names the one it used')
   @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Invitation personalized for one guest' })
   @ApiOkResponse({ headers: { 'Cache-Control': { schema: { type: 'string', example: 'private, no-store' } } } })

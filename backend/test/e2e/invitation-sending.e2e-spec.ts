@@ -382,6 +382,38 @@ describe('Invitation sending (e2e)', () => {
       expect(JSON.stringify(body)).not.toContain('@test.local');
     });
 
+    // FR-35: a mail server's reply quotes the recipient, so the reason is
+    // contact data and is withheld with the address.
+    it('withholds a bounce reason, which quotes the address, from a viewer', async () => {
+      const { slug, eventId, authorization } = await host();
+      await guestList(eventId);
+      await send(slug, authorization).expect(201);
+      const reason = '550 5.1.1 <armen@test.local>: Recipient address rejected';
+      await prisma.message.updateMany({
+        where: { eventId },
+        data: { status: 'BOUNCED', failureReason: reason },
+      });
+      const viewer = await authenticateAs(app, prisma, { eventId, role: EventRole.VIEWER });
+
+      const forViewer = await http()
+        .get(`/api/v1/invitations/${slug}/delivery`)
+        .set('Authorization', viewer.authorization)
+        .expect(200);
+      const forHost = await http()
+        .get(`/api/v1/invitations/${slug}/delivery`)
+        .set('Authorization', authorization)
+        .expect(200);
+
+      expect(forViewer.body.households[0]).toMatchObject({
+        status: 'BOUNCED',
+        failureReason: null,
+      });
+      expect(JSON.stringify(forViewer.body)).not.toContain('@test.local');
+      expect(
+        (forHost.body.households as { failureReason: string }[]).map((row) => row.failureReason),
+      ).toContain(reason);
+    });
+
     it('shows the host the address each went to', async () => {
       const { slug, eventId, authorization } = await host();
       await guestList(eventId);

@@ -125,6 +125,44 @@ describe('Editing an event (e2e)', () => {
     expect(event).toMatchObject({ title: 'Fixture Wedding', defaultLocale: 'hy', timezone: 'Asia/Yerevan' });
   });
 
+  // FR-25: blank text passed the length checks, and an empty hosts label
+  // left the invitation naming no hosts.
+  it.each([
+    ['a title of spaces', { title: '   ' }, 'title'],
+    ['a blank hosts label', { hostsLabel: '' }, 'hostsLabel'],
+  ])('refuses to create an event with %s, naming the field', async (_label, payload, field) => {
+    const { userId, authorization } = await authenticateAs(app, prisma);
+    const organization = await prisma.organization.create({
+      data: { name: 'Hosts', kind: 'HOST' },
+    });
+    await prisma.organizationMembership.create({
+      data: { userId, organizationId: organization.id, role: OrganizationRole.OWNER },
+    });
+
+    const { body } = await http()
+      .post('/api/v1/events')
+      .set('Authorization', authorization)
+      .send({ type: 'WEDDING', title: 'A & B', startsAt: '2027-06-12T15:00:00Z', ...payload })
+      .expect(400);
+
+    expect(body.details).toEqual(expect.arrayContaining([expect.objectContaining({ field })]));
+    expect(await prisma.event.count({ where: { organizationId: organization.id } })).toBe(0);
+  });
+
+  it('stores a title and hosts label without the spaces around them', async () => {
+    const { eventId, authorization } = await host();
+
+    await edit(eventId, authorization, {
+      title: '  Anna & Davit ',
+      hostsLabel: ' Anna and Davit  ',
+    }).expect(200);
+
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).toMatchObject({
+      title: 'Anna & Davit',
+      hostsLabel: 'Anna and Davit',
+    });
+  });
+
   // A designer shapes the invitation; the event itself is not theirs to change.
   it('refuses a designer', async () => {
     const { eventId, authorization } = await host(EventRole.DESIGNER);

@@ -120,6 +120,63 @@ describe('Guest management (e2e)', () => {
     expect(body).toMatchObject({ firstName: 'Ani', lastName: 'Hakobyan', phone: '+374 91 000000' });
   });
 
+  // FR-31: "" was stored as a language, and any string was accepted.
+  describe("a guest's language", () => {
+    const patchGuest = (
+      eventId: string,
+      guestId: string,
+      authorization: string,
+      body: Record<string, unknown>,
+    ) =>
+      http()
+        .patch(`/api/v1/events/${eventId}/guests/${guestId}`)
+        .set('Authorization', authorization)
+        .send(body);
+
+    it.each([null, ''])('is cleared by %p', async (locale) => {
+      const { eventId, authorization } = await signedIn();
+      const added = await addGuest(eventId, authorization, {
+        firstName: 'Ani',
+        locale: 'en',
+      }).expect(201);
+
+      const { body } = await patchGuest(eventId, added.body.id as string, authorization, {
+        locale,
+      }).expect(200);
+
+      expect(body.locale).toBeNull();
+    });
+
+    it('is refused, naming the field, when adding names one the event does not publish', async () => {
+      const { eventId, authorization } = await signedIn();
+
+      const { body } = await addGuest(eventId, authorization, {
+        firstName: 'Ani',
+        locale: 'fr',
+      }).expect(400);
+
+      expect(body.message).toMatch(/^locale: /);
+      expect(await prisma.guest.count({ where: { eventId, firstName: 'Ani' } })).toBe(0);
+    });
+
+    it('is refused, and left as it was, when a correction names one the event does not publish', async () => {
+      const { eventId, authorization } = await signedIn();
+      const added = await addGuest(eventId, authorization, {
+        firstName: 'Ani',
+        locale: 'en',
+      }).expect(201);
+
+      const { body } = await patchGuest(eventId, added.body.id as string, authorization, {
+        locale: 'fr',
+      }).expect(400);
+
+      expect(body.message).toMatch(/^locale: /);
+      expect(
+        await prisma.guest.findUniqueOrThrow({ where: { id: added.body.id as string } }),
+      ).toMatchObject({ locale: 'en' });
+    });
+  });
+
   it('removes a guest, and the household they leave empty', async () => {
     const { eventId, authorization } = await signedIn();
     const added = await addGuest(eventId, authorization, { firstName: 'Ani' });

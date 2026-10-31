@@ -15,6 +15,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { AppModule } from '../src/app.module';
 import { FEEDBACK_MODELS } from '../src/common/feedback.dto';
+import { completeOpenApiDocument } from '../src/common/openapi-document';
 
 const OUTPUT = 'openapi.json';
 
@@ -33,7 +34,9 @@ async function exportSchema(): Promise<void> {
     .addServer('http://localhost:3000', 'Local development')
     .build();
 
-  const document = SwaggerModule.createDocument(app, config, { extraModels: FEEDBACK_MODELS });
+  const document = completeOpenApiDocument(
+    SwaggerModule.createDocument(app, config, { extraModels: FEEDBACK_MODELS }),
+  );
   await app.close();
 
   const generated = JSON.stringify(document, null, 2);
@@ -53,4 +56,11 @@ async function exportSchema(): Promise<void> {
   console.log(`${OUTPUT} written — ${paths} paths`);
 }
 
-void exportSchema();
+// Booting the app can fail — no NODE_ENV, an unreachable database — and an
+// unhandled rejection exits 1 with no message, which reads as drift.
+exportSchema().catch((error: unknown) => {
+  console.error(
+    `Could not build the schema: ${error instanceof Error ? error.message : String(error)}`,
+  );
+  process.exit(1);
+});

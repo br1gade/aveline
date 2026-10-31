@@ -99,6 +99,12 @@ describe('Venue details and the directory (e2e)', () => {
     [{ latitude: 95, longitude: 44 }, 'latitude'],
     [{ latitude: 40, longitude: 200 }, 'longitude'],
     [{ capacity: 0 }, 'capacity'],
+    // FR-36: stored blank, then failed the publish check; a map link the
+    // guest page would not show was stored and silently dropped.
+    [{ name: '  ' }, 'name'],
+    [{ address: '' }, 'address'],
+    [{ mapUrl: 'javascript:alert(1)' }, 'mapUrl'],
+    [{ mapUrl: 'maps.example/x' }, 'mapUrl'],
   ])('refuses %j with a 400 naming %s', async (payload, field) => {
     const { eventId, venueId, authorization } = await host();
 

@@ -29,7 +29,7 @@ export class AddGuestDto {
   @MaxLength(40)
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'hy' })
+  @ApiPropertyOptional({ example: 'hy', description: "One of the event's languages" })
   @IsOptional()
   @IsString()
   @MaxLength(10)
@@ -87,11 +87,15 @@ export class UpdateGuestDto {
   @MaxLength(40)
   phone?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    type: String,
+    description: "One of the event's languages; null or an empty string clears it",
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(10)
-  locale?: string;
+  locale?: string | null;
 
   @ApiPropertyOptional({ enum: GuestAttribution })
   @IsOptional()

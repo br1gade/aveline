@@ -232,7 +232,10 @@ sessions.
 **Refresh rotates.** Presenting a refresh token revokes it and issues a new
 pair, so a stolen token works at most once. **A replaced token used again**
 more than a minute later is treated as theft: every session of the account
-ends. (Within the minute it is a client retry, and only refused.)
+ends. (Within the minute it is a client retry, and only refused.) A token
+ended by a password reset or "sign out everywhere" was not replaced: a device
+that wakes and presents one is only refused, and the sessions opened since
+keep working. A token presented after its own logout still counts as reuse.
 
 **Sessions have a generation.** A password reset or "sign out everywhere"
 moves the account's generation on in the same transaction that revokes its

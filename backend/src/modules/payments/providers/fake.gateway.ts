@@ -28,9 +28,12 @@ export class FakeGateway implements PaymentGateway {
       outcome: { outcome: { kind: 'pending' }, raw: { simulated: true } },
     });
 
+    // Appended, so a return URL that carries its own query keeps it. Not
+    // parsed: the DTOs accept a URL without a scheme, which URL would refuse.
+    const separator = params.returnUrl.includes('?') ? '&' : '?';
     return Promise.resolve({
       providerRef,
-      redirectUrl: `${params.returnUrl}?fakePayment=${providerRef}`,
+      redirectUrl: `${params.returnUrl}${separator}fakePayment=${providerRef}`,
     });
   }
 

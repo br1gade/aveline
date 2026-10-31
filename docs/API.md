@@ -95,6 +95,9 @@ successful response in an envelope to repeat it would buy nothing.
 const requestId = response.headers.get('x-request-id');
 ```
 
+From another origin the header is readable too: CORS exposes it, and a
+preflight is cached for ten minutes (`Access-Control-Max-Age: 600`).
+
 **Keep it when you log a failure, and show it in any "report a problem"
 screen.** It is what maps a user's screenshot to the exact request in our
 logs. You may also send your own:
@@ -159,7 +162,15 @@ language (`en-GB` → `en`).
 
 ### Rate limits
 
-10 requests/second and 100/minute, per IP. Exceeding either returns `429`.
+10 requests/second and 100/minute. A signed-in caller is counted per account,
+anyone else per address. Exceeding either returns `429`.
+
+Guest-page reads have a wider allowance — 50/second and 3,000/minute — because
+a whole room opens them at once on one Wi-Fi, and a server renderer reads them
+for every guest from one address: `GET /invitations/:slug`,
+`GET /invitations/:slug/g/:guestToken`, the guest's own
+`GET /invitations/:slug/g/:guestToken/rsvp`, and the acknowledgement, signature and
+gallery file reads. Every write keeps the default.
 
 ### Dates
 
@@ -447,17 +458,22 @@ themselves at the top level and for everyone else named in the household in
 
 ```json
 {
-  "guest": { "id": "clz...", "firstName": "Armen", "lastName": "Petrosyan" },
+  "guest": { "id": "clz...", "firstName": "Armen", "lastName": "Petrosyan", "attribution": "SIDE_A" },
   "household": {
     "name": "Petrosyan family", "seatsAllotted": 3,
     "members": [{ "id": "clz...", "firstName": "Lusine", "lastName": "Petrosyan",
                   "addedByGuest": false, "status": "PENDING",
-                  "dietary": [], "dietaryNotes": null }]
+                  "dietary": [], "dietaryNotes": null,
+                  "answers": [{ "questionId": "clz...", "value": 0 }] }]
   },
   "rsvp": { "status": "ATTENDING", "respondedAt": "...", "dietary": ["vegetarian"],
             "answers": [{ "questionId": "clz...", "value": 1 }], ... }
 }
 ```
+
+`GET` takes `?locale=` like the personal page and negotiates it the same way,
+so per-venue `attendance` names venues in the page's language. `attribution`
+and each member's `answers` are what was saved, for pre-filling an edit.
 
 ```json
 {
@@ -1264,14 +1280,21 @@ you do not need to make the host rename anything. Recognised:
 
 | Field | Accepted headers |
 |---|---|
-| First name (**required**) | `firstname`, `first name`, `first`, `name`, `guest`, `անուն` |
-| Last name | `lastname`, `last name`, `surname`, `last`, `ազգանուն` |
-| Email | `email`, `e-mail`, `mail` |
-| Phone | `phone`, `mobile`, `telephone`, `tel` |
-| Household | `household`, `family`, `group`, `party` |
-| Seat allowance | `seats`, `seats allotted`, `allowance`, `plus ones` |
+| First name (**required**) | `firstname`, `first name`, `first`, `name`, `guest`, `անուն`, `имя` |
+| Last name | `lastname`, `last name`, `surname`, `last`, `ազգանուն`, `фамилия` |
+| Email | `email`, `e-mail`, `mail`, `почта`, `эл. почта` |
+| Phone | `phone`, `mobile`, `telephone`, `tel`, `հեռախոս`, `телефон` |
+| Household | `household`, `family`, `group`, `party`, `ընտանիք`, `семья` |
+| Seat allowance | `seats`, `seats allotted`, `allowance`, `plus ones`, `места` |
 | Side | `side`, `attribution`, `invited by` |
-| Locale | `locale`, `language`, `lang` |
+| Locale | `locale`, `language`, `lang`, `язык` |
+
+**The file must be UTF-8**; a BOM is fine. Columns may be separated by `,`,
+`;` (what Excel writes in Russian or Armenian) or a tab — the header row
+decides. A file in another encoding, such as Windows-1251, or with no
+first-name column is refused whole with one error at `row: 0`, which stands
+for the file itself: `"The file is not UTF-8 text. …"` or
+`"No first-name column found. Headings read: …"`.
 
 `side` accepts `a`, `side a`, `b`, `side b`, `both` or `shared`, in any
 case; anything else is recorded as unknown. `seats` must be a whole number
@@ -1285,8 +1308,8 @@ optional.
   "rowsImported": 412,
   "rowsFailed": 3,
   "errors": [
-    { "row": 7, "message": "A guest needs at least a first name" },
-    { "row": 19, "message": "seats must be a positive whole number" }
+    { "row": 7, "message": "No name in this row" },
+    { "row": 19, "message": "Seats must be a whole number between 1 and 20" }
   ]
 }
 ```
@@ -1429,8 +1452,12 @@ with `seatsAllotted` seats (1–20, default 1). Either way it returns the guest:
 (see [§3](#3-capability-links--the-pattern-to-understand)). `isPrimary` is the household member whose
 link the invitation is sent to; the first person in a household is primary.
 
+`locale`, when given, must be one of the event's `locales` — another is a `400`
+starting `locale:`.
+
 **Editing** takes the same fields, all optional. **Omitted means unchanged; an
-empty string clears `email` or `phone`.** Addresses are validated the same way
+empty string clears `email` or `phone`; `null` or an empty string clears
+`locale`.** Addresses are validated the same way
 as on import, and an email is stored lower-cased — show what comes back, not
 what was typed. A guest whose data was erased at their request cannot be
 edited (`400`).
@@ -2402,7 +2429,9 @@ owns cannot be read back.
 ```
 
 `type` is `WEDDING`, `ENGAGEMENT`, `BAPTISM`, `BIRTHDAY`, `ANNIVERSARY`,
-`CORPORATE` or `OTHER`. Optional: `hostsLabel` (defaults to the title),
+`CORPORATE` or `OTHER`. `title` and `hostsLabel` are trimmed first, so a
+title must have two characters besides spaces and a hosts label, when sent,
+one. Optional: `hostsLabel` (defaults to the title),
 `endsAt`, `timezone` (defaults to `Asia/Yerevan`), `locales`, `defaultLocale`,
 `sideALabel` / `sideBLabel`, `visibility`, `templateKey`, and optional
 `templateVersionId`. Selection is limited to active shared or same-organization
@@ -2969,7 +2998,9 @@ longer the household's status.
 
 **`SENT` means the mail server accepted it, not that it arrived.** A bounce can
 follow minutes later, and when it does the status becomes `BOUNCED` with the
-server's own words in `failureReason`. `QUEUED` with `attempts` above zero is a
+server's own words in `failureReason`. Those words usually quote the address,
+so `failureReason` is `null` for a caller without `guest:contact:read`, as
+`toAddress` is absent; `deliveryFailureKind` is shown to every reader. `QUEUED` with `attempts` above zero is a
 message being retried after a temporary failure — not stuck. `SENDING` is
 momentary; a message interrupted mid-send (a crash, a deploy) is returned to
 the queue within about fifteen minutes and tried again, so in rare cases a
@@ -3067,7 +3098,8 @@ re-enters it.
 
 `POST` takes `{ role, name, address, profileId?, mapUrl?, arriveAt? }` where
 `role` is `CEREMONY`, `RECEPTION`, `AFTER_PARTY`, `PREPARATION` or `OTHER`, and
-`arriveAt` is ISO 8601. Both also take `latitude` and `longitude` (given
+`arriveAt` is ISO 8601. `name` and `address` are trimmed and must not be blank;
+`mapUrl` must be an `http` or `https` link. Both also take `latitude` and `longitude` (given
 together, or the first one sent is named in a `400`) and `capacity`; a value
 sent overrides what the directory entry supplies. `PATCH` takes any of the
 same fields except `profileId`; omitted ones are unchanged, and `null` clears
@@ -3121,9 +3153,12 @@ COVER are images; AUDIO must be audio. Type/kind mismatch, unknown kinds,
 DOCUMENT and SIGNATURE return 400 before storage. Attachment rules still apply:
 MUSIC accepts audio only; other blocks accept PHOTO/COVER/LOGO images only.
 
-JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. Wrong type → `415` — SVG
-included, since it can carry script (decided 10 October 2026) — too
-large → `413`.
+JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. **The type is read from the
+file's bytes**, not from its label: whatever the browser calls an `.m4a`
+(`audio/mp4`, `audio/x-m4a`) is stored as `audio/mp4`, and an image is stored
+as the image type it is. Contents that are none of these, or audio sent with
+an image label (or the reverse), → `415` — SVG included, since it can carry
+script (decided 10 October 2026) — too large → `413`.
 
 ```json
 { "id": "...", "url": "https://...", "kind": "PHOTO", "sizeBytes": 70 }

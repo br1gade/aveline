@@ -1,4 +1,15 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { OptionalQuery } from '../../common/openapi-document';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
@@ -37,6 +48,9 @@ export class EventsController {
   // answer is scoped to what they can reach.
   @OrganizationScope({ mode: 'event-list', permission: 'event:read' })
   @Get()
+  @OptionalQuery('archived', '"true" lists archived events instead')
+  @OptionalQuery('limit')
+  @OptionalQuery('offset')
   @ApiOperation({
     summary: "List the signed-in account's events",
     description:

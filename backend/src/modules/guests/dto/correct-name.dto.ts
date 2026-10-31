@@ -15,7 +15,7 @@ export class CorrectNameDto {
   @NotContains(NULL_CHARACTER, { message: 'firstName must not contain null characters' })
   firstName?: string;
 
-  @ApiPropertyOptional({ maxLength: 100, nullable: true })
+  @ApiPropertyOptional({ type: String, maxLength: 100, nullable: true })
   @IsOptional()
   @Trimmed()
   @IsString()

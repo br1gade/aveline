@@ -41,13 +41,13 @@ designer, publishing, sending and the guest reply. Seating, the door
 acknowledgements, the gallery and archiving have no screens yet. The client's
 own "not yet built" list is its `frontend/docs/ARCHITECTURE.md` §12.
 
-Backend items the client team raised that still hold in the code
-(30 October 2026; IDs are in its `frontend/docs/BACKEND_REQUESTS.md`):
+Backend items the client team raised that still hold (IDs are in its
+`frontend/docs/BACKEND_REQUESTS.md`). FR-7, FR-27, and the schema, privacy and
+validation items answered on 31 October 2026 are listed in
+[TODO.md](TODO.md) T1:
 
 | Item | Why it blocks |
 |---|---|
-| **FR-7** `GET …/rsvp` has no `@Throttle(GUEST_PAGE_LIMITS)` | The guest page's server renderer reads it for every guest from one address, so a real event exhausts the default per-address limit |
-| **FR-27** Guest CSV import reads comma-delimited UTF-8 only | Excel set to Russian or Armenian saves `;`-delimited files, often in a Windows code page; every row is refused or garbled for the target market |
 | **FR-11** No web service in `docker-compose.prod.yml`; Caddy serves only `API_DOMAIN` | The client has nowhere to run in production, and one-origin vs. separate-origin (CORS, `PUBLIC_APP_URL`, payment `returnUrl`) is not agreed |
 
 ### Money

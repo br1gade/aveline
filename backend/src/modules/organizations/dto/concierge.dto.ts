@@ -31,7 +31,7 @@ export class ResolveCustomerOrganizationsDto {
   @IsEmail()
   @MaxLength(200)
   ownerEmail!: string;
-  @ApiPropertyOptional({ default: 50, maximum: 50 })
+  @ApiPropertyOptional({ type: 'integer', default: 50, maximum: 50 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -58,8 +58,9 @@ describe('Attendance policy contract (e2e)', () => {
     const page = await http().get(event.guestPath).query({ locale }).expect(200);
     expect(page.body.guest.attendance).toMatchObject({ mode: 'PER_VENUE', revision: 2, status: 'ATTENDING', needsReconfirmation: false,
       venues: [{ venueId: event.venue.id, venue: names[locale], status: 'ATTENDING' }] });
-    const saved = await http().get(`${event.guestPath}/rsvp`).expect(200);
-    expect(saved.body.attendance).toMatchObject({ revision: 2, status: 'ATTENDING' });
+    // FR-40: the reply form's read names venues in the page's language too.
+    const saved = await http().get(`${event.guestPath}/rsvp`).query({ locale }).expect(200);
+    expect(saved.body.attendance).toMatchObject({ revision: 2, status: 'ATTENDING', venues: [{ venueId: event.venue.id, venue: names[locale] }] });
   });
 
   it.each([
