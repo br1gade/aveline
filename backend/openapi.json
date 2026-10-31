@@ -364,25 +364,27 @@
             "name": "archived",
             "required": false,
             "in": "query",
-            "description": "\"true\" lists archived events instead",
+            "description": "true lists archived events instead",
             "schema": {
-              "type": "string"
+              "type": "boolean"
             }
           },
           {
             "name": "limit",
             "required": false,
             "in": "query",
+            "description": "Page size",
             "schema": {
-              "type": "string"
+              "type": "integer"
             }
           },
           {
             "name": "offset",
             "required": false,
             "in": "query",
+            "description": "Rows to skip",
             "schema": {
-              "type": "string"
+              "type": "integer"
             }
           }
         ],
@@ -9172,7 +9174,8 @@
           "altText": {
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             },
             "description": "Alt text keyed by locale, e.g. { \"en\": \"Anna and Davit\" }; null removes a language",
             "example": {
@@ -9986,7 +9989,8 @@
           "prompt": {
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             },
             "description": "Translated prompt keyed by locale"
           },
@@ -10021,7 +10025,8 @@
           "prompt": {
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             },
             "description": "Translated prompt keyed by locale"
           },
@@ -10041,7 +10046,8 @@
           "label": {
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             },
             "description": "Translated name keyed by locale",
             "example": {
@@ -10080,7 +10086,8 @@
           "label": {
             "type": "object",
             "additionalProperties": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             },
             "description": "Translated name keyed by locale",
             "example": {

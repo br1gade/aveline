@@ -64,7 +64,7 @@ branch; assess what is already implemented before treating these as new screens.
 **Backend requests from the client** (`frontend/docs/BACKEND_REQUESTS.md` on the
 frontend branches). Answered on 31 October 2026: FR-3, FR-7, FR-10, FR-13,
 FR-17, FR-19, FR-21, FR-22, FR-25, FR-27, FR-31, FR-35, FR-36, FR-38, FR-40,
-FR-45; FR-4, FR-18, FR-24 and FR-44 as far as the schema goes (every property
+FR-45; FR-4, FR-18, FR-24 and FR-44's path parameters and nullable `variant` (every property
 typed, every path parameter declared); FR-29 and FR-34 by a policy test that
 fails if a role may write guests or send without reading contacts.
 
@@ -72,7 +72,10 @@ fails if a role may write guests or send without reading contacts.
   schemas (blocking typed responses), FR-6 effective permissions, FR-5 `GET /me`,
   FR-2 per-operation security, FR-11 deployment topology (with T2), FR-26/28/32/33
   stable codes for English-only refusals, FR-23, FR-20, FR-30, FR-37, FR-39,
-  FR-41, FR-42/43 (template layouts and block fields, a design decision).
+  FR-41, FR-42/43 (template layouts and block fields, a design decision),
+  FR-44's `blockVariants` in the design read, FR-8 (route table in API.md and
+  `PUBLIC_APP_URL` in `.env.example`), FR-9 (template fonts), and the low-priority
+  FR-12, FR-14, FR-15, FR-16. The BQ- design questions are the product owner's.
 
 Done when: the integrated frontend demonstrates the required pilot flows against
 the current backend, with the frontend acceptance for original batches A–H closed.

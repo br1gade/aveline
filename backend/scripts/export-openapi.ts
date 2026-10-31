@@ -20,7 +20,9 @@ import { completeOpenApiDocument } from '../src/common/openapi-document';
 const OUTPUT = 'openapi.json';
 
 async function exportSchema(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  // abortOnError: false, so a boot failure reaches the catch below rather
+  // than exiting 1 inside Nest with no message.
+  const app = await NestFactory.create(AppModule, { logger: false, abortOnError: false });
   app.setGlobalPrefix('api/v1');
 
   const config = new DocumentBuilder()

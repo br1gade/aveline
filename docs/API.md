@@ -3156,7 +3156,8 @@ MUSIC accepts audio only; other blocks accept PHOTO/COVER/LOGO images only.
 
 JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. **The type is read from the
 file's bytes**, not from its label: whatever the browser calls an `.m4a`
-(`audio/mp4`, `audio/x-m4a`) is stored as `audio/mp4`, and an image is stored
+(`audio/mp4`, `audio/x-m4a`) is stored as `audio/mp4` — as is any MPEG-4
+file sent as audio, since its first bytes do not tell audio from video — and an image is stored
 as the image type it is. Contents that are none of these, or audio sent with
 an image label (or the reverse), → `415` — SVG included, since it can carry
 script (decided 10 October 2026) — too large → `413`.

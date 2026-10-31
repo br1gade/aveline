@@ -161,7 +161,11 @@ without it. Private snapshot exports choose full or redacted columns at
 generation; a full artifact is refused after contact permission is lost, so
 the viewer must regenerate a redacted snapshot. Ticket manifests require
 contact permission at creation and download. The ticket order list omits
-`buyerEmail`, and the delivery report omits `toAddress`. The delivery report
+`buyerEmail`, and the delivery report omits `toAddress` and nulls
+`failureReason`, which usually quotes the address. Adding a guest and
+sending answer with the guest's address and link unredacted; that holds only
+because every role with `guest:write` or `invitation:publish` also holds
+`guest:contact:read`, which a policy test enforces. The delivery report
 itself needs `guest:read`, so a `DESIGNER` cannot read the guest list through
 it. A vendor's `headcount` brief is numbers only; names come with the
 `households` scope. A vendor brief link is shown only to `vendor:write` holders,

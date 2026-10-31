@@ -4,7 +4,7 @@ import { IsObject } from 'class-validator';
 export class UpdateMediaDto {
   @ApiProperty({
     type: 'object',
-    additionalProperties: { type: 'string' },
+    additionalProperties: { type: 'string', nullable: true },
     description:
       'Alt text keyed by locale, e.g. { "en": "Anna and Davit" }; null removes a language',
     example: { hy: 'Աննան և Դավիթը', en: 'Anna and Davit' },

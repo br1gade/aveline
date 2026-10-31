@@ -48,9 +48,9 @@ export class EventsController {
   // answer is scoped to what they can reach.
   @OrganizationScope({ mode: 'event-list', permission: 'event:read' })
   @Get()
-  @OptionalQuery('archived', '"true" lists archived events instead')
-  @OptionalQuery('limit')
-  @OptionalQuery('offset')
+  @OptionalQuery('archived', 'true lists archived events instead', 'boolean')
+  @OptionalQuery('limit', 'Page size', 'integer')
+  @OptionalQuery('offset', 'Rows to skip', 'integer')
   @ApiOperation({
     summary: "List the signed-in account's events",
     description:

@@ -110,7 +110,7 @@ export class UpsertQuestionDto {
 
   @ApiProperty({
     type: 'object',
-    additionalProperties: { type: 'string' },
+    additionalProperties: { type: 'string', nullable: true },
     description: 'Translated prompt keyed by locale',
   })
   @IsObject()
@@ -297,7 +297,7 @@ export class UpdateVenueProfileDto extends PartialType(CreateVenueProfileDto) {
 export class UpsertTimelineEntryDto {
   @ApiProperty({
     type: 'object',
-    additionalProperties: { type: 'string' },
+    additionalProperties: { type: 'string', nullable: true },
     description: 'Translated name keyed by locale',
     example: { hy: 'Պսակադրություն' },
   })

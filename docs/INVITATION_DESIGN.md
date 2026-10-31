@@ -194,11 +194,13 @@ re-variants every block in one transaction, validated against the template's
 `supportedBlocks` and `blockVariants` before any write — so a rejected arrangement changes
 nothing and the error names the offending block.
 
-**Uploads.** `POST /events/:eventId/media` accepts multipart, enforces a MIME
-allowlist and a 10 MB ceiling, and records a `MediaAsset` with its
-`sizeBytes`. Files are stored under a generated key, never the uploaded
+**Uploads.** `POST /events/:eventId/media` accepts multipart, reads the file's
+type from its bytes against an allowlist (JPEG, PNG, WebP, AVIF, MP3, MPEG-4
+audio) with a 10 MB ceiling, and records a `MediaAsset` with its `sizeBytes`
+and the detected type — an `.m4a` labelled `audio/x-m4a` is stored as
+`audio/mp4`. Files are stored under a generated key, never the uploaded
 filename. Optional `kind` is allowlisted to PHOTO/COVER/LOGO/AUDIO, defaults
-by MIME type and must agree with the type. SIGNATURE/DOCUMENT cannot enter the
+by the declared type and must agree with the detected one. SIGNATURE/DOCUMENT cannot enter the
 public upload route. Listing hero/share selections use same-event images and
 also prevent deletion while selected.
 

@@ -52,6 +52,10 @@ const isPathParameter = (parameter: Parameter): parameter is ParameterObject => 
  * in TypeScript only; the schema generator cannot see it and marked it
  * required, so generated clients demanded it (FR-17).
  */
-export function OptionalQuery(name: string, description?: string): MethodDecorator {
-  return ApiQuery({ name, required: false, description });
+export function OptionalQuery(
+  name: string,
+  description?: string,
+  type: 'string' | 'integer' | 'boolean' = 'string',
+): MethodDecorator {
+  return ApiQuery({ name, required: false, description, schema: { type } });
 }
