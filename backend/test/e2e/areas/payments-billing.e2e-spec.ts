@@ -1,6 +1,8 @@
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
+import { ThrottlerStorage } from '@nestjs/throttler';
 import { EventRole, OrganizationRole, PaymentEventSource, PaymentProvider, PaymentPurpose, PlanTier, PlatformRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
@@ -12,6 +14,15 @@ import { authenticateAs } from '../../fixtures/auth.fixture';
 import { seedEvent } from '../../fixtures/event.fixture';
 import { attendeeRoster, ticketEvent } from '../../fixtures/tickets.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
+
+/**
+ * The billing access matrix puts over eighty sign-ins inside one sixty-second
+ * window here, so a faster machine passes the address limit of a hundred and
+ * 429s a test by its position. rate-limiting.e2e-spec.ts owns the throttle.
+ */
+const UNTHROTTLED: ThrottlerStorage = {
+  increment: () => Promise.resolve({ totalHits: 1, timeToExpire: 0, isBlocked: false, timeToBlockExpire: 0 }),
+};
 
 /**
  * The payment and billing routes over HTTP, through the real module wiring:
@@ -32,6 +43,8 @@ describe('Payments and billing over HTTP (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(prisma)
+      .overrideProvider(ThrottlerStorage)
+      .useValue(UNTHROTTLED)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -40,6 +53,10 @@ describe('Payments and billing over HTTP (e2e)', () => {
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
     await app.init();
+    // The five-minute money sweep reconciles every PENDING payment against this
+    // same FAKE gateway: firing mid-test it captures a payment a test asserts is
+    // still PENDING, or was captured by a callback, or by the admin's own sweep.
+    for (const job of app.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
     fake = app.get(PaymentGatewayRegistry).get(PaymentProvider.FAKE) as FakeGateway;
     payments = app.get(PaymentsService);
   });

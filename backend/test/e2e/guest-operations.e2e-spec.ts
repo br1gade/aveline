@@ -3,6 +3,7 @@ import { SeatingRunner } from '../../src/modules/seating/jobs/seating-runner';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { EventRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
@@ -20,14 +21,17 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/
 describe('Guest operations (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
+  /** Every query the application sends, so a bulk path is held to its round trips rather than to a wall clock. */
+  let queriesSent = 0;
 
   const http = () => request(app.getHttpServer() as Server);
 
   beforeAll(async () => {
     prisma = testPrisma();
+    const counted = prisma.$extends({ query: { $allOperations: ({ args, query }) => { queriesSent += 1; return query(args); } } });
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
-      .useValue(prisma)
+      .useValue(counted)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -36,6 +40,8 @@ describe('Guest operations (e2e)', () => {
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
     await app.init();
+    // The seating worker is driven in-process, and a sweep's queries would land in the import's count.
+    for (const job of app.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
   });
 
   beforeEach(() => resetTestDatabase());
@@ -289,18 +295,20 @@ describe('Guest operations (e2e)', () => {
       expect(anis[0]).toMatchObject({ email: 'ani@example.am', phone: '+37491000000' });
     });
 
-    // B91: four or five queries a row made a 2,000-row list take ~20 s.
-    it('imports two thousand rows in one request, quickly', async () => {
+    // B91: four or five queries a row made a 2,000-row list take ~20 s. Counted
+    // rather than timed, so a slow machine cannot fail it and a fast one cannot hide it.
+    it('imports two thousand rows in one request without a query per row', async () => {
       const { eventId, authorization } = await coordinator();
       const rows = Array.from({ length: 2000 }, (_, index) => `Guest${index},Family${Math.floor(index / 3)},Family${Math.floor(index / 3)}`);
-      const started = Date.now();
+      const before = queriesSent;
 
       const { body } = await importCsv(eventId, authorization, ['First Name,Last Name,Household', ...rows].join('\n')).expect(201);
 
+      const queries = queriesSent - before;
       expect(body).toMatchObject({ rowsImported: 2000, rowsFailed: 0 });
       expect(await prisma.guest.count({ where: { eventId, household: { name: { startsWith: 'Family' } } } })).toBe(2000);
-      // About one second locally; the bound leaves room for a slow machine.
-      expect(Date.now() - started).toBeLessThan(5_000);
+      // About fifty: a few per batch of a hundred households. One a row, or one a household, is hundreds.
+      expect(queries).toBeLessThan(rows.length / 10);
     });
 
     it('refuses an import without guest:write', async () => {

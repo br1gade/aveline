@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { BlockType, EventType, MessageChannel, PaymentProvider, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import sharp from 'sharp';
@@ -57,6 +58,9 @@ describe('Journey 2: ticketed public event, from setup to refund (e2e)', () => {
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
+    // The workers are driven in-process; the money sweep firing on the wall clock would
+    // reconcile and settle the payment ahead of the reconcile call this journey counts.
+    for (const job of app.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
   });
 
   beforeEach(async () => {

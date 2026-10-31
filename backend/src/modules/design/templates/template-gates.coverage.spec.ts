@@ -6,6 +6,13 @@ const FEATURES = ['AUTHORING', 'ASSETS', 'ADOPTION', 'PUBLISH'] as const;
 const gates = (values: Record<string, string>) => new TemplateGatesService(new ConfigService(values));
 
 describe('template rollout gates', () => {
+  // ConfigService falls back to process.env for keys it was not given; an exported flag must not decide these cases.
+  beforeEach(() => {
+    const flags = new Set(FEATURES.map((feature) => `TEMPLATE_${feature}_ENABLED`));
+    jest.replaceProperty(process, 'env', Object.fromEntries(Object.entries(process.env).filter(([key]) => !flags.has(key))));
+  });
+  afterEach(() => jest.restoreAllMocks());
+
   it.each(FEATURES.flatMap((feature) => [undefined, 'false', 'TRUE', '1'].map((value) => ({ feature, value }))))(
     'closes $feature when its flag is $value',
     ({ feature, value }) => {

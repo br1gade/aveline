@@ -21,14 +21,17 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/
 describe('Invitation sending (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
+  /** Every query the application sends, so a bulk path is held to its round trips rather than to a wall clock. */
+  let queriesSent = 0;
 
   const http = () => request(app.getHttpServer() as Server);
 
   beforeAll(async () => {
     prisma = testPrisma();
+    const counted = prisma.$extends({ query: { $allOperations: ({ args, query }) => { queriesSent += 1; return query(args); } } });
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
-      .useValue(prisma)
+      .useValue(counted)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -106,8 +109,9 @@ describe('Invitation sending (e2e)', () => {
 
   describe('sending', () => {
     // B91: one enqueue per household was four queries each — one to three
-    // seconds to send four hundred.
-    it('queues four hundred households in one press, quickly, and only once', async () => {
+    // seconds to send four hundred. Counted rather than timed, so a slow
+    // machine cannot fail it and a fast one cannot hide it.
+    it('queues four hundred households in one press, without a query per household, and only once', async () => {
       const { slug, eventId, authorization } = await host();
       const households = await prisma.household.createManyAndReturn({
         data: Array.from({ length: 400 }, (_, index) => ({ eventId, name: `Family ${index}`, seatsAllotted: 2 })),
@@ -123,17 +127,17 @@ describe('Invitation sending (e2e)', () => {
           isPrimary: true,
         })),
       });
-      const started = Date.now();
+      const before = queriesSent;
 
       const { body } = await send(slug, authorization).expect(201);
-      const elapsed = Date.now() - started;
+      const queries = queriesSent - before;
       const again = await send(slug, authorization).expect(201);
 
       expect(body.queued).toBe(401);
       expect(again.body).toMatchObject({ queued: 0, alreadySent: 401 });
       expect(await prisma.message.count({ where: { eventId, templateKey: 'invitation.send' } })).toBe(401);
-      // A few hundred milliseconds locally; the bound leaves room for a slow machine.
-      expect(elapsed).toBeLessThan(3_000);
+      // About fifteen for four hundred households; one a household would be four hundred.
+      expect(queries).toBeLessThan(households.length / 4);
     });
 
     /**

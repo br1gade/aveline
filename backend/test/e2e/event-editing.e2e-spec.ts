@@ -2,6 +2,7 @@ import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { EventRole, MessageChannel, OrganizationRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
@@ -9,6 +10,10 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
+
+/** Everything but the calendar stays real, so Nest, Prisma and supertest run as usual while Date stands still. */
+const REAL_TIMERS = ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame',
+  'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] as const;
 
 /**
  * Correcting an event after it exists. Its title, date and languages used to
@@ -35,9 +40,13 @@ describe('Editing an event (e2e)', () => {
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
     await app.init();
+    // This suite tests what is queued; the outbox's wall-clock dispatch would mark the
+    // invitations sent or failed between a send and the notice that counts them.
+    for (const job of app.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
   });
 
   beforeEach(() => resetTestDatabase());
+  afterEach(() => { jest.useRealTimers(); });
   afterAll(async () => {
     await app.close();
     await disconnectTestDatabase();
@@ -249,6 +258,9 @@ describe('Editing an event (e2e)', () => {
           .set('Authorization', authorization)
           .send({ note: 'We have moved to the garden.' })
           .expect(201);
+      // A press is deduplicated within its UTC minute, so the calendar is held
+      // still: two presses must not straddle a minute boundary by chance.
+      jest.useFakeTimers({ now: Date.now(), doNotFake: [...REAL_TIMERS] });
 
       const first = await notify();
       const second = await notify();

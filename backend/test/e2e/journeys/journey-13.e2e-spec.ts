@@ -217,7 +217,8 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
    * then refuses new connections until it is started again.
    */
   const stopPostgres = async () => {
-    await prisma.$queryRaw`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = ${API_APPLICATION_NAME}`;
+    // pg_stat_activity spans the whole server: without the database, a second run against another test database loses its API sessions too.
+    await prisma.$queryRaw`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = ${API_APPLICATION_NAME} AND datname = current_database()`;
     await postgresLink.settled();
     await postgresLink.stop();
   };

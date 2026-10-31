@@ -10,6 +10,9 @@ import { authenticateAs } from '../../fixtures/auth.fixture';
 import { seedEvent } from '../../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
+/** Browse lists only events yet to start; a fixed date would drop out of it once passed. */
+const A_YEAR_AHEAD = new Date(Date.now() + 365 * 86_400_000).toISOString();
+
 /**
  * The guest's side of an invitation over HTTP: which language the personal
  * page is shown in, what a closed invitation still allows, which links the
@@ -218,7 +221,7 @@ describe('Guest flow coverage (e2e)', () => {
       const { authorization } = await authenticateAs(app, prisma);
       await http().post('/api/v1/organizations').set('Authorization', authorization).send({ name: 'Yerevan Jazz' }).expect(201);
       const { body: event } = await http().post('/api/v1/events').set('Authorization', authorization)
-        .send({ type: EventType.OTHER, title: 'Autumn Jazz Night', startsAt: '2027-10-01T18:00:00.000Z' }).expect(201);
+        .send({ type: EventType.OTHER, title: 'Autumn Jazz Night', startsAt: A_YEAR_AHEAD }).expect(201);
       const base = `/api/v1/events/${event.id as string}`;
       await at(`${base}/settings`, authorization).patch({ visibility: 'PUBLIC' }).expect(200);
       const { body: listing } = await at(`${base}/listing`, authorization)

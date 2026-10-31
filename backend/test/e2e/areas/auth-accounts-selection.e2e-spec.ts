@@ -36,11 +36,16 @@ describe('Selecting between several organizations (e2e coverage)', () => {
     app = await accountsApp(prisma);
   });
   beforeEach(() => resetTestDatabase());
+  // The index is restored even when boot or close fails: left dropped, it
+  // would change single-membership behaviour for every later file on this database.
   afterAll(async () => {
-    await app.close();
-    await resetTestDatabase();
-    await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS "organization_memberships_userId_key" ON organization_memberships("userId")`;
-    await disconnectTestDatabase();
+    try {
+      await app?.close();
+    } finally {
+      await resetTestDatabase();
+      await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS "organization_memberships_userId_key" ON organization_memberships("userId")`;
+      await disconnectTestDatabase();
+    }
   });
 
   it('asks for a selection when the account has two live memberships', async () => {
