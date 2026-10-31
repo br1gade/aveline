@@ -14,3 +14,7 @@ export function isValidProof(proof, tree, now = Date.now()) {
     && Number.isFinite(completed) && completed <= now && now - completed <= 86400000;
 }
 export function isLocalDockerEndpoint(endpoint) { return typeof endpoint === 'string' && endpoint.startsWith('unix:///'); }
+export async function dockerEndpoint(env, inspect) {
+  if (env.DOCKER_CONTEXT) return inspect(env.DOCKER_CONTEXT);
+  return env.DOCKER_HOST || inspect();
+}

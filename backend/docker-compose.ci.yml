@@ -41,10 +41,10 @@ services:
     image: ${LOCAL_CI_IMAGE:?run npm run ci:local}
     working_dir: /workspace/backend
     init: true
-    mem_limit: 3g
+    mem_limit: 6g
     environment:
       NODE_ENV: test
-      NODE_OPTIONS: --max-old-space-size=2048
+      NODE_OPTIONS: --max-old-space-size=4096
       PILOT_MODE: 'false'
       DATABASE_URL: postgresql://aveline:aveline@postgres:5432/aveline_test?schema=public
       TEST_DATABASE_URL: postgresql://aveline:aveline@postgres:5432/aveline_test?schema=public

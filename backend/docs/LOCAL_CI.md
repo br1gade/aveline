@@ -9,7 +9,8 @@ required for integration with GitHub; these commands never publish or deploy.
 
 Requires Linux, Node 24+, Git, a local Docker Engine Unix socket and Compose
 2.30+. Docker Desktop/remote daemon orchestration is not implemented. Allow disk
-space for cached images and at least 4 GiB available memory for a sequential run.
+space for cached images and at least 6 GiB available memory for a sequential run.
+Daemon validation follows Docker's `DOCKER_CONTEXT` precedence over `DOCKER_HOST`.
 Initial image builds need internet access; cached dependencies/images are reused.
 
 From `backend/`:
@@ -23,7 +24,7 @@ git push
 ```
 
 Use `npm run ci:local -- --jobs 2` to run integration and HTTP in parallel on a
-machine with enough memory (each test runner has a 3 GiB limit). The default is
+machine with enough memory (each test runner has a 6 GiB limit). The default is
 one database-backed layer at a time. Quality checks and container rehearsals run
 first so cheaper failures stop the run before the long suites. `--revision REF`
 can validate another committed branch/tag. A dirty worktree is refused for manual
@@ -52,8 +53,10 @@ not a source-controlled server policy or a replacement for protected-branch chec
    PostgreSQL/Redis/Mongo/Mailpit project with no published dependency ports.
 
 The quality/integration/HTTP runner uses pinned Node 26 and Ubuntu 24.04 base
-images, `npm ci` from the lockfile and explicit PostgreSQL 16 clients. No host
-PostgreSQL client or host node_modules is used for those layers. The host Node
+images, `npm ci` from the lockfile and explicit PostgreSQL 16 clients.
+Both local and GitHub jobs set a 4 GiB JavaScript heap for the complete Nest/Jest
+suite; the local container leaves another 2 GiB for native tools and overhead.
+No host PostgreSQL client or host node_modules is used for those layers. The host Node
 24+ process orchestrates Docker rehearsals; tested API/worker code runs inside
 the production Node 26 image. No Docker socket is mounted in the test runners.
 Shell prerequisites such as `jq` and `flock` are included in the runner image.

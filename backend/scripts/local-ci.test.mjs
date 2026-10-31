@@ -151,3 +151,11 @@ test('a new failed validation invalidates old proof and concurrent runs are refu
     await assert.rejects(readFile(join(root, '.local-ci/run.lock')), /ENOENT/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('Docker context selection cannot hide a remote daemon behind a local host override', async () => {
+  const { dockerEndpoint } = await import('./local-ci/policy.mjs');
+  const inspect = async (context) => context === 'remote' ? 'ssh://example.test' : 'unix:///var/run/docker.sock';
+  assert.equal(await dockerEndpoint({ DOCKER_CONTEXT: 'remote', DOCKER_HOST: 'unix:///var/run/docker.sock' }, inspect), 'ssh://example.test');
+  assert.equal(await dockerEndpoint({ DOCKER_HOST: 'tcp://example.test:2376' }, inspect), 'tcp://example.test:2376');
+  assert.equal(await dockerEndpoint({}, inspect), 'unix:///var/run/docker.sock');
+});

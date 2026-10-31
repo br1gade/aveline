@@ -1,9 +1,9 @@
 import { join } from 'node:path';
 import { output, logged } from './process.mjs';
-import { isLocalDockerEndpoint } from './policy.mjs';
+import { isLocalDockerEndpoint, dockerEndpoint } from './policy.mjs';
 export const WORKFLOW_LINTER = 'rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667';
 export async function checkDocker(ctx, execute = output) {
-  const endpoint = process.env.DOCKER_HOST ?? JSON.parse(await execute('docker', ['context', 'inspect', '--format', '{{json .Endpoints.docker.Host}}']));
+  const endpoint = await dockerEndpoint(process.env, async (context) => JSON.parse(await execute('docker', ['context', 'inspect', '--format', '{{json .Endpoints.docker.Host}}', ...(context ? ['--', context] : [])])));
   if (process.platform !== 'linux' || !isLocalDockerEndpoint(endpoint)) throw new Error('Local CI requires Linux and a local Docker Unix socket; remote Docker contexts are refused');
   await execute('docker', ['info', '--format', '{{.ServerVersion}}']);
   const version = await execute('docker', ['compose', 'version', '--short']);
