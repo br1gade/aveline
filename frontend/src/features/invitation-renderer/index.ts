@@ -10,6 +10,7 @@ export {
   type ContentField,
   type ContentFieldKind,
 } from './blocks/fields';
+export { FooterMark } from './components/footer-mark';
 export { imageSource, type ImageSource } from './components/image-source';
 export { InvitationNotFound } from './components/invitation-not-found';
 export {
@@ -17,6 +18,7 @@ export {
   replyFromInvitation,
   type ReplySummary,
 } from './components/reply-summary';
+export { displayDate, displayTime, intlZoneName, zoneLabelKey } from './format';
 export { InvitationPage, type InvitationPageProps } from './invitation-page';
 export {
   invitationLanguage,
@@ -34,6 +36,7 @@ export type {
   Invitation,
   InvitationBlock,
   InvitationGuest,
+  MediaVariant,
   QuestionType,
   RsvpFieldConfig,
   RsvpQuestion,

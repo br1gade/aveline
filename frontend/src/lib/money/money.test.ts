@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { currencyExponent, formatMinor, minorToDecimalString, toMinor } from './money';
+import {
+  currencyExponent,
+  formatMinor,
+  minorToDecimalString,
+  multiplyMinor,
+  sumMinor,
+  toMinor,
+} from './money';
 
 describe('money', () => {
   it.each([
@@ -51,5 +58,59 @@ describe('money', () => {
     ['1,000', 'USD'],
   ])('refuses %s %s', (input, currency) => {
     expect(() => toMinor(input, currency)).toThrow(RangeError);
+  });
+
+  it.each([
+    ['15000', 2, '30000'],
+    ['0', 7, '0'],
+    ['9007199254740993', 3, '27021597764222979'],
+  ])('multiplies %s by %i exactly', (amount, quantity, total) => {
+    expect(multiplyMinor(amount, quantity)).toBe(total);
+  });
+
+  it.each([
+    [['15000', '0', '2500'], '17500'],
+    [[], '0'],
+    [['9007199254740993', '9007199254740993'], '18014398509481986'],
+  ])('adds %j exactly to %s', (amounts, total) => {
+    expect(sumMinor(amounts)).toBe(total);
+  });
+
+  it('refuses a quantity that is not a whole number, and an amount that is not minor units', () => {
+    expect(() => multiplyMinor('100', 1.5)).toThrow(RangeError);
+    expect(() => multiplyMinor('100', -1)).toThrow(RangeError);
+    expect(() => multiplyMinor('10.5', 1)).toThrow(RangeError);
+    expect(() => sumMinor(['1', 'x'])).toThrow(RangeError);
+  });
+
+  it.each([
+    ['1234567', 'AMD', '1\u00a0234\u00a0567\u00a0֏'],
+    ['15000', 'AMD', '15\u00a0000\u00a0֏'],
+    ['0', 'AMD', '0\u00a0֏'],
+    ['123456750', 'USD', '1\u00a0234\u00a0567,50\u00a0$'],
+    ['1050', 'EUR', '10,50\u00a0€'],
+    ['999', 'RUB', '9,99\u00a0RUB'],
+  ])(
+    'writes %s %s in Armenian as Node does, by hand, since Chrome has no Armenian data',
+    (minor, currency, text) => {
+      expect(formatMinor(minor, currency, 'hy')).toBe(text);
+      expect(formatMinor(minor, currency, 'hy-AM')).toBe(text);
+    },
+  );
+
+  it('never asks Intl for Armenian, which would differ between the server and the browser', () => {
+    const intl = vi.spyOn(Intl, 'NumberFormat');
+    formatMinor('15000', 'AMD', 'hy');
+    expect(intl).not.toHaveBeenCalled();
+    intl.mockRestore();
+  });
+
+  it('agrees with Node’s own Armenian formatting', () => {
+    const intl = new Intl.NumberFormat('hy', {
+      style: 'currency',
+      currency: 'AMD',
+      maximumFractionDigits: 0,
+    });
+    expect(formatMinor('1234567', 'AMD', 'hy')).toBe(intl.format(1234567));
   });
 });

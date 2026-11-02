@@ -24,7 +24,12 @@
     "photos": "Guests’ photos · Aveline",
     "agreements": "Agreements · Aveline",
     "seating": "Seating · Aveline",
-    "exports": "Exports · Aveline"
+    "exports": "Exports · Aveline",
+    "ticketSales": "Ticket sales · Aveline",
+    "newTicketType": "Add a ticket type · Aveline",
+    "editTicketType": "Edit a ticket type · Aveline",
+    "announcement": "The announcement · Aveline",
+    "orders": "Orders · Aveline"
   },
   "shell": {
     "loading": "Loading…",

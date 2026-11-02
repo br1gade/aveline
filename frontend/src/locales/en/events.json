@@ -78,7 +78,9 @@
     "photos": "Guests’ photos",
     "agreements": "Agreements",
     "seating": "Seating",
-    "exports": "Exports"
+    "exports": "Exports",
+    "ticketSales": "Ticket sales",
+    "orders": "Orders"
   },
   "headcount": {
     "title": "Guests",

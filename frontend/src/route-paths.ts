@@ -16,6 +16,8 @@ export const ROUTE_PATHS = {
   acceptEventInvite: '/accept-event-invite',
   /** backend/src/modules/ticketing/ticket-notifier.service.ts */
   ticket: '/tickets/:accessToken',
+  /** backend/src/modules/public-events/public-events.service.ts: `metadata.canonicalPath` */
+  publicEvent: '/events/:slug',
   /** The bank's default return pages: ticketing.service.ts and billing/subscriptions.service.ts */
   ticketPaymentReturn: '/tickets/return',
   billingPaymentReturn: '/billing/return',
@@ -62,4 +64,20 @@ export const APP_PATHS = {
   seating: '/app/events/:eventId/seating',
   /** Fixed copies of the event's lists, made in the background and downloaded while signed in. */
   exports: '/app/events/:eventId/exports',
+  /** Selling tickets: who can find the event, its ticket types and its announcement. */
+  ticketSales: '/app/events/:eventId/tickets',
+  /** Static, so it ranks above `editTicketType`'s `:typeId`. */
+  newTicketType: '/app/events/:eventId/tickets/types/new',
+  editTicketType: '/app/events/:eventId/tickets/types/:typeId',
+  /** The public page that sells the tickets; the API calls it the listing. */
+  announcement: '/app/events/:eventId/tickets/announcement',
+  /** Ticket orders by status, an order's people and tickets, cancelling and reconciling. */
+  orders: '/app/events/:eventId/orders',
+  /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */
+  checkout: '/events/:slug/checkout',
+  /**
+   * The buyer's order once its link's token is out of the address (frontend CLAUDE.md §4). The
+   * static path ranks above `ROUTE_PATHS.ticket`'s `:accessToken`.
+   */
+  ticketOrder: '/tickets',
 } as const;

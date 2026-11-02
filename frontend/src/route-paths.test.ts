@@ -20,6 +20,7 @@ describe('the route contract', () => {
       acceptInvite: '/accept-invite',
       acceptEventInvite: '/accept-event-invite',
       ticket: '/tickets/:accessToken',
+      publicEvent: '/events/:slug',
       ticketPaymentReturn: '/tickets/return',
       billingPaymentReturn: '/billing/return',
       brief: '/briefs/:briefToken',
@@ -38,6 +39,9 @@ describe('the route contract', () => {
       expect(account).toContain(path);
     }
     expect(backend('modules/ticketing/ticket-notifier.service.ts')).toContain('/tickets/');
+    expect(backend('modules/public-events/public-events.service.ts')).toContain(
+      'canonicalPath: `/events/${listing.slug}`',
+    );
     expect(backend('modules/invitations/sending/invitation-sender.service.ts')).toContain(
       '/invitations/${slug}/g/${token}',
     );

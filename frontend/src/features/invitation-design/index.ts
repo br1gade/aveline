@@ -20,5 +20,5 @@ export {
   loadDesignSection,
   previewRequestOf,
 } from './load';
-export { getDesign } from './api';
-export type { Question } from './types';
+export { getDesign, listMedia } from './api';
+export type { LibraryItem, Question } from './types';

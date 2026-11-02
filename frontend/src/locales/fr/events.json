@@ -78,7 +78,9 @@
     "photos": "Photos des invités",
     "agreements": "Accords",
     "seating": "Placement",
-    "exports": "Exports"
+    "exports": "Exports",
+    "ticketSales": "Vente de billets",
+    "orders": "Commandes"
   },
   "headcount": {
     "title": "Invités",

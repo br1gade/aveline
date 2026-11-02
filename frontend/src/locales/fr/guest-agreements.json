@@ -1,0 +1,29 @@
+{
+  "label": "Avant votre arrivée",
+  "heading": "Accepter avant l’entrée",
+  "lead": "Les hôtes demandent à chaque personne qui vient d’accepter ceci avant d’entrer. Accepter ici ne change pas votre réponse.",
+  "required": "Nécessaire avant l’entrée",
+  "optional": "Facultatif",
+  "submit": "Accepter",
+  "done": "Accepté pour : {{names}}.",
+  "all": "Toutes les personnes qui viennent ont accepté. Rien d’autre n’est nécessaire avant l’entrée.",
+  "notice_one": "{{count}} acceptation est nécessaire avant l’entrée.",
+  "notice_many": "{{count}} acceptations sont nécessaires avant l’entrée.",
+  "notice_other": "{{count}} acceptations sont nécessaires avant l’entrée.",
+  "noticeLink": "Accepter maintenant",
+  "refusals": {
+    "reworded": "Les hôtes ont modifié cette formulation entre-temps. Relisez-la, puis acceptez.",
+    "gone": "Ce lien n’ouvre plus l’invitation, rien n’a donc été enregistré.",
+    "refused": "Votre acceptation n’a pas été enregistrée, pour cette raison :",
+    "rateLimited": "Trop d’essais en peu de temps. Attendez une minute, puis réessayez.",
+    "failed": "Votre acceptation n’a pas été enregistrée. Réessayez.",
+    "reference": "Référence : {{requestId}}"
+  },
+  "errors": {
+    "agree": "Cochez d’abord « J’accepte ».",
+    "signerName": "Saisissez votre nom complet.",
+    "tooLong": "C’est trop long.",
+    "drawing": "Dessinez votre signature et choisissez « Utiliser cette signature », ou saisissez votre nom.",
+    "onBehalf": "Confirmez que vous acceptez au nom des autres personnes indiquées."
+  }
+}

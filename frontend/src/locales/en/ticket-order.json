@@ -1,0 +1,76 @@
+{
+  "title": "Your tickets",
+  "opening": "Opening your order…",
+  "loading": "Loading your order…",
+  "failed": {
+    "body": "Your order couldn’t be loaded.",
+    "retry": "Try again",
+    "reference": "Reference: {{requestId}}"
+  },
+  "none": {
+    "heading": "Open your order from its email",
+    "body": "This browser tab doesn’t hold an order. Open the link in the email we sent you after your order."
+  },
+  "gone": {
+    "heading": "This order can’t be found",
+    "body": "The link may be wrong. Open it again from the email we sent you."
+  },
+  "outcome": {
+    "paid": {
+      "heading": "Your tickets",
+      "body": "Each person shows their code at the door. We have sent this page’s link to your email address."
+    },
+    "awaitingBank": {
+      "heading": "Waiting for your bank",
+      "body": "Your tickets are held while the bank confirms the payment. Nothing is issued until it does."
+    },
+    "declined": {
+      "heading": "The payment didn’t go through",
+      "body": "Your bank did not take the payment, so no tickets were issued and nothing was charged."
+    },
+    "holdEnded": {
+      "heading": "Your hold has ended",
+      "body": "The tickets were held for 15 minutes. If your bank took the payment, your tickets will still come to your email address within minutes; if they were sold meanwhile, the money is returned in full."
+    },
+    "cancelled": {
+      "heading": "This order was cancelled",
+      "body": "Its tickets are no longer valid."
+    },
+    "refunded": {
+      "heading": "This order was refunded",
+      "body": "Its tickets are no longer valid, and the payment was returned."
+    }
+  },
+  "agreements": "Each person with an email address receives their own link to agree to the hosts’ statements before the door.",
+  "declined": {
+    "again": "Choose tickets again"
+  },
+  "waiting": {
+    "pay": "Go to the payment page",
+    "check": "Check with the bank"
+  },
+  "hold": {
+    "left_one": "Held for {{count}} more minute",
+    "left_other": "Held for {{count}} more minutes",
+    "over": "The hold has ended",
+    "announce": {
+      "five": "Five minutes left on your hold.",
+      "one": "One minute left on your hold.",
+      "over": "Your hold has ended."
+    }
+  },
+  "ticket": {
+    "heading": "Tickets",
+    "ticket": "Ticket",
+    "noName": "No name given",
+    "codeLabel": "Code to show at the door",
+    "notIssued": "Not issued",
+    "valid": "Valid",
+    "used": "Admitted",
+    "cancelled": "Cancelled"
+  },
+  "totals": {
+    "discount": "Discount",
+    "total": "Total"
+  }
+}

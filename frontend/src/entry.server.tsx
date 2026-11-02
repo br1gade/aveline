@@ -13,6 +13,7 @@ import {
 import { readPublicEnv } from '@/config/env';
 import { carriesCapability, redactText } from '@/lib/capability-links';
 import { applySecurityHeaders, capabilityPageHeaders, createNonce } from '@/lib/security/headers';
+import { APP_PATHS } from '@/route-paths';
 
 /**
  * React Router's default Node entry, plus the security headers of setup proposal §5.11. The nonce
@@ -21,11 +22,21 @@ import { applySecurityHeaders, capabilityPageHeaders, createNonce } from '@/lib/
 export const streamTimeout = 5_000;
 
 /**
+ * Pages that show what a capability link opened without the token in their own address: the
+ * buyer's order, read with the token the tab holds (design PD-81).
+ */
+const SHOWS_A_CAPABILITY: ReadonlySet<string> = new Set([APP_PATHS.ticketOrder]);
+
+function isCapabilityPage(url: URL): boolean {
+  return carriesCapability(url) || SHOWS_A_CAPABILITY.has(url.pathname.replace(/\.data$/, ''));
+}
+
+/**
  * A capability page keeps its referrer, cache and robots rules on every response, the error
  * boundary's included: when a loader fails, React Router skips the route's own `headers`.
  */
 function protectCapabilityPage(request: Request, headers: Headers): void {
-  if (carriesCapability(new URL(request.url))) {
+  if (isCapabilityPage(new URL(request.url))) {
     for (const [name, value] of Object.entries(capabilityPageHeaders())) {
       headers.set(name, value);
     }

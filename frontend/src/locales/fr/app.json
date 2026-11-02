@@ -24,7 +24,12 @@
     "photos": "Photos des invités · Aveline",
     "agreements": "Accords · Aveline",
     "seating": "Placement · Aveline",
-    "exports": "Exports · Aveline"
+    "exports": "Exports · Aveline",
+    "ticketSales": "Vente de billets · Aveline",
+    "newTicketType": "Ajouter un type de billet · Aveline",
+    "editTicketType": "Modifier un type de billet · Aveline",
+    "announcement": "L’annonce · Aveline",
+    "orders": "Commandes · Aveline"
   },
   "shell": {
     "loading": "Chargement…",

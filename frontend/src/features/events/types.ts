@@ -42,6 +42,8 @@ export interface EventInvitation {
 }
 
 /** An event as `GET /events/:id`, `POST /events` and `PATCH /events/:id` return it. */
+export type EventVisibility = 'PRIVATE' | 'UNLISTED' | 'PUBLIC';
+
 export interface EventDetail extends EventSummary {
   type: EventType;
   hostsLabel: string;
@@ -58,8 +60,13 @@ export interface EventDetail extends EventSummary {
   attendanceRevision?: number;
   /** Since when guests see their tables on their personal links; `null` while they don't. */
   seatingPublishedAt?: string | null;
+  /**
+   * Who can find the event: `PRIVATE` only by invitation link, `UNLISTED` by its announcement's
+   * link, `PUBLIC` also in public browsing (docs/API.md §5). The event is returned whole.
+   */
+  visibility?: EventVisibility;
   /** The venues in the host's order; the seating page reads which ones guests see (FR-52). */
-  venues?: Array<{ id: string; role: string }>;
+  venues?: Array<{ id: string; role: string; name?: string }>;
   /** The running order; only which venue each entry is at, and whether guests see it. */
   timeline?: Array<{ venueId: string | null; isInternal: boolean }>;
 }

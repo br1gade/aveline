@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { data } from 'react-router';
 
 import { GuestGallery } from '@/features/gallery';
+import { AgreeBeforeDoor, AgreementsNotice, useDoorAgreements } from '@/features/guest-agreements';
 import { NameCorrection, withCorrectedName, type CorrectedName } from '@/features/guest-name';
 import { GuestReply, replySummaryFrom, type ReplyRecord } from '@/features/guest-reply';
 import { loadReply } from '@/features/guest-reply/index.server';
@@ -62,6 +63,8 @@ function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps
   const [isSent, setIsSent] = useState(false);
   const [corrected, setCorrected] = useState<CorrectedName | null>(null);
   const invitation = corrected ? withCorrectedName(read, corrected) : read;
+  // Agreeing before the door (PD-83): what is left to agree, shared by the card and the section.
+  const door = useDoorAgreements(invitation, link, record);
   const onCorrected = (name: CorrectedName) => {
     setCorrected(name);
     setRecord((current) => current && withName(current, name));
@@ -69,12 +72,15 @@ function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps
   // Correcting needs both names apart, which only the reply read holds.
   const renderPersonal = record
     ? () => (
-        <NameCorrection
-          saved={record.guest}
-          link={link}
-          locale={invitation.locale}
-          onCorrected={onCorrected}
-        />
+        <>
+          <AgreementsNotice door={door} />
+          <NameCorrection
+            saved={record.guest}
+            link={link}
+            locale={invitation.locale}
+            onCorrected={onCorrected}
+          />
+        </>
       )
     : undefined;
   const renderReply = () =>
@@ -85,6 +91,7 @@ function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps
         record={record}
         onReplied={setRecord}
         onSentChange={setIsSent}
+        agreementsVersion={door.version}
       />
     ) : (
       <Notice tone="error">{t('errors.loadFailed')}</Notice>
@@ -97,7 +104,12 @@ function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps
       replyHeading={isSent ? t('sent.heading') : undefined}
       languageHref={languageHref}
       renderPersonal={renderPersonal}
-      renderContributions={() => <GuestGallery invitation={invitation} link={link} />}
+      renderContributions={() => (
+        <div className="flex flex-col gap-16">
+          <AgreeBeforeDoor door={door} link={link} />
+          <GuestGallery invitation={invitation} link={link} />
+        </div>
+      )}
     />
   );
 }

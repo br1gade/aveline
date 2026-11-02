@@ -24,7 +24,12 @@
     "photos": "Հյուրերի լուսանկարներ · Aveline",
     "agreements": "Համաձայնություններ · Aveline",
     "seating": "Նստեցում · Aveline",
-    "exports": "Արտահանումներ · Aveline"
+    "exports": "Արտահանումներ · Aveline",
+    "ticketSales": "Տոմսերի վաճառք · Aveline",
+    "newTicketType": "Ավելացնել տոմսի տեսակ · Aveline",
+    "editTicketType": "Խմբագրել տոմսի տեսակը · Aveline",
+    "announcement": "Հայտարարություն · Aveline",
+    "orders": "Պատվերներ · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

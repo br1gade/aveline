@@ -24,7 +24,12 @@
     "photos": "Фото гостей · Aveline",
     "agreements": "Согласия · Aveline",
     "seating": "Рассадка · Aveline",
-    "exports": "Экспорт · Aveline"
+    "exports": "Экспорт · Aveline",
+    "ticketSales": "Продажа билетов · Aveline",
+    "newTicketType": "Новый тип билета · Aveline",
+    "editTicketType": "Изменить тип билета · Aveline",
+    "announcement": "Анонс · Aveline",
+    "orders": "Заказы · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

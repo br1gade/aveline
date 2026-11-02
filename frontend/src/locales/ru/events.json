@@ -78,7 +78,9 @@
     "photos": "Фото гостей",
     "agreements": "Согласия",
     "seating": "Рассадка",
-    "exports": "Экспорт"
+    "exports": "Экспорт",
+    "ticketSales": "Продажа билетов",
+    "orders": "Заказы"
   },
   "headcount": {
     "title": "Гости",

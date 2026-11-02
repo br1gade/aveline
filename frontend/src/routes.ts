@@ -21,6 +21,11 @@ export default [
   index('routes/home.tsx'),
   route(relative(ROUTE_PATHS.genericInvitation), 'routes/public/invitation.tsx'),
   route(relative(ROUTE_PATHS.guestInvitation), 'routes/public/guest-invitation.tsx'),
+  route(relative(ROUTE_PATHS.publicEvent), 'routes/public/event.tsx'),
+  route(relative(APP_PATHS.checkout), 'routes/public/checkout.tsx'),
+  route(relative(APP_PATHS.ticketOrder), 'routes/public/ticket-order.tsx'),
+  route(relative(ROUTE_PATHS.ticketPaymentReturn), 'routes/public/ticket-return.tsx'),
+  route(relative(ROUTE_PATHS.ticket), 'routes/public/ticket-link.tsx'),
 
   route(relative(ROUTE_PATHS.signIn), 'routes/account/sign-in.tsx'),
   route(relative(APP_PATHS.register), 'routes/account/register.tsx'),
@@ -55,6 +60,11 @@ export default [
       route(underApp(APP_PATHS.agreements), 'routes/app/agreements.tsx'),
       route(underApp(APP_PATHS.seating), 'routes/app/seating.tsx'),
       route(underApp(APP_PATHS.exports), 'routes/app/exports.tsx'),
+      route(underApp(APP_PATHS.ticketSales), 'routes/app/ticket-sales.tsx'),
+      route(underApp(APP_PATHS.newTicketType), 'routes/app/ticket-type-new.tsx'),
+      route(underApp(APP_PATHS.editTicketType), 'routes/app/ticket-type-edit.tsx'),
+      route(underApp(APP_PATHS.announcement), 'routes/app/announcement.tsx'),
+      route(underApp(APP_PATHS.orders), 'routes/app/orders.tsx'),
     ]),
     // Signed in, without the app's frame: the invitation's preview needs the whole window.
     layout('routes/app/preview-layout.tsx', [

@@ -28,7 +28,12 @@ type AppPage =
   | 'photos'
   | 'agreements'
   | 'seating'
-  | 'exports';
+  | 'exports'
+  | 'ticketSales'
+  | 'newTicketType'
+  | 'editTicketType'
+  | 'announcement'
+  | 'orders';
 
 export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
   const t = createI18n(language).getFixedT(language, 'account');

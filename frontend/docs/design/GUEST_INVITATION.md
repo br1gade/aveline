@@ -128,6 +128,9 @@ From top to bottom, phone first:
    - the greeting with the guest's name;
    - one sentence of welcome;
    - "Seats reserved: 3", and the names in the household;
+   - **⚠** "2 agreements are needed before the door." with "Agree now", while anyone coming
+     has not agreed to a required statement in its current wording; it leads to the section after
+     the letter (PD-83; not drawn, DQ-24);
    - **⚠** "Correct my name", a quiet button under the names that opens the guest's first and
      last name in place (PD-64; not drawn, DQ-21);
    - **⚠** "Your table", once the host publishes the seating: each of the guest's seats at its
@@ -142,7 +145,10 @@ From top to bottom, phone first:
    - 64–96 px of space above it.
 
    The ornament divider is used once or twice on a page, not between every pair of sections.
-   **⚠** On personal links, **"Photos from guests"** follows the letter: sharing photos, the
+   **⚠** On personal links, **"Agree before the door"** follows the letter while anyone coming
+   has not agreed to a statement in its current wording: each statement agreed to on its own,
+   without changing the reply; a ticket holder's emailed link leads here (PD-83; not drawn, DQ-24).
+   **⚠** On personal links, **"Photos from guests"** follows it: sharing photos, the
    guest's own in each state, and other guests' approved ones (PD-63; not drawn, DQ-21).
 5. **The reply section** (the RSVP block, wherever the host placed it). A burgundy band with the
    heading in blush, and the form on a **porcelain card** set into the band ([§6](#6-replying-rsvp)).

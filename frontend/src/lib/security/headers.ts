@@ -84,3 +84,24 @@ export function publicInvitationHeaders(): Record<string, string> {
     'X-Robots-Tag': 'noindex, nofollow',
   };
 }
+
+/**
+ * A public event's announcement (docs/API.md §5). Its robots rule is the response's own
+ * `metadata.robots`, in a meta tag, verbatim, so no header here may contradict it. The visitor's
+ * browser may keep it for a minute; never a shared cache, for the nonce's sake.
+ */
+export function publicEventHeaders(): Record<string, string> {
+  return { 'Cache-Control': 'private, max-age=60' };
+}
+
+/**
+ * Checkout holds what the buyer typed about other people, so no cache keeps it, and it is no page
+ * for search engines.
+ */
+export function checkoutHeaders(): Record<string, string> {
+  return {
+    'Referrer-Policy': 'no-referrer',
+    'Cache-Control': 'private, no-store',
+    'X-Robots-Tag': 'noindex, nofollow',
+  };
+}

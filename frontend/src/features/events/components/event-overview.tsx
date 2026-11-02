@@ -16,8 +16,10 @@ import {
   exportsPath,
   guestListPath,
   invitationPath,
+  ordersPath,
   photosPath,
   seatingPath,
+  ticketSalesPath,
   venuesPath,
 } from '../paths';
 import type { EventDetail } from '../types';
@@ -115,6 +117,12 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
           </Button>
           <Button asChild variant="outline">
             <Link to={exportsPath(event.id)}>{t('overview.exports')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={ticketSalesPath(event.id)}>{t('overview.ticketSales')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={ordersPath(event.id)}>{t('overview.orders')}</Link>
           </Button>
           {event.invitation ? (
             <>

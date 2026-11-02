@@ -28,6 +28,11 @@ export interface GuestReplyProps {
   onReplied: (record: ReplyRecord) => void;
   /** Whether the confirmation is showing, so the section's heading can say "Thank you". */
   onSentChange: (isSent: boolean) => void;
+  /**
+   * Raised each time the guest agrees before the door, outside the reply (design PD-83), so the
+   * form reads the agreements again and stops asking for what is agreed.
+   */
+  agreementsVersion?: number;
 }
 
 /** The form sits on a light card inside the burgundy band: errors and success pass only there. */
@@ -177,7 +182,8 @@ export function GuestReply(props: GuestReplyProps) {
   );
   const state = useReplyState(props);
   const { record, view } = state;
-  const signatures = useSignatureContext(api, { ...state, link, invitation });
+  const refresh = state.refresh + (props.agreementsVersion ?? 0);
+  const signatures = useSignatureContext(api, { ...state, refresh, link, invitation });
   const signing = useSigning(api, link);
   const zone = { timeZone: invitation.event.timezone, locale };
   const venues = venueChoices(record, invitation);

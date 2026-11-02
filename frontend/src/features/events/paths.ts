@@ -45,3 +45,11 @@ export function seatingPath(eventId: string): string {
 export function exportsPath(eventId: string): string {
   return generatePath(APP_PATHS.exports, { eventId });
 }
+
+export function ticketSalesPath(eventId: string): string {
+  return generatePath(APP_PATHS.ticketSales, { eventId });
+}
+
+export function ordersPath(eventId: string): string {
+  return generatePath(APP_PATHS.orders, { eventId });
+}

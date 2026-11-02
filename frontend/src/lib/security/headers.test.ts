@@ -5,6 +5,8 @@ import {
   capabilityPageHeaders,
   contentSecurityPolicy,
   createNonce,
+  checkoutHeaders,
+  publicEventHeaders,
   publicInvitationHeaders,
 } from './headers';
 
@@ -52,5 +54,13 @@ describe('security headers', () => {
       'Cache-Control': 'private, max-age=60',
       'X-Robots-Tag': 'noindex, nofollow',
     });
+  });
+
+  it("leaves a public event's robots rule to its own metadata", () => {
+    expect(publicEventHeaders()).toEqual({ 'Cache-Control': 'private, max-age=60' });
+  });
+
+  it('keeps checkout out of caches, referrers and indexes', () => {
+    expect(checkoutHeaders()).toEqual(capabilityPageHeaders());
   });
 });

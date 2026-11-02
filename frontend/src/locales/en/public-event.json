@@ -1,0 +1,28 @@
+{
+  "untitled": "An event",
+  "facts": {
+    "when": "When",
+    "where": "Where"
+  },
+  "tickets": {
+    "heading": "Tickets",
+    "closed": "Ticket sales closed when the event started.",
+    "none": "No tickets are on sale for this event.",
+    "soldOut": "Sold out",
+    "fewLeft_one": "Only {{count}} left",
+    "fewLeft_other": "Only {{count}} left",
+    "free": "Free",
+    "unnamed": "Ticket",
+    "quantity": "How many: {{name}}",
+    "salesEnd": "On sale until {{date}}, {{time}}",
+    "continue": "Continue",
+    "continueWith_one": "Continue with {{count}} ticket",
+    "continueWith_other": "Continue with {{count}} tickets",
+    "chooseFirst": "Choose how many tickets you want first."
+  },
+  "notFound": {
+    "title": "This event isn’t available",
+    "body": "Its page may have been taken down, or the address may be wrong. If someone shared it with you, ask them for a new link.",
+    "sentence": "This event isn’t available."
+  }
+}
