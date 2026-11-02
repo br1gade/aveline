@@ -1,6 +1,6 @@
 import { WhatsAppReceiptsService } from './whatsapp/whatsapp-receipts.service';
 import { WhatsAppWebhookController } from './whatsapp/whatsapp-webhook.controller';
-import { Global, Module } from '@nestjs/common';
+import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -40,4 +40,12 @@ export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
   ],
   exports: [CommunicationsService, SuppressionService, GuestChannelsService, EmailFeedbackService, WhatsAppReceiptsService],
 })
-export class CommunicationsModule {}
+export class CommunicationsModule implements OnApplicationShutdown {
+  constructor(@Inject(MESSAGE_TRANSPORTS) private readonly transports: Map<MessageChannel, MessageTransport>) {}
+
+  // A pooled SMTP socket left open keeps the process alive past SIGTERM, so a
+  // deploy would wait for the provider's idle timeout instead of exiting.
+  onApplicationShutdown(): void {
+    for (const transport of this.transports.values()) transport.close?.();
+  }
+}

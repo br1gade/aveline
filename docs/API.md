@@ -53,7 +53,13 @@ host or guest interface copy. A supported `?locale=` takes precedence; otherwise
 the fallback is English. These UI strings do not change the event's published
 content language. Keep using the original `message` and status for compatibility.
 Field paths identify invalid inputs; an unidentifiable business error has a null
-field. Details are bounded to 100 entries. Display the translated `userMessage`
+field. An unknown body property is named by its path too (`isAdmin`, or
+`organization.create.role` when nested), a rule on each item of a list names the
+list (`contactIds` for `each value in contactIds must be a string`; `items.0.tags`
+when nested), and a business refusal about one input
+— a stage's `closureReason` or `closureNote`, a reused queue `cursor`, a conversion's
+`organization`, `event` or `event.existingId` — names that input. Details are
+bounded to 100 entries. Display the translated `userMessage`
 and map field paths to the form's translated labels.
 
 `attendanceRevision:` conflicts have code `ATTENDANCE_CHANGED` and action
@@ -94,6 +100,9 @@ successful response in an envelope to repeat it would buy nothing.
 ```ts
 const requestId = response.headers.get('x-request-id');
 ```
+
+From another origin the header is readable too: CORS exposes it, and a
+preflight is cached for ten minutes (`Access-Control-Max-Age: 600`).
 
 **Keep it when you log a failure, and show it in any "report a problem"
 screen.** It is what maps a user's screenshot to the exact request in our
@@ -159,7 +168,15 @@ language (`en-GB` → `en`).
 
 ### Rate limits
 
-10 requests/second and 100/minute, per IP. Exceeding either returns `429`.
+10 requests/second and 100/minute. A signed-in caller is counted per account,
+anyone else per address. Exceeding either returns `429`.
+
+Guest-page reads have a wider allowance — 50/second and 3,000/minute — because
+a whole room opens them at once on one Wi-Fi, and a server renderer reads them
+for every guest from one address: `GET /invitations/:slug`,
+`GET /invitations/:slug/g/:guestToken`, the guest's own
+`GET /invitations/:slug/g/:guestToken/rsvp`, and the acknowledgement, signature and
+gallery file reads. Every write keeps the default.
 
 ### Dates
 
@@ -174,6 +191,12 @@ fraction and offset optional). Compact or week forms (`20270612`,
 **Translated content is keyed by language codes** (`hy`, `en`, `ru`, `en-GB`).
 Any other key — in block copy, a question's prompt or options, a timeline
 label, alt text — is a `400` naming the field.
+
+### IDs are opaque strings
+
+Store and compare them, never parse or pattern-check them. Formats differ by
+resource and may change: most ids are cuids, design template ids created since
+31 October 2026 are UUIDs, and older templates keep their cuids.
 
 ---
 
@@ -447,17 +470,22 @@ themselves at the top level and for everyone else named in the household in
 
 ```json
 {
-  "guest": { "id": "clz...", "firstName": "Armen", "lastName": "Petrosyan" },
+  "guest": { "id": "clz...", "firstName": "Armen", "lastName": "Petrosyan", "attribution": "SIDE_A" },
   "household": {
     "name": "Petrosyan family", "seatsAllotted": 3,
     "members": [{ "id": "clz...", "firstName": "Lusine", "lastName": "Petrosyan",
                   "addedByGuest": false, "status": "PENDING",
-                  "dietary": [], "dietaryNotes": null }]
+                  "dietary": [], "dietaryNotes": null,
+                  "answers": [{ "questionId": "clz...", "value": 0 }] }]
   },
   "rsvp": { "status": "ATTENDING", "respondedAt": "...", "dietary": ["vegetarian"],
             "answers": [{ "questionId": "clz...", "value": 1 }], ... }
 }
 ```
+
+`GET` takes `?locale=` like the personal page and negotiates it the same way,
+so per-venue `attendance` names venues in the page's language. `attribution`
+and each member's `answers` are what was saved, for pre-filling an edit.
 
 ```json
 {
@@ -540,8 +568,10 @@ changed answer, so a guest who switches from attending to declined sees it
 acknowledged. There is different copy for each answer: attending, declined and
 undecided.
 
-It goes to the household's own recipient on the channel they were invited on,
-and carries their personal link so they can change their answer later. Two
+It goes to the household's own recipient on the channel they are reached on now
+— the same rule as every message after the invitation, so a guest invited by
+email who has since opened the Telegram link is confirmed on Telegram — and
+carries their personal link so they can change their answer later. Two
 identical submissions in the same minute produce one confirmation; a changed
 answer is always confirmed, so the last confirmation matches the answer that
 stands.
@@ -1092,7 +1122,9 @@ GET /api/v1/events
 Every event the caller can reach: their organization's, if their role there
 can read events, plus any event they were brought onto directly through a
 team invitation. An account with neither gets `[]`. **Do not pass an
-organizationId** — it is ignored. Platform staff see everything.
+organizationId** — it is ignored. Use the organization header. Platform staff
+without a header retain the paginated platform list; an explicit header narrows
+to that tenant plus their direct event grants.
 
 Optional `?limit=` (1–500) and `?offset=` page the list, soonest event first.
 A customer's list is whole unless they ask; **platform staff get 100 at a
@@ -1103,6 +1135,7 @@ time by default**, since theirs is every customer's events — page with
 
 ```http
 POST /api/v1/concierge/organizations                       { "name": "Petrosyan Wedding", "ownerEmail": "anna@example.am" }
+POST /api/v1/concierge/organizations/resolve-customer        { "ownerEmail":"anna@example.am", "limit":50 }
 POST /api/v1/concierge/organizations/:organizationId/events  { ...as POST /events }
 GET  /api/v1/concierge/organizations?search=petrosyan
 ```
@@ -1116,6 +1149,14 @@ design and run it through the usual routes using their platform role. When
 the customer accepts at `/accept-invite`, choosing their own password, they
 own the organization and its events. The search lists organizations with
 their `owners`, `pendingOwnerInvites` and number of `events`.
+
+Concierge setup uses exact 0/1/many customer resolution, including an unexpired
+pending OWNER invitation for provisional onboarding. Several choices require
+selection with `409 ORGANIZATION_SELECTION_REQUIRED`. Optional `organizationId`
+selects an existing customer relationship, never grants one. The staff-only
+resolve-customer endpoint returns `{items:[{id,name,kind,createdAt}],nextCursor}`
+for current memberships, defaults/maxes at 50 and bounds cursor to 256 characters.
+New organization, OWNER invitation and credential Message commit atomically.
 
 **A customer who already has an organization** gets the event built in it
 (decided 10 October 2026): the response is that organization with
@@ -1253,19 +1294,27 @@ you do not need to make the host rename anything. Recognised:
 
 | Field | Accepted headers |
 |---|---|
-| First name (**required**) | `firstname`, `first name`, `first`, `name`, `guest`, `անուն` |
-| Last name | `lastname`, `last name`, `surname`, `last`, `ազգանուն` |
-| Email | `email`, `e-mail`, `mail` |
-| Phone | `phone`, `mobile`, `telephone`, `tel` |
-| Household | `household`, `family`, `group`, `party` |
-| Seat allowance | `seats`, `seats allotted`, `allowance`, `plus ones` |
+| First name (**required**) | `firstname`, `first name`, `first`, `name`, `guest`, `անուն`, `имя` |
+| Last name | `lastname`, `last name`, `surname`, `last`, `ազգանուն`, `фамилия` |
+| Email | `email`, `e-mail`, `mail`, `почта`, `эл. почта` |
+| Phone | `phone`, `mobile`, `telephone`, `tel`, `հեռախոս`, `телефон` |
+| Household | `household`, `family`, `group`, `party`, `ընտանիք`, `семья` |
+| Seat allowance | `seats`, `seats allotted`, `allowance`, `plus ones`, `места` |
 | Side | `side`, `attribution`, `invited by` |
-| Locale | `locale`, `language`, `lang` |
+| Locale | `locale`, `language`, `lang`, `язык` |
+
+**The file must be UTF-8**; a BOM is fine. Columns may be separated by `,`,
+`;` (what Excel writes in Russian or Armenian) or a tab — the header row
+decides. A file in another encoding, such as Windows-1251, or with no
+first-name column is refused whole with one error at `row: 0`, which stands
+for the file itself: `"The file is not UTF-8 text. …"` or
+`"No first-name column found. Headings read: …"`.
 
 `side` accepts `a`, `side a`, `b`, `side b`, `both` or `shared`, in any
 case; anything else is recorded as unknown. `seats` must be a whole number
 from 1 to 20. A row with no first name is rejected; everything else is
-optional.
+optional. A `locale` the event does not publish is left out, and the guest
+imported without one.
 
 ```json
 {
@@ -1274,8 +1323,8 @@ optional.
   "rowsImported": 412,
   "rowsFailed": 3,
   "errors": [
-    { "row": 7, "message": "A guest needs at least a first name" },
-    { "row": 19, "message": "seats must be a positive whole number" }
+    { "row": 7, "message": "No name in this row" },
+    { "row": 19, "message": "Seats must be a whole number between 1 and 20" }
   ]
 }
 ```
@@ -1418,8 +1467,12 @@ with `seatsAllotted` seats (1–20, default 1). Either way it returns the guest:
 (see [§3](#3-capability-links--the-pattern-to-understand)). `isPrimary` is the household member whose
 link the invitation is sent to; the first person in a household is primary.
 
+`locale`, when given, must be one of the event's `locales` — another is a `400`
+starting `locale:`.
+
 **Editing** takes the same fields, all optional. **Omitted means unchanged; an
-empty string clears `email` or `phone`.** Addresses are validated the same way
+empty string clears `email` or `phone`; `null` or an empty string clears
+`locale`.** Addresses are validated the same way
 as on import, and an email is stored lower-cased — show what comes back, not
 what was typed. A guest whose data was erased at their request cannot be
 edited (`400`).
@@ -1719,13 +1772,64 @@ organization.
 }
 ```
 
-The caller becomes `OWNER`. `kind` is `HOST` for a couple or `AGENCY` for a
-planner, and only affects presentation today.
+The caller becomes `OWNER`. `kind` is `HOST`, `PLANNER` or `CORPORATE`, and
+only affects presentation today.
 
-**One organization per account.** A second call returns `409` naming the one
-that exists. This is a current limitation, not a product decision: the server
-resolves "your organization" from your single membership, and allowing two
-would make every organization-scoped route act on whichever came back first.
+Organization selection uses optional `X-Aveline-Organization-Id` on scoped calls.
+It is a single 1–64 character ASCII ID (`[A-Za-z0-9_-]`), never a role grant.
+Without it, one live membership remains the default; several return localized
+`409 ORGANIZATION_SELECTION_REQUIRED` with `SELECT_ORGANIZATION`. Unknown,
+foreign, revoked or closed selections return `403 ORGANIZATION_ACCESS_DENIED`.
+Event and invitation links derive their actual tenant; an authorized mismatching
+selection returns `409 ORGANIZATION_CONTEXT_MISMATCH`. Store selection per tab.
+Session-only create, own memberships and invite-token acceptance ignore selection.
+
+`POST /organizations` accepts optional `Idempotency-Key` (1–120 ASCII letters,
+digits, `_` or `-`). Same actor/key/body replays the existing organization while
+access remains; a different body returns `409 IDEMPOTENCY_KEY_REUSED`.
+Additional memberships remain disabled by the shared database compatibility gate
+and existing single-membership index until the controlled cutover. While that gate
+is disabled, a create refusal names the caller's organization only when exactly
+one membership exists; multiple memberships receive a generic 409 without choosing
+an arbitrary tenant. Failed create attempts leave no new organization or intent. No environment
+flag enables them. Shared organization/enquiry/template readers require floor 3
+for combined activation; older running replicas must be excluded before any new
+enquiry/template behavior is enabled, even while additional memberships are off.
+Organization descriptions add `accessRevision`.
+
+```http
+GET /api/v1/me/organizations?limit=50&cursor=<opaque>
+GET /api/v1/organizations/current/members?limit=50&cursor=<opaque>
+PATCH /api/v1/organizations/current/members/:userId { "role":"MANAGER", "expectedRevision":0 }
+DELETE /api/v1/organizations/current/members/:userId?expectedRevision=0
+POST /api/v1/organizations/current/leave { "expectedRevision":0 }
+POST /api/v1/organizations/current/owner-transfers { "successorUserId":"...", "expectedRevision":0 }
+POST /api/v1/organizations/current/closure-reviews { "expectedRevision":0 }
+GET /api/v1/admin/organization-access-reviews?limit=50
+POST /api/v1/admin/organization-access-reviews/:reviewId/resolve { "decision":"HANDOVER", "successorUserId":"...", "expectedRevision":0 }
+```
+
+Own memberships return `{items:[{organizationId,name,kind,role,joinedAt}],nextCursor}`;
+no contacts, billing or other accounts. Membership lists return user ID, name,
+role and joinedAt plus accessRevision; member management needs `member:manage`.
+Both lists default to 50, max 100, cursor max 256. Self-leave is available to every
+member. Revision mismatches return `409 REVISION_CHANGED`; last active organization
+or direct-event owners require a handover (`409 OWNER_HANDOVER_REQUIRED`).
+Promotion leaves the caller OWNER. Departure atomically removes every direct role
+and pending invite in this tenant and revokes customer-authorized unfinished seating/export jobs;
+unrelated organizations, direct event grants and independently authorized active
+staff work remain. Every worker still rechecks current operation/contact permission.
+Closure reviews remove nothing until an ADMIN resolves HANDOVER, CLOSE or DECLINE.
+CLOSE preserves events and financial history, soft-closes the tenant and revokes its
+customer memberships/invites/jobs. Authenticated event routes deny closed tenants
+for every platform role, including ADMIN/SUPPORT; published guest capability
+contracts retain their existing behavior. SUPPORT and customers cannot resolve reviews.
+
+Invite issue and protected Message outbox now commit together. Organization
+authority changes record only transactional IDs, roles, revisions and revoked-role
+counts; evidence contains no contacts or capability tokens. Correct-password
+same-user replay returns the current role without restoring a departed membership;
+rotated/revoked/expired tokens keep the existing 400 invalid-invitation contract.
 
 ```http
 GET   /api/v1/organizations/current
@@ -1790,6 +1894,11 @@ bank URL:
 }
 ```
 
+For a paid plan, an unconfigured `provider` returns `404` before issuing or
+replacing an invoice, allocating its number or changing the current subscription.
+Free plans do not require a provider. `PILOT_MODE=true` still refuses paid plans
+with `403` first. Local provider registration does not prove bank readiness.
+
 **Access begins when the payment confirms, not when this call returns.** A
 first paid plan has **no subscription until it is paid** — `subscription` is
 `null` here and on `GET /subscription` — and a plan change leaves the current
@@ -1803,11 +1912,19 @@ POST /api/v1/invoices/:number/confirm
 ```
 
 which asks the bank server-to-server and activates the subscription. Safe to
-call twice; a second call never double-activates or double-counts.
+call twice, at once too: a call overtaken by another one answers with the
+payment as recorded, not a `409`; a second call never double-activates or
+double-counts. The one `409` left is a real disagreement: the bank reports the
+money taken for a payment already recorded as ended without it (expired by our
+clock, say). It is logged for staff, and the client should show it as an
+error to contact support about, not offer a fresh payment.
 
 Changing plan is the same call with a different `planKey`. Asking for the
 same plan again while its invoice is open — a double click, a retry — returns
-that invoice and its payment, never a second one. **Nothing changes
+that invoice and its payment, never a second one. If that payment ended
+without money moving — the bank refused to register it, declined the card, or
+it expired — the retry answers the same invoice with a fresh payment and a new
+`redirectUrl` rather than the dead one, so a retry is always payable. **Nothing changes
 until the new invoice is paid**: the current plan and status stay as they are,
 and paying applies the invoice's plan with a period starting then. A paid
 change abandoned at the bank leaves the customer exactly where they were. A
@@ -2050,8 +2167,9 @@ become a formula in whoever's spreadsheet opens it.
 
 The guest list carries a `Dietary notes` column and one column per host
 question, headed `Q1: <prompt>` in the event's language, with each answer in
-words. The catering sheet lists every dietary note under its counts, with
-the guest it belongs to.
+words. The ticket manifest's `Type` cell is the ticket type's name in the
+event's language, never its translation JSON. The catering sheet lists every
+dietary note under its counts, with the guest it belongs to.
 
 Requires `operations:read`.
 
@@ -2321,7 +2439,7 @@ POST /api/v1/events
 ```
 
 **This is step two of onboarding**, after `POST /organizations`. It creates the
-event, its draft invitation and the caller's ownership in one request, because
+event, its draft invitation and the caller's event role in one request, because
 nothing can be done with an event that has no invitation and an event nobody
 owns cannot be read back.
 
@@ -2335,9 +2453,15 @@ owns cannot be read back.
 ```
 
 `type` is `WEDDING`, `ENGAGEMENT`, `BAPTISM`, `BIRTHDAY`, `ANNIVERSARY`,
-`CORPORATE` or `OTHER`. Optional: `hostsLabel` (defaults to the title),
+`CORPORATE` or `OTHER`. `title` and `hostsLabel` are trimmed first, so a
+title must have two characters besides spaces and a hosts label, when sent,
+one. Optional: `hostsLabel` (defaults to the title),
 `endsAt`, `timezone` (defaults to `Asia/Yerevan`), `locales`, `defaultLocale`,
-`sideALabel` / `sideBLabel`, `visibility`, and `templateKey`.
+`sideALabel` / `sideBLabel`, `visibility`, `templateKey`, and optional
+`templateVersionId`. Selection is limited to active shared or same-organization
+private templates and uses that exact immutable version's defaults and block
+order. A supplied version must still be active. Unknown, foreign, retired or
+stale selections return `404`.
 
 **The slug is generated, not chosen.** It reads as the hosts' names where they
 are URL-safe and falls back to `event-<random>` otherwise — an Armenian title
@@ -2348,9 +2472,12 @@ a custom slug yet.
 **`403` means the account has no organization, or its role there cannot
 write events** — an organization `MEMBER` or `VIEWER` is read-only.
 
-**An account belongs to one organization, for now.** A second
-`POST /organizations` is a `409`, and so is accepting an invitation into a
-second organization — the message names the one the account is already in.
+Event creator ownership uses the membership in the event's organization only;
+roles elsewhere never grant ownership here.
+
+Additional organization create/join writes remain disabled until the controlled
+compatibility cutover. Explicit selection is already supported; see organization
+selection above.
 
 **Email addresses are compared without regard to capitals**: `Ani@X.am` and
 `ani@x.am` are the same account, and signing in works with either. `defaultLocale` must be one of `locales` — a `400` naming it otherwise.
@@ -2388,7 +2515,13 @@ A change of wording alone never suggests it. Venue writes return the same
 `notice`, with `changed: ["venues"]`.
 
 If no design template existed when the event was created, `invitation` comes
-back `null` and `POST /events/:id/invitation` adds one later.
+back `null` and `POST /events/:id/invitation` adds one later, accepting the same
+optional template key/version. Both paths keep their `201` response and return
+additive `templateSetup:{state:"PROCESSING",materializationId}` when private
+artwork needs preparation. They reserve durable jobs in the same transaction;
+no file copy occurs inside it. The invitation stays DRAFT and publishing returns
+`409 TEMPLATE_ASSET_NOT_READY` until the worker binds every exact-version copy.
+A retry of invitation recovery cannot create a second invitation or preparation.
 
 ### The running order
 
@@ -2746,8 +2879,11 @@ POST /api/v1/invitations/:slug/remind
 {
   "queued": 42,
   "alreadyRemindedToday": 0,
-  "recipients": [{ "householdName": "Petrosyan family", "toAddress": "armen@example.am" }],
-  "notInvited": [{ "householdId": "clz...", "householdName": "No Contact",
+  "recentlyInvited": 0,
+  "recipients": [{ "householdName": "Petrosyan family", "toAddress": "armen@example.am", "channel": "EMAIL" }],
+  "notInvited": [{ "householdId": "clz...", "householdName": "Hakobyan family",
+                   "reason": "The invitation has not reached this household; send it to them instead" },
+                 { "householdId": "clz...", "householdName": "No Contact",
                    "reason": "No email address for anyone in this household" }]
 }
 ```
@@ -2756,6 +2892,13 @@ Reminds the households that **were invited and have not answered**. A guest who
 replied — attending or declined — is never chased; that is what turns a
 reminder into a nuisance. Nor is a guest who never received the invitation:
 `notInvited` lists them, and the fix for those is to send, not to remind.
+
+`notInvited` holds every undecided household the invitation has not reached —
+never sent, or sent and then failed, bounced or suppressed — sorted by name,
+each with a `reason` saying what to do: send it, or fix the address first when
+there is none it could go to. A household that was reached but has since lost
+every usable address is listed too. Even when nobody is due a reminder
+(`queued: 0`), `notInvited` is still filled in.
 
 **No reminder until a household has had its invitation for 3 days** — 1 day
 if the event is under a week away (decided 10 October 2026). `recentlyInvited`
@@ -2776,7 +2919,9 @@ POST /api/v1/invitations/:slug/notify-changes   { "note": "We have moved to the 
 
 Needs `invitation:publish`. Sends an "updated details" message to every
 household the invitation **reached** — someone who never received it has
-nothing to update — on the channel each was invited on, carrying their own
+nothing to update — on the channel each is reached on now, which is not
+always the one the invitation went by: a guest invited by email who has since
+opened the Telegram link is told on Telegram. It carries their own
 link, which always shows the current details. `note` is optional, up to 500
 characters, and is added to the message.
 
@@ -2889,7 +3034,9 @@ longer the household's status.
 
 **`SENT` means the mail server accepted it, not that it arrived.** A bounce can
 follow minutes later, and when it does the status becomes `BOUNCED` with the
-server's own words in `failureReason`. `QUEUED` with `attempts` above zero is a
+server's own words in `failureReason`. Those words usually quote the address,
+so `failureReason` is `null` for a caller without `guest:contact:read`, as
+`toAddress` is absent; `deliveryFailureKind` is shown to every reader. `QUEUED` with `attempts` above zero is a
 message being retried after a temporary failure — not stuck. `SENDING` is
 momentary; a message interrupted mid-send (a crash, a deploy) is returned to
 the queue within about fifteen minutes and tried again, so in rare cases a
@@ -2965,6 +3112,11 @@ answerable: emptying a choice question's `options` is a `400` naming
 at the end, never removed or reordered, and the type cannot change — each a
 `400` saying how many have answered (answers are stored by position, so a
 removed option would silently turn every later answer into a different one).
+A reorder is any existing option text sent at a different position in the
+same language — `["Meat","Fish","Vegan"]` → `["Fish","Meat","Vegan"]` is
+refused, while rewording in place (`"Meat"` → `"Beef"`) is not, and neither is
+sending the options back unchanged. Each position keeps its meaning: a reworded
+option must still mean the same choice.
 
 **Deleting is refused once any guest has answered**, with a `400` saying how
 many and suggesting you make it optional instead — deleting would discard what
@@ -2987,7 +3139,8 @@ re-enters it.
 
 `POST` takes `{ role, name, address, profileId?, mapUrl?, arriveAt? }` where
 `role` is `CEREMONY`, `RECEPTION`, `AFTER_PARTY`, `PREPARATION` or `OTHER`, and
-`arriveAt` is ISO 8601. Both also take `latitude` and `longitude` (given
+`arriveAt` is ISO 8601. `name` and `address` are trimmed and must not be blank;
+`mapUrl` must be an `http` or `https` link. Both also take `latitude` and `longitude` (given
 together, or the first one sent is named in a `400`) and `capacity`; a value
 sent overrides what the directory entry supplies. `PATCH` takes any of the
 same fields except `profileId`; omitted ones are unchanged, and `null` clears
@@ -3041,9 +3194,13 @@ COVER are images; AUDIO must be audio. Type/kind mismatch, unknown kinds,
 DOCUMENT and SIGNATURE return 400 before storage. Attachment rules still apply:
 MUSIC accepts audio only; other blocks accept PHOTO/COVER/LOGO images only.
 
-JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. Wrong type → `415` — SVG
-included, since it can carry script (decided 10 October 2026) — too
-large → `413`.
+JPEG, PNG, WebP, AVIF, MP3, M4A. Max 10 MB. **The type is read from the
+file's bytes**, not from its label: whatever the browser calls an `.m4a`
+(`audio/mp4`, `audio/x-m4a`) is stored as `audio/mp4` — as is any MPEG-4
+file sent as audio, since its first bytes do not tell audio from video — and an image is stored
+as the image type it is. Contents that are none of these, or audio sent with
+an image label (or the reverse), → `415` — SVG included, since it can carry
+script (decided 10 October 2026) — too large → `413`.
 
 ```json
 { "id": "...", "url": "https://...", "kind": "PHOTO", "sizeBytes": 70 }
@@ -3264,6 +3421,10 @@ GET /api/v1/events/:eventId/audit-trail
 }]
 ```
 
+`route` is the route pattern without the `/api/v1` version prefix, the same
+across API versions, so entries group by what was done, not which version
+was called.
+
 Successful writes only, newest first, up to 100. Requires `member:manage`
 rather than `event:read`, because the trail names the people who did things —
 including Aveline `SUPPORT` staff acting on a customer's behalf, which is who
@@ -3349,7 +3510,7 @@ So you can plan around them rather than discover them:
 - **No tax on invoices.** `taxMinor` is always `"0"`.
 - **No renewal or dunning.** A subscription's period lapses and nothing
   charges again or moves it to `PAST_DUE`.
-- **One organization per account.** See §6.
+- Additional memberships require the controlled schema/runtime cutover and shared write gate. See organization selection.
 - **No block creation outside the arrangement call.** Custom RSVP questions can be reordered atomically through the question-order route.
 - **Worker/frontend acceptance.** Automatic seating and all export formats run
   in dedicated workers. Frontend job integration, standard heading/reason
@@ -3496,3 +3657,252 @@ originals and variants asynchronously. Event deletion leaves cleanup tombstones,
 so interrupted workers cannot orphan private files. Pending frontend work includes
 the four-language capture, moderation, pending/error states and ticket pre-check-in
 flow; these backend endpoints alone do not satisfy pilot acceptance.
+
+### Staff enquiry privacy substrate
+
+Privacy request list entries may now have `subjectEmail:null` for a staff-recorded,
+manually verified phone-only prospect; this is an intentional internal-console
+contract change. Public request submission still requires a valid email and
+remains non-enumerating. A verified privacy export adds `enquiries`; legacy
+sections are empty for an email-less subject rather than querying a fabricated
+address. Historical contact-address matches require staff-reviewed contact ID
+binding before fulfilment. Erasure adds `enquiriesCleared` and
+`enquiryNotesRedacted`; `recoveryPending:true` means redaction has committed but
+protected journal acknowledgement remains pending and the request stays
+IN_PROGRESS. Retrying fulfilment resumes the recorded checkpoint safely.
+
+### Immutable invitation templates and controlled authoring
+
+`GET /events/:eventId/design-templates` retains its array shape and legacy fields,
+scoped to active shared and same-organization private versions. Entries add
+`versionId`, `versionNumber`, `rendererKey`, `capabilityVersion`, `contentHash` and
+`scope`. Existing event-only DESIGNER permissions remain valid. Current selected
+retired versions remain readable through the design/current-preview routes.
+`GET /invitations/:slug/design` adds `designRevision` as a decimal string and its
+template contains the exact immutable `versionId`/`versionNumber`. Public legacy
+invitation fields/values remain unchanged; no template catalogue edit upgrades an
+event or changes its captured lifetime, attendance or acknowledgement history.
+
+`POST /invitations/:slug/template-upgrade-preview` accepts
+`{targetVersionId,expectedDesignRevision}` (revision is a decimal string), and
+returns an expiring requester-bound `previewId`, source/target version/hash,
+`changes` and synthetic-guest event `payloads` for event locales. It performs no
+invitation mutation. Confirmation uses the existing `POST /invitations/:slug/template`
+with `{templateKey,templateVersionId,previewId,expectedTemplateVersionId,
+expectedDesignRevision,idempotencyKey}`; idempotency keys are UUIDs. Stale design,
+expired preview, wrong requester or changed source pin returns 409. Confirmation
+applies exactly the previewed version and transforms blocks atomically: unsupported
+blocks are disabled with content retained; invalid variants reset to null; theme
+resets only for a different immutable version. Event uploads are retained.
+Legacy key-only selection remains available only for legacy baselines; repeating
+the current key preserves its pin and never upgrades it. Authored selection needs
+explicit preview/confirmation. Artwork-dependent adoption refuses unprepared
+private artwork instead of returning broken or public source URLs.
+
+Platform author API (`private, no-store`; no event membership is granted):
+
+| Method | Endpoint | Request/result |
+|---|---|---|
+| POST | `/design-templates` | ADMIN: `{organizationId?,key?,definition}`; shared requires key, private forbids it and generates opaque key; inactive identity+first draft |
+| GET | `/design-templates/:templateId` | ADMIN or assigned active SUPPORT: versions/open draft/asset status |
+| POST | `/design-templates/:templateId/drafts` | `{expectedRevision}` opens one draft |
+| PATCH | `/design-templates/:templateId/drafts/:draftId` | `{expectedRevision,definition}` merges only supplied definition fields |
+| POST | `/design-templates/:templateId/drafts/:draftId/validate` | Field errors and `canPublish`/renderer acceptance status |
+| POST | `/design-templates/:templateId/drafts/:draftId/preview` | Four-locale en/ru/fr/hy payload-only synthetic fixture and 15-minute receipt |
+| POST | `/design-templates/:templateId/drafts/:draftId/publish` | ADMIN: `{expectedRevision,previewId,contentHash,idempotencyKey}` atomically allocates immutable version+receipt+active pointer |
+| POST | `/design-templates/:templateId/retire` | ADMIN: `{expectedRevision}` disables future selection |
+| POST | `/design-templates/:templateId/assignments` | ADMIN: `{expectedRevision,userId}` assigns active SUPPORT |
+| POST | `/design-templates/:templateId/assignments/revoke` | ADMIN: `{expectedRevision,userId}` revokes assignment |
+| POST | `/design-templates/:templateId/drafts/:draftId/assets` | Multipart: one raster file≤5MiB, PHOTO/COVER kind, expectedRevision, UUID idempotencyKey; 202 processing |
+| GET | `/design-templates/:templateId/assets/:assetId/file` | Current authorized sanitized bytes; no redirects or storage URLs |
+| DELETE | `/design-templates/:templateId/drafts/:draftId/assets/:assetId` | `{expectedRevision}` retires unreferenced artwork |
+
+`definition` contains only `name`, `allowedFonts`, `palettes`, `supportedBlocks`,
+`blockVariants`, `defaultTheme`, `rendererKey`. Arrays, strings, palettes and
+nested keys are bounded; aggregate ≤64KiB. Unknown fields, remote fonts/URLs,
+CSS/HTML/script/layout code are rejected. Published versions and frozen drafts
+cannot be mutated. The backend seed ceiling is not renderer evidence. No
+production manifest is approved yet, so publication fails closed with 503 even
+when the publication flag is enabled. Renderer integration, named palette roles,
+bundled fonts, all four languages, inert preview and mobile/desktop visual
+acceptance remain a frontend release gate. See the
+[capability contract](contracts/invitation-renderer-capabilities/README.md).
+
+Staff intake routes are implemented under disabled rollout gates. Conversion
+remains separately gated. All intake responses use `Cache-Control: private,
+no-store`; command headers are redacted from request logging.
+
+
+### Staff enquiries and consultation appointments
+
+`POST /sales/enquiries` takes `{contact:{name,email?,phone?},requirements?:{
+eventType?,approximateLocalDate?,approximateTimezone?,estimatedGuestCount?},
+preferredLocale?,source?,assignedUserId?}`. Name and at least one email/explicit
+E.164 phone are required. SUPPORT must omit assignment and becomes assignee;
+ADMIN may supply an active staff ID or null. Phone-only contact is valid.
+
+All writes require an 8–128 printable-ASCII `Idempotency-Key`. Existing-case
+writes include positive `expectedRevision`. A successful command returns
+`{commandId,appliedRevision,resultId?,enquiry}` with the *current authorized*
+projection; replay never returns a stored old response. Same key with changed
+intent gives `IDEMPOTENCY_CONFLICT`; stale revision gives `ENQUIRY_CHANGED`.
+Current assignment is checked before replay, so former assignees receive 404.
+Cleared command intents stay spent with `SUBJECT_ERASED`.
+
+`GET /sales/enquiries` supports stage, search (exact normalized email/phone or
+case-insensitive name prefix), limit 1–100 (default 50) and opaque cursor bound
+to filters and actor. It returns `{items,nextCursor}`. Detail
+`GET /sales/enquiries/:enquiryId` includes contact, linkage, latest 20 notes,
+activities and consultations with each section's continuation cursor, recovery
+states and permissions. Section GET suffixes `/notes`, `/activities`,
+`/consultations` accept the same bounded limit/cursor convention. All reads are
+staff-only; customer membership in a linked organization grants no case access.
+
+`PATCH /sales/enquiries/:enquiryId` accepts contact/requirements/preferredLocale/
+source plus expectedRevision; omitted fields remain unchanged and explicit null
+clears optional fields only. `POST .../assignment` is ADMIN-only with
+`{expectedRevision,assignedUserId:null|staffId}`. Existing consultation operators
+remain booked after reassignment; the activity records appointments needing
+review. `POST .../stage` takes `{expectedRevision,stage,closureReason?,closureNote?}`;
+any stage may be skipped, CLOSED requires a reason, and same stage yields
+`NO_CHANGE`. Reopening pauses six-calendar-month cleanup; it never restores
+cleared data. `POST .../notes` takes `{expectedRevision,body,consultationId?}` and
+appends a note (1–10000 characters); corrections are new notes. All such commands
+return 200; create returns 201.
+
+`POST /sales/enquiries/:enquiryId/consultations` takes expectedRevision,
+operatorUserId, startsAt, endsAt and timezone. UTC timestamps require an offset;
+duration is 5 minutes–8 hours. SUPPORT schedules only themselves, ADMIN any
+active staff operator. PATCH at `.../consultations/:consultationId` additionally
+requires expectedConsultationRevision and accepts omitted unchanged scheduling
+fields or status COMPLETED/CANCELLED; terminal appointments require a new row.
+Atomic same-operator overlap gives safe `CONSULTATION_CONFLICT` (409), without
+another case's identity. Adjacent intervals are allowed. `GET
+/sales/consultation-availability?operatorUserId=...&from=...&to=...` allows <=31
+days and returns `{operatorUserId,busy:[{startsAt,endsAt}]}` with no enquiry IDs.
+It is advisory; writes enforce PostgreSQL exclusion. Consultation transitions
+send no automatic messages.
+
+`POST /privacy/enquiry-requests` is ADMIN-only and records `{kind,contactIds,
+notes?}` (1–100 distinct IDs) with null email and unverified candidate subjects.
+After the existing identity verification status workflow, `PUT
+/privacy/requests/:requestId/enquiry-subjects` takes reviewed contactIds and a
+verificationNote (evidence reference, no copied phone). Exact candidates are
+obtained by ADMIN-only `POST /privacy/enquiry-subject-candidates` with email or
+E.164 phone in the body. Binding requires verified IN_PROGRESS and cannot change
+a request once erasure is applied. No public phone search exists.
+
+`POST /sales/enquiries/:enquiryId/conversion` requires expectedRevision, an
+explicit `organization:{existingId}` or `organization:{create:{name,kind?,
+ownerEmail,ownerEmailSource?}}`, and optional `event:{existingId}` or
+`event:{create:<CreateEventDto>}`. Exactly one target form is accepted for each.
+Owner email is explicitly supplied; `ownerEmailSource:PRIMARY_CONTACT` additionally
+requires it to match the current primary contact and records erasure provenance.
+Omitted source means independent owner data. Phone-only enquiries need no
+fabricated event time or owner email until staff explicitly request new setup.
+Existing events must be DRAFT and belong to the selected organization; their
+fields are unchanged. A selected organization header must agree with the body.
+
+Conversion creates no payment, booking confirmation or staff membership. It
+returns the normal command envelope plus `conversion` linkage IDs. First setup
+returns 201; an existing-link replay or explicit later add-event returns 200.
+An organization-only link may gain one event later; an existing event link
+cannot be replaced. Concurrent retries produce one setup and one owner
+invitation. Existing memberships and valid pending owner invitations are reused;
+ambiguous or expired pending setup requires explicit organization selection and
+staff review. An expired/lost invitation is never silently rotated by replay.
+Account invitation hash and rendered Message commit together; missing message
+template rolls the complete setup back. Detail recovery states distinguish
+QUEUED/NEEDS_REVIEW/CANCELLED without exposing invitation credentials. The
+organization-invitation pre-send check rejects withdrawn, expired, accepted or
+privacy-invalid source invitations. Consultation messages remain manual.
+F44 inventory/artwork additions:
+
+| Method | Endpoint | Request/result |
+|---|---|---|
+| GET | `/design-templates` | `{items,nextCursor}`; cursor query; 50 rows, assigned SUPPORT inventory only |
+| POST | `/design-templates/:templateId/drafts/:draftId/discard` | `{expectedRevision}` freezes the discarded draft and queues unreferenced transient cleanup |
+| PATCH | `/design-templates/:templateId/drafts/:draftId/artwork` | `{expectedRevision,artwork:[{slot:'HERO'|'GALLERY',assetId}]}` replaces ordered defaults; max20, one HERO, same-template AVAILABLE assets and tested slots only |
+| GET | `/invitations/:slug/template-upgrade-previews/:previewId` | Requester-bound ready preview or processing state; expired/stale context409 |
+| GET | `/invitations/:slug/design-assets/:assetId/file` | Live PUBLIC/UNLISTED invitation/pin-authorized private bytes |
+| GET | `/invitations/:slug/g/:guestToken/design-assets/:assetId/file` | Live guest capability and current pin required |
+| GET | `/events/:eventId/design-assets/:assetId/file` | Authenticated invitation:read, bound or ready-preview event copy |
+| GET | `/events/:eventId/design-templates/:templateKey/assets/:assetId/file` | Authenticated event catalogue sample, shared/same-org published source only |
+
+A preview needing artwork returns202 `{previewId,state:'PROCESSING',expiresAt,
+pollUrl}`; polling supplies the normal complete ready preview after the separate
+worker prepares event-owned private copies. The final confirm is still one atomic
+intent; no network/storage work occurs under its database locks. Initial event
+creation retains its201 event response and may add setup state; its DRAFT cannot
+publish until required default artwork is BOUND. Publication/retirement never
+rewrites existing invitations. Removing an event override reveals its immutable
+version default; disabling its block hides both. No source storage URLs/redirects
+are issued. Guest-specific file paths are projected only after shared-cache reads.
+
+New AUTHORED payloads add `templateVersion:{id,rendererKey,capabilityVersion,
+capabilityDigest,contentHash}` and `resolvedTheme:{headingFont,bodyFont,
+palette:{name,roles}}` from the immutable reviewed manifest. Legacy fields/values
+are unchanged and no positional roles are invented for old palettes. Theme edits
+cannot name unmanifested fields or provide fewer custom colors than required roles.
+Verified DSAR export adds `templateAuthorship` with only the subject's factual
+identity links; account closure revokes assignments/previews/unbound worker access,
+retaining immutable design/version history and other events' artwork.
+
+Accepted owner accounts require additional identity review for a staff enquiry
+ERASURE request. Contact binding alone, including a shared contact email, does
+not authorize account closure. The binding response adds
+`ownerAccountCandidates:[{id,email}]`, limited to accepted owner IDs reached
+through the bound contacts' explicit PRIMARY_CONTACT invitation provenance.
+A separate owner remains outside that scope. To include an accepted account,
+ADMIN supplies `verifiedOwnerUserId` and `ownerVerificationNote` with distinct
+identity evidence. The ID must match the exact accepted owner. The request then
+stores that account's real verified email and uses the existing verified email
+erasure path; no address is fabricated from a phone number. Missing or changed
+owner proof keeps the request IN_PROGRESS. Distinct candidate accounts require
+separate explicitly reviewed subject scopes.
+
+`POST /privacy/enquiry-subject-candidates` takes exactly one email or E.164 phone,
+plus optional `limit` (1–100, default 50) and opaque `cursor`, and returns
+`{items,nextCursor}`. Review every relevant page; shared addresses remain
+candidates and do not merge people. Binding calls accept at most 100 contact IDs.
+After the first verified replacement binding, `append:true` adds another reviewed
+batch without dropping earlier subjects; the request can therefore include more
+than 100 reviewed cases. Rebinding replaces account verification unless it is
+explicitly restated, and every batch needs its verification evidence reference.
+Erasure and export act on the complete bound scope, never only the latest page.
+
+A successful conversion key replays its current authorized case projection even
+after the selected template retires or the linked event becomes published.
+Receipt lookup is followed by live case/staff authorization before any setup
+preparation. Erased receipts remain spent with SUBJECT_ERASED, and reassignment
+immediately removes the former operator's replay access. New conversion intents
+still validate current organization, template and draft-event targets.
+Private template author requests also validate `X-Aveline-Organization-Id` against
+the explicit body/resource owner using the shared organization resolver; a stale
+selector returns `ORGANIZATION_CONTEXT_MISMATCH` before any write. Assignment and
+current staff authority remain separate checks. Matching adoption receipt retries
+return the original successful result even if the target has since been retired;
+current event authority and tenant scope are still required. A frozen existing
+draft returns409 state change; an unknown draft returns404.
+
+Matching raster-upload retries reuse the original ledger/object and do not advance
+the draft revision; matching receipt replay is also valid after that draft freezes.
+Concurrent event-copy completions serialize on the materialization row before
+asset locks so a ready set cannot remain stuck in processing.
+
+An unrecoverable event-copy failure polls as `{state:'FAILED',
+code:'TEMPLATE_ASSET_INVALID',action:'REGENERATE'}`. It never selects the target
+pin or exposes partial files; transient event copies are retired for cleanup.
+
+New authored defaults must explicitly resolve a bundled font and named palette or
+complete custom colors. Publication/adoption retry only PostgreSQL serialization
+or deadlock rollbacks, at most three attempts with the original dedupe intent;
+retry exhaustion returns a recoverable409. Explicit legacy switching retires prior
+private artwork bindings atomically while retaining reusable immutable source art.
+
+Privacy fulfilment captures the authoritative verified scope under the request
+lock. Erasure cleanup and checkpoint completion use that captured scope,
+including any reviewed contact/owner change committed before execution starts.
+Once erasure is applied, binding changes are refused and retries resume the
+frozen applied scope. EXPORT holds the request scope stable through projection
+and completion, so a concurrent binding cannot relabel another person's result.

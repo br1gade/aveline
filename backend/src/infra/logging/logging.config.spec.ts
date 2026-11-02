@@ -46,6 +46,7 @@ describe('loggingConfig', () => {
   describe('redaction', () => {
     it.each([
       'req.headers.authorization',
+      'req.headers["idempotency-key"]',
       'req.body.password',
       'req.body.refreshToken',
       'req.body.email',

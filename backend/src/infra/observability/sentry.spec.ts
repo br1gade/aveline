@@ -17,7 +17,7 @@ describe('Sentry', () => {
     const eventWith = (request: Record<string, unknown>) =>
       scrubEvent({ request } as unknown as ErrorEvent);
 
-    it.each(['authorization', 'cookie', 'referer', 'x-api-key', 'x-aveline-feedback-signature'])('removes the %s header', (header) => {
+    it.each(['authorization', 'idempotency-key', 'cookie', 'referer', 'x-api-key', 'x-aveline-feedback-signature'])('removes the %s header', (header) => {
       const scrubbed = eventWith({ headers: { [header]: 'secret-value', 'user-agent': 'curl' } });
       expect(scrubbed?.request?.headers?.[header]).toBeUndefined();
     });

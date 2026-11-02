@@ -15,7 +15,7 @@ below says what blocks it and what would unblock it.
 | **Node** | 26 LTS | Entered LTS October 2026. `engines` states `>=24` so a contributor on 24, also LTS, is not blocked |
 | TypeScript | 6.0.3 | See §2 |
 | NestJS | 11.2.7 | See §2 |
-| Prisma | 6.19.3 | See §2 |
+| Prisma | 6.19.3 | Runtime dependency: the release image runs its own pinned migration CLI; see §2 |
 | ESLint | 10.12.0 | Needed `@eslint/js` as a direct dependency; 10 no longer provides it transitively |
 | Jest | 30.5.2 | |
 | nodemailer | 10.0.16 | Upgraded for two high-severity advisories, one of them SMTP command injection |

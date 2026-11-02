@@ -98,7 +98,8 @@ describe('Resizing photos (integration)', () => {
   });
 
   it('marks a file it cannot read, keeps serving the original, and does not try again', async () => {
-    const asset = await uploaded(Buffer.from('this is not a jpeg'));
+    // A JPEG signature, so upload accepts it, over a body no decoder can read.
+    const asset = await uploaded(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from('this is not a jpeg')]));
 
     const first = await images.processPending();
     const second = await images.processPending();

@@ -7,12 +7,18 @@
 # whose absence loses data or customers: TLS, restarts, health-gated startup,
 # migrations, and backups.
 #
-#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+# Use `npm run ops -- init` then `npm run ops -- apply --confirm PROJECT`.
 #
 # Everything secret comes from the env file, which is never committed. See
 # docs/DEPLOYMENT.md.
 
 name: aveline
+
+x-logging: &logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   # ── The edge ──────────────────────────────────────────────────────────
@@ -21,6 +27,7 @@ services:
   # 3am, and here it is the proxy's own job rather than a cron nobody checks.
   caddy:
     image: caddy:2-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9
+    logging: *logging
     restart: unless-stopped
     ports:
       - '80:80'
@@ -47,9 +54,14 @@ services:
     image: ${API_IMAGE:-aveline-api:latest}
     build:
       context: .
+    logging: *logging
     restart: 'no'
     command: ['npx', 'prisma', 'migrate', 'deploy']
-    env_file: [.env.production]
+    volumes:
+      - privacy-journal:/app/privacy-journal
+    healthcheck:
+      disable: true
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,8 +70,9 @@ services:
     image: ${API_IMAGE:-aveline-api:latest}
     build:
       context: .
+    logging: *logging
     restart: unless-stopped
-    env_file: [.env.production]
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
     environment:
       NODE_ENV: production
       PILOT_MODE: ${PILOT_MODE:-true}
@@ -70,18 +83,21 @@ services:
       migrate:
         condition: service_completed_successfully
       redis:
-        condition: service_healthy
+        condition: service_started
     # Long enough for Nest's shutdown hooks to close the Postgres, Redis and
     # Mongo connections. The default 10s is usually enough and occasionally
     # is not, and the cost of being generous is a slower deploy.
     stop_grace_period: 30s
+    volumes:
+      - privacy-journal:/app/privacy-journal
     expose:
       - '3000'
 
   export-worker:
     image: ${API_IMAGE:-aveline-api:latest}
+    logging: *logging
     restart: unless-stopped
-    env_file: [.env.production]
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
     environment:
       NODE_ENV: production
       ANALYTICS_ENABLED: 'false'
@@ -101,8 +117,9 @@ services:
 
   seating-worker:
     image: ${API_IMAGE:-aveline-api:latest}
+    logging: *logging
     restart: unless-stopped
-    env_file: [.env.production]
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
     environment:
       NODE_ENV: production
       ANALYTICS_ENABLED: 'false'
@@ -122,8 +139,9 @@ services:
 
   private-media-worker:
     image: ${API_IMAGE:-aveline-api:latest}
+    logging: *logging
     restart: unless-stopped
-    env_file: [.env.production]
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
     environment:
       NODE_ENV: production
       ANALYTICS_ENABLED: 'false'
@@ -141,9 +159,43 @@ services:
       start_period: 120s
       retries: 3
 
+  template-asset-worker:
+    image: ${API_IMAGE:-aveline-api:latest}
+    restart: unless-stopped
+    logging: *logging
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
+    environment:
+      NODE_ENV: production
+      ANALYTICS_ENABLED: 'false'
+    command: ['node', '--max-old-space-size=256', 'dist/template-asset-worker.js']
+    mem_limit: 512m
+    cpus: 1
+    stop_grace_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/check-template-asset-worker.mjs']
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+
+  privacy-recovery:
+    image: ${API_IMAGE:-aveline-api:latest}
+    profiles: [maintenance]
+    restart: 'no'
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
+    entrypoint: ['node', 'dist/intake-privacy-recovery.js']
+    volumes:
+      - privacy-journal:/app/privacy-journal
+    healthcheck:
+      disable: true
+
   # ── Stores ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16.15-alpine
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
@@ -163,6 +215,7 @@ services:
 
   redis:
     image: redis:7.4.8-alpine
+    logging: *logging
     restart: unless-stopped
     # No persistence: everything in Redis is a cache, a rate-limit counter or
     # a job lock, all of which rebuild. An eviction policy rather than an
@@ -189,6 +242,7 @@ services:
 
   mongo:
     image: mongo:7@sha256:1f995ad6fdb93244a1addab1b58f934a0bc2f5643c38e02f5e9d7f0c7d227a7b
+    logging: *logging
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?set MONGO_USER}
@@ -201,9 +255,10 @@ services:
 
   garage:
     image: dxflrs/garage:v2.1.0
+    logging: *logging
     restart: unless-stopped
     volumes:
-      - ./garage/garage.toml:/etc/garage.toml:ro
+      - ${AVELINE_GARAGE_CONFIG:-./garage/garage.toml}:/etc/garage.toml:ro
       - garage-meta:/var/lib/garage/meta
       - garage-data:/var/lib/garage/data
     expose:
@@ -213,6 +268,7 @@ services:
   backup-check:
     image: ${API_IMAGE:-aveline-api:latest}
     profiles: [maintenance]
+    logging: *logging
     restart: 'no'
     # Capture's protected marker is root-owned; this one-shot reads it only.
     user: '0:0'
@@ -233,8 +289,9 @@ services:
       context: .
       dockerfile: Dockerfile.backup
     profiles: [maintenance]
+    logging: *logging
     restart: 'no'
-    env_file: [.env.production]
+    env_file: ["${AVELINE_ENV_FILE:-.env.production}"]
     environment:
       NODE_ENV: production
     volumes:
@@ -242,13 +299,16 @@ services:
       - backups:/backups
       - garage-data:/garage-data:ro
       - garage-meta:/garage-meta:ro
-      - ./garage/garage.toml:/runtime-config/garage.toml:ro
-      - ./.env.production:/runtime-config/env.production:ro
+      - ${AVELINE_GARAGE_CONFIG:-./garage/garage.toml}:/runtime-config/garage.toml:ro
+      - ${AVELINE_ENV_FILE:-./.env.production}:/runtime-config/env.production:ro
     depends_on:
       postgres:
         condition: service_healthy
 
 volumes:
+  privacy-journal:
+    external: true
+    name: ${PRIVACY_JOURNAL_VOLUME:-aveline-privacy-journal}
   pgdata:
   mongodata:
   garage-meta:

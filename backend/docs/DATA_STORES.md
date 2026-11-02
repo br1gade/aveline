@@ -384,3 +384,32 @@ acquisition durations; it stores no span attributes or SQL and has no network
 exporter. Private sampler files also capture RSS/event-loop delay. This adds no
 production HTTP diagnostic endpoint or correctness dependency; see
 [PILOT_REHEARSAL.md](PILOT_REHEARSAL.md). Production acceptance remains open.
+
+Organization compatibility, idempotency intents and access reviews live in PostgreSQL.
+Credential invitations enqueue their protected Message in the same transaction;
+provider dispatch remains after commit. No credential enters an access-review row.
+
+Template versions, drafts, assignments, audits, preview/transition receipts and
+private artwork object tombstones live in PostgreSQL. The template asset worker
+uses SKIP LOCKED/leases and bounded sharp decoding outside request transactions;
+private source/sanitized bytes use the separate private storage adapter. Template
+publication/retirement does not invalidate consuming event caches: those read
+immutable pins. Explicit adoption advances durable invitation design/shared page
+revisions; Redis failure remains a cache miss. No guest credentials/source object
+URLs enter template catalogues or shared cached payloads.
+
+Authority-change evidence is domain data in PostgreSQL, committed with the role
+mutation. Generic Mongo request audit remains append-only observability. The
+organization aggregate uses NO KEY UPDATE for lifecycle changes: it excludes role
+writers' SHARE fences while permitting KEY SHARE taken implicitly by privacy FK
+inserts after invitation locks. Organization primary keys are immutable.
+Organization compatibility, idempotency intents and access reviews live in PostgreSQL.
+Credential invitations enqueue their protected Message in the same transaction;
+provider dispatch remains after commit. No credential enters an access-review row.
+
+Template privacy queries are indexed by the subject actor ID; asset/object cleanup
+has owner/materialization indexes. Event-copy completion and failure use the
+materialization row as their aggregate fence before asset/object rows, so parallel
+copies cannot lose the READY transition. A failed preparation becomes terminal
+and retires its event-copy objects; expiry retires unbound work. Reusable immutable
+sources and already-bound invitations are preserved.

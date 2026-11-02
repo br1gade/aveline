@@ -13,6 +13,9 @@ Event invitations, the guest graph, and the operations derived from them.
 | [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Every model and the database's invariants |
 | [`docs/DATA_STORES.md`](docs/DATA_STORES.md) | Postgres / Redis / MongoDB |
 | [`docs/STORAGE.md`](docs/STORAGE.md) | Garage object storage |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Docker full-stack wizard, deployment and recovery |
+| [`docs/RELEASES.md`](docs/RELEASES.md) | CI, attested releases and staged SSH promotion |
+| [`docs/LOCAL_CI.md`](docs/LOCAL_CI.md) | Full local checks and the pre-push gate |
 | [`docs/GAPS.md`](docs/GAPS.md) | What is still unbuilt, prioritised |
 | [`../docs/API.md`](../docs/API.md) | **The client contract — update it when a response shape changes** |
 | [`../docs/PRODUCT_SPEC.md`](../docs/PRODUCT_SPEC.md) | Product definition and domain model |
@@ -59,6 +62,25 @@ API at `http://localhost:3000/api`, OpenAPI docs at `http://localhost:3000/docs`
 > serves correctly — the invitation payload is rebuilt from Postgres and the
 > engagement panel reports zero. Only latency and insight degrade.
 
+## Full app in Docker
+
+From `backend/`, `npm run ops -- init --mode local --project aveline-local`, then
+`npm run ops -- apply --confirm aveline-local` builds the backend, runs migrations
+and starts real stores, all four workers, Caddy and a private mail sink. API is
+`http://127.0.0.1:8080/api/v1`; Mailpit is `http://127.0.0.1:8026`. Existing dev
+containers are independent. Secrets are generated into ignored private profiles.
+See [the deployment runbook](docs/DEPLOYMENT.md) for configuration/backup/job
+wizards and [release setup](docs/RELEASES.md) for CI/GHCR/SSH promotion. Paid and
+new feature gates remain closed. No production deployment is performed by setup.
+
+## Check before pushing
+
+Run `npm run ci:install-hook` once, commit your work, then `npm run ci:local`.
+The pre-push hook blocks pushes until the exact committed tree passes all four
+CI layers and reuses a complete result for 24 hours. Tests use disposable Docker
+services and Node 26/Ubuntu 24.04/PostgreSQL 16 tools. Logs stay under ignored
+`.local-ci/` at the repository root. See [local CI](docs/LOCAL_CI.md).
+
 ## Mail in development
 
 `npm run db:up` starts a local SMTP server alongside the databases. Mail is
@@ -69,6 +91,9 @@ Dev inbox   http://localhost:8025
 SMTP        localhost:1025   (no credentials; anything is accepted)
 Clear it    curl -X DELETE http://localhost:8025/api/v1/messages
 ```
+
+Integration tests can use an isolated mail sink by setting `SMTP_HOST`,
+`SMTP_PORT` and `MAILPIT_API` together; the mail fixtures honor those settings.
 
 Leaving `SMTP_HOST` unset falls back to writing email to the log — acceptable
 locally, and a **startup failure** under `NODE_ENV=production`, because an
@@ -189,6 +214,7 @@ test/
 | `POST` | `/api/v1/event-invites/accept` | Accept an invitation to one event; grants nothing in the organization |
 | `POST` | `/api/v1/concierge/organizations` | Open a customer's organization and invite them as owner (Aveline staff) |
 | `POST` | `/api/v1/concierge/organizations/:organizationId/events` | Create an event for that customer (Aveline staff) |
+| `POST` | `/api/v1/concierge/organizations/resolve-customer` | Bounded customer choices without contact or billing fields |
 | `GET` | `/api/v1/concierge/organizations` | Find a customer's organization by name (Aveline staff) |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `GET` | `/api/v1/events/:eventId/media` | The event's uploads, with the blocks that show each |
@@ -386,6 +412,15 @@ its records are references to regenerate, never historical snapshots.
 | `POST` | `/api/v1/organizations` | Create your organization; the caller becomes OWNER |
 | `GET` | `/api/v1/organizations/current` | Your organization, its plan and its counts |
 | `PATCH` | `/api/v1/organizations/current` | Rename it |
+| `GET` | `/api/v1/me/organizations` | Bounded own membership selector |
+| `GET` | `/api/v1/organizations/current/members` | Bounded member list without contacts |
+| `PATCH` | `/api/v1/organizations/current/members/:userId` | Revision-safe role change |
+| `DELETE` | `/api/v1/organizations/current/members/:userId` | Revoke all target customer access in this tenant |
+| `POST` | `/api/v1/organizations/current/leave` | Self-leave after ownership handover |
+| `POST` | `/api/v1/organizations/current/owner-transfers` | Promote an active member; caller stays owner |
+| `POST` | `/api/v1/organizations/current/closure-reviews` | Request ADMIN review without removing access |
+| `GET` | `/api/v1/admin/organization-access-reviews` | ADMIN review queue |
+| `POST` | `/api/v1/admin/organization-access-reviews/:reviewId/resolve` | ADMIN reviewed recovery or soft closure |
 | `GET` | `/api/v1/plans` | The price list with entitlements (**public**) |
 | `GET` | `/api/v1/subscription` | Your subscription, or `{ "subscription": null }` |
 | `POST` | `/api/v1/subscription` | Start or change a plan |
@@ -398,6 +433,12 @@ its records are references to regenerate, never historical snapshots.
 | `POST` | `/api/v1/promo-codes` | Create one |
 | `PATCH` | `/api/v1/promo-codes/:codeId` | Change its limits |
 | `DELETE` | `/api/v1/promo-codes/:codeId` | Deactivate it |
+
+Paid subscription selection rejects an unconfigured provider with `404` before
+creating/replacing an invoice or allocating its number. Existing invoices and
+subscriptions are preserved. Free plans need no provider; the free-pilot paid
+charge refusal (`403`) still takes precedence. This check validates local adapter
+registration, not bank certification or credentials.
 
 ### Privacy
 
@@ -666,3 +707,145 @@ performance run. Do not measure load alongside verification/builds. Local
 `npm run backup:rehearsal` now verifies the 400-person graph and approximately
 251 MB of private/public files through encrypted fresh-store restoration;
 the off-host destination remains an operator gate.
+
+### Organization compatibility cutover
+
+Scoped calls accept `X-Aveline-Organization-Id`; one membership defaults as before,
+multiple require explicit selection. Additional writes are off by default in
+`runtime_compatibility`, checked under a transaction lock for create/join. API and
+standalone workers check the shared reader floor at startup; revision 3 supports
+floors 2/3 and refuses missing or newer floors. Exclude already-running older
+replicas before any F39/F44 activation, even with extra memberships disabled. The migration
+retains the user-only unique index; automatic deploy never drops it. See
+[organization cutover](docs/ORGANIZATION_CUTOVER.md) for the explicit operator command.
+
+Not yet accepted: deployed-process exclusion, restore/performance evidence and
+four-language multi-tab frontend acceptance. No production cutover was run.
+
+F39 staff enquiry services and privacy substrate are additive and disabled by
+default. `SALES_INTAKE_ENABLED`, `SALES_INTAKE_SUPPORT_ENABLED`,
+`SALES_ENQUIRY_CONVERSION_ENABLED` and `SALES_ENQUIRY_RETENTION_DRY_RUN` accept
+literal true/false. Enabling contacts requires `SALES_INTENT_HMAC_KEY_ID`, JSON
+`SALES_INTENT_HMAC_KEYS`, an absolute independently protected
+`SALES_PRIVACY_JOURNAL_DIR` and a >=32-character `SALES_PRIVACY_JOURNAL_KEY`.
+Production also requires explicit `SALES_INTAKE_OPERATIONAL_ACCEPTANCE=true`
+after restore/frontend acceptance; local implementation is not that evidence.
+Never rotate away intent verification keys while receipts exist. Privacy and
+retention processing must continue when write flags are switched off.
+
+### Versioned template authoring (F44)
+
+All invitations pin immutable rendering inputs. Migration captures every legacy
+row verbatim, including inactive/unused templates and unusual JSON. Catalogue
+activation/retirement never upgrades existing invitations or resets invitation
+lifetime. Development reseeding also preserves the first immutable seed release.
+Event catalogue results are shared plus that event organization's private templates.
+
+Template authoring is platform-only: ADMIN creates identities/assigns active
+SUPPORT; assigned SUPPORT edits drafts; only ADMIN publishes or retires. Customer
+OWNER and event DESIGNER do not gain catalogue authoring. Author responses use
+`private, no-store`. Omitted draft definition fields are merged; expected revisions
+reject concurrent edits. Synthetic previews include en/ru/fr/hy and contain no
+customer/guest data or functional RSVP forms.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/design-templates` | ADMIN creates an inactive identity and first validated draft |
+| `GET` | `/api/v1/design-templates/:templateId` | Authorized inventory detail/history/open draft and asset status |
+| `POST` | `/api/v1/design-templates/:templateId/drafts` | Open draft from current immutable version |
+| `PATCH` | `/api/v1/design-templates/:templateId/drafts/:draftId` | Revision-checked definition merge |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/validate` | Structural and deployed capability validation |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/preview` | Four-locale synthetic JSON fixture and expiring preview receipt |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/publish` | ADMIN atomically publishes exact previewed draft, or fails capability gate |
+| `POST` | `/api/v1/design-templates/:templateId/retire` | ADMIN disables future selection, keeping existing pins |
+| `POST` | `/api/v1/design-templates/:templateId/assignments` | ADMIN explicitly assigns SUPPORT |
+| `POST` | `/api/v1/design-templates/:templateId/assignments/revoke` | ADMIN revokes assignment |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/assets` | Reserve private raster upload; returns 202 |
+| `GET` | `/api/v1/design-templates/:templateId/assets/:assetId/file` | Authorized sanitized artwork, never source/object URL |
+| `DELETE` | `/api/v1/design-templates/:templateId/drafts/:draftId/assets/:assetId` | Retire unreferenced staged artwork for durable cleanup |
+| `POST` | `/api/v1/invitations/:slug/template-upgrade-preview` | Exact-version event preview with source design revision fence |
+
+Flags default false: `TEMPLATE_AUTHORING_ENABLED`, `TEMPLATE_PUBLISH_ENABLED`,
+`TEMPLATE_ADOPTION_ENABLED`, `TEMPLATE_ASSETS_ENABLED`; values must be true/false.
+There is no pinning-off flag. Publication additionally requires a reviewed,
+deployed manifest from [the renderer contract](../docs/contracts/invitation-renderer-capabilities/README.md).
+The production approved registry is empty: payload validation is not browser or
+visual acceptance, and enabling a flag alone cannot publish. A trusted synthetic
+manifest exercises backend publication in integration tests only.
+
+Run `npm run start:template-asset-worker` separately with a 256MiB process limit.
+The worker accepts PNG/JPEG/WebP only, bounds bytes/pixels/dimensions/pages,
+strips metadata through reencoding, claims leases with SKIP LOCKED and persists
+cleanup tombstones. Author file reads recheck permission after storage IO.
+Default-artwork attachment and event materialization require a reviewed manifest
+with tested slots. The production registry is empty; integration fixtures exercise
+the complete gated path without claiming frontend acceptance.
+
+Not yet built: real frontend capability/visual acceptance and production private
+artwork materialization acceptance. These are explicit rollout gates, not evidence
+that the backend fixture manifests constitute frontend support.
+
+
+Staff intake routes (default disabled; active ADMIN or assigned SUPPORT):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/sales/enquiries` | Create contact and case atomically |
+| `GET` | `/api/v1/sales/enquiries` | Assignment-scoped bounded queue |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId` | Current case and bounded sections |
+| `PATCH` | `/api/v1/sales/enquiries/:enquiryId` | Update merged contact/requirements |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/assignment` | ADMIN assignment |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/stage` | Close/reopen or change stage |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/notes` | Append internal note |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId/notes` | Page notes |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId/activities` | Page safe history |
+| `GET` | `/api/v1/sales/enquiries/:enquiryId/consultations` | Page consultations |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/consultations` | Schedule operator appointment |
+| `PATCH` | `/api/v1/sales/enquiries/:enquiryId/consultations/:consultationId` | Edit/cancel/complete appointment |
+| `GET` | `/api/v1/sales/consultation-availability` | Own operator occupied intervals only |
+| `POST` | `/api/v1/privacy/enquiry-requests` | ADMIN staff-received phone-only request |
+| `PUT` | `/api/v1/privacy/requests/:requestId/enquiry-subjects` | Bind reviewed contact IDs |
+| `POST` | `/api/v1/privacy/enquiry-subject-candidates` | ADMIN exact email/phone candidates in body |
+| `POST` | `/api/v1/sales/enquiries/:enquiryId/conversion` | Explicit atomic organization/draft-event setup |
+Not yet accepted: deployed-process exclusion, restore/performance evidence and
+four-language multi-tab frontend acceptance. No production cutover was run.
+
+Additional F44 inventory/artwork routes:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/design-templates` | Staff inventory, 50-row cursor pages; SUPPORT sees active assignments only |
+| `POST` | `/api/v1/design-templates/:templateId/drafts/:draftId/discard` | Discard an expected revision and retire eligible transient art |
+| `PATCH` | `/api/v1/design-templates/:templateId/drafts/:draftId/artwork` | Atomically replace ordered same-template defaults in reviewed HERO/GALLERY slots |
+| `GET` | `/api/v1/invitations/:slug/template-upgrade-previews/:previewId` | Poll requester-bound event artwork preparation and ready preview |
+| `GET` | `/api/v1/invitations/:slug/design-assets/:assetId/file` | Current PUBLIC/UNLISTED invitation asset bytes |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken/design-assets/:assetId/file` | Live guest-capability/pin-authorized asset bytes |
+| `GET` | `/api/v1/events/:eventId/design-assets/:assetId/file` | Authorized editor's bound/ready-preview asset bytes |
+| `GET` | `/api/v1/events/:eventId/design-templates/:templateKey/assets/:assetId/file` | Published same-tenant catalogue artwork sample |
+
+Default artwork is normalized in draft/version references. Publication captures
+its exact hash/dimensions/order and the immutable renderer manifest. Event upgrade
+preview reserves private event-copy jobs and returns 202/PROCESSING with a poll
+path; the separate worker copies sanitized bytes outside database transactions.
+Confirmation refuses incomplete copies and binds the ready set atomically with
+the exact pin. Initial creation can reserve jobs in its creation transaction and
+return additive setup state while preserving the existing 201 event response;
+its invitation remains DRAFT and cannot publish until copies are bound. A late
+worker cannot bind after the initial pin changes. Event deletion retires copies
+through durable tombstones while retaining reusable immutable sources.
+
+Shared cached payloads contain only internal asset descriptors. The public reader
+projects them to generic or personal capability file paths after cache retrieval;
+credentials never enter shared caches. File readers recheck current status,
+expiry/guest capability, pin and source availability after storage IO. Authored
+payloads add exact capability identity and named `resolvedTheme`; legacy payloads
+retain their exact old fields and values. Verified DSAR export includes only the
+subject's authorship/assignment/publication/audit/receipt facts, and closure revokes
+active assignments, preview sessions and unbound work without deleting versions.
+
+Event and missing-invitation creation share immutable, tenant-scoped template
+selection. Optional `templateVersionId` must match the currently active version;
+unavailable/foreign/stale selections return `404` without a partial event. Both
+creation routes retain `201` and add `templateSetup` only when initial private
+artwork is processing. New drafts cannot publish until their copies are BOUND.
+Existing invitations keep their captured version and lifetime.

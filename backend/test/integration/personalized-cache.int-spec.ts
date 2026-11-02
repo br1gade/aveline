@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import { readGuestPageMeta } from '../../src/modules/invitations/guest-page-version';
 import { GuestProjectionReader } from '../../src/modules/invitations/guest-projection';
 import { ConfigService } from '@nestjs/config';
@@ -150,7 +151,8 @@ describe('Authoritative personalized cache (integration)', () => {
     await invitations.getCachedInvitation(event.slug, 'en');
     await prisma.$executeRaw`UPDATE rsvps SET status = 'ATTENDING' WHERE "guestId" = ${event.guest.id}`;
     const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: event.slug } });
-    await prisma.designTemplate.update({ where: { id: invitation.templateId }, data: { defaultTheme: { primary: '#123456' } } });
+    await expect(prisma.$executeRaw`UPDATE design_template_versions SET "defaultTheme"='{}' WHERE id=${invitation.templateVersionId}`).rejects.toThrow('immutable');
+    await reviseTemplateFixture(prisma, { where: { id: invitation.templateId }, data: { defaultTheme: { primary: '#123456' } } });
     const page = await invitations.getPublicInvitation(event.slug, event.primaryGuestToken, 'en');
     expect(page.guest?.rsvp?.status).toBe('ATTENDING'); expect(page.theme).toMatchObject({ primary: '#123456' });
   });

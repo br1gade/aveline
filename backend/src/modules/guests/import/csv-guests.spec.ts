@@ -1,5 +1,5 @@
 import { GuestAttribution } from '@prisma/client';
-import { TooManyRowsError, parseGuestCsv } from './csv-guests';
+import { TooManyRowsError, decodeGuestCsv, parseGuestCsv } from './csv-guests';
 
 /**
  * Hosts export from Excel, Google Sheets and phone contacts, so the input is
@@ -126,6 +126,47 @@ describe('parseGuestCsv', () => {
     it('reports an empty file', () => {
       expect(parseGuestCsv('').errors).toHaveLength(1);
     });
+
+    // Excel set to Russian or Armenian writes ";" between columns, because
+    // "," is the decimal separator there; Google Sheets can write tabs.
+    it.each([
+      ['semicolons', 'name;email;seats\nArmen;armen@test.local;2\n'],
+      ['tabs', 'name\temail\tseats\nArmen\tarmen@test.local\t2\n'],
+    ])('reads columns separated by %s', (_, content) => {
+      const { guests, errors } = parseGuestCsv(content);
+
+      expect(errors).toHaveLength(0);
+      expect(guests[0]).toMatchObject({
+        firstName: 'Armen',
+        email: 'armen@test.local',
+        seatsAllotted: 2,
+      });
+    });
+
+    it('keeps a semicolon inside a name in a comma-separated file', () => {
+      const { guests } = parseGuestCsv('name,household\nArmen,"Petrosyan; Avagyan"\n');
+
+      expect(guests[0].household).toBe('Petrosyan; Avagyan');
+    });
+
+    it('reads Russian column headers', () => {
+      const { guests } = parseGuestCsv('Имя;Фамилия;Телефон\nАрмен;Петросян;+37491000000\n');
+
+      expect(guests[0]).toMatchObject({
+        firstName: 'Армен',
+        lastName: 'Петросян',
+        phone: '+37491000000',
+      });
+    });
+
+    it('reports a file with no name column once, listing the headings it found', () => {
+      const { guests, errors } = parseGuestCsv('Guest name|Seats\nArmen|2\nMariam|1\n');
+
+      expect(guests).toHaveLength(0);
+      expect(errors).toEqual([
+        { row: 0, message: 'No first-name column found. Headings read: guest name|seats' },
+      ]);
+    });
   });
 
   /**
@@ -149,5 +190,23 @@ describe('parseGuestCsv', () => {
     expect(guests).toHaveLength(0);
     expect(errors[0].message).toContain('does not look like an email address');
   });
+});
 
+describe('decodeGuestCsv', () => {
+  it('reads UTF-8, with or without a byte-order mark', () => {
+    expect(decodeGuestCsv(Buffer.from('\uFEFFname\nԱրմեն\n', 'utf8'))).toEqual({
+      text: '\uFEFFname\nԱրմեն\n',
+    });
+  });
+
+  // "Армен" in Windows-1251, which Russian Excel writes unless "CSV UTF-8"
+  // is chosen. Decoded as UTF-8 it would import as replacement characters.
+  it('refuses a file in a Windows code page instead of importing garbled names', () => {
+    const windows1251 = Buffer.from([0xc8, 0xec, 0xff, 0x0a, 0xc0, 0xf0, 0xec, 0xe5, 0xed]);
+
+    expect(decodeGuestCsv(windows1251)).toEqual({
+      error:
+        'The file is not UTF-8 text. In Excel, save it as "CSV UTF-8 (comma delimited)" and import again',
+    });
+  });
 });

@@ -174,6 +174,7 @@ describe('platform mail (integration)', () => {
     it('queues an email naming the organization', async () => {
       const user = await aUser('owner@test.local');
       const organization = await prisma.organization.create({ data: { name: 'Petrosyan' } });
+      await prisma.organizationMembership.create({ data: { userId: user.id, organizationId: organization.id, role: 'OWNER' } });
 
       await accounts.inviteMember(organization.id, user.id, {
         email: 'planner@test.local',
@@ -189,6 +190,7 @@ describe('platform mail (integration)', () => {
     it('records it against the organization being joined', async () => {
       const user = await aUser('owner@test.local');
       const organization = await prisma.organization.create({ data: { name: 'Petrosyan' } });
+      await prisma.organizationMembership.create({ data: { userId: user.id, organizationId: organization.id, role: 'OWNER' } });
 
       await accounts.inviteMember(organization.id, user.id, {
         email: 'planner@test.local',

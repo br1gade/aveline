@@ -1,3 +1,10 @@
+import { bindTemplateMaterialization } from './templates/template-materialization';
+import { lockOrganizationStanding, requireCurrentEventPermission } from '../../infra/auth/access-locks';
+import { assertAuthoredTheme } from './templates/template-theme';
+import { lockLiveEvent } from '../events/event-lock';
+import { DomainHttpException } from '../../common/domain-http.exception';
+import { TemplateAdoptionService } from './templates/template-adoption.service';
+import { listEventTemplates, selectAvailableTemplate } from './templates/template-reader';
 import { versionStatement } from '../guest-contributions/statements';
 import { countQuestionAnswers } from '../ticketing/checkout-questions';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -32,25 +39,12 @@ export class DesignService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly adoption: TemplateAdoptionService,
   ) {}
 
   /** The template catalogue a designer picks from. */
-  async listTemplates() {
-    const templates = await this.prisma.designTemplate.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-    });
-
-    return templates.map((template) => ({
-      key: template.key,
-      name: template.name,
-      allowedFonts: template.allowedFonts,
-      palettes: template.palettes,
-      supportedBlocks: template.supportedBlocks,
-      // The layouts each block may take; `variant` must be one of these or null.
-      blockVariants: template.blockVariants,
-      defaultTheme: template.defaultTheme,
-    }));
+  async listTemplates(eventId: string) {
+    return listEventTemplates(this.prisma, eventId);
   }
 
   /**
@@ -62,25 +56,35 @@ export class DesignService {
    * template does not ship would produce exactly the broken render that theme
    * validation exists to prevent.
    */
-  async chooseTemplate(slug: string, dto: ChooseTemplateDto) {
-    const [invitation, template] = await Promise.all([
-      this.requireInvitation(slug),
-      this.prisma.designTemplate.findFirst({ where: { key: dto.templateKey, isActive: true } }),
-    ]);
-    if (!template) throw new NotFoundException(`No template "${dto.templateKey}" is available`);
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.invitation.update({
-        where: { id: invitation.id },
-        data: { templateId: template.id, theme: template.defaultTheme as Prisma.InputJsonValue },
-      });
-
-      if (template.supportedBlocks.length > 0) {
-        await tx.invitationBlock.updateMany({
-          where: { invitationId: invitation.id, type: { notIn: template.supportedBlocks } },
-          data: { enabled: false },
-        });
+  async chooseTemplate(slug: string, dto: ChooseTemplateDto, userId: string) {
+    if (dto.templateVersionId) {
+      if (!dto.previewId || !dto.expectedTemplateVersionId || !dto.expectedDesignRevision || !dto.idempotencyKey) {
+        throw new DomainHttpException('TEMPLATE_PREVIEW_REQUIRED', 'Exact version adoption requires previewId, expectedTemplateVersionId, expectedDesignRevision and idempotencyKey');
       }
+      return this.adoption.apply(userId, slug, { targetVersionId: dto.templateVersionId, templateKey: dto.templateKey,
+        previewId: dto.previewId, expectedTemplateVersionId: dto.expectedTemplateVersionId, expectedDesignRevision: dto.expectedDesignRevision, idempotencyKey: dto.idempotencyKey });
+    }
+    const invitation = await this.prisma.invitation.findUniqueOrThrow({ where: { slug }, include: { templateVersion: true } });
+    if (invitation.templateVersion.templateId === invitation.templateId) {
+      const current = await this.prisma.designTemplate.findUniqueOrThrow({ where: { id: invitation.templateId } });
+      if (current.key === dto.templateKey) return this.describe(slug);
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await lockOrganizationStanding(tx, { organizationId: invitation.organizationId });
+      const template = await selectAvailableTemplate(tx, { organizationId: invitation.organizationId, templateKey: dto.templateKey });
+      if (!template) throw new NotFoundException('No such template');
+      if (template.provenance !== 'LEGACY_BASELINE') throw new DomainHttpException('TEMPLATE_PREVIEW_REQUIRED', 'Explicit version preview and confirmation required');
+      await lockLiveEvent(tx, invitation.eventId);
+      await tx.$queryRaw`SELECT id FROM invitations WHERE id=${invitation.id} FOR UPDATE`;
+      await requireCurrentEventPermission(tx, { actor: { userId }, eventId: invitation.eventId, permission: 'invitation:design' });
+      await bindTemplateMaterialization(tx, { previewId: '', invitationId: invitation.id, targetVersionId: template.templateVersionId, hasArtwork: false });
+      await tx.invitation.update({ where: { id: invitation.id }, data: {
+        templateId: template.id, templateVersionId: template.templateVersionId,
+        templateOwnerScopeKey: template.ownerScopeKey, theme: template.defaultTheme as Prisma.InputJsonValue,
+      } });
+      if (template.supportedBlocks.length > 0) await tx.invitationBlock.updateMany({
+        where: { invitationId: invitation.id, type: { notIn: template.supportedBlocks } }, data: { enabled: false },
+      });
       await clearUnofferedVariants(tx, invitation.id, template);
     });
 
@@ -96,32 +100,20 @@ export class DesignService {
    * colour, which looks like a bug to the person who paid for it.
    */
   async updateTheme(slug: string, dto: UpdateThemeDto) {
-    const invitation = await this.prisma.invitation.findUnique({
-      where: { slug },
-      select: {
-        id: true,
-        theme: true,
-        template: { select: { allowedFonts: true, palettes: true } },
-      },
+    const identity = await this.requireInvitation(slug);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await lockLiveEvent(tx, identity.eventId);
+      await tx.$queryRaw`SELECT id FROM invitations WHERE id=${identity.id} FOR UPDATE`;
+      const invitation = await tx.invitation.findUniqueOrThrow({ where: { id: identity.id }, select: {
+        theme: true, templateVersion: { select: { allowedFonts: true, palettes: true, provenance: true, rendererManifest: true } },
+      } });
+      const merged = mergeTheme(asObject(invitation.theme), { ...dto });
+      const result = validateTheme(merged, { allowedFonts: invitation.templateVersion.allowedFonts, palettes: asPalettes(invitation.templateVersion.palettes) });
+      if (!result.isValid) throw new BadRequestException(result.errors);
+      assertAuthoredTheme(merged, invitation.templateVersion);
+      return tx.invitation.update({ where: { id: identity.id }, data: { theme: result.theme as Prisma.InputJsonValue }, select: { theme: true } });
     });
-    if (!invitation) throw new NotFoundException(`No invitation at "${slug}"`);
-
-    const merged = mergeTheme(asObject(invitation.theme), { ...dto });
-    const result = validateTheme(merged, {
-      allowedFonts: invitation.template.allowedFonts,
-      palettes: asPalettes(invitation.template.palettes),
-    });
-
-    if (!result.isValid) throw new BadRequestException(result.errors);
-
-    const updated = await this.prisma.invitation.update({
-      where: { id: invitation.id },
-      data: { theme: result.theme as Prisma.InputJsonValue },
-      select: { theme: true },
-    });
-
-    await this.cache.invalidateInvitation(slug);
-    return { slug, theme: updated.theme };
+    await this.cache.invalidateInvitation(slug); return { slug, theme: updated.theme };
   }
 
   /**
@@ -133,16 +125,15 @@ export class DesignService {
    */
   async updateBlock(slug: string, type: BlockType, dto: UpdateBlockDto) {
     const invitation = await this.requireInvitation(slug);
-    const template = await this.prisma.designTemplate.findFirstOrThrow({
-      where: { invitations: { some: { id: invitation.id } } },
-      select: { supportedBlocks: true, blockVariants: true },
-    });
-    assertBlockEdit(template, type, dto);
     assertLanguages(['content', dto.content]);
 
     if (dto.assetIds) await this.assertAttachable(invitation.eventId, type, dto.assetIds);
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      await lockLiveEvent(tx, invitation.eventId);
+      await tx.$queryRaw`SELECT id FROM invitations WHERE id=${invitation.id} FOR UPDATE`;
+      const current = await tx.invitation.findUniqueOrThrow({ where: { id: invitation.id }, select: { templateVersion: { select: { supportedBlocks: true, blockVariants: true } } } });
+      assertBlockEdit(current.templateVersion, type, dto);
       const block = await tx.invitationBlock.findUnique({
         where: { invitationId_type: { invitationId: invitation.id, type } },
         select: { id: true },
@@ -421,9 +412,26 @@ function assertAnsweredQuestionKeepsShape(
     throw new BadRequestException(`type: ${who}; its type cannot change. Add a new question instead`);
   }
   const had = Math.min(...choiceListLengths(before.options), Number.POSITIVE_INFINITY);
-  if (Number.isFinite(had) && choiceListLengths(after.options).some((length) => length < had)) {
+  const didShrink = Number.isFinite(had) && choiceListLengths(after.options).some((length) => length < had);
+  if (didShrink || movesAnOption(before.options, after.options)) {
     throw new BadRequestException(`options: ${who}; options can be reworded or added at the end, not removed or reordered`);
   }
+}
+
+/**
+ * Whether a choice that was offered now sits at another position in the same
+ * language. A list of the same length passed as a rewording, so swapping Meat
+ * and Fish turned every "Fish" answer into "Meat". A position that keeps its
+ * text is never a move, so a list sent back unchanged passes even when two
+ * positions share a label.
+ */
+function movesAnOption(before: Prisma.JsonValue, after: unknown): boolean {
+  const had = asObject(before);
+  return Object.entries(asObject(after as Prisma.JsonValue)).some(([language, list]) => {
+    const old = had[language];
+    if (!Array.isArray(old) || !Array.isArray(list)) return false;
+    return list.some((choice, position) => choice !== old[position] && old.includes(choice));
+  });
 }
 
 /** A JSON object column as a record; anything else as empty. */

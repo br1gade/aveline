@@ -5,6 +5,14 @@ account holders — guests and vendors — reach what they need.
 
 Implemented in [`backend/src/modules/access/access-policy.ts`](../backend/src/modules/access/access-policy.ts).
 
+**Planned post-pilot permissions:** [PP-D01–58](post-pilot/DECISIONS.md) records
+the agreed future access rules, including assigned enquiry/quote access for
+SUPPORT, ADMIN financial/publication controls, explicit organization selection,
+revocation and named customer approvers. Those new features are not implemented;
+this document's existing role table remains the current policy until each slice
+ships with its tests and permission/API updates. Quote drafting is a specific
+future grant, not general SUPPORT billing access.
+
 ---
 
 ## 1. Four kinds of actor
@@ -99,7 +107,9 @@ numbers, nor see what the caterer is charging. The role grants
 **Whoever creates an event becomes its OWNER only if they own the
 organization.** A `MANAGER` who creates one becomes its `COORDINATOR`: they
 run it fully, but deleting it and managing its team stay with the
-organization's owner (decided 10 October 2026).
+organization's owner (decided 10 October 2026). The creator role is resolved
+from membership in that event's exact organization; an OWNER role in another
+organization cannot make them OWNER here.
 
 **Event roles are granted by invitation.** An event `OWNER` holds
 `member:manage` for that event: they invite someone by email with a role,
@@ -151,7 +161,11 @@ without it. Private snapshot exports choose full or redacted columns at
 generation; a full artifact is refused after contact permission is lost, so
 the viewer must regenerate a redacted snapshot. Ticket manifests require
 contact permission at creation and download. The ticket order list omits
-`buyerEmail`, and the delivery report omits `toAddress`. The delivery report
+`buyerEmail`, and the delivery report omits `toAddress` and nulls
+`failureReason`, which usually quotes the address. Adding a guest and
+sending answer with the guest's address and link unredacted; that holds only
+because every role with `guest:write` or `invitation:publish` also holds
+`guest:contact:read`, which a policy test enforces. The delivery report
 itself needs `guest:read`, so a `DESIGNER` cannot read the guest list through
 it. A vendor's `headcount` brief is numbers only; names come with the
 `households` scope. A vendor brief link is shown only to `vendor:write` holders,
@@ -222,7 +236,10 @@ sessions.
 **Refresh rotates.** Presenting a refresh token revokes it and issues a new
 pair, so a stolen token works at most once. **A replaced token used again**
 more than a minute later is treated as theft: every session of the account
-ends. (Within the minute it is a client retry, and only refused.)
+ends. (Within the minute it is a client retry, and only refused.) A token
+ended by a password reset or "sign out everywhere" was not replaced: a device
+that wakes and presents one is only refused, and the sessions opened since
+keep working. A token presented after its own logout still counts as reuse.
 
 **Sessions have a generation.** A password reset or "sign out everywhere"
 moves the account's generation on in the same transaction that revokes its
@@ -313,3 +330,54 @@ retained, and no phone is globally suppressed based on an ambiguous delivery
 failure. Erased message recipients cannot be mutated by late receipts. Host
 delivery evidence retains the report's `guest:read` permission and existing
 `guest:contact:read` restriction for addresses; no new permission is added.
+
+### Organization context and departure
+
+Organization-scoped requests accept `X-Aveline-Organization-Id` as a selector,
+never a grant. No header uses exactly one open membership; ambiguity requires
+selection. Event resources derive exact tenant standing and reject an authorized
+mismatching selector. No arbitrary first membership supplies another tenant's role.
+The bounded own selector exposes only organization ID/name/kind/current role/join date.
+
+Any member may leave; managing peers requires current `member:manage`. Each write
+checks accessRevision and current standing under the organization fence. The last
+active organization OWNER or existing direct-event OWNER must hand over first.
+Departure removes all direct roles and pending invites in that tenant atomically;
+other tenants and independent staff powers survive. Active ADMIN/SUPPORT work is
+not blanket-cancelled by customer departure; each worker rechecks its current
+operation/contact rights. Reviewed tenant closure cancels all tenant jobs. ADMIN alone resolves closure
+or inactive-owner recovery. Verified erasure deactivates across all organizations,
+retains tombstone roles/history, revokes pending work and opens recovery reviews.
+
+Not yet activated: second-membership writes await the operator-controlled runtime,
+reader/writer, migration, restore and frontend acceptance gates.
+
+### Staff enquiry substrate (F39, disabled pending rollout)
+
+`enquiry:manage` belongs only to active ADMIN and SUPPORT staff;
+`enquiry:assign` belongs only to ADMIN. No organization/event role or vendor
+scope grants either. SUPPORT standing is the current enquiry assignment, checked
+under the case lock on every read, write and receipt replay. Assignment does not
+change appointment operators and never grants customer organization membership.
+New contacts remain behind the disabled intake gate until independent protected
+journal restore and frontend acceptance evidence is recorded.
+
+### Template platform authority
+
+`template:author`, `template:publish` and `template:assign` are platform-only.
+ADMIN has all three; SUPPORT has coarse author access and must also hold an
+active explicit template assignment checked under the template lock. Only ADMIN
+creates identities, assigns/revokes SUPPORT, publishes or retires. Organization
+OWNER and event DESIGNER do not inherit these permissions. Author file reads
+recheck live account/assignment authority after private storage reads. Assignment
+never grants a customer membership.
+
+Organization create/join/role/departure and reviewed resolution record minimal
+transactional authority evidence (IDs, roles, revision and revoked-role count),
+without contacts or capability tokens. A rejected mutation leaves neither a role
+change nor evidence of one.
+
+A reviewed closed organization denies authenticated event-resource requests even
+for ADMIN/SUPPORT, preventing new staff mutations through independent platform
+permissions. Public invitation/guest capability behavior retains its existing
+contract. Closure preserves the underlying event/financial history.

@@ -36,7 +36,7 @@ export function initialiseSentry(env: NodeJS.ProcessEnv): boolean {
   return true;
 }
 
-const PRIVATE_HEADERS = new Set(['authorization', 'cookie', 'referer', 'x-api-key', 'x-telegram-bot-api-secret-token', 'x-aveline-feedback-signature', 'x-hub-signature-256']);
+const PRIVATE_HEADERS = new Set(['authorization', 'idempotency-key', 'cookie', 'referer', 'x-api-key', 'x-telegram-bot-api-secret-token', 'x-aveline-feedback-signature', 'x-hub-signature-256']);
 
 /**
  * Strips what Sentry would otherwise carry off-site.

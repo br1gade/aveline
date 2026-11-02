@@ -49,4 +49,6 @@ export interface DeliveryResult {
 export interface MessageTransport {
   readonly channel: MessageChannel;
   send(message: OutboundMessage): Promise<DeliveryResult>;
+  /** Releases held connections; called once when the application shuts down. */
+  close?(): void;
 }

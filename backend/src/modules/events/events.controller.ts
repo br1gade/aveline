@@ -1,4 +1,15 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { OptionalQuery } from '../../common/openapi-document';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
@@ -7,6 +18,7 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { EventsService } from './events.service';
 import {
   CurrentActor,
+  EventScope,
   OrganizationScope,
   RequestActor,
   RequirePermission,
@@ -34,8 +46,11 @@ export class EventsController {
 
   // No permission check of its own: everyone signed in may ask, and the
   // answer is scoped to what they can reach.
-  @OrganizationScope()
+  @OrganizationScope({ mode: 'event-list', permission: 'event:read' })
   @Get()
+  @OptionalQuery('archived', 'true lists archived events instead', 'boolean')
+  @OptionalQuery('limit', 'Page size', 'integer')
+  @OptionalQuery('offset', 'Rows to skip', 'integer')
   @ApiOperation({
     summary: "List the signed-in account's events",
     description:
@@ -52,6 +67,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:delete')
+  @EventScope('id')
   @Post(':id/archive')
   @ApiOperation({
     summary: 'Put the event away',
@@ -63,6 +79,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:delete')
+  @EventScope('id')
   @Post(':id/unarchive')
   @ApiOperation({ summary: 'Bring an archived event back as it was' })
   unarchive(@Param('id') id: string) {
@@ -70,6 +87,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:delete')
+  @EventScope('id')
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete the event for good',
@@ -88,7 +106,7 @@ export class EventsController {
   @ApiOperation({
     summary: 'Create an event, with its draft invitation',
     description:
-      'The caller becomes its OWNER. An invitation is created alongside, so ' +
+      'The exact organization OWNER becomes its event OWNER; a MANAGER becomes COORDINATOR. An invitation is created alongside, so ' +
       'there is something to design immediately.',
   })
   create(@CurrentActor() actor: RequestActor, @Body() dto: CreateEventDto) {
@@ -96,16 +114,18 @@ export class EventsController {
   }
 
   @RequirePermission('event:write')
+  @EventScope('id')
   @Post(':id/invitation')
   @ApiOperation({
     summary: 'Add an invitation to an event that has none',
     description: 'Only needed when no design template existed when the event was created.',
   })
-  createInvitation(@Param('id') id: string, @Body() dto: CreateInvitationDto) {
-    return this.events.createInvitation(id, dto.templateKey);
+  createInvitation(@Param('id') id: string, @CurrentActor() actor: RequestActor, @Body() dto: CreateInvitationDto) {
+    return this.events.createInvitation(id, actor.userId, dto);
   }
 
   @RequirePermission('event:read')
+  @EventScope('id')
   @Get(':id')
   @ApiOperation({ summary: 'Event detail with venues and timeline' })
   findOne(@Param('id') id: string) {
@@ -113,6 +133,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:write')
+  @EventScope('id')
   @Patch(':id')
   @ApiOperation({
     summary: "Correct the event's details",
@@ -126,6 +147,7 @@ export class EventsController {
   }
 
   @RequirePermission('member:manage')
+  @EventScope('id')
   @Get(':id/audit-trail')
   @ApiOperation({
     summary: 'Who changed what on this event',
@@ -139,6 +161,7 @@ export class EventsController {
   }
 
   @RequirePermission('event:write')
+  @EventScope('id')
   @Patch(':id/settings')
   @ApiOperation({
     summary: 'Change the settings a host flips themselves',

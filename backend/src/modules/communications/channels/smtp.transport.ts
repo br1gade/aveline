@@ -100,7 +100,7 @@ export class SmtpTransport implements MessageTransport {
     return { providerRef: info.messageId, isDelivered: false };
   }
 
-  /** Closes the pooled connections on shutdown. */
+  /** Closes the pooled connections; `CommunicationsModule` calls it on shutdown. */
   close(): void {
     this.transporter.close();
   }

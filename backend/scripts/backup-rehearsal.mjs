@@ -5,10 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { localResourceName } from './local-ci/scope.mjs';
 
 const execute = promisify(execFile);
 const docker = (...args) => execute('docker', args, { timeout: 120000, maxBuffer: 2 * 1024 * 1024 });
-const scope = `aveline-recovery-${process.pid}`;
+const scope = localResourceName(`aveline-recovery-${process.pid}`, 'b');
 const root = await mkdtemp(join(tmpdir(), 'aveline-recovery-'));
 const apiImage = process.env.PILOT_REHEARSAL_IMAGE ?? 'aveline-api:pilot-j-local';
 const output = join(process.cwd(), 'test-results', 'backup', scope);
@@ -104,7 +105,7 @@ try {
   report.finishedAt = new Date().toISOString();
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(`Sanitized recovery evidence: ${join(output, 'report.json')}`);
-  await Promise.all(containers.map((name) => docker('rm', '-f', name).catch(() => undefined)));
+  await Promise.all(containers.map((name) => docker('rm', '-f', '-v', name).catch(() => undefined)));
   if (wasNetworkCreated) await docker('network', 'rm', scope);
   // Capture/restore writes are root-owned and private. Give only this caller
   // ownership of this drill's generated directory before deleting it.

@@ -1,3 +1,6 @@
+import { readTemplateDefaultMedia } from './templates/template-materialization';
+import { projectTemplateAssetPaths } from './templates/template-asset-paths';
+import { pinnedTemplate } from './templates/template-content';
 import { hasInvitationExpired, LIFETIME_SELECT } from '../invitations/lifetime';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { BlockType, Prisma } from '@prisma/client';
@@ -7,11 +10,15 @@ import { BUILT_IN_FIELDS, fieldOf } from '../rsvp/rsvp-fields';
 
 const draftSelect = {
   ...LIFETIME_SELECT,
+  id: true,
+  templateVersionId: true,
   slug: true,
+  designRevision: true,
   status: true,
   theme: true,
   rsvpFields: true,
   eventId: true,
+  templateVersion: true,
   template: {
     select: { key: true, name: true, allowedFonts: true, palettes: true, supportedBlocks: true, defaultTheme: true },
   },
@@ -75,22 +82,25 @@ export class DraftReaderService {
   constructor(private readonly prisma: PrismaService) {}
 
   async read(slug: string) {
-    const draft = await this.prisma.invitation.findUnique({ where: { slug }, select: draftSelect });
-    if (!draft) throw new NotFoundException(`No invitation at "${slug}"`);
+    const found = await this.prisma.invitation.findUnique({ where: { slug }, select: draftSelect });
+    if (!found) throw new NotFoundException(`No invitation at "${slug}"`);
 
+    const draft = { ...found, template: { ...pinnedTemplate(found), id: found.templateVersion.templateId } };
     const media = await this.loadMedia(draft);
+    const defaults = await readTemplateDefaultMedia(this.prisma, { invitationId: draft.id, versionId: draft.templateVersionId });
     const blocks = draft.blocks.map((block) => ({
       ...block,
-      media: block.assetIds.flatMap((id) => media.get(id) ?? []),
+      media: block.assetIds.length ? block.assetIds.flatMap((id) => media.get(id) ?? []) : defaults.media.get(block.type) ?? [],
     }));
 
-    return {
+    return projectTemplateAssetPaths({
       slug: draft.slug,
       status: draft.status,
       firstPublishedAt: draft.firstPublishedAt, lifetimeDays: draft.lifetimeDays, lifetimeSource: draft.lifetimeSource,
       lifetimePlanKey: draft.lifetimePlanKey, expiresAt: draft.expiresAt, isExpired: hasInvitationExpired(draft),
       event: { ...draft.event, venues: undefined },
-      template: { ...draft.template, defaultTheme: undefined },
+      template: { key: draft.template.key, name: draft.template.name, allowedFonts: draft.template.allowedFonts, palettes: draft.template.palettes, supportedBlocks: draft.template.supportedBlocks, versionId: draft.templateVersion.id, versionNumber: draft.templateVersion.versionNumber },
+      designRevision: String(draft.designRevision),
       theme: draft.theme,
       rsvpFields: Object.fromEntries(BUILT_IN_FIELDS.map((field) => [field, fieldOf(draft.rsvpFields, field)])),
       // What the page actually renders with: the template's defaults under the host's choices.
@@ -103,7 +113,7 @@ export class DraftReaderService {
         { status: draft.status, blocks: draft.blocks, venues: draft.event.venues, startsAt: draft.event.startsAt },
         new Date(),
       ),
-    };
+    }, `/api/v1/events/${draft.eventId}/design-assets`);
   }
 
   /** Every attached upload in one query, scoped to the event. */

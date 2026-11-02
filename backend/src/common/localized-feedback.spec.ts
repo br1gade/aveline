@@ -10,6 +10,15 @@ describe('User-facing validation and recovery copy', () => {
     expect(localizeFailure('STATE_CHANGED', locale)).toMatchObject({ locale, action: 'WAIT' });
     expect(localizeFailure('SUBJECT_ERASED', locale)).toMatchObject({ locale, action: 'REGENERATE' });
   });
+  it('names an unknown property, top-level or nested, by its path', () => {
+    const result = localizeHttpError(400, ['property isAdmin should not exist', 'organization.create.property role should not exist', 'property a b should not exist'], 'en');
+    expect(result.details.map((detail) => detail.field)).toEqual(['isAdmin', 'organization.create.role', null]);
+  });
+  it('names the field of a per-item and a nested-object rule, top-level or nested', () => {
+    const result = localizeHttpError(400, ['each value in labels must be a string', 'items.0.each value in tags must be a string',
+      'nested property venue must be either object or array', 'each value in nested property items must be either object or array'], 'en');
+    expect(result.details.map((detail) => detail.field)).toEqual(['labels', 'items.0.tags', 'venue', 'items']);
+  });
   it('honors language weights and region tags and bounds unsupported input', () => {
     expect(requestLanguage({ headers: { 'accept-language': 'de;q=1, fr-CA;q=0.8, ru;q=0.5' } })).toBe('fr');
     expect(requestLanguage({ query: { locale: 'hy-AM' }, headers: {} })).toBe('hy');

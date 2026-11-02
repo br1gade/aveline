@@ -1,3 +1,13 @@
+import { TemplateContextInterceptor } from './templates/template-context.interceptor';
+import { TemplateAdoptionController } from './templates/template-adoption.controller';
+import { TemplateAdoptionService } from './templates/template-adoption.service';
+import { PrivateStorageModule } from '../../infra/storage/private/private-storage.module';
+import { TemplateAssetsController } from './templates/template-assets.controller';
+import { TemplateAssetsService } from './templates/template-assets.service';
+import { TemplateCapabilitiesService } from './templates/capabilities/template-capabilities.service';
+import { TemplateAuthoringController } from './templates/template-authoring.controller';
+import { TemplateAuthoringService } from './templates/template-authoring.service';
+import { TemplateGatesService } from './templates/template-gates.service';
 import { TemplatePreviewsController } from './template-previews.controller';
 import { TemplatePreviewsService } from './template-previews.service';
 import { Module } from '@nestjs/common';
@@ -15,8 +25,9 @@ import { VenuesService } from './venues.service';
  * payload in one language.
  */
 @Module({
-  controllers: [TemplatePreviewsController, DesignController, VenueDirectoryController],
-  providers: [TemplatePreviewsService, DesignService, VenuesService, TimelineService, DraftReaderService],
+  imports: [PrivateStorageModule],
+  controllers: [TemplateAdoptionController, TemplateAssetsController, TemplateAuthoringController, TemplatePreviewsController, DesignController, VenueDirectoryController],
+  providers: [TemplateContextInterceptor, TemplateAdoptionService, TemplateAssetsService, TemplateCapabilitiesService, TemplateAuthoringService, TemplateGatesService, TemplatePreviewsService, DesignService, VenuesService, TimelineService, DraftReaderService],
   exports: [DesignService, VenuesService, TimelineService],
 })
 export class DesignModule {}

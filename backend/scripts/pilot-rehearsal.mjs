@@ -6,10 +6,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { localResourceName } from './local-ci/scope.mjs';
 
 const execute = promisify(execFile);
 const docker = (...args) => execute('docker', args, { timeout: 120000, maxBuffer: 2 * 1024 * 1024 });
-const scope = `aveline-rehearsal-${process.pid}`;
+const scope = localResourceName(`aveline-rehearsal-${process.pid}`, 'p');
 const image = process.env.PILOT_REHEARSAL_IMAGE ?? 'aveline-api:pilot-readiness';
 const directory = await mkdtemp(join(tmpdir(), 'aveline-rehearsal-'));
 const containers = [];
@@ -94,7 +95,7 @@ try {
   console.error(error instanceof assert.AssertionError ? error.message : 'Rehearsal failed; inspect the relevant stage without printing environment values.');
   process.exitCode = 1;
 } finally {
-  await Promise.all(containers.map((name) => docker('rm', '-f', name).catch(() => undefined)));
+  await Promise.all(containers.map((name) => docker('rm', '-f', '-v', name).catch(() => undefined)));
   if (wasNetworkCreated) await docker('network', 'rm', scope);
   await docker('run', '--rm', '--user', '0:0', '-v', `${directory}:/rehearsal`, image, 'chown', '-R', `${process.getuid()}:${process.getgid()}`, '/rehearsal').catch(() => undefined);
   await rm(directory, { recursive: true, force: true });

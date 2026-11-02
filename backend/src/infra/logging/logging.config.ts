@@ -13,6 +13,7 @@ import { redactQueryObject, redactUrl } from '../../common/redact-url';
  */
 const REDACTED = [
   'req.headers.authorization',
+  'req.headers["idempotency-key"]',
   'req.headers.cookie',
   // The page a request came from: a guest's invitation link, token and all.
   'req.headers.referer',

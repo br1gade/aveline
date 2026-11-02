@@ -217,7 +217,7 @@ export class ExportSheets {
       columns: ['Code', 'Type', 'Holder', 'Buyer', 'Buyer email', 'Status', 'Used at'],
       rows: tickets.map((ticket) => ({
         Code: ticket.code,
-        Type: this.locale ? resolveTranslation<string>(ticket.ticketType.name, this.locale, ticket.ticketType.event.defaultLocale) : JSON.stringify(ticket.ticketType.name),
+        Type: ticketTypeName(ticket.ticketType, this.locale),
         Holder: ticket.guest ? fullName(ticket.guest) : ticket.holderName,
         Buyer: ticket.order.buyerName,
         'Buyer email': ticket.order.buyerEmail,
@@ -226,6 +226,11 @@ export class ExportSheets {
       })),
     };
   }
+}
+
+/** Legacy CSV has no locale of its own, so it reads in the event's language, like the question headings. */
+function ticketTypeName(type: { name: Prisma.JsonValue; event: { defaultLocale: string } }, locale?: string): string | null {
+  return resolveTranslation<string>(type.name, locale ?? type.event.defaultLocale, type.event.defaultLocale);
 }
 
 function fullName(person: { firstName: string; lastName: string | null }): string {

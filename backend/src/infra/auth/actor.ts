@@ -1,4 +1,7 @@
+import type { OrganizationContext, OrganizationResolution } from './organization-context';
 import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
+import type { Request } from 'express';
+import type { SessionContext } from './auth.service';
 import { EventRole, OrganizationRole, PlatformRole } from '@prisma/client';
 import { Actor, Permission, can } from '../../modules/access/access-policy';
 
@@ -16,6 +19,7 @@ export interface RequestActor {
   organizationId?: string | null;
   /** The event this request acts on, however the route named it — id or invitation slug. */
   eventId?: string | null;
+  organizationContext?: OrganizationContext | null;
 }
 
 export interface AuthenticatedRequest {
@@ -54,12 +58,25 @@ export const EventScope = (source: EventScopeSource) => SetMetadata(EVENT_SCOPE,
  * membership, never from a query parameter the caller controls.
  */
 export const ORGANIZATION_SCOPE = 'organizationScope';
-export const OrganizationScope = () => SetMetadata(ORGANIZATION_SCOPE, true);
+export interface OrganizationScopeOptions { mode?: OrganizationResolution['mode']; permission?: Permission }
+export const OrganizationScope = (options: OrganizationScopeOptions = {}) => SetMetadata(ORGANIZATION_SCOPE, options);
 
 /** Injects the resolved actor into a handler. */
 export const CurrentActor = createParamDecorator(
   (_data: unknown, context: ExecutionContext): RequestActor | undefined =>
     context.switchToHttp().getRequest<AuthenticatedRequest>().actor,
+);
+
+/**
+ * The device a session is opened from, as recorded on it. Read here rather
+ * than with `@Headers('user-agent')`, which the schema declared a required
+ * header that a browser's own code is not allowed to set (FR-3).
+ */
+export const ClientContext = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): SessionContext => {
+    const request = context.switchToHttp().getRequest<Request>();
+    return { userAgent: request.headers['user-agent'], ipAddress: request.ip };
+  },
 );
 
 /**

@@ -1,3 +1,4 @@
+import { DOMAIN_ERRORS, DomainErrorCode } from './domain-http.exception';
 import { FeedbackCode, feedbackText } from './feedback-copy';
 
 const LANGUAGES = ['en', 'ru', 'fr', 'hy'];
@@ -34,16 +35,28 @@ function describeFeedback(code: FeedbackCode, locale: string) {
   return { code, locale, userMessage: feedbackText(code, locale), action: ACTIONS[code] ?? 'RETRY' };
 }
 
-export function localizeHttpError(status: number, message: unknown, requested: string) {
+export function localizeHttpError(status: number, message: unknown, requested: string, domainCode?: DomainErrorCode) {
   const locale = languageOf(requested) ?? 'en';
   const messages: unknown[] = Array.isArray(message) ? message : [message];
   const hasPolicyChange = messages.some((item) => typeof item === 'string' && item.startsWith('attendanceRevision:'));
-  const code = hasPolicyChange ? 'ATTENDANCE_CHANGED' : STATUS_CODES[status] ?? 'INTERNAL_ERROR';
+  const code = domainCode ?? (hasPolicyChange ? 'ATTENDANCE_CHANGED' : STATUS_CODES[status] ?? 'INTERNAL_ERROR');
   const details = status === 400 || status === 422 ? messages.slice(0, 100).map((item) => ({
-    field: typeof item === 'string' ? /^([a-zA-Z][\w.[\]-]{0,79})(?::| (?:must|should|each value)\b)/u.exec(item)?.[1] ?? null : null,
+    field: detailField(item),
     code: validationCode(item), userMessage: feedbackText(validationCode(item), locale),
   })) : [];
-  return { ...describeFeedback(code, locale), details };
+  return { ...describeFeedback(code, locale), ...(domainCode ? { action: DOMAIN_ERRORS[domainCode].action } : {}), details };
+}
+
+/**
+ * The input path a validation message is about: `path: …`, `path must …`, or one of class-validator's
+ * prefixed forms after an optional `parent.` path — `property name should not exist`,
+ * `each value in name must …`, `nested property name must …`.
+ */
+function detailField(item: unknown): string | null {
+  if (typeof item !== 'string') return null;
+  const prefixed = /^((?:[\w-]{1,80}\.){0,10})(?:property ([a-zA-Z_$][\w$-]{0,79}) should not exist$|(?:each value in (?:nested property )?|nested property )([a-zA-Z_$][\w$-]{0,79}) (?:must|should)\b)/u.exec(item);
+  const field = prefixed ? `${prefixed[1]}${prefixed[2] ?? prefixed[3]}` : /^([a-zA-Z][\w.[\]-]{0,79})(?::| (?:must|should|each value)\b)/u.exec(item)?.[1];
+  return field && field.length <= 80 ? field : null;
 }
 
 function validationCode(value: unknown): FeedbackCode {

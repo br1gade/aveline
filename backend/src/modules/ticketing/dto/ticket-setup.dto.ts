@@ -18,11 +18,20 @@ import {
 const MINOR_UNITS = /^\d{1,15}$/;
 
 export class CreateTicketTypeDto {
-  @ApiProperty({ description: 'Translated name', example: { hy: 'Ընդհանուր', en: 'General' } })
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Translated name',
+    example: { hy: 'Ընդհանուր', en: 'General' },
+  })
   @IsObject()
   name!: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: 'Translated description' })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Translated description',
+  })
   @IsOptional()
   @IsObject()
   description?: Record<string, unknown>;
@@ -65,12 +74,12 @@ export class CreateTicketTypeDto {
 
 /** Omitted means "leave as is". Price may change at any time — see ticket-type-rules.ts. */
 export class UpdateTicketTypeDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'string' } })
   @IsOptional()
   @IsObject()
   name?: Record<string, unknown>;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'string' } })
   @IsOptional()
   @IsObject()
   description?: Record<string, unknown>;
@@ -119,13 +128,21 @@ export class UpdateTicketTypeDto {
 }
 
 export class UpsertListingDto {
-  @ApiPropertyOptional({ description: 'Same-event PHOTO, COVER or LOGO; null clears the listing hero', nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Same-event PHOTO, COVER or LOGO; null clears the listing hero',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   heroAssetId?: string | null;
 
-  @ApiPropertyOptional({ description: 'Same-event image for sharing; null falls back to the hero', nullable: true })
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Same-event image for sharing; null falls back to the hero',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
@@ -140,17 +157,21 @@ export class UpsertListingDto {
   })
   slug?: string;
 
-  @ApiPropertyOptional({ description: 'Translated headline' })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Translated headline',
+  })
   @IsOptional()
   @IsObject()
   headline?: Record<string, unknown>;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'string' } })
   @IsOptional()
   @IsObject()
   summary?: Record<string, unknown>;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'string' } })
   @IsOptional()
   @IsObject()
   body?: Record<string, unknown>;
@@ -163,12 +184,20 @@ export class UpsertListingDto {
   @MaxLength(40, { each: true })
   categories?: string[];
 
-  @ApiPropertyOptional({ description: 'Translated link-preview title' })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Translated link-preview title',
+  })
   @IsOptional()
   @IsObject()
   ogTitle?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: 'Translated link-preview description' })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Translated link-preview description',
+  })
   @IsOptional()
   @IsObject()
   ogDescription?: Record<string, unknown>;

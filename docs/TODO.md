@@ -1,6 +1,6 @@
 # Remaining work — pilot and post-pilot TODO
 
-Updated **25 October 2026** (Asia/Yerevan). Baseline: backend pilot work through
+Updated **30 October 2026** (Asia/Yerevan). Baseline: backend pilot work through
 `99121d2`, merged into `main` and `dev`. An unchecked box means work or acceptance
 is still outstanding; it does not necessarily mean the backend feature is missing.
 
@@ -60,6 +60,22 @@ branch; assess what is already implemented before treating these as new screens.
   logos, multiple directory venues per vendor and expired guest-access states.
 - [ ] Review frontend adoption of the new API contracts; retire the legacy live
   CSV compatibility surface only after adoption is verified and a cutover agreed.
+
+**Backend requests from the client** (`frontend/docs/BACKEND_REQUESTS.md` on the
+frontend branches). Answered on 31 October 2026: FR-3, FR-7, FR-10, FR-13,
+FR-17, FR-19, FR-21, FR-22, FR-25, FR-27, FR-31, FR-35, FR-36, FR-38, FR-40,
+FR-45; FR-4, FR-18, FR-24 and FR-44's path parameters and nullable `variant` (every property
+typed, every path parameter declared); FR-29 and FR-34 by a policy test that
+fails if a role may write guests or send without reading contacts.
+
+- [ ] Still open on the backend, by the client's priority: FR-1 response
+  schemas (blocking typed responses), FR-6 effective permissions, FR-5 `GET /me`,
+  FR-2 per-operation security, FR-11 deployment topology (with T2), FR-26/28/32/33
+  stable codes for English-only refusals, FR-23, FR-20, FR-30, FR-37, FR-39,
+  FR-41, FR-42/43 (template layouts and block fields, a design decision),
+  FR-44's `blockVariants` in the design read, FR-8 (route table in API.md and
+  `PUBLIC_APP_URL` in `.env.example`), FR-9 (template fonts), and the low-priority
+  FR-12, FR-14, FR-15, FR-16. The BQ- design questions are the product owner's.
 
 Done when: the integrated frontend demonstrates the required pilot flows against
 the current backend, with the frontend acceptance for original batches A–H closed.
@@ -195,14 +211,34 @@ the product owner's direction; this TODO does not authorize purchases or sends.
 
 ## 3. Post-pilot batches — proposed grouping
 
-These group existing open backlog features for planning. **Their order, scope,
-estimates and delivery dates have not been committed.** Before each batch, confirm
-product rules, owner, acceptance criteria and dependencies. None is silently added
-to the free-pilot release gate. F45 remains T8 above, despite its historical
-placement in the backlog's revenue/services table.
+These group existing open backlog features. The interactive initial-policy
+review is complete: [58 decisions](post-pilot/DECISIONS.md) define the approved
+workflows and explicit deferrals. Implementation order follows dependencies;
+estimates and delivery dates are not committed. Use the recorded rules rather
+than requesting them again; assign implementation ownership/acceptance evidence
+per slice. None is added to the free-pilot release gate. F45 remains T8 above.
+
+The [post-pilot delivery plan](POST_PILOT_IMPLEMENTATION_PLAN.md) records the
+25 October implementation audit, confirmed policy, external inputs and slice dependencies.
+Bank and tax choices remain undecided; PP1a local validation is implemented and
+verified. Commercial features remain open. The plan now also distinguishes
+[feature dependencies and parallel lanes](POST_PILOT_IMPLEMENTATION_PLAN.md#dependency-map-and-parallel-delivery),
+including independent F36/F43 and the separate F42 workflows. Three detailed
+[production implementation designs](POST_PILOT_IMPLEMENTATION_PLAN.md#6-three-agent-production-implementation-design)
+now cover all fourteen features, with shared contracts, delivery waves and
+feature-specific gates. Product-policy interview complete; bank/tax/protected-
+record retention remain external inputs, and actual commercial/operator values
+are ADMIN configuration before use. The first
+[execution wave](post-pilot/execution/README.md) has delivered F38, F39
+and F44 backend slices. Their [current status](post-pilot/execution/IMPLEMENTATION_STATUS.md)
+separates implemented behavior from frontend, operational and activation gates.
+The other commercial/resource/logistics features remain planned.
 
 ### PP1 — Paid-launch readiness and invoice tax (F35)
 
+- [x] Validate local provider registration before issuing/replacing subscription
+  invoices; preserve payable invoices and numbering on refusal. Verified 25 October;
+  this does not certify a bank or implement tax. See the delivery plan for evidence.
 - [ ] Choose the bank/provider; obtain the actual integration specification,
   merchant/sandbox access and required certification before enabling live charges.
 - [ ] Verify amounts/status mappings, payment/refund/reconciliation behavior and
@@ -227,13 +263,18 @@ before real-money use. Published plan descriptions alone are not enforcement.
 
 ### PP3 — Intake, quotes and confirmed bookings (F39, F40, F33)
 
-- [ ] Build enquiry/consultation intake and staff follow-up.
+- [x] Implement staff/assigned-SUPPORT enquiry and consultation backend, explicit
+  atomic draft setup, verified privacy, retention and recovery journal.
+- [ ] Accept intake frontend/languages, independently preserved latest privacy
+  journal/restore, cleanup/alerts and owner-setup/outbox operation before enabling
+  production intake/support/conversion flags.
 - [ ] Build component-based quotes across event types, with version/approval rules.
 - [ ] Connect captured deposits to confirmed bookings without using browser
   redirects as payment proof; agree cancellation and rescheduling behavior.
 
-Needs: service catalogue, intake/quote workflow, staff roles, deposit/cancellation
-rules and payment acceptance from PP1 before taking deposits.
+Needs: frontend/operator intake acceptance; configured service catalogue and
+commercial terms plus payment/fiscal acceptance from PP1 before taking deposits.
+Initial intake roles, workflow and retention are already decided and implemented.
 
 ### PP4 — Vendor revenue (F36, F43)
 
@@ -246,20 +287,31 @@ and provider/accounting support. Existing referral amounts do not perform payout
 ### PP5 — Corporate contracts and multiple organizations (F37, F38)
 
 - [ ] Implement branded multi-event corporate contracts and their access/billing rules.
-- [ ] Support more than one organization per account, with explicit switching,
-  invitations, permissions and tenant-isolation acceptance.
+- [x] Implement exact organization context, explicit selector, membership lifecycle,
+  ownership/recovery protection and compatible reader/writer guards.
+- [ ] Accept frontend per-tab/language behavior, old-runtime exclusion and reviewed
+  migration/restore/performance evidence; then perform the separate operator
+  cutover before enabling additional memberships. Automatic migration retains
+  the user-only membership index and additional writes default off.
 
-Needs: contract examples, corporate billing/branding decisions and the desired
-organization membership/switching workflow.
+Needs: corporate contract examples/configured billing and branding terms, plus
+organization activation evidence. PP-D44–49 already decides the initial scope;
+backend context support does not implement F37 corporate contracts.
 
 ### PP6 — Production template authoring (F44)
 
-- [ ] Add controlled authoring, preview, validation and publication of custom templates.
-- [ ] Agree versioning, supported blocks/fonts/assets and behavior for events
-  already using an older template before allowing changes.
+- [x] Implement immutable legacy pins, tenant-private drafts/artwork, staff
+  assignment, validation/preview, ADMIN publication and explicit version adoption.
+- [x] Preserve existing invitations/lifetime and require explicit adoption under
+  PP-D50; template publication never upgrades consuming events automatically.
+- [ ] Supply a reviewed deployed renderer manifest and accept fonts, palette roles,
+  variants, inert previews, en/ru/fr/hy and mobile/desktop rendering.
+- [ ] Accept private storage/worker operation and the pinned-reader rollback floor
+  before enabling authored publication/assets. The approved registry is empty;
+  flags alone cannot enable publication.
 
-Needs: production designer workflow, author/reviewer permissions, template examples
-and publication/versioning decisions. Seeded templates and previews already exist.
+Needs: actual frontend and operator evidence. Initial author/reviewer/versioning
+policy is decided; backend fixtures do not prove renderer or production acceptance.
 
 ### PP7 — Availability and physical fulfilment (F41, F42)
 

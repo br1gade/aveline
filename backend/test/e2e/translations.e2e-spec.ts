@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -46,7 +47,7 @@ describe('Reading the invitation in another language (e2e)', () => {
     const seeded = await seedEvent(prisma);
     const { authorization } = await authenticateAs(app, prisma, { eventId: seeded.eventId, role: EventRole.OWNER });
     await prisma.guest.updateMany({ where: { eventId: seeded.eventId }, data: { locale: 'hy' } });
-    await prisma.designTemplate.update({
+    await reviseTemplateFixture(prisma, {
       where: { key: 'test-template' },
       data: { supportedBlocks: ['HERO', 'VENUE', 'RSVP'] },
     });

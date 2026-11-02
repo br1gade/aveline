@@ -138,10 +138,67 @@ describe('access policy', () => {
     });
   });
 
+  /**
+   * Adding a guest and sending answer with the guest's address and personal
+   * link (`POST`/`PATCH …/guests`, send, remind, thank-you), unredacted.
+   * That is safe only while every role able to call them may also read
+   * contacts. A role that breaks this needs those answers gated first
+   * (FR-29, FR-34 in the client's backend requests).
+   */
+  describe('contact-revealing writes', () => {
+    const everyRole: Actor[] = [
+      ...Object.values(PlatformRole).map(staff),
+      ...Object.values(OrganizationRole).map((role) => member(role)),
+      ...Object.values(EventRole).map((role) => member(null, role)),
+    ];
+
+    it.each(['guest:write', 'invitation:publish'] as const)(
+      'is never granted %s without guest:contact:read',
+      (permission) => {
+        const exposed = everyRole.filter(
+          (actor) => can(actor, permission) && !can(actor, 'guest:contact:read'),
+        );
+
+        expect(exposed).toEqual([]);
+      },
+    );
+  });
+
   describe('permissionsFor', () => {
     it('returns a sorted, de-duplicated set', () => {
       const permissions = permissionsFor(member(OrganizationRole.MANAGER, EventRole.COORDINATOR));
       expect(permissions).toEqual([...new Set(permissions)].sort());
     });
+  });
+});
+
+
+describe('staff enquiry permissions', () => {
+  const permissions = ['enquiry:manage', 'enquiry:assign'] as const;
+  const customers = [
+    ...Object.values(OrganizationRole).map((role) => member(role)),
+    ...Object.values(EventRole).map((role) => member(null, role)),
+    member(OrganizationRole.OWNER, EventRole.OWNER), guest(), vendor([...permissions]),
+  ];
+  it.each(permissions)('keeps %s out of every customer and capability actor', (permission) => {
+    for (const actor of customers) expect(permissionsFor(actor)).not.toContain(permission);
+    expect(permissionsFor(staff(PlatformRole.ADMIN))).toContain(permission);
+  });
+  it('lets support manage assigned cases without assigning them', () => {
+    expect(permissionsFor(staff(PlatformRole.SUPPORT))).toContain('enquiry:manage');
+    expect(permissionsFor(staff(PlatformRole.SUPPORT))).not.toContain('enquiry:assign');
+  });
+});
+
+describe('platform-only template permissions', () => {
+  it.each(['OWNER', 'MANAGER', 'MEMBER', 'VIEWER'] as OrganizationRole[])('never grants template authoring through organization %s', (role) => {
+    for (const permission of ['template:author', 'template:publish', 'template:assign'] as const) {
+      expect(can({ kind: 'member', organizationRole: role, eventRole: 'DESIGNER' }, permission)).toBe(false);
+    }
+  });
+  it('grants SUPPORT only coarse author access, leaving assignment checks to the resource transaction', () => {
+    expect(can(staff(PlatformRole.SUPPORT), 'template:author')).toBe(true);
+    expect(can(staff(PlatformRole.SUPPORT), 'template:publish')).toBe(false);
+    expect(can(staff(PlatformRole.SUPPORT), 'template:assign')).toBe(false);
   });
 });

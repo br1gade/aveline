@@ -2,12 +2,21 @@ name: Backend release checks
 on:
   push:
   pull_request:
+  workflow_call:
+    inputs:
+      container_checks:
+        type: boolean
+        default: true
 permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        layer: [quality, integration, http]
     defaults:
       run:
         working-directory: backend
@@ -36,6 +45,7 @@ jobs:
         ports: ['1025:1025', '8025:8025']
     env:
       NODE_ENV: test
+      NODE_OPTIONS: --max-old-space-size=4096
       PILOT_MODE: 'false'
       DATABASE_URL: postgresql://aveline:aveline@localhost:5433/aveline_test?schema=public
       TEST_DATABASE_URL: postgresql://aveline:aveline@localhost:5433/aveline_test?schema=public
@@ -47,21 +57,37 @@ jobs:
       STORAGE_ROOT: /tmp/aveline-ci-media
       PUBLIC_APP_URL: http://localhost:3000
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '24.19.0'
+          node-version: '26'
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npm run verify
-      - run: npm run test:edge
-      - run: npm run test:backup
-      - run: docker build --tag aveline-api:ci .
-      - run: npm run pilot:rehearsal
+      - name: Use PostgreSQL 16 recovery clients
+        if: matrix.layer == 'integration'
+        run: |
+          test -x /usr/lib/postgresql/16/bin/pg_dump
+          test -x /usr/lib/postgresql/16/bin/pg_restore
+          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
+          /usr/lib/postgresql/16/bin/pg_dump --version
+          /usr/lib/postgresql/16/bin/pg_restore --version
+      - name: Run shared CI job
         env:
-          PILOT_REHEARSAL_IMAGE: aveline-api:ci
-      - run: docker build --file Dockerfile.backup --tag aveline-backup:pilot-readiness .
-      - run: npm run backup:rehearsal
-        env:
-          PILOT_REHEARSAL_IMAGE: aveline-api:ci
+          CI_JOB: ${{ matrix.layer }}
+        run: node scripts/ci-job.mjs "$CI_JOB"
+  container-checks:
+    if: inputs.container_checks || github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: node scripts/ci-job.mjs containers

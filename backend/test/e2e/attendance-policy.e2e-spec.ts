@@ -58,8 +58,23 @@ describe('Attendance policy contract (e2e)', () => {
     const page = await http().get(event.guestPath).query({ locale }).expect(200);
     expect(page.body.guest.attendance).toMatchObject({ mode: 'PER_VENUE', revision: 2, status: 'ATTENDING', needsReconfirmation: false,
       venues: [{ venueId: event.venue.id, venue: names[locale], status: 'ATTENDING' }] });
+    // FR-40: the reply form's read names venues in the page's language too.
+    const saved = await http().get(`${event.guestPath}/rsvp`).query({ locale }).expect(200);
+    expect(saved.body.attendance).toMatchObject({ revision: 2, status: 'ATTENDING', venues: [{ venueId: event.venue.id, venue: names[locale] }] });
+    for (const member of saved.body.household.members as { attendance: { venues: { venue: string }[] } }[]) {
+      expect(member.attendance.venues[0].venue).toBe(names[locale]);
+    }
+  });
+
+  it("names venues in the guest's own language when the reply form asks for none", async () => {
+    const event = await fixture();
+    await prisma.event.update({ where: { id: event.eventId }, data: { locales: ['hy', 'en'], defaultLocale: 'hy' } });
+    await prisma.venue.update({ where: { id: event.venue.id }, data: { translations: { en: { name: 'Reception' } } } });
+    await prisma.guest.updateMany({ where: { token: event.primaryGuestToken }, data: { locale: 'en' } });
+
     const saved = await http().get(`${event.guestPath}/rsvp`).expect(200);
-    expect(saved.body.attendance).toMatchObject({ revision: 2, status: 'ATTENDING' });
+
+    expect(saved.body.attendance.venues[0]).toMatchObject({ venueId: event.venue.id, venue: 'Reception' });
   });
 
   it.each([

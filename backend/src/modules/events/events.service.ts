@@ -1,3 +1,4 @@
+import { lockOrganizationStanding, requireCurrentEventPermission, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
 import { hasInvitationExpired } from '../invitations/lifetime';
 import {
   BadRequestException,
@@ -7,8 +8,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventRole, EventStatus, EventVisibility, InvitationStatus, OrganizationRole, PlatformRole, Prisma } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
+import { EventStatus, EventVisibility, InvitationStatus, PlatformRole, Prisma } from '@prisma/client';
 import { AuditService } from '../../infra/audit/audit.service';
 import { RequestActor, actorCan } from '../../infra/auth/actor';
 import { CacheService } from '../../infra/cache/cache.service';
@@ -16,14 +16,16 @@ import { StorageService } from '../../infra/storage/storage.service';
 import { urlsOf } from '../media/media.service';
 import { countInvitedHouseholds } from '../invitations/sending/audience';
 import { PrismaService } from '../../prisma/prisma.service';
-import { defaultBlocksFor } from './default-blocks';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventDetails, NOTICE_WORTHY, changedFields, detailsProblem } from './event-details';
 import { EVENT_TRANSLATABLE, translationsProblem } from '../../common/field-translations';
 import { mergeTranslations } from '../design/translated-content';
 import { lockRow } from '../../common/row-lock';
-import { invitationSlug } from './invitation-slug';
+import { createEventInvitation } from './event-invitation';
+import { selectAvailableTemplate } from '../design/templates/template-reader';
+import { CreateInvitationDto } from './dto/create-invitation.dto';
+import { resolveEventCreatorRole } from './event-creator-role';
 
 const STAFF_PAGE_SIZE = 100;
 
@@ -51,16 +53,9 @@ export class EventsService {
   }
 
   /**
-   * Creates an event, its draft invitation, and the caller's ownership of it.
-   *
-   * All three in one request because they are one intent: nothing can be done
-   * with an event that has no invitation, and an event nobody owns is
-   * unreachable the moment the request ends. Until this existed, events could
-   * only be made by the seed script — so a real customer could register,
-   * create an organization, and then stop.
-   *
-   * One transaction, because a half-created event is worse than none: an event
-   * with no membership cannot be read back to be fixed.
+   * Event, optional draft invitation and creator access are one atomic intent.
+   * Exact tenant membership determines the creator's event role; concierge
+   * setup relies on current platform authority and separate owner handover.
    */
   async create(organizationId: string, userId: string, dto: CreateEventDto, options = { isOnBehalf: false }) {
     // An authenticated account with no organization has nowhere to put an
@@ -72,6 +67,15 @@ export class EventsService {
       );
     }
 
+    const event = await this.prisma.$transaction((tx) => this.createInTransaction(tx, { organizationId, userId, dto, options }));
+
+    this.logger.log(`event ${event.id} created in organization ${organizationId}`);
+    const detail = await this.findOne(event.id);
+    return event.templateSetup ? { ...detail, templateSetup: event.templateSetup } : detail;
+  }
+
+  async prepareCreation(tx: Prisma.TransactionClient, input: { organizationId: string; dto: CreateEventDto }) {
+    const { dto } = input;
     const startsAt = new Date(dto.startsAt);
     const endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
     const locales = dto.locales ?? ['hy'];
@@ -81,56 +85,50 @@ export class EventsService {
     const problem = detailsProblem({ startsAt, endsAt, timezone, locales, defaultLocale });
     if (problem) throw new BadRequestException(problem);
 
-    const template = await this.pickTemplate(dto.templateKey);
+    const template = await selectAvailableTemplate(tx, { organizationId: input.organizationId, templateKey: dto.templateKey, templateVersionId: dto.templateVersionId });
     const hostsLabel = dto.hostsLabel ?? dto.title;
 
-    const event = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.event.create({
-        data: {
-          organizationId,
-          type: dto.type,
-          title: dto.title,
-          hostsLabel,
-          startsAt,
-          endsAt,
-          timezone,
-          locales,
-          defaultLocale,
-          sideALabel: dto.sideALabel ?? null,
-          sideBLabel: dto.sideBLabel ?? null,
-          visibility: dto.visibility ?? undefined,
-          status: EventStatus.DRAFT,
-        },
-      });
+    return { startsAt, endsAt, locales, timezone, defaultLocale, template, hostsLabel };
+  }
 
-      // The creator owns it. Without this the event exists and its creator
-      // cannot read it back, because the guard resolves access from membership.
-      // Not when Aveline staff set it up for a customer: they act through
-      // their platform role, and the customer becomes its owner.
-      if (!options.isOnBehalf) {
-        await tx.eventMembership.create({
-          data: { eventId: created.id, userId, role: await creatorRole(tx, userId) },
-        });
-      }
-
-      if (template) {
-        await tx.invitation.create({
-          data: {
-            eventId: created.id,
-            slug: invitationSlug(hostsLabel, randomBytes(4).toString('hex')),
-            templateId: template.id,
-            theme: template.defaultTheme as Prisma.InputJsonValue,
-            // Without these the host opens a blank page and can publish it.
-            blocks: { create: defaultBlocksFor(template.supportedBlocks) },
-          },
-        });
-      }
-
-      return created;
+  async createInTransaction(tx: Prisma.TransactionClient, input: { organizationId: string; userId: string; dto: CreateEventDto; options: { isOnBehalf: boolean }; prepared?: Awaited<ReturnType<EventsService['prepareCreation']>> }) {
+    const { organizationId, userId, dto, options } = input;
+    await lockOrganizationStanding(tx, { organizationId });
+    const prepared = input.prepared ?? await this.prepareCreation(tx, { organizationId, dto });
+    const { startsAt, endsAt, locales, timezone, defaultLocale, template, hostsLabel } = prepared;
+    await requireCurrentOrganizationPermission(tx, { actor: { userId, email: '', platformRole: 'NONE' }, organizationId,
+      permission: options.isOnBehalf ? 'concierge:manage' : 'event:write' });
+    const created = await tx.event.create({
+      data: {
+        organizationId,
+        type: dto.type,
+        title: dto.title,
+        hostsLabel,
+        startsAt,
+        endsAt,
+        timezone,
+        locales,
+        defaultLocale,
+        sideALabel: dto.sideALabel ?? null,
+        sideBLabel: dto.sideBLabel ?? null,
+        visibility: dto.visibility ?? undefined,
+        status: EventStatus.DRAFT,
+      },
     });
 
-    this.logger.log(`event ${event.id} created in organization ${organizationId}`);
-    return this.findOne(event.id);
+    // Preserve the creator's exact tenant authority: OWNER becomes event OWNER;
+    // another authorized creator becomes COORDINATOR. Concierge staff instead
+    // act through platform authority while customer ownership is handed over.
+    if (!options.isOnBehalf) {
+      await tx.eventMembership.create({
+        data: { eventId: created.id, userId, role: await resolveEventCreatorRole(tx, { userId, organizationId }) },
+      });
+    }
+
+    const invitation = template ? await createEventInvitation(tx, {
+      eventId: created.id, organizationId, userId, hostsLabel, template,
+    }) : null;
+    return { ...created, templateSetup: invitation?.templateSetup };
   }
 
   /**
@@ -141,54 +139,18 @@ export class EventsService {
    * folded into `create` so that case is recoverable without deleting the
    * event.
    */
-  async createInvitation(eventId: string, templateKey?: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      select: { id: true, hostsLabel: true, invitation: { select: { slug: true } } },
-    });
-    if (!event) throw new NotFoundException(`No event ${eventId}`);
-    if (event.invitation) {
-      throw new BadRequestException(
-        `This event already has an invitation at "${event.invitation.slug}"`,
-      );
-    }
-
-    const template = await this.pickTemplate(templateKey);
-    if (!template) {
-      throw new BadRequestException('No design template is available to build an invitation from');
-    }
-
-    return this.prisma.invitation.create({
-      data: {
-        eventId,
-        slug: invitationSlug(event.hostsLabel, randomBytes(4).toString('hex')),
-        templateId: template.id,
-        theme: template.defaultTheme as Prisma.InputJsonValue,
-        blocks: { create: defaultBlocksFor(template.supportedBlocks) },
-      },
-      select: { slug: true, status: true, template: { select: { key: true } } },
-    });
-  }
-
-  /**
-   * The named template, or whichever is first when none was named.
-   *
-   * Defaulting rather than demanding one: a host creating their first event has
-   * not seen the catalogue yet, and an event with a draft invitation they can
-   * restyle is more useful than a form that refuses to submit.
-   */
-  private async pickTemplate(templateKey?: string) {
-    if (templateKey) {
-      const named = await this.prisma.designTemplate.findFirst({
-        where: { key: templateKey, isActive: true },
-      });
-      if (!named) throw new NotFoundException(`No template "${templateKey}" is available`);
-      return named;
-    }
-
-    return this.prisma.designTemplate.findFirst({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
+  async createInvitation(eventId: string, userId: string, dto: CreateInvitationDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const found = await tx.event.findUnique({ where: { id: eventId }, select: { organizationId: true } });
+      if (!found) throw new NotFoundException(`No event ${eventId}`);
+      await lockOrganizationStanding(tx, { organizationId: found.organizationId });
+      const template = await selectAvailableTemplate(tx, { organizationId: found.organizationId, templateKey: dto.templateKey, templateVersionId: dto.templateVersionId });
+      if (!template) throw new BadRequestException('No design template is available to build an invitation from');
+      await lockRow(tx, 'events', eventId);
+      await requireCurrentEventPermission(tx, { actor: { userId }, eventId, permission: 'event:write' });
+      const event = await tx.event.findUniqueOrThrow({ where: { id: eventId }, select: { hostsLabel: true, invitation: { select: { slug: true } } } });
+      if (event.invitation) throw new BadRequestException(`This event already has an invitation at "${event.invitation.slug}"`);
+      return createEventInvitation(tx, { eventId, organizationId: found.organizationId, userId, hostsLabel: event.hostsLabel, template });
     });
   }
 
@@ -203,13 +165,14 @@ export class EventsService {
     const reach: Prisma.EventWhereInput[] = [{ memberships: { some: { userId: actor.userId } } }];
     if (actor.organizationId && actorCan(actor, 'event:read')) reach.push({ organizationId: actor.organizationId });
     const isStaff = actor.platformRole !== PlatformRole.NONE;
+    const hasGlobalScope = hasGlobalEventScope(actor);
     // Archived events are put away: listed only when asked for.
     const archive: Prisma.EventWhereInput = isArchiveWanted
       ? { status: EventStatus.ARCHIVED }
       : { status: { not: EventStatus.ARCHIVED } };
 
     return this.prisma.event.findMany({
-      where: isStaff ? archive : { AND: [archive, { OR: reach }] },
+      where: hasGlobalScope ? archive : { AND: [archive, { OR: reach }] },
       include: { invitation: { select: { slug: true, status: true } }, _count: { select: { guests: true } } },
       orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
       // Staff see every customer's events, so their list is paged by default;
@@ -230,7 +193,7 @@ export class EventsService {
       },
     });
     if (!event) throw new NotFoundException(`No event ${id}`);
-    return { ...event, invitation: event.invitation ? { ...event.invitation, isExpired: hasInvitationExpired(event.invitation) } : null };
+    return { ...event, invitation: event.invitation ? { ...event.invitation, designRevision: String(event.invitation.designRevision), isExpired: hasInvitationExpired(event.invitation) } : null };
   }
   /**
    * Corrects an event's core details after it was created.
@@ -447,14 +410,7 @@ function assertDeletable(event: {
   }
 }
 
-/**
- * The organization's OWNER owns what they create; anyone else who may create
- * an event — a MANAGER — runs it as COORDINATOR (decided 10 October 2026,
- * D9). Owning it gave a manager `event:delete` and `member:manage`, which
- * ACCESS_CONTROL says they do not hold: they could invite an outsider as
- * owner, with guest contacts and vendor fees.
- */
-async function creatorRole(tx: Prisma.TransactionClient, userId: string): Promise<EventRole> {
-  const membership = await tx.organizationMembership.findFirst({ where: { userId }, select: { role: true } });
-  return membership?.role === OrganizationRole.OWNER ? EventRole.OWNER : EventRole.COORDINATOR;
+
+function hasGlobalEventScope(actor: RequestActor): boolean {
+  return actor.platformRole !== PlatformRole.NONE && !actor.organizationContext;
 }

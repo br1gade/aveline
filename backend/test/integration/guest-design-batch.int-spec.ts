@@ -1,3 +1,6 @@
+import { ConfigService } from '@nestjs/config';
+import { TemplateAdoptionService } from '../../src/modules/design/templates/template-adoption.service';
+import { TemplateGatesService } from '../../src/modules/design/templates/template-gates.service';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { ticketEvent, ticketServices } from '../fixtures/tickets.fixture';
@@ -29,7 +32,8 @@ describe('Guest/design transactions (integration)', () => {
     prisma = testPrisma();
     const database = prisma as unknown as PrismaService;
     names = new GuestNameService(database);
-    design = new DesignService(database, cache);
+    const gates = new TemplateGatesService(new ConfigService({ TEMPLATE_ADOPTION_ENABLED: 'false' }));
+    design = new DesignService(database, cache, new TemplateAdoptionService(database, cache, gates));
     venues = new VenuesService(database, cache);
     setup = new TicketSetupService(database);
     media = new MediaService(database, { removeByUrl: jest.fn().mockResolvedValue(undefined) } as unknown as StorageService, cache);

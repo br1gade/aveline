@@ -39,7 +39,7 @@ export class InvitesController {
   @Delete('organization/invites/:email')
   @ApiOperation({ summary: 'Revoke a pending invitation' })
   revoke(@CurrentActor() actor: RequestActor, @Param('email') email: string) {
-    return this.accounts.revokeInvite(actor.organizationId ?? '', email);
+    return this.accounts.revokeInvite(actor.organizationId ?? '', email, actor.userId);
   }
 
   @Public()

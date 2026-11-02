@@ -26,7 +26,7 @@ src/
     events/ guests/ invitations/ rsvp/ operations/
     seating/        tables, seats, the packing algorithm
     design/         templates, theme, block content, questions, venues, timeline
-    organizations/  the tenant a new account creates for itself
+    organizations/  explicit tenant selection, membership lifecycle and ADMIN recovery
     billing/        plans, subscriptions, invoices, promo codes
     vendors/        the partner network and scoped briefs
     exports/        legacy CSV, private snapshots and durable export worker
@@ -294,6 +294,39 @@ actual production recovery acceptance remain open.
 `src/application.ts` exports the application factory used by `src/main.ts` and
 the disposable batch J server. Prefix, validation, serialization, route body
 parsing, static files, CORS, proxy trust and shutdown hooks have one definition.
-The normal entry point still initializes Sentry before importing the application.
+On shutdown the cache and analytics modules disconnect, and `CommunicationsModule`
+closes every message transport that holds connections (the pooled SMTP sockets),
+so a process that has sent mail still exits on SIGTERM. The normal entry point
+still initializes Sentry before importing the application.
 The rehearsal adds only private local timing diagnostics; see
 [PILOT_REHEARSAL.md](PILOT_REHEARSAL.md).
+
+### Staff intake substrate
+
+`modules/sales/` contains bounded staff enquiry commands, current-assignment
+projection, consultation exclusion, retention and privacy helpers.
+`SalesPrivacyModule` is consumed by privacy even while intake writes are off.
+Enquiry root locks serialize reassignment, revisions and spent command receipts;
+a dedicated privacy fence prevents contact insertion during verified erasure.
+The signed filesystem redaction journal is independent recovery evidence, with
+async fsync/atomic replacement and contiguous sequence verification. Missing or
+invalid latest evidence blocks offline replay. Production storage and frontend
+acceptance remain rollout gates; no provider or consultation messages are added.
+
+Organization writes use PostgreSQL aggregate fences: organization before event,
+invitation before current-user locks. Export privacy remains first when touched.
+Shared resolver and lock contracts live in infra/auth; independent platform powers
+are preserved. The database compatibility gate and explicit operator cutover keep
+new memberships disabled until acceptance evidence excludes old runtimes.
+
+Event setup, enquiry conversion and missing-invitation recovery use one
+transaction-aware creation path. Template selection is fenced before existing
+event/invitation/current-user rows; default blocks and theme come from the
+selected immutable version. Initial artwork preparation inserts only durable
+jobs, with publication blocked until the private materialization worker binds
+all copies. Storage IO remains outside request transactions.
+The shared reader compatibility floor is revision 3 for combined organization,
+enquiry and template readers. Startup and locked membership writes share one
+compatibility helper. A forward migration preserves an activated membership gate;
+operators must exclude already-running older readers before any F39/F44 activation,
+independently of second-membership cutover.

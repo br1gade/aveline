@@ -85,13 +85,15 @@ export class AuthService {
     if (!session || isExpired(session.expiresAt) || !session.user.isActive) {
       throw new UnauthorizedException('Session is no longer valid');
     }
-    if (session.revokedAt) {
-      await this.treatAsStolenIfStale(session.userId, session.revokedAt);
+    // From before a password reset or "sign out everywhere": dead, however
+    // it was minted — including by a refresh that raced the reset. Checked
+    // before revocation, because a token those actions ended was not
+    // replaced: its reuse is a device waking up, not theft (FR-22).
+    if (session.generation !== session.user.sessionGeneration) {
       throw new UnauthorizedException('Session is no longer valid');
     }
-    // From before a password reset or "sign out everywhere": dead, however
-    // it was minted — including by a refresh that raced the reset.
-    if (session.generation !== session.user.sessionGeneration) {
+    if (session.revokedAt) {
+      await this.treatAsStolenIfStale(session.userId, session.revokedAt);
       throw new UnauthorizedException('Session is no longer valid');
     }
 

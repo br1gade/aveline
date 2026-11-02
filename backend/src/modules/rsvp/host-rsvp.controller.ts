@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Param, Patch } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RequirePermission } from '../../infra/auth/actor';
@@ -5,6 +6,7 @@ import { HostRsvpDto } from './dto/host-rsvp.dto';
 import { HostRsvpService } from './host-rsvp.service';
 
 @ApiTags('rsvp')
+@EventScope('eventId')
 @Controller('events/:eventId/guests/:guestId/rsvp')
 export class HostRsvpController {
   constructor(private readonly hostRsvp: HostRsvpService) {}

@@ -9,6 +9,7 @@ import {
 import {
   PaymentEventSource,
   PaymentPurpose,
+  PaymentProvider,
   PaymentStatus,
   Prisma,
   RefundStatus,
@@ -26,6 +27,12 @@ const ORDER_LIFETIME_MS = 60 * 60 * 1000;
 
 /** States in which an overdue payment is written off: the bank holds no money for it. */
 const UNPAID_STATUSES: readonly string[] = [PaymentStatus.CREATED, PaymentStatus.PENDING];
+
+/** What the bank reports when it holds the payer's money. */
+const MONEY_HELD_STATUSES: readonly PaymentStatus[] = [PaymentStatus.AUTHORIZED, PaymentStatus.CAPTURED];
+
+/** Ends we record when no money moved; EXPIRED is our own clock's, never the bank's. */
+const ENDED_WITHOUT_MONEY_STATUSES: readonly PaymentStatus[] = [PaymentStatus.FAILED, PaymentStatus.CANCELLED, PaymentStatus.EXPIRED];
 
 /** How long a loser of the idempotency race waits for the winner's result. */
 const REGISTRATION_WAIT_MS = 50;
@@ -51,6 +58,11 @@ export class PaymentsService {
    */
   onRefunded(purpose: PaymentPurpose, listener: RefundListener): void {
     this.refundListeners.set(purpose, listener);
+  }
+
+  /** Validate local configuration before a caller commits its financial intent. */
+  assertProviderConfigured(provider: PaymentProvider): void {
+    this.gateways.get(provider);
   }
 
   /**
@@ -184,9 +196,30 @@ export class PaymentsService {
       // Another confirmation — the buyer's return page and the sweep, say —
       // recorded the bank's answer first. That is the outcome wanted, not a
       // failure; anything else still is.
-      if (!isRecordNotFound(error)) throw error;
-      return this.describe(await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }));
+      const overtaken = await this.paymentThatOvertook(payment, target, error);
+      if (!overtaken) throw error;
+      return this.describe(overtaken);
     }
+  }
+
+  /**
+   * The payment as another confirmation left it, if one overtook this one.
+   * Committed after our transaction read, the compare-and-set misses; before
+   * it, the move we wanted is no longer legal from what it now holds — that
+   * second ordering once answered 409 for a payment that was captured. A
+   * record that says no money moved while the bank says it did is not being
+   * overtaken but a disagreement, and stays a 409 for someone to resolve.
+   */
+  private async paymentThatOvertook(payment: { id: string; status: PaymentStatus }, target: PaymentStatus, error: unknown) {
+    const isMissedWrite = isRecordNotFound(error);
+    if (!isMissedWrite && !(error instanceof ConflictException)) return null;
+    const current = await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+    if (!isMissedWrite && current.status === payment.status) return null;
+    if (MONEY_HELD_STATUSES.includes(target) && ENDED_WITHOUT_MONEY_STATUSES.includes(current.status)) {
+      this.logger.error(`bank reports ${current.orderNumber} ${target}, but it was recorded ${current.status} meanwhile`);
+      throw new ConflictException(`Cannot move a payment from ${current.status} to ${target}`);
+    }
+    return current;
   }
 
   /**

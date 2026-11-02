@@ -1,3 +1,6 @@
+import { DesignAssetFilesController } from './design-asset-files.controller';
+import { DesignAssetFilesService } from './design-asset-files.service';
+import { PrivateStorageModule } from '../../infra/storage/private/private-storage.module';
 import { InvitationMaintenanceService } from './invitation-maintenance.service';
 import { Module } from '@nestjs/common';
 import { ArrangementService } from './arrangement.service';
@@ -10,8 +13,9 @@ import { ReminderService } from './sending/reminder.service';
 import { RsvpConfirmerService } from './sending/rsvp-confirmer.service';
 
 @Module({
-  controllers: [InvitationsController, InvitationLifecycleController],
-  providers: [
+  imports: [PrivateStorageModule],
+  controllers: [DesignAssetFilesController, InvitationsController, InvitationLifecycleController],
+  providers: [DesignAssetFilesService,
     InvitationMaintenanceService,
     InvitationsService,
     ArrangementService,

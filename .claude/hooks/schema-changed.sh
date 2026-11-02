@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PostToolUse(Write|Edit): remind that a schema change carries doc and
-# migration obligations. See CLAUDE.md §8 and §9.
+# migration obligations. See backend/CLAUDE.md §10 and §11.
 set -uo pipefail
 
 file=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty')

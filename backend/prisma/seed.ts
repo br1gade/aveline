@@ -50,10 +50,8 @@ async function seedTemplate() {
     ),
     defaultTheme: { headingFont: 'Noto Serif Armenian', bodyFont: 'Noto Serif Armenian', palette: 'ivory-gold' },
   };
-  // Refreshed on every run in development: a template seeded with palettes
-  // the code cannot read (`key` for `name`) made every theme edit a 400 until
-  // the database was wiped.
-  return prisma.designTemplate.upsert({ where: { key: 'classic' }, update: classic, create: classic });
+  // Reseeding never rewrites immutable rendering history or an event's pin.
+  return prisma.designTemplate.upsert({ where: { key: 'classic' }, update: {}, create: classic });
 }
 
 /**

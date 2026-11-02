@@ -30,16 +30,7 @@
     "/api/v1/auth/login": {
       "post": {
         "operationId": "AuthController_login",
-        "parameters": [
-          {
-            "name": "user-agent",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -65,16 +56,7 @@
       "post": {
         "description": "The presented token is revoked, so a stolen one works at most once.",
         "operationId": "AuthController_refresh",
-        "parameters": [
-          {
-            "name": "user-agent",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -380,26 +362,29 @@
         "parameters": [
           {
             "name": "archived",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "true lists archived events instead",
             "schema": {
-              "type": "string"
+              "type": "boolean"
             }
           },
           {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Page size",
             "schema": {
-              "type": "string"
+              "type": "integer"
             }
           },
           {
             "name": "offset",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Rows to skip",
             "schema": {
-              "type": "string"
+              "type": "integer"
             }
           }
         ],
@@ -414,7 +399,7 @@
         ]
       },
       "post": {
-        "description": "The caller becomes its OWNER. An invitation is created alongside, so there is something to design immediately.",
+        "description": "The exact organization OWNER becomes its event OWNER; a MANAGER becomes COORDINATOR. An invitation is created alongside, so there is something to design immediately.",
         "operationId": "EventsController_create",
         "parameters": [],
         "requestBody": {
@@ -1326,6 +1311,150 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/design-assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_generic",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a published public/unlisted invitation private design asset without redirect",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/g/{guestToken}/design-assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_personal",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "guestToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read private design artwork through the live guest capability and pin",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/design-templates/{templateKey}/assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_catalogue",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read published catalogue sample artwork within the authorized event organization",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/design-assets/{assetId}/file": {
+      "get": {
+        "operationId": "DesignAssetFilesController_editor",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read authorized event-private design or ready preview artwork",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
     "/api/v1/invitations/{slug}": {
       "get": {
         "operationId": "InvitationsController_getBySlug",
@@ -1340,8 +1469,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -1423,8 +1553,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -1708,6 +1839,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "The page language, for venue names; negotiated as the personal page does",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1867,8 +2007,9 @@
           },
           {
             "name": "venueId",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "One venue; all of them when omitted",
             "schema": {
               "type": "string"
             }
@@ -1899,8 +2040,9 @@
           },
           {
             "name": "venueId",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "One venue; all of them when omitted",
             "schema": {
               "type": "string"
             }
@@ -1956,8 +2098,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -2037,8 +2180,9 @@
           },
           {
             "name": "source",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "\"callback\" when a bank callback triggered the check",
             "schema": {
               "type": "string"
             }
@@ -2166,7 +2310,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": ""
           }
         },
@@ -2811,7 +2955,7 @@
         ]
       },
       "post": {
-        "description": "A free plan takes effect at once. A paid one issues an invoice and returns a bank form URL; access begins when that payment confirms.",
+        "description": "A free plan takes effect at once. A paid one issues an invoice and returns a bank form URL; access begins when that payment confirms. An unconfigured provider returns 404 before billing records change.",
         "operationId": "SubscriptionsController_subscribe",
         "parameters": [],
         "requestBody": {
@@ -2999,8 +3143,9 @@
           },
           {
             "name": "locale",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Preferred language; the response names the one it used",
             "schema": {
               "type": "string"
             }
@@ -3326,11 +3471,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -3590,11 +3731,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -3780,11 +3917,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -3860,11 +3993,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 30,
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ]
+              "type": "integer"
             }
           },
           {
@@ -4704,11 +4833,115 @@
         ]
       }
     },
+    "/api/v1/organizations/current/closure-reviews": {
+      "post": {
+        "operationId": "OrganizationReviewsController_request",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Request administrator closure review without removing access",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organization-access-reviews": {
+      "get": {
+        "operationId": "OrganizationReviewsController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List open organization access reviews; ADMIN only",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organization-access-reviews/{reviewId}/resolve": {
+      "post": {
+        "operationId": "OrganizationReviewsController_resolve",
+        "parameters": [
+          {
+            "name": "reviewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveOrganizationReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Resolve ownership recovery or closure; ADMIN only",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/api/v1/organizations": {
       "post": {
         "description": "One per account. The caller becomes its OWNER.",
         "operationId": "OrganizationsController_create",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4768,6 +5001,194 @@
         ]
       }
     },
+    "/api/v1/organizations/current/members": {
+      "get": {
+        "operationId": "OrganizationsController_members",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List organization members without contacts",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current/members/{userId}": {
+      "patch": {
+        "operationId": "OrganizationsController_changeMember",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeOrganizationMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change an organization member role",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "delete": {
+        "operationId": "OrganizationsController_removeMember",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expectedRevision",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "maximum": 2147483647,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove all customer access in this organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current/leave": {
+      "post": {
+        "operationId": "OrganizationsController_leave",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Leave this organization after required ownership handovers",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/current/owner-transfers": {
+      "post": {
+        "operationId": "OrganizationsController_transferOwner",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferOrganizationOwnerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Promote an active member to owner; caller stays owner",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/me/organizations": {
+      "get": {
+        "operationId": "OwnOrganizationsController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Bounded own organization selector without billing or contacts",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/api/v1/concierge/organizations": {
       "post": {
         "description": "Staff do not become members; the customer sets their own password on accepting.",
@@ -4817,6 +5238,31 @@
         ]
       }
     },
+    "/api/v1/concierge/organizations/resolve-customer": {
+      "post": {
+        "operationId": "ConciergeController_resolveCustomer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveCustomerOrganizationsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Bounded customer organization choices for staff; no contacts or billing",
+        "tags": [
+          "concierge"
+        ]
+      }
+    },
     "/api/v1/concierge/organizations/{organizationId}/events": {
       "post": {
         "description": "Staff design and run it through their platform role; the customer owns it once they accept.",
@@ -4852,10 +5298,638 @@
         ]
       }
     },
+    "/api/v1/invitations/{slug}/template-upgrade-preview": {
+      "post": {
+        "operationId": "TemplateAdoptionController_preview",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpgradePreviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Preview an exact immutable version against a fenced event design before explicit confirmation",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/invitations/{slug}/template-upgrade-previews/{previewId}": {
+      "get": {
+        "operationId": "TemplateAdoptionController_poll",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "previewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Poll event-private artwork preparation for an exact requester-bound preview",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/assets": {
+      "post": {
+        "operationId": "TemplateAssetsController_upload",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateAssetUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "summary": "Stage private raster artwork for background sanitization; no public source URL",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/artwork": {
+      "patch": {
+        "operationId": "TemplateAssetsController_attach",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachTemplateArtworkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Replace ordered same-template artwork defaults in reviewed renderer slots",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/assets/{assetId}/file": {
+      "get": {
+        "operationId": "TemplateAssetsController_file",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read sanitized artwork with current assignment checked before and after storage IO",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/assets/{assetId}": {
+      "delete": {
+        "operationId": "TemplateAssetsController_remove",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Retire unreferenced draft artwork with durable object cleanup tombstones",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates": {
+      "get": {
+        "operationId": "TemplateAuthoringController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Page the authorized staff template inventory; SUPPORT sees assigned templates only",
+        "tags": [
+          "template-authoring"
+        ]
+      },
+      "post": {
+        "operationId": "TemplateAuthoringController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN creates an inactive shared or organization-private template with its first draft",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}": {
+      "get": {
+        "operationId": "TemplateAuthoringController_read",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read template history and open draft; SUPPORT requires an active assignment",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts": {
+      "post": {
+        "operationId": "TemplateAuthoringController_openDraft",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Open a draft from the immutable selected version",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}": {
+      "patch": {
+        "operationId": "TemplateAuthoringController_patch",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTemplateDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Merge renderer definition fields with revision checking",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/discard": {
+      "post": {
+        "operationId": "TemplateAuthoringController_discard",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Discard an exact draft revision and retire eligible transient artwork",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/validate": {
+      "post": {
+        "operationId": "TemplateAuthoringController_validate",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Validate backend structure; publication remains closed until tested frontend capabilities are deployed",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/preview": {
+      "post": {
+        "operationId": "TemplateAuthoringController_preview",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Produce inert synthetic en/ru/fr/hy JSON fixtures without guest data",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/drafts/{draftId}/publish": {
+      "post": {
+        "operationId": "TemplateAuthoringController_publish",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN publication gate; returns 503 until reviewed renderer acceptance exists",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/retire": {
+      "post": {
+        "operationId": "TemplateAuthoringController_retire",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN retires future selection while preserving every existing version pin",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/assignments": {
+      "post": {
+        "operationId": "TemplateAuthoringController_assign",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN assigns active SUPPORT without creating customer membership",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
+    "/api/v1/design-templates/{templateId}/assignments/revoke": {
+      "post": {
+        "operationId": "TemplateAuthoringController_revoke",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ADMIN revokes SUPPORT access atomically",
+        "tags": [
+          "template-authoring"
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/design-templates/{templateKey}/preview": {
       "get": {
         "operationId": "TemplatePreviewsController_catalogue",
         "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "templateKey",
             "required": true,
@@ -4954,7 +6028,16 @@
       "get": {
         "description": "Each entry declares the fonts, palettes and blocks it supports.",
         "operationId": "DesignController_listTemplates",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -5410,7 +6493,16 @@
     "/api/v1/events/{eventId}/venue-profiles": {
       "get": {
         "operationId": "DesignController_listProfiles",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6017,6 +7109,647 @@
           "privacy"
         ]
       }
+    },
+    "/api/v1/privacy/enquiry-requests": {
+      "post": {
+        "operationId": "EnquiryPrivacyController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEnquiryPrivacyRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/privacy/requests/{requestId}/enquiry-subjects": {
+      "put": {
+        "operationId": "EnquiryPrivacyController_bind",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindEnquirySubjectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/privacy/enquiry-subject-candidates": {
+      "post": {
+        "operationId": "EnquiryPrivacyController_candidates",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnquirySubjectCandidatesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "privacy"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/conversion": {
+      "post": {
+        "operationId": "EnquiryConversionController_convert",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries": {
+      "post": {
+        "operationId": "EnquiriesController_create",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "get": {
+        "operationId": "EnquiriesController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NEW",
+                "CONTACTED",
+                "CONSULTATION",
+                "READY_FOR_QUOTE",
+                "CLOSED"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}": {
+      "get": {
+        "operationId": "EnquiriesController_detail",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "patch": {
+        "operationId": "EnquiriesController_update",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/assignment": {
+      "post": {
+        "operationId": "EnquiriesController_assign",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/stage": {
+      "post": {
+        "operationId": "EnquiriesController_stage",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StageEnquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/notes": {
+      "post": {
+        "operationId": "EnquiriesController_note",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnquiryNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "get": {
+        "operationId": "EnquiriesController_notes",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/activities": {
+      "get": {
+        "operationId": "EnquiriesController_activities",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/consultations": {
+      "get": {
+        "operationId": "EnquiriesController_consultations",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      },
+      "post": {
+        "operationId": "ConsultationsController_create",
+        "parameters": [
+          {
+            "name": "enquiryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConsultationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/enquiries/{enquiryId}/consultations/{consultationId}": {
+      "patch": {
+        "operationId": "ConsultationsController_update",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8–128 printable ASCII characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enquiryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "consultationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConsultationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/consultation-availability": {
+      "get": {
+        "operationId": "ConsultationsController_availability",
+        "parameters": [
+          {
+            "name": "operatorUserId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sales"
+        ]
+      }
     }
   },
   "info": {
@@ -6235,6 +7968,10 @@
           "templateKey": {
             "type": "string",
             "description": "A template key from GET /events/:id/design-templates. Omitted picks the first active template, so an event always comes with a draft invitation."
+          },
+          "templateVersionId": {
+            "type": "string",
+            "description": "Exact active version from the selected organization catalogue; a stale or unavailable version is 404."
           }
         },
         "required": [
@@ -6249,6 +7986,10 @@
           "templateKey": {
             "type": "string",
             "description": "Omitted picks the first active template"
+          },
+          "templateVersionId": {
+            "type": "string",
+            "description": "Exact active version from the selected organization catalogue; a stale or unavailable version is 404."
           }
         }
       },
@@ -6279,7 +8020,8 @@
             "description": "ISO 8601"
           },
           "endsAt": {
-            "type": "object",
+            "type": "string",
+            "format": "date-time",
             "description": "ISO 8601, or null to clear",
             "nullable": true
           },
@@ -6303,15 +8045,16 @@
             "example": "hy"
           },
           "sideALabel": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "sideBLabel": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "translations": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Per-language title and hosts, edited one language at a time; null removes one",
             "example": {
               "en": {
@@ -6430,7 +8173,7 @@
             "maxLength": 100
           },
           "lastName": {
-            "type": "object",
+            "type": "string",
             "maxLength": 100,
             "nullable": true
           }
@@ -6453,7 +8196,8 @@
           },
           "locale": {
             "type": "string",
-            "example": "hy"
+            "example": "hy",
+            "description": "One of the event's languages"
           },
           "attribution": {
             "type": "string",
@@ -6497,7 +8241,9 @@
             "description": "An empty string removes it"
           },
           "locale": {
-            "type": "string"
+            "type": "string",
+            "description": "One of the event's languages; null or an empty string clears it",
+            "nullable": true
           },
           "attribution": {
             "type": "string",
@@ -6682,7 +8428,27 @@
             "type": "string"
           },
           "value": {
-            "type": "object",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ],
             "description": "TEXT/LONG_TEXT: a string. BOOLEAN: true or false. SINGLE_CHOICE: the position of the chosen option (0-based). MULTI_CHOICE: a list of positions. SIGNATURE: statementVersionId, method TYPED/DRAWN, signerName, isAcknowledged true, locale, optional isRepresentative and assetId."
           }
         },
@@ -7090,6 +8856,9 @@
         "properties": {
           "name": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated name",
             "example": {
               "hy": "Ընդհանուր",
@@ -7098,6 +8867,9 @@
           },
           "description": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated description"
           },
           "priceMinor": {
@@ -7139,10 +8911,16 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "description": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "priceMinor": {
             "type": "string",
@@ -7173,12 +8951,12 @@
         "type": "object",
         "properties": {
           "heroAssetId": {
-            "type": "object",
+            "type": "string",
             "description": "Same-event PHOTO, COVER or LOGO; null clears the listing hero",
             "nullable": true
           },
           "ogImageId": {
-            "type": "object",
+            "type": "string",
             "description": "Same-event image for sharing; null falls back to the hero",
             "nullable": true
           },
@@ -7188,13 +8966,22 @@
           },
           "headline": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated headline"
           },
           "summary": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "body": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "categories": {
             "type": "array",
@@ -7204,10 +8991,16 @@
           },
           "ogTitle": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated link-preview title"
           },
           "ogDescription": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
             "description": "Translated link-preview description"
           },
           "isIndexable": {
@@ -7380,6 +9173,10 @@
         "properties": {
           "altText": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
             "description": "Alt text keyed by locale, e.g. { \"en\": \"Anna and Davit\" }; null removes a language",
             "example": {
               "hy": "Աննան և Դավիթը",
@@ -7390,10 +9187,6 @@
         "required": [
           "altText"
         ]
-      },
-      "Object": {
-        "type": "object",
-        "properties": {}
       },
       "SignAcknowledgementDto": {
         "type": "object",
@@ -7551,21 +9344,21 @@
             "description": "Never below the guests already seated"
           },
           "zone": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "venueId": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "description": "One of this event's venues"
           },
           "posX": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "description": "Canvas position, in the editor’s own units"
           },
           "posY": {
-            "type": "object",
+            "type": "number",
             "nullable": true
           },
           "shape": {
@@ -7714,6 +9507,45 @@
           }
         }
       },
+      "OrganizationRevisionDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ]
+      },
+      "ResolveOrganizationReviewDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "HANDOVER",
+              "CLOSE",
+              "DECLINE"
+            ]
+          },
+          "successorUserId": {
+            "type": "string",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "decision"
+        ]
+      },
       "CreateOrganizationDto": {
         "type": "object",
         "properties": {
@@ -7728,7 +9560,7 @@
               "PLANNER",
               "CORPORATE"
             ],
-            "description": "HOST for a couple, AGENCY for a planner"
+            "description": "HOST for a couple, PLANNER for a planner, CORPORATE for a company"
           }
         },
         "required": [
@@ -7746,6 +9578,48 @@
           "name"
         ]
       },
+      "ChangeOrganizationMemberDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "MANAGER",
+              "MEMBER",
+              "VIEWER"
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "role"
+        ]
+      },
+      "TransferOrganizationOwnerDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "successorUserId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "successorUserId"
+        ]
+      },
       "OpenForCustomerDto": {
         "type": "object",
         "properties": {
@@ -7760,16 +9634,200 @@
               "PLANNER",
               "CORPORATE"
             ],
-            "description": "HOST for a couple, AGENCY for a planner"
+            "description": "HOST for a couple, PLANNER for a planner, CORPORATE for a company"
           },
           "ownerEmail": {
             "type": "string",
             "description": "The customer, invited as owner; they set their own password"
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
           }
         },
         "required": [
           "name",
           "ownerEmail"
+        ]
+      },
+      "ResolveCustomerOrganizationsDto": {
+        "type": "object",
+        "properties": {
+          "ownerEmail": {
+            "type": "string",
+            "description": "Customer email; staff-only resolution"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 50,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "ownerEmail"
+        ]
+      },
+      "TemplateUpgradePreviewDto": {
+        "type": "object",
+        "properties": {
+          "targetVersionId": {
+            "type": "string"
+          },
+          "expectedDesignRevision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetVersionId",
+          "expectedDesignRevision"
+        ]
+      },
+      "TemplateAssetUploadDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PHOTO",
+              "COVER"
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "idempotencyKey",
+          "kind"
+        ]
+      },
+      "TemplateArtworkReferenceDto": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "HERO",
+              "GALLERY"
+            ]
+          }
+        },
+        "required": [
+          "assetId",
+          "slot"
+        ]
+      },
+      "AttachTemplateArtworkDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "artwork": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateArtworkReferenceDto"
+            }
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "artwork"
+        ]
+      },
+      "TemplateRevisionDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ]
+      },
+      "CreateTemplateDto": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "definition": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "definition"
+        ]
+      },
+      "PatchTemplateDraftDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "definition": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "definition"
+        ]
+      },
+      "PublishTemplateDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "previewId": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "idempotencyKey",
+          "previewId",
+          "contentHash"
+        ]
+      },
+      "TemplateAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "userId"
         ]
       },
       "ChooseTemplateDto": {
@@ -7811,15 +9869,18 @@
         "properties": {
           "content": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Translated content keyed by locale"
           },
           "settings": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Block-specific, non-translated settings"
           },
           "variant": {
             "type": "string",
-            "description": "Template layout variant, e.g. \"split\""
+            "nullable": true,
+            "description": "Template layout variant, e.g. \"split\"; null resets it"
           },
           "assetIds": {
             "description": "MediaAsset ids, in order",
@@ -7838,6 +9899,7 @@
         "properties": {
           "dietary": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "options": [
                 {
@@ -7852,6 +9914,7 @@
           },
           "drinkPreference": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "options": [
                 {
@@ -7865,18 +9928,21 @@
           },
           "songRequest": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "isEnabled": false
             }
           },
           "message": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "isEnabled": true
             }
           },
           "attribution": {
             "type": "object",
+            "additionalProperties": true,
             "example": {
               "isEnabled": true
             }
@@ -7922,10 +9988,15 @@
           },
           "prompt": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
             "description": "Translated prompt keyed by locale"
           },
           "options": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Translated choices, for the choice types"
           },
           "required": {
@@ -7953,10 +10024,15 @@
           },
           "prompt": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
             "description": "Translated prompt keyed by locale"
           },
           "options": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Translated choices, for the choice types"
           },
           "required": {
@@ -7969,6 +10045,10 @@
         "properties": {
           "label": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
             "description": "Translated name keyed by locale",
             "example": {
               "hy": "Պսակադրություն"
@@ -7979,7 +10059,7 @@
             "description": "When it happens, ISO 8601"
           },
           "venueId": {
-            "type": "object",
+            "type": "string",
             "description": "Which of this event’s venues it happens at; null detaches it",
             "nullable": true
           },
@@ -8005,6 +10085,10 @@
         "properties": {
           "label": {
             "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
             "description": "Translated name keyed by locale",
             "example": {
               "hy": "Պսակադրություն"
@@ -8015,7 +10099,7 @@
             "description": "When it happens, ISO 8601"
           },
           "venueId": {
-            "type": "object",
+            "type": "string",
             "description": "Which of this event’s venues it happens at; null detaches it",
             "nullable": true
           },
@@ -8056,31 +10140,39 @@
             "description": "Reusable directory entry this came from"
           },
           "mapUrl": {
-            "type": "string"
+            "type": "string",
+            "description": "An http or https link; null clears it",
+            "nullable": true
           },
           "arriveAt": {
             "type": "string",
-            "description": "When guests should arrive, ISO 8601"
+            "format": "date-time",
+            "description": "When guests should arrive, ISO 8601; null clears it",
+            "nullable": true
           },
           "latitude": {
             "type": "number",
             "minimum": -90,
             "maximum": 90,
-            "description": "With longitude; overrides the directory"
+            "description": "With longitude; overrides the directory; null clears it",
+            "nullable": true
           },
           "longitude": {
             "type": "number",
             "minimum": -180,
-            "maximum": 180
+            "maximum": 180,
+            "nullable": true
           },
           "capacity": {
-            "type": "number",
+            "type": "integer",
             "minimum": 1,
             "maximum": 100000,
-            "description": "Seated capacity; overrides the directory"
+            "description": "Seated capacity; overrides the directory; null clears it",
+            "nullable": true
           },
           "translations": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Per-language name and address, edited one language at a time; null removes one",
             "example": {
               "en": {
@@ -8116,31 +10208,39 @@
             "type": "string"
           },
           "mapUrl": {
-            "type": "string"
+            "type": "string",
+            "description": "An http or https link; null clears it",
+            "nullable": true
           },
           "arriveAt": {
             "type": "string",
-            "description": "When guests should arrive, ISO 8601"
+            "format": "date-time",
+            "description": "When guests should arrive, ISO 8601; null clears it",
+            "nullable": true
           },
           "latitude": {
             "type": "number",
             "minimum": -90,
             "maximum": 90,
-            "description": "With longitude; overrides the directory"
+            "description": "With longitude; overrides the directory; null clears it",
+            "nullable": true
           },
           "longitude": {
             "type": "number",
             "minimum": -180,
-            "maximum": 180
+            "maximum": 180,
+            "nullable": true
           },
           "capacity": {
-            "type": "number",
+            "type": "integer",
             "minimum": 1,
             "maximum": 100000,
-            "description": "Seated capacity; overrides the directory"
+            "description": "Seated capacity; overrides the directory; null clears it",
+            "nullable": true
           },
           "translations": {
             "type": "object",
+            "additionalProperties": true,
             "description": "Per-language name and address, edited one language at a time; null removes one",
             "example": {
               "en": {
@@ -8155,7 +10255,7 @@
         "type": "object",
         "properties": {
           "vendorId": {
-            "type": "object",
+            "type": "string",
             "description": "Active curated VENUE vendor operating this hall; null removes the link",
             "nullable": true
           },
@@ -8196,7 +10296,7 @@
         "type": "object",
         "properties": {
           "vendorId": {
-            "type": "object",
+            "type": "string",
             "description": "Active curated VENUE vendor operating this hall; null removes the link",
             "nullable": true
           },
@@ -8357,6 +10457,395 @@
         "type": "object",
         "properties": {}
       },
+      "CreateEnquiryPrivacyRequestDto": {
+        "type": "object",
+        "properties": {
+          "contactIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "EXPORT",
+              "ERASURE",
+              "RECTIFICATION"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contactIds",
+          "kind"
+        ]
+      },
+      "BindEnquirySubjectsDto": {
+        "type": "object",
+        "properties": {
+          "contactIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "append": {
+            "type": "boolean",
+            "default": false
+          },
+          "verificationNote": {
+            "type": "string"
+          },
+          "verifiedOwnerUserId": {
+            "type": "string"
+          },
+          "ownerVerificationNote": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contactIds",
+          "verificationNote"
+        ]
+      },
+      "EnquirySubjectCandidatesDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "EnquiryOwnerSetupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Petrosyan Wedding"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "PLANNER",
+              "CORPORATE"
+            ],
+            "description": "HOST for a couple, PLANNER for a planner, CORPORATE for a company"
+          },
+          "ownerEmail": {
+            "type": "string"
+          },
+          "ownerEmailSource": {
+            "type": "string",
+            "enum": [
+              "INDEPENDENT",
+              "PRIMARY_CONTACT"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "ownerEmail"
+        ]
+      },
+      "EnquiryOrganizationTargetDto": {
+        "type": "object",
+        "properties": {
+          "existingId": {
+            "type": "string"
+          },
+          "create": {
+            "$ref": "#/components/schemas/EnquiryOwnerSetupDto"
+          }
+        }
+      },
+      "EnquiryEventTargetDto": {
+        "type": "object",
+        "properties": {
+          "existingId": {
+            "type": "string"
+          },
+          "create": {
+            "$ref": "#/components/schemas/CreateEventDto"
+          }
+        }
+      },
+      "ConvertEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/EnquiryOrganizationTargetDto"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EnquiryEventTargetDto"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "organization"
+        ]
+      },
+      "EnquiryContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EnquiryRequirementsDto": {
+        "type": "object",
+        "properties": {
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "WEDDING",
+              "ENGAGEMENT",
+              "BAPTISM",
+              "BIRTHDAY",
+              "ANNIVERSARY",
+              "CORPORATE",
+              "OTHER"
+            ],
+            "nullable": true
+          },
+          "approximateLocalDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "approximateTimezone": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedGuestCount": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "CreateEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/EnquiryContactDto"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/EnquiryRequirementsDto"
+          },
+          "preferredLocale": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "PHONE",
+              "MESSAGING",
+              "IN_PERSON",
+              "EMAIL",
+              "OTHER"
+            ],
+            "nullable": true
+          },
+          "assignedUserId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "contact"
+        ]
+      },
+      "UpdateEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/EnquiryContactDto"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/EnquiryRequirementsDto"
+          },
+          "preferredLocale": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "PHONE",
+              "MESSAGING",
+              "IN_PERSON",
+              "EMAIL",
+              "OTHER"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ]
+      },
+      "AssignEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "assignedUserId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "assignedUserId"
+        ]
+      },
+      "StageEnquiryDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "CONSULTATION",
+              "READY_FOR_QUOTE",
+              "CLOSED"
+            ]
+          },
+          "closureReason": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER_DECLINED",
+              "UNREACHABLE",
+              "DUPLICATE",
+              "OTHER"
+            ]
+          },
+          "closureNote": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "stage"
+        ]
+      },
+      "EnquiryNoteDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "body": {
+            "type": "string"
+          },
+          "consultationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "body"
+        ]
+      },
+      "CreateConsultationDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "operatorUserId": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "operatorUserId",
+          "startsAt",
+          "endsAt",
+          "timezone"
+        ]
+      },
+      "UpdateConsultationDto": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "number"
+          },
+          "expectedConsultationRevision": {
+            "type": "number"
+          },
+          "operatorUserId": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "expectedConsultationRevision"
+        ]
+      },
       "FieldFeedbackDto": {
         "type": "object",
         "properties": {
@@ -8385,6 +10874,37 @@
           "code": {
             "type": "string",
             "enum": [
+              "ENQUIRY_CHANGED",
+              "CONSULTATION_CONFLICT",
+              "IDEMPOTENCY_CONFLICT",
+              "SUBJECT_ERASED",
+              "NO_CHANGE",
+              "TEMPLATE_REVISION_CONFLICT",
+              "TEMPLATE_OPEN_DRAFT_EXISTS",
+              "TEMPLATE_IDEMPOTENCY_CONFLICT",
+              "TEMPLATE_PREVIEW_STALE",
+              "TEMPLATE_PREVIEW_REQUIRED",
+              "TEMPLATE_ASSET_NOT_READY",
+              "TEMPLATE_REFERENCED",
+              "TEMPLATE_CAPABILITY_NOT_DEPLOYED",
+              "TEMPLATE_ACTION_FORBIDDEN",
+              "TEMPLATE_DRAFT_NOT_FOUND",
+              "TEMPLATE_ASSET_NOT_FOUND",
+              "TEMPLATE_FEATURE_DISABLED",
+              "TEMPLATE_ASSET_TYPE_UNSUPPORTED",
+              "TEMPLATE_ASSET_INVALID",
+              "TEMPLATE_VALIDATION_FAILED",
+              "TEMPLATE_CAPABILITY_REQUIRED",
+              "TEMPLATE_STATE_CHANGED",
+              "TEMPLATE_ACCESS_DENIED",
+              "TEMPLATE_PREVIEW_UNAVAILABLE",
+              "TEMPLATE_NOT_FOUND",
+              "ORGANIZATION_SELECTION_REQUIRED",
+              "ORGANIZATION_CONTEXT_MISMATCH",
+              "ORGANIZATION_ACCESS_DENIED",
+              "OWNER_HANDOVER_REQUIRED",
+              "IDEMPOTENCY_KEY_REUSED",
+              "REVISION_CHANGED",
               "SEATING_VENUE_CAPACITY",
               "SEATING_FAMILY_TABLE_FULL",
               "SEATING_NO_TABLES",
@@ -8440,7 +10960,9 @@
               "WAIT",
               "REUPLOAD",
               "CONTACT_SUPPORT",
-              "RETRY"
+              "RETRY",
+              "SELECT_ORGANIZATION",
+              "HAND_OVER_OWNERSHIP"
             ]
           }
         },
@@ -8457,6 +10979,37 @@
           "code": {
             "type": "string",
             "enum": [
+              "ENQUIRY_CHANGED",
+              "CONSULTATION_CONFLICT",
+              "IDEMPOTENCY_CONFLICT",
+              "SUBJECT_ERASED",
+              "NO_CHANGE",
+              "TEMPLATE_REVISION_CONFLICT",
+              "TEMPLATE_OPEN_DRAFT_EXISTS",
+              "TEMPLATE_IDEMPOTENCY_CONFLICT",
+              "TEMPLATE_PREVIEW_STALE",
+              "TEMPLATE_PREVIEW_REQUIRED",
+              "TEMPLATE_ASSET_NOT_READY",
+              "TEMPLATE_REFERENCED",
+              "TEMPLATE_CAPABILITY_NOT_DEPLOYED",
+              "TEMPLATE_ACTION_FORBIDDEN",
+              "TEMPLATE_DRAFT_NOT_FOUND",
+              "TEMPLATE_ASSET_NOT_FOUND",
+              "TEMPLATE_FEATURE_DISABLED",
+              "TEMPLATE_ASSET_TYPE_UNSUPPORTED",
+              "TEMPLATE_ASSET_INVALID",
+              "TEMPLATE_VALIDATION_FAILED",
+              "TEMPLATE_CAPABILITY_REQUIRED",
+              "TEMPLATE_STATE_CHANGED",
+              "TEMPLATE_ACCESS_DENIED",
+              "TEMPLATE_PREVIEW_UNAVAILABLE",
+              "TEMPLATE_NOT_FOUND",
+              "ORGANIZATION_SELECTION_REQUIRED",
+              "ORGANIZATION_CONTEXT_MISMATCH",
+              "ORGANIZATION_ACCESS_DENIED",
+              "OWNER_HANDOVER_REQUIRED",
+              "IDEMPOTENCY_KEY_REUSED",
+              "REVISION_CHANGED",
               "SEATING_VENUE_CAPACITY",
               "SEATING_FAMILY_TABLE_FULL",
               "SEATING_NO_TABLES",
@@ -8512,7 +11065,9 @@
               "WAIT",
               "REUPLOAD",
               "CONTACT_SUPPORT",
-              "RETRY"
+              "RETRY",
+              "SELECT_ORGANIZATION",
+              "HAND_OVER_OWNERSHIP"
             ]
           },
           "statusCode": {

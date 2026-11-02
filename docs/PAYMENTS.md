@@ -65,10 +65,16 @@ differ.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/payments/:orderNumber` | Current state |
-| `POST` | `/api/payments/:orderNumber/confirm` | Ask the bank what happened |
-| `POST` | `/api/payments/:orderNumber/refund` | Full or partial refund |
-| `POST` | `/api/payments/reconcile` | Sweep everything unresolved |
+| `GET` | `/api/v1/payments/:orderNumber` | Current state |
+| `POST` | `/api/v1/payments/:orderNumber/confirm` | Ask the bank what happened |
+| `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |
+| `POST` | `/api/v1/payments/reconcile` | Sweep everything unresolved |
+
+Paid subscription selection validates local provider registration before issuing
+or replacing an invoice. An unconfigured provider returns `404` without consuming
+a number or changing an existing invoice/subscription. Registration is not bank
+certification or a network/credential probe; bank failures after registration keep
+the existing reconciliation behavior. Pilot refusal remains `403` before this check.
 
 There is no endpoint to start a payment. Ticket checkout and subscriptions
 start their own, deciding organization, purpose and amount themselves; a
@@ -93,7 +99,13 @@ identical requests resulting in exactly one payment.
 
 **Status only moves forwards.** The transition table makes a captured payment
 reverting to pending inexpressible. Transitions are a compare-and-set on the
-status we read, so two concurrent callbacks cannot both apply.
+status we read, so two concurrent callbacks cannot both apply. The one that
+loses answers with what the winner recorded, whichever side of its read the
+winner committed on — a win before the read used to surface as a `409`. The
+exception is a disagreement rather than a race: the bank reports `AUTHORIZED`
+or `CAPTURED` for a payment recorded `FAILED`, `CANCELLED` or `EXPIRED`
+meanwhile. That stays a `409` and is logged, because answering "expired" for
+money the bank took would invite the payer to pay again.
 
 **Reconciliation is not optional.** Callbacks get lost — an abandoned redirect,
 a timed-out webhook. Without the sweep, a customer the bank charged has an
@@ -175,7 +187,10 @@ seats still free (`sellLate`), or — when they were sold meanwhile — refunded
 in full, claim-first, and the buyer told (decided 9 October 2026). A refused
 refund reopens the claim for the next sweep. Invoices follow the same rule:
 captured pays them, unless a newer plan change had voided them, in which case
-the payment is refunded.
+the payment is refunded. An invoice whose payment ended without money moving
+(`FAILED`, `CANCELLED`, `EXPIRED`) is still owed: a retry starts its next
+payment under a key derived from the spent one, and the invoice is linked even
+to an attempt the bank refused, so concurrent retries share one new payment.
 
 **Every reconciliation is followed by settlement.** `MoneySweepService`
 reconciles, then settles captured ticket orders and invoices — the customers
@@ -222,6 +237,10 @@ commit.
 **Confirmation emails cannot be lost.** They are queued after settlement with
 a dedupe key; a retried settlement queues again (a no-op if it exists), and a
 sweep queues any paid or cancelled order from the last week that has none.
+An order whose notice keeps failing (its organization has no copy for it, say)
+stays eligible all week, so the sweep does not start from the top each run: it
+takes the batch after the last one and starts over when it reaches the end. A
+full batch of failing orders cannot keep every other buyer waiting.
 
 These are covered by `test/integration/transaction-safety.int-spec.ts` and
 `ticket-settlement.int-spec.ts`, which run the concurrent cases rather than
@@ -296,9 +315,10 @@ See [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §13.
 
 ## 8. Not yet built
 
-- **Subscriptions.** `Plan`, `Subscription` and `Invoice` are modelled, and
-  `Subscription.bindingRef` is where a stored-card token goes. Nothing charges
-  or renews yet. Recurring charges on these gateways mean **card binding** —
+- **Subscription renewal and dunning.** Plan selection, first-period invoice
+  charging and settlement are built outside pilot mode; automatic renewal and
+  dunning are not. `Subscription.bindingRef` is reserved for a stored-card token;
+  no flow obtains one yet. Recurring charges on these gateways mean **card binding** —
   the bank holds the card and returns a token — which is a different API
   surface and usually a separate authorization from the bank.
 - **Deposits wired to the booking flow.** The payment core supports it; nothing

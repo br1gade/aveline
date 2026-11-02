@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { Sentry } from '../../infra/observability/sentry';
 import type { Request, Response } from 'express';
+import { DomainHttpException } from '../domain-http.exception';
 import { redactUrl } from '../redact-url';
 import { localizeHttpError, requestLanguage } from '../localized-feedback';
 
@@ -48,7 +49,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       message,
-      ...localizeHttpError(status, message, requestLanguage(request)),
+      ...localizeHttpError(status, message, requestLanguage(request), exception instanceof DomainHttpException ? exception.code : undefined),
       requestId: request.requestId,
       path: redactUrl(request.url),
       at: new Date().toISOString(),

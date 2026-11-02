@@ -22,6 +22,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class TicketNotifierService {
   private readonly logger = new Logger(TicketNotifierService.name);
   private readonly appUrl: string;
+  /** Where the next sweep resumes. Per process: losing it only restarts the rotation. */
+  private sweepCursor: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -78,12 +80,29 @@ export class TicketNotifierService {
    * for cancelled and refunded ones, from the last week. Settlement swallows
    * a failure to queue — rightly, the money has moved — so without this sweep
    * one database blip meant a buyer who was never told.
+   *
+   * Each run takes the batch after the last one; a short batch means the end
+   * was reached and the next run starts over. An order whose notice keeps
+   * failing (its organization has no copy, say) writes no message and so
+   * stays eligible all week; read from the start every time, a batch of those
+   * was all the sweep ever reached, and every buyer behind them went untold.
    */
   async sendMissing(limit = 50): Promise<{ queued: number }> {
-    const orders = await this.prisma.$queryRaw<{ id: string; status: string }[]>`
+    const orders = await this.ordersWithoutNotice(this.sweepCursor, limit);
+    this.sweepCursor = orders.length < limit ? null : orders[orders.length - 1].id;
+
+    for (const order of orders) {
+      await (order.status === 'PAID' ? this.sendTickets(order.id) : this.sendCancellation(order.id));
+    }
+    return { queued: orders.length };
+  }
+
+  private ordersWithoutNotice(after: string | null, limit: number) {
+    return this.prisma.$queryRaw<{ id: string; status: string }[]>`
       SELECT o.id, o.status::text AS status FROM ticket_orders o
        WHERE o.status IN ('PAID', 'CANCELLED', 'REFUNDED')
          AND o."updatedAt" > now() - interval '7 days'
+         AND (${after}::text IS NULL OR o.id > ${after})
          AND NOT EXISTS (
            SELECT 1 FROM messages m
             WHERE m."dedupeKey" = (CASE WHEN o.status = 'PAID' THEN 'ticket-issued:' ELSE 'ticket-cancelled:' END) || o.id)
@@ -93,12 +112,8 @@ export class TicketNotifierService {
          AND (o.status = 'PAID' OR o."paymentOrderNumber" IS NULL OR EXISTS (
            SELECT 1 FROM refunds r JOIN payments p ON p.id = r."paymentId"
             WHERE p."orderNumber" = o."paymentOrderNumber" AND r.status = 'COMPLETED'))
+       ORDER BY o.id
        LIMIT ${limit}`;
-
-    for (const order of orders) {
-      await (order.status === 'PAID' ? this.sendTickets(order.id) : this.sendCancellation(order.id));
-    }
-    return { queued: orders.length };
   }
 
   /**

@@ -1,3 +1,4 @@
+import { SalesModule } from './modules/sales/sales.module';
 import { GuestContributionsModule } from './modules/guest-contributions/guest-contributions.module';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
@@ -85,6 +86,7 @@ import { SeatingModule } from './modules/seating/seating.module';
     DesignModule,
     ExportsModule,
     PrivacyModule,
+    SalesModule,
 
     // Last: its sweeps depend on the domain modules above.
     JobsModule,

@@ -39,10 +39,18 @@
     "seed:production": "ts-node src/seed-production.ts",
     "start:export-worker": "node --max-old-space-size=384 dist/export-worker.js",
     "start:seating-worker": "node --max-old-space-size=256 dist/seating-worker.js",
+    "start:template-asset-worker": "node --max-old-space-size=256 dist/template-asset-worker.js",
     "start:private-media-worker": "node --max-old-space-size=256 dist/private-media-worker.js",
     "pilot:cache": "ts-node scripts/personalized-cache-rehearsal.ts",
     "test:pilot": "node --test --test-isolation=none scripts/pilot/*.test.mjs",
-    "pilot:production-rehearsal": "node scripts/pilot/run.mjs"
+    "pilot:production-rehearsal": "node scripts/pilot/run.mjs",
+    "ops": "node scripts/ops.mjs",
+    "test:ops": "node --test --test-isolation=none scripts/ops.test.mjs",
+    "ops:rehearsal": "node scripts/ops-rehearsal.mjs",
+    "test:ci": "node --test --test-isolation=none scripts/ci-test-results.test.mjs scripts/local-ci.test.mjs",
+    "ci:local": "node scripts/local-ci.mjs run",
+    "ci:status": "node scripts/local-ci.mjs status",
+    "ci:install-hook": "node scripts/local-ci.mjs install-hook"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -74,6 +82,7 @@
     "pdfkit": "0.20.2",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
+    "prisma": "6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.35.5",
@@ -101,7 +110,6 @@
     "pg": "^8.23.1",
     "pino-pretty": "^13.2.0",
     "prettier": "^3.4.2",
-    "prisma": "^6.19.3",
     "supertest": "^7.0.0",
     "ts-jest": "^29.4.14",
     "ts-node": "^10.9.2",

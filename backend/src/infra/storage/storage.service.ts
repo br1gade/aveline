@@ -6,23 +6,16 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { FileToStore, STORAGE_ADAPTER, StorageAdapter, StoredFile } from './storage-port';
-
-/**
- * No SVG (decided 10 October 2026, D18): an SVG can carry script, which runs
- * the moment media is served from the app's own origin.
- */
-const ALLOWED_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/avif',
-  'audio/mpeg',
-  'audio/mp4',
-]);
+import { detectMediaType } from './media-type';
 
 /** The largest file accepted. Also the upload limit, so a bigger one is refused before it is buffered. */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
+/**
+ * The allowlist — every type accepted, with the extension its key gets. No
+ * SVG (decided 10 October 2026, D18): an SVG can carry script, which runs the
+ * moment media is served from the app's own origin.
+ */
 const EXTENSIONS: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
@@ -45,8 +38,8 @@ export class StorageService {
   constructor(@Inject(STORAGE_ADAPTER) private readonly adapter: StorageAdapter) {}
 
   async put(file: FileToStore): Promise<StoredFile> {
-    this.assertAcceptable(file);
-    return this.adapter.put(file, newStorageKey(file.mimeType));
+    const accepted = { ...file, mimeType: acceptedTypeOf(file) };
+    return this.adapter.put(accepted, newStorageKey(accepted.mimeType));
   }
 
   get(key: string): Promise<Buffer> {
@@ -71,16 +64,33 @@ export class StorageService {
   get backend(): StorageAdapter['kind'] {
     return this.adapter.kind;
   }
-
-  private assertAcceptable(file: FileToStore): void {
-    if (!ALLOWED_MIME_TYPES.has(file.mimeType)) {
-      throw new UnsupportedMediaTypeException(`${file.mimeType} is not an accepted file type`);
-    }
-    if (file.buffer.byteLength > MAX_UPLOAD_BYTES) {
-      throw new PayloadTooLargeException(`Files must be ${MAX_UPLOAD_BYTES / 1024 / 1024}MB or smaller`);
-    }
-  }
 }
+
+/**
+ * The type a file is stored as: the one its bytes carry, provided it is on
+ * the allowlist and the same kind — image or audio — the caller declared,
+ * since the caller chose the media kind from that declaration.
+ */
+function acceptedTypeOf(file: FileToStore): string {
+  if (file.buffer.byteLength > MAX_UPLOAD_BYTES) {
+    throw new PayloadTooLargeException(
+      `Files must be ${MAX_UPLOAD_BYTES / 1024 / 1024}MB or smaller`,
+    );
+  }
+  const detected = detectMediaType(file.buffer);
+  if (
+    !detected ||
+    !Object.hasOwn(EXTENSIONS, detected) ||
+    familyOf(detected) !== familyOf(file.mimeType)
+  ) {
+    throw new UnsupportedMediaTypeException(
+      `${file.mimeType} is not an accepted file type, or the file's contents are not one`,
+    );
+  }
+  return detected;
+}
+
+const familyOf = (mimeType: string) => mimeType.split('/')[0];
 
 /**
  * The stored name is generated, never derived from what was uploaded: a

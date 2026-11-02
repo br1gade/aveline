@@ -1,3 +1,4 @@
+import { EventScope } from '../../infra/auth/actor';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TicketOrderStatus } from '@prisma/client';
@@ -23,6 +24,7 @@ class OrderStatusQuery {
  * is the buyer's side and mostly public.
  */
 @ApiTags('ticketing')
+@EventScope('eventId')
 @Controller('events/:eventId')
 export class TicketSetupController {
   constructor(

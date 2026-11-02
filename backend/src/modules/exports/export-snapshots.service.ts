@@ -1,9 +1,10 @@
+import { lockEventOrganization } from '../../infra/auth/access-locks';
 import { EXPORT_TYPES } from './renderers/export-document';
 import { BadRequestException, ConflictException, ForbiddenException, GoneException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ExportSnapshot } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PrivateStorageService } from '../../infra/storage/private/private-storage';
-import { exportAccess } from './export-access';
+import { exportAccess, lockExportAccess } from './export-access';
 import { CreateExportSnapshotDto } from './dto/export-snapshot.dto';
 
 @Injectable()
@@ -12,9 +13,10 @@ export class ExportSnapshotsService {
 
   async create(eventId: string, userId: string, dto: CreateExportSnapshotDto) {
     const record = await this.prisma.$transaction(async (tx) => {
+      await lockEventOrganization(tx, eventId);
       // Bounds queue admission across API replicas and concurrent requests.
       await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
-      const access = await exportAccess(tx, eventId, userId);
+      const access = await lockExportAccess(tx, eventId, userId);
       const hasContacts = resolveContacts(dto, access.canSeeContacts);
       const event = await tx.event.findUniqueOrThrow({ where: { id: eventId }, select: { defaultLocale: true } });
       const data = { eventId, requestedByUserId: userId, idempotencyKey: dto.idempotencyKey, kind: dto.kind, format: dto.format ?? 'CSV',

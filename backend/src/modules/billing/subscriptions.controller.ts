@@ -40,7 +40,8 @@ export class SubscriptionsController {
     summary: 'Start or change a subscription',
     description:
       'A free plan takes effect at once. A paid one issues an invoice and ' +
-      'returns a bank form URL; access begins when that payment confirms.',
+      'returns a bank form URL; access begins when that payment confirms. ' +
+      'An unconfigured provider returns 404 before billing records change.',
   })
   subscribe(@CurrentActor() actor: RequestActor, @Body() dto: SubscribeDto) {
     return this.subscriptions.subscribe(actor.organizationId ?? '', dto);

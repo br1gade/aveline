@@ -38,6 +38,7 @@ export class GuestManagementService {
     const phone = accepted(readPhone(dto.phone));
 
     const guest = await this.prisma.$transaction(async (tx) => {
+      const locale = await publishedLocale(tx, eventId, dto.locale);
       const { householdId, isFirst } = await this.householdToJoin(tx, eventId, dto);
 
       return tx.guest.create({
@@ -48,7 +49,7 @@ export class GuestManagementService {
           lastName: dto.lastName?.trim() || null,
           email: toColumn(email) ?? null,
           phone: toColumn(phone) ?? null,
-          locale: dto.locale ?? null,
+          locale: locale ?? null,
           attribution: dto.attribution,
           token: newGuestToken(),
           // The first person in a household holds its invitation link.
@@ -76,6 +77,7 @@ export class GuestManagementService {
       }
 
       await this.moveIfAsked(tx, eventId, current, dto.householdId);
+      const locale = await publishedLocale(tx, eventId, dto.locale);
 
       return tx.guest.update({
         where: { id: guestId },
@@ -84,7 +86,7 @@ export class GuestManagementService {
           lastName: dto.lastName === undefined ? undefined : dto.lastName.trim() || null,
           email: toColumn(email),
           phone: toColumn(phone),
-          locale: dto.locale,
+          locale,
           attribution: dto.attribution,
         },
       });
@@ -268,6 +270,30 @@ async function settleHousehold(
 function accepted(input: AddressInput): AddressInput {
   if (input.kind === 'invalid') throw new BadRequestException(input.message);
   return input;
+}
+
+/**
+ * The language to store: left alone when omitted, cleared by null or "", and
+ * otherwise one the event publishes — the guest's messages and page are
+ * rendered in it, and a language the event has no copy for falls back anyway.
+ */
+async function publishedLocale(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  locale: string | null | undefined,
+) {
+  if (locale === undefined) return undefined;
+  if (!locale) return null;
+  const event = await tx.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: { locales: true },
+  });
+  if (!event.locales.includes(locale)) {
+    throw new BadRequestException(
+      `locale: this event is published in ${event.locales.join(', ')}, not ${locale}`,
+    );
+  }
+  return locale;
 }
 
 function guestView(guest: Guest) {

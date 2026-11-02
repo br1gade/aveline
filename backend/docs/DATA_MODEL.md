@@ -1,6 +1,6 @@
 # Data Model
 
-The authoritative map of what is stored and where. 65 models across three
+The authoritative map of what is stored and where. 95 PostgreSQL models across three
 stores. [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §4 explains *why* the core entities
 exist; this is the complete inventory.
 
@@ -10,7 +10,7 @@ exist; this is the complete inventory.
 
 | Store | Holds | Models |
 |---|---|---|
-| **PostgreSQL** | The entire domain. The only source of truth | 65 |
+| **PostgreSQL** | The entire domain. The only source of truth | 95 |
 | **Redis** | Cached reads, locks. Rebuildable | — |
 | **MongoDB** | Append-only observability | `invitation_events` |
 
@@ -29,6 +29,10 @@ lives outside Postgres.
 | `OrganizationInvite` | Adding a teammate, addressed to an email |
 | `EventInvite` | Bringing someone onto one event with a role; grants nothing in the organization |
 | `OrganizationMembership` · `EventMembership` | Standing on an organization / one event |
+| `RuntimeCompatibility` | Minimum supported backend reader and explicit additional-membership write gate |
+| `OrganizationCreateIntent` | Actor-bound idempotency for additional organization creation |
+| `OrganizationAccessReview` | ADMIN-reviewed closure or ownership recovery |
+| `OrganizationAccessChange` | Transactional role and departure evidence without contacts or credentials |
 
 ### The event
 | Model | Purpose |
@@ -38,10 +42,21 @@ lives outside Postgres.
 | `TimelineEntry` | A moment with a time and a place |
 | `EventListing` | The public face of a PUBLIC or UNLISTED event |
 
+Event `(id, organizationId)` is also a unique reference key. Tenant-scoped
+child records can reference both values together so an event ID cannot be paired
+with a different organization. This adds no event-transfer behavior.
+
 ### Invitation and design
 | Model | Purpose |
 |---|---|
-| `DesignTemplate` | Fonts, palettes and blocks a template renders correctly |
+| `DesignTemplate` | Stable shared or organization-private template identity |
+| `DesignTemplateVersion` | Immutable published definition, renderer manifest and content hash |
+| `TemplateDraft` · `TemplateAssignment` | Revision-checked authoring and explicit SUPPORT assignment |
+| `TemplateAudit` · `TemplateReceipt` | Authoring history and actor-bound idempotency receipts |
+| `TemplatePreview` | Expiring actor-bound publication or adoption preview |
+| `DesignTemplateAsset` · `DesignTemplateStoredObject` | Sanitized private sources and durable object cleanup ledger |
+| `DesignTemplateAssetReference` | Ordered draft/version artwork references |
+| `TemplateMaterialization` · `InvitationTemplateAsset` | Durable event-copy preparation and exact-version private bindings |
 | `Invitation` | Published page; captured first publication, duration/source/plan key, expiry and processed marker |
 | `GuestPageVersion` · `GuestPageChange` | Coarse compatibility revision and committed per-event transaction ledger |
 | `GuestPayloadVersion` · `GuestPayloadChange` | Independent shared-content and household payload counters; append-only writes, bounded atomic compaction, no parent FKs to preserve domain lock order |
@@ -50,11 +65,24 @@ lives outside Postgres.
 | `GuestMedia` | Private raw/derived keys, processing/moderation, reserved bytes and durable deletion tombstones |
 | `QuestionStatement` · `GuestAcknowledgement` | Immutable question versions and actual signer/represented subject evidence |
 
+### Staff enquiry intake
+| Model | Purpose |
+|---|---|
+| `SalesEnquiry` · `EnquiryContact` | Assigned internal case and separately redactable contact |
+| `EnquiryContactAddress` | Historical address fingerprints for verified subject discovery |
+| `EnquiryNote` · `Consultation` | Internal notes and nonoverlapping operator appointments |
+| `EnquiryActivity` · `EnquiryCommand` | Revision history and actor-bound command receipts |
+| `EnquiryConversion` · `OwnerInviteDelivery` | Explicit draft setup links and privacy-checked owner invitation provenance |
+| `EnquiryPrivacyFence` | Serializes subject erasure with intake and conversion writes |
+| `EnquiryErasureTombstone` · `EnquiryPrivacyRedaction` | Erasure state and independently journaled recovery checkpoints |
+| `DataSubjectRequestEnquirySubject` | Explicitly reviewed contact scope for a privacy request |
+
 ### Guest graph — the core asset
 | Model | Purpose |
 |---|---|
 | `Household` | The unit invitations and seating operate on |
 | `Guest` | A person, reached by capability token |
+| `GuestChannel` | Channel addresses and opt-in evidence for a guest |
 | `AttendancePolicy` · `AttendanceResponse` | Versioned attendance modes and person/venue answers; one active policy per event |
 | `Rsvp` · `RsvpQuestion` · `RsvpAnswer` | The response, and host-authored questions |
 | `GuestImport` | One upload, with per-row errors |
@@ -77,6 +105,7 @@ lives outside Postgres.
 | Model | Purpose |
 |---|---|
 | `Payment` · `PaymentEvent` | A charge, and every state transition with the provider's payload |
+| `InvoiceCounter` | Atomic invoice-number sequence per configured series |
 | `Refund` | Individual refunds; `Payment.refundedMinor` is the running total |
 | `Plan` · `Subscription` · `Invoice` | Recurring billing (PRODUCT_SPEC §9.4). `Plan.invitationLifetimeDays` is how long an invitation stays live — null means indefinitely |
 
@@ -180,10 +209,23 @@ reject the bad row.
 The multi-venue migration creates arrangements, backfills existing tables/seats
 and release markers, then constrains the new columns. Missing venue membership
 stays unspecified. Triggers create event/venue arrangements, derive table/seat
-write fields and enforce release-table scope, including bulk writes; their `NULL::text` Prisma
-defaults are filled before NOT NULL checks. A conflicting explicit field is
-rejected. Keep triggers and partial indexes in SQL migrations; Prisma does not
-model them. Legacy release columns remain historical input, not current view data.
+write fields and enforce release-table scope, including bulk writes. The schema
+declares those columns `@default(dbgenerated())` so a create may omit them, and
+the trigger fills them before NOT NULL checks. A conflicting explicit field is
+rejected. Keep triggers, checks and partial indexes in SQL migrations; Prisma
+does not model or diff them. Legacy release columns remain historical input, not
+current view data.
+
+**`schema.prisma` declares every foreign key, unique and index the migrations
+build**, including the template owner-scope fences (`(templateId,
+ownerScopeKey)` and `(id, templateId, ownerScopeKey)` keys on versions, drafts,
+assets, artwork references, bindings and invitations) and the event-tenant keys
+`(eventId, organizationId)`. Each is a relation with `map:` set to the SQL name
+and its exact `onDelete`/`onUpdate`; a constraint Prisma does not see is one the
+next `migrate diff` drops. `critique.int-spec.ts` fails when that diff against a
+freshly migrated database is not empty. Because `design_templates.id` sits
+inside the active-version fence, Prisma will not generate it: the database does,
+as `gen_random_uuid()::text`. Template ids are opaque strings either way.
 
 ### Durable automatic seating
 
@@ -280,3 +322,80 @@ Ticket attendee erasure clears the captured roster and reconciliation snapshot
 independently of buyer details and invalidates the checkout fingerprint. Issuance
 re-reads the roster after claiming the order, so delayed settlement cannot
 restore erased data. Existing guest/ticket links are retained for headcounts.
+
+### Organization compatibility records
+
+Organization.accessRevision fences member lifecycle writes. Invitations retain the
+accepted user ID for password-proven replay without restoring removed roles.
+OrganizationCreateIntent binds actor/key/fingerprint to the created tenant;
+OrganizationAccessReview stores minimal ADMIN closure/recovery state without contacts.
+RuntimeCompatibility is the shared revision and additional-membership write gate.
+The user-only membership unique index remains until an explicit maintenance cutover.
+
+### F39 staff enquiry storage
+
+Additive empty tables `sales_enquiries`, `enquiry_contacts`,
+`enquiry_contact_addresses`, `enquiry_notes`, `consultations`,
+`enquiry_activities`, `enquiry_commands`, `enquiry_conversions`,
+`owner_invite_deliveries`, `enquiry_privacy_fences`,
+`enquiry_erasure_tombstones`, `enquiry_privacy_redactions` and
+`data_subject_request_enquiry_subjects` hold staff intake independently of
+customer membership and financial records. Activity/command metadata contains
+IDs and state only; no contact snapshots or note bodies. Receipt intents use a
+versioned dedicated HMAC keyring and are permanently spent after redaction.
+
+Database checks enforce contact/redaction/closure/lifecycle shape. Tenant
+composite foreign keys prevent event mismatches; deferred linkage checks require
+conversion and enquiry targets to agree. Consultation scheduling uses timestamp
+with time zone and a GiST exclusion for each operator's scheduled `[start,end)`
+interval. Assignment/admin queues, contact exact/prefix lookup, bounded sections,
+operator calendars and due cleanup have corresponding indexes. No enquiry
+email uniqueness or automatic subject merge exists.
+
+`DataSubjectRequest.subjectEmail` is nullable for manually reviewed staff enquiry
+subjects; existing rows remain EMAIL sources and public submission still requires
+an email. Reviewed bindings contain contact IDs. Enquiry erasure is applied under
+an exclusive intake fence before legacy household/account locks and completes a
+request only after its minimal receipts reach the independently preserved signed
+journal. Latest closure anchors six UTC calendar months with month-end clamping;
+reopen clears the deadline but never restores cleared data. Retention never
+creates a global suppression or deletes finance/account records.
+
+Not yet enabled: intake HTTP/conversion rollout, independent production journal
+storage acceptance and four-language frontend acceptance. No historical enquiry
+rows are inferred during migration.
+
+OrganizationAccessChange is minimal transactional authority evidence: organization,
+actor/subject IDs, action, previous/current role, access revision and revoked event
+role count. It contains no email, notes, invitation token or message body. Rows
+commit with create/join/role change/departure/ADMIN resolution and survive account
+soft erasure. Accepted invitation user IDs have nullable SET NULL foreign keys;
+legacy accepted rows remain null and cannot become replay credentials.
+### Organization compatibility records
+
+Organization.accessRevision fences member lifecycle writes. Invitations retain the
+accepted user ID for password-proven replay without restoring removed roles.
+OrganizationCreateIntent binds actor/key/fingerprint to the created tenant;
+OrganizationAccessReview stores minimal ADMIN closure/recovery state without contacts.
+RuntimeCompatibility is the shared revision and additional-membership write gate.
+The user-only membership unique index remains until an explicit maintenance cutover.
+
+Staff enquiry requests may additionally store a nullable `verifiedOwnerUserId`
+and `ownerAccountVerifiedAt` after separate ADMIN identity verification of an
+exact accepted owner reached through PRIMARY_CONTACT provenance. STAFF_ENQUIRY
+rows keep null email until that separate proof supplies the real account email.
+An equal/shared email does not infer account identity. Reviewed candidate lookup
+is cursor-paged and binding batches may append to a larger verified subject set.
+
+`EnquiryPrivacyRedaction.verifiedOwnerUserId` is an optional opaque ID in signed
+receipts, allowing old-backup replay to reapply erasure to that specifically
+verified account and revoke restored sessions. No account email or identity
+evidence enters the external journal. Existing rows need no backfill. Linked
+organization/channel/address suppressions are atomically promoted to ERASED,
+including an existing hashed unsubscribe; unrelated scopes and ordinary retention
+are unaffected.
+
+RuntimeCompatibility.minimumRevision now defaults to 3 for combined F38/F39/F44
+readers. Its forward migration raises an existing lower floor without downgrading
+a future floor or changing multiOrganizationWrites. Historical migration-only
+fixtures retain the original revision-2 state they are intended to verify.

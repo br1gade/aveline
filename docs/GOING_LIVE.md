@@ -33,6 +33,23 @@ all eight local latency gates. Actual-host performance acceptance, required
 human review of export/recovery-message translations and external/frontend acceptance still
 block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 
+**The client is partial and unmerged.** It lives on `frontend/guest-invitation`
+and `frontend/publish-send`, not on `main` or `dev`. As of 29 October 2026 it
+covers accounts, events, venues, the guest list and import, the invitation
+designer, publishing, sending and the guest reply. Seating, the door
+(check-in), exports, tickets and checkout, billing, the event team,
+acknowledgements, the gallery and archiving have no screens yet. The client's
+own "not yet built" list is its `frontend/docs/ARCHITECTURE.md` §12.
+
+Backend items the client team raised that still hold (IDs are in its
+`frontend/docs/BACKEND_REQUESTS.md`). FR-7, FR-27, and the schema, privacy and
+validation items answered on 31 October 2026 are listed in
+[TODO.md](TODO.md) T1:
+
+| Item | Why it blocks |
+|---|---|
+| **FR-11** No web service in `docker-compose.prod.yml`; Caddy serves only `API_DOMAIN` | The client has nowhere to run in production, and one-origin vs. separate-origin (CORS, `PUBLIC_APP_URL`, payment `returnUrl`) is not agreed |
+
 ### Money
 
 | # | Blocker | Why |
@@ -42,6 +59,7 @@ block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 | 3 | **Ameriabank certification not done** | Requires at least five successful completed REST payments in their test environment before production access is granted |
 | 4 | **One-step vs two-step not decided** | Deposits probably want authorize-then-capture, which must be requested from the bank separately |
 | 4b | **Three suspected field mismatches** | Ameriabank's `OrderID` may need to be an integer; ArCa may expect AMD in luma (× 100); Ameriabank's `OrderStatus` is read with ArCa's codes. Each must be confirmed against the bank's own specification — see PAYMENTS.md §6 |
+| 4c | **The bank's order lifetime is not tied to ours** | We expire an unpaid order after an hour, but `registerOrder` sends the bank no session timeout, so its form may stay payable longer. A payment the bank captures after we wrote it off is never asked about again (`EXPIRED` is final), and a retried paid subscribe now starts a fresh payment for the invoice — two charges for one invoice. Send the bank a lifetime no longer than `ORDER_LIFETIME_MS`, or keep asking about recently expired orders |
 | 5 | **Refunds never executed for real** | The claim-then-call ordering is tested against a fake gateway. It has never moved actual money |
 
 ### Communication
@@ -59,7 +77,7 @@ block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
 | 9b | **`PUBLIC_APP_URL` must be the client's real origin** | Enforced at boot. Guest links, account emails and the bank's return page are all built from it, and a payment `returnUrl` on any other origin is refused — so a wrong value breaks checkout rather than opening a redirect |
 | 10 | **A verified off-host recovery destination** | Quiesced paired database/media capture, encrypted Restic upload and complete restoration tooling are built. An isolated round trip preserved a guest credential and original/variant media. Configure a real separate destination, install the timer/boot recovery units, verify remote restoration and missed-backup alerts |
-| 11 | **A host and a domain** | The stack has now been run end to end locally — seven services healthy, migrations applied, TLS served by Caddy, a verified backup taken, and a full journey from `register` to a published invitation page. What it has never had is a real host, a real domain, or a certificate from Let's Encrypt |
+| 11 | **A host and a domain** | The Docker/Compose profile wizard and release/promotion jobs are implemented. Local stack/worker/migration/backup rehearsals exist. Provision a real host, API/media DNS, public TLS and SMTP; configure GitHub environments, reviewers and verified SSH. See [release setup](../backend/docs/RELEASES.md). No live deployment has been performed |
 | 12b | **An SMS provider** | The channel is built and inert. Choose a provider that reaches Armenian numbers, write its adapter (one class), and set `SMS_PROVIDER`. Until then guests with only a phone number are reported unreachable |
 | 12 | **WhatsApp account and live acceptance** | Transport and signed/scoped receipt backend are built; no account/test number exists yet. Verify account/number/permissions, supported API version, approved four-language templates/consent, real subscription and send/receipt evidence using the [setup checklist](../backend/docs/WHATSAPP_SETUP.md). External approval can move the pilot date |
 | 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
@@ -68,7 +86,7 @@ block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 
 | # | Blocker | Why |
 |---|---|---|
-| 14 | **Zero-downtime deploys** | One API container, so a deploy is a restart and requests in flight fail. Acceptable at a few hundred guests; two replicas is the real answer |
+| 14 | **Zero-downtime deploys** | The controller deliberately stops all writers for migration and quiesced capture. Schedule maintenance away from check-in; failover and zero-downtime rollout are not built |
 | 15 | **Single-node everything** | Postgres, Redis, Mongo and Garage all run one instance with no failover. Replication factor is 1 |
 | 16 | **Two dependency advisories accepted, not fixed** | Both reached only through code a request cannot touch — a Prisma config file we own, and Swagger, which is disabled in production. Each is fixed by a migration named in `backend/docs/DEPENDENCIES.md`: Prisma 7 needs a driver adapter, and NestJS 12 needs ESM |
 | 17 | **No `SENTRY_DSN` configured** | Error reporting is wired and inert |
@@ -92,7 +110,7 @@ block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 | Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
 | Invoice tax | `taxMinor` is always zero, so an invoice is not a tax document |
 | Entitlement enforcement | Plans publish limits that nothing refuses an action against |
-| Multiple organizations per account | One per account today; a planner with two agencies cannot be served |
+| Multiple organizations per account | Context/lifecycle backend is built; second-membership writes remain disabled and automatic migration retains the user-only index. Operator cutover and frontend acceptance remain |
 | Structured log shipping | Logs are JSON in production and go nowhere |
 
 ---
@@ -173,3 +191,35 @@ open until frontend and production evidence exists.
   workload with TLS/proxy, analytics and writes. Report warm/cold/degraded
   percentiles separately. Rebuild/clear Redis when restoring older Postgres
   backups so cache revisions cannot collide with restored history.
+
+F44 remains gated: no production renderer capability manifest is approved. Keep
+new publication closed until actual frontend four-language/font/named palette/
+inert preview and mobile/desktop visual acceptance. Private artwork slot activation
+and event materialization need separate storage/privacy/worker acceptance; staging
+sanitizer tests do not prove production object isolation or frontend rendering.
+
+
+### First post-pilot wave — backend delivery is not activation
+
+F38/F39/F44 backend slices are implemented; see [current status](post-pilot/execution/IMPLEMENTATION_STATUS.md).
+Keep additional memberships, intake/support/conversion and new template features
+behind their current gates until their separate acceptance is recorded. This
+wave does not approve paid operation or implement later quotes, fiscal documents,
+corporate contracts, vendor revenue, calendars or logistics.
+
+- Organization activation needs compatible APIs/workers/maintenance readers and
+  writers, old-runtime exclusion, reviewed cutover/restore/performance evidence
+  and four-language per-tab client acceptance. No real uniqueness cutover is
+  established by isolated test fixtures.
+- Production intake needs retained intent keys, an independently preserved latest
+  signed privacy journal/manifest, verified restore replay, retention/alert and
+  owner-setup/outbox operation, frontend languages and operator acceptance.
+  Accepted-owner account identity requires its own proof; a phone-only prospect
+  binding does not prove account ownership.
+- Authored template publication needs an actual reviewed deployed renderer
+  capability, four-language/font/palette/variant/inert-preview visual acceptance,
+  private artwork worker/storage proof and the compatible pinned-reader rollback
+  floor. Synthetic capability fixtures establish backend behavior only.
+
+Final combined backend verification is recorded by the integration owner; it
+cannot replace these activation or existing pilot launch requirements.

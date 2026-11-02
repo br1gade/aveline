@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, ParseEnumPipe, Patch, Post, Query
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BlockType } from '@prisma/client';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
-import { EventScope, RequirePermission } from '../../infra/auth/actor';
+import { CurrentActor, RequestActor, EventScope, RequirePermission } from '../../infra/auth/actor';
 import { DesignService } from './design.service';
 import { DraftReaderService } from './draft-reader.service';
 import {
@@ -30,6 +30,7 @@ class CityQuery {
 
 @ApiTags('design')
 @Controller()
+@EventScope('eventId')
 export class DesignController {
   constructor(
     private readonly design: DesignService,
@@ -60,8 +61,8 @@ export class DesignController {
     summary: 'The template catalogue',
     description: 'Each entry declares the fonts, palettes and blocks it supports.',
   })
-  listTemplates() {
-    return this.design.listTemplates();
+  listTemplates(@Param('eventId') eventId: string) {
+    return this.design.listTemplates(eventId);
   }
 
   @RequirePermission('invitation:design')
@@ -73,8 +74,8 @@ export class DesignController {
       'Unsupported blocks are disabled rather than deleted, so switching back ' +
       'does not lose the host’s copy. The theme resets to the new default.',
   })
-  chooseTemplate(@Param('slug') slug: string, @Body() dto: ChooseTemplateDto) {
-    return this.design.chooseTemplate(slug, dto);
+  chooseTemplate(@CurrentActor() actor: RequestActor, @Param('slug') slug: string, @Body() dto: ChooseTemplateDto) {
+    return this.design.chooseTemplate(slug, dto, actor.userId);
   }
 
   @RequirePermission('invitation:design')

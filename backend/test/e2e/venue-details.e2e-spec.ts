@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -59,7 +60,7 @@ describe('Venue details and the directory (e2e)', () => {
 
   it('places a venue on the map, and guests receive it', async () => {
     const { eventId, slug, venueId, authorization } = await host();
-    await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'MAP', 'RSVP'] } });
+    await reviseTemplateFixture(prisma, { where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'MAP', 'RSVP'] } });
     await http()
       .patch(`/api/v1/invitations/${slug}/arrangement`)
       .set('Authorization', authorization)
@@ -98,6 +99,12 @@ describe('Venue details and the directory (e2e)', () => {
     [{ latitude: 95, longitude: 44 }, 'latitude'],
     [{ latitude: 40, longitude: 200 }, 'longitude'],
     [{ capacity: 0 }, 'capacity'],
+    // FR-36: stored blank, then failed the publish check; a map link the
+    // guest page would not show was stored and silently dropped.
+    [{ name: '  ' }, 'name'],
+    [{ address: '' }, 'address'],
+    [{ mapUrl: 'javascript:alert(1)' }, 'mapUrl'],
+    [{ mapUrl: 'maps.example/x' }, 'mapUrl'],
   ])('refuses %j with a 400 naming %s', async (payload, field) => {
     const { eventId, venueId, authorization } = await host();
 

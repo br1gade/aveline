@@ -1,6 +1,8 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { EventRole, MessageChannel, OrganizationRole, PrismaClient, EventVisibility } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
@@ -8,6 +10,10 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
+
+/** Everything but the calendar stays real, so Nest, Prisma and supertest run as usual while Date stands still. */
+const REAL_TIMERS = ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame',
+  'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] as const;
 
 /**
  * Correcting an event after it exists. Its title, date and languages used to
@@ -34,9 +40,13 @@ describe('Editing an event (e2e)', () => {
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
     await app.init();
+    // This suite tests what is queued; the outbox's wall-clock dispatch would mark the
+    // invitations sent or failed between a send and the notice that counts them.
+    for (const job of app.get(SchedulerRegistry).getCronJobs().values()) await job.stop();
   });
 
   beforeEach(() => resetTestDatabase());
+  afterEach(() => { jest.useRealTimers(); });
   afterAll(async () => {
     await app.close();
     await disconnectTestDatabase();
@@ -124,6 +134,44 @@ describe('Editing an event (e2e)', () => {
     expect(event).toMatchObject({ title: 'Fixture Wedding', defaultLocale: 'hy', timezone: 'Asia/Yerevan' });
   });
 
+  // FR-25: blank text passed the length checks, and an empty hosts label
+  // left the invitation naming no hosts.
+  it.each([
+    ['a title of spaces', { title: '   ' }, 'title'],
+    ['a blank hosts label', { hostsLabel: '' }, 'hostsLabel'],
+  ])('refuses to create an event with %s, naming the field', async (_label, payload, field) => {
+    const { userId, authorization } = await authenticateAs(app, prisma);
+    const organization = await prisma.organization.create({
+      data: { name: 'Hosts', kind: 'HOST' },
+    });
+    await prisma.organizationMembership.create({
+      data: { userId, organizationId: organization.id, role: OrganizationRole.OWNER },
+    });
+
+    const { body } = await http()
+      .post('/api/v1/events')
+      .set('Authorization', authorization)
+      .send({ type: 'WEDDING', title: 'A & B', startsAt: '2027-06-12T15:00:00Z', ...payload })
+      .expect(400);
+
+    expect(body.details).toEqual(expect.arrayContaining([expect.objectContaining({ field })]));
+    expect(await prisma.event.count({ where: { organizationId: organization.id } })).toBe(0);
+  });
+
+  it('stores a title and hosts label without the spaces around them', async () => {
+    const { eventId, authorization } = await host();
+
+    await edit(eventId, authorization, {
+      title: '  Anna & Davit ',
+      hostsLabel: ' Anna and Davit  ',
+    }).expect(200);
+
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).toMatchObject({
+      title: 'Anna & Davit',
+      hostsLabel: 'Anna and Davit',
+    });
+  });
+
   // A designer shapes the invitation; the event itself is not theirs to change.
   it('refuses a designer', async () => {
     const { eventId, authorization } = await host(EventRole.DESIGNER);
@@ -171,7 +219,7 @@ describe('Editing an event (e2e)', () => {
     it('offers it after a venue changes too, and the guest page shows the new address at once', async () => {
       const { eventId, slug, authorization } = await host();
       // Put the venue on the page: the fixture's template renders only HERO and RSVP.
-      await prisma.designTemplate.update({
+      await reviseTemplateFixture(prisma, {
         where: { key: 'test-template' },
         data: { supportedBlocks: ['HERO', 'VENUE', 'RSVP'] },
       });
@@ -210,6 +258,9 @@ describe('Editing an event (e2e)', () => {
           .set('Authorization', authorization)
           .send({ note: 'We have moved to the garden.' })
           .expect(201);
+      // A press is deduplicated within its UTC minute, so the calendar is held
+      // still: two presses must not straddle a minute boundary by chance.
+      jest.useFakeTimers({ now: Date.now(), doNotFake: [...REAL_TIMERS] });
 
       const first = await notify();
       const second = await notify();

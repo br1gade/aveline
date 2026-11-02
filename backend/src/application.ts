@@ -1,3 +1,4 @@
+import { completeOpenApiDocument } from './common/openapi-document';
 import { configureWhatsAppBodyParser } from './modules/communications/whatsapp/whatsapp-body-parser';
 import { ValidationPipe } from '@nestjs/common';
 import { FEEDBACK_MODELS } from './common/feedback.dto';
@@ -9,6 +10,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SerializeInterceptor } from './common/interceptors/serialize';
 import { proxyHopsFrom } from './common/proxy-trust';
+import { corsOptionsFor } from './common/cors';
 import { allowsDevelopmentShortcuts } from './common/environment';
 
 /**
@@ -54,10 +56,7 @@ export async function createApplication() {
   const proxyHops = proxyHopsFrom(process.env);
   if (proxyHops > 0) app.set('trust proxy', proxyHops);
 
-  // An open CORS policy lets any site call the API with a user's credentials.
-  // Development stays permissive; production must name its origins.
-  const origins = process.env.CORS_ORIGINS?.split(',').map((origin) => origin.trim());
-  app.enableCors({ origin: canUseShortcuts ? true : (origins ?? false), credentials: true });
+  app.enableCors(corsOptionsFor(canUseShortcuts, process.env));
 
   configureSchema(app, canUseShortcuts);
   return app;
@@ -73,6 +72,12 @@ function configureSchema(app: NestExpressApplication, canUseShortcuts: boolean):
       .setVersion('0.1.0')
       .addBearerAuth()
       .build();
-    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config, { extraModels: FEEDBACK_MODELS }));
+    SwaggerModule.setup(
+      'docs',
+      app,
+      completeOpenApiDocument(
+        SwaggerModule.createDocument(app, config, { extraModels: FEEDBACK_MODELS }),
+      ),
+    );
   }
 }

@@ -195,6 +195,41 @@ describe('Authentication (e2e)', () => {
         await me(`Bearer ${second.accessToken as string}`).expect(401);
         await http().post('/api/v1/auth/refresh').send({ refreshToken: second.refreshToken }).expect(401);
       });
+
+      // FR-22: a device that slept through "sign out everywhere" (or a
+      // password reset) wakes and refreshes. Its token was ended, not
+      // replaced, so no copy is in a thief's hands and the sessions opened
+      // since must survive.
+      it('keeps the sessions opened since when a device wakes with a token signed out everywhere', async () => {
+        const { body: asleep } = await signUp();
+        const { body: current } = await http()
+          .post('/api/v1/auth/login')
+          .send({ email: credentials.email, password: credentials.password })
+          .expect(201);
+        await http()
+          .post('/api/v1/auth/logout-everywhere')
+          .set('Authorization', `Bearer ${current.accessToken as string}`)
+          .expect(201);
+        await prisma.session.updateMany({
+          where: { revokedAt: { not: null } },
+          data: { revokedAt: new Date(Date.now() - 5 * 60_000) },
+        });
+        const { body: since } = await http()
+          .post('/api/v1/auth/login')
+          .send({ email: credentials.email, password: credentials.password })
+          .expect(201);
+
+        await http()
+          .post('/api/v1/auth/refresh')
+          .send({ refreshToken: asleep.refreshToken })
+          .expect(401);
+
+        await me(`Bearer ${since.accessToken as string}`).expect(200);
+        await http()
+          .post('/api/v1/auth/refresh')
+          .send({ refreshToken: since.refreshToken })
+          .expect(201);
+      });
     });
 
     it('rejects a refresh token after logout', async () => {

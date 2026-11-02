@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PrivateStorageService } from '../../infra/storage/private/private-storage';
 import { OperationsService } from '../operations/operations.service';
-import { exportAccess } from './export-access';
+import { lockExportAccess } from './export-access';
 import { lockExportPrivacy, rememberExportSubjects } from './export-privacy';
 import { ExportQueue, EXPORT_LEASE_MS, ownedExport } from './export-queue';
 import { ExportSheets } from './export-sheets';
@@ -61,7 +61,7 @@ export class ExportRunner {
 
   private async assertMayRun(tx: Prisma.TransactionClient, job: ExportSnapshot): Promise<void> {
     if (!await tx.exportSnapshot.findFirst({ where: ownedExport(job), select: { id: true } })) throw new Error('Export lease lost');
-    const access = await exportAccess(tx, job.eventId, job.requestedByUserId);
+    const access = await lockExportAccess(tx, job.eventId, job.requestedByUserId);
     if ((job.includesContacts || job.kind === 'TICKET_MANIFEST') && !access.canSeeContacts) throw new Error('Export permission changed');
   }
 

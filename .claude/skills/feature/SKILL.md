@@ -19,7 +19,7 @@ Read the doc that governs the area you are about to change:
 | Roles, permissions, who-can-do-what | `docs/ACCESS_CONTROL.md` |
 | Venues, tables, seats, seating rules | `docs/VENUES_AND_SEATING.md` |
 | Templates, blocks, media, RSVP questions | `docs/INVITATION_DESIGN.md` |
-| Caching, queues, analytics, store choice | `../../../backend/docs/DATA_STORES.md` |
+| Caching, queues, analytics, store choice | `backend/docs/DATA_STORES.md` |
 | Payments, refunds, providers, money handling | `docs/PAYMENTS.md` |
 | Endpoints, setup | `backend/README.md` |
 | **Anything a client can see** | **`docs/API.md` — a contract, not a description** |
@@ -88,6 +88,10 @@ Aveline is IO-bound. Re-read what you wrote and confirm:
   table in one step.
 - Generate SQL with `prisma migrate diff`, then edit it to be backfill-safe.
   `migrate dev` needs a TTY and will not run here.
+- Declare every foreign key, unique and index you write in SQL in
+  `schema.prisma` as well (`map:` + exact referential actions), so the next
+  diff does not drop it. The critique integration spec checks that the diff
+  against a freshly migrated database is empty.
 - Never edit an applied migration. Write a new one.
 - `migrate reset` destroys data and needs explicit human consent. Do not run it
   on anything you did not create moments ago.
@@ -113,6 +117,16 @@ permissions. It cannot catch a "not yet built" list that has become false —
 re-read that section and delete what you just built.
 
 ## 7. Verify
+
+While iterating, run only the spec you are working on — it is seconds, not
+minutes:
+
+```bash
+npx jest src/modules/<area>/<file>.spec.ts -t "<behaviour>"
+npx jest -c test/jest-integration.json test/integration/<file>.int-spec.ts
+```
+
+Once, at the end:
 
 ```bash
 cd backend && npm run verify

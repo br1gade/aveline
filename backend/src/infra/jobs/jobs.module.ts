@@ -1,3 +1,5 @@
+import { SalesPrivacyModule } from '../../modules/sales/sales-privacy.module';
+import { SalesPrivacySweepService } from './sales-privacy-sweep.service';
 import { WhatsAppReceiptSweepService } from './whatsapp-receipt-sweep.service';
 import { InvitationMaintenanceSweepService } from './invitation-maintenance-sweep.service';
 import { GuestContributionsModule } from '../../modules/guest-contributions/guest-contributions.module';
@@ -20,8 +22,9 @@ import { PrivacySweepService } from './privacy-sweep.service';
 import { ReminderSweepService } from './reminder-sweep.service';
 
 @Module({
-  imports: [GuestContributionsModule, ScheduleModule.forRoot(), PaymentsModule, TicketingModule, BillingModule, InvitationsModule, PrivacyModule, MediaModule],
+  imports: [SalesPrivacyModule, GuestContributionsModule, ScheduleModule.forRoot(), PaymentsModule, TicketingModule, BillingModule, InvitationsModule, PrivacyModule, MediaModule],
   providers: [
+    SalesPrivacySweepService,
     InvitationMaintenanceSweepService,
     ContributionSweepService,
     JobLockService,

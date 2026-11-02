@@ -3,8 +3,19 @@ import { isUniqueViolation } from '../../../common/prisma-errors';
 import { ImportStatus, MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
 import { addressFingerprint } from '../../communications/address-form';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { ParsedGuest, RowError, TooManyRowsError, parseGuestCsv } from './csv-guests';
-import { HOUSEHOLDS_PER_BATCH, HouseholdInFile, describeImportError, importHouseholds } from './household-import';
+import {
+  ParsedGuest,
+  RowError,
+  TooManyRowsError,
+  decodeGuestCsv,
+  parseGuestCsv,
+} from './csv-guests';
+import {
+  HOUSEHOLDS_PER_BATCH,
+  HouseholdInFile,
+  describeImportError,
+  importHouseholds,
+} from './household-import';
 
 /** A batch of a hundred households is a few queries; this is room, not a target. */
 const BATCH_TIMEOUT_MS = 30_000;
@@ -33,11 +44,11 @@ export class GuestImportService {
    * deleting everyone first.
    */
   async importCsv(eventId: string, filename: string, content: Buffer, uploadedBy?: string) {
-    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { id: true, organizationId: true } });
+    const event = await this.prisma.event.findUnique({ where: { id: eventId }, select: { id: true, organizationId: true, locales: true } });
     if (!event) throw new NotFoundException(`No event ${eventId}`);
 
     const parsed = readGuestList(content);
-    const { guests, refused } = await this.withoutErased(event.organizationId, parsed.guests);
+    const { guests, refused } = await this.withoutErased(event.organizationId, withPublishedLocales(parsed.guests, event.locales));
     const errors = [...parsed.errors, ...refused];
     const seatsInFile = seatsStatedPerHousehold(guests);
 
@@ -158,9 +169,21 @@ function importStatusFor(imported: number, failed: number): ImportStatus {
   return imported === 0 ? ImportStatus.FAILED : ImportStatus.PARTIAL;
 }
 
+/**
+ * A language the event does not publish is left out rather than refusing the
+ * row: the guest still matters more than a column, and their messages fall
+ * back to the event's language. Adding a guest by hand refuses it instead,
+ * since a person typing can correct it.
+ */
+function withPublishedLocales(guests: ParsedGuest[], locales: string[]): ParsedGuest[] {
+  return guests.map((guest) => (guest.locale && !locales.includes(guest.locale) ? { ...guest, locale: undefined } : guest));
+}
+
 function readGuestList(content: Buffer) {
+  const decoded = decodeGuestCsv(content);
+  if ('error' in decoded) return { guests: [], errors: [{ row: 0, message: decoded.error }] };
   try {
-    return parseGuestCsv(content.toString('utf8'));
+    return parseGuestCsv(decoded.text);
   } catch (error) {
     if (error instanceof TooManyRowsError) throw new BadRequestException(error.message);
     throw error;

@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -9,6 +10,11 @@ import { authenticateAs } from '../fixtures/auth.fixture';
 import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
+// Uploads are typed by their bytes, so a fixture starts with a PNG signature.
+const PNG_BYTES = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.from('png-fixture'),
+]);
 describe('Guest corrections and invitation improvements (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
@@ -148,15 +154,29 @@ describe('Guest corrections and invitation improvements (e2e)', () => {
   });
 
   describe('upload kinds', () => {
-    it.each(['LOGO', 'COVER', 'PHOTO'])('honors image kind %s and permits HERO attachment', async (kind) => {
-      const { eventId, slug, authorization } = await organizer('DESIGNER');
-      const { body } = await http().post(`/api/v1/events/${eventId}/media`).set('Authorization', authorization)
-        .field('kind', kind).attach('file', Buffer.from('png-fixture'), { filename: 'logo.png', contentType: 'image/png' }).expect(201);
-      expect(body.kind).toBe(kind);
-      await http().patch(`/api/v1/invitations/${slug}/blocks/HERO`).set('Authorization', authorization).send({ assetIds: [body.id] }).expect(200);
-      const library = await http().get(`/api/v1/events/${eventId}/media`).set('Authorization', authorization).expect(200);
-      expect(library.body[0]).toMatchObject({ kind, usedBy: ['HERO'] });
-    });
+    it.each(['LOGO', 'COVER', 'PHOTO'])(
+      'honors image kind %s and permits HERO attachment',
+      async (kind) => {
+        const { eventId, slug, authorization } = await organizer('DESIGNER');
+        const { body } = await http()
+          .post(`/api/v1/events/${eventId}/media`)
+          .set('Authorization', authorization)
+          .field('kind', kind)
+          .attach('file', PNG_BYTES, { filename: 'logo.png', contentType: 'image/png' })
+          .expect(201);
+        expect(body.kind).toBe(kind);
+        await http()
+          .patch(`/api/v1/invitations/${slug}/blocks/HERO`)
+          .set('Authorization', authorization)
+          .send({ assetIds: [body.id] })
+          .expect(200);
+        const library = await http()
+          .get(`/api/v1/events/${eventId}/media`)
+          .set('Authorization', authorization)
+          .expect(200);
+        expect(library.body[0]).toMatchObject({ kind, usedBy: ['HERO'] });
+      },
+    );
     it('honors AUDIO and rejects assigning an image kind to audio', async () => {
       const { eventId, authorization } = await organizer('DESIGNER');
       const upload = (kind: string) => http().post(`/api/v1/events/${eventId}/media`).set('Authorization', authorization).field('kind', kind)
@@ -166,12 +186,19 @@ describe('Guest corrections and invitation improvements (e2e)', () => {
       await upload('LOGO').expect(400);
     });
 
-    it.each(['DOCUMENT', 'SIGNATURE', 'AUDIO', 'unknown'])('rejects image kind %s before storing it', async (kind) => {
-      const { eventId, authorization } = await organizer('DESIGNER');
-      await http().post(`/api/v1/events/${eventId}/media`).set('Authorization', authorization).field('kind', kind)
-        .attach('file', Buffer.from('png-fixture'), { filename: 'logo.png', contentType: 'image/png' }).expect(400);
-      expect(await prisma.mediaAsset.count({ where: { eventId } })).toBe(0);
-    });
+    it.each(['DOCUMENT', 'SIGNATURE', 'AUDIO', 'unknown'])(
+      'rejects image kind %s before storing it',
+      async (kind) => {
+        const { eventId, authorization } = await organizer('DESIGNER');
+        await http()
+          .post(`/api/v1/events/${eventId}/media`)
+          .set('Authorization', authorization)
+          .field('kind', kind)
+          .attach('file', PNG_BYTES, { filename: 'logo.png', contentType: 'image/png' })
+          .expect(400);
+        expect(await prisma.mediaAsset.count({ where: { eventId } })).toBe(0);
+      },
+    );
   });
 
   describe('listing images', () => {
@@ -258,7 +285,7 @@ describe('Guest corrections and invitation improvements (e2e)', () => {
     it('retains the current theme and omits internal venues/timeline and private media', async () => {
       const { slug, eventId, authorization } = await organizer('DESIGNER');
       await prisma.event.update({ where: { id: eventId }, data: { locales: ['en', 'ru', 'fr', 'hy'] } });
-      await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'RSVP', 'VENUE', 'TIMELINE'] } });
+      await reviseTemplateFixture(prisma, { where: { key: 'test-template' }, data: { supportedBlocks: ['HERO', 'RSVP', 'VENUE', 'TIMELINE'] } });
       const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug } });
       await prisma.invitationBlock.createMany({ data: [
         { invitationId: invitation.id, type: 'VENUE', sortOrder: 2 }, { invitationId: invitation.id, type: 'TIMELINE', sortOrder: 3 },
@@ -302,7 +329,7 @@ describe('Guest corrections and invitation improvements (e2e)', () => {
       const path = `/api/v1/invitations/${slug}/template-preview`;
       await http().get(path).expect(401);
       await http().get(path).set('Authorization', other.authorization).expect(403);
-      await prisma.designTemplate.update({ where: { key: 'test-template' }, data: { isActive: false } });
+      await reviseTemplateFixture(prisma, { where: { key: 'test-template' }, data: { isActive: false } });
       await http().get(`/api/v1/events/${eventId}/design-templates/test-template/preview`).set('Authorization', authorization).expect(404);
     });
   });

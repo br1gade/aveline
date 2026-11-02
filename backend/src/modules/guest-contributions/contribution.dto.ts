@@ -62,7 +62,7 @@ export class GalleryUploadDto {
   caption?: string;
 }
 export class ContributionPageDto {
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 30 })
+  @ApiPropertyOptional({ type: 'integer', minimum: 1, maximum: 100, default: 30 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -1,3 +1,4 @@
+import { reviseTemplateFixture } from '../fixtures/template.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -53,7 +54,7 @@ describe('Invitation design (e2e)', () => {
     });
     // The fixture template ships one font and no palettes; these tests need
     // both to exercise the boundary.
-    await prisma.designTemplate.update({
+    await reviseTemplateFixture(prisma, {
       where: { key: 'test-template' },
       data: {
         allowedFonts: ['Inter', 'Noto Serif Armenian'],
@@ -368,7 +369,7 @@ describe('Invitation design (e2e)', () => {
     const designerWithMusic = async () => {
       const seeded = await designer();
       // Templates are platform data; the fixture's renders only HERO and RSVP.
-      await prisma.designTemplate.update({
+      await reviseTemplateFixture(prisma, {
         where: { key: 'test-template' },
         data: { supportedBlocks: [BlockType.HERO, BlockType.RSVP, BlockType.MUSIC, BlockType.GALLERY] },
       });

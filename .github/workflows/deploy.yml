@@ -1,0 +1,78 @@
+name: Deploy an attested release
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Successful Build and publish reviewed release run ID
+        required: true
+        type: string
+      target:
+        type: choice
+        options: [staging, production]
+        required: true
+      confirm_project:
+        description: Exact Compose project name; confirms a maintenance window
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  packages: read
+  attestations: read
+concurrency:
+  group: aveline-deploy-${{ inputs.target }}
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    environment: ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          package-manager-cache: false
+      - name: Validate release provenance and retrieve its source
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          [[ "$RELEASE_RUN_ID" =~ ^[0-9]+$ ]] || exit 1
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RELEASE_RUN_ID" > /tmp/release-run.json
+          gh run download "$RELEASE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-manifest --dir /tmp/release
+          node backend/scripts/ops/release-manifest.mjs verify /tmp/release/release-manifest.json /tmp/release-run.json
+      - name: Verify both OCI attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API_REF: ${{ steps.release.outputs.api }}
+          BACKUP_REF: ${{ steps.release.outputs.backup }}
+          SOURCE_COMMIT: ${{ steps.release.outputs.commit }}
+          SOURCE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          gh attestation verify "oci://$API_REF" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$SOURCE_COMMIT" --source-ref "refs/heads/$SOURCE_BRANCH" --deny-self-hosted-runners
+          gh attestation verify "oci://$BACKUP_REF" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$SOURCE_COMMIT" --source-ref "refs/heads/$SOURCE_BRANCH" --deny-self-hosted-runners
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.release.outputs.commit }}
+          persist-credentials: false
+      - name: Package tracked source without host credentials
+        run: git archive --format=tar.gz --output=/tmp/aveline-release.tar.gz HEAD backend docs CLAUDE.md AGENTS.md
+      - name: Deploy through verified SSH and the host controller
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_ROOT: ${{ vars.DEPLOY_ROOT }}
+          DEPLOY_PROFILE: ${{ vars.DEPLOY_PROFILE }}
+          DEPLOY_PROJECT: ${{ vars.DEPLOY_PROJECT }}
+          CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          RELEASE_MANIFEST: /tmp/release/release-manifest.json
+          RELEASE_ARCHIVE: /tmp/aveline-release.tar.gz
+        run: node backend/scripts/ops/remote.mjs

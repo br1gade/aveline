@@ -268,6 +268,11 @@ describe('RSVP flow (e2e)', () => {
         const narek = await prisma.guest.findFirstOrThrow({ where: { householdId, firstName: 'Narek' }, include: { rsvp: { include: { answers: true } } } });
         expect(narek.rsvp).toMatchObject({ status: 'ATTENDING', dietary: ['vegetarian'] });
         expect(narek.rsvp?.answers.map((answer) => answer.value)).toEqual([1]);
+
+        // FR-21: an edit shows each member what they chose.
+        const { body } = await http().get(rsvpUrl).expect(200);
+        const members = body.household.members as { firstName: string; answers: { questionId: string; value: unknown }[] }[];
+        expect(members.find((member) => member.firstName === 'Narek')?.answers).toEqual([{ questionId: mealId, value: 1 }]);
       });
 
       it('keeps a plus-one who was declined declined when the respondent edits something else', async () => {
@@ -357,6 +362,9 @@ describe('RSVP flow (e2e)', () => {
       await prisma.guest.update({ where: { id: guest.id }, data: { attribution: 'UNKNOWN' } });
       await answer(slug, primaryGuestToken, { status: 'ATTENDING', attribution: 'SIDE_B' }).expect(201);
       expect((await prisma.guest.findUniqueOrThrow({ where: { id: guest.id } })).attribution).toBe('SIDE_B');
+      // FR-19: an edit can show the side that was saved.
+      const { body } = await http().get(`/api/v1/invitations/${slug}/g/${primaryGuestToken}/rsvp`).expect(200);
+      expect(body.guest.attribution).toBe('SIDE_B');
     });
   });
 
