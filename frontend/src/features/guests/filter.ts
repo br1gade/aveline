@@ -1,4 +1,5 @@
 import { isDeliveryGroup, type DeliveryGroup } from '@/features/sending';
+import { isFoundIn, nameKey, queryForms } from '@/lib/text';
 
 import { ANSWERS, type Answer, type Guest, type Household } from './types';
 
@@ -45,25 +46,23 @@ export function withFilter(params: URLSearchParams, filter: GuestFilter): URLSea
   return next;
 }
 
-/** Case and accents ignored, in every script: "Пётр" finds "Петр", "ANI" finds "Ani". */
-export function normalizeName(text: string): string {
-  return text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
-}
-
 interface IndexedHousehold {
   household: Household;
   key: string;
   guests: ReadonlyArray<{ guest: Guest; key: string }>;
 }
 
-/** Built once per load, so a keystroke compares strings and normalizes nothing. */
+/**
+ * Built once per load, so a keystroke compares strings and normalizes nothing. Each name is held
+ * also in Latin, so it is found whatever alphabet it is typed in (`lib/text`).
+ */
 export type HouseholdIndex = readonly IndexedHousehold[];
 
 export function indexHouseholds(households: readonly Household[]): HouseholdIndex {
   return households.map((household) => ({
     household,
-    key: normalizeName(household.name),
-    guests: household.guests.map((guest) => ({ guest, key: normalizeName(guest.name) })),
+    key: nameKey(household.name),
+    guests: household.guests.map((guest) => ({ guest, key: nameKey(guest.name) })),
   }));
 }
 
@@ -73,12 +72,16 @@ export interface VisibleHousehold {
   guests: readonly Guest[];
 }
 
-function visibleGuests(entry: IndexedHousehold, query: string, answer: Answer | null): Guest[] {
-  const isHouseholdFound = entry.key.includes(query);
+function visibleGuests(
+  entry: IndexedHousehold,
+  forms: readonly string[],
+  answer: Answer | null,
+): Guest[] {
+  const isHouseholdFound = isFoundIn(entry.key, forms);
   return entry.guests
     .filter(
       ({ guest, key }) =>
-        (isHouseholdFound || key.includes(query)) && (!answer || guest.answer === answer),
+        (isHouseholdFound || isFoundIn(key, forms)) && (!answer || guest.answer === answer),
     )
     .map(({ guest }) => guest);
 }
@@ -97,14 +100,15 @@ export function filterHouseholds(
   filter: GuestFilter,
   groupOf?: GroupOf,
 ): VisibleHousehold[] {
-  const query = normalizeName(filter.query.trim());
+  const query = filter.query.trim();
   const invite = groupOf ? filter.invite : null;
   if (!query && !filter.answer && !invite) {
     return index.map(({ household }) => ({ household, guests: household.guests }));
   }
+  const forms = queryForms(query);
   return index.flatMap((entry) => {
     if (invite && groupOf?.(entry.household.id) !== invite) return [];
-    const guests = visibleGuests(entry, query, filter.answer);
+    const guests = visibleGuests(entry, forms, filter.answer);
     if (guests.length === 0) return [];
     const isWhole = guests.length === entry.household.guests.length;
     return [{ household: entry.household, guests: isWhole ? entry.household.guests : guests }];

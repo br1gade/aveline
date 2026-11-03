@@ -570,6 +570,14 @@ describe('GuestList: the search and the filter', () => {
     expect(reads.guests).toBe(1);
   });
 
+  it('finds a name typed in another alphabet', async () => {
+    serve();
+    const user = renderList();
+    await user.type(await screen.findByLabelText('Search by name'), 'Դավիթ');
+    expect(await screen.findByText('Showing 1 guest in 1 household')).toBeInTheDocument();
+    expect(screen.getByText('Davit Hakobyan')).toBeInTheDocument();
+  });
+
   it('follows the address when it changes by other means, such as Back', async () => {
     serve();
     const user = renderList(['/app/events/e1/guests?q=davit', '/app/events/e1/guests?q=ani']);

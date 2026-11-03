@@ -14,9 +14,12 @@ const LEVON = doorHousehold('h3', 'Friends of Armen', [doorGuest('g4', 'Levon Sa
 const INDEX = indexGuests([AGHAJANYAN, LEVON, PETROSYANS]);
 
 describe('finding someone at the door by name', () => {
-  it.each(['', '   '])('shows nobody for %j, so the whole list is never on screen', (query) => {
-    expect(findGuests(INDEX, query)).toEqual({ people: [], isCapped: false });
-  });
+  it.each(['', '   ', '\u0301'])(
+    'shows nobody for %j, so the whole list is never on screen',
+    (query) => {
+      expect(findGuests(INDEX, query)).toEqual({ people: [], isCapped: false });
+    },
+  );
 
   it('finds a person, then the rest of their household, who usually arrive with them', () => {
     expect(names(findGuests(INDEX, 'lusine'))).toEqual(['Lusine Petrosyan', 'Armen Petrosyan']);
@@ -43,6 +46,26 @@ describe('finding someone at the door by name', () => {
     ]);
     expect(names(findGuests(index, 'ПЕТР'))).toEqual(['Пётр Иванов']);
     expect(names(findGuests(index, 'անի'))).toEqual(['Անի Գևորգյան']);
+  });
+
+  it('finds a name written in another alphabet, typed in Latin or in a third one', () => {
+    const index = indexGuests([
+      doorHousehold('h1', 'Պետրոսյաններ', [doorGuest('g1', 'Արմեն Պետրոսյան')]),
+      doorHousehold('h2', 'Family', [doorGuest('g2', 'Anna Smith')]),
+      doorHousehold('h3', 'Семья', [doorGuest('g3', 'Анна Фёдорова')]),
+    ]);
+    expect(names(findGuests(index, 'Armen petrosyan'))).toEqual(['Արմեն Պետրոսյան']);
+    expect(names(findGuests(index, 'анна'))).toEqual(['Anna Smith', 'Анна Фёдорова']);
+    expect(names(findGuests(index, 'fedorova'))).toEqual(['Анна Фёдорова']);
+    expect(names(findGuests(index, 'armen smith'))).toEqual([]);
+  });
+
+  it('puts a person’s own name first across alphabets too', () => {
+    const index = indexGuests([
+      doorHousehold('h1', 'Արմենի ընկերներ', [doorGuest('g1', 'Լևոն Սահակյան')]),
+      doorHousehold('h2', 'Պետրոսյաններ', [doorGuest('g2', 'Արմեն Պետրոսյան')]),
+    ]);
+    expect(names(findGuests(index, 'armen'))).toEqual(['Արմեն Պետրոսյան', 'Լևոն Սահակյան']);
   });
 
   it('never offers someone erased at their request', () => {

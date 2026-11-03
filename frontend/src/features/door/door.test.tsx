@@ -211,6 +211,12 @@ describe('the door, by name (PD-90)', () => {
     expect(screen.getByTestId('address')).toHaveTextContent(/^\/app\/events\/e1\/door$/);
   });
 
+  it('finds a Latin name typed in another alphabet', async () => {
+    const { user } = renderAt();
+    await searchFor(user, 'лусине');
+    expect(screen.getByRole('heading', { name: 'Lusine Petrosyan' })).toBeInTheDocument();
+  });
+
   it('checks them in: their table, in the event’s zone, with Undo, and no token anywhere', async () => {
     answerCheckIn(() => HttpResponse.json(CHECKED_IN, { status: 201 }));
     const { user, container } = renderAt();

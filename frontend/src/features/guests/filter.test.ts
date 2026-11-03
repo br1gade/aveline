@@ -2,13 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DeliveryGroup } from '@/features/sending';
 
-import {
-  filterFromQuery,
-  filterHouseholds,
-  indexHouseholds,
-  normalizeName,
-  withFilter,
-} from './filter';
+import { filterFromQuery, filterHouseholds, indexHouseholds, withFilter } from './filter';
 import { readHouseholds } from './read';
 import { guestWire, householdWire } from './test-data';
 
@@ -37,34 +31,44 @@ const index = indexHouseholds(households);
 const ids = (visible: ReturnType<typeof filterHouseholds>) =>
   visible.map(({ household, guests }) => [household.id, guests.map((guest) => guest.id)]);
 
-describe('normalizeName', () => {
-  it('ignores case and accents, in every script', () => {
-    expect(normalizeName('Пётр')).toBe(normalizeName('петр'));
-    expect(normalizeName('Ánna')).toBe('anna');
-    expect(normalizeName('ԱՆԻ')).toBe(normalizeName('անի'));
-  });
-});
-
 describe('filterHouseholds', () => {
-  it('shows everything, as the very same objects, when nothing is filtered', () => {
-    const visible = filterHouseholds(index, { query: '', answer: null, invite: null });
+  it.each(['', '\u0301'])('shows everything, as the very same objects, for %j', (query) => {
+    const visible = filterHouseholds(index, { query, answer: null, invite: null });
     expect(visible.map(({ household }) => household)).toEqual(households);
     expect(visible[0]?.guests).toBe(households[0]?.guests);
   });
 
   it('finds a guest by part of their name, and shows only them', () => {
-    expect(ids(filterHouseholds(index, { query: 'ani', answer: null, invite: null }))).toEqual([
-      ['h1', ['g2']],
+    expect(ids(filterHouseholds(index, { query: 'armen', answer: null, invite: null }))).toEqual([
+      ['h1', ['g1']],
     ]);
   });
 
   it('finds Cyrillic and Armenian names without minding ё or capitals', () => {
-    expect(ids(filterHouseholds(index, { query: 'петр', answer: null, invite: null }))).toEqual([
+    expect(ids(filterHouseholds(index, { query: 'федор', answer: null, invite: null }))).toEqual([
       ['h2', ['g3']],
     ]);
-    expect(ids(filterHouseholds(index, { query: 'ԱՆԻ', answer: null, invite: null }))).toEqual([
+    expect(ids(filterHouseholds(index, { query: 'ՀԱԿՈԲ', answer: null, invite: null }))).toEqual([
       ['h3', ['g4']],
     ]);
+  });
+
+  it('finds a name written in another alphabet, typed in Latin or in a third one', () => {
+    expect(ids(filterHouseholds(index, { query: 'hakob', answer: null, invite: null }))).toEqual([
+      ['h3', ['g4']],
+    ]);
+    expect(ids(filterHouseholds(index, { query: 'fedorov', answer: null, invite: null }))).toEqual([
+      ['h2', ['g3']],
+    ]);
+    expect(ids(filterHouseholds(index, { query: 'армен', answer: null, invite: null }))).toEqual([
+      ['h1', ['g1']],
+    ]);
+  });
+
+  it('shows a whole household whose name, read in Latin, matches', () => {
+    const visible = filterHouseholds(index, { query: 'semya', answer: null, invite: null });
+    expect(ids(visible)).toEqual([['h2', ['g3']]]);
+    expect(visible[0]?.guests).toBe(households[1]?.guests);
   });
 
   it('shows a whole household whose name matches', () => {
@@ -107,6 +111,7 @@ describe('filterHouseholds', () => {
   it('trims the search', () => {
     expect(ids(filterHouseholds(index, { query: '  ani  ', answer: null, invite: null }))).toEqual([
       ['h1', ['g2']],
+      ['h3', ['g4']],
     ]);
   });
 });

@@ -678,6 +678,7 @@ every target at least 44 px. Not run against the real backend.
 | 3 Nov 2026 | `TextInputField` and `SelectField` take a `labelLang`, and `TranslationFields` is generic over its fields | A host's question is in the event's language, not the page's, and a screen reader needs to know; the field union reached each caller as a string, which each narrowed again |
 | 3 Nov 2026 | `DEFAULT_TIME_ZONE` moves to `lib/time`; the team's dialogs use `AskFirstDialog`, whose busy label is the common "Working…" | Written three times, and copied once, otherwise. `useDialogAction` frees a dialog before throwing an error that isn't the API's, which had left it stuck busy |
 | 3 Nov 2026 | Creating an event takes the end and the sides; its other languages stay on correcting it | `CreateEventDto` takes `endsAt` and the side labels but not `translations` (FR-101); a second request after creating would be a workaround, so the form says they come after |
+| 3 Nov 2026 | `normalizeName` moves from `features/guests` to `lib/text/name-search.ts`, with one romanisation of Armenian and Cyrillic that the door and the guest list both search through | Door staff type on a phone's Latin keyboard while names are often in Armenian or Russian, so "Armen" missed "Արմեն". Each name is indexed with its Latin form, once per read, and each word typed is tried as itself and in Latin. One spelling per letter: Armenian as in passports, Russian as usually typed ("yu", "ya", "y" for "й"), not as in passports ("iu", "ia", "i"); variants such as "Hakobian" for "Hakobyan" aren't matched |
 
 ## 12. Not yet built
 
@@ -770,8 +771,8 @@ every target at least 44 px. Not run against the real backend.
   reload.
 - Of the door: working offline (PQ-14); a QR scanner (PQ-13); seating at check-in; adding a walk-in
   there (the guest list does); checking in a household at once (FR-83); undoing an unlinked ticket
-  (FR-81) or from "Just arrived" (FR-80); search across scripts, so typing "Armen" doesn't find
-  "Արմեն"; telling the hosts of someone unexpected, other than the staff saying so.
+  (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the
+  staff saying so.
 - The rest of the pilot plan: share tags, and the four-language
   walkthroughs against the real backend. Seating jobs (F27's automatic seating) are followed in the
   browser since 30 October 2026, and so are snapshot exports, in PDF, XLSX and CSV (F20, F49 and

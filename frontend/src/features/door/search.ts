@@ -1,4 +1,5 @@
-import { normalizeName, type Guest, type Household } from '@/features/guests';
+import type { Guest, Household } from '@/features/guests';
+import { isFoundIn, nameKey, normalizeName, queryForms } from '@/lib/text';
 
 /** Enough for one name on a phone; a longer search says to type more. */
 export const MAX_FOUND = 20;
@@ -12,17 +13,20 @@ interface Entry {
   key: string;
 }
 
-/** Built once per read, so a keystroke compares strings and normalizes nothing. */
+/**
+ * Built once per read, so a keystroke compares strings and normalizes nothing. Each name is held
+ * also in Latin, so it is found whatever alphabet it is typed in (`lib/text`).
+ */
 export type GuestIndex = readonly Entry[];
 
 export function indexGuests(households: readonly Household[]): GuestIndex {
   return households.flatMap((household) => {
-    const householdKey = normalizeName(household.name);
+    const householdKey = nameKey(household.name);
     return household.guests
       .filter((guest) => !guest.isErased)
       .map((guest) => {
-        const nameKey = normalizeName(guest.name);
-        return { guest, household, nameKey, key: `${nameKey} ${householdKey}` };
+        const ownKey = nameKey(guest.name);
+        return { guest, household, nameKey: ownKey, key: `${ownKey}\n${householdKey}` };
       });
   });
 }
@@ -40,13 +44,17 @@ export interface Found {
   isCapped: boolean;
 }
 
-/** Every word typed, anywhere; those whose own name holds the first word come first. */
-function ranked(index: GuestIndex, words: readonly string[]): Entry[] {
+/**
+ * Every word typed, anywhere, each in any of its forms; those whose own name holds the first word
+ * come first.
+ */
+function ranked(index: GuestIndex, words: readonly (readonly string[])[]): Entry[] {
   const own: Entry[] = [];
   const others: Entry[] = [];
+  const first = words[0] ?? [];
   for (const entry of index) {
-    if (!words.every((word) => entry.key.includes(word))) continue;
-    (entry.nameKey.includes(words[0] ?? '') ? own : others).push(entry);
+    if (!words.every((forms) => isFoundIn(entry.key, forms))) continue;
+    (isFoundIn(entry.nameKey, first) ? own : others).push(entry);
   }
   return [...own, ...others];
 }
@@ -57,7 +65,7 @@ function ranked(index: GuestIndex, words: readonly string[]): Entry[] {
  * pass over the list, then over the matches' households.
  */
 export function findGuests(index: GuestIndex, query: string): Found {
-  const words = normalizeName(query).split(/\s+/u).filter(Boolean);
+  const words = normalizeName(query).split(/\s+/u).filter(Boolean).map(queryForms);
   if (words.length === 0) return { people: [], isCapped: false };
   const matches = ranked(index, words);
   const matchIds = new Set(matches.map(({ guest }) => guest.id));
