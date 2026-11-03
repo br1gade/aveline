@@ -84,7 +84,7 @@ Every element maps to a field the API returns. Nothing on the page comes from an
 | `musicUrl` | The music control | No control when it is `null` |
 | `blocks[]` | The sections of the letter, in the order given ([§5](#5-blocks)) | Never sorted. Unknown types render nothing (C-15) |
 | `rsvpQuestions[]` | The host's own questions in the reply form | In the order given |
-| `event.sides.a`, `event.sides.b` | The options for "Who invited you?" | Asked only when both labels exist and `rsvpFields` asks it |
+| `event.sides.a`, `event.sides.b` | The options for "Who invited you?" | Asked only when both labels exist, `rsvpFields` asks it and the guest's side is still unknown |
 | `rsvpFields` | Which built-in questions the reply form asks, and the host's own dietary and drink choices | Added by the backend on 23 October 2026 (BQ-4, BQ-9) |
 | `theme` (`palette`, `headingFont`, `bodyFont`) | The tokens ([DESIGN_SYSTEM §2](DESIGN_SYSTEM.md#2-colour)) | Palette colours are not in the payload (BQ-1) |
 | `template` | Which variant names apply ([§5](#5-blocks)) | Variants are free text until F28 |
@@ -652,8 +652,7 @@ comment changes the design, update this file in the same change.
   backend inserts it.
 - **What the backend has to answer or build:** palette colours and roles in the guest payload
   (BQ-1 to BQ-3), a reply-by date (BQ-7), a safe Telegram link
-  (BQ-11). The API returns members' earlier answers on an edit since FR-21, and the form does not
-  read them yet.
+  (BQ-11).
 - **Designs the backend's new data waits for:** the guest's table (`guest.seating`), map
   coordinates and the Telegram link (§3).
 - **Product decisions:** the default dietary and drink choices offered to hosts, and which

@@ -118,11 +118,17 @@ describe('guestUpdatePayload', () => {
     });
   });
 
-  it('never sends an empty language: clearing one is not offered yet (FR-31)', () => {
-    expect(guestUpdatePayload(initial, { ...initial, locale: '' }, guest.contact)).toEqual({});
+  it('sends a changed language, and `null` to clear one (FR-31)', () => {
     expect(guestUpdatePayload(initial, { ...initial, locale: 'en' }, guest.contact)).toEqual({
       locale: 'en',
     });
+    expect(guestUpdatePayload(initial, { ...initial, locale: '' }, guest.contact)).toEqual({
+      locale: null,
+    });
+  });
+
+  it('sends nothing for a language that did not change', () => {
+    expect(guestUpdatePayload(initial, initial, guest.contact)).toEqual({});
   });
 });
 

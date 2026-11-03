@@ -12,6 +12,12 @@ export interface Organization {
   members: number;
 }
 
+/** One of the account's memberships (`GET /me/organizations`), as far as a page needs it. */
+export interface OwnOrganization {
+  organizationId: string;
+  name: string;
+}
+
 /** Accepting an invitation creates the account if there was none. No session comes back (FR-23). */
 export interface InviteAccepted {
   role: string;

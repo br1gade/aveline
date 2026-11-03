@@ -61,7 +61,7 @@ const INVITATION: Invitation = {
 
 function recordWith(rsvp: Partial<ReplyRecord['rsvp']> = {}): ReplyRecord {
   return {
-    guest: { id: 'g1', firstName: 'Armen', lastName: 'Petrosyan' },
+    guest: { id: 'g1', firstName: 'Armen', lastName: 'Petrosyan', attribution: 'UNKNOWN' },
     household: {
       name: 'Petrosyan family',
       seatsAllotted: 3,
@@ -75,6 +75,7 @@ function recordWith(rsvp: Partial<ReplyRecord['rsvp']> = {}): ReplyRecord {
           attendance: eventWide(),
           dietary: [],
           dietaryNotes: null,
+          answers: [],
         },
       ],
     },
@@ -162,6 +163,36 @@ const SENT = {
 };
 
 describe('GuestReply', () => {
+  it('shows a member’s earlier answer on an edit (FR-21)', async () => {
+    const record = recordWith({ status: 'ATTENDING' });
+    record.household.members[0]!.status = 'ATTENDING';
+    record.household.members[0]!.answers = [{ questionId: 'q-main', value: 1 }];
+    const { user } = renderReply({ record });
+    await user.click(await screen.findByRole('button', { name: 'Change reply' }));
+    expect(inField('reply-members-0-answers-q-main').getByLabelText('Fish')).toBeChecked();
+  });
+
+  describe('who invited them (FR-19)', () => {
+    const asking = {
+      ...INVITATION,
+      rsvpFields: { ...INVITATION.rsvpFields, attribution: { isEnabled: true, options: null } },
+    };
+
+    it('asks while the side is unknown', async () => {
+      const { user } = renderReply({ invitation: asking });
+      await user.click(screen.getByLabelText('Joyfully attending'));
+      expect(screen.getByRole('group', { name: /Who invited you\?/ })).toBeInTheDocument();
+    });
+
+    it('does not ask once it is set: the backend would not record a change', async () => {
+      const record = recordWith();
+      record.guest.attribution = 'SIDE_A';
+      const { user } = renderReply({ invitation: asking, record });
+      await user.click(screen.getByLabelText('Joyfully attending'));
+      expect(screen.queryByText('Who invited you?')).not.toBeInTheDocument();
+    });
+  });
+
   it('sends a household reply with a plus-one and confirms who is coming', async () => {
     replyWith(() => HttpResponse.json(SENT, { status: 201 }));
     const { props, user } = renderReply();

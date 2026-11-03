@@ -23,8 +23,6 @@ export interface GuestOptions {
   /** The list came with contact details; without them the form neither shows nor sends them. */
   isContactShown: boolean;
   languages: readonly string[];
-  /** "Not set" is offered only while no language is set. */
-  hasNoLanguage: boolean;
   /** `null` when the side is not asked (`offersSides`). */
   sides: SideNames | null;
   households: readonly HouseholdChoice[];
@@ -72,9 +70,7 @@ function LanguageAndSide({ form, options }: FieldsProps) {
         error={fieldText(errors.locale)}
         {...form.register('locale')}
       >
-        {options.hasNoLanguage ? (
-          <NativeSelectOption value="">{t('fields.noLanguage')}</NativeSelectOption>
-        ) : null}
+        <NativeSelectOption value="">{t('fields.noLanguage')}</NativeSelectOption>
         {options.languages.map((code) => (
           <NativeSelectOption key={code} value={code}>
             {isLanguage(code) ? common(`language.${code}`) : code}

@@ -53,7 +53,6 @@ export function useGuestOptions({
     return {
       isContactShown: guest ? guest.contact.isShown : isListContactShown,
       languages: guestLanguages(event.locales, language),
-      hasNoLanguage: language === '',
       sides: offersSides(event, guest?.side ?? 'UNKNOWN') ? sides : null,
       households: joinableHouseholds(households, ownId).map((household) => ({
         id: household.id,

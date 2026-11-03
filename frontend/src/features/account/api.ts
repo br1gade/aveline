@@ -1,8 +1,7 @@
 import { expectData, type ApiClient } from '@/api/client';
-import { isApiError } from '@/api/errors';
 import type { components } from '@/api/schema';
 
-import type { InviteAccepted, InviteKind, Organization } from './types';
+import type { InviteAccepted, InviteKind, Organization, OwnOrganization } from './types';
 
 type Schemas = components['schemas'];
 
@@ -55,16 +54,13 @@ export function createOrganization(
 }
 
 /**
- * The account's organization, or null when it has none. Until `GET /me` exists (FR-5), a 403 here
- * is how "no organization" shows (docs/API.md §6, "Becoming a tenant").
+ * The account's organization, or null when it has none. With several, the oldest: only its name is
+ * shown, and choosing one waits for the organization selector (ARCHITECTURE §12).
  */
-export async function currentOrganization(api: ApiClient): Promise<Organization | null> {
-  try {
-    return await expectData<Organization>(api.GET('/api/v1/organizations/current'));
-  } catch (error) {
-    if (isApiError(error) && error.status === 403) {
-      return null;
-    }
-    throw error;
-  }
+export async function ownOrganization(api: ApiClient): Promise<OwnOrganization | null> {
+  const { items } = await expectData<{ items: OwnOrganization[] }>(
+    api.GET('/api/v1/me/organizations'),
+  );
+  const [first] = items;
+  return first ? { organizationId: first.organizationId, name: first.name } : null;
 }

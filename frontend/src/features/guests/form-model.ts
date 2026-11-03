@@ -60,7 +60,7 @@ export function joinableHouseholds(households: readonly Household[], ownId?: str
 /**
  * The languages a guest may be given: the event's own, and any other the guest already has, so an
  * edit never changes it silently; an unchanged one is not sent, so the backend's rule that a
- * language be the event's own does not refuse it. "Not set" is offered only while none is set.
+ * language be the event's own does not refuse it.
  */
 export function guestLanguages(eventLocales: readonly string[], current: string): string[] {
   return current && !eventLocales.includes(current)

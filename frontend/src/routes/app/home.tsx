@@ -1,12 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link, redirect } from 'react-router';
 
-import {
-  appMeta,
-  currentOrganization,
-  needsOrganization,
-  requireSignedIn,
-} from '@/features/account';
+import { appMeta, needsOrganization, ownOrganization, requireSignedIn } from '@/features/account';
 import { EventList, listEvents } from '@/features/events';
 import { languageOfMatches } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
@@ -17,7 +12,7 @@ import type { Route } from './+types/home';
 /** No organization and no event: a new account, which sets up its organization first. */
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const { api } = await requireSignedIn(request);
-  const [organization, events] = await Promise.all([currentOrganization(api), listEvents(api)]);
+  const [organization, events] = await Promise.all([ownOrganization(api), listEvents(api)]);
   if (needsOrganization(organization, events.length)) {
     throw redirect(APP_PATHS.welcome);
   }

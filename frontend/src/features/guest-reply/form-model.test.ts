@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   carryOver,
   initialValues,
-  neverAnswered,
   newPartyRow,
   replySchema,
   type ReplyFormValues,
@@ -26,7 +25,7 @@ describe('initialValues', () => {
     });
   });
 
-  it('fills an earlier reply, answers in their input form, and members’ own answers empty', () => {
+  it('fills an earlier reply, answers in their input form', () => {
     const values = initialValues(
       recordWith({
         status: 'ATTENDING',
@@ -56,12 +55,28 @@ describe('initialValues', () => {
   });
 });
 
+describe('a member’s earlier answers (FR-21)', () => {
+  it('fills them in their input form, leaving out an agreement, which is given anew', () => {
+    const record = recordWith();
+    record.household.members[0]!.answers = [
+      { questionId: 'q-main', value: 0 },
+      { questionId: 'q-bus', value: true },
+      { questionId: 'q-sign', value: { typedName: 'Lusine' } },
+    ];
+    expect(initialValues(record, QUESTIONS).members[0]?.answers).toEqual({
+      'q-main': '0',
+      'q-multi': [],
+      'q-bus': 'yes',
+      'q-note': '',
+    });
+  });
+});
+
 describe('replySchema', () => {
   const record = recordWith();
   const initial = initialValues(record, QUESTIONS);
   const schema = replySchema({
     questions: QUESTIONS,
-    neverAnswered: neverAnswered(record),
     venueIds: [],
   });
 
@@ -84,19 +99,39 @@ describe('replySchema', () => {
     expect(issues(edit(initial, { status: 'DECLINED' }))).toEqual([]);
   });
 
-  it('leaves a member who has answered before to the server, which counts their earlier answers', () => {
-    const answered = recordWith();
-    answered.household.members[0]!.status = 'ATTENDING';
-    const values = edit(initialValues(answered, QUESTIONS), {
+  describe('a member who has answered before (FR-21)', () => {
+    const coming = recordWith();
+    const member = coming.household.members[0]!;
+    member.status = 'ATTENDING';
+    member.answers = [{ questionId: 'q-main', value: 0 }];
+    const start = edit(initialValues(coming, QUESTIONS), {
       status: 'ATTENDING',
       answers: { ...initial.answers, 'q-main': '0' },
     });
-    const schemaForAnswered = replySchema({
-      questions: QUESTIONS,
-      neverAnswered: neverAnswered(answered),
-      venueIds: [],
+
+    it('needs nothing more while their saved answer stands', () => {
+      expect(issues(start)).toEqual([]);
     });
-    expect(schemaForAnswered.safeParse(values).success).toBe(true);
+
+    it('refuses a required answer blanked, which the backend would store as answered', () => {
+      const { answers } = start.members[0]!;
+      const blanked = edit(start, {
+        members: [{ ...start.members[0]!, answers: { ...answers, 'q-main': '' } }],
+      });
+      expect(issues(blanked)).toEqual(['members.0.answers.q-main:required']);
+    });
+
+    it('asks a required question they never answered, now they are coming', () => {
+      const declined = recordWith();
+      declined.household.members[0]!.status = 'DECLINED';
+      const values = initialValues(declined, QUESTIONS);
+      const coming = edit(values, {
+        status: 'ATTENDING',
+        answers: { ...initial.answers, 'q-main': '0' },
+        members: [{ ...values.members[0]!, status: 'ATTENDING' }],
+      });
+      expect(issues(coming)).toEqual(['members.0.answers.q-main:required']);
+    });
   });
 
   it('asks an added guest the required questions, and needs their first name', () => {
@@ -128,7 +163,6 @@ describe('answering per venue', () => {
   const initial = initialValues(record, QUESTIONS);
   const schema = replySchema({
     questions: QUESTIONS,
-    neverAnswered: neverAnswered(record),
     venueIds: ['v-church', 'v-hall'],
   });
 

@@ -58,7 +58,7 @@ export const QUESTIONS: RsvpQuestion[] = [
 
 export function recordWith(rsvp: Partial<ReplyRecord['rsvp']> = {}): ReplyRecord {
   return {
-    guest: { id: 'g1', firstName: 'Armen', lastName: 'Petrosyan' },
+    guest: { id: 'g1', firstName: 'Armen', lastName: 'Petrosyan', attribution: 'UNKNOWN' },
     household: {
       name: 'Petrosyan family',
       seatsAllotted: 3,
@@ -72,6 +72,7 @@ export function recordWith(rsvp: Partial<ReplyRecord['rsvp']> = {}): ReplyRecord
           attendance: eventWide(),
           dietary: [],
           dietaryNotes: null,
+          answers: [],
         },
       ],
     },
@@ -106,6 +107,7 @@ export function perVenueRecord(
           attendance: perVenue(),
           dietary: [],
           dietaryNotes: null,
+          answers: [],
         },
       ],
     },

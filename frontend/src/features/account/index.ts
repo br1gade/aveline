@@ -1,4 +1,4 @@
-export { currentOrganization } from './api';
+export { ownOrganization } from './api';
 export { AcceptInvite } from './components/accept-invite';
 export { AppLoading, AppShell } from './components/app-shell';
 export { CreateOrganization } from './components/create-organization';

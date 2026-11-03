@@ -82,7 +82,7 @@ function isSame(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** Answers that differ from where they started. A member's and a guest's start empty. */
+/** Answers that differ from where they started. A guest added on this reply starts empty. */
 function changedAnswers(
   answers: Answers,
   before: Answers | undefined,

@@ -59,7 +59,6 @@ function attending(change: Partial<ReplyFormValues> = {}): ReplyFormValues {
 function issues(values: ReplyFormValues, signatures = contextFor()) {
   const schema = replySchema({
     questions: QUESTIONS,
-    neverAnswered: new Set(['g2']),
     venueIds: [],
     signatures,
   });

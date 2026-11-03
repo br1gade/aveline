@@ -14,7 +14,6 @@ import {
   carryOver,
   fullName,
   initialValues,
-  neverAnswered,
   replySchema,
   type ReplyFormValues,
 } from '../form-model';
@@ -55,17 +54,19 @@ function OwnQuestions() {
 
 /**
  * What only an attending guest is asked (spec §6.1b–g). A built-in question shows only when the
- * invitation asks it (`rsvpFields`); the side, only when both side labels exist too.
+ * invitation asks it (`rsvpFields`); the side, only when both side labels exist too and it is still
+ * unknown, since the backend does not record a change to one (`sideToRecord`).
  */
 function AttendingSections() {
   const { invitation, record, field } = useReplyForm();
   const { household } = record;
   const seatsLeft = household.seatsAllotted - 1 - household.members.length;
   const { a, b } = invitation.event.sides;
+  const isSideOpen = field('attribution').isEnabled && record.guest.attribution === 'UNKNOWN';
   return (
     <>
       {seatsLeft > 0 ? <PartySection seatsLeft={seatsLeft} /> : null}
-      {field('attribution').isEnabled && a && b ? <SideSection sides={{ a, b }} /> : null}
+      {isSideOpen && a && b ? <SideSection sides={{ a, b }} /> : null}
       {field('dietary').isEnabled ? <DietarySection /> : null}
       {field('drinkPreference').isEnabled ? <DrinkSection /> : null}
       {field('songRequest').isEnabled ? <SongSection /> : null}
@@ -274,12 +275,11 @@ function useReplyFormSetup({ invitation, record, draft, signatures }: ReplyFormP
     const venueIds = venues.map((venue) => venue.venueId);
     const context = {
       questions,
-      neverAnswered: neverAnswered(record),
       venueIds,
       signatures: signatures ?? undefined,
     };
     return zodResolver(replySchema(context));
-  }, [questions, record, venues, signatures]);
+  }, [questions, venues, signatures]);
   // Focus goes to the error summary, not the first field (spec §11), so the guest hears every
   // problem first.
   const form = useForm<ReplyFormValues>({

@@ -48,7 +48,7 @@ const COMING = {
 
 export function recordComing(members: ReplyRecord['household']['members'] = []): ReplyRecord {
   return {
-    guest: { id: 'g-anna', firstName: 'Anna', lastName: 'Sargsyan' },
+    guest: { id: 'g-anna', firstName: 'Anna', lastName: 'Sargsyan', attribution: 'UNKNOWN' },
     household: { name: 'Anna Sargsyan', seatsAllotted: 1 + members.length, members },
     attendance: { ...COMING, venues: [] },
     rsvp: { status: 'ATTENDING', answers: [] },
@@ -64,6 +64,7 @@ export const DAVIT_COMING: ReplyRecord['household']['members'][number] = {
   attendance: { ...COMING, venues: [] },
   dietary: [],
   dietaryNotes: null,
+  answers: [],
 };
 
 /** `GET …/acknowledgements`, with the records given. */

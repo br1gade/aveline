@@ -27,13 +27,7 @@ describe('safeNext', () => {
 });
 
 describe('needsOrganization', () => {
-  const organization = {
-    id: 'o1',
-    name: 'Petrosyan Wedding',
-    kind: 'HOST',
-    events: 0,
-    members: 1,
-  } as const;
+  const organization = { organizationId: 'o1', name: 'Petrosyan Wedding' };
 
   it('sends a new account, with no organization and no event, to create one', () => {
     expect(needsOrganization(null, 0)).toBe(true);

@@ -7,7 +7,7 @@ import type { SignatureAnswerValue } from './signatures';
  * `GET /api/v1/invitations/:slug/g/:guestToken/rsvp` and the submit result.
  *
  * Interim until FR-1: written by hand from docs/API.md §4 and checked against the backend's
- * `RsvpService.getForGuest` and `submit` (re-checked 28 October 2026, at `eb77cd4`). The request
+ * `RsvpService.getForGuest` and `submit` (re-checked 3 November 2026, at `34ac1e6`). The request
  * body is generated.
  */
 type GeneratedBody = components['schemas']['SubmitRsvpDto'];
@@ -52,6 +52,7 @@ export interface HouseholdMemberRecord {
   attendance: AttendanceView;
   dietary: string[];
   dietaryNotes: string | null;
+  answers: SavedAnswer[];
 }
 
 export interface SavedAnswer {
@@ -72,7 +73,13 @@ export interface SavedReply {
 }
 
 export interface ReplyRecord {
-  guest: { id: string; firstName: string; lastName: string | null };
+  /** `attribution` stops being recorded once it is known, so it is asked only while `UNKNOWN`. */
+  guest: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    attribution: 'SIDE_A' | 'SIDE_B' | 'SHARED' | 'UNKNOWN';
+  };
   household: {
     name: string;
     seatsAllotted: number;

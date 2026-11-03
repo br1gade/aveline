@@ -11,7 +11,7 @@ import {
   type SignatureContext,
   type SignatureValues,
 } from './signatures';
-import type { ReplyRecord, ReplyStatus, SavedStatus } from './types';
+import type { ReplyRecord, ReplyStatus, SavedAnswer, SavedStatus } from './types';
 
 /**
  * The reply form's values, how they start from the saved reply, and how they are checked. What
@@ -119,6 +119,10 @@ function answersFrom(
   );
 }
 
+function savedAnswers(answers: readonly SavedAnswer[]): ReadonlyMap<string, unknown> {
+  return new Map(answers.map((answer) => [answer.questionId, answer.value]));
+}
+
 /** A new row in "Add a guest": a name, and their own answers, all empty. */
 export function newPartyRow(questions: readonly RsvpQuestion[]): PartyValues {
   return {
@@ -135,16 +139,14 @@ function asFormStatus(status: SavedStatus): ReplyStatus | '' {
 }
 
 /**
- * The form as the saved reply leaves it. A first reply starts with nothing chosen. Members' own
- * answers start empty: GET …/rsvp returns them since FR-21, but they are not read yet (ARCHITECTURE
- * §12), and an earlier answer still counts on the server, so leaving one empty changes nothing.
+ * The form as the saved reply leaves it. A first reply starts with nothing chosen. An unchanged
+ * answer is not sent again (`payload.ts`), so it stands on the server.
  */
 export function initialValues(
   record: ReplyRecord,
   questions: readonly RsvpQuestion[],
 ): ReplyFormValues {
   const { rsvp } = record;
-  const saved = new Map(rsvp.answers.map((answer) => [answer.questionId, answer.value]));
   return {
     status: asFormStatus(rsvp.status),
     venues: venueAnswersFrom(record.attendance),
@@ -155,7 +157,7 @@ export function initialValues(
       venues: venueAnswersFrom(member.attendance),
       dietary: member.dietary,
       dietaryNotes: member.dietaryNotes ?? '',
-      answers: answersFrom(questions, new Map()),
+      answers: answersFrom(questions, savedAnswers(member.answers)),
     })),
     party: [],
     attribution: '',
@@ -164,7 +166,7 @@ export function initialValues(
     drinkPreference: rsvp.drinkPreference ?? '',
     songRequest: rsvp.songRequest ?? '',
     message: rsvp.message ?? '',
-    answers: answersFrom(questions, saved),
+    answers: answersFrom(questions, savedAnswers(rsvp.answers)),
     signatures: emptySignatures(questions),
   };
 }
@@ -233,11 +235,6 @@ function answerIssues({ questions, answers, path, isBound }: AnswerCheck) {
 
 export interface SchemaContext {
   questions: readonly RsvpQuestion[];
-  /**
-   * Members who have never answered. Only for them can the form know a required question is
-   * unanswered; for the rest the server checks, counting their earlier answers.
-   */
-  neverAnswered: ReadonlySet<string>;
   /** The venues to answer in PER_VENUE; empty for one answer for the whole event. */
   venueIds: readonly string[];
   /** The statements to agree to, and who already has; none when the invitation has none. */
@@ -304,9 +301,7 @@ function allAnswerIssues(values: z.infer<typeof valuesShape>, context: SchemaCon
       questions,
       answers: member.answers,
       path: ['members', index],
-      isBound:
-        memberStatus(member, values, context.venueIds) === 'ATTENDING' &&
-        context.neverAnswered.has(member.guestId),
+      isBound: memberStatus(member, values, context.venueIds) === 'ATTENDING',
     }),
   );
   // Added guests are shown, and sent, only while the respondent is coming: a row left behind by
@@ -354,13 +349,4 @@ export function replySchema(context: SchemaContext) {
       refinement.addIssue({ code: 'custom', ...issue });
     }
   });
-}
-
-/** Members who have never answered, from the saved reply. */
-export function neverAnswered(record: ReplyRecord): Set<string> {
-  return new Set(
-    record.household.members
-      .filter((member) => member.status === 'PENDING')
-      .map((member) => member.id),
-  );
 }

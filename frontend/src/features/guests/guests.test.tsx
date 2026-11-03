@@ -513,6 +513,18 @@ describe('GuestList: contact details this role cannot see', () => {
   });
 });
 
+describe('GuestList: a guest’s language', () => {
+  it('can be set back to none (FR-31)', async () => {
+    serve();
+    const received = answer('patch', '/events/e1/guests/g1', () => HttpResponse.json({}));
+    const user = renderList();
+    const dialog = await openEdit(user, 'Armen Petrosyan');
+    await user.selectOptions(within(dialog).getByLabelText('Language'), 'Not set');
+    await save(user);
+    await waitFor(() => expect(received).toEqual([{ locale: null }]));
+  });
+});
+
 describe('GuestList: the search and the filter', () => {
   it('reads the filter from the address', async () => {
     serve();

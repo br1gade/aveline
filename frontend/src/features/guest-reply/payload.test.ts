@@ -17,6 +17,42 @@ const DIETARY = {
   ],
 };
 
+describe('a member’s earlier answers (FR-21)', () => {
+  const saved = recordWith({ status: 'ATTENDING' });
+  saved.household.members[0]!.status = 'ATTENDING';
+  saved.household.members[0]!.answers = [{ questionId: 'q-main', value: 0 }];
+  const start = initialValues(saved, QUESTIONS);
+  const context = contextWith();
+
+  it('leaves out a member nothing changed for: their answers stand on the server', () => {
+    expect(buildPayload(start, start, context).members).toBeUndefined();
+  });
+
+  it('sends a text blanked as blank, which the backend stores', () => {
+    const answered = recordWith({ status: 'ATTENDING' });
+    answered.household.members[0]!.status = 'ATTENDING';
+    answered.household.members[0]!.answers = [{ questionId: 'q-note', value: 'Window seat' }];
+    const before = initialValues(answered, QUESTIONS);
+    const member = before.members[0]!;
+    const values = edit(before, {
+      members: [{ ...member, answers: { ...member.answers, 'q-note': '' } }],
+    });
+    expect(buildPayload(values, before, context).members?.[0]?.answers).toEqual([
+      { questionId: 'q-note', value: '' },
+    ]);
+  });
+
+  it('sends only the answer that changed', () => {
+    const member = start.members[0]!;
+    const values = edit(start, {
+      members: [{ ...member, answers: { ...member.answers, 'q-note': 'Window seat' } }],
+    });
+    expect(buildPayload(values, start, context).members?.[0]?.answers).toEqual([
+      { questionId: 'q-note', value: 'Window seat' },
+    ]);
+  });
+});
+
 describe('buildPayload', () => {
   it('sends each person coming with their own answers, as positions and keys', () => {
     const values = edit(initial, {
