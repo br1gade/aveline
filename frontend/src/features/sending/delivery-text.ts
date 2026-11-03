@@ -60,7 +60,7 @@ const ACTION_OF: Partial<Record<DeliveryStatus, ActionKey>> = {
 
 /** A moment in the event's zone, through one of the report's sentences. */
 function momentText(
-  key: 'delivery.sentAt' | 'delivery.readAt',
+  key: 'delivery.sentAt' | 'delivery.deliveredAt' | 'delivery.readAt' | 'delivery.deliveryFailedAt',
   iso: string | null,
   t: T,
   zone: EventZone,
@@ -89,7 +89,14 @@ function reachableText(delivery: Reachable, t: T, zone: EventZone): DeliveryText
     t('delivery.to', { name: delivery.recipient }),
     destinationText(delivery.destination, t),
     momentText('delivery.sentAt', delivery.sentAt, t, zone),
+    momentText('delivery.deliveredAt', delivery.deliveredAt, t, zone),
     momentText('delivery.readAt', delivery.readAt, t, zone),
+    momentText('delivery.deliveryFailedAt', delivery.deliveryFailedAt, t, zone),
+    delivery.failureKind ? t(`delivery.failureKind.${delivery.failureKind}`) : '',
+    // A string, so a number format doesn't group it: 131049 is a code, not a quantity.
+    delivery.deliveryErrorCode === null
+      ? ''
+      : t('delivery.errorCode', { code: String(delivery.deliveryErrorCode) }),
     reminded,
   ]
     .filter(Boolean)

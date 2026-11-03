@@ -11,7 +11,8 @@ import { ProblemAlert } from '@/ui/app-form';
 import { designPath, designQuestionsPath } from '../paths';
 import { useRefusedText, type DesignAction } from '../refusals';
 
-const LINK = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 
 interface DesignHeaderProps {
   eventId: string;

@@ -55,7 +55,8 @@ export function nameList(names: readonly string[]): string {
   return names.join(', ');
 }
 
-export const LINK = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+export const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 export const PANEL = 'bg-card border-border flex flex-col gap-3 border px-5 py-4';
 /** The kit's buttons never wrap; a long Armenian label would run past a 360 px screen. */
 export const WRAP =

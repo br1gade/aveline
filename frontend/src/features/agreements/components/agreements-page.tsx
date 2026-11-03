@@ -16,7 +16,8 @@ import type { AgreementsData } from '../load';
 import type { AgreementsPage as RecordsPage } from '../types';
 import { StatementBlock } from './statement-group';
 
-const LINK = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 /** The kit's buttons never wrap; a long label in Armenian or Russian must, at 360 px. */
 const WRAPPING =
   'h-auto min-h-10 py-2 text-left whitespace-normal pointer-coarse:h-auto pointer-coarse:min-h-11';

@@ -41,11 +41,11 @@ export function readDesignStatus(design: DesignStatusWire): DesignStatus {
   return { status: design.status, publishBlockers: [...design.publishBlockers] };
 }
 
-function readSent(entry: SentWire): SentHousehold {
+export function readSentHousehold(entry: SentWire): SentHousehold {
   return { household: entry.householdName, destination: destinationOf(entry) };
 }
 
-function readUnreachable(entry: UnreachableWire): UnreachableHousehold {
+export function readUnreachableHousehold(entry: UnreachableWire): UnreachableHousehold {
   return { householdId: entry.householdId, household: entry.householdName, reason: entry.reason };
 }
 
@@ -53,9 +53,9 @@ export function readSendResult(result: SendResultWire): SendOutcome {
   return {
     queued: result.queued,
     alreadySent: result.alreadySent,
-    recipients: result.recipients.map(readSent),
-    suppressed: result.suppressed.map(readSent),
-    unreachable: result.unreachable.map(readUnreachable),
+    recipients: result.recipients.map(readSentHousehold),
+    suppressed: result.suppressed.map(readSentHousehold),
+    unreachable: result.unreachable.map(readUnreachableHousehold),
   };
 }
 
@@ -65,6 +65,10 @@ function failureKindOf(value: string | null | undefined): FailureKind | null {
 
 function statusOf(value: string): DeliveryStatus {
   return DELIVERY_STATUSES.find((status) => status === value) ?? 'UNKNOWN';
+}
+
+function errorCodeOf(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
 function readRow(row: DeliveryRowWire): HouseholdDelivery {
@@ -81,7 +85,10 @@ function readRow(row: DeliveryRowWire): HouseholdDelivery {
     // guard, since a read-only role must never see an address.
     failureReason: 'toAddress' in row ? row.failureReason : null,
     sentAt: row.sentAt,
+    deliveredAt: row.deliveredAt ?? null,
     readAt: row.readAt ?? null,
+    deliveryFailedAt: row.deliveryFailedAt ?? null,
+    deliveryErrorCode: errorCodeOf(row.deliveryErrorCode),
     failureKind: failureKindOf(row.deliveryFailureKind),
     reminders: row.reminders ?? 0,
     lastRemindedAt: row.lastRemindedAt ?? null,

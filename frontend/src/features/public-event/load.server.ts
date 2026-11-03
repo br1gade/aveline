@@ -2,8 +2,9 @@ import { createPublicApi } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { readServerEnv } from '@/config/env.server';
 
-import { fetchPublicEvent, type PublicEventRequest } from './api';
-import type { PublicEvent } from './types';
+import { fetchPublicEvent, fetchPublicListing, type PublicEventRequest } from './api';
+import type { ListingQuery } from './listing';
+import type { PublicEvent, PublicListing } from './types';
 
 /** A public event page's loader data. */
 export type PublicEventPageData =
@@ -31,4 +32,14 @@ export async function loadPublicEvent(request: PublicEventRequest): Promise<Publ
     }
     throw error;
   }
+}
+
+/**
+ * Browsing public events on the server, through the internal API address. A failure goes to the
+ * error boundary with its request id. Every visitor counts against one address (FR-73).
+ */
+export function loadPublicListing(
+  query: ListingQuery & { locale: string },
+): Promise<PublicListing> {
+  return fetchPublicListing(createPublicApi(readServerEnv().API_INTERNAL_URL), query);
 }

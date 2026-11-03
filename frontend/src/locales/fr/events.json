@@ -81,7 +81,9 @@
     "exports": "Exports",
     "ticketSales": "Vente de billets",
     "orders": "Commandes",
-    "door": "L’entrée"
+    "door": "L’entrée",
+    "followUps": "Rappels et remerciements",
+    "team": "L’équipe"
   },
   "headcount": {
     "title": "Invités",

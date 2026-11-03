@@ -12,7 +12,8 @@ import { ORDER_TABS, type OrderTab } from '../status';
 import type { OrderRow } from '../types';
 import { OrderPanel } from './order-panel';
 
-const LINK = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 /** The API's own cap on one read of the list (FR-68). */
 const LIST_CAP = 500;
 
@@ -43,7 +44,7 @@ function Tabs({ current }: { current: OrderTab }) {
               preventScrollReset
               replace
               className={cn(
-                'border-border inline-flex min-h-10 items-center border px-3 text-sm',
+                'border-border inline-flex min-h-11 items-center border px-3 text-sm',
                 tab === current && 'bg-primary text-primary-foreground',
               )}
             >

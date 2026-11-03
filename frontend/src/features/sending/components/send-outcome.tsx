@@ -4,9 +4,18 @@ import { Link } from 'react-router';
 
 import { destinationText } from '../delivery-text';
 import { guestListPath } from '../paths';
-import type { SendOutcome, SentHousehold } from '../types';
+import type { SendOutcome, SentHousehold, UnreachableHousehold } from '../types';
 
-function Group({ title, help, children }: { title: string; help: string; children: ReactNode }) {
+/** A group of households in an outcome, with what to do about them. */
+export function OutcomeGroup({
+  title,
+  help,
+  children,
+}: {
+  title: string;
+  help: string;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <h4 className="m-0 text-sm font-medium">{title}</h4>
@@ -16,7 +25,7 @@ function Group({ title, help, children }: { title: string; help: string; childre
   );
 }
 
-function SentList({ households }: { households: readonly SentHousehold[] }) {
+export function SentList({ households }: { households: readonly SentHousehold[] }) {
   const { t } = useTranslation('sending');
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
@@ -33,19 +42,16 @@ function SentList({ households }: { households: readonly SentHousehold[] }) {
   );
 }
 
-/** Who nothing can reach, with the backend's reason in English (FR-33). */
-function UnreachableGroup({ outcome, eventId }: { outcome: SendOutcome; eventId: string }) {
+/** Households with the backend's reason in English (FR-33), said to be English when it isn't the page's. */
+export function ReasonList({ entries }: { entries: readonly UnreachableHousehold[] }) {
   const { t, i18n } = useTranslation('sending');
   return (
-    <Group
-      title={t('outcome.unreachableTitle', { count: outcome.unreachable.length })}
-      help={t('outcome.unreachableHelp')}
-    >
+    <>
       {i18n.language === 'en' ? null : (
         <p className="text-muted-foreground m-0 text-sm">{t('outcome.inEnglish')}</p>
       )}
       <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
-        {outcome.unreachable.map((entry) => (
+        {entries.map((entry) => (
           <li key={entry.householdId} className="break-words">
             <span className="font-medium">{entry.household}</span>{' '}
             <span lang="en" className="text-muted-foreground">
@@ -54,13 +60,26 @@ function UnreachableGroup({ outcome, eventId }: { outcome: SendOutcome; eventId:
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+
+/** Who nothing can reach. */
+function UnreachableGroup({ outcome, eventId }: { outcome: SendOutcome; eventId: string }) {
+  const { t } = useTranslation('sending');
+  return (
+    <OutcomeGroup
+      title={t('outcome.unreachableTitle', { count: outcome.unreachable.length })}
+      help={t('outcome.unreachableHelp')}
+    >
+      <ReasonList entries={outcome.unreachable} />
       <Link
         to={guestListPath(eventId, 'attention')}
-        className="text-primary self-start text-sm underline underline-offset-4 hover:no-underline"
+        className="text-primary inline-flex min-h-11 items-center self-start text-sm underline underline-offset-4 hover:no-underline"
       >
         {t('outcome.fixOnList')}
       </Link>
-    </Group>
+    </OutcomeGroup>
   );
 }
 
@@ -100,8 +119,8 @@ export function SendOutcomeView({ outcome, eventId }: { outcome: SendOutcome; ev
         <div className="flex flex-col gap-1.5">
           <p className="m-0">{t('outcome.queued', { count: outcome.queued })}</p>
           <details className="text-sm">
-            <summary className="cursor-pointer">{t('outcome.seeWho')}</summary>
-            <div className="pt-2">
+            <summary className="cursor-pointer py-3">{t('outcome.seeWho')}</summary>
+            <div>
               <SentList households={outcome.recipients} />
             </div>
           </details>
@@ -111,12 +130,12 @@ export function SendOutcomeView({ outcome, eventId }: { outcome: SendOutcome; ev
         <p className="m-0">{t('outcome.alreadySent', { count: outcome.alreadySent })}</p>
       ) : null}
       {outcome.suppressed.length > 0 ? (
-        <Group
+        <OutcomeGroup
           title={t('outcome.suppressedTitle', { count: outcome.suppressed.length })}
           help={t('outcome.suppressedHelp')}
         >
           <SentList households={outcome.suppressed} />
-        </Group>
+        </OutcomeGroup>
       ) : null}
       {outcome.unreachable.length > 0 ? (
         <UnreachableGroup outcome={outcome} eventId={eventId} />

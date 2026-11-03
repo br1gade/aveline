@@ -21,6 +21,7 @@ export default [
   index('routes/home.tsx'),
   route(relative(ROUTE_PATHS.genericInvitation), 'routes/public/invitation.tsx'),
   route(relative(ROUTE_PATHS.guestInvitation), 'routes/public/guest-invitation.tsx'),
+  route(relative(APP_PATHS.publicEvents), 'routes/public/events.tsx'),
   route(relative(ROUTE_PATHS.publicEvent), 'routes/public/event.tsx'),
   route(relative(APP_PATHS.checkout), 'routes/public/checkout.tsx'),
   route(relative(APP_PATHS.ticketOrder), 'routes/public/ticket-order.tsx'),
@@ -46,6 +47,7 @@ export default [
       route(underApp(APP_PATHS.importGuests), 'routes/app/guests-import.tsx'),
       route(underApp(APP_PATHS.venues), 'routes/app/venues.tsx'),
       route(underApp(APP_PATHS.newVenue), 'routes/app/venue-new.tsx'),
+      route(underApp(APP_PATHS.venueDirectory), 'routes/app/venue-directory.tsx'),
       route(underApp(APP_PATHS.editVenue), 'routes/app/venue-edit.tsx'),
       route(underApp(APP_PATHS.invitation), 'routes/app/invitation.tsx'),
       route(underApp(APP_PATHS.attendance), 'routes/app/event-attendance.tsx'),
@@ -66,6 +68,8 @@ export default [
       route(underApp(APP_PATHS.announcement), 'routes/app/announcement.tsx'),
       route(underApp(APP_PATHS.orders), 'routes/app/orders.tsx'),
       route(underApp(APP_PATHS.door), 'routes/app/door.tsx'),
+      route(underApp(APP_PATHS.followUps), 'routes/app/follow-ups.tsx'),
+      route(underApp(APP_PATHS.team), 'routes/app/team.tsx'),
     ]),
     // Signed in, without the app's frame: the invitation's preview needs the whole window.
     layout('routes/app/preview-layout.tsx', [

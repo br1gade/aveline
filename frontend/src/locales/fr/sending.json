@@ -13,7 +13,8 @@
     "lifetime": "Les invités peuvent l’ouvrir",
     "openUntil": "jusqu’au {{date}}, {{time}}",
     "noExpiry": "sans date de fin",
-    "expired": "plus maintenant : son délai est écoulé"
+    "expired": "plus maintenant : son délai est écoulé",
+    "followUps": "Relancer ceux qui n’ont pas répondu, ou remercier les invités"
   },
   "status": {
     "published": "L’invitation est publiée.",
@@ -142,7 +143,16 @@
       "UNREACHABLE": "Ajoutez ou corrigez une adresse, puis renvoyez.",
       "CONFIGURATION": "L’envoi sur ce canal n’est pas correctement configuré, ce que l’invité ne peut pas corriger. Réessayez plus tard."
     },
-    "readAt": "lue le {{date}}, {{time}}"
+    "readAt": "lue le {{date}}, {{time}}",
+    "deliveredAt": "remise le {{date}}, {{time}}",
+    "deliveryFailedAt": "non remise le {{date}}, {{time}}",
+    "errorCode": "code du fournisseur {{code}}",
+    "failureKind": {
+      "CONFIGURATION": "un problème de configuration de l’envoi",
+      "TRANSIENT": "un problème temporaire",
+      "AMBIGUOUS": "la cause n’est pas claire",
+      "UNKNOWN": "la cause est inconnue"
+    }
   },
   "problems": {
     "forbidden": "Votre rôle sur cet événement ne permet pas de publier ou d’envoyer l’invitation. Le propriétaire de l’événement peut modifier votre rôle.",

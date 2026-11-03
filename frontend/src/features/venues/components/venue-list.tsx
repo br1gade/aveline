@@ -15,7 +15,7 @@ import { EXTERNAL_LINK, Icon } from '@/ui';
 import { Button } from '@/ui/kit/button';
 
 import type { VenueListData } from '../load';
-import { editVenuePath, newVenuePath } from '../paths';
+import { editVenuePath, newVenuePath, venueDirectoryPath } from '../paths';
 import type { Venue } from '../types';
 import { RemoveVenueDialog } from './remove-venue-dialog';
 
@@ -41,7 +41,7 @@ function MapLink({ venue }: { venue: Venue }) {
     <a
       href={href}
       {...EXTERNAL_LINK}
-      className="text-primary self-start text-sm underline underline-offset-4 hover:no-underline"
+      className="text-primary inline-flex min-h-11 items-center self-start text-sm underline underline-offset-4 hover:no-underline"
     >
       {t('list.directions')}
       <Icon name="external-link" size={16} className="ml-1 inline align-[-3px]" />
@@ -198,7 +198,7 @@ export function VenueList({ data }: { data: VenueListData }) {
     <section className="flex flex-col gap-5">
       <Link
         to={eventPath(event.id)}
-        className="text-primary self-start underline underline-offset-4 hover:no-underline"
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
       >
         {t('list.back')}
       </Link>
@@ -211,6 +211,12 @@ export function VenueList({ data }: { data: VenueListData }) {
         <Link to={newVenuePath(event.id)}>{t('list.add')}</Link>
       </Button>
       <StatusLine statusRef={removal.statusRef}>{removal.status}</StatusLine>
+      <Link
+        to={venueDirectoryPath(event.id)}
+        className="text-primary inline-flex min-h-11 items-center self-start text-sm underline underline-offset-4 hover:no-underline"
+      >
+        {t('list.directory')}
+      </Link>
       {venues.length === 0 ? (
         <p className="text-muted-foreground m-0">{t('list.empty')}</p>
       ) : (

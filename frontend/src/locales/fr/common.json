@@ -2,7 +2,8 @@
   "appName": "Aveline",
   "home": {
     "title": "Aveline",
-    "body": "Des invitations pour les jours qui comptent. Ouvrez le lien personnel que vous avez reçu pour voir votre invitation."
+    "body": "Des invitations pour les jours qui comptent. Ouvrez le lien personnel que vous avez reçu pour voir votre invitation.",
+    "browse": "Parcourir les événements publics"
   },
   "notFound": {
     "title": "Cette page n’est pas disponible",

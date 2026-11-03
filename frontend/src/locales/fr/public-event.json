@@ -26,5 +26,21 @@
     "title": "Cet événement n’est pas disponible",
     "body": "Sa page a peut-être été retirée, ou l’adresse est erronée. Si quelqu’un vous l’a envoyée, demandez-lui un nouveau lien.",
     "sentence": "Cet événement n’est pas disponible."
+  },
+  "listing": {
+    "metaTitle": "Événements publics · Aveline",
+    "title": "Événements publics",
+    "lead": "Des événements ouverts à tous, les plus proches d’abord. La page de chaque événement donne sa date et son heure.",
+    "from": "À partir de {{price}}",
+    "free": "Billets gratuits",
+    "empty": "Aucun événement public n’est listé pour l’instant.",
+    "emptyCategory": "Rien n’est listé sous « {{category}} ».",
+    "showing": "Catégorie affichée : « {{category}} ».",
+    "showAll": "Afficher tous les événements",
+    "pastTheEnd": "Il n’y a plus d’événements ici.",
+    "toStart": "Revenir aux premiers événements",
+    "paging": "Plus d’événements",
+    "earlier": "Événements plus proches",
+    "later": "Événements suivants"
   }
 }

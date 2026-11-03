@@ -38,7 +38,7 @@ export function EventUnavailable({ error }: { error: unknown }) {
       ) : null}
       <Link
         to={APP_PATHS.app}
-        className="text-primary self-start underline underline-offset-4 hover:no-underline"
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
       >
         {t('unavailable.back')}
       </Link>

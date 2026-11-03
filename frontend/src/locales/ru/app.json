@@ -30,7 +30,10 @@
     "editTicketType": "Изменить тип билета · Aveline",
     "announcement": "Анонс · Aveline",
     "orders": "Заказы · Aveline",
-    "door": "Вход · Aveline"
+    "door": "Вход · Aveline",
+    "followUps": "Напоминания и благодарности · Aveline",
+    "team": "Команда · Aveline",
+    "venueDirectory": "Каталог площадок · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

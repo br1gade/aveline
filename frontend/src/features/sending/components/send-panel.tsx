@@ -31,7 +31,8 @@ function NotOffered({ isExpired }: { isExpired: boolean }) {
 /** Who has been invited so far, with the way to each household on the guest list. */
 function DeliverySummary({ report, eventId }: { report: DeliveryReport; eventId: string }) {
   const { t } = useTranslation('sending');
-  const linkClass = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+  const linkClass =
+    'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
   return (
     <div className="flex flex-col gap-1">
       <p className="m-0">

@@ -29,7 +29,9 @@
       "dateInvalid": "Saisissez une date valide.",
       "timeSkipped": "On avance l’heure à ce moment-là : cette heure n’existe pas ce jour-là dans ce fuseau horaire. Choisissez une autre heure.",
       "refused": "Cela n’a pas été accepté. Vérifiez.",
-      "other": "Vérifiez ce champ."
+      "other": "Vérifiez ce champ.",
+      "capacity": "Saisissez un nombre entier de 1 à 100 000, ou laissez vide.",
+      "cantClear": "Une fois renseigné, ce champ peut être modifié mais pas vidé."
     }
   },
   "form": {
@@ -57,7 +59,8 @@
     "hiddenRole": "{{role}} : non visible des invités",
     "edit": "Modifier",
     "remove": "Retirer",
-    "removed": "{{name}} a été retiré."
+    "removed": "{{name}} a été retiré.",
+    "directory": "L’annuaire des lieux, tenu par l’équipe Aveline"
   },
   "actionFor": "{{action}} : {{name}}",
   "remove": {
@@ -79,6 +82,65 @@
     "check": "Certaines informations n’ont pas été acceptées. Vérifiez-les et réessayez.",
     "other": "Cela n’a pas été accepté. Réessayez.",
     "hasAnswers": "Des invités ont déjà répondu pour ce lieu, il ne peut donc pas être retiré : leurs réponses y restent attachées. Vous pouvez toujours corriger ses informations.",
-    "guestFacing": "Des invités ont répondu, choisi ou été placés pour ce lieu, il doit donc rester visible des invités. Gardez ce qui s’y passe tel quel."
+    "guestFacing": "Des invités ont répondu, choisi ou été placés pour ce lieu, il doit donc rester visible des invités. Gardez ce qui s’y passe tel quel.",
+    "hallRetired": "Cette salle a quitté l’annuaire : son choix a été retiré. Le nom et l’adresse affichés sont conservés : appuyez sur Ajouter pour les utiliser tels quels."
+  },
+  "directory": {
+    "back": "Retour aux lieux",
+    "title": "L’annuaire des lieux",
+    "lead": "Des salles à partir desquelles chaque hôte peut créer un lieu. L’équipe Aveline le tient : elle seule peut ajouter, corriger ou retirer une salle, ou indiquer qui l’exploite. Les lieux déjà copiés d’une salle gardent leur copie.",
+    "add": "Ajouter une salle",
+    "empty": "L’annuaire n’a pas encore de salles.",
+    "noCity": "Ville non renseignée",
+    "capacity_one": "{{count, number}} invité",
+    "capacity_many": "{{count, number}} invités",
+    "capacity_other": "{{count, number}} invités",
+    "runBy": "Exploitée par {{name}}",
+    "noOperator": "Aucun exploitant",
+    "edit": "Modifier",
+    "editFor": "Modifier {{name}}",
+    "retire": "Retirer",
+    "retireFor": "Retirer {{name}}",
+    "pick": {
+      "label": "Partir de l’annuaire (facultatif)",
+      "help": "Remplit le nom et l’adresse, que vous pouvez encore modifier.",
+      "none": "Ne pas utiliser l’annuaire",
+      "copied": "Ses coordonnées géographiques et sa capacité sont copiées dans ce lieu à l’ajout.",
+      "refused": "Votre rôle ne permet pas de lire l’annuaire. Saisissez le lieu ci-dessous."
+    },
+    "form": {
+      "addTitle": "Ajouter une salle",
+      "editTitle": "Corriger {{name}}",
+      "body": "Chaque hôte le voit. Seule l’équipe Aveline peut enregistrer.",
+      "name": "Nom",
+      "address": "Adresse",
+      "city": "Ville (facultatif)",
+      "capacity": "Nombre d’invités accueillis (facultatif)",
+      "operator": "Exploitant (facultatif)",
+      "operatorHelp": "Les prestataires de lieux sélectionnés par Aveline. Chaque salle en a un ; un prestataire peut en exploiter plusieurs.",
+      "noOperators": "Votre rôle ne permet pas de lire la liste des prestataires : l’exploitant de cette salle reste inchangé.",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…"
+    },
+    "retireDialog": {
+      "title": "Retirer {{name}} ?",
+      "body": "Les hôtes ne la verront plus. Les lieux déjà copiés gardent leur copie. Aucune lecture ne montre plus une salle retirée : elle ne peut pas être rétablie depuis cette page.",
+      "confirm": "Retirer"
+    },
+    "status": {
+      "added": "{{name}} est dans l’annuaire.",
+      "saved": "{{name}} est enregistrée.",
+      "retired": "{{name}} est retirée."
+    },
+    "refused": {
+      "staffOnly": "Seule l’équipe Aveline peut modifier l’annuaire. Votre rôle peut le lire et créer un lieu à partir de lui.",
+      "gone": "Cette salle n’est plus dans l’annuaire. La page a été rechargée.",
+      "operatorRefused": "Ce prestataire ne peut plus exploiter de salle. La page a été rechargée : choisissez-en un autre.",
+      "rateLimited": "Trop d’essais. Attendez une minute, puis réessayez.",
+      "noAnswer": "Aucune réponse. C’est peut-être enregistré : vérifiez la liste, puis réessayez.",
+      "other": "Cela n’a pas été accepté. La raison, en anglais :"
+    },
+    "readRefused": "Votre rôle ne permet pas de lire l’annuaire."
   }
 }

@@ -79,3 +79,27 @@ export interface PublicEvent {
   checkout: CheckoutRules;
   metadata: EventMetadata;
 }
+
+/**
+ * A card from browsing public events (docs/API.md §5). Its `startsAt` is not kept: the answer gives
+ * no zone to show it in (FR-92), and its words are in a language it does not name (FR-92), so a card
+ * can't mark them either.
+ */
+export interface ListingCard {
+  slug: string;
+  headline: string | null;
+  summary: string | null;
+  categories: string[];
+  heroImage: BlockMedia | null;
+  /** The first venue guests see, as stored. */
+  venue: string | null;
+  /** The cheapest active ticket type, sold out or not (FR-93); `null` with none. */
+  fromPriceMinor: string | null;
+  currency: string | null;
+}
+
+export interface PublicListing {
+  cards: ListingCard[];
+  limit: number;
+  hasMore: boolean;
+}

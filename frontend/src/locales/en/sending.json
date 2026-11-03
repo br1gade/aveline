@@ -13,7 +13,8 @@
     "lifetime": "Guests can open it",
     "openUntil": "until {{date}}, {{time}}",
     "noExpiry": "with no end date",
-    "expired": "no longer: its time has run out"
+    "expired": "no longer: its time has run out",
+    "followUps": "Chase who hasn’t answered, or thank the guests"
   },
   "status": {
     "published": "The invitation is published.",
@@ -132,7 +133,16 @@
       "UNREACHABLE": "Add or correct an address, then send again.",
       "CONFIGURATION": "Sending on this channel isn’t set up correctly, which the guest can’t fix. Try again later."
     },
-    "readAt": "read {{date}}, {{time}}"
+    "readAt": "read {{date}}, {{time}}",
+    "deliveredAt": "delivered {{date}}, {{time}}",
+    "deliveryFailedAt": "not delivered {{date}}, {{time}}",
+    "errorCode": "provider code {{code}}",
+    "failureKind": {
+      "CONFIGURATION": "a problem with how sending is set up",
+      "TRANSIENT": "a temporary problem",
+      "AMBIGUOUS": "the cause isn’t clear",
+      "UNKNOWN": "the cause isn’t known"
+    }
   },
   "problems": {
     "forbidden": "Your role on this event can’t publish or send the invitation. The event’s owner can change your role.",

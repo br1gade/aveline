@@ -15,6 +15,7 @@ type AppPage =
   | 'venues'
   | 'newVenue'
   | 'editVenue'
+  | 'venueDirectory'
   | 'invitation'
   | 'attendance'
   | 'design'
@@ -34,7 +35,9 @@ type AppPage =
   | 'editTicketType'
   | 'announcement'
   | 'orders'
-  | 'door';
+  | 'door'
+  | 'followUps'
+  | 'team';
 
 export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
   const t = createI18n(language).getFixedT(language, 'account');

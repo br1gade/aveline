@@ -40,6 +40,8 @@ export const APP_PATHS = {
   venues: '/app/events/:eventId/venues',
   /** Static, so it would rank above a `:venueId` under `venues` too. */
   newVenue: '/app/events/:eventId/venues/new',
+  /** The shared directory of halls, which Aveline staff keep and every role reads. */
+  venueDirectory: '/app/events/:eventId/venues/directory',
   editVenue: '/app/events/:eventId/venues/:venueId/edit',
   /** Publishing, closing, reopening and sending the event's invitation. */
   invitation: '/app/events/:eventId/invitation',
@@ -75,6 +77,12 @@ export const APP_PATHS = {
   orders: '/app/events/:eventId/orders',
   /** Letting people in on the day: by name or by a ticket's code, with the counts. */
   door: '/app/events/:eventId/door',
+  /** Chasing who has not answered, and thanking guests afterwards. */
+  followUps: '/app/events/:eventId/follow-ups',
+  /** Who works on this event: members, open invitations, roles. */
+  team: '/app/events/:eventId/team',
+  /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */
+  publicEvents: '/events',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */
   checkout: '/events/:slug/checkout',
   /**

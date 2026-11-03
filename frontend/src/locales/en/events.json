@@ -81,7 +81,9 @@
     "exports": "Exports",
     "ticketSales": "Ticket sales",
     "orders": "Orders",
-    "door": "The door"
+    "door": "The door",
+    "followUps": "Reminders and thanks",
+    "team": "The team"
   },
   "headcount": {
     "title": "Guests",

@@ -2,6 +2,10 @@ import type { EventNotice } from '@/features/events';
 
 import {
   VENUE_ROLES,
+  type DirectoryHall,
+  type DirectoryHallWire,
+  type HallOperator,
+  type VendorWire,
   type Venue,
   type VenueRole,
   type VenueWire,
@@ -37,4 +41,27 @@ export function readNotice({ notice }: VenueWriteWire): EventNotice {
     changed: [...notice.changed],
     householdsInvited: notice.householdsInvited,
   };
+}
+
+/** In the API's order, by city and then name. */
+export function readDirectory(halls: readonly DirectoryHallWire[]): DirectoryHall[] {
+  return halls.map((hall) => ({
+    id: hall.id,
+    name: hall.name,
+    address: hall.address,
+    city: hall.city,
+    capacity: hall.capacity,
+    operatorId: hall.vendor?.id ?? null,
+    operatorName: hall.vendor?.name ?? null,
+  }));
+}
+
+/**
+ * Only who the backend would accept (`assertDirectoryOperator`). `GET /vendors` also lists an
+ * organization's own and every other category, and carries contacts, which go no further.
+ */
+export function readHallOperators(vendors: readonly VendorWire[]): HallOperator[] {
+  return vendors
+    .filter((vendor) => vendor.isCurated && vendor.category === 'VENUE')
+    .map((vendor) => ({ id: vendor.id, name: vendor.name }));
 }

@@ -20,7 +20,8 @@ import { ModerationCard, type CardActions } from './moderation-card';
 import { RemovePhotoDialog } from './remove-photo-dialog';
 import { useModeration } from './use-moderation';
 
-const LINK = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 /** Cards drawn at a time in a tab: up to a thousand photos, each read only when near the screen. */
 const CARDS_AT_A_TIME = 48;
 

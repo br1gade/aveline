@@ -35,7 +35,7 @@ export function EventList({ events }: { events: readonly EventSummary[] }) {
           <li key={event.id} className="bg-card border-border border px-5 py-4">
             <Link
               to={eventPath(event.id)}
-              className="text-primary font-medium underline-offset-4 hover:underline"
+              className="text-primary inline-flex min-h-11 items-center font-medium underline-offset-4 hover:underline"
             >
               {event.title}
             </Link>

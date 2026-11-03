@@ -24,5 +24,21 @@
     "title": "This event isn’t available",
     "body": "Its page may have been taken down, or the address may be wrong. If someone shared it with you, ask them for a new link.",
     "sentence": "This event isn’t available."
+  },
+  "listing": {
+    "metaTitle": "Public events · Aveline",
+    "title": "Public events",
+    "lead": "Events anyone can attend, soonest first. Each event’s page gives its date and time.",
+    "from": "From {{price}}",
+    "free": "Free tickets",
+    "empty": "No public events are listed right now.",
+    "emptyCategory": "Nothing is listed under “{{category}}”.",
+    "showing": "Showing “{{category}}”.",
+    "showAll": "Show all events",
+    "pastTheEnd": "There are no more events here.",
+    "toStart": "Back to the first events",
+    "paging": "More events",
+    "earlier": "Earlier events",
+    "later": "Later events"
   }
 }

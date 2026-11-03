@@ -85,8 +85,14 @@ export interface Reachable {
   failureReason: string | null;
   /** ISO 8601 UTC; shown in the event's zone. */
   sentAt: string | null;
+  /** When a provider reported it delivered (Telegram's send, WhatsApp, signed email feedback). */
+  deliveredAt: string | null;
   /** When the provider reported it read (WhatsApp); the status stays DELIVERED. */
   readAt: string | null;
+  /** When a provider reported a failure after accepting it (WhatsApp, pilot F21). */
+  deliveryFailedAt: string | null;
+  /** The provider's own number for that failure, never its words (docs/API.md §6). */
+  deliveryErrorCode: number | null;
   /** Why a provider reported it failed, when it said; only CONFIGURATION changes what to do. */
   failureKind: FailureKind | null;
   reminders: number;
@@ -156,7 +162,10 @@ export interface DeliveryRowWire {
   reminders?: number;
   lastRemindedAt?: string | null;
   /** Since `eb77cd4`: provider receipts. */
+  deliveredAt?: string | null;
   readAt?: string | null;
+  deliveryFailedAt?: string | null;
+  deliveryErrorCode?: number | null;
   deliveryFailureKind?: string | null;
 }
 

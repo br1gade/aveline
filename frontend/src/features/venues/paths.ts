@@ -13,3 +13,7 @@ export function newVenuePath(eventId: string): string {
 export function editVenuePath(eventId: string, venueId: string): string {
   return generatePath(APP_PATHS.editVenue, { eventId, venueId });
 }
+
+export function venueDirectoryPath(eventId: string): string {
+  return generatePath(APP_PATHS.venueDirectory, { eventId });
+}

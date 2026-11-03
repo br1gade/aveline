@@ -1,0 +1,134 @@
+{
+  "back": "Retour à l’événement",
+  "title": "Rappels et remerciements",
+  "noInvitation": "Cet événement n’a pas d’invitation : il n’y a rien à envoyer.",
+  "expected": {
+    "lead": "« Prévu » est calculé d’après la liste des invités et le rapport d’envoi. Le serveur décide qui le reçoit vraiment, et le résultat indique ce qu’il a fait.",
+    "refused": "Votre rôle ne permet pas de lire la liste des invités ni le rapport d’envoi : cette page ne peut pas dire qui serait concerné.",
+    "seeWho": "Voir qui"
+  },
+  "confirm": {
+    "cancel": "Pas maintenant",
+    "sending": "Envoi…"
+  },
+  "chase": {
+    "title": "Relancer ceux qui n’ont pas répondu",
+    "lead": "Relance les foyers qui ont l’invitation et n’ont pas répondu. Quelqu’un qui a dit « je ne sais pas encore » a répondu et n’est pas relancé. Un foyer reçoit au plus un rappel par jour. Aveline envoie aussi des rappels d’elle-même 21, 7 et 2 jours avant l’événement, sauf s’ils ont été désactivés.",
+    "expected": {
+      "due_one": "Rappel prévu : {{count, number}} foyer.",
+      "due_many": "Rappel prévu : {{count, number}} foyers.",
+      "due_other": "Rappel prévu : {{count, number}} foyers.",
+      "tooRecent_one": "Invité trop récemment : {{count, number}} foyer. Un foyer attend 3 jours après son invitation, ou 1 jour si l’événement est dans moins d’une semaine.",
+      "tooRecent_many": "Invités trop récemment : {{count, number}} foyers. Un foyer attend 3 jours après son invitation, ou 1 jour si l’événement est dans moins d’une semaine.",
+      "tooRecent_other": "Invités trop récemment : {{count, number}} foyers. Un foyer attend 3 jours après son invitation, ou 1 jour si l’événement est dans moins d’une semaine.",
+      "remindedToday_one": "Relancé dans les dernières 24 heures : {{count, number}} foyer.",
+      "remindedToday_many": "Relancés dans les dernières 24 heures : {{count, number}} foyers.",
+      "remindedToday_other": "Relancés dans les dernières 24 heures : {{count, number}} foyers.",
+      "notReached_one": "L’invitation n’a pas atteint {{count, number}} foyer : envoyez-la-lui plutôt.",
+      "notReached_many": "L’invitation n’a pas atteint {{count, number}} foyers : envoyez-la-leur plutôt.",
+      "notReached_other": "L’invitation n’a pas atteint {{count, number}} foyers : envoyez-la-leur plutôt.",
+      "cannotReach_one": "Injoignable : {{count, number}} foyer. Corrigez d’abord une adresse.",
+      "cannotReach_many": "Injoignables : {{count, number}} foyers. Corrigez d’abord une adresse.",
+      "cannotReach_other": "Injoignables : {{count, number}} foyers. Corrigez d’abord une adresse.",
+      "answered_one": "Personne à relancer : {{count, number}} foyer.",
+      "answered_many": "Personne à relancer : {{count, number}} foyers.",
+      "answered_other": "Personne à relancer : {{count, number}} foyers."
+    },
+    "send": "Envoyer les rappels",
+    "offer": {
+      "draft": "Les rappels pourront être envoyés une fois l’invitation publiée.",
+      "closed": "Les réponses sont arrêtées : les rappels ne sont pas envoyés. Reprenez d’abord les réponses sur la page de l’invitation.",
+      "expired": "Le temps de cette invitation est écoulé : les rappels ne sont pas envoyés.",
+      "started": "L’événement a commencé : les rappels ne sont plus envoyés."
+    },
+    "confirm": {
+      "title_one": "Relancer {{count, number}} foyer ?",
+      "title_many": "Relancer {{count, number}} foyers ?",
+      "title_other": "Relancer {{count, number}} foyers ?",
+      "titleUnknown": "Envoyer les rappels ?",
+      "body": "Les messages ne peuvent pas être rappelés. Le serveur décide qui est concerné : le nombre peut différer. Appuyer de nouveau aujourd’hui n’envoie un second rappel à personne."
+    },
+    "outcome": {
+      "queued_one": "En route vers {{count, number}} foyer.",
+      "queued_many": "En route vers {{count, number}} foyers.",
+      "queued_other": "En route vers {{count, number}} foyers.",
+      "alreadyReminded_one": "Relancé ou tenté dans les dernières 24 heures, donc non envoyé : {{count, number}} foyer.",
+      "alreadyReminded_many": "Relancés ou tentés dans les dernières 24 heures, donc non envoyé : {{count, number}} foyers.",
+      "alreadyReminded_other": "Relancés ou tentés dans les dernières 24 heures, donc non envoyé : {{count, number}} foyers.",
+      "recentlyInvited_one": "Invité trop récemment, donc pas encore envoyé : {{count, number}} foyer.",
+      "recentlyInvited_many": "Invités trop récemment, donc pas encore envoyé : {{count, number}} foyers.",
+      "recentlyInvited_other": "Invités trop récemment, donc pas encore envoyé : {{count, number}} foyers.",
+      "sendFirst_one": "L’invitation n’a pas atteint {{count, number}} foyer",
+      "sendFirst_many": "L’invitation n’a pas atteint {{count, number}} foyers",
+      "sendFirst_other": "L’invitation n’a pas atteint {{count, number}} foyers",
+      "sendFirstHelp": "Un rappel ne serait pas le bon message. Envoyez-leur plutôt l’invitation.",
+      "sendFromList": "Envoyer depuis la liste des invités",
+      "nobody": "Aucun rappel n’était dû."
+    }
+  },
+  "thank": {
+    "title": "Remercier les invités",
+    "lead": "Part après l’événement, une seule fois par foyer. Cette page ne peut pas dire à l’avance qui a déjà été remercié ; un foyer déjà remercié ne l’est pas de nouveau.",
+    "expected": {
+      "ARRIVED_one": "Des arrivées ont été enregistrées : le message va aux foyers où quelqu’un est venu. Prévu : {{count, number}} foyer.",
+      "ARRIVED_many": "Des arrivées ont été enregistrées : le message va aux foyers où quelqu’un est venu. Prévu : {{count, number}} foyers.",
+      "ARRIVED_other": "Des arrivées ont été enregistrées : le message va aux foyers où quelqu’un est venu. Prévu : {{count, number}} foyers.",
+      "ACCEPTED_one": "Aucune arrivée enregistrée : le message va aux foyers où quelqu’un a dit venir. Prévu : {{count, number}} foyer.",
+      "ACCEPTED_many": "Aucune arrivée enregistrée : le message va aux foyers où quelqu’un a dit venir. Prévu : {{count, number}} foyers.",
+      "ACCEPTED_other": "Aucune arrivée enregistrée : le message va aux foyers où quelqu’un a dit venir. Prévu : {{count, number}} foyers.",
+      "cannotReach_one": "Injoignable : {{count, number}} foyer. Corrigez d’abord une adresse.",
+      "cannotReach_many": "Injoignables : {{count, number}} foyers. Corrigez d’abord une adresse.",
+      "cannotReach_other": "Injoignables : {{count, number}} foyers. Corrigez d’abord une adresse."
+    },
+    "send": "Envoyer le remerciement",
+    "offer": {
+      "draft": "Le remerciement pourra être envoyé une fois l’invitation publiée et l’événement commencé.",
+      "expired": "Le temps de cette invitation est écoulé : le lien d’un remerciement n’ouvrirait rien. Il n’est pas proposé.",
+      "notYet": "Le remerciement pourra être envoyé une fois l’événement commencé."
+    },
+    "confirm": {
+      "title_one": "Remercier {{count, number}} foyer ?",
+      "title_many": "Remercier {{count, number}} foyers ?",
+      "title_other": "Remercier {{count, number}} foyers ?",
+      "titleUnknown": "Envoyer le remerciement ?",
+      "basis": {
+        "ARRIVED": "Il va aux foyers où quelqu’un a été enregistré à l’arrivée.",
+        "ACCEPTED": "Aucune arrivée enregistrée : il va à tous ceux qui ont dit venir, qu’ils soient venus ou non."
+      },
+      "body": "Chaque foyer n’est remercié qu’une seule fois. Les messages ne peuvent pas être rappelés. Le serveur décide qui le reçoit : le nombre peut différer."
+    },
+    "outcome": {
+      "basis": {
+        "ARRIVED": "Envoyé d’après les arrivées enregistrées.",
+        "ACCEPTED": "Aucune arrivée enregistrée : envoyé d’après ceux qui ont dit venir."
+      },
+      "queued_one": "En route vers {{count, number}} foyer.",
+      "queued_many": "En route vers {{count, number}} foyers.",
+      "queued_other": "En route vers {{count, number}} foyers.",
+      "alreadyThanked_one": "Déjà remercié ou tenté, donc non renvoyé : {{count, number}} foyer.",
+      "alreadyThanked_many": "Déjà remerciés ou tentés, donc non renvoyé : {{count, number}} foyers.",
+      "alreadyThanked_other": "Déjà remerciés ou tentés, donc non renvoyé : {{count, number}} foyers.",
+      "nobody": "Il n’y avait personne à remercier."
+    }
+  },
+  "outcome": {
+    "title": "Ce qui s’est passé",
+    "cannotReach_one": "Injoignable : {{count, number}} foyer",
+    "cannotReach_many": "Injoignables : {{count, number}} foyers",
+    "cannotReach_other": "Injoignables : {{count, number}} foyers",
+    "cannotReachHelp": "Il n’y a aucune adresse utilisable pour eux. Ajoutez-en ou corrigez-en une sur la liste des invités.",
+    "fixOnList": "Les afficher sur la liste des invités",
+    "suppressed": "Quelqu’un qui a demandé à ne pas être contacté, ou dont l’adresse est revenue, ne reçoit rien. Il n’est pas nommé ici et, après un nouvel appui, il compte comme déjà tenté."
+  },
+  "refused": {
+    "notPublished": "Cette invitation n’accepte pas de réponses : rien n’a été envoyé. La page a été rechargée.",
+    "expired": "Le temps de cette invitation est écoulé : rien n’a été envoyé. La page a été rechargée.",
+    "started": "L’événement a déjà commencé : aucun rappel n’a été envoyé. La page a été rechargée.",
+    "notYet": "L’événement n’a pas encore eu lieu : aucun remerciement n’a été envoyé. La page a été rechargée.",
+    "gone": "Cette invitation n’est plus disponible. La page a été rechargée.",
+    "forbidden": "Votre rôle sur cet événement ne permet pas de les envoyer. Un propriétaire ou un coordinateur le peut, et le propriétaire de l’événement peut changer votre rôle.",
+    "rateLimited": "Trop d’essais. Attendez une minute et appuyez de nouveau : personne ne le reçoit deux fois.",
+    "noAnswer": "Aucune réponse. Le message est peut-être parti : appuyer de nouveau est sans risque, personne ne le reçoit deux fois.",
+    "other": "Cela n’a pas été accepté. La raison, en anglais :"
+  }
+}

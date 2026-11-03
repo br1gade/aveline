@@ -1,5 +1,7 @@
 import type { MetaDescriptor } from 'react-router';
 
+import { createI18n, type Language } from '@/lib/i18n';
+
 import type { PublicEvent } from './types';
 
 /** An address the backend gave as a path, made absolute on this client's public origin. */
@@ -65,4 +67,17 @@ export function publicEventLanguage(data: unknown): string | undefined {
     typeof event.locale === 'string'
     ? event.locale
     : undefined;
+}
+
+/**
+ * Browsing public events. Whether a directory of them should be indexed is product's call (design
+ * PD-103), so it isn't, while each event's own page keeps its own rule.
+ */
+export function publicListingMeta(language: Language): MetaDescriptor[] {
+  const t = createI18n(language).getFixedT(language, 'public-event');
+  return [
+    { title: t('listing.metaTitle') },
+    { name: 'robots', content: 'noindex,follow' },
+    { name: 'description', content: t('listing.lead') },
+  ];
 }

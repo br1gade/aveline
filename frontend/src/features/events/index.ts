@@ -11,8 +11,10 @@ export {
   doorPath,
   eventPath,
   exportsPath,
+  followUpsPath,
   guestListPath,
   ordersPath,
+  teamPath,
   ticketSalesPath,
 } from './paths';
 export type {

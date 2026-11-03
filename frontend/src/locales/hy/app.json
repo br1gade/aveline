@@ -30,7 +30,10 @@
     "editTicketType": "Խմբագրել տոմսի տեսակը · Aveline",
     "announcement": "Հայտարարություն · Aveline",
     "orders": "Պատվերներ · Aveline",
-    "door": "Մուտք · Aveline"
+    "door": "Մուտք · Aveline",
+    "followUps": "Հիշեցումներ և երախտագիտություն · Aveline",
+    "team": "Թիմը · Aveline",
+    "venueDirectory": "Վայրերի տեղեկատու · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

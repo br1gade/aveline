@@ -15,7 +15,7 @@ export function AccountLink({
     <Link
       to={to}
       reloadDocument={reloadDocument}
-      className="text-primary underline underline-offset-4 hover:no-underline"
+      className="text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline"
     >
       {children}
     </Link>

@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 
 import { NotifyGuests, type EventDetail, type NotifyOffer } from '@/features/events';
 
-import type { VenueEditData } from '../load';
+import type { NewVenueData, VenueEditData } from '../load';
 import { venuesPath } from '../paths';
 import { VenueForm } from './venue-form';
 
@@ -12,18 +12,41 @@ import { VenueForm } from './venue-form';
  * The form, or the offer to tell guests once a save suggests it. The offer lives only here, never
  * in history: a reload or Back must not offer to send it again (as the event edit does).
  */
-function FormOrOffer({ event, venue }: { event: EventDetail; venue: VenueEditData['venue'] }) {
+function FormOrOffer({
+  event,
+  venue,
+  directory,
+  onHallRetired,
+}: {
+  event: EventDetail;
+  venue: VenueEditData['venue'];
+  directory?: NewVenueData['directory'] | undefined;
+  onHallRetired?: (() => void) | undefined;
+}) {
   const { t } = useTranslation('venues');
   const [offer, setOffer] = useState<NotifyOffer | null>(null);
   return offer ? (
     <NotifyGuests offer={offer} back={{ to: venuesPath(event.id), label: t('notify.back') }} />
   ) : (
-    <VenueForm event={event} venue={venue} onSuggested={setOffer} />
+    <VenueForm
+      event={event}
+      venue={venue}
+      directory={directory}
+      onHallRetired={onHallRetired}
+      onSuggested={setOffer}
+    />
   );
 }
 
-export function NewVenue({ event }: { event: EventDetail }) {
-  return <FormOrOffer event={event} venue={null} />;
+/** `onHallRetired`: the chosen hall left the directory meanwhile, so the route reads it again. */
+export function NewVenue({
+  event,
+  directory,
+  onHallRetired,
+}: NewVenueData & { onHallRetired: () => void }) {
+  return (
+    <FormOrOffer event={event} venue={null} directory={directory} onHallRetired={onHallRetired} />
+  );
 }
 
 /** A venue removed meanwhile is said so here, with the way back to the list. */
@@ -38,7 +61,7 @@ export function EditVenue({ data }: { data: VenueEditData }) {
         <p className="m-0">{t('form.goneBody')}</p>
         <Link
           to={venuesPath(data.event.id)}
-          className="text-primary self-start underline underline-offset-4 hover:no-underline"
+          className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
         >
           {t('notify.back')}
         </Link>

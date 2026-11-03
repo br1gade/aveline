@@ -28,7 +28,9 @@ their personal link. Since 2 November, its hosts' side: who can find the event, 
 the announcement and its publishing, orders opened in place, cancelling and refunding,
 registering who holds a legacy ticket and linking a ticket to an invited guest. Since 3 November,
 the door: check-in on a phone by name or by a ticket's typed code, undoing it, who still must agree,
-and the counts. Since 2 November it
+and the counts. The same day, the pilot's gaps: chasing who hasn't answered and thanking guests
+afterwards, the event's team, the venue directory for hosts and staff, public listing cards, and
+delivery receipts on the guest list. Since 2 November it
 follows the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3 November
 ([BACKEND_REQUESTS](BACKEND_REQUESTS.md) §6); none of this has yet run against the real backend.
 
@@ -625,6 +627,21 @@ outside the API but the guest's own emailed links. They were not run against the
 | 3 Nov 2026 | Door calls carry deadlines, through an optional `signal` on `getEvent`, `listGuests`, `getDesign` and `listAgreements` | `api/fetch.ts` has none, and on a poor signal a spinner would otherwise never end. A timed-out call reads as no answer. Other pages keep their behaviour (design PD-94) |
 | 3 Nov 2026 | `readEveryPage` moves from `features/gallery/pages.ts` to `api/every-page.ts`, with neutral names and `maxPages` required | The door reads every agreement (FR-78), and the cursor's 404 restart shouldn't be written twice. Both are stand-ins, with their own limits |
 | 31 Oct 2026 | Checkout's idempotency key is the shared `createRetryKey`, with the order's whole body, its keys sorted, as the intent | docs/API.md §5: one key per attempt, reused on retry, a new one for a changed intent; a refusal reserved nothing, so it ends the key. A key is kept for the page's life, not across a reload |
+| 3 Nov 2026 | **Reminders and thanks** are a feature of their own, `features/follow-ups`, on one page at `/app/events/:eventId/follow-ups` (design PD-95 to PD-98) | It reads the guest list and the delivery report, and `guests` already imports `sending`, so it can't live in `sending` without a cycle. Nothing of it is drawn (DQ-27) |
+| 3 Nov 2026 | Who each send is expected to reach is worked out in the browser, `follow-ups/audience.ts`, and shown as "expected" (FR-84) | Neither send has a dry run, and both were asked to show who gets it. A stand-in with its exit, tested case by case; the server's answer replaces it. It can be wrong where the report is thinner than the backend's read |
+| 3 Nov 2026 | Both sends ask on every press, where `useSend` asks only before the event's first | The host has just read who it reaches, and it can't be recalled. The thank-you goes once ever |
+| 3 Nov 2026 | The thank-you isn't offered on a draft or an expired invitation, though the API would send it (FR-86) | Its link would open nothing, and it can't be recalled. A client guard, recorded with its exit |
+| 3 Nov 2026 | `OutcomeGroup`, `SentList` and `ReasonList` are exported from `sending`, and `readSent` and `readUnreachable` as `readSentHousehold` and `readUnreachableHousehold` | The follow-ups' outcomes are their second users; the send's own tests pass unchanged |
+| 3 Nov 2026 | **The event's team** is `features/team`, on one page at `/app/events/:eventId/team` (design PD-99, PD-100); accepting stays in `features/account` | Nothing of it is drawn (DQ-28). The list loads on its own (`Loaded`), so a role refused it still has the invite form, its 403 worded (FR-6) |
+| 3 Nov 2026 | **The venue directory** is part of `features/venues`: a picker on adding a venue, and a page at `/app/events/:eventId/venues/directory` (design PD-101, PD-102) | Writing it is staff-only (`directory:manage`), which was said when the plan was approved, and the staff's page was approved with it. It sits under an event because the API has no read outside one (FR-91). `ui/kit/native-select.tsx` gains `NativeSelectOptGroup` |
+| 3 Nov 2026 | The directory is read whole and grouped in the browser, and the vendors read whole and filtered, not through `?city=` and `?category=` | The schema declares neither (FR-91), and a cast would be a workaround for something this avoids. The directory is small, and the operators' contacts stop at the reader |
+| 3 Nov 2026 | **Public listing cards** extend `features/public-event`, at `/events`, server-rendered (design PD-103, PD-104) | The same frame, image and language rules as the event's page. Plain links, so it works without JavaScript |
+| 3 Nov 2026 | **Listing cards show no date or time** (FR-92), and the reader keeps no `startsAt` | Chosen when the plan was approved: the answer gives no zone, a device's zone is forbidden (`frontend/CLAUDE.md` §4), and a detail read per card would spend FR-73's limit. A stand-in with its exit |
+| 3 Nov 2026 | The listing's language is PD-40's negotiation, sent as `locale`, though a card's own language isn't known | There is no event to take it from, unlike an event's page. The switcher uses `?lang=`, as the account pages do |
+| 3 Nov 2026 | **Every app page's controls are at least 44 px on a phone** (`frontend/CLAUDE.md` §5), measured on all of them in four languages. The kit's checkbox and radio keep their 16 px look, and an unseen `::before` of 44 px takes the press | The walkthrough found plain text links, `summary` elements, tabs and these controls under it. In the kit, one rule covers every use; drawing them larger would change each form's look |
+| 3 Nov 2026 | `WordedRefusal`, `useDialogOpener` and `WRAPPING_BUTTON` are in `ui/app-form`. A dialog of the new pages can't be dismissed while its request runs | Three features had near-identical copies. Radix returns the focus to a trigger these dialogs lack, so it fell to the body; and a late answer could lose its refusal or close the next dialog. The older dialogs keep their own (the seating's, the guest list's) |
+| 3 Nov 2026 | The follow-ups page reads its clock in the loader, not once on mounting | A refusal reloads the page; with a clock frozen at mounting, the button stayed beside "the event has started", and a page opened before the event could never offer the thank-you |
+| 3 Nov 2026 | The listing adds `Vary: Cookie, Accept-Language` (`publicListingHeaders`) to the event page's one-minute cache rule | Its language comes from the cookie or the browser, not the address, so `/events` could come back from the browser's cache in the last language |
 
 ## 12. Not yet built
 
@@ -639,9 +656,22 @@ outside the API but the guest's own emailed links. They were not run against the
   personal page contain the guest's capability path and so must be resolved and redacted.
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
-  seating, its exports, its invitation's design, publishing and sending, how guests answer and the
-  door: billing (with the bank's return page, `/billing/return`), the event team, and **archiving
-  and deleting events**.
+  seating, its exports, its invitation's design, publishing and sending, how guests answer, the
+  door, reminders and thanks, and its team: billing (with the bank's return page,
+  `/billing/return`) and **archiving and deleting events**.
+- Of reminders and thanks: the exact lists before pressing (FR-84; the page estimates them), who was
+  suppressed (FR-85), who was thanked once the page is left, and receipts for either message (FR-87);
+  switching the automatic reminders off per event (`PATCH …/settings`, `remindersEnabled`), which the
+  page only mentions; sending to chosen households (the API takes none).
+- Of the team: warning someone by name that they are changing or removing themselves, seeing an
+  invitation that expired, and letting a coordinator read the team (FR-88); a door-only role (PQ-15,
+  FR-90); saying a role in words in the invitation's email (FR-89).
+- Of the venue directory: coordinates and notes on the staff's form, clearing a city or capacity,
+  bringing a retired hall back, and a page outside any event (FR-91); per-language halls (the API has
+  none); the vendor screens, so `venueProfiles` is not read; starting a correction from a hall (the
+  API takes no `profileId` there).
+- Of the public listing: a date or time on a card, and marking a card's language (FR-92); a list of
+  categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, until FR-92.
 - Of seating: drawing the plan (a table's `posX`, `posY` and `shape`); choosing a numbered chair
   (`position`), which a move clears; moving a table to another venue; seating a household in one
   request (FR-53); seating at check-in; unseating everyone to plan again (the API has no such
@@ -651,10 +681,9 @@ outside the API but the guest's own emailed links. They were not run against the
   saved); a warning before leaving a form with unsaved changes; the running order (`/timeline`),
   which the TIMELINE section shows; cropping and focal points (not in the API either); host-tuned
   colours (BQ-3); template fonts in the browser (FR-9), so a font chosen does not show yet; the
-  layouts the seeded templates name, which the renderer does not draw (FR-42); the listing's hero
-  and share images (F24).
-- Of the guest list: recording an answer for a guest (`PATCH …/guests/:guestId/rsvp`); reminders
-  and chasing (`remind`) and thank-you messages (`thank-you`); seating from the list itself (it is
+  layouts the seeded templates name, which the renderer does not draw (FR-42).
+- Of the guest list: recording an answer for a guest (`PATCH …/guests/:guestId/rsvp`); seating from
+  the list itself (it is
   on the seating page); check-in from the list itself (it is on the door's page); exporting from the list itself (it is on the
   exports page); the guest's personal link, whose token is never shown; moving a guest into a
   household of their own (FR-30); a household's notes, which
@@ -662,15 +691,14 @@ outside the API but the guest's own emailed links. They were not run against the
   single-guest read (`GET …/guests/:guestId`) is not used: the list holds everything the forms
   show.
 - Of an event's details: the running order (`/timeline`); a venue's per-language name and address
-  (`translations`), its coordinates and its capacity; the venue directory (`venue-profiles`); its
+  (`translations`), and typing its coordinates and capacity, which only a directory hall supplies; its
   end time, side labels and per-language title and hosts (`translations`; FR-24 has typed them, and no screen uses them yet); adding an
   invitation to an event that has none (`POST /events/:id/invitation`); a custom slug (no endpoint exists). Of the dashboard: catering,
   bar, playlist and engagement. A link to a published invitation from the overview: a private
   event's generic link is a 404.
 - Of publishing and sending: sending to more than 1,000 chosen households at once (the backend's
   limit; "send to every household not yet invited" has none); telling guests about a change other
-  than from the event edit, the venue screens and a change of how guests answer; the delivery
-  report's other receipt fields (`deliveredAt`, `deliveryFailedAt`, `deliveryErrorCode`).
+  than from the event edit, the venue screens and a change of how guests answer.
 - Of the guest's reply: showing a drawn signature on the saved reply; a "please answer again" line
   on the personal card.
 - Of guests' photos: a switch for the hosts (FR-46); the guest's own count and the gallery's
@@ -683,7 +711,7 @@ outside the API but the guest's own emailed links. They were not run against the
   the newest fifty (the API lists no more); choosing how long a file is kept (a server setting);
   downloading an earlier record, deliberately (it would build today's lists); and failure words
   finer than "something went wrong", which wait for the worker's codes (FR-59).
-- Of ticketing (pilot Milestone C): browsing public events; promo codes for the hosts (the API's
+- Of ticketing (pilot Milestone C): promo codes for the hosts (the API's
   `/promo-codes`; checkout applies them); reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
   the announcement is not published (FR-71); a QR code for a ticket and a scanner at the door
@@ -695,7 +723,7 @@ outside the API but the guest's own emailed links. They were not run against the
   there (the guest list does); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); search across scripts, so typing "Armen" doesn't find
   "Արմեն"; telling the hosts of someone unexpected, other than the staff saying so.
-- The rest of the pilot plan: share tags, venue profiles, and the four-language
+- The rest of the pilot plan: share tags, and the four-language
   walkthroughs against the real backend. Seating jobs (F27's automatic seating) are followed in the
   browser since 30 October 2026, and so are snapshot exports, in PDF, XLSX and CSV (F20, F49 and
   F27's exports), the same day. Template previews (F28),

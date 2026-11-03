@@ -1,4 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
+
+import { APP_PATHS } from '@/route-paths';
 
 import type { Route } from './+types/home';
 
@@ -15,6 +18,12 @@ export default function Home() {
         {t('home.title')}
       </h1>
       <p>{t('home.body')}</p>
+      <Link
+        to={APP_PATHS.publicEvents}
+        className="text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3 hover:decoration-2"
+      >
+        {t('home.browse')}
+      </Link>
     </main>
   );
 }

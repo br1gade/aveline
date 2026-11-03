@@ -88,7 +88,7 @@ export function ImportGuests({ data }: { data: GuestImportsData }) {
     <section className="flex flex-col gap-5">
       <Link
         to={guestListPath(event.id)}
-        className="text-primary self-start underline underline-offset-4 hover:no-underline"
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
       >
         {t('import.back')}
       </Link>

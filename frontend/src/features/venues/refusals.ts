@@ -37,6 +37,7 @@ type ProblemKey =
   | 'inUse'
   | 'hasAnswers'
   | 'guestFacing'
+  | 'hallRetired'
   | 'check'
   | 'other';
 
@@ -45,10 +46,18 @@ type ProblemKey =
  * the backend's text (`venues.service.ts`, `venue-attendance.ts`; codes asked for in FR-28). A
  * reworded sentence falls back to the status's words, never to a wrong one.
  */
+const HALL_RETIRED = 'No such venue in the directory';
+
 const BY_TEXT: ReadonlyArray<readonly [VenueAction, number, RegExp, ProblemKey]> = [
   ['remove', 400, /^venue: attendance history exists/, 'hasAnswers'],
   ['edit', 409, /^venue: attendance, checkout choices or seats exist/, 'guestFacing'],
+  ['create', 404, new RegExp(`^${HALL_RETIRED}`), 'hallRetired'],
 ];
+
+/** A chosen hall retired meanwhile: its choice is dropped and the directory read again. */
+export function isHallRetired(messages: readonly string[]): boolean {
+  return messages.includes(HALL_RETIRED);
+}
 
 /**
  * The words for each refusal, by action and status. There is no permissions endpoint (FR-6), so

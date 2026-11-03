@@ -18,7 +18,9 @@ export type VenueFieldCode =
   | 'arrivalPair'
   | 'dateInvalid'
   | 'timeSkipped'
-  | 'refused';
+  | 'refused'
+  | 'capacity'
+  | 'cantClear';
 
 const code = (value: VenueFieldCode) => ({ error: value });
 
@@ -94,3 +96,41 @@ type VenueFormSchema = ReturnType<typeof venueFormSchema>;
 export type VenueFormInput = z.input<VenueFormSchema>;
 /** What a valid form gives: trimmed, typed, ready for a payload. */
 export type VenueFormValues = z.output<VenueFormSchema>;
+
+const MAX_HALL_CAPACITY = 100_000;
+
+/** Empty, or a whole number the backend takes (`CreateVenueProfileDto`). */
+const hallCapacity = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value === '' ||
+      (/^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= MAX_HALL_CAPACITY),
+    code('capacity'),
+  );
+
+/**
+ * A directory hall's form (design PD-102). The backend sets no minimum on a hall's name or address,
+ * so blank is refused only here. A city or capacity once set can't be emptied: the API's types take
+ * no `null` for them (FR-91), so `initial` is what the hall holds now, blank for a new one.
+ */
+export function hallFormSchema(initial: { city: string; capacity: string }) {
+  return z
+    .object({
+      name: text(160),
+      address: text(300),
+      city: z.string().trim().max(80, code('tooLong')),
+      capacity: hallCapacity,
+      operatorId: z.string(),
+    })
+    .superRefine((values, ctx) => {
+      for (const field of ['city', 'capacity'] as const) {
+        if (initial[field] && !values[field]) {
+          ctx.addIssue({ code: 'custom', path: [field], message: 'cantClear' });
+        }
+      }
+    });
+}
+
+export type HallFormValues = z.output<ReturnType<typeof hallFormSchema>>;

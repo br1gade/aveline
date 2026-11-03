@@ -95,6 +95,14 @@ export function publicEventHeaders(): Record<string, string> {
 }
 
 /**
+ * Browsing public events. Its language comes from a cookie or the browser, not the address, so the
+ * browser's copy must be told apart by them, or `/events` comes back in the last language.
+ */
+export function publicListingHeaders(): Record<string, string> {
+  return { ...publicEventHeaders(), Vary: 'Cookie, Accept-Language' };
+}
+
+/**
  * Checkout holds what the buyer typed about other people, so no cache keeps it, and it is no page
  * for search engines.
  */

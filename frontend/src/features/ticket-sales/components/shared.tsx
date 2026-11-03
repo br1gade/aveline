@@ -14,7 +14,8 @@ import { Button } from '@/ui/kit/button';
 
 export const PANEL = 'bg-card border-border flex max-w-[40rem] flex-col gap-4 border px-5 py-4';
 export const HEADING = 'm-0 text-lg font-medium';
-export const LINK = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+export const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 
 interface ConfirmProps {
   title: string;

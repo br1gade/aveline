@@ -288,6 +288,14 @@ describe('EventOverview', () => {
       'href',
       '/app/events/e1/design',
     );
+    expect(screen.getByRole('link', { name: 'The team' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/team',
+    );
+    expect(screen.getByRole('link', { name: 'Reminders and thanks' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/follow-ups',
+    );
     expect(screen.getByRole('link', { name: 'Publish and send' })).toHaveAttribute(
       'href',
       '/app/events/e1/invitation',

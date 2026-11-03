@@ -318,6 +318,14 @@ describe('InvitationPage: a draft', () => {
 });
 
 describe('InvitationPage: replies', () => {
+  it('links to reminders and thanks once published, and not while a draft', async () => {
+    serve({ status: 'PUBLISHED' });
+    renderPage();
+    expect(
+      await screen.findByRole('link', { name: 'Chase who hasn’t answered, or thank the guests' }),
+    ).toHaveAttribute('href', '/app/events/e1/follow-ups');
+  });
+
   it('stops replies and takes them again, each without asking', async () => {
     const { move } = serve({ status: 'PUBLISHED' });
     const closed = answer(`/invitations/${SLUG}/close`, move('CLOSED'));

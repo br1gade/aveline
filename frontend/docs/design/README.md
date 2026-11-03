@@ -37,6 +37,9 @@
   the guest list the seats declines freed and each guest's answer history, on PD-67 to PD-72.
   The same day, pilot Milestone D: exports of the seven kinds in PDF, spreadsheet and CSV, made in
   the background, followed, downloaded while signed in and made again, on PD-73 to PD-77.
+  On 31 October and 2 November, pilot Milestone C, on PD-78 to PD-89; on 3 November, the door, on
+  PD-90 to PD-94, and the pilot's gaps: reminders and thanks, the event's team, the venue directory,
+  public listing cards and delivery receipts, on PD-95 to PD-105.
   See [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## 2. This folder
@@ -79,8 +82,8 @@ with them, the spec and the code govern and the difference is a review finding
 | **Confirmed** | C-1 to C-23 | [DESIGN_DECISIONS §2](DESIGN_DECISIONS.md#2-confirmed) | Binding. C-21 and C-22 were verified in the backend code on 18 October. C-23, French without a native reading or French screens, was decided by the frontend lead on 29 October |
 | **Recommendations** | R-1 to R-33 | [DESIGN_DECISIONS §3](DESIGN_DECISIONS.md#3-recommendations) | None accepted yet |
 | **Assumptions** | AS-1 to AS-12 | [DESIGN_DECISIONS §4](DESIGN_DECISIONS.md#4-assumptions) | Unverified |
-| **Open questions** | DQ-1 to DQ-23 (designer), PQ-1 to PQ-11 (product and the frontend lead), BQ-1 to BQ-11 (backend) | [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) | 41 open. The review's Q10 was answered by the code (C-21); BQ-4, BQ-5, BQ-8 and BQ-9 by the backend on 23 October. DQ-13, DQ-14, DQ-15, PQ-10 and PQ-11 were added that day, DQ-16 on 24 October, DQ-17 on 25 October, DQ-18 and DQ-19 on 28 October, DQ-20 and DQ-21 on 29 October, DQ-22 and DQ-23 on 30 October |
-| **Provisional defaults** | PD-1 to PD-77 | [DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults) | What to build on while the questions stay open. PD-13 closed on 18 October; PD-15, PD-16, PD-22 and PD-23 on 23 October, when the backend answered BQ-4, BQ-9, BQ-8 and BQ-5. PD-44 and PD-45 were added on 24 October, PD-46 to PD-49 on 25 October, PD-50 to PD-55 on 28 October, when the backend allowed signature questions again and PD-52 took PD-23's place, PD-56 to PD-62 on 29 October, for the invitation designer, and PD-63 to PD-66 the same day, for guests' photos, names and agreements, PD-67 to PD-72 on 30 October, for seating, and PD-73 to PD-77 the same day, for exports |
+| **Open questions** | DQ-1 to DQ-31 (designer), PQ-1 to PQ-15 (product and the frontend lead), BQ-1 to BQ-11 (backend) | [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) | 53 open. The review's Q10 was answered by the code (C-21); BQ-4, BQ-5, BQ-8 and BQ-9 by the backend on 23 October. DQ-13, DQ-14, DQ-15, PQ-10 and PQ-11 were added that day, DQ-16 on 24 October, DQ-17 on 25 October, DQ-18 and DQ-19 on 28 October, DQ-20 and DQ-21 on 29 October, DQ-22 and DQ-23 on 30 October, DQ-24 and PQ-12 and PQ-13 on 31 October, DQ-25 on 2 November, DQ-26, DQ-27 to DQ-31, PQ-14 and PQ-15 on 3 November |
+| **Provisional defaults** | PD-1 to PD-105 | [DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults) | What to build on while the questions stay open. PD-13 closed on 18 October; PD-15, PD-16, PD-22 and PD-23 on 23 October, when the backend answered BQ-4, BQ-9, BQ-8 and BQ-5. PD-44 and PD-45 were added on 24 October, PD-46 to PD-49 on 25 October, PD-50 to PD-55 on 28 October, when the backend allowed signature questions again and PD-52 took PD-23's place, PD-56 to PD-62 on 29 October, for the invitation designer, and PD-63 to PD-66 the same day, for guests' photos, names and agreements, PD-67 to PD-72 on 30 October, for seating, and PD-73 to PD-77 the same day, for exports, PD-78 to PD-83 on 31 October, for buyers, PD-84 to PD-89 on 2 November, for the hosts' ticket sales, and PD-90 to PD-105 on 3 November, for the door and the pilot's gaps |
 | **Review findings** | VR-01 to VR-36; 23 fixes | [DESIGN_REVIEW.md](DESIGN_REVIEW.md) | 9 fixes done; 11 findings fixed and 1 partly; the rest open |
 
 **How to tell them apart in practice:** a statement backed by a C- item is a decision. One backed
@@ -100,22 +103,25 @@ the specs is a recommendation.
   venues, publishing and sending on 25 October, on PD-46 to PD-49. On 28 October, the backend's
   `eb77cd4`, on PD-50 to PD-55. On 29 October, the invitation designer, on PD-56 to PD-62, and
   guests' photos, names and agreements, on PD-63 to PD-66. On 30 October, seating, on PD-67 to
-  PD-72, and exports, on PD-73 to PD-77. Still to come: the end-to-end and accessibility tests
+  PD-72, and exports, on PD-73 to PD-77. Tickets and the door followed, on PD-78 to PD-94, and on
+  3 November the pilot's gaps, on PD-95 to PD-105. Still to come: the end-to-end and accessibility tests
   against the real backend.
 - **Keeping the registers current** as answers arrive (rule 7).
 
 **Waits for its owner:**
 
-- **The designer's fixes and decisions** (DQ-1 to DQ-23). Until then, work follows PD-1 to PD-14,
-  PD-27 to PD-39, PD-41, PD-42, PD-44 to PD-48 and PD-50 to PD-77.
-- **Product decisions** (PQ-1 to PQ-11), on PD-17 to PD-20, PD-40 and PD-43. PD-15 and PD-16
+- **The designer's fixes and decisions** (DQ-1 to DQ-31). Until then, work follows PD-1 to PD-14,
+  PD-27 to PD-39, PD-41, PD-42, PD-44 to PD-48 and PD-50 to PD-105.
+- **Product decisions** (PQ-1 to PQ-15), on PD-17 to PD-20, PD-40, PD-43, PD-79, PD-91, PD-94 and
+  PD-99. PD-15 and PD-16
   closed on 23 October.
 - **Backend changes** (BQ-1 to BQ-3, BQ-6, BQ-7, BQ-10, BQ-11), on PD-21 and PD-24 to PD-26.
   PD-22 and PD-23 closed on 23 October. The publish blockers' codes (FR-32), on PD-49; the codes
   for the guest, venue, expired-send and seat refusals (FR-28), on the text stand-ins in PD-54, PD-55
   and PD-69; seating a household in one request (FR-53), on PD-69's stand-in; codes for the export
   refusals (FR-58), on PD-76's reading of the client's own state; which export kinds carry contacts
-  (FR-60), on PD-74's stand-in.
+  (FR-60), on PD-74's stand-in; who a reminder or a thank-you would reach (FR-84), on PD-96's stand-in;
+  a listing card's zone and language (FR-92), on PD-104's.
   - The frontend never changes backend code.
   - A need becomes a backend question, not a lasting workaround
     ([DESIGN_DECISIONS §1.1](DESIGN_DECISIONS.md#11-while-questions-are-open), rule 5).
@@ -129,7 +135,7 @@ invitation is sent:
 |---|---|---|
 | Every placeholder photograph is replaced | Third-party images, not licensed to Aveline | C-10, PQ-7, [PLACEHOLDER_IMAGES.md](PLACEHOLDER_IMAGES.md) |
 | Native readers have checked the Armenian and Russian copy | Every string in both languages is a draft. French is not gated: it ships without a native reading (C-23) | DQ-9, PD-9 |
-| The designer has approved or corrected the visual system, the account, event, guest-list, venue, invitation and attendance pages, the reply form's venues and agreements, the invitation designer, guests' photos, names and agreements, the seating and the guest's table, the exports, and the buyer's pages (the event, checkout, the order) with agreeing before the door, and the hosts' ticket sales and orders, and the door, included | Unapproved recommendations shown to guests and hosts would become the brand by default | DQ-2, DQ-6, DQ-7, DQ-10, DQ-12, DQ-13, DQ-14, DQ-15, DQ-16, DQ-17, DQ-18, DQ-19, DQ-20, DQ-21, DQ-22, DQ-23, DQ-24, DQ-25, DQ-26 |
+| The designer has approved or corrected the visual system, the account, event, guest-list, venue, invitation and attendance pages, the reply form's venues and agreements, the invitation designer, guests' photos, names and agreements, the seating and the guest's table, the exports, the buyer's pages (the event, checkout, the order) with agreeing before the door, the hosts' ticket sales and orders, the door, reminders and thanks, the team, the venue directory, the public listing and delivery receipts | Unapproved recommendations shown to guests and hosts would become the brand by default | DQ-2, DQ-6, DQ-7, DQ-10, DQ-12, DQ-13, DQ-14, DQ-15, DQ-16, DQ-17, DQ-18, DQ-19, DQ-20, DQ-21, DQ-22, DQ-23, DQ-24, DQ-25, DQ-26, DQ-27, DQ-28, DQ-29, DQ-30, DQ-31 |
 | Product has set the default dietary and drink choices offered to hosts, and which questions are on by default | Hosts now choose per invitation, but a host who changes nothing gets free text, which the catering sheet cannot count | PQ-1 to PQ-3 |
 | ~~A required SIGNATURE question can no longer block attending guests~~ **Met 23 October 2026:** the backend refuses to create one (B69). It opened again with the backend's `eb77cd4`, which allows them again, and **was met again on 28 October 2026:** the reply form asks for the agreement, typed or drawn, for everyone coming ([BACKEND_REQUESTS §5](../BACKEND_REQUESTS.md#5-the-pull-of-eb77cd4)) | Those guests could not reply at all | BQ-5 (answered), PD-52 |
 | The palette stand-in is replaced, or accepted in writing for launch | No permanent client workaround | BQ-1, BQ-2, PD-21 |
@@ -154,10 +160,10 @@ shared-document process, with the backend developer's review. This work did not 
   reader.
 - **The published review page is not corrected.** It stays a snapshot.
 - **The backend questions are not yet sent.** They are listed in
-  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-61, BQ-1 to BQ-11), and
+  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-93, BQ-1 to BQ-11), and
   [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) still holds their reasoning.
 - **The launch gates are not yet in `docs/GOING_LIVE.md`** (§6).
-- **The guest, account, event, guest-list, venue, invitation, attendance, design, photo, agreement, seating and export pages have not run against the real backend.** They were
+- **The guest, account, event, guest-list, venue, invitation, attendance, design, photo, agreement, seating, export, ticket, door, reminder, team, directory and listing pages have not run against the real backend.** They were
   checked against a mock of the API, and walked through in a browser against it, in all four
-  languages on 29 and 30 October; the end-to-end and accessibility tests wait for the local backend
+  languages, most recently on 3 November; the end-to-end and accessibility tests wait for the local backend
   ([ARCHITECTURE §12](../ARCHITECTURE.md#12-not-yet-built)).

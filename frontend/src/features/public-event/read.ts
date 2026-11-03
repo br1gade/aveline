@@ -10,7 +10,9 @@ import type {
   CheckoutQuestion,
   CheckoutRules,
   EventMetadata,
+  ListingCard,
   PublicEvent,
+  PublicListing,
   PublicTicketType,
   PublicVenue,
 } from './types';
@@ -171,5 +173,31 @@ export function readPublicEvent(value: unknown): PublicEvent {
     ticketTypes: list(wire.ticketTypes).flatMap(readTicketType),
     checkout: readCheckout(wire.checkout),
     metadata: readMetadata(wire.metadata, slug),
+  };
+}
+
+function readCard(wire: Wire): ListingCard[] {
+  if (typeof wire.slug !== 'string' || wire.slug === '') return [];
+  return [
+    {
+      slug: wire.slug,
+      headline: text(wire.headline),
+      summary: text(wire.summary),
+      categories: texts(wire.categories),
+      heroImage: readImage(wire.heroImage),
+      venue: text(wire.venue),
+      fromPriceMinor: typeof wire.fromPriceMinor === 'string' ? wire.fromPriceMinor : null,
+      currency: text(wire.currency),
+    },
+  ];
+}
+
+/** Browsing public events, in the API's order, soonest first. */
+export function readListing(value: unknown): PublicListing {
+  const wire = record(value);
+  return {
+    cards: list(wire.items).flatMap(readCard),
+    limit: whole(wire.limit),
+    hasMore: wire.hasMore === true,
   };
 }

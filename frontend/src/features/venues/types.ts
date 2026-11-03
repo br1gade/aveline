@@ -40,3 +40,40 @@ export interface VenueWire {
 export interface VenueWriteWire {
   notice: EventNotice;
 }
+
+/**
+ * A hall in the shared directory (docs/API.md §6, "Venues"). Every role on an event reads it, and
+ * only Aveline staff write it (`directory:manage`). A venue copies from it and keeps its own copy.
+ */
+export interface DirectoryHall {
+  id: string;
+  name: string;
+  address: string;
+  city: string | null;
+  capacity: number | null;
+  /** Who runs it; `null` when nobody does, or that operator is no longer eligible. */
+  operatorId: string | null;
+  operatorName: string | null;
+}
+
+/** A curated venue vendor, the only kind that can run a directory hall. */
+export interface HallOperator {
+  id: string;
+  name: string;
+}
+
+export interface DirectoryHallWire {
+  id: string;
+  name: string;
+  address: string;
+  city: string | null;
+  capacity: number | null;
+  vendor: { id: string; name: string } | null;
+}
+
+export interface VendorWire {
+  id: string;
+  name: string;
+  category: string;
+  isCurated: boolean;
+}

@@ -7,6 +7,7 @@ import {
   createNonce,
   checkoutHeaders,
   publicEventHeaders,
+  publicListingHeaders,
   publicInvitationHeaders,
 } from './headers';
 
@@ -58,6 +59,13 @@ describe('security headers', () => {
 
   it("leaves a public event's robots rule to its own metadata", () => {
     expect(publicEventHeaders()).toEqual({ 'Cache-Control': 'private, max-age=60' });
+  });
+
+  it('tells the listing’s languages apart in a browser’s cache', () => {
+    expect(publicListingHeaders()).toEqual({
+      'Cache-Control': 'private, max-age=60',
+      Vary: 'Cookie, Accept-Language',
+    });
   });
 
   it('keeps checkout out of caches, referrers and indexes', () => {

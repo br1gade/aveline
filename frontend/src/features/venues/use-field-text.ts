@@ -12,6 +12,8 @@ const CODES: readonly string[] = [
   'dateInvalid',
   'timeSkipped',
   'refused',
+  'capacity',
+  'cantClear',
 ] satisfies VenueFieldCode[];
 
 function isFieldCode(code: string): code is VenueFieldCode {

@@ -57,3 +57,11 @@ export function ordersPath(eventId: string): string {
 export function doorPath(eventId: string): string {
   return generatePath(APP_PATHS.door, { eventId });
 }
+
+export function followUpsPath(eventId: string): string {
+  return generatePath(APP_PATHS.followUps, { eventId });
+}
+
+export function teamPath(eventId: string): string {
+  return generatePath(APP_PATHS.team, { eventId });
+}

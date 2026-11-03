@@ -1,7 +1,8 @@
 import { expectData, type ApiClient } from '@/api/client';
 
-import { readPublicEvent } from './read';
-import type { PublicEvent } from './types';
+import { LISTING_PAGE_SIZE, type ListingQuery } from './listing';
+import { readListing, readPublicEvent } from './read';
+import type { PublicEvent, PublicListing } from './types';
 
 export interface PublicEventRequest {
   slug: string;
@@ -23,4 +24,22 @@ export async function fetchPublicEvent(
     }),
   );
   return readPublicEvent(wire);
+}
+
+/**
+ * `GET /public/events` (docs/API.md §5): `PUBLIC` events until they end, soonest first. `locale` is
+ * negotiated against each event separately, and a card does not say which it got (FR-92).
+ */
+export async function fetchPublicListing(
+  api: ApiClient,
+  { offset, category, locale }: ListingQuery & { locale: string },
+): Promise<PublicListing> {
+  const wire = await expectData<unknown>(
+    api.GET('/api/v1/public/events', {
+      params: {
+        query: { limit: LISTING_PAGE_SIZE, offset, locale, ...(category ? { category } : {}) },
+      },
+    }),
+  );
+  return readListing(wire);
 }

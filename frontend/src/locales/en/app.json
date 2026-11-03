@@ -30,7 +30,10 @@
     "editTicketType": "Edit a ticket type · Aveline",
     "announcement": "The announcement · Aveline",
     "orders": "Orders · Aveline",
-    "door": "The door · Aveline"
+    "door": "The door · Aveline",
+    "followUps": "Reminders and thanks · Aveline",
+    "team": "The team · Aveline",
+    "venueDirectory": "The venue directory · Aveline"
   },
   "shell": {
     "loading": "Loading…",

@@ -35,4 +35,8 @@ function NativeSelectOption(props: React.ComponentProps<'option'>) {
   return <option data-slot="native-select-option" {...props} />;
 }
 
-export { NativeSelect, NativeSelectOption };
+function NativeSelectOptGroup({ ...props }: React.ComponentProps<'optgroup'>) {
+  return <optgroup data-slot="native-select-optgroup" {...props} />;
+}
+
+export { NativeSelect, NativeSelectOptGroup, NativeSelectOption };

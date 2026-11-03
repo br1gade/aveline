@@ -12,34 +12,85 @@ import { Button } from '@/ui/kit/button';
 
 import { createVenue, updateVenue } from '../api';
 import { NEW_VENUE_VALUES, venueFormValues } from '../form-model';
+import type { NewVenueData } from '../load';
 import { venuesPath } from '../paths';
 import { createVenuePayload, updateVenuePayload } from '../payload';
-import { markRefusals, refusalMessages, useRefusedText } from '../refusals';
+import { isHallRetired, markRefusals, refusalMessages, useRefusedText } from '../refusals';
 import { venueFormSchema, type VenueFormInput, type VenueFormValues } from '../schemas';
-import type { Venue } from '../types';
+import type { DirectoryHall, Venue } from '../types';
+import { DirectoryPicker } from './directory-picker';
 import { VenueFields } from './venue-fields';
 
 interface VenueFormProps {
   event: EventDetail;
   /** The venue to correct; none to add one. */
   venue: Venue | null;
+  /** Halls to start from, when adding: `PATCH` takes no `profileId`. */
+  directory?: NewVenueData['directory'] | undefined;
+  /** The chosen hall left the directory meanwhile: read it again. */
+  onHallRetired?: (() => void) | undefined;
   onSuggested: (offer: NotifyOffer) => void;
+}
+
+/** What a save writes to: a correction of `venueId` from its baseline, or a new venue. */
+interface SaveTarget {
+  baseline: VenueFormValues | null;
+  venueId: string | undefined;
+  hall: DirectoryHall | null;
 }
 
 /** Sends the form; `null` when a correction changed nothing, so nothing was sent. */
 async function saveVenue(
   event: EventDetail,
-  baseline: VenueFormValues | null,
+  { baseline, venueId, hall }: SaveTarget,
   values: VenueFormValues,
-  venueId: string | undefined,
 ): Promise<EventNotice | null> {
   const { api } = browserSession();
   if (!baseline || !venueId) {
-    return createVenue(api, event.id, createVenuePayload(values, event.timezone));
+    return createVenue(api, event.id, createVenuePayload(values, event.timezone, hall?.id));
   }
   const body = updateVenuePayload(baseline, values, event.timezone);
   if (Object.keys(body).length === 0) return null;
   return updateVenue(api, event.id, venueId, body);
+}
+
+function FormActions({
+  eventId,
+  isEditing,
+  isSubmitting,
+}: {
+  eventId: string;
+  isEditing: boolean;
+  isSubmitting: boolean;
+}) {
+  const { t } = useTranslation('venues');
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <SubmitButton isSubmitting={isSubmitting} className="w-auto">
+        {isSubmitting
+          ? t(isEditing ? 'form.saving' : 'form.adding')
+          : t(isEditing ? 'form.editSubmit' : 'form.newSubmit')}
+      </SubmitButton>
+      <Button asChild variant="ghost">
+        <Link to={venuesPath(eventId)}>{t('form.cancel')}</Link>
+      </Button>
+    </div>
+  );
+}
+
+function FormHeading({ event, venue }: { event: EventDetail; venue: Venue | null }) {
+  const { t } = useTranslation('venues');
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">
+          {venue ? t('form.editTitle', { name: venue.name }) : t('form.newTitle')}
+        </h1>
+        <p className="text-muted-foreground m-0">{event.title}</p>
+      </div>
+      <p className="m-0">{t('form.lead')}</p>
+    </>
+  );
 }
 
 /**
@@ -47,9 +98,9 @@ async function saveVenue(
  * own (PD-42). A correction sends only what changed. When guests already hold the invitation, the
  * save's notice may suggest telling them, and the page becomes that offer.
  */
-export function VenueForm({ event, venue, onSuggested }: VenueFormProps) {
-  const { t } = useTranslation('venues');
+export function VenueForm({ event, venue, directory, onHallRetired, onSuggested }: VenueFormProps) {
   const navigate = useNavigate();
+  const [hall, setHall] = useState<DirectoryHall | null>(null);
   const refused = useRefusedText(venue ? 'edit' : 'create');
   const [problem, setProblem] = useState<{ problem: Problem; messages: readonly string[] } | null>(
     null,
@@ -64,29 +115,30 @@ export function VenueForm({ event, venue, onSuggested }: VenueFormProps) {
   });
   const { isSubmitting } = form.formState;
 
+  const dropHall = () => {
+    setHall(null);
+    onHallRetired?.();
+  };
+
   const onSubmit = async (values: VenueFormValues) => {
     setProblem(null);
     try {
-      const notice = await saveVenue(event, baseline, values, venue?.id);
+      const notice = await saveVenue(event, { baseline, venueId: venue?.id, hall }, values);
       if (notice?.isSuggested && event.invitation) {
         onSuggested({ slug: event.invitation.slug, households: notice.householdsInvited });
       } else {
         await navigate(venuesPath(event.id));
       }
     } catch (error) {
-      setProblem({ problem: markRefusals(error, form.setError), messages: refusalMessages(error) });
+      const messages = refusalMessages(error);
+      setProblem({ problem: markRefusals(error, form.setError), messages });
+      if (isHallRetired(messages)) dropHall();
     }
   };
 
   return (
     <section className="flex max-w-[30rem] flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">
-          {venue ? t('form.editTitle', { name: venue.name }) : t('form.newTitle')}
-        </h1>
-        <p className="text-muted-foreground m-0">{event.title}</p>
-      </div>
-      <p className="m-0">{t('form.lead')}</p>
+      <FormHeading event={event} venue={venue} />
       {problem ? (
         <ProblemAlert
           problem={problem.problem}
@@ -94,17 +146,11 @@ export function VenueForm({ event, venue, onSuggested }: VenueFormProps) {
         />
       ) : null}
       <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
+        {directory ? (
+          <DirectoryPicker directory={directory} form={form} hall={hall} onChoose={setHall} />
+        ) : null}
         <VenueFields form={form} timeZone={event.timezone} />
-        <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton isSubmitting={isSubmitting} className="w-auto">
-            {isSubmitting
-              ? t(venue ? 'form.saving' : 'form.adding')
-              : t(venue ? 'form.editSubmit' : 'form.newSubmit')}
-          </SubmitButton>
-          <Button asChild variant="ghost">
-            <Link to={venuesPath(event.id)}>{t('form.cancel')}</Link>
-          </Button>
-        </div>
+        <FormActions eventId={event.id} isEditing={venue !== null} isSubmitting={isSubmitting} />
       </AppForm>
     </section>
   );

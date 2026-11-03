@@ -93,7 +93,7 @@ function StartNotice({ notice, eventId }: { notice: Notice | null; eventId: stri
       {notice === 'noVenue' ? (
         <Link
           to={venuesPath(eventId)}
-          className="text-primary underline underline-offset-4 hover:no-underline"
+          className="text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline"
         >
           {t('attendance.toVenues')}
         </Link>
@@ -171,7 +171,10 @@ function Changed({ event, changed }: { event: EventDetail; changed: AttendanceCh
       <p role="status" className="m-0">
         {t(`attendance.done.${changed.mode}`)}
       </p>
-      <Link to={back.to} className="text-primary self-start underline underline-offset-4">
+      <Link
+        to={back.to}
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4"
+      >
         {back.label}
       </Link>
     </section>
@@ -192,7 +195,7 @@ export function AttendanceSettings({ event }: { event: EventDetail }) {
     <section className="flex max-w-[40rem] flex-col gap-5">
       <Link
         to={eventPath(event.id)}
-        className="text-primary self-start underline underline-offset-4"
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4"
       >
         {t('attendance.back')}
       </Link>

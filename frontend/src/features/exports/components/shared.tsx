@@ -9,7 +9,8 @@ import { redactedOf } from '../intent';
 import type { RefusalKey, RefusalOffer } from '../refusals';
 import type { Exports, PlacedRefusal } from './use-exports';
 
-export const LINK = 'text-primary self-start underline underline-offset-4 hover:no-underline';
+export const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 export const PANEL = 'bg-card border-border flex flex-col gap-4 border px-5 py-4';
 /** The kit's buttons never wrap; a long Armenian label would run past a 360 px screen. */
 export const WRAP =

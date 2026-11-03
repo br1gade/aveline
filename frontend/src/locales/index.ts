@@ -2,6 +2,8 @@ import enAccount from './en/account.json';
 import enAgreements from './en/agreements.json';
 import enApp from './en/app.json';
 import enCommon from './en/common.json';
+import enTeam from './en/team.json';
+import enFollowUps from './en/follow-ups.json';
 import enDesign from './en/design.json';
 import enEvents from './en/events.json';
 import enDoor from './en/door.json';
@@ -18,6 +20,8 @@ import frAccount from './fr/account.json';
 import frAgreements from './fr/agreements.json';
 import frApp from './fr/app.json';
 import frCommon from './fr/common.json';
+import frTeam from './fr/team.json';
+import frFollowUps from './fr/follow-ups.json';
 import frDesign from './fr/design.json';
 import frEvents from './fr/events.json';
 import frDoor from './fr/door.json';
@@ -34,6 +38,8 @@ import hyAccount from './hy/account.json';
 import hyAgreements from './hy/agreements.json';
 import hyApp from './hy/app.json';
 import hyCommon from './hy/common.json';
+import hyTeam from './hy/team.json';
+import hyFollowUps from './hy/follow-ups.json';
 import hyDesign from './hy/design.json';
 import hyEvents from './hy/events.json';
 import hyDoor from './hy/door.json';
@@ -50,6 +56,8 @@ import ruAccount from './ru/account.json';
 import ruAgreements from './ru/agreements.json';
 import ruApp from './ru/app.json';
 import ruCommon from './ru/common.json';
+import ruTeam from './ru/team.json';
+import ruFollowUps from './ru/follow-ups.json';
 import ruDesign from './ru/design.json';
 import ruEvents from './ru/events.json';
 import ruDoor from './ru/door.json';
@@ -94,6 +102,8 @@ export const resources = {
     app: enApp,
     checkout: enCheckout,
     common: enCommon,
+    team: enTeam,
+    'follow-ups': enFollowUps,
     design: enDesign,
     events: enEvents,
     door: enDoor,
@@ -117,6 +127,8 @@ export const resources = {
     app: frApp,
     checkout: frCheckout,
     common: frCommon,
+    team: frTeam,
+    'follow-ups': frFollowUps,
     design: frDesign,
     events: frEvents,
     door: frDoor,
@@ -140,6 +152,8 @@ export const resources = {
     app: hyApp,
     checkout: hyCheckout,
     common: hyCommon,
+    team: hyTeam,
+    'follow-ups': hyFollowUps,
     design: hyDesign,
     events: hyEvents,
     door: hyDoor,
@@ -163,6 +177,8 @@ export const resources = {
     app: ruApp,
     checkout: ruCheckout,
     common: ruCommon,
+    team: ruTeam,
+    'follow-ups': ruFollowUps,
     design: ruDesign,
     events: ruEvents,
     door: ruDoor,

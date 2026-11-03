@@ -15,11 +15,13 @@ import {
   doorPath,
   editEventPath,
   exportsPath,
+  followUpsPath,
   guestListPath,
   invitationPath,
   ordersPath,
   photosPath,
   seatingPath,
+  teamPath,
   ticketSalesPath,
   venuesPath,
 } from '../paths';
@@ -78,7 +80,7 @@ function EventDetails({ event }: { event: EventDetail }) {
           {t(`attendance.now.${event.attendanceMode}`)}{' '}
           <Link
             to={attendancePath(event.id)}
-            className="text-primary underline underline-offset-4 hover:no-underline"
+            className="text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline"
           >
             {t('overview.attendanceChange')}
           </Link>
@@ -113,6 +115,9 @@ function EventLinks({ event }: { event: EventDetail }) {
       <Button asChild variant="outline">
         <Link to={doorPath(event.id)}>{t('overview.door')}</Link>
       </Button>
+      <Button asChild variant="outline">
+        <Link to={teamPath(event.id)}>{t('overview.team')}</Link>
+      </Button>
       {event.invitation ? (
         <>
           <Button asChild variant="outline">
@@ -120,6 +125,9 @@ function EventLinks({ event }: { event: EventDetail }) {
           </Button>
           <Button asChild variant="outline">
             <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={followUpsPath(event.id)}>{t('overview.followUps')}</Link>
           </Button>
           <Button asChild variant="outline">
             <Link to={photosPath(event.id)}>{t('overview.photos')}</Link>
@@ -148,7 +156,7 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
     <section className="flex flex-col gap-6">
       <Link
         to={APP_PATHS.app}
-        className="text-primary self-start underline underline-offset-4 hover:no-underline"
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
       >
         {t('overview.back')}
       </Link>

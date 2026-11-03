@@ -13,7 +13,13 @@ import { createI18n } from '@/lib/i18n';
 
 import { EditVenue, NewVenue } from './components/venue-pages';
 import { VenueList } from './components/venue-list';
-import { loadVenueEdit, loadVenueList, type VenueEditData, type VenueListData } from './load';
+import {
+  loadVenueEdit,
+  loadVenueList,
+  type NewVenueData,
+  type VenueEditData,
+  type VenueListData,
+} from './load';
 import type { VenueWire } from './types';
 
 const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
@@ -128,11 +134,19 @@ const refusal =
   () =>
     HttpResponse.json({ statusCode: status, message, requestId: 'req-1' }, { status });
 
+const NO_DIRECTORY = { kind: 'ready', value: [] } as const satisfies NewVenueData['directory'];
+
 function ListPage() {
   return <VenueList data={useLoaderData<VenueListData>()} />;
 }
 function NewPage() {
-  return <NewVenue event={useLoaderData<EventDetail>()} />;
+  return (
+    <NewVenue
+      event={useLoaderData<EventDetail>()}
+      directory={NO_DIRECTORY}
+      onHallRetired={() => undefined}
+    />
+  );
 }
 function EditPage() {
   return <EditVenue data={useLoaderData<VenueEditData>()} />;
@@ -229,6 +243,10 @@ describe('VenueList', () => {
     serve([]);
     renderAt('/app/events/e1/venues');
     expect(await screen.findByText('No venues yet.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /The venue directory/ })).toHaveAttribute(
+      'href',
+      '/app/events/e1/venues/directory',
+    );
     expect(screen.getByRole('link', { name: 'Add a venue' })).toHaveAttribute(
       'href',
       '/app/events/e1/venues/new',
@@ -338,7 +356,7 @@ describe('Adding a venue', () => {
     const html = renderToString(
       <I18nextProvider i18n={createI18n('en')}>
         <MemoryRouter>
-          <NewVenue event={EVENT} />
+          <NewVenue event={EVENT} directory={NO_DIRECTORY} onHallRetired={() => undefined} />
         </MemoryRouter>
       </I18nextProvider>,
     );

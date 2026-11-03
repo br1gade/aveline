@@ -93,6 +93,35 @@ describe('the delivery report, per household', () => {
     expect(read.byHousehold.get('h3')).toMatchObject({ failureKind: null, readAt: null });
   });
 
+  it('keeps the receipt’s times and code, whatever the role (pilot F21)', () => {
+    const { toAddress: _hidden, ...withoutAddress } = row({
+      status: 'FAILED',
+      deliveryFailedAt: '2027-05-01T12:00:00.000Z',
+      deliveryErrorCode: 131049,
+      deliveryFailureKind: 'TRANSIENT',
+    });
+    const read = report([
+      withoutAddress,
+      row({ householdId: 'h2', status: 'DELIVERED', deliveredAt: '2027-05-01T11:00:00.000Z' }),
+    ]);
+    expect(read.byHousehold.get('h1')).toMatchObject({
+      deliveredAt: null,
+      deliveryFailedAt: '2027-05-01T12:00:00.000Z',
+      deliveryErrorCode: 131049,
+      failureKind: 'TRANSIENT',
+    });
+    expect(read.byHousehold.get('h2')).toMatchObject({
+      deliveredAt: '2027-05-01T11:00:00.000Z',
+      deliveryFailedAt: null,
+      deliveryErrorCode: null,
+    });
+  });
+
+  it.each([['x'], [1.5]])('leaves out a receipt’s code of %o: it is not a whole number', (code) => {
+    const wire = row({ status: 'FAILED', deliveryErrorCode: code as unknown as number });
+    expect(report([wire]).byHousehold.get('h1')).toMatchObject({ deliveryErrorCode: null });
+  });
+
   it('reads a status it does not know as unknown, which needs attention', () => {
     const read = report([row({ status: 'READ' })]);
     const delivery = read.byHousehold.get('h1');
@@ -163,6 +192,52 @@ describe('the delivery line, in words', () => {
     const delivery = report([row({ status: 'DELIVERED', readAt: '2027-05-01T11:00:00.000Z' })]);
     const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
     expect(text.summary).toContain('read 1 May 2027, 15:00');
+  });
+
+  it('says when it was delivered, in the event’s zone', () => {
+    const delivery = report([
+      row({ status: 'DELIVERED', deliveredAt: '2027-05-01T11:00:00.000Z' }),
+    ]);
+    const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
+    expect(text.summary).toContain('delivered 1 May 2027, 15:00');
+  });
+
+  it('says nothing of a receipt when there is none, as for email today', () => {
+    const delivery = report([row()]);
+    const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
+    expect(text.summary).not.toMatch(/delivered|code|problem/);
+  });
+
+  it('says when delivery failed, why in our words, and the provider’s code ungrouped', () => {
+    const delivery = report([
+      row({
+        status: 'FAILED',
+        deliveryFailedAt: '2027-05-01T12:00:00.000Z',
+        deliveryErrorCode: 131049,
+        deliveryFailureKind: 'TRANSIENT',
+      }),
+    ]);
+    const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
+    expect(text.summary).toContain('not delivered 1 May 2027, 16:00');
+    expect(text.summary).toContain('a temporary problem');
+    expect(text.summary).toContain('provider code 131049');
+  });
+
+  it('shows a code of 0: a code is not a quantity', () => {
+    const delivery = report([row({ status: 'FAILED', deliveryErrorCode: 0 })]);
+    const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
+    expect(text.summary).toContain('provider code 0');
+  });
+
+  it.each([
+    ['CONFIGURATION', 'a problem with how sending is set up'],
+    ['TRANSIENT', 'a temporary problem'],
+    ['AMBIGUOUS', 'the cause isn’t clear'],
+    ['UNKNOWN', 'the cause isn’t known'],
+  ])('words the failure kind %s', (kind, words) => {
+    const delivery = report([row({ status: 'FAILED', deliveryFailureKind: kind })]);
+    const text = deliveryText(delivery.byHousehold.get('h1')!, t, zone);
+    expect(text.summary).toContain(words);
   });
 
   it('does not ask the host to send again when our own set-up stopped it', () => {

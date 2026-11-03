@@ -1,0 +1,98 @@
+{
+  "back": "Back to the event",
+  "title": "The team",
+  "lead": "Who works on this event. Someone you invite gets this event and nothing else in your organization.",
+  "listRefused": "Only the event’s owner or the organization’s owner can see the team. If you need someone added, ask one of them.",
+  "role": {
+    "unknown": "A role this page doesn’t know",
+    "COORDINATOR": {
+      "name": "Coordinator",
+      "about": "Runs the event: the door, guests and their contact details, seating, sending messages, the design and the details. Can’t manage the team."
+    },
+    "DESIGNER": {
+      "name": "Designer",
+      "about": "Shapes the invitation and nothing else. Can’t see the guest list."
+    },
+    "VIEWER": {
+      "name": "Viewer",
+      "about": "Reads the event, its guests without contact details, and the numbers. Changes nothing."
+    },
+    "OWNER": {
+      "name": "Owner",
+      "about": "Everything a coordinator can do, and manages this team. Can delete the event."
+    }
+  },
+  "members": {
+    "title": "On the team",
+    "none": "Nobody is on this team yet.",
+    "line": "{{role}} · since {{since}}",
+    "change": "Change role",
+    "changeFor": "Change role: {{name}}",
+    "remove": "Remove",
+    "removeFor": "Remove {{name}}"
+  },
+  "invites": {
+    "title": "Invitations still open",
+    "none": "No invitations are open. One that has expired isn’t listed.",
+    "line": "{{role}} · link works until {{until}}",
+    "sendAgain": "Send again",
+    "sendAgainFor": "Send again: {{email}}",
+    "sending": "Sending…",
+    "withdraw": "Withdraw",
+    "withdrawFor": "Withdraw the invitation: {{email}}"
+  },
+  "invite": {
+    "title": "Invite someone",
+    "lead": "They get an email with a link. Inviting the same address again replaces the earlier link.",
+    "email": "Their email address",
+    "role": "Their role",
+    "doorHelp": "Door staff are invited as coordinators, the only role short of owner that can check people in. It also lets them see guests’ contact details and send messages: no narrower role exists yet.",
+    "send": "Send the invitation",
+    "sending": "Sending…",
+    "errors": {
+      "required": "Enter their email address.",
+      "email": "That doesn’t look like an email address.",
+      "tooLong": "That address is too long."
+    }
+  },
+  "change": {
+    "title": "Change {{name}}’s role",
+    "body": "It applies on their next request. If you change your own role from owner, you can no longer manage this team.",
+    "current": "now",
+    "save": "Change role"
+  },
+  "remove": {
+    "title": "Remove {{name}} from the team?",
+    "body": "They’re locked out of this event at once. What they already did stays. If this is you, you lose access too.",
+    "confirm": "Remove"
+  },
+  "withdraw": {
+    "title": "Withdraw the invitation to {{email}}?",
+    "body": "The emailed link stops working. You can invite them again later.",
+    "confirm": "Withdraw"
+  },
+  "dialog": {
+    "cancel": "Cancel",
+    "saving": "Saving…"
+  },
+  "status": {
+    "invited": "The invitation is on its way to {{email}}.",
+    "sentAgain": "A new link is on its way to {{email}}. The earlier one no longer works.",
+    "withdrawn": "The invitation to {{email}} is withdrawn.",
+    "roleChanged": "{{name}} is now: {{role}}.",
+    "removed": "{{name}} is off the team."
+  },
+  "refused": {
+    "alreadyOnTeam": "That person is already on this event’s team. The page has been reloaded.",
+    "needsOwner": "An event needs an owner. Make someone else an owner first.",
+    "activeOwnerOnly": "Only someone whose account is active can become an owner.",
+    "notOnTeam": "That person is no longer on this team. The page has been reloaded.",
+    "noPendingInvite": "That invitation is no longer open. The page has been reloaded.",
+    "gone": "This event or person is no longer available. The page has been reloaded.",
+    "forbidden": "Only the event’s owner or the organization’s owner can manage the team. Ask one of them to do this.",
+    "rateLimited": "Too many tries. Wait a minute, then try again.",
+    "emailRefused": "That address wasn’t accepted.",
+    "noAnswer": "No answer came. It may have gone through, so check the list, then try again. An invitation sent again replaces the earlier link.",
+    "other": "This wasn’t accepted. The reason, in English:"
+  }
+}

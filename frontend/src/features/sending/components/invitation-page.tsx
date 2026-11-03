@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { eventPath, type EventDetail } from '@/features/events';
+import { eventPath, followUpsPath, type EventDetail } from '@/features/events';
 import { formatEventDay, formatEventTime } from '@/lib/time';
 import { StatusLine, usePageStatus } from '@/ui/app-form';
 
@@ -52,7 +52,7 @@ export function InvitationPage({ data }: { data: InvitationPageData }) {
     <section className="flex flex-col gap-6">
       <Link
         to={eventPath(event.id)}
-        className="text-primary self-start underline underline-offset-4 hover:no-underline"
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
       >
         {t('page.back')}
       </Link>
@@ -90,6 +90,12 @@ export function InvitationPage({ data }: { data: InvitationPageData }) {
             isExpired={invitation.isExpired === true}
             delivery={delivery}
           />
+          <Link
+            to={followUpsPath(event.id)}
+            className="text-primary inline-flex min-h-11 max-w-[40rem] items-center self-start underline underline-offset-4 hover:no-underline"
+          >
+            {t('page.followUps')}
+          </Link>
         </>
       ) : null}
     </section>
