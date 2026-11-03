@@ -53,3 +53,7 @@ export function ticketSalesPath(eventId: string): string {
 export function ordersPath(eventId: string): string {
   return generatePath(APP_PATHS.orders, { eventId });
 }
+
+export function doorPath(eventId: string): string {
+  return generatePath(APP_PATHS.door, { eventId });
+}

@@ -80,7 +80,8 @@
     "seating": "Placement",
     "exports": "Exports",
     "ticketSales": "Vente de billets",
-    "orders": "Commandes"
+    "orders": "Commandes",
+    "door": "L’entrée"
   },
   "headcount": {
     "title": "Invités",

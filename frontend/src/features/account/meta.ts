@@ -33,7 +33,8 @@ type AppPage =
   | 'newTicketType'
   | 'editTicketType'
   | 'announcement'
-  | 'orders';
+  | 'orders'
+  | 'door';
 
 export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
   const t = createI18n(language).getFixedT(language, 'account');

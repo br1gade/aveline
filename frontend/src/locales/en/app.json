@@ -29,7 +29,8 @@
     "newTicketType": "Add a ticket type · Aveline",
     "editTicketType": "Edit a ticket type · Aveline",
     "announcement": "The announcement · Aveline",
-    "orders": "Orders · Aveline"
+    "orders": "Orders · Aveline",
+    "door": "The door · Aveline"
   },
   "shell": {
     "loading": "Loading…",

@@ -21,6 +21,7 @@ describe('redactUrl', () => {
       '/api/v1/invitations/anna-davit/g/[token]/rsvp',
     ],
     ['/tickets/t0k3n', '/tickets/[token]'],
+    ['/api/v1/events/e1/tickets/SAMPLE-1/admit', '/api/v1/events/e1/tickets/[token]/admit'],
     ['/briefs/xyz', '/briefs/[token]'],
     ['/api/v1/devices/d1/heartbeat', '/api/v1/devices/[token]/heartbeat'],
     ['/api/v1/ticket-orders/o1/confirm', '/api/v1/ticket-orders/[token]/confirm'],

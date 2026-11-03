@@ -4,6 +4,7 @@ import enApp from './en/app.json';
 import enCommon from './en/common.json';
 import enDesign from './en/design.json';
 import enEvents from './en/events.json';
+import enDoor from './en/door.json';
 import enExports from './en/exports.json';
 import enGallery from './en/gallery.json';
 import enGuestAgreements from './en/guest-agreements.json';
@@ -19,6 +20,7 @@ import frApp from './fr/app.json';
 import frCommon from './fr/common.json';
 import frDesign from './fr/design.json';
 import frEvents from './fr/events.json';
+import frDoor from './fr/door.json';
 import frExports from './fr/exports.json';
 import frGallery from './fr/gallery.json';
 import frGuestAgreements from './fr/guest-agreements.json';
@@ -34,6 +36,7 @@ import hyApp from './hy/app.json';
 import hyCommon from './hy/common.json';
 import hyDesign from './hy/design.json';
 import hyEvents from './hy/events.json';
+import hyDoor from './hy/door.json';
 import hyExports from './hy/exports.json';
 import hyGallery from './hy/gallery.json';
 import hyGuestAgreements from './hy/guest-agreements.json';
@@ -49,6 +52,7 @@ import ruApp from './ru/app.json';
 import ruCommon from './ru/common.json';
 import ruDesign from './ru/design.json';
 import ruEvents from './ru/events.json';
+import ruDoor from './ru/door.json';
 import ruExports from './ru/exports.json';
 import ruGallery from './ru/gallery.json';
 import ruGuestAgreements from './ru/guest-agreements.json';
@@ -92,6 +96,7 @@ export const resources = {
     common: enCommon,
     design: enDesign,
     events: enEvents,
+    door: enDoor,
     exports: enExports,
     gallery: enGallery,
     'guest-agreements': enGuestAgreements,
@@ -114,6 +119,7 @@ export const resources = {
     common: frCommon,
     design: frDesign,
     events: frEvents,
+    door: frDoor,
     exports: frExports,
     gallery: frGallery,
     'guest-agreements': frGuestAgreements,
@@ -136,6 +142,7 @@ export const resources = {
     common: hyCommon,
     design: hyDesign,
     events: hyEvents,
+    door: hyDoor,
     exports: hyExports,
     gallery: hyGallery,
     'guest-agreements': hyGuestAgreements,
@@ -158,6 +165,7 @@ export const resources = {
     common: ruCommon,
     design: ruDesign,
     events: ruEvents,
+    door: ruDoor,
     exports: ruExports,
     gallery: ruGallery,
     'guest-agreements': ruGuestAgreements,

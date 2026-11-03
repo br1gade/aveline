@@ -73,6 +73,8 @@ export const APP_PATHS = {
   announcement: '/app/events/:eventId/tickets/announcement',
   /** Ticket orders by status, an order's people and tickets, cancelling and reconciling. */
   orders: '/app/events/:eventId/orders',
+  /** Letting people in on the day: by name or by a ticket's code, with the counts. */
+  door: '/app/events/:eventId/door',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */
   checkout: '/events/:slug/checkout',
   /**

@@ -80,7 +80,8 @@
     "seating": "Seating",
     "exports": "Exports",
     "ticketSales": "Ticket sales",
-    "orders": "Orders"
+    "orders": "Orders",
+    "door": "The door"
   },
   "headcount": {
     "title": "Guests",

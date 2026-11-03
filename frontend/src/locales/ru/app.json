@@ -29,7 +29,8 @@
     "newTicketType": "Новый тип билета · Aveline",
     "editTicketType": "Изменить тип билета · Aveline",
     "announcement": "Анонс · Aveline",
-    "orders": "Заказы · Aveline"
+    "orders": "Заказы · Aveline",
+    "door": "Вход · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

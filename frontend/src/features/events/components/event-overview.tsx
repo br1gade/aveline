@@ -12,6 +12,7 @@ import {
   agreementsPath,
   attendancePath,
   designPath,
+  doorPath,
   editEventPath,
   exportsPath,
   guestListPath,
@@ -87,6 +88,54 @@ function EventDetails({ event }: { event: EventDetail }) {
   );
 }
 
+function EventLinks({ event }: { event: EventDetail }) {
+  const { t } = useTranslation('events');
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button asChild variant="outline">
+        <Link to={guestListPath(event.id)}>{t('overview.guests')}</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={venuesPath(event.id)}>{t('overview.venues')}</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={seatingPath(event.id)}>{t('overview.seating')}</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={exportsPath(event.id)}>{t('overview.exports')}</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={ticketSalesPath(event.id)}>{t('overview.ticketSales')}</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={ordersPath(event.id)}>{t('overview.orders')}</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={doorPath(event.id)}>{t('overview.door')}</Link>
+      </Button>
+      {event.invitation ? (
+        <>
+          <Button asChild variant="outline">
+            <Link to={designPath(event.id)}>{t('overview.design')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={photosPath(event.id)}>{t('overview.photos')}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={agreementsPath(event.id)}>{t('overview.agreements')}</Link>
+          </Button>
+        </>
+      ) : null}
+      <Button asChild variant="outline">
+        <Link to={editEventPath(event.id)}>{t('overview.edit')}</Link>
+      </Button>
+    </div>
+  );
+}
+
 /**
  * One event: its details and its headcount (design PD-42), and the ways to its guest list (PD-44),
  * its venues (PD-46), its seating (PD-67) and its invitation's publishing and sending (PD-47). Every action is offered
@@ -105,45 +154,7 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
       </Link>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{event.title}</h1>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link to={guestListPath(event.id)}>{t('overview.guests')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={venuesPath(event.id)}>{t('overview.venues')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={seatingPath(event.id)}>{t('overview.seating')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={exportsPath(event.id)}>{t('overview.exports')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={ticketSalesPath(event.id)}>{t('overview.ticketSales')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={ordersPath(event.id)}>{t('overview.orders')}</Link>
-          </Button>
-          {event.invitation ? (
-            <>
-              <Button asChild variant="outline">
-                <Link to={designPath(event.id)}>{t('overview.design')}</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link to={photosPath(event.id)}>{t('overview.photos')}</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link to={agreementsPath(event.id)}>{t('overview.agreements')}</Link>
-              </Button>
-            </>
-          ) : null}
-          <Button asChild variant="outline">
-            <Link to={editEventPath(event.id)}>{t('overview.edit')}</Link>
-          </Button>
-        </div>
+        <EventLinks event={event} />
       </div>
       <EventDetails event={event} />
       <HeadcountSummary result={data.headcount} mode={event.attendanceMode} />

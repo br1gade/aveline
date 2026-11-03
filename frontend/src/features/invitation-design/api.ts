@@ -27,9 +27,16 @@ import type {
  */
 
 /** The editor's own read: drafts, switched-off blocks and every language. Never the guest page. */
-export async function getDesign(api: ApiClient, slug: string): Promise<Design> {
+export async function getDesign(
+  api: ApiClient,
+  slug: string,
+  signal?: AbortSignal,
+): Promise<Design> {
   const design = await expectData<DesignWire>(
-    api.GET('/api/v1/invitations/{slug}/design', { params: { path: { slug } } }),
+    api.GET('/api/v1/invitations/{slug}/design', {
+      params: { path: { slug } },
+      ...(signal ? { signal } : {}),
+    }),
   );
   return readDesign(design);
 }

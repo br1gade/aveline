@@ -1,0 +1,105 @@
+{
+  "back": "Back to the event",
+  "title": "The door",
+  "notTheirs": "Your role on this event can’t see the door. Ask the event’s owner to add you as a coordinator.",
+  "counts": {
+    "label": "Who has arrived",
+    "loading": "Reading the counts…",
+    "failed": "The counts couldn’t be read. Trying again.",
+    "refused": "Your role can’t see the counts.",
+    "asOf": "As of {{time}}. The latest read failed; trying again.",
+    "arrived": "Arrived",
+    "stillToCome": "Still to come",
+    "expected": "Expected",
+    "unexpected": "Not expected"
+  },
+  "method": {
+    "label": "How to find them",
+    "byName": "By name",
+    "byCode": "By ticket code"
+  },
+  "find": {
+    "label": "Find a guest",
+    "search": "Their name",
+    "noMatch": "Nobody on the list by that name.",
+    "toGuestList": "Go to the guest list",
+    "capped": "Only the first {{count}} are shown. Type more of the name."
+  },
+  "list": {
+    "loading": "Reading the guest list… Ticket codes work meanwhile.",
+    "refused": "Your role can’t see the guest list.",
+    "failed": "The guest list couldn’t be read.",
+    "empty": "No guests on the list yet. Ticket codes still work.",
+    "asOf": "This is the list from {{time}}: reading it again failed.",
+    "readAgain": "Read the list again",
+    "reading": "Reading the list…"
+  },
+  "row": {
+    "checkIn": "Check in",
+    "checkInFor": "Check in {{name}}",
+    "checkingIn": "Checking in…",
+    "undo": "Undo",
+    "undoFor": "Undo the check-in of {{name}}",
+    "undoing": "Undoing…",
+    "here": "Here",
+    "hereSince": "Here since {{time}}",
+    "mustAgree": "Must agree first: {{statements}}"
+  },
+  "answer": {
+    "ATTENDING": "Coming",
+    "DECLINED": "Not coming",
+    "UNDECIDED": "Undecided",
+    "PENDING": "No answer yet"
+  },
+  "seat": {
+    "table": "{{table}}",
+    "tableAt": "{{table}} ({{venue}})"
+  },
+  "code": {
+    "label": "Ticket code",
+    "help": "Capitals and spaces don’t matter.",
+    "admit": "Admit",
+    "admitting": "Admitting…",
+    "empty": "Type the code from their ticket.",
+    "notLatin": "That isn’t Latin letters. Switch the keyboard to English and type the code again."
+  },
+  "mustAgree": {
+    "title": "Must agree before the door ({{count}})",
+    "lead": "They can’t be let in until they agree, from their invitation’s link on their own phone. Nobody can agree for them here.",
+    "partial": "This list may not be whole: some here may already have agreed. The door checks each person.",
+    "none": "Nobody who is coming still has to agree.",
+    "unread": "Who still has to agree couldn’t be read. The door still checks each person."
+  },
+  "recent": {
+    "title": "Just arrived"
+  },
+  "result": {
+    "arrived": "In, at {{time}}.",
+    "notExpected": "They weren’t expected: they declined or never answered. Worth telling the host.",
+    "unlinked": "Ticket admitted at {{time}}. It has no guest linked, so it isn’t in the counts and can’t be undone here.",
+    "alreadyHere": "Already here, since {{time}}.",
+    "alreadyHereNoTime": "Already here.",
+    "earlierPress": "Probably your earlier press, whose answer didn’t come through.",
+    "ticketUsed": "This ticket has already been admitted. A code admits once.",
+    "undone": "Taken off the arrivals. They can be checked in again.",
+    "undo": "Undo",
+    "tryAgain": "Try again",
+    "sendAgain": "Send their invitation again",
+    "dismiss": "OK"
+  },
+  "refused": {
+    "mustAgree": "Not let in yet: they still have to agree to the hosts’ statement, from their invitation’s link on their own phone. Nobody can agree for them here.",
+    "registerFirst": "Not let in yet: this ticket names nobody, and the event requires an agreement. Ask the host to register who holds it.",
+    "ticketVoid": "Don’t let them in: this ticket is void. Send them to the host.",
+    "ticketRefunded": "Don’t let them in: this ticket was refunded. Send them to the host.",
+    "orderClosed": "Don’t let them in: this ticket’s order was cancelled or refunded, or is being cancelled. Send them to the host.",
+    "notRecognised": "This code isn’t recognised for this event. Check it letter by letter; if it’s right, send them to the host.",
+    "linkChanged": "This ticket’s link to a guest changed just now. The list is being read again: press again.",
+    "guestGone": "This guest is no longer on the list. The list is being read again.",
+    "forbidden": "Your role on this event can’t let people in. Ask the event’s owner to add you as a coordinator.",
+    "rateLimited": "Too many tries just now. Wait a moment and press again.",
+    "noAnswer": "No answer came. It may have counted: press again, which is safe.",
+    "other": "It was refused:",
+    "reference": "Reference: {{requestId}}"
+  }
+}

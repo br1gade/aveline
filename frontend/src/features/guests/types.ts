@@ -50,6 +50,8 @@ export interface Guest {
   isAskedAgain: boolean;
   /** Checked in at the door, which is the record that they came: they cannot be removed. */
   isCheckedIn: boolean;
+  /** When they arrived; `null` while they have not. */
+  arrivedAt: string | null;
   contact: Contact;
 }
 
@@ -138,6 +140,7 @@ export interface GuestWire {
   seating?: SeatWire[];
   seatReleases?: ReleaseWire[];
   isCheckedIn: boolean;
+  arrivedAt?: string | null;
 }
 
 export interface AttendanceWire {

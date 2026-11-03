@@ -57,6 +57,7 @@ describe('readHouseholds', () => {
             isAnonymized: true,
             rsvpStatus: 'PENDING',
             isCheckedIn: true,
+            arrivedAt: '2026-10-05T18:02:11.000Z',
           }),
         ],
       }),
@@ -67,6 +68,7 @@ describe('readHouseholds', () => {
       isErased: true,
       answer: 'PENDING',
       isCheckedIn: true,
+      arrivedAt: '2026-10-05T18:02:11.000Z',
     });
   });
 });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 
+import type { EveryPage } from '@/api/every-page';
 import { browserSession } from '@/api/session';
 import { eventPath, type EventDetail } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
@@ -11,7 +12,6 @@ import { Dialog, DialogContent, DialogTitle } from '@/ui/kit/dialog';
 
 import { eventPhotoFile } from '../api';
 import type { ModerationData } from '../load';
-import type { EveryPage } from '../pages';
 import { PHOTOS_PER_EVENT, PHOTOS_PER_GUEST } from '../rules';
 import { isModerationTab, MODERATION_TABS, tabOf, type ModerationTab } from '../status';
 import type { GalleryPhoto, PhotoVariant } from '../types';
@@ -67,7 +67,7 @@ function Limits({ every }: { every: EveryPage<GalleryPhoto> }) {
   return (
     <div className="text-muted-foreground flex flex-col gap-1 text-sm">
       <p className="m-0">
-        {t('host.count', { count: every.photos.length, limit: PHOTOS_PER_EVENT })}
+        {t('host.count', { count: every.items.length, limit: PHOTOS_PER_EVENT })}
       </p>
       <p className="m-0">{t('host.limits', { limit: PHOTOS_PER_GUEST })}</p>
       {every.isComplete ? null : <p className="m-0">{t('host.partial')}</p>}
@@ -142,7 +142,7 @@ function BoardDialogs({ dialogs, load, moderation }: DialogsProps) {
 
 function Board({ event, every }: { event: EventDetail; every: EveryPage<GalleryPhoto> }) {
   const { t, i18n } = useTranslation('gallery');
-  const moderation = useModeration(event.id, every.photos);
+  const moderation = useModeration(event.id, every.items);
   const [tab] = useTab();
   const [drawn, setDrawn] = useState(CARDS_AT_A_TIME);
   const dialogs = useCardActions();
@@ -157,7 +157,7 @@ function Board({ event, every }: { event: EventDetail; every: EveryPage<GalleryP
   };
   return (
     <>
-      <Limits every={{ ...every, photos: moderation.photos }} />
+      <Limits every={{ ...every, items: moderation.photos }} />
       {moderation.refusal ? (
         <ProblemAlert
           problem={moderation.refusal}

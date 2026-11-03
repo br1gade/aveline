@@ -1,10 +1,13 @@
 import type { ApiClient } from '@/api/client';
+import { readEveryPage, type EveryPage } from '@/api/every-page';
 import { loaded, type Loaded } from '@/api/loaded';
 import { getEvent, type EventDetail } from '@/features/events';
 
 import { listEventGallery } from './api';
-import { readEveryPage, type EveryPage } from './pages';
 import type { GalleryPhoto } from './types';
+
+/** A stand-in until FR-47 is answered: at 100 a page, the event's 1,000 photos are ten reads. */
+const MAX_GALLERY_PAGES = 11;
 
 export interface ModerationData {
   event: EventDetail;
@@ -19,7 +22,12 @@ export interface ModerationData {
 export async function loadModeration(api: ApiClient, eventId: string): Promise<ModerationData> {
   const [event, photos] = await Promise.all([
     getEvent(api, eventId),
-    loaded(readEveryPage((after) => listEventGallery(api, eventId, after))),
+    loaded(
+      readEveryPage(async (after) => {
+        const page = await listEventGallery(api, eventId, after);
+        return { items: page.photos, nextCursor: page.nextCursor };
+      }, MAX_GALLERY_PAGES),
+    ),
   ]);
   return { event, photos };
 }

@@ -1,41 +1,39 @@
-import { isApiError } from '@/api/errors';
+import { isApiError } from './errors';
 
 /**
- * Every page of a list read by cursor, newest first. The hosts' gallery has no status filter and no
- * counts (FR-47), so the moderation page reads it whole and sorts it into tabs: **a stand-in** until
- * FR-47 is answered. At 100 a page, 1,000 photos are ten reads; `maxPages` stops a runaway list.
+ * Every page of a list read by cursor, newest first, for a list the API gives no filter or count
+ * for: the hosts' gallery (FR-47) and, at the door, who agreed (FR-78). Each caller sets `maxPages`,
+ * which stops a runaway list and keeps the read inside the rate limit.
  *
  * A cursor names the last item read; if that item is removed meanwhile the backend answers 404, and
  * the read starts again once from the first page.
  */
-export const MAX_GALLERY_PAGES = 11;
-
 interface Page<T> {
-  photos: T[];
+  items: T[];
   nextCursor: string | null;
 }
 
 export interface EveryPage<T> {
-  photos: T[];
+  items: T[];
   /** `false` when the page limit stopped the read before the list ended. */
   isComplete: boolean;
 }
 
 async function walk<T>(read: (after?: string) => Promise<Page<T>>, maxPages: number) {
-  const photos: T[] = [];
+  const items: T[] = [];
   let after: string | undefined;
   for (let count = 0; count < maxPages; count += 1) {
     const page = await read(after);
-    photos.push(...page.photos);
-    if (!page.nextCursor || page.photos.length === 0) return { photos, isComplete: true };
+    items.push(...page.items);
+    if (!page.nextCursor || page.items.length === 0) return { items, isComplete: true };
     after = page.nextCursor;
   }
-  return { photos, isComplete: false };
+  return { items, isComplete: false };
 }
 
 export async function readEveryPage<T>(
   read: (after?: string) => Promise<Page<T>>,
-  maxPages = MAX_GALLERY_PAGES,
+  maxPages: number,
 ): Promise<EveryPage<T>> {
   let isFirstCursorGone = false;
   const tracked = async (after?: string) => {

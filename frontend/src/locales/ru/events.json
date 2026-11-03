@@ -80,7 +80,8 @@
     "seating": "Рассадка",
     "exports": "Экспорт",
     "ticketSales": "Продажа билетов",
-    "orders": "Заказы"
+    "orders": "Заказы",
+    "door": "Вход"
   },
   "headcount": {
     "title": "Гости",

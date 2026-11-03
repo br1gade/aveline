@@ -17,9 +17,16 @@ import type {
 type Schemas = components['schemas'];
 
 /** Every household and guest, read where it arrives: no token goes further (`read.ts`). */
-export async function listGuests(api: ApiClient, eventId: string): Promise<Household[]> {
+export async function listGuests(
+  api: ApiClient,
+  eventId: string,
+  signal?: AbortSignal,
+): Promise<Household[]> {
   const households = await expectData<HouseholdWire[]>(
-    api.GET('/api/v1/events/{eventId}/guests', { params: { path: { eventId } } }),
+    api.GET('/api/v1/events/{eventId}/guests', {
+      params: { path: { eventId } },
+      ...(signal ? { signal } : {}),
+    }),
   );
   return readHouseholds(households);
 }

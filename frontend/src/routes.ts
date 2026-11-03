@@ -65,6 +65,7 @@ export default [
       route(underApp(APP_PATHS.editTicketType), 'routes/app/ticket-type-edit.tsx'),
       route(underApp(APP_PATHS.announcement), 'routes/app/announcement.tsx'),
       route(underApp(APP_PATHS.orders), 'routes/app/orders.tsx'),
+      route(underApp(APP_PATHS.door), 'routes/app/door.tsx'),
     ]),
     // Signed in, without the app's frame: the invitation's preview needs the whole window.
     layout('routes/app/preview-layout.tsx', [

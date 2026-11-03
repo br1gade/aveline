@@ -80,7 +80,8 @@
     "seating": "Նստեցում",
     "exports": "Արտահանումներ",
     "ticketSales": "Տոմսերի վաճառք",
-    "orders": "Պատվերներ"
+    "orders": "Պատվերներ",
+    "door": "Մուտք"
   },
   "headcount": {
     "title": "Հյուրեր",

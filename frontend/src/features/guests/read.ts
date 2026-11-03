@@ -88,6 +88,7 @@ function readGuest(guest: GuestWire): Guest {
     venueAnswers: venueAnswersOf(guest),
     isAskedAgain: guest.attendance?.needsReconfirmation ?? false,
     isCheckedIn: guest.isCheckedIn,
+    arrivedAt: guest.arrivedAt ?? null,
     contact: contactOf(guest),
   };
 }

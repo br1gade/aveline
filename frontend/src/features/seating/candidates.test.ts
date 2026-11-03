@@ -23,6 +23,7 @@ function guest(id: string, overrides: Partial<Guest> = {}): Guest {
     venueAnswers: [],
     isAskedAgain: false,
     isCheckedIn: false,
+    arrivedAt: null,
     contact: { isShown: false },
     ...overrides,
   };

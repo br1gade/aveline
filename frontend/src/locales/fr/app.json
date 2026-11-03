@@ -29,7 +29,8 @@
     "newTicketType": "Ajouter un type de billet · Aveline",
     "editTicketType": "Modifier un type de billet · Aveline",
     "announcement": "L’annonce · Aveline",
-    "orders": "Commandes · Aveline"
+    "orders": "Commandes · Aveline",
+    "door": "L’entrée · Aveline"
   },
   "shell": {
     "loading": "Chargement…",

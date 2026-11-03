@@ -1,27 +1,28 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ApiError } from '@/api/errors';
+import { ApiError } from './errors';
+import { readEveryPage } from './every-page';
 
-import { readEveryPage } from './pages';
+const MAX_PAGES = 11;
 
 interface Page {
-  photos: { id: string }[];
+  items: { id: string }[];
   nextCursor: string | null;
 }
 
 const page = (ids: string[], nextCursor: string | null): Page => ({
-  photos: ids.map((id) => ({ id })),
+  items: ids.map((id) => ({ id })),
   nextCursor,
 });
 
-describe('reading the whole gallery by its cursor (FR-47 stand-in)', () => {
+describe('reading a whole list by its cursor', () => {
   it('follows the cursor to the end', async () => {
     const read = vi
       .fn<(after?: string) => Promise<Page>>()
       .mockResolvedValueOnce(page(['a', 'b'], 'b'))
       .mockResolvedValueOnce(page(['c'], null));
-    await expect(readEveryPage(read)).resolves.toEqual({
-      photos: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+    await expect(readEveryPage(read, MAX_PAGES)).resolves.toEqual({
+      items: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
       isComplete: true,
     });
     expect(read.mock.calls).toEqual([[undefined], ['b']]);
@@ -32,7 +33,7 @@ describe('reading the whole gallery by its cursor (FR-47 stand-in)', () => {
       .fn<(after?: string) => Promise<Page>>()
       .mockResolvedValueOnce(page(['a'], 'a'))
       .mockResolvedValueOnce(page([], null));
-    await expect(readEveryPage(read)).resolves.toMatchObject({ isComplete: true });
+    await expect(readEveryPage(read, MAX_PAGES)).resolves.toMatchObject({ isComplete: true });
   });
 
   it('starts again once when its cursor was removed meanwhile (404)', async () => {
@@ -42,8 +43,8 @@ describe('reading the whole gallery by its cursor (FR-47 stand-in)', () => {
       .mockResolvedValueOnce(page(['a'], 'a'))
       .mockRejectedValueOnce(gone)
       .mockResolvedValueOnce(page(['b'], null));
-    await expect(readEveryPage(read)).resolves.toEqual({
-      photos: [{ id: 'b' }],
+    await expect(readEveryPage(read, MAX_PAGES)).resolves.toEqual({
+      items: [{ id: 'b' }],
       isComplete: true,
     });
     expect(read.mock.calls).toEqual([[undefined], ['a'], [undefined]]);
@@ -57,9 +58,9 @@ describe('reading the whole gallery by its cursor (FR-47 stand-in)', () => {
       .mockRejectedValueOnce(gone)
       .mockResolvedValueOnce(page(['a'], 'a'))
       .mockRejectedValueOnce(gone);
-    await expect(readEveryPage(twice)).rejects.toBe(gone);
+    await expect(readEveryPage(twice, MAX_PAGES)).rejects.toBe(gone);
     const first = vi.fn(() => Promise.reject(gone));
-    await expect(readEveryPage(first)).rejects.toBe(gone);
+    await expect(readEveryPage(first, MAX_PAGES)).rejects.toBe(gone);
     expect(first).toHaveBeenCalledTimes(1);
   });
 

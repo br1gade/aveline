@@ -31,8 +31,10 @@ export function createEvent(api: ApiClient, body: Schemas['CreateEventDto']): Pr
 }
 
 /** A 403 also means the event does not exist: the backend answers the same for both. */
-export function getEvent(api: ApiClient, id: string): Promise<EventDetail> {
-  return expectData<EventDetail>(api.GET('/api/v1/events/{id}', { params: { path: { id } } }));
+export function getEvent(api: ApiClient, id: string, signal?: AbortSignal): Promise<EventDetail> {
+  return expectData<EventDetail>(
+    api.GET('/api/v1/events/{id}', { params: { path: { id } }, ...(signal ? { signal } : {}) }),
+  );
 }
 
 /** Omitted fields are unchanged. The response carries `notice`, which the host acts on, or not. */

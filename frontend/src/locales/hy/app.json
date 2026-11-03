@@ -29,7 +29,8 @@
     "newTicketType": "Ավելացնել տոմսի տեսակ · Aveline",
     "editTicketType": "Խմբագրել տոմսի տեսակը · Aveline",
     "announcement": "Հայտարարություն · Aveline",
-    "orders": "Պատվերներ · Aveline"
+    "orders": "Պատվերներ · Aveline",
+    "door": "Մուտք · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

@@ -15,10 +15,12 @@ export async function listAgreements(
   api: ApiClient,
   eventId: string,
   after?: string,
+  signal?: AbortSignal,
 ): Promise<AgreementsPage> {
   const wire = await expectData<AgreementsWire>(
     api.GET('/api/v1/events/{eventId}/acknowledgements', {
       params: { path: { eventId }, query: pageQuery(after) },
+      ...(signal ? { signal } : {}),
     }),
   );
   return readPage(wire);
