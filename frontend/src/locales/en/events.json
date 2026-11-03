@@ -51,7 +51,8 @@
     "otherLanguagesHelp": "Guests reading one of these languages see its title and hosts. Left empty, they see the title and hosts above.",
     "titleIn": "Title in {{language}}",
     "hostsIn": "Hosts in {{language}}",
-    "defaultOverride": "Guests reading {{language}}, the default language, see these words instead of the title and hosts above. Empty both to show those."
+    "defaultOverride": "Guests reading {{language}}, the default language, see these words instead of the title and hosts above. Empty both to show those.",
+    "languagesLater": "The title and hosts in the event’s other languages are added after creating the event, under “Edit details”."
   },
   "problems": {
     "conflict": "That can’t be done in the event’s current state. Reload the page to see it as it is now.",

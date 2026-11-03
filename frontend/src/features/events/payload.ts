@@ -14,8 +14,12 @@ function startsAtOf(values: EventFormValues): string {
   return start.iso;
 }
 
-/** A blank hosts label is left out, so the title stands in; the backend would refuse it. */
+/**
+ * A blank hosts label is left out, so the title stands in; the backend would refuse it. A blank
+ * end or side is left out too, which the backend stores as none.
+ */
 export function createPayload(values: EventFormValues): Schemas['CreateEventDto'] {
+  const endsAt = endsAtOf(values);
   return {
     type: values.type,
     title: values.title,
@@ -24,6 +28,9 @@ export function createPayload(values: EventFormValues): Schemas['CreateEventDto'
     timezone: values.timezone,
     locales: values.locales,
     defaultLocale: values.defaultLocale,
+    ...(endsAt ? { endsAt } : {}),
+    ...(values.sideALabel ? { sideALabel: values.sideALabel } : {}),
+    ...(values.sideBLabel ? { sideBLabel: values.sideBLabel } : {}),
   };
 }
 

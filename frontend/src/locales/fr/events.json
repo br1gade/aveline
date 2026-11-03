@@ -51,7 +51,8 @@
     "otherLanguagesHelp": "Les invités qui lisent l’une de ces langues voient son titre et ses hôtes. Laissés vides, ils voient le titre et les hôtes ci-dessus.",
     "titleIn": "Titre en {{language}}",
     "hostsIn": "Hôtes en {{language}}",
-    "defaultOverride": "Les invités qui lisent la langue par défaut ({{language}}) voient ces mots au lieu du titre et des hôtes ci-dessus. Videz les deux pour afficher ceux-ci."
+    "defaultOverride": "Les invités qui lisent la langue par défaut ({{language}}) voient ces mots au lieu du titre et des hôtes ci-dessus. Videz les deux pour afficher ceux-ci.",
+    "languagesLater": "Le titre et les hôtes dans les autres langues de l’événement s’ajoutent après sa création, sous « Modifier les informations »."
   },
   "problems": {
     "conflict": "Impossible dans l’état actuel de l’événement. Rechargez la page pour le voir tel qu’il est maintenant.",

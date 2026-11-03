@@ -148,6 +148,38 @@ describe('CreateEvent', () => {
     ]);
   });
 
+  it('sends an end and the sides with the event, and says the other languages come after', async () => {
+    const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    const user = at();
+    await fillNewEvent(user);
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2027-06-12' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '23:30' } });
+    await user.type(screen.getByLabelText('First side'), 'Anna’s family');
+    // Only Armenian is ticked: there are no other languages to mention yet.
+    expect(screen.queryByText(/after creating the event/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'English' }));
+    expect(screen.getByText(/after creating the event, under “Edit details”/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Title in /)).not.toBeInTheDocument();
+    await submitCreate(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(received).toEqual([
+      expect.objectContaining({ endsAt: '2027-06-12T19:30:00.000Z', sideALabel: 'Anna’s family' }),
+    ]);
+    expect(received[0]).not.toHaveProperty('sideBLabel');
+  });
+
+  it('puts the backend’s refusal of the end on the end’s date', async () => {
+    answer('post', '/events', refusal(400, ['endsAt: must be after startsAt']));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    await waitFor(() =>
+      expect(screen.getByLabelText('End date')).toHaveAccessibleDescription(
+        expect.stringContaining('The end must come after the start.'),
+      ),
+    );
+  });
+
   it('refuses a time the clocks skip, without sending', async () => {
     const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
     const user = at();

@@ -97,13 +97,31 @@ function EventTranslations({ form, stored }: { form: EventForm; stored: unknown 
   );
 }
 
-/** What only correcting shows: the end, the sides and the other languages. */
-export function DetailFields({ form, stored }: { form: EventForm; stored: unknown }) {
+/**
+ * Correcting shows the end, the sides and the other languages. Creating shows the end and the sides
+ * only, and says the other languages' words come after: the backend takes no `translations` there
+ * (FR-101).
+ */
+export function DetailFields({
+  form,
+  mode,
+  stored,
+}: {
+  form: EventForm;
+  mode: 'create' | 'edit';
+  stored: unknown;
+}) {
+  const { t } = useTranslation('events');
+  const locales = useWatch({ control: form.control, name: 'locales' });
   return (
     <>
       <EndFields form={form} />
       <SideFields form={form} />
-      <EventTranslations form={form} stored={stored} />
+      {mode === 'edit' ? <EventTranslations form={form} stored={stored} /> : null}
+      {/* Said only while there are other languages to add words in. */}
+      {mode === 'create' && locales.length > 1 ? (
+        <p className="text-muted-foreground m-0 text-sm">{t('fields.languagesLater')}</p>
+      ) : null}
     </>
   );
 }

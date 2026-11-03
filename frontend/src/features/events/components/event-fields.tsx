@@ -106,7 +106,7 @@ export function EventFields({ form, mode, zones, languages, stored }: EventField
       />
       <WhenFields form={form} zones={zones} />
       <LanguageFields form={form} options={languages} />
-      {mode === 'edit' ? <DetailFields form={form} stored={stored} /> : null}
+      <DetailFields form={form} mode={mode} stored={stored} />
     </>
   );
 }

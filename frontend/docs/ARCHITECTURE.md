@@ -521,6 +521,11 @@ inline link 20 to 42 px tall, now a full-height link, and "Use again" named "Use
 visible words weren't in its name, now "Use again: SPRING". Everything ran on the mock; nothing here was
 run against the real backend, and `npm run test:e2e` still has no tests.
 
+The same day the create form, with the end and the sides, was walked the same way on the mock: empty,
+with a second language ticked (so the line about the other languages shows), and refused before
+sending, in hy, ru, en and fr at 360 px, touch, and 1280 px. 24 checks passed, axe clean in each,
+every target at least 44 px. Not run against the real backend.
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -672,6 +677,7 @@ run against the real backend, and `npm run test:e2e` still has no tests.
 | 3 Nov 2026 | The status line a page carries to the next (`ArrivalStatus`) is read once, then taken out of the browser's history entry | Left there, a reload or a return by Back said "deleted" or "recorded" again and took the focus |
 | 3 Nov 2026 | `TextInputField` and `SelectField` take a `labelLang`, and `TranslationFields` is generic over its fields | A host's question is in the event's language, not the page's, and a screen reader needs to know; the field union reached each caller as a string, which each narrowed again |
 | 3 Nov 2026 | `DEFAULT_TIME_ZONE` moves to `lib/time`; the team's dialogs use `AskFirstDialog`, whose busy label is the common "Working…" | Written three times, and copied once, otherwise. `useDialogAction` frees a dialog before throwing an error that isn't the API's, which had left it stuck busy |
+| 3 Nov 2026 | Creating an event takes the end and the sides; its other languages stay on correcting it | `CreateEventDto` takes `endsAt` and the side labels but not `translations` (FR-101); a second request after creating would be a workaround, so the form says they come after |
 
 ## 12. Not yet built
 
@@ -736,8 +742,7 @@ run against the real backend, and `npm run test:e2e` still has no tests.
   single-guest read (`GET …/guests/:guestId`) is used by recording an answer alone, for the answers
   to the host's questions the list leaves out.
 - Of an event's details: typing a venue's coordinates and capacity, which only a directory hall
-  supplies; the end, the sides and the other languages when creating an event (correcting it has
-  them); adding an
+  supplies; the other languages when creating an event (FR-101; correcting it has them); adding an
   invitation to an event that has none (`POST /events/:id/invitation`); a custom slug (no endpoint exists). Of the dashboard: catering,
   bar, playlist and engagement. A link to a published invitation from the overview: a private
   event's generic link is a 404.

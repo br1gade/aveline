@@ -57,6 +57,29 @@ describe('a new event', () => {
     });
   });
 
+  it('sends an end typed in the event’s zone as UTC, and the sides typed', () => {
+    expect(
+      createPayload({
+        ...filled,
+        endDate: '2027-06-12',
+        endTime: '23:30',
+        sideALabel: 'Anna’s family',
+        sideBLabel: 'Davit’s family',
+      }),
+    ).toMatchObject({
+      endsAt: '2027-06-12T19:30:00.000Z',
+      sideALabel: 'Anna’s family',
+      sideBLabel: 'Davit’s family',
+    });
+  });
+
+  it('leaves out a blank end and blank sides', () => {
+    const body = createPayload(filled);
+    expect(body).not.toHaveProperty('endsAt');
+    expect(body).not.toHaveProperty('sideALabel');
+    expect(body).not.toHaveProperty('sideBLabel');
+  });
+
   it('leaves out an empty hosts label, so the title stands in (FR-25)', () => {
     expect(createPayload(filled)).not.toHaveProperty('hostsLabel');
     expect(createPayload({ ...filled, hostsLabel: 'Anna & Davit' })).toHaveProperty(

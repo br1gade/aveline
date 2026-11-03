@@ -81,6 +81,16 @@ describe('the event form', () => {
 });
 
 describe('the end, the sides and the other languages', () => {
+  it('checks the end when creating too: both or neither, after the start', () => {
+    expect(problems('create', { ...valid, endDate: '2027-06-12' })).toEqual({ endTime: 'endPair' });
+    expect(problems('create', { ...valid, endDate: '2027-06-12', endTime: '14:00' })).toEqual({
+      endDate: 'endsBefore',
+    });
+    expect(problems('create', { ...valid, sideBLabel: 'A'.repeat(61) })).toEqual({
+      sideBLabel: 'tooLong',
+    });
+  });
+
   it('takes no end, or both its date and time, after the start', () => {
     expect(problems('edit', { ...valid, hostsLabel: 'A' })).toEqual({});
     expect(problems('edit', { ...valid, hostsLabel: 'A', endDate: '2027-06-12' })).toEqual({
