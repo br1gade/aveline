@@ -10,6 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { getEvent, type EventDetail, type EventNotice } from '@/features/events';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { EditVenue, NewVenue } from './components/venue-pages';
 import { VenueList } from './components/venue-list';
@@ -153,25 +154,27 @@ function EditPage() {
 }
 
 function renderAt(path: string) {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/venues',
-      loader: ({ params }) => loadVenueList(session().api, params.eventId ?? ''),
-      Component: ListPage,
-    },
-    {
-      path: '/app/events/:eventId/venues/new',
-      loader: ({ params }) => getEvent(session().api, params.eventId ?? ''),
-      Component: NewPage,
-    },
-    {
-      path: '/app/events/:eventId/venues/:venueId/edit',
-      loader: ({ params }) =>
-        loadVenueEdit(session().api, params.eventId ?? '', params.venueId ?? ''),
-      Component: EditPage,
-    },
-    { path: '/app/events/:eventId', Component: () => <p>Event page</p> },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/venues',
+        loader: ({ params }) => loadVenueList(session().api, params.eventId ?? ''),
+        Component: ListPage,
+      },
+      {
+        path: '/app/events/:eventId/venues/new',
+        loader: ({ params }) => getEvent(session().api, params.eventId ?? ''),
+        Component: NewPage,
+      },
+      {
+        path: '/app/events/:eventId/venues/:venueId/edit',
+        loader: ({ params }) =>
+          loadVenueEdit(session().api, params.eventId ?? '', params.venueId ?? ''),
+        Component: EditPage,
+      },
+      { path: '/app/events/:eventId', Component: () => <p>Event page</p> },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={[path]} />
@@ -255,6 +258,15 @@ describe('VenueList', () => {
 });
 
 describe('Adding a venue', () => {
+  it('asks before the page is left with what was typed, not before', async () => {
+    serve();
+    const user = renderAt('/app/events/e1/venues/new');
+    const name = await screen.findByLabelText('Name');
+    expect(isLeavingAsked()).toBe(false);
+    await user.type(name, 'Garden Hall');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+  });
+
   it('sends the arrival typed in the event’s zone as UTC, then returns to the list', async () => {
     const reads = serve();
     const posted = answer('post', '/events/e1/venues', saved(QUIET, 201));

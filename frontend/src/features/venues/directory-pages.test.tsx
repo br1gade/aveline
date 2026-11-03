@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { VenueDirectoryPage } from './components/directory-page';
 import { NewVenue } from './components/venue-pages';
@@ -137,14 +138,16 @@ function renderDirectory() {
 }
 
 function renderNew() {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/venues/new',
-      loader: ({ params }) => loadNewVenue(session().api, params.eventId ?? ''),
-      Component: NewRoute,
-    },
-    { path: '/app/events/:eventId/venues', Component: () => <p>The venues</p> },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/venues/new',
+        loader: ({ params }) => loadNewVenue(session().api, params.eventId ?? ''),
+        Component: NewRoute,
+      },
+      { path: '/app/events/:eventId/venues', Component: () => <p>The venues</p> },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={['/app/events/e1/venues/new']} />
@@ -185,6 +188,13 @@ describe('starting a venue from the directory', () => {
         profileId: 'p1',
       },
     ]);
+  });
+
+  it('asks before the page is left once a hall filled the form in', async () => {
+    serve();
+    const user = renderNew();
+    await user.selectOptions(await picker(), 'Grand Hall');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
   });
 
   it('groups halls by city, and one with none apart', async () => {

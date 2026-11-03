@@ -7,7 +7,14 @@ import { problemFrom } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { BUILT_IN_FIELDS, type BuiltInField } from '@/features/invitation-renderer';
 import { isLanguage } from '@/lib/i18n';
-import { AppForm, ErrorLine, SubmitButton, TextInputField, type PageActions } from '@/ui/app-form';
+import {
+  AppForm,
+  ErrorLine,
+  SubmitButton,
+  TextInputField,
+  type PageActions,
+  useLeaveGuard,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { FieldDescription, FieldLegend, FieldSet } from '@/ui/kit/field';
@@ -161,11 +168,12 @@ function BuiltInFieldset({ form, field, locales }: ChoicesProps) {
 export function BuiltInQuestions({ design, page }: { design: Design; page: PageActions }) {
   const { t } = useTranslation('design');
   const { locales } = design.event;
-  const [baseline] = useState(() => rsvpFieldsFormValues(design.rsvpFields, locales));
+  const [baseline, setBaseline] = useState(() => rsvpFieldsFormValues(design.rsvpFields, locales));
   const form = useForm<RsvpFieldsValues>({
     resolver: zodResolver(rsvpFieldsSchema),
     defaultValues: baseline,
   });
+  useLeaveGuard(form);
   const [refusal, setRefusal] = useState<DesignRefusalState | null>(null);
   const save = async (values: RsvpFieldsValues) => {
     setRefusal(null);
@@ -173,6 +181,8 @@ export function BuiltInQuestions({ design, page }: { design: Design; page: PageA
     if (Object.keys(body).length === 0) return page.done(t('questions.nothing'));
     try {
       await updateRsvpFields(browserSession().api, design.slug, body);
+      setBaseline(values);
+      form.reset(values);
       await page.done(t('questions.saved'));
     } catch (error) {
       for (const property of refusedProperties(error)) {

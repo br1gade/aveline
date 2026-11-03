@@ -255,7 +255,9 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   in `src/ui/` (buttons, links, notices, form controls in `src/ui/form/`); the invitation's own in
   the renderer. The account and app forms' pieces are in `src/ui/app-form/`: `AppForm`, which
   posts (PD-41), `SubmitButton`, `TextInputField`, `SelectField` and `ProblemAlert`, with
-  `problemFrom` in `src/api/problems.ts`.
+  `problemFrom` in `src/api/problems.ts`; and `LeaveGuard`, around the app in its layout, which a
+  page form joins with `useLeaveGuard(form)` to ask before unsaved changes are left
+  (PD-119).
 - **The app's kit** is shadcn/ui (C-14) in `src/ui/kit/`, added with the CLI from
   `components.json` and then owned by us: it passes our lint and imports our `cn` (`src/ui/cn.ts`,
   clsx with tailwind-merge). The native select, checkbox and textarea were written by hand in the
@@ -526,6 +528,16 @@ with a second language ticked (so the line about the other languages shows), and
 sending, in hy, ru, en and fr at 360 px, touch, and 1280 px. 24 checks passed, axe clean in each,
 every target at least 44 px. Not run against the real backend.
 
+Asking before unsaved changes are left (PD-119) was walked the same way on the mock, on correcting
+the event, a design section, an upload's description, recording an answer and promo codes. On each:
+something typed, then the page's own link to another page; the question opened with Cancel focused,
+Enter kept what was typed and returned the focus to the link, and "Leave without saving" went. On each
+too, closing the page with something typed raised the browser's own question. In hy, ru, en and fr at
+360 px, touch, and 1280 px, 80 checks passed, axe clean with the question open, every target at least
+44 px. A save with nothing to send (a space added to the event's title), which goes on at once, was
+asked about in 10 runs of 10 before the guard followed each form through `subscribe`, and in none
+after. Not run against the real backend.
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -679,6 +691,7 @@ every target at least 44 px. Not run against the real backend.
 | 3 Nov 2026 | `DEFAULT_TIME_ZONE` moves to `lib/time`; the team's dialogs use `AskFirstDialog`, whose busy label is the common "Working…" | Written three times, and copied once, otherwise. `useDialogAction` frees a dialog before throwing an error that isn't the API's, which had left it stuck busy |
 | 3 Nov 2026 | Creating an event takes the end and the sides; its other languages stay on correcting it | `CreateEventDto` takes `endsAt` and the side labels but not `translations` (FR-101); a second request after creating would be a workaround, so the form says they come after |
 | 3 Nov 2026 | `normalizeName` moves from `features/guests` to `lib/text/name-search.ts`, with one romanisation of Armenian and Cyrillic that the door and the guest list both search through | Door staff type on a phone's Latin keyboard while names are often in Armenian or Russian, so "Armen" missed "Արմեն". Each name is indexed with its Latin form, once per read, and each word typed is tried as itself and in Latin. One spelling per letter: Armenian as in passports, Russian as usually typed ("yu", "ya", "y" for "й"), not as in passports ("iu", "ia", "i"); variants such as "Hakobian" for "Hakobyan" aren't matched |
+| 3 Nov 2026 | One guard against leaving unsaved changes, `LeaveGuard` in `ui/app-form`, around the app in `routes/app/layout.tsx`; each page form joins it with `useLeaveGuard` | React Router allows one blocker at a time, and a page can hold several forms (one per upload on the media page). It asks only when the pathname changes, since a search keeps the page's forms, and never while a save runs, so the page a save goes to isn't asked about. Each form is followed through React Hook Form's `subscribe`, which says a save has begun before its first wait, and the guard reads the forms at the moment of leaving: following `formState` in an effect lagged a render behind, so a save with nothing to send, which goes on at once, was asked about in the browser though not under the test library's `act()`. The session's end navigates with `LEAVE_UNASKED`, since nothing can be saved after it. The designer's built-in questions and descriptions now reset their baseline after a save, as its look and sections did: otherwise a saved form still read as changed, and the next save compared against the old values. A hall chosen from the directory now marks the name and address it fills as changed |
 
 ## 12. Not yet built
 
@@ -731,7 +744,7 @@ every target at least 44 px. Not run against the real backend.
   call); and the guest's own table shown elsewhere than the personal card. The seating chart and
   place cards are on the exports page since 30 October 2026.
 - Of designing the invitation: previewing edits before they are saved (the preview shows what is
-  saved); a warning before leaving a form with unsaved changes; cropping and focal points (not in the API either); host-tuned
+  saved); cropping and focal points (not in the API either); host-tuned
   colours (BQ-3); template fonts in the browser (FR-9), so a font chosen does not show yet; the
   layouts the seeded templates name, which the renderer does not draw (FR-42).
 - Of the guest list: seating from
@@ -769,6 +782,9 @@ every target at least 44 px. Not run against the real backend.
   household on one order (PQ-12); naming the event on an order opened from its email in another
   tab (FR-62); "on sale from" before a type's sales open (FR-66); a checkout key kept across a
   reload.
+- Of leaving with unsaved changes (DQ-39): the forms in dialogs, which a phone's Back still leaves;
+  the guest's reply; importing a spreadsheet and making an export, which hold a file or choices,
+  not typed work.
 - Of the door: working offline (PQ-14); a QR scanner (PQ-13); seating at check-in; adding a walk-in
   there (the guest list does); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the

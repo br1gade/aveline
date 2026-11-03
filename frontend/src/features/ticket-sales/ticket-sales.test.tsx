@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 import { APP_PATHS } from '@/route-paths';
 
 import { AnnouncementForm } from './components/announcement-form';
@@ -138,30 +139,32 @@ function api() {
 }
 
 function renderAt(path: string) {
-  const Stub = createRoutesStub([
-    {
-      path: APP_PATHS.ticketSales,
-      loader: ({ params }) => loadTicketSales(api(), params.eventId ?? ''),
-      Component: () => <TicketSalesPage data={useLoaderData<TicketSalesData>()} />,
-    },
-    {
-      path: APP_PATHS.newTicketType,
-      loader: ({ params }) => loadTicketType(api(), params.eventId ?? '', null),
-      Component: () => <TicketTypePage data={useLoaderData<TicketTypeData>()} />,
-    },
-    {
-      path: APP_PATHS.editTicketType,
-      loader: ({ params }) => loadTicketType(api(), params.eventId ?? '', params.typeId ?? null),
-      Component: () => <TicketTypePage data={useLoaderData<TicketTypeData>()} />,
-    },
-    {
-      path: APP_PATHS.announcement,
-      loader: ({ params }) => loadAnnouncement(api(), params.eventId ?? ''),
-      Component: () => <AnnouncementForm data={useLoaderData<AnnouncementData>()} />,
-    },
-    { path: APP_PATHS.event, Component: () => <p>Event page</p> },
-    { path: APP_PATHS.orders, Component: () => <p>Orders page</p> },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: APP_PATHS.ticketSales,
+        loader: ({ params }) => loadTicketSales(api(), params.eventId ?? ''),
+        Component: () => <TicketSalesPage data={useLoaderData<TicketSalesData>()} />,
+      },
+      {
+        path: APP_PATHS.newTicketType,
+        loader: ({ params }) => loadTicketType(api(), params.eventId ?? '', null),
+        Component: () => <TicketTypePage data={useLoaderData<TicketTypeData>()} />,
+      },
+      {
+        path: APP_PATHS.editTicketType,
+        loader: ({ params }) => loadTicketType(api(), params.eventId ?? '', params.typeId ?? null),
+        Component: () => <TicketTypePage data={useLoaderData<TicketTypeData>()} />,
+      },
+      {
+        path: APP_PATHS.announcement,
+        loader: ({ params }) => loadAnnouncement(api(), params.eventId ?? ''),
+        Component: () => <AnnouncementForm data={useLoaderData<AnnouncementData>()} />,
+      },
+      { path: APP_PATHS.event, Component: () => <p>Event page</p> },
+      { path: APP_PATHS.orders, Component: () => <p>Orders page</p> },
+    ]),
+  );
   const view = render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={[path]} />
@@ -268,6 +271,14 @@ describe('the ticket sales page (PD-84)', () => {
 });
 
 describe('a ticket type’s form (PD-85)', () => {
+  it('asks before the page is left with what was typed, not before', async () => {
+    const { user } = renderAt('/app/events/e1/tickets/types/new');
+    const names = await screen.findByRole('group', { name: 'Name' });
+    expect(isLeavingAsked()).toBe(false);
+    await user.type(within(names).getByLabelText('English · default language'), 'Table seat');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+  });
+
   it('adds a type with its names, price, limits and window in the event’s zone', async () => {
     server.use(
       http.post(
@@ -355,6 +366,14 @@ describe('a ticket type’s form (PD-85)', () => {
 });
 
 describe('the announcement (PD-86)', () => {
+  it('asks before the page is left with what was typed, not before', async () => {
+    const { user } = renderAt('/app/events/e1/tickets/announcement');
+    const armenian = await screen.findByRole('group', { name: 'Հայերեն' });
+    expect(isLeavingAsked()).toBe(false);
+    await user.type(within(armenian).getByLabelText('Headline'), 'Աշնանային ջազ');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+  });
+
   it('keeps the words of a language the event no longer publishes, and says so', async () => {
     server.use(
       http.get(`${API}/events/e1/listing`, () =>

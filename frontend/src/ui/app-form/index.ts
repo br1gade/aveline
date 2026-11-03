@@ -2,6 +2,7 @@
 // alert, and the labelled fields (docs/ARCHITECTURE.md §8).
 export { AppForm } from './app-form';
 export { AskFirstDialog } from './ask-first-dialog';
+export { LEAVE_UNASKED, LeaveGuard, useLeaveGuard } from './leave-guard';
 export { ProblemAlert } from './problem-alert';
 export { ErrorLine, SelectField } from './select-field';
 export { SubmitButton } from './submit-button';

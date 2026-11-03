@@ -6,6 +6,7 @@ import { createRoutesStub, useLoaderData, type LoaderFunctionArgs } from 'react-
 import type { BrowserSession } from '@/api/session';
 import { createI18n, type Language } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
+import { guardedRoutes } from '@/ui/app-form/guarded-routes';
 
 import { DesignLook } from './components/design-look';
 import { DesignMedia } from './components/design-media';
@@ -100,14 +101,16 @@ const ELSEWHERE = [
   { path: APP_PATHS.editEvent, Component: () => <p>Edit event page</p> },
 ];
 
-/** Every design page, routed as the app routes them, against the test's session. */
+/** Every design page, routed as the app routes them inside its frame's guard, against the test's session. */
 export function renderDesign(
   session: () => BrowserSession,
   path: string,
   language: Language = 'en',
 ) {
   const api = () => session().api;
-  const Stub = createRoutesStub([...sectionRoutes(api), ...otherRoutes(api), ...ELSEWHERE]);
+  const Stub = createRoutesStub(
+    guardedRoutes([...sectionRoutes(api), ...otherRoutes(api), ...ELSEWHERE]),
+  );
   render(
     <I18nextProvider i18n={createI18n(language)}>
       <Stub initialEntries={[path]} />

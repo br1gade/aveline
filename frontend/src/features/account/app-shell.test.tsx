@@ -2,12 +2,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { useForm } from 'react-hook-form';
 import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, Link } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, type BrowserSession, type TokenStore } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { useLeaveGuard } from '@/ui/app-form';
+import { guardedRoutes } from '@/ui/app-form/guarded-routes';
 
 import { AppShell } from './components/app-shell';
 
@@ -135,6 +138,36 @@ describe('AppShell', () => {
     expect(await screen.findByText('Sign-in page')).toBeInTheDocument();
     expect(sent).toEqual([{ refreshToken: 'r1' }]);
     expect(store.getRefreshToken()).toBeUndefined();
+  });
+
+  it('goes to sign in without asking about unsaved changes, which can no longer be saved', async () => {
+    server.use(http.post(`${ORIGIN}/api/v1/auth/logout`, () => HttpResponse.json({ ok: true })));
+    function Unsaved() {
+      const form = useForm({ defaultValues: { name: '' } });
+      useLeaveGuard(form);
+      return (
+        <label>
+          Name
+          <input {...form.register('name')} />
+        </label>
+      );
+    }
+    const Stub = createRoutesStub(
+      guardedRoutes([
+        { path: '/app', Component: () => <AppShell>{<Unsaved />}</AppShell> },
+        { path: '/sign-in', Component: () => <p>Sign-in page</p> },
+      ]),
+    );
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub initialEntries={['/app']} />
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Name'), 'Ani');
+    await user.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(await screen.findByText('Sign-in page')).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
   it('asks before signing out on every device, then goes to sign in', async () => {

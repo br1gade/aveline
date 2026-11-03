@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router';
 import { type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { timeZoneOptions } from '@/lib/time';
-import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
+import { AppForm, ProblemAlert, SubmitButton, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { updateEvent } from '../api';
@@ -43,6 +43,7 @@ function EditForm({ event, onSuggested }: EditFormProps) {
     defaultValues: initial,
   });
   const { isSubmitting } = form.formState;
+  useLeaveGuard(form);
 
   const onSubmit = async (values: EventFormValues) => {
     setProblem(null);

@@ -4,7 +4,14 @@ import { useTranslation } from 'react-i18next';
 
 import { problemFrom } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import { AppForm, ErrorLine, SelectField, SubmitButton, type PageActions } from '@/ui/app-form';
+import {
+  AppForm,
+  ErrorLine,
+  SelectField,
+  SubmitButton,
+  type PageActions,
+  useLeaveGuard,
+} from '@/ui/app-form';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
 import { updateTheme } from '../api';
@@ -107,6 +114,7 @@ export function ThemeForm({ design, page }: { design: Design; page: PageActions 
   const { t } = useTranslation('design');
   const [baseline, setBaseline] = useState(() => themeFormValues(design.effectiveTheme));
   const form = useForm<ThemeValues>({ defaultValues: baseline });
+  useLeaveGuard(form);
   const [refusal, setRefusal] = useState<DesignRefusalState | null>(null);
   const save = async (values: ThemeValues) => {
     setRefusal(null);

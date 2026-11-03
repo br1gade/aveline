@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { SuppressionsPage } from './components/suppressions-page';
 import { loadSuppressions, type SuppressionsData } from './load';
@@ -95,9 +96,11 @@ function Page() {
 }
 
 function renderPage() {
-  const Stub = createRoutesStub([
-    { path: '/app/suppressions', loader: () => loadSuppressions(session().api), Component: Page },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      { path: '/app/suppressions', loader: () => loadSuppressions(session().api), Component: Page },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={['/app/suppressions']} />
@@ -156,6 +159,19 @@ describe('the list', () => {
 });
 
 describe('adding someone', () => {
+  it('asks before the page is left with what was typed, and not once it is saved', async () => {
+    serve();
+    server.use(
+      http.post(`${API}/suppressions`, () => HttpResponse.json({ id: 's9' }, { status: 201 })),
+    );
+    const user = renderPage();
+    await user.type(await screen.findByLabelText('Their address'), 'davit@example.am');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await submit(user);
+    await screen.findByText('davit@example.am is on the list.');
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('sends the channel and the address, no reason, then says so', async () => {
     const reads = serve();
     const received: unknown[] = [];

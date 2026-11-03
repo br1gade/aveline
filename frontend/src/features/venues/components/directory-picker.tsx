@@ -32,8 +32,9 @@ export function DirectoryPicker({ directory, form, hall, onChoose }: DirectoryPi
     const chosen = halls.find((candidate) => candidate.id === id) ?? null;
     onChoose(chosen);
     if (chosen) {
-      form.setValue('name', chosen.name);
-      form.setValue('address', chosen.address);
+      // Filled in by a choice, as if typed: leaving now loses it too.
+      form.setValue('name', chosen.name, { shouldDirty: true });
+      form.setValue('address', chosen.address, { shouldDirty: true });
       form.clearErrors(['name', 'address']);
     }
   };

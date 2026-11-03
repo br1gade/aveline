@@ -2,6 +2,7 @@ import { Outlet } from 'react-router';
 
 import { AppLoading, AppShell, requireSignedIn } from '@/features/account';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
+import { LeaveGuard } from '@/ui/app-form';
 
 import type { Route } from './+types/layout';
 
@@ -25,8 +26,10 @@ export function HydrateFallback() {
 
 export default function AppLayout() {
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <LeaveGuard>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </LeaveGuard>
   );
 }

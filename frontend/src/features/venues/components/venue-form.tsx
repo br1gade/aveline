@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router';
 import { type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import type { EventDetail, EventNotice, NotifyOffer } from '@/features/events';
-import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
+import { AppForm, ProblemAlert, SubmitButton, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { createVenue, updateVenue } from '../api';
@@ -94,6 +94,24 @@ function FormHeading({ event, venue }: { event: EventDetail; venue: Venue | null
 }
 
 /**
+ * The form and its baseline: the venue as the form first showed it, as the event form's is, so a
+ * later reload of the page doesn't move it. Leaving with unsaved changes asks first (PD-119).
+ */
+function useVenueForm(event: EventDetail, venue: Venue | null) {
+  const schema = useMemo(() => venueFormSchema(event.timezone), [event.timezone]);
+  const [languages] = useState(() => venueLanguages(event, venue));
+  const [baseline] = useState(() =>
+    venue ? venueFormValues(venue, event.timezone, languages) : null,
+  );
+  const form = useForm<VenueFormInput, unknown, VenueFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: baseline ?? newVenueValues(languages),
+  });
+  useLeaveGuard(form);
+  return { form, baseline, languages };
+}
+
+/**
  * Adding a venue, or correcting one (design PD-46): one form, at most 30 rem wide, as the event's
  * own (PD-42). A correction sends only what changed. When guests already hold the invitation, the
  * save's notice may suggest telling them, and the page becomes that offer.
@@ -105,17 +123,7 @@ export function VenueForm({ event, venue, directory, onHallRetired, onSuggested 
   const [problem, setProblem] = useState<{ problem: Problem; messages: readonly string[] } | null>(
     null,
   );
-  const schema = useMemo(() => venueFormSchema(event.timezone), [event.timezone]);
-  // The baseline is the venue as the form first showed it, as the event form's is: a later reload
-  // of the page must not move it.
-  const [languages] = useState(() => venueLanguages(event, venue));
-  const [baseline] = useState(() =>
-    venue ? venueFormValues(venue, event.timezone, languages) : null,
-  );
-  const form = useForm<VenueFormInput, unknown, VenueFormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: baseline ?? newVenueValues(languages),
-  });
+  const { form, baseline, languages } = useVenueForm(event, venue);
   const { isSubmitting } = form.formState;
 
   const dropHall = () => {

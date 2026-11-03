@@ -7,7 +7,13 @@ import { Link, useNavigate, useRevalidator } from 'react-router';
 import { browserSession } from '@/api/session';
 import { guestListPath } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
-import { AppForm, SubmitButton, WordedRefusal, WRAPPING_BUTTON } from '@/ui/app-form';
+import {
+  AppForm,
+  SubmitButton,
+  useLeaveGuard,
+  WordedRefusal,
+  WRAPPING_BUTTON,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { Label } from '@/ui/kit/label';
@@ -105,6 +111,7 @@ function AnswerFormView(props: AnswerFormViewProps) {
     resolver: zodResolver(answerFormSchema(guest.mode, data.asking)),
     defaultValues: initial,
   });
+  useLeaveGuard(form);
   const record = useRecord(props, form, initial);
   return (
     <AppForm onSubmit={form.handleSubmit(record)} className="max-w-[34rem] gap-5">

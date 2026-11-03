@@ -10,8 +10,9 @@ import {
   SelectField,
   SubmitButton,
   TextInputField,
-  WRAPPING_BUTTON,
   type PageActions,
+  useLeaveGuard,
+  WRAPPING_BUTTON,
 } from '@/ui/app-form';
 import { Label } from '@/ui/kit/label';
 import { NativeSelectOption } from '@/ui/kit/native-select';
@@ -192,6 +193,7 @@ function useCreate(zones: ReadonlyMap<string, string>, page: PageActions) {
     resolver: zodResolver(schema),
     defaultValues: NEW_PROMO_VALUES,
   });
+  useLeaveGuard(form);
   const onSubmit = async (values: PromoFormValues) => {
     setRefusal(null);
     try {

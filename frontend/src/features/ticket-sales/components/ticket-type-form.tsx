@@ -6,7 +6,14 @@ import { Link, useNavigate } from 'react-router';
 
 import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import { AppForm, ErrorLine, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
+import {
+  AppForm,
+  ErrorLine,
+  ProblemAlert,
+  SubmitButton,
+  TextInputField,
+  useLeaveGuard,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { FieldLegend, FieldSet } from '@/ui/kit/field';
 
@@ -195,6 +202,7 @@ function useTypeForm({ event, type }: TicketTypeData) {
     resolver: zodResolver(schema),
     defaultValues: baseline,
   });
+  useLeaveGuard(form);
   const [problem, setProblem] = useState<Problem | null>(null);
   const onSubmit = async (values: TicketTypeFormValues) => {
     setProblem(null);

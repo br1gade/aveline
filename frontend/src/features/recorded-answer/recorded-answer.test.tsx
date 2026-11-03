@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { ArrivalStatus } from '@/features/events';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { RecordAnswerPage } from './components/record-answer-page';
 import { loadRecordAnswer, type RecordAnswerData } from './load';
@@ -159,15 +160,17 @@ function Page() {
 }
 
 function renderPage(language: 'en' | 'hy' = 'en') {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/guests/:guestId/answer',
-      loader: ({ params }) =>
-        loadRecordAnswer(session().api, params.eventId ?? '', params.guestId ?? ''),
-      Component: Page,
-    },
-    { path: '/app/events/:eventId/guests', Component: () => <ArrivalStatus /> },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/guests/:guestId/answer',
+        loader: ({ params }) =>
+          loadRecordAnswer(session().api, params.eventId ?? '', params.guestId ?? ''),
+        Component: Page,
+      },
+      { path: '/app/events/:eventId/guests', Component: () => <ArrivalStatus /> },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n(language)}>
       <Stub initialEntries={['/app/events/e1/guests/g1/answer']} />
@@ -183,6 +186,15 @@ async function save(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('recording an answer, one for the event', () => {
+  it('asks before the page is left with an answer begun, not before', async () => {
+    serve();
+    const user = renderPage();
+    const coming = await screen.findByRole('radio', { name: 'Coming' });
+    expect(isLeavingAsked()).toBe(false);
+    await user.click(coming);
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+  });
+
   it('records what changed, leaves the required meal for later, and returns to the list', async () => {
     serve();
     const received = answer();

@@ -8,7 +8,7 @@ import { isApiError } from '@/api/errors';
 import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import type { LibraryItem } from '@/features/invitation-design';
-import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/ui/kit/field';
@@ -217,6 +217,7 @@ export function AnnouncementForm({ data }: { data: AnnouncementData }) {
     resolver: zodResolver(announcementSchema()),
     defaultValues: announcementFormValues(listing, languages),
   });
+  useLeaveGuard(form);
   const [problem, setProblem] = useState<Problem | null>(null);
   const onSubmit = async (values: AnnouncementFormValues) => {
     setProblem(null);

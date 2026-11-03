@@ -4,6 +4,7 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
+import { isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { answer, API, ORIGIN, refusal, serveDesign, SLUG } from './test-data';
 import { renderDesign } from './test-render';
@@ -59,6 +60,17 @@ describe('the template and look', () => {
 
     await screen.findByText('Look saved.');
     expect(sent).toEqual([{ palette: 'ivory-gold' }]);
+  });
+
+  it('asks before the page is left with a change, and not once it is saved', async () => {
+    serveDesign(server);
+    answer(server, 'patch', `/invitations/${SLUG}/theme`);
+    const user = renderDesign(session, LOOK);
+    await user.click(await screen.findByRole('radio', { name: /ivory-gold/ }));
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await user.click(screen.getByRole('button', { name: 'Save the look' }));
+    await screen.findByText('Look saved.');
+    expect(isLeavingAsked()).toBe(false);
   });
 
   it('marks every field a refusal names at once', async () => {
@@ -150,6 +162,18 @@ describe('the questions', () => {
     ]);
   });
 
+  it('asks before the page is left with a change, and not once it is saved', async () => {
+    serveDesign(server);
+    answer(server, 'patch', `/invitations/${SLUG}/rsvp-fields`);
+    const user = renderDesign(session, QUESTIONS);
+    const song = await screen.findByRole('group', { name: 'A song request' });
+    await user.click(within(song).getByRole('checkbox', { name: 'Ask this' }));
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await user.click(screen.getByRole('button', { name: 'Save these questions' }));
+    await screen.findByText('Questions saved.');
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('refuses a choice with no label before sending', async () => {
     serveDesign(server);
     const sent = answer(server, 'patch', `/invitations/${SLUG}/rsvp-fields`);
@@ -211,6 +235,13 @@ describe('the questions', () => {
     );
     expect(sent).toEqual([{ questionIds: ['q2', 'q1'], expectedOrder: ['q1', 'q2'] }]);
     await waitFor(() => expect(reads.design).toBe(2));
+  });
+
+  it('asks before a new question’s page is left with what was typed', async () => {
+    serveDesign(server);
+    const user = renderDesign(session, '/app/events/e1/design/questions/new');
+    await user.type(await screen.findByLabelText('English'), 'Which meal?');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
   });
 
   it('refuses a choice question with a language half filled, then adds it', async () => {

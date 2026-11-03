@@ -29,5 +29,10 @@
   "dialog": {
     "cancel": "Cancel",
     "working": "Working…"
+  },
+  "leave": {
+    "title": "Leave without saving?",
+    "body": "What you changed on this page isn’t saved.",
+    "confirm": "Leave without saving"
   }
 }

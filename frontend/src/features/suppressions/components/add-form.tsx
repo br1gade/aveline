@@ -8,8 +8,9 @@ import {
   AppForm,
   SubmitButton,
   TextInputField,
-  WRAPPING_BUTTON,
   type PageActions,
+  useLeaveGuard,
+  WRAPPING_BUTTON,
 } from '@/ui/app-form';
 import { Label } from '@/ui/kit/label';
 import { RadioGroup, RadioGroupItem } from '@/ui/kit/radio-group';
@@ -68,6 +69,7 @@ function useAdd(list: readonly Suppression[], page: PageActions) {
     resolver: zodResolver(suppressionSchema),
     defaultValues: EMPTY,
   });
+  useLeaveGuard(form);
   const onSubmit = async (values: SuppressionValues) => {
     setRefusal(null);
     const already = findListed(list, values.channel, values.address) ?? null;

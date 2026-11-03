@@ -6,7 +6,13 @@ import { z } from 'zod';
 
 import { problemFrom } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import { AppForm, SubmitButton, TextInputField, type PageActions } from '@/ui/app-form';
+import {
+  AppForm,
+  SubmitButton,
+  TextInputField,
+  type PageActions,
+  useLeaveGuard,
+} from '@/ui/app-form';
 
 import { updateAltText } from '../api';
 import { altTextEdit } from '../payload';
@@ -40,10 +46,11 @@ export function AltTextForm({ item, locales, eventId, page }: AltTextFormProps) 
   const { t } = useTranslation('design');
   const languageLabel = useLanguageLabel();
   const fieldText = useFieldText();
-  const [baseline] = useState<AltTextValues>(() => ({
+  const [baseline, setBaseline] = useState<AltTextValues>(() => ({
     altText: Object.fromEntries(locales.map((locale) => [locale, item.altText[locale] ?? ''])),
   }));
   const form = useForm<AltTextValues>({ resolver: zodResolver(schema), defaultValues: baseline });
+  useLeaveGuard(form);
   const [refusal, setRefusal] = useState<DesignRefusalState | null>(null);
   const save = async (values: AltTextValues) => {
     setRefusal(null);
@@ -51,6 +58,8 @@ export function AltTextForm({ item, locales, eventId, page }: AltTextFormProps) 
     if (Object.keys(body).length === 0) return page.done(t('media.nothing'));
     try {
       await updateAltText(browserSession().api, eventId, item.id, body);
+      setBaseline(values);
+      form.reset(values);
       await page.done(t('media.described'));
     } catch (error) {
       if (refusedProperties(error).includes('altText')) {

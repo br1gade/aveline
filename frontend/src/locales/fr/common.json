@@ -29,5 +29,10 @@
   "dialog": {
     "cancel": "Annuler",
     "working": "En cours…"
+  },
+  "leave": {
+    "title": "Partir sans enregistrer ?",
+    "body": "Vos modifications sur cette page ne sont pas enregistrées.",
+    "confirm": "Partir sans enregistrer"
   }
 }

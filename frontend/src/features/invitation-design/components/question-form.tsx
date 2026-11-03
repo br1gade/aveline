@@ -13,7 +13,14 @@ import { Link, useNavigate, useRevalidator } from 'react-router';
 import { problemFrom } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import type { QuestionType } from '@/features/invitation-renderer';
-import { AppForm, ErrorLine, SelectField, SubmitButton, TextInputField } from '@/ui/app-form';
+import {
+  AppForm,
+  ErrorLine,
+  SelectField,
+  SubmitButton,
+  TextInputField,
+  useLeaveGuard,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { FieldDescription, FieldLegend, FieldSet } from '@/ui/kit/field';
@@ -263,6 +270,7 @@ export function QuestionFormView({ design, question }: QuestionFormProps) {
     question ? questionFormValues(question, locales) : newQuestionValues(locales),
   );
   const form = useForm<QuestionValues>({ resolver: zodResolver(schema), defaultValues: baseline });
+  useLeaveGuard(form);
   const { refusal, save } = useSaveQuestion({ design, question }, form, baseline);
   const type = useWatch({ control: form.control, name: 'type' });
   const { isSubmitting } = form.formState;

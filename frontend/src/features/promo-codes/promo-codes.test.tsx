@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { PromoCodesPage } from './components/promo-codes-page';
 import { loadPromoCodes, type PromoCodesData } from './load';
@@ -150,9 +151,11 @@ function Page() {
 }
 
 function renderPage() {
-  const Stub = createRoutesStub([
-    { path: '/app/promo-codes', loader: () => loadPromoCodes(session().api), Component: Page },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      { path: '/app/promo-codes', loader: () => loadPromoCodes(session().api), Component: Page },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={['/app/promo-codes']} />
@@ -231,6 +234,20 @@ describe('the codes, as shown', () => {
 });
 
 describe('making a code', () => {
+  it('asks before the page is left with what was typed, and not once it is saved', async () => {
+    serve();
+    server.use(
+      http.post(`${API}/promo-codes`, () => HttpResponse.json({ id: 'p9' }, { status: 201 })),
+    );
+    const user = renderPage();
+    await user.type(await screen.findByLabelText('The code'), 'comp-guests');
+    await user.type(screen.getByLabelText('Percentage off, 1 to 100'), '100');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await submit(user);
+    await screen.findByText('COMP-GUESTS is made.');
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('sends the code with only what was given, times in the event’s zone', async () => {
     const reads = serve();
     const received: unknown[] = [];

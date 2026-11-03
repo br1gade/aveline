@@ -4,7 +4,13 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
-import { AppForm, SubmitButton, TextInputField, type PageActions } from '@/ui/app-form';
+import {
+  AppForm,
+  SubmitButton,
+  TextInputField,
+  type PageActions,
+  useLeaveGuard,
+} from '@/ui/app-form';
 
 import { inviteToTeam } from '../api';
 import { refusalOf, type TeamRefusal } from '../refusals';
@@ -18,6 +24,7 @@ function useInvite(eventId: string, page: PageActions) {
   const { t } = useTranslation('team');
   const [refusal, setRefusal] = useState<TeamRefusal | null>(null);
   const form = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: EMPTY });
+  useLeaveGuard(form);
   const onSubmit = async (values: InviteValues) => {
     setRefusal(null);
     try {

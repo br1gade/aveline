@@ -6,6 +6,7 @@ import { browserSession } from '@/api/session';
 import { LANGUAGES, type Language } from '@/lib/i18n';
 import { ROUTE_PATHS } from '@/route-paths';
 import { Icon, LanguageSwitcher } from '@/ui';
+import { LEAVE_UNASKED } from '@/ui/app-form';
 import { Alert, AlertDescription } from '@/ui/kit/alert';
 import {
   AlertDialog,
@@ -26,7 +27,8 @@ function useSignInWhenSignedOut() {
   useEffect(
     () =>
       browserSession().onSignedOut(() => {
-        void navigate(ROUTE_PATHS.signIn, { replace: true });
+        // Nothing can be saved any more, so unsaved changes don't hold the page.
+        void navigate(ROUTE_PATHS.signIn, { replace: true, state: LEAVE_UNASKED });
       }),
     [navigate],
   );

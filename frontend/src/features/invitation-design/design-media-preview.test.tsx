@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { ApiError } from '@/api/errors';
 import { createBrowserSession, type BrowserSession } from '@/api/session';
+import { isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { API, answer, designWire, ORIGIN, previewWire, refusal, serveDesign } from './test-data';
 import { renderDesign } from './test-render';
@@ -139,6 +140,20 @@ describe('photos and music', () => {
 
     await screen.findByText('Description saved.');
     expect(sent).toEqual([{ altText: { hy: 'Այգին', en: null } }]);
+  });
+
+  it('asks before the page is left with a description changed, and not once it is saved', async () => {
+    serveDesign(server);
+    answer(server, 'patch', '/events/e1/media/m2');
+    const user = renderDesign(session, MEDIA);
+    const library = await screen.findByRole('region', { name: 'Your uploads' });
+    const garden = within(library).getAllByRole('listitem')[0] as HTMLElement;
+    await user.click(within(garden).getByText('Describe it'));
+    await user.type(within(garden).getByLabelText('Հայերեն'), 'Այգին');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await user.click(within(garden).getByRole('button', { name: 'Save the description' }));
+    await screen.findByText('Description saved.');
+    expect(isLeavingAsked()).toBe(false);
   });
 
   it('removes an upload after asking, and says why one in use was refused', async () => {

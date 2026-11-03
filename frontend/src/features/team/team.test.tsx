@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { TeamPage } from './components/team-page';
 import { loadTeamPage, type TeamPageData } from './load';
@@ -103,13 +104,15 @@ function Page() {
 }
 
 function renderPage(language: 'en' | 'hy' = 'en') {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/team',
-      loader: ({ params }) => loadTeamPage(session().api, params.eventId ?? ''),
-      Component: Page,
-    },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/team',
+        loader: ({ params }) => loadTeamPage(session().api, params.eventId ?? ''),
+        Component: Page,
+      },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n(language)}>
       <Stub initialEntries={['/app/events/e1/team']} />
@@ -166,6 +169,21 @@ describe('the team, as shown', () => {
 });
 
 describe('inviting', () => {
+  it('asks before the page is left with what was typed, and not once it is sent', async () => {
+    serve();
+    server.use(
+      http.post(`${API}/events/e1/team/invites`, () =>
+        HttpResponse.json({ sent: true, email: 'a@example.am', role: 'VIEWER' }, { status: 201 }),
+      ),
+    );
+    const user = renderPage();
+    await user.type(await screen.findByLabelText('Their email address'), 'a@example.am');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await user.click(await sendButton());
+    await screen.findByText(/on its way to a@example.am/);
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('invites door staff as coordinators by default, says what that gives them, and never shows the development link', async () => {
     const token = crypto.randomUUID();
     const reads = serve();

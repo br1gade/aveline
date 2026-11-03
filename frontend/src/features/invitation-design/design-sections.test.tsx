@@ -4,6 +4,7 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
+import { isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import {
   answer,
@@ -168,6 +169,18 @@ describe('a section', () => {
 
     await screen.findByText('Saved.');
     expect(sent).toEqual([{ content: { en: { title: 'Anna & Davit', subtitle: 'invite you' } } }]);
+  });
+
+  it('asks before the page is left with a change, and not once it is saved', async () => {
+    serveDesign(server);
+    answer(server, 'patch', `/invitations/${SLUG}/blocks/HERO`);
+    const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
+    const english = await screen.findByRole('group', { name: 'English' });
+    await user.type(within(english).getByLabelText('Line under the names'), 'invite you');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await screen.findByText('Saved.');
+    expect(isLeavingAsked()).toBe(false);
   });
 
   it('removes a language emptied, so its guests fall back to the default language', async () => {

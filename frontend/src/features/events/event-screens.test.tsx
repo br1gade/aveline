@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { ApiError } from '@/api/errors';
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { AttendanceSettings } from './components/attendance-mode';
 import { CreateEvent } from './components/create-event';
@@ -65,10 +66,12 @@ function EventPage() {
 }
 
 function renderAt(path: string, pattern: string, Page: ComponentType) {
-  const Stub = createRoutesStub([
-    { path: pattern, Component: Page },
-    { path: '/app/events/:eventId', Component: EventPage },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      { path: pattern, Component: Page },
+      { path: '/app/events/:eventId', Component: EventPage },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={[path]} />
@@ -127,6 +130,14 @@ describe('CreateEvent', () => {
     expect(await screen.findByText('Choose one.')).toBeInTheDocument();
     expect(screen.getAllByText('Fill this in.')).toHaveLength(3);
     expect(received).toEqual([]);
+  });
+
+  it('asks before the page is left with what was typed, not before', async () => {
+    const user = at();
+    const title = await screen.findByLabelText('Title');
+    expect(isLeavingAsked()).toBe(false);
+    await user.type(title, 'Anna');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
   });
 
   it('sends the time typed in Yerevan as UTC, then opens the new event', async () => {
@@ -600,6 +611,14 @@ describe('EditEvent', () => {
     expect(await screen.findByLabelText('Date')).toHaveValue('2027-06-12');
     expect(screen.getByLabelText('Time')).toHaveValue('04:00');
     expect(screen.getByLabelText('Time zone')).toHaveValue('America/Los_Angeles');
+  });
+
+  it('asks before the page is left with a change, not before', async () => {
+    const user = at();
+    const title = await screen.findByLabelText('Title');
+    expect(isLeavingAsked()).toBe(false);
+    await user.type(title, ' again');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
   });
 
   it('sends only what changed, then returns to the event', async () => {

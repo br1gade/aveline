@@ -8,7 +8,14 @@ import type { Loaded } from '@/api/loaded';
 import { problemFrom } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import type { BlockEditing } from '@/features/invitation-renderer';
-import { AppForm, ErrorLine, SelectField, SubmitButton, type PageActions } from '@/ui/app-form';
+import {
+  AppForm,
+  ErrorLine,
+  SelectField,
+  SubmitButton,
+  type PageActions,
+  useLeaveGuard,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
@@ -120,6 +127,7 @@ export function SectionForm(props: SectionFormProps) {
     resolver: zodResolver(schema),
     defaultValues: initial,
   });
+  useLeaveGuard(form);
   const { refusal, save } = useSave(props, form);
   const fieldText = useFieldText();
   const withoutCopy = languagesWithoutCopy(block, design.event.locales);
