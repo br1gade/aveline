@@ -189,7 +189,13 @@ describe('the orders page (PD-87)', () => {
     expect(screen.getByText('Paid · 2 tickets · AMD 30,000')).toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Refunded' }));
     await waitFor(() => expect(sent.at(-1)?.query).toBe('?status=REFUNDED'));
-    expect(screen.getByRole('link', { name: 'Refunded' })).toHaveAttribute('aria-current', 'page');
+    // The tab is current once the navigation commits, after the loader's answer, not its request.
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Refunded' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      ),
+    );
   });
 
   it('says the buyers’ addresses are hidden from a role without contact access', async () => {
