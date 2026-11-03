@@ -77,7 +77,8 @@ function readRow(row: DeliveryRowWire): HouseholdDelivery {
     destination,
     status,
     isRetrying: status === 'QUEUED' && row.attempts > 0,
-    // The server's reply often quotes the address, which this role may not see (FR-35).
+    // It often quotes the address. The backend withholds it from this role too (FR-35): a second
+    // guard, since a read-only role must never see an address.
     failureReason: 'toAddress' in row ? row.failureReason : null,
     sentAt: row.sentAt,
     readAt: row.readAt ?? null,

@@ -1,5 +1,4 @@
 import { expectData, type ApiClient } from '@/api/client';
-import type { components } from '@/api/schema';
 
 import { readPage } from './read';
 import type { AgreementsPage, AgreementsWire } from './types';
@@ -7,15 +6,8 @@ import type { AgreementsPage, AgreementsWire } from './types';
 /** The most one read returns (docs/API.md §11: 1–100). */
 export const PAGE_SIZE = 100;
 
-interface PageQuery {
-  limit?: components['schemas']['Object'];
-  after?: string;
-}
-
-/** The schema types `limit` as an object (FR-38), so the query goes through this one cast. */
-function pageQuery(after: string | undefined): PageQuery {
-  const query = after ? { limit: PAGE_SIZE, after } : { limit: PAGE_SIZE };
-  return query as unknown as PageQuery;
+function pageQuery(after: string | undefined): { limit: number; after?: string } {
+  return after ? { limit: PAGE_SIZE, after } : { limit: PAGE_SIZE };
 }
 
 /** Newest first; needs `guest:contact:read`, which a designer and a read-only role lack. */

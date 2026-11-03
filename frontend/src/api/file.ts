@@ -8,7 +8,7 @@ export interface FetchedFile {
   blob: Blob;
   /** The response's `Content-Type`, or the blob's own when the header is absent. */
   contentType: string;
-  /** From `Content-Disposition`; absent when the header is, which it is cross-origin (FR-10). */
+  /** From `Content-Disposition`, which the backend still hides cross-origin (FR-10). */
   filename: string | undefined;
 }
 

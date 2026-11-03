@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { languagesWithoutCopy } from './languages';
-import { canShowMedia, uploadable, uploadProblem, UPLOAD_LIMIT_BYTES } from './media-rules';
+import { canShowMedia, uploadProblem, UPLOAD_LIMIT_BYTES } from './media-rules';
 import { refusedProperties } from './server-errors';
 import { switchEffects } from './template-switch';
 import type { DesignBlock, DesignTemplate } from './types';
@@ -67,12 +67,15 @@ describe('media rules', () => {
     expect(uploadProblem(file('image/png', UPLOAD_LIMIT_BYTES))).toBeNull();
   });
 
-  it('labels an M4A the browser calls audio/x-m4a as the audio/mp4 it is (FR-45)', () => {
+  it('takes an MP3 under either label a browser gives it', () => {
+    expect(uploadProblem(file('audio/mpeg'))).toBeNull();
+    expect(uploadProblem(file('audio/mp3'))).toBeNull();
+  });
+
+  it('takes an M4A under any label a browser gives it', () => {
+    expect(uploadProblem(file('audio/mp4'))).toBeNull();
     expect(uploadProblem(file('audio/x-m4a'))).toBeNull();
-    const m4a = new File(['x'], 'song.m4a', { type: 'audio/x-m4a' });
-    expect(uploadable(m4a).type).toBe('audio/mp4');
-    const photo = new File(['x'], 'a.jpg', { type: 'image/jpeg' });
-    expect(uploadable(photo)).toBe(photo);
+    expect(uploadProblem(file('audio/m4a'))).toBeNull();
   });
 
   it('offers images to picture blocks and audio to the music', () => {

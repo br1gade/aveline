@@ -1,5 +1,4 @@
 import { expectData, type ApiClient } from '@/api/client';
-import type { components } from '@/api/schema';
 
 import { readAcknowledgements, type AcknowledgementsWire } from './acknowledgements';
 import type { AcknowledgementsRead, SignatureUpload } from './signatures';
@@ -18,26 +17,16 @@ export function fetchReply(api: ApiClient, link: ReplyLink): Promise<ReplyRecord
 }
 
 /**
- * The schema types each answer's value as an empty object (FR-18). The body's real types are
- * checked in SubmitReplyBody; this is the one place they meet the generated ones.
- */
-function asGeneratedBody(body: SubmitReplyBody): components['schemas']['SubmitRsvpDto'] {
-  return body as unknown as components['schemas']['SubmitRsvpDto'];
-}
-
-/**
  * The current statements, the household's agreements and the signer's drawings (docs/API.md §11).
- * The newest hundred records: a household of at most 21 agreeing to a few statements fits. The
- * schema types `limit` as an object (FR-38), so it is passed through one cast.
+ * The newest hundred records: a household of at most 21 agreeing to a few statements fits.
  */
 export async function fetchAcknowledgements(
   api: ApiClient,
   link: ReplyLink,
 ): Promise<AcknowledgementsRead> {
-  const query = { limit: 100 } as unknown as Record<string, never>;
   const read = await expectData<AcknowledgementsWire>(
     api.GET('/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements', {
-      params: { path: link, query },
+      params: { path: link, query: { limit: 100 } },
     }),
   );
   return readAcknowledgements(read);
@@ -86,7 +75,7 @@ export function submitReply(
   return expectData<SubmitResult>(
     api.POST('/api/v1/invitations/{slug}/g/{guestToken}/rsvp', {
       params: { path: link },
-      body: asGeneratedBody(body),
+      body,
     }),
   );
 }

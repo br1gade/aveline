@@ -247,6 +247,16 @@ describe("the bank's return (PD-82)", () => {
     expect(reads.get).toBe(1);
   });
 
+  it('offers no new payment when the bank and our record disagree', async () => {
+    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    serveConfirm(() => refusal(409, 'Cannot move a payment from EXPIRED to PAID'));
+    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
+    renderAt('/tickets/return');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Reference: r-409');
+    expect(screen.queryByRole('link', { name: 'Choose tickets again' })).not.toBeInTheDocument();
+    expect(reads.get).toBe(0);
+  });
+
   it('explains a hold that ended, and what happens to money taken late', async () => {
     holdOrder({ accessToken: TOKEN });
     serveConfirm(() =>

@@ -58,7 +58,7 @@ export function guestUpdatePayload(
   const body: Schemas['UpdateGuestDto'] = contact.isShown ? changedContact(initial, values) : {};
   if (values.firstName !== initial.firstName) body.firstName = values.firstName;
   if (values.lastName !== initial.lastName) body.lastName = values.lastName;
-  // Never `""`: the backend would store it as it is rather than clear the language (FR-31).
+  // Never cleared: the form offers "Not set" only while none is set (ARCHITECTURE §12, FR-31).
   if (values.locale && values.locale !== initial.locale) body.locale = values.locale;
   if (values.side !== initial.side) body.attribution = values.side;
   if (values.household !== initial.household) body.householdId = values.household;

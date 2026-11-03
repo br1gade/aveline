@@ -652,7 +652,8 @@ comment changes the design, update this file in the same change.
   backend inserts it.
 - **What the backend has to answer or build:** palette colours and roles in the guest payload
   (BQ-1 to BQ-3), a reply-by date (BQ-7), a safe Telegram link
-  (BQ-11), and members' earlier answers on an edit (FR-21).
+  (BQ-11). The API returns members' earlier answers on an edit since FR-21, and the form does not
+  read them yet.
 - **Designs the backend's new data waits for:** the guest's table (`guest.seating`), map
   coordinates and the Telegram link (§3).
 - **Product decisions:** the default dietary and drink choices offered to hosts, and which

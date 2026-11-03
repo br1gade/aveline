@@ -80,7 +80,7 @@ export interface Reachable {
   isRetrying: boolean;
   /**
    * The mail server's own words, in English. Kept only when the address arrived too: it often
-   * quotes the address (FR-35).
+   * quotes the address, so the backend sends `null` to a role that may not see one (FR-35).
    */
   failureReason: string | null;
   /** ISO 8601 UTC; shown in the event's zone. */

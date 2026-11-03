@@ -4,8 +4,7 @@ import type { TokenPair, TokenStore } from './token-store';
  * Refresh is single-flight within a tab and across tabs (setup proposal §5.5). The refresh token
  * rotates: the one presented is revoked. Presenting a revoked token again within a minute is only
  * refused; after a minute the backend treats it as theft and ends every session of the account
- * (docs/ACCESS_CONTROL.md §5; FR-22 for the cases it catches by mistake). So no tab may present a
- * token another tab has already replaced.
+ * (docs/ACCESS_CONTROL.md §5). So no tab may present a token another tab has already replaced.
  *
  * 1. Within a tab, concurrent callers share one in-flight promise.
  * 2. Across tabs, a Web Lock serialises refreshes. Inside it the stored refresh token is read

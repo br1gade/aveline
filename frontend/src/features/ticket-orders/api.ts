@@ -1,23 +1,19 @@
 import { expectData, type ApiClient } from '@/api/client';
-import type { components } from '@/api/schema';
 import type { AttendeeBody } from '@/features/checkout';
 
 import { readCancelOutcome, readOrderDetail, readOrderRows } from './read';
 import type { CancelOutcome, LinkBody, OrderDetail, OrderRow, OrderStatus } from './types';
 
-type Schemas = components['schemas'];
-
-/**
- * The event's orders, newest first, at most 500 (FR-68). Needs `operations:read`; the buyer's
- * address only with `guest:contact:read`. The schema declares no `status` query (FR-70), so it
- * goes through one cast.
- */
 /** The schema declares no `status` query on this list (FR-70): the one place it is added. */
 function listParams(eventId: string, status?: OrderStatus) {
   const params = { path: { eventId }, ...(status ? { query: { status } } : {}) };
   return params as unknown as { path: { eventId: string } };
 }
 
+/**
+ * The event's orders, newest first, at most 500 (FR-68). Needs `operations:read`; the buyer's
+ * address only with `guest:contact:read`.
+ */
 export async function listOrders(
   api: ApiClient,
   eventId: string,
@@ -63,7 +59,7 @@ export async function cancelOrder(
   );
 }
 
-/** A legacy ticket's holder, by checkout's rules. The answers' type goes through one cast (FR-18). */
+/** A legacy ticket's holder, by checkout's rules. */
 export async function registerHolder(
   api: ApiClient,
   eventId: string,
@@ -73,7 +69,7 @@ export async function registerHolder(
   await expectData(
     api.POST('/api/v1/events/{eventId}/tickets/{ticketId}/attendee', {
       params: { path: { eventId, ticketId } },
-      body: body as unknown as Schemas['RegisterTicketAttendeeDto'],
+      body,
     }),
   );
 }

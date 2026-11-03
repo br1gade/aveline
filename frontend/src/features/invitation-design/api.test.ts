@@ -8,7 +8,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createAppApi } from '@/api/client';
 
 import { listTemplates, previewTemplate, uploadMedia } from './api';
-import { uploadable } from './media-rules';
 import { API, CLASSIC, ORIGIN } from './test-data';
 
 const server = setupServer();
@@ -51,16 +50,16 @@ describe('uploadMedia', () => {
     });
   });
 
-  it('sends no kind for audio, and an M4A under the type the backend lists (FR-45)', async () => {
+  it('sends no kind for audio, and an M4A under the label the browser gave it', async () => {
     const received = receiveUpload();
     const m4a = new File(['x'], 'song.m4a', { type: 'audio/x-m4a' });
-    await uploadMedia(api, 'e1', uploadable(m4a), null);
-    expect(received).toEqual({ fields: {}, file: { name: 'song.m4a', type: 'audio/mp4' } });
+    await uploadMedia(api, 'e1', m4a, null);
+    expect(received).toEqual({ fields: {}, file: { name: 'song.m4a', type: 'audio/x-m4a' } });
   });
 });
 
 describe('the catalogue routes', () => {
-  it('put the event in the path the schema leaves out (FR-44), and no empty query', async () => {
+  it('put the event in the path, and no empty query', async () => {
     const asked: string[] = [];
     server.use(
       http.get(`${API}/events/e1/design-templates`, ({ request }) => {

@@ -14,11 +14,12 @@ export async function fetchPublicEvent(
   api: ApiClient,
   request: PublicEventRequest,
 ): Promise<PublicEvent> {
-  // The schema marks `locale` required, though the API treats it as optional (FR-17); an empty
-  // value means "none" to the backend.
   const wire = await expectData<unknown>(
     api.GET('/api/v1/public/events/{slug}', {
-      params: { path: { slug: request.slug }, query: { locale: request.locale ?? '' } },
+      params: {
+        path: { slug: request.slug },
+        query: request.locale ? { locale: request.locale } : {},
+      },
     }),
   );
   return readPublicEvent(wire);

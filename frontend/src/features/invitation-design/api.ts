@@ -1,5 +1,4 @@
 import { expectData, type ApiClient } from '@/api/client';
-import type { components } from '@/api/schema';
 
 import type {
   Arrangement,
@@ -21,16 +20,10 @@ import type {
   TemplateWire,
 } from './types';
 
-type Schemas = components['schemas'];
-
 /**
  * The design calls (docs/API.md §6). Reading needs `invitation:read`, which every role on the
  * event holds; every write needs `invitation:design` (a DESIGNER has it, a VIEWER does not). The
  * writes give the page nothing back: it reloads, so it shows what the server stored.
- *
- * The schema types every translated or free-JSON field as an empty object (FR-4), and `variant`
- * as never `null`, though `null` resets it (FR-44): each body is built by `payload.ts` and cast
- * once here, at the call.
  */
 
 /** The editor's own read: drafts, switched-off blocks and every language. Never the guest page. */
@@ -41,20 +34,11 @@ export async function getDesign(api: ApiClient, slug: string): Promise<Design> {
   return readDesign(design);
 }
 
-/**
- * The schema leaves out the `eventId` path parameter of the two catalogue routes (FR-44), so the
- * generated type refuses it; openapi-fetch fills any named parameter into the path, so it goes
- * through this one cast.
- */
-function withEventId<T>(eventId: string, path: T): T {
-  return { ...path, eventId };
-}
-
 /** Keyed by event, because a plan may later narrow the catalogue. */
 export async function listTemplates(api: ApiClient, eventId: string): Promise<DesignTemplate[]> {
   const templates = await expectData<TemplateWire[]>(
     api.GET('/api/v1/events/{eventId}/design-templates', {
-      params: { path: withEventId(eventId, undefined as never) },
+      params: { path: { eventId } },
     }),
   );
   return readTemplates(templates);
@@ -101,7 +85,7 @@ export async function updateSection(
   await expectData(
     api.PATCH('/api/v1/invitations/{slug}/blocks/{type}', {
       params: { path: { slug, type } },
-      body: body as Schemas['UpdateBlockDto'],
+      body,
     }),
   );
 }
@@ -114,7 +98,7 @@ export async function updateRsvpFields(
   await expectData(
     api.PATCH('/api/v1/invitations/{slug}/rsvp-fields', {
       params: { path: { slug } },
-      body: body as unknown as Schemas['UpdateRsvpFieldsDto'],
+      body,
     }),
   );
 }
@@ -127,7 +111,7 @@ export async function createQuestion(
   await expectData(
     api.POST('/api/v1/invitations/{slug}/questions', {
       params: { path: { slug } },
-      body: body as Schemas['UpsertQuestionDto'],
+      body,
     }),
   );
 }
@@ -141,7 +125,7 @@ export async function updateQuestion(
   await expectData(
     api.PATCH('/api/v1/invitations/{slug}/questions/{questionId}', {
       params: { path: { slug, questionId } },
-      body: body as Schemas['UpdateQuestionDto'],
+      body,
     }),
   );
 }
@@ -212,7 +196,7 @@ export async function updateAltText(
   await expectData(
     api.PATCH('/api/v1/events/{eventId}/media/{assetId}', {
       params: { path: { eventId, assetId } },
-      body: { altText } as Schemas['UpdateMediaDto'],
+      body: { altText },
     }),
   );
 }
@@ -255,7 +239,7 @@ export function previewTemplate(
 ): Promise<Preview> {
   return expectData<Preview>(
     api.GET('/api/v1/events/{eventId}/design-templates/{templateKey}/preview', {
-      params: { path: withEventId(eventId, { templateKey }), query: queryOf({ locale }) },
+      params: { path: { eventId, templateKey }, query: queryOf({ locale }) },
     }),
   );
 }

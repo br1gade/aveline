@@ -40,11 +40,18 @@ export function acceptInvite(
   return expectData<InviteAccepted>(call);
 }
 
+/** The same key and body answer the organization already made (docs/API.md §6), so a retry is safe. */
 export function createOrganization(
   api: ApiClient,
   body: Schemas['CreateOrganizationDto'],
+  idempotencyKey: string,
 ): Promise<Organization> {
-  return expectData<Organization>(api.POST('/api/v1/organizations', { body }));
+  return expectData<Organization>(
+    api.POST('/api/v1/organizations', {
+      body,
+      params: { header: { 'idempotency-key': idempotencyKey } },
+    }),
+  );
 }
 
 /**

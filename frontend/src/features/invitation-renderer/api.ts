@@ -16,9 +16,7 @@ export interface InvitationRequest {
 /** `GET /invitations/:slug` or `…/g/:guestToken` (docs/API.md §4). */
 export function fetchInvitation(api: ApiClient, request: InvitationRequest): Promise<Invitation> {
   const { slug, guestToken } = request;
-  // The schema marks `locale` required on both, though the API treats it as optional (FR-17); an
-  // empty value means "none" to the backend.
-  const query = { locale: request.locale ?? '' };
+  const query = request.locale ? { locale: request.locale } : {};
   if (guestToken) {
     return expectData<Invitation>(
       api.GET('/api/v1/invitations/{slug}/g/{guestToken}', {

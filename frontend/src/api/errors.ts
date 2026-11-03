@@ -23,8 +23,9 @@ export interface FieldFeedback {
 
 /**
  * The backend's own classification. `code` follows the status alone, except
- * `ATTENDANCE_CHANGED`; `userMessage` is a generic sentence per code, so the pages keep their own
- * words and read only `code` and `details`.
+ * `ATTENDANCE_CHANGED` and the organization, template and enquiry routes' own codes; `userMessage`
+ * is a generic sentence per code, so the pages keep their own words and read only `code` and
+ * `details`.
  */
 export interface ErrorFeedback {
   code: string | undefined;

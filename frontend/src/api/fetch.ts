@@ -1,8 +1,8 @@
 /**
  * The fetch underneath both API clients (setup proposal §5.4):
  *
- * - it sends our own `x-request-id`, so a reference exists even when the browser cannot read the
- *   response header cross-origin (FR-10);
+ * - it sends our own `x-request-id`, so a reference exists even when no answer arrives to read
+ *   one from;
  * - on 401 it refreshes the session once and retries; on 403 it never retries, because the
  *   account lacks the permission and retrying would loop (docs/API.md §1);
  * - it asks for errors in the page's language (`accept-language`), which the backend words its

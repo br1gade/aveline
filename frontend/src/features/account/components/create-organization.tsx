@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { problemFrom, type Problem } from '@/api/problems';
+import { createRetryKey } from '@/api/retry-key';
 import { browserSession } from '@/api/session';
 import { APP_PATHS } from '@/route-paths';
 import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
@@ -55,6 +56,7 @@ export function CreateOrganization() {
   const navigate = useNavigate();
   const fieldText = useFieldText();
   const [problem, setProblem] = useState<Problem | null>(null);
+  const [retry] = useState(() => createRetryKey());
   const form = useForm<OrganizationValues>({
     resolver: zodResolver(organizationSchema),
     defaultValues: { name: '', kind: 'HOST' },
@@ -64,9 +66,11 @@ export function CreateOrganization() {
   const onSubmit = async (values: OrganizationValues) => {
     setProblem(null);
     try {
-      await createOrganization(browserSession().api, values);
+      const key = retry.next(JSON.stringify(values));
+      await createOrganization(browserSession().api, values, key);
       await navigate(APP_PATHS.app);
     } catch (error) {
+      retry.settle(error);
       const found = problemFrom(error);
       if (found.code === 'refused' && found.status === 409) await navigate(APP_PATHS.app);
       else setProblem(found);

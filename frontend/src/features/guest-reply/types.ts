@@ -27,7 +27,7 @@ type GeneratedParty = components['schemas']['PartyMemberDto'];
 
 /**
  * The generated body, with every `answers` list typed as the API defines it: the respondent's, a
- * member's and an added guest's. The schema calls each value an empty object (FR-18).
+ * member's and an added guest's.
  */
 export type SubmitReplyBody = Omit<GeneratedBody, 'answers' | 'members' | 'party'> & {
   answers?: AnswerEntry[];
@@ -48,7 +48,7 @@ export interface HouseholdMemberRecord {
    */
   addedByGuest: boolean;
   status: SavedStatus;
-  /** Venue names untranslated here; the personal page has them in its language (FR-40). */
+  /** Venue names in the guest's own language, not always the page's; the personal page has those. */
   attendance: AttendanceView;
   dietary: string[];
   dietaryNotes: string | null;

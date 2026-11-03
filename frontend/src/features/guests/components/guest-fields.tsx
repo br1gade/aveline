@@ -23,7 +23,7 @@ export interface GuestOptions {
   /** The list came with contact details; without them the form neither shows nor sends them. */
   isContactShown: boolean;
   languages: readonly string[];
-  /** "Not set" is offered only while no language is set (FR-31). */
+  /** "Not set" is offered only while no language is set. */
   hasNoLanguage: boolean;
   /** `null` when the side is not asked (`offersSides`). */
   sides: SideNames | null;

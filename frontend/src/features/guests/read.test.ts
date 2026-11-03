@@ -218,6 +218,28 @@ describe('readImportResult', () => {
   });
 });
 
+describe('a file with no header row (FR-74)', () => {
+  const SENTENCE = 'No first-name column found.';
+  const refused = {
+    status: 'FAILED' as const,
+    rowsImported: 0,
+    rowsFailed: 1,
+    errors: [{ row: 0, message: `${SENTENCE} Headings read: Ani, ani@example.am, +37491000000` }],
+  };
+
+  it('never shows its first guest in the history, which read-only roles can open', () => {
+    const [record] = readImportHistory([
+      { ...refused, id: 'i1', filename: 'guests.csv', createdAt: '2026-11-01T10:00:00.000Z' },
+    ]);
+    expect(record?.errors[0]?.message).toBe(SENTENCE);
+  });
+
+  it('leaves the answer to the import whole: whoever imported it holds the file', () => {
+    const { errors } = readImportResult({ ...refused, importId: 'i1' });
+    expect(errors[0]?.message).toContain('Headings read: Ani');
+  });
+});
+
 describe('readImportHistory', () => {
   it('reads each stored import, a running one and one without errors included', () => {
     const history = readImportHistory([

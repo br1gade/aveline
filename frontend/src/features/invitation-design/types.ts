@@ -6,7 +6,7 @@ import type { BuiltInField, Invitation, QuestionType } from '@/features/invitati
  * "Designing the invitation", "Custom RSVP questions", "Uploading a file"). Interim until FR-1:
  * the schema declares no response types, so these are written from the guide and the backend's
  * `draft-reader.service.ts`, `design.service.ts` and `media.service.ts`. Translated values are
- * typed by hand (FR-4). `read.ts` alone reads the `…Wire` types.
+ * typed by hand until FR-1. `read.ts` alone reads the `…Wire` types.
  */
 
 /** One text per language code, such as `{ "hy": "…", "en": "…" }`. */

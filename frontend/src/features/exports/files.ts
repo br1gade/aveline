@@ -21,7 +21,7 @@ export function isExpectedType(format: ExportFormat, contentType: string): boole
 
 /**
  * The server's name for the file, or the same name built here when `Content-Disposition` cannot
- * be read, as cross-origin until the backend exposes it (FR-10).
+ * be read, as cross-origin until the backend exposes it too (FR-10).
  */
 export function fileNameOf(snapshot: Snapshot, served: string | undefined): string {
   if (served) return served;

@@ -136,8 +136,8 @@ function asFormStatus(status: SavedStatus): ReplyStatus | '' {
 
 /**
  * The form as the saved reply leaves it. A first reply starts with nothing chosen. Members' own
- * answers start empty: GET …/rsvp does not return them (FR-21), and an earlier answer still
- * counts on the server, so leaving one empty changes nothing.
+ * answers start empty: GET …/rsvp returns them since FR-21, but they are not read yet (ARCHITECTURE
+ * §12), and an earlier answer still counts on the server, so leaving one empty changes nothing.
  */
 export function initialValues(
   record: ReplyRecord,

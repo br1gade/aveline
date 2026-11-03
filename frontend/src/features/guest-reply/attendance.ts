@@ -18,8 +18,9 @@ export interface VenueChoice {
 }
 
 /**
- * The venues to answer, in the host's order; none in EVENT_WIDE. The reply read names them
- * untranslated (FR-40), so the personal page's names, in the page's language, come first.
+ * The venues to answer, in the host's order; none in EVENT_WIDE. The reply read names them in the
+ * guest's own language unless asked for another (FR-40), and the page's language can differ, so the
+ * personal page's names come first.
  */
 export function venueChoices(record: ReplyRecord, invitation: Invitation): VenueChoice[] {
   if (record.attendance.mode !== 'PER_VENUE') return [];

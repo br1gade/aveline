@@ -1,5 +1,4 @@
 import { expectData, type ApiClient } from '@/api/client';
-import type { components } from '@/api/schema';
 import type { BasketLine } from '@/features/public-event';
 
 import type { OrderBody, PlacedOrder, PromoQuote } from './types';
@@ -12,14 +11,6 @@ function record(value: unknown): Wire {
 
 function text(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
-}
-
-/**
- * The schema types each answer's value as an empty object (FR-18). The body's real types are in
- * OrderBody; this is the one place they meet the generated ones.
- */
-function asGeneratedOrder(body: OrderBody & { idempotencyKey: string }) {
-  return body as unknown as components['schemas']['CreateOrderDto'];
 }
 
 /**
@@ -46,7 +37,7 @@ export async function placeOrder(
   const wire = await expectData<unknown>(
     api.POST('/api/v1/public/events/{slug}/orders', {
       params: { path: { slug } },
-      body: asGeneratedOrder(order),
+      body: order,
     }),
   );
   return readPlaced(wire);

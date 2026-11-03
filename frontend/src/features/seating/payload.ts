@@ -4,12 +4,8 @@ import type { BulkTablesValues, TableFormValues } from './schemas';
 
 type Schemas = components['schemas'];
 
-/** A table's change as the API takes it: `null` clears the zone (FR-56 types it otherwise). */
-export interface TableUpdate {
-  name?: string;
-  capacity?: number;
-  zone?: string | null;
-}
+/** A table's change as the API takes it: `null` clears the zone. */
+export type TableUpdate = Pick<Schemas['UpdateTableDto'], 'name' | 'capacity' | 'zone'>;
 
 /** Only what changed, and nothing when nothing did; an emptied zone is cleared with `null`. */
 export function tableUpdatePayload(initial: TableFormValues, values: TableFormValues): TableUpdate {

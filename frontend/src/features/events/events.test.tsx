@@ -77,7 +77,7 @@ describe('EventList', () => {
 });
 
 describe('listEvents', () => {
-  it('sends none of the query parameters the schema wrongly requires (FR-17)', async () => {
+  it('sends none of its optional query parameters', async () => {
     let search: string | undefined;
     server.use(
       http.get(`${API}/events`, ({ request }) => {

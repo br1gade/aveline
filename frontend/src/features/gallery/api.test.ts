@@ -80,7 +80,7 @@ describe('sharing a photo', () => {
 });
 
 describe('reading the lists', () => {
-  it('asks for a hundred at a time and follows the cursor (FR-38’s cast)', async () => {
+  it('asks for a hundred at a time and follows the cursor', async () => {
     const asked: string[] = [];
     server.use(
       http.get(`${GUEST}/gallery`, ({ request }) => {

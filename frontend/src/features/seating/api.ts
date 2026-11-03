@@ -54,10 +54,7 @@ export async function createTables(
   return created;
 }
 
-/**
- * Omitted fields are unchanged; `null` clears the zone. The schema types `zone` as an object
- * (FR-56), so the body goes through this one cast.
- */
+/** Omitted fields are unchanged; `null` clears the zone. */
 export async function updateTable(
   api: ApiClient,
   eventId: string,
@@ -67,7 +64,7 @@ export async function updateTable(
   await expectData<unknown>(
     api.PATCH('/api/v1/events/{eventId}/tables/{tableId}', {
       params: { path: { eventId, tableId } },
-      body: body as Schemas['UpdateTableDto'],
+      body,
     }),
   );
 }

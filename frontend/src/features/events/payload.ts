@@ -12,7 +12,7 @@ function startsAtOf(values: EventFormValues): string {
   return start.iso;
 }
 
-/** A blank hosts label is left out, so the title stands in; the backend would store it (FR-25). */
+/** A blank hosts label is left out, so the title stands in; the backend would refuse it. */
 export function createPayload(values: EventFormValues): Schemas['CreateEventDto'] {
   return {
     type: values.type,

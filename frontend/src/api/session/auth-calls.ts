@@ -1,14 +1,7 @@
 import { expectData, type ApiClient } from '../client';
 import { isApiError } from '../errors';
 
-/**
- * The session's own calls (docs/API.md §2). Response types are interim until FR-1.
- *
- * The schema declares a **required** `user-agent` header on login and refresh (FR-3). A browser
- * sets that header itself and a page cannot, and the backend reads it as optional, so these calls
- * send none. This is the one place the declared type is overridden; it goes when FR-3 is fixed.
- */
-const NO_DECLARED_HEADER = { header: {} } as { header: { 'user-agent': string } };
+/** The session's own calls (docs/API.md §2). Response types are interim until FR-1. */
 
 /** What login and refresh return. `expiresIn` is in seconds. */
 export interface SessionTokens {
@@ -24,9 +17,7 @@ export interface Credentials {
 }
 
 export function logIn(api: ApiClient, credentials: Credentials): Promise<SessionTokens> {
-  return expectData<SessionTokens>(
-    api.POST('/api/v1/auth/login', { body: credentials, params: NO_DECLARED_HEADER }),
-  );
+  return expectData<SessionTokens>(api.POST('/api/v1/auth/login', { body: credentials }));
 }
 
 /**
@@ -40,7 +31,7 @@ export async function refreshTokens(
 ): Promise<SessionTokens | undefined> {
   try {
     return await expectData<SessionTokens>(
-      api.POST('/api/v1/auth/refresh', { body: { refreshToken }, params: NO_DECLARED_HEADER }),
+      api.POST('/api/v1/auth/refresh', { body: { refreshToken } }),
     );
   } catch (error) {
     if (isApiError(error) && (error.status === 401 || error.status === 400)) {

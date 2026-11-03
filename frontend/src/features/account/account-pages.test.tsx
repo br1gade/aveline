@@ -336,6 +336,31 @@ describe('CreateOrganization', () => {
     expect(sent).toEqual([{ name: 'Petrosyan Wedding', kind: 'PLANNER' }]);
   });
 
+  it('sends one key per attempt: the same after a server failure, a new one once the form changes', async () => {
+    current.session?.start(TOKENS);
+    const keys: Array<string | undefined> = [];
+    server.use(
+      http.post(`${API}/organizations`, ({ request }) => {
+        // The mock repeats a header each time the client's fetch rebuilds its Request; a socket does not.
+        keys.push(request.headers.get('idempotency-key')?.split(', ')[0]);
+        return keys.length < 3
+          ? HttpResponse.json({ statusCode: 500, message: 'failed' }, { status: 500 })
+          : HttpResponse.json({ id: 'o1', name: 'Petrosyan Wedding', kind: 'PLANNER' });
+      }),
+    );
+    const user = renderAt('/app/welcome-form', CreateOrganization);
+    await create(user);
+    await waitFor(() => expect(keys).toHaveLength(1));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(keys).toHaveLength(2));
+    await user.click(screen.getByLabelText('A couple or a family'));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText(/App home/)).toBeInTheDocument();
+    expect(keys[0]).toMatch(/^[A-Za-z0-9_-]{1,120}$/);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
   it('opens the app when the account already has one', async () => {
     current.session?.start(TOKENS);
     answer('post', '/organizations', refusal(409));

@@ -23,8 +23,8 @@ export type VenueFieldCode =
 const code = (value: VenueFieldCode) => ({ error: value });
 
 /**
- * A required text the backend bounds. Blank is refused here, though the backend stores it (FR-36):
- * a blank address would also leave the event without the venue publishing needs.
+ * A required text the backend bounds. Blank is refused here, before the backend's own 400, in the
+ * form's words.
  */
 const text = (limit: number) =>
   z
@@ -33,7 +33,7 @@ const text = (limit: number) =>
     .min(1, code('required'))
     .pipe(z.string().max(limit, code('tooLong')));
 
-/** Only a link the guest page would show: http or https (`safeExternalUrl`; FR-36). */
+/** Only a link the guest page would show: http or https, as the backend requires. */
 const mapUrl = z
   .string()
   .trim()

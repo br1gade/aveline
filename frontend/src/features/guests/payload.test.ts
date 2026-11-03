@@ -118,7 +118,7 @@ describe('guestUpdatePayload', () => {
     });
   });
 
-  it('never sends an empty language, which the backend would store as it is (FR-31)', () => {
+  it('never sends an empty language: clearing one is not offered yet (FR-31)', () => {
     expect(guestUpdatePayload(initial, { ...initial, locale: '' }, guest.contact)).toEqual({});
     expect(guestUpdatePayload(initial, { ...initial, locale: 'en' }, guest.contact)).toEqual({
       locale: 'en',

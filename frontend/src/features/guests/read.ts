@@ -116,6 +116,17 @@ export function readImportResult(result: ImportResultWire): ImportResult {
   };
 }
 
+const HEADINGS_READ = /^(No first-name column found\.) Headings read: .*$/s;
+
+/**
+ * A file with no header row is refused with its first row quoted as its "headings": a guest's name,
+ * email and phone. The history keeps that and read-only roles open it (FR-74), so it shows the
+ * sentence alone. A temporary stand-in, deleted when FR-74 is answered.
+ */
+function withoutHeadings(error: RowError): RowError {
+  return { ...error, message: error.message.replace(HEADINGS_READ, '$1') };
+}
+
 /** Newest first. A running import has no errors yet. */
 export function readImportHistory(records: readonly ImportRecordWire[]): ImportRecord[] {
   return records.map((record) => ({
@@ -124,7 +135,7 @@ export function readImportHistory(records: readonly ImportRecordWire[]): ImportR
     status: record.status,
     rowsImported: record.rowsImported,
     rowsFailed: record.rowsFailed,
-    errors: (record.errors ?? []).map(readRowError),
+    errors: (record.errors ?? []).map(readRowError).map(withoutHeadings),
     createdAt: record.createdAt,
   }));
 }

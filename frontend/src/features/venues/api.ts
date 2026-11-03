@@ -7,15 +7,8 @@ import type { Venue, VenueWire, VenueWriteWire } from './types';
 
 type Schemas = components['schemas'];
 
-/**
- * A correction. `null` clears the map link and the arrival time (docs/API.md §6), but the schema
- * declares neither nullable (FR-36), so `updateVenue` is the one place the declared type is
- * overridden.
- */
-export type VenueUpdate = Omit<Schemas['UpdateVenueDto'], 'mapUrl' | 'arriveAt'> & {
-  mapUrl?: string | null;
-  arriveAt?: string | null;
-};
+/** A correction. `null` clears the map link and the arrival time (docs/API.md §6). */
+export type VenueUpdate = Schemas['UpdateVenueDto'];
 
 /** Reading needs `event:read`, which every role on the event holds. */
 export async function listVenues(api: ApiClient, eventId: string): Promise<Venue[]> {
@@ -47,7 +40,7 @@ export async function updateVenue(
   const saved = await expectData<VenueWriteWire>(
     api.PATCH('/api/v1/events/{eventId}/venues/{venueId}', {
       params: { path: { eventId, venueId } },
-      body: body as Schemas['UpdateVenueDto'],
+      body,
     }),
   );
   return readNotice(saved);

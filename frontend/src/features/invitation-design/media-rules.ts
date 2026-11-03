@@ -13,23 +13,13 @@ const ALLOWED_TYPES: readonly string[] = [
   'image/png',
   'image/webp',
   'image/avif',
+  // An MP3 and an M4A, under each label browsers give them; the backend reads the type from the bytes.
   'audio/mpeg',
+  'audio/mp3',
   'audio/mp4',
+  'audio/x-m4a',
+  'audio/m4a',
 ];
-
-/**
- * Browsers name an M4A file `audio/x-m4a`, which the backend's allowlist does not list, though it
- * is the `audio/mp4` it does. A stand-in until FR-45 is answered: such a file is sent labelled
- * `audio/mp4`. Nothing else is relabelled.
- */
-const ALIASES: Readonly<Record<string, string>> = {
-  'audio/x-m4a': 'audio/mp4',
-  'audio/m4a': 'audio/mp4',
-};
-
-function typeOf(type: string): string {
-  return ALIASES[type] ?? type;
-}
 
 /** The file input's `accept`: extensions too, since some systems give no type for audio. */
 export const UPLOAD_ACCEPT = [
@@ -46,18 +36,12 @@ export const UPLOAD_ACCEPT = [
 export type UploadProblem = 'type' | 'size';
 
 export function uploadProblem(file: { type: string; size: number }): UploadProblem | null {
-  if (!ALLOWED_TYPES.includes(typeOf(file.type))) return 'type';
+  if (!ALLOWED_TYPES.includes(file.type)) return 'type';
   return file.size > UPLOAD_LIMIT_BYTES ? 'size' : null;
 }
 
 export function isAudioFile(file: { type: string }): boolean {
-  return typeOf(file.type).startsWith('audio/');
-}
-
-/** The file as it is sent: an M4A under the name the backend lists, anything else unchanged. */
-export function uploadable(file: File): File {
-  const type = typeOf(file.type);
-  return type === file.type ? file : new File([file], file.name, { type });
+  return file.type.startsWith('audio/');
 }
 
 const IMAGE_KINDS: readonly string[] = ['PHOTO', 'COVER', 'LOGO'];

@@ -1,5 +1,4 @@
 import { expectData, type ApiClient } from '@/api/client';
-import type { components } from '@/api/schema';
 
 import { readGuestPage, readHostPage, readPhoto } from './read';
 import type {
@@ -21,18 +20,9 @@ export interface GalleryLink {
 /** The most one read returns (docs/API.md §11: 1–100). */
 export const PAGE_SIZE = 100;
 
-interface PageQuery {
-  limit?: components['schemas']['Object'];
-  after?: string;
-}
-
-/**
- * A page of a contribution list. The schema types `limit` as an object (FR-38), so the query goes
- * through this one cast.
- */
-function pageQuery(after: string | undefined): PageQuery {
-  const query = after ? { limit: PAGE_SIZE, after } : { limit: PAGE_SIZE };
-  return query as unknown as PageQuery;
+/** A page of a contribution list. */
+function pageQuery(after: string | undefined): { limit: number; after?: string } {
+  return after ? { limit: PAGE_SIZE, after } : { limit: PAGE_SIZE };
 }
 
 // ── The guest's side, on their personal link ──

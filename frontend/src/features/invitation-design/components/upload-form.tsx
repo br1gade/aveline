@@ -8,13 +8,7 @@ import { Field, FieldDescription, FieldLabel } from '@/ui/kit/field';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
 import { uploadMedia, type UploadKind } from '../api';
-import {
-  isAudioFile,
-  UPLOAD_ACCEPT,
-  uploadable,
-  uploadProblem,
-  type UploadProblem,
-} from '../media-rules';
+import { isAudioFile, UPLOAD_ACCEPT, uploadProblem, type UploadProblem } from '../media-rules';
 import { DesignRefusal, type DesignRefusalState } from './design-parts';
 
 const KINDS: readonly UploadKind[] = ['PHOTO', 'COVER', 'LOGO'];
@@ -34,12 +28,7 @@ function useUpload(eventId: string, page: PageActions) {
     setIsUploading(true);
     try {
       // Audio is AUDIO by its type; a kind is sent for a picture only.
-      await uploadMedia(
-        browserSession().api,
-        eventId,
-        uploadable(file),
-        isAudioFile(file) ? null : kind,
-      );
+      await uploadMedia(browserSession().api, eventId, file, isAudioFile(file) ? null : kind);
       onDone();
       await page.done(t('media.uploaded', { name: file.name }));
     } catch (error) {

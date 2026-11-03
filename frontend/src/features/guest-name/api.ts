@@ -1,5 +1,4 @@
 import { expectData, type ApiClient } from '@/api/client';
-import type { components } from '@/api/schema';
 
 import type { CorrectedName, NameBody } from './types';
 
@@ -7,14 +6,6 @@ import type { CorrectedName, NameBody } from './types';
 export interface NameLink {
   slug: string;
   guestToken: string;
-}
-
-/**
- * The schema types `lastName` as an object (FR-51), so a surname cannot be sent without a cast. The
- * body's real type is `NameBody`; this is the one place it meets the generated one.
- */
-function asGeneratedBody(body: NameBody): components['schemas']['CorrectNameDto'] {
-  return body as unknown as components['schemas']['CorrectNameDto'];
 }
 
 /** The answer's four fields, named, so nothing else it may carry goes further. */
@@ -36,7 +27,7 @@ export async function correctName(
   const wire = await expectData<CorrectedName>(
     api.PATCH('/api/v1/invitations/{slug}/g/{guestToken}/name', {
       params: { path: link },
-      body: asGeneratedBody(body),
+      body,
     }),
   );
   return readCorrected(wire);

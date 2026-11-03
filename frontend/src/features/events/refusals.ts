@@ -21,8 +21,8 @@ export type EventAction = 'create' | 'edit' | 'notify';
 
 /**
  * The words for a refusal. There is no permissions endpoint (FR-6), so every action is offered and
- * a 403 is explained after the fact. No 409 comes from these calls today; one would mean the
- * event's state changed underneath.
+ * a 403 is explained after the fact. A 409 means the event's state changed underneath or, for
+ * someone in several organizations, that none was chosen, which no screen offers yet.
  */
 export function useRefusedText(action: EventAction): (status: number) => string {
   const { t } = useTranslation('events');

@@ -1,6 +1,5 @@
 import { expectData, type ApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
-import type { components } from '@/api/schema';
 import type { EventVisibility } from '@/features/events';
 
 import { readListing, readTicketType } from './read';
@@ -11,8 +10,6 @@ import type {
   TicketType,
   UpdateTicketTypeBody,
 } from './types';
-
-type Schemas = components['schemas'];
 
 /**
  * Who can find the event (docs/API.md §5): `PRIVATE` takes the announcement down in the same act.
@@ -39,10 +36,6 @@ export async function listTicketTypes(api: ApiClient, eventId: string): Promise<
   return types.map(readTicketType);
 }
 
-/**
- * The schema types names and descriptions as empty objects (FR-70, as FR-4); the bodies' real
- * types are in types.ts, and this is the one place they meet the generated ones.
- */
 export async function createTicketType(
   api: ApiClient,
   eventId: string,
@@ -51,7 +44,7 @@ export async function createTicketType(
   await expectData(
     api.POST('/api/v1/events/{eventId}/ticket-types', {
       params: { path: { eventId } },
-      body: body as unknown as Schemas['CreateTicketTypeDto'],
+      body,
     }),
   );
 }
@@ -65,7 +58,7 @@ export async function updateTicketType(
   await expectData(
     api.PATCH('/api/v1/events/{eventId}/ticket-types/{typeId}', {
       params: { path: { eventId, typeId } },
-      body: body as unknown as Schemas['UpdateTicketTypeDto'],
+      body,
     }),
   );
 }
@@ -97,7 +90,7 @@ export async function getListing(api: ApiClient, eventId: string): Promise<Listi
   }
 }
 
-/** Creates or edits it; omitted fields are left alone. The picture ids go through one cast (FR-70). */
+/** Creates or edits it; omitted fields are left alone. */
 export async function saveListing(
   api: ApiClient,
   eventId: string,
@@ -106,7 +99,7 @@ export async function saveListing(
   await expectData(
     api.PUT('/api/v1/events/{eventId}/listing', {
       params: { path: { eventId } },
-      body: body as unknown as Schemas['UpsertListingDto'],
+      body,
     }),
   );
 }
