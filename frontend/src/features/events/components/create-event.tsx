@@ -6,11 +6,11 @@ import { useNavigate } from 'react-router';
 
 import { type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import { timeZoneOptions } from '@/lib/time';
+import { DEFAULT_TIME_ZONE, timeZoneOptions } from '@/lib/time';
 import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
 
 import { createEvent } from '../api';
-import { DEFAULT_TIME_ZONE, languageOptions, NEW_EVENT_VALUES } from '../form-model';
+import { languageOptions, NEW_EVENT_VALUES } from '../form-model';
 import { eventPath } from '../paths';
 import { createPayload } from '../payload';
 import { markRefusals, useRefusedText } from '../refusals';

@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import { APP_PATHS } from '@/route-paths';
@@ -21,11 +22,20 @@ function NoEvents() {
   );
 }
 
-/** The events, soonest first as the API orders them; each dated in its own time zone. */
-export function EventList({ events }: { events: readonly EventSummary[] }) {
+/**
+ * The events, soonest first as the API orders them; each dated in its own time zone. `empty` replaces
+ * the offer to create the first, where that is not the thing to do: among archived events, say.
+ */
+export function EventList({
+  events,
+  empty,
+}: {
+  events: readonly EventSummary[];
+  empty?: ReactNode;
+}) {
   const { i18n } = useTranslation('app');
   if (events.length === 0) {
-    return <NoEvents />;
+    return empty ?? <NoEvents />;
   }
   return (
     <ul className="m-0 flex list-none flex-col gap-3 p-0">
@@ -46,5 +56,34 @@ export function EventList({ events }: { events: readonly EventSummary[] }) {
         );
       })}
     </ul>
+  );
+}
+
+function isStatusState(state: unknown): state is { status: string } {
+  return (
+    typeof state === 'object' && state !== null && typeof Reflect.get(state, 'status') === 'string'
+  );
+}
+
+/**
+ * What a page that sent the host here did, once its own page no longer exists: a deleted event, a
+ * recorded answer. Carried in the navigation's state, never the address, and spoken with the focus,
+ * as a status line. Read once, then taken out of the history entry, so a reload or a return by Back
+ * doesn't say it again.
+ */
+export function ArrivalStatus() {
+  const state: unknown = useLocation().state;
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [status] = useState(() => (isStatusState(state) ? state.status : ''));
+  useEffect(() => {
+    if (!status) return;
+    ref.current?.focus();
+    // React Router keeps the state as `usr` in the browser's own entry.
+    window.history.replaceState({ ...(window.history.state as object | null), usr: null }, '');
+  }, [status]);
+  return (
+    <p ref={ref} role="status" tabIndex={-1} className="m-0 text-sm font-medium outline-none">
+      {status}
+    </p>
   );
 }

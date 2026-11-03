@@ -154,8 +154,9 @@
     "data": {
       "venues": "The venues come from the event’s venue list, in each guest’s language.",
       "venuesLink": "Go to the venues",
-      "timeline": "The running order comes from the event itself; it can’t be edited in the app yet.",
-      "countdown": "It counts down to the event’s start, in the event’s time zone."
+      "timeline": "The running order comes from the event itself: each entry not marked for the team only, in each guest’s language.",
+      "countdown": "It counts down to the event’s start, in the event’s time zone.",
+      "timelineLink": "Go to the running order"
     },
     "layout": "Layout",
     "layoutHelp": "The preview can’t draw this template’s layouts yet: your choice is kept for when it can.",

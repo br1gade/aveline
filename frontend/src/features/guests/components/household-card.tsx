@@ -1,6 +1,8 @@
 import type { TFunction } from 'i18next';
 import { memo, useId, type MouseEvent } from 'react';
+import { Link } from 'react-router';
 
+import { recordAnswerPath } from '@/features/events';
 import { DeliveryLine, type DeliveryText } from '@/features/sending';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
@@ -20,6 +22,7 @@ export type OpenDialog = (target: DialogTarget, opener: HTMLElement) => void;
 export type FormatDay = (iso: string) => string;
 
 interface RowProps {
+  eventId: string;
   guest: Guest;
   household: Household;
   sides: SideNames;
@@ -94,7 +97,7 @@ function ContactLines({ guest }: { guest: Guest }) {
  * One guest. No hooks of its own: a list of two thousand renders these, and the card above gives
  * them its words. An erased guest is never edited (the backend refuses it), so has no "Edit".
  */
-function GuestRow({ guest, household, sides, t, onOpen, formatDay }: RowProps) {
+function GuestRow({ eventId, guest, household, sides, t, onOpen, formatDay }: RowProps) {
   const open = (kind: 'edit' | 'remove') => (event: MouseEvent<HTMLButtonElement>) =>
     onOpen({ kind, guest, household }, event.currentTarget);
   const facts = [sides[guest.side], ...guest.seats.map((seat) => seatText(seat, t))]
@@ -126,6 +129,7 @@ function GuestRow({ guest, household, sides, t, onOpen, formatDay }: RowProps) {
             {t('row.edit')}
           </Button>
         )}
+        {guest.isErased ? null : <RecordAnswerLink eventId={eventId} guest={guest} t={t} />}
         <Button
           variant="ghost"
           aria-label={t('actionFor', { action: t('row.remove'), name: guest.name })}
@@ -145,10 +149,36 @@ function GuestRow({ guest, household, sides, t, onOpen, formatDay }: RowProps) {
   );
 }
 
+/**
+ * To a page of its own: an answer taken by phone has the invitation's questions with it, too many
+ * for a dialog at 360 px (design PD-108). An erased guest's answer can't be recorded.
+ */
+function RecordAnswerLink({
+  eventId,
+  guest,
+  t,
+}: {
+  eventId: string;
+  guest: Guest;
+  t: TFunction<'guests'>;
+}) {
+  return (
+    <Button asChild variant="ghost">
+      <Link
+        to={recordAnswerPath(eventId, guest.id)}
+        aria-label={t('actionFor', { action: t('row.recordAnswer'), name: guest.name })}
+      >
+        {t('row.recordAnswer')}
+      </Link>
+    </Button>
+  );
+}
+
 /** Choosing households to send the invitation to, while it is published (design PD-48). */
 export type OnChoose = (householdId: string, isChosen: boolean) => void;
 
 interface HouseholdCardProps {
+  eventId: string;
   household: Household;
   /** The guests the filter shows: the household's own array when it shows them all. */
   guests: readonly Guest[];
@@ -230,6 +260,7 @@ function HouseholdActions({
  * across two thousand guests, or a box ticked, redraws only what changed.
  */
 export const HouseholdCard = memo(function HouseholdCard({
+  eventId,
   household,
   guests,
   sides,
@@ -268,6 +299,7 @@ export const HouseholdCard = memo(function HouseholdCard({
         {guests.map((guest) => (
           <GuestRow
             key={guest.id}
+            eventId={eventId}
             guest={guest}
             household={household}
             sides={sides}

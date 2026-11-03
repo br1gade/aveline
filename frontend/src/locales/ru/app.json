@@ -33,7 +33,12 @@
     "door": "Вход · Aveline",
     "followUps": "Напоминания и благодарности · Aveline",
     "team": "Команда · Aveline",
-    "venueDirectory": "Каталог площадок · Aveline"
+    "venueDirectory": "Каталог площадок · Aveline",
+    "archivedEvents": "Архивные мероприятия · Aveline",
+    "recordAnswer": "Записать ответ · Aveline",
+    "runningOrder": "Программа дня · Aveline",
+    "suppressions": "Кому нельзя писать · Aveline",
+    "promoCodes": "Промокоды · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",
@@ -51,7 +56,12 @@
     "title": "Ваши мероприятия",
     "empty": "Здесь появятся ваши мероприятия.",
     "create": "Создать мероприятие",
-    "createFirst": "Создайте первое мероприятие"
+    "createFirst": "Создайте первое мероприятие",
+    "more": "Ещё",
+    "archived": "Архивные мероприятия",
+    "suppressions": "Кому нельзя писать",
+    "promoCodes": "Промокоды",
+    "organization": "Список тех, кому нельзя писать, и промокоды принадлежат вашей организации и действуют для всех мероприятий."
   },
   "welcome": {
     "title": "Создайте организацию",

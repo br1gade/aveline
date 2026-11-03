@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { isApiError } from '@/api/errors';
 import { problemFrom, type Problem } from '@/api/problems';
+import { ARCHIVED_SENTENCE } from '@/features/events';
 
 export type LifecycleAction = 'publish' | 'close' | 'reopen' | 'send';
 
@@ -50,6 +51,7 @@ export function useRefusedText(
   const { t } = useTranslation('sending');
   return (status, messages = []) => {
     const isExpired = status === 400 && messages.some((message) => EXPIRED.test(message));
+    if (status === 400 && messages.includes(ARCHIVED_SENTENCE)) return t('problems.archived');
     return t(`problems.${isExpired ? 'expired' : (WORDS[action][status] ?? 'other')}`);
   };
 }

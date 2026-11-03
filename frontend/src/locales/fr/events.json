@@ -34,10 +34,24 @@
       "languages": "Cochez au moins une langue.",
       "defaultLanguage": "Choisissez l’une des langues cochées.",
       "timezone": "Choisissez un fuseau horaire dans la liste.",
-      "endsBefore": "L’heure de fin de l’événement est antérieure, et elle ne peut pas encore être modifiée ici.",
+      "endsBefore": "La fin doit venir après le début.",
       "refused": "Cela n’a pas été accepté. Vérifiez.",
-      "other": "Vérifiez ce champ."
-    }
+      "other": "Vérifiez ce champ.",
+      "endPair": "Indiquez la date et l’heure de fin, ou aucune des deux."
+    },
+    "end": "Quand il se termine (facultatif)",
+    "endHelp": "Dans le fuseau horaire de l’événement. Les invités la voient sur l’invitation. Videz les deux pour la retirer.",
+    "endDate": "Date de fin",
+    "endTime": "Heure de fin",
+    "sides": "Les deux côtés (facultatif)",
+    "sidesHelp": "Vos noms pour les deux familles ou côtés, auxquels les invités peuvent dire appartenir. Les invités les voient tels que saisis, dans toutes les langues.",
+    "sideA": "Premier côté",
+    "sideB": "Second côté",
+    "otherLanguages": "Dans les autres langues de l’événement",
+    "otherLanguagesHelp": "Les invités qui lisent l’une de ces langues voient son titre et ses hôtes. Laissés vides, ils voient le titre et les hôtes ci-dessus.",
+    "titleIn": "Titre en {{language}}",
+    "hostsIn": "Hôtes en {{language}}",
+    "defaultOverride": "Les invités qui lisent la langue par défaut ({{language}}) voient ces mots au lieu du titre et des hôtes ci-dessus. Videz les deux pour afficher ceux-ci."
   },
   "problems": {
     "conflict": "Impossible dans l’état actuel de l’événement. Rechargez la page pour le voir tel qu’il est maintenant.",
@@ -83,7 +97,8 @@
     "orders": "Commandes",
     "door": "L’entrée",
     "followUps": "Rappels et remerciements",
-    "team": "L’équipe"
+    "team": "L’équipe",
+    "runningOrder": "Déroulé de la journée"
   },
   "headcount": {
     "title": "Invités",
@@ -182,6 +197,49 @@
     "problems": {
       "forbidden": "Votre rôle sur cet événement ne permet pas de changer la façon dont les invités répondent. Le propriétaire de l’événement peut modifier votre rôle.",
       "other": "Cela n’a pas été accepté. Réessayez."
+    }
+  },
+  "archived": {
+    "back": "Vos événements",
+    "title": "Événements archivés",
+    "lead": "Les événements rangés : hors de votre liste, leurs invitations fermées. Ouvrez-en un pour le rétablir.",
+    "empty": "Aucun événement n’est archivé."
+  },
+  "putAway": {
+    "title": "Ranger cet événement",
+    "archiveLead": "Archiver le retire de votre liste d’événements, arrête les réponses et retire son annonce. Les invités qui ont l’invitation peuvent toujours la lire. Rien n’est perdu, et il peut être rétabli.",
+    "archivedLead": "Cet événement est archivé. Le rétablir le remet dans votre liste ; son invitation reste fermée jusqu’à ce que vous la rouvriez depuis la page de l’invitation.",
+    "archive": "Archiver cet événement…",
+    "archiveTitle": "Archiver « {{title}} » ?",
+    "archiveBody": "Il quitte votre liste d’événements. Son invitation n’accepte plus de réponses mais reste lisible pour les invités qui l’ont, et son annonce publique est retirée. Rien n’est supprimé.",
+    "archiveConfirm": "Archiver",
+    "archived": "L’événement est archivé.",
+    "bringBack": "Le rétablir",
+    "bringingBack": "Rétablissement…",
+    "broughtBack": "L’événement est de retour dans votre liste. Son invitation reste fermée jusqu’à ce que vous la rouvriez.",
+    "bringBackThere": "Rétablissez-le depuis la page de l’événement.",
+    "deleteLead": "Supprimer efface définitivement l’événement, sa liste d’invités, son invitation et ses fichiers. Seul un événement jamais publié, et par lequel aucun argent n’est passé, peut être supprimé.",
+    "notDeletable": "Cet événement a été publié, et des invités peuvent avoir son invitation : il peut être archivé, pas supprimé.",
+    "delete": "Supprimer cet événement…",
+    "deleteTitle": "Supprimer « {{title}} » définitivement ?",
+    "deleteBody": "L’événement, sa liste d’invités, ses lieux, son déroulé, son invitation et ses fichiers sont supprimés, sans retour possible. Pour les garder, archivez-le plutôt.",
+    "deleteUnderstood": "Je comprends que cet événement et tout ce qu’il contient sont supprimés définitivement.",
+    "deleteConfirm": "Supprimer définitivement",
+    "deleted": "« {{title}} » est supprimé.",
+    "archivedNotice": {
+      "overview": "Cet événement est archivé : il n’est plus dans votre liste, les invités peuvent lire son invitation mais pas répondre, et son annonce est retirée. Tout le reste ici fonctionne.",
+      "invitation": "Cet événement est archivé : son invitation ne peut être ni publiée ni rouverte tant qu’il n’est pas rétabli.",
+      "design": "Cet événement est archivé : le design de son invitation ne peut pas changer tant qu’il n’est pas rétabli."
+    },
+    "refused": {
+      "published": "Cet événement a été publié entre-temps : il ne peut qu’être archivé. La page a été rechargée.",
+      "moneyMoved": "De l’argent est passé par cet événement, et ces enregistrements sont conservés : archivez-le plutôt.",
+      "notArchived": "Cet événement n’est plus archivé. La page a été rechargée.",
+      "gone": "Cet événement n’existe plus. La page a été rechargée.",
+      "forbidden": "Seul le propriétaire de l’événement, ou celui de l’organisation, peut l’archiver ou le supprimer.",
+      "rateLimited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+      "noAnswer": "Aucune réponse n’est arrivée. Rechargez la page pour voir si c’est passé.",
+      "other": "C’est refusé."
     }
   }
 }

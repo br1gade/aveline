@@ -1,0 +1,63 @@
+{
+  "back": "Back to the event",
+  "title": "Running order",
+  "lead": "What happens when, and where, typed once here. The invitation’s running-order section shows every entry that isn’t for the team only, and the vendors’ brief shows them all. Guests see a change at once; nobody is messaged about it.",
+  "zone": "Times are in the event’s time zone, {{timeZone}}.",
+  "add": "Add an entry",
+  "empty": "Nothing in the running order yet.",
+  "listRefused": "Your role can’t see the running order.",
+  "hides": "Guests would no longer see {{venues}}: no entry there would be for them. A venue guests don’t see leaves the invitation, and guests stop answering for it. This is refused once guests have answered for it or sit there.",
+  "entry": {
+    "at": "At {{venue}}",
+    "team": "For the team only: not on the invitation",
+    "edit": "Edit",
+    "editFor": "Edit: {{name}}",
+    "remove": "Remove",
+    "removeFor": "Remove: {{name}}",
+    "noName": "No name"
+  },
+  "dialog": {
+    "addTitle": "Add an entry",
+    "editTitle": "Edit the entry",
+    "names": "What happens",
+    "namesHelp": "In each language guests may read. One is enough: a guest reading another sees it in the event’s language, or in one that has it.",
+    "date": "Date",
+    "time": "Time",
+    "timeHelp": "In {{timeZone}}.",
+    "venue": "Where",
+    "noVenue": "Not at a venue",
+    "internal": "For the team only",
+    "internalHelp": "Left off the invitation; it stays here and in the vendors’ brief. A venue whose entries are all for the team is no longer shown to guests.",
+    "cancel": "Cancel",
+    "add": "Add",
+    "save": "Save",
+    "saving": "Saving…"
+  },
+  "remove": {
+    "title": "Remove “{{name}}”?",
+    "body": "It leaves the running order, the invitation and the vendors’ brief at once.",
+    "confirm": "Remove"
+  },
+  "errors": {
+    "labelRequired": "Give it a name in one language at least.",
+    "required": "Fill this in.",
+    "dateInvalid": "That date doesn’t exist.",
+    "timeSkipped": "The clocks skip that time in the event’s time zone that day. Choose another."
+  },
+  "refused": {
+    "venueKept": "Guests have answered for that venue, chose it at checkout, or sit there, so it must stay shown to them. Keep one entry there for guests.",
+    "venueGone": "That venue is no longer on this event. The list has been reloaded.",
+    "entryGone": "That entry is no longer in the running order. The list has been reloaded.",
+    "labelRefused": "Give it a name in one language at least.",
+    "gone": "That is no longer there. The list has been reloaded.",
+    "forbidden": "Your role on this event can’t change the running order. Its owner or a coordinator can.",
+    "rateLimited": "Too many tries. Wait a minute, then try again.",
+    "noAnswer": "No answer came. Check the list, then try again.",
+    "other": "The change was refused."
+  },
+  "status": {
+    "added": "“{{name}}” is in the running order.",
+    "saved": "“{{name}}” is saved.",
+    "removed": "“{{name}}” is out of the running order."
+  }
+}

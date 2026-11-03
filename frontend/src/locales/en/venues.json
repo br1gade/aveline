@@ -32,7 +32,12 @@
       "other": "Check this field.",
       "capacity": "Use a whole number from 1 to 100,000, or leave it empty.",
       "cantClear": "Once set, this can be changed but not emptied."
-    }
+    },
+    "otherLanguages": "In the event’s other languages",
+    "otherLanguagesHelp": "Guests reading one of these languages see its name and address. Left empty, they see the name and address above.",
+    "nameIn": "Name in {{language}}",
+    "addressIn": "Address in {{language}}",
+    "defaultOverride": "Guests reading {{language}}, the default language, see these words instead of the name and address above. Empty both to show those."
   },
   "form": {
     "newTitle": "Add a venue",

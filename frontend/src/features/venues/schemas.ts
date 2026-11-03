@@ -87,6 +87,14 @@ export function venueFormSchema(timeZone: string) {
       mapUrl,
       arrivalDate: z.string(),
       arrivalTime: z.string(),
+      /** Only the languages the form shows (`translatedLanguages`), bounded as the backend does. */
+      translations: z.record(
+        z.string(),
+        z.object({
+          name: z.string().trim().max(160, code('tooLong')),
+          address: z.string().trim().max(300, code('tooLong')),
+        }),
+      ),
     })
     .superRefine(checkArrival(timeZone), { when: whenArrivalPassed });
 }

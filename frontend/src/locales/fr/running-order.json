@@ -1,0 +1,63 @@
+{
+  "back": "Retour à l’événement",
+  "title": "Déroulé de la journée",
+  "lead": "Ce qui se passe, quand et où, saisi une seule fois ici. La section du déroulé dans l’invitation montre chaque moment qui n’est pas réservé à l’équipe, et la fiche des prestataires les montre tous. Les invités voient un changement aussitôt ; personne n’en est averti par message.",
+  "zone": "Les heures sont dans le fuseau horaire de l’événement, {{timeZone}}.",
+  "add": "Ajouter un moment",
+  "empty": "Rien dans le déroulé pour l’instant.",
+  "listRefused": "Votre rôle ne permet pas de voir le déroulé.",
+  "hides": "Les invités ne verraient plus {{venues}} : aucun moment n’y serait pour eux. Un lieu que les invités ne voient pas quitte l’invitation, et les invités cessent d’y répondre. C’est refusé dès que des invités ont répondu pour ce lieu ou y sont placés.",
+  "entry": {
+    "at": "À {{venue}}",
+    "team": "Pour l’équipe seulement : absent de l’invitation",
+    "edit": "Modifier",
+    "editFor": "Modifier : {{name}}",
+    "remove": "Retirer",
+    "removeFor": "Retirer : {{name}}",
+    "noName": "Sans nom"
+  },
+  "dialog": {
+    "addTitle": "Ajouter un moment",
+    "editTitle": "Modifier le moment",
+    "names": "Ce qui se passe",
+    "namesHelp": "Dans chaque langue que les invités peuvent lire. Une seule suffit : un invité qui lit une autre langue le voit dans la langue de l’événement, ou dans une langue qui l’a.",
+    "date": "Date",
+    "time": "Heure",
+    "timeHelp": "Dans le fuseau {{timeZone}}.",
+    "venue": "Où",
+    "noVenue": "Sans lieu",
+    "internal": "Pour l’équipe seulement",
+    "internalHelp": "Absent de l’invitation ; il reste ici et dans la fiche des prestataires. Un lieu dont tous les moments sont réservés à l’équipe n’est plus montré aux invités.",
+    "cancel": "Annuler",
+    "add": "Ajouter",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…"
+  },
+  "remove": {
+    "title": "Retirer « {{name}} » ?",
+    "body": "Il quitte aussitôt le déroulé, l’invitation et la fiche des prestataires.",
+    "confirm": "Retirer"
+  },
+  "errors": {
+    "labelRequired": "Donnez-lui un nom dans au moins une langue.",
+    "required": "Remplissez ce champ.",
+    "dateInvalid": "Cette date n’existe pas.",
+    "timeSkipped": "Ce jour-là, les horloges sautent cette heure dans le fuseau de l’événement. Choisissez-en une autre."
+  },
+  "refused": {
+    "venueKept": "Des invités ont répondu pour ce lieu, l’ont choisi en commandant ou y sont placés : il doit rester visible pour eux. Gardez-y un moment pour les invités.",
+    "venueGone": "Ce lieu ne fait plus partie de l’événement. La liste a été rechargée.",
+    "entryGone": "Ce moment n’est plus dans le déroulé. La liste a été rechargée.",
+    "labelRefused": "Donnez-lui un nom dans au moins une langue.",
+    "gone": "Ce n’est plus là. La liste a été rechargée.",
+    "forbidden": "Votre rôle sur cet événement ne permet pas de modifier le déroulé. Son propriétaire ou un coordinateur le peut.",
+    "rateLimited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+    "noAnswer": "Aucune réponse n’est arrivée. Vérifiez la liste, puis réessayez.",
+    "other": "La modification a été refusée."
+  },
+  "status": {
+    "added": "« {{name}} » est dans le déroulé.",
+    "saved": "« {{name}} » est enregistré.",
+    "removed": "« {{name}} » a quitté le déroulé."
+  }
+}

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { eventPath } from '@/features/events';
+import { ArrivalStatus, eventPath } from '@/features/events';
 
 import type { GuestListData } from '../load';
 import { GuestDirectory } from './guest-directory';
@@ -25,6 +25,7 @@ export function GuestList({ data }: { data: GuestListData }) {
         <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('list.title')}</h1>
         <p className="text-muted-foreground m-0">{event.title}</p>
       </div>
+      <ArrivalStatus />
       {households.kind === 'ready' ? (
         <GuestDirectory event={event} households={households.value} delivery={data.delivery} />
       ) : (

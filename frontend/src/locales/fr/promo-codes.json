@@ -1,0 +1,121 @@
+{
+  "back": "Vos événements",
+  "title": "Codes promo",
+  "lead": "Des codes que les acheteurs saisissent à la commande pour une remise sur les billets, pour chaque événement ou un seul. Ils appartiennent à votre organisation, et seul son propriétaire peut les voir ou les modifier. Un code peut être arrêté, jamais supprimé : les commandes gardent la remise obtenue.",
+  "pilot": "Tant que les paiements sont coupés pendant le pilote gratuit, la commande n’accepte un code que s’il rend la commande gratuite, comme 100 % de remise. Tout autre code est gardé pour le démarrage des paiements : la commande le refuse d’ici là.",
+  "eventsUnread": "Vos événements n’ont pas pu être lus : un nouveau code ne peut valoir que pour tous les événements pour l’instant. Rechargez la page pour réessayer.",
+  "list": {
+    "title": "Vos codes",
+    "empty": "Aucun code pour l’instant."
+  },
+  "code": {
+    "percent": "{{value}} % de remise",
+    "amount": "{{amount}} de remise",
+    "everyEvent": "Pour tous les événements",
+    "forEvent": "Pour « {{title}} »",
+    "someEvent": "un événement",
+    "used_one": "Utilisé {{count}} fois sur {{limit}} · {{left}} restantes",
+    "used_many": "Utilisé {{count}} fois sur {{limit}} · {{left}} restantes",
+    "used_other": "Utilisé {{count}} fois sur {{limit}} · {{left}} restantes",
+    "usedNoLimit_one": "Utilisé {{count}} fois · sans limite",
+    "usedNoLimit_many": "Utilisé {{count}} fois · sans limite",
+    "usedNoLimit_other": "Utilisé {{count}} fois · sans limite",
+    "minOrder": "Pour les commandes de {{amount}} ou plus",
+    "from": "À partir du {{when}}",
+    "until": "Jusqu’au {{when}} ({{timeZone}})",
+    "edit": "Modifier la limite ou la fin",
+    "editFor": "Modifier la limite ou la fin : {{code}}",
+    "stop": "Arrêter",
+    "stopFor": "Arrêter {{code}}",
+    "useAgain": "Réutiliser",
+    "useAgainFor": "Réutiliser {{code}}"
+  },
+  "state": {
+    "active": "Utilisable maintenant",
+    "stopped": "Arrêté",
+    "notYet": "Pas encore utilisable",
+    "expired": "Expiré",
+    "usedUp": "Épuisé"
+  },
+  "create": {
+    "title": "Créer un code",
+    "code": "Le code",
+    "codeHelp": "De 3 à 32 lettres, chiffres et traits d’union. Les majuscules ne comptent pas : il est conservé en majuscules.",
+    "kind": "Ce qu’il donne",
+    "kinds": {
+      "PERCENT": "Un pourcentage de remise",
+      "FIXED": "Un montant de remise, en AMD"
+    },
+    "percent": "Pourcentage de remise, de 1 à 100",
+    "amount": "Montant de la remise, en AMD",
+    "event": "Pour quel événement",
+    "everyEvent": "Tous les événements",
+    "limit": "Combien de fois il peut servir (facultatif)",
+    "limitHelp": "Laissé vide, il n’y a pas de limite. Une fois fixée, une limite peut changer mais pas disparaître.",
+    "minOrder": "Plus petite commande concernée, en AMD (facultatif)",
+    "minOrderHelp": "Ne pourra pas être modifié.",
+    "from": "Utilisable à partir du (facultatif)",
+    "until": "Utilisable jusqu’au (facultatif)",
+    "zoneHelp": "Dans le fuseau {{timeZone}}. Le début ne pourra pas être modifié ; la fin, oui, mais pas retirée.",
+    "date": "Date",
+    "time": "Heure",
+    "submit": "Créer le code",
+    "creating": "Création…"
+  },
+  "limits": {
+    "title": "Modifier {{code}}",
+    "body": "Seules la limite et la fin peuvent changer : la remise, l’événement, le minimum et le début, non.",
+    "used_one": "Déjà utilisé {{count}} fois : la limite ne peut pas être plus basse.",
+    "used_many": "Déjà utilisé {{count}} fois : la limite ne peut pas être plus basse.",
+    "used_other": "Déjà utilisé {{count}} fois : la limite ne peut pas être plus basse.",
+    "untilDate": "Utilisable jusqu’au : date",
+    "untilTime": "Utilisable jusqu’au : heure",
+    "save": "Enregistrer"
+  },
+  "stop": {
+    "title": "Arrêter {{code}} ?",
+    "body": "La commande le refuse désormais. Les commandes déjà passées gardent leur remise, et vous pourrez le réutiliser plus tard.",
+    "confirm": "Arrêter"
+  },
+  "dialog": {
+    "cancel": "Annuler",
+    "saving": "Enregistrement…"
+  },
+  "errors": {
+    "required": "Remplissez ce champ.",
+    "codeShort": "Utilisez au moins 3 caractères.",
+    "codeChars": "Lettres, chiffres et traits d’union seulement.",
+    "tooLong": "C’est trop long.",
+    "percent": "Saisissez un nombre entier de 1 à 100.",
+    "amount": "Saisissez un montant entier en AMD, supérieur à zéro.",
+    "limit": "Saisissez un nombre entier de 1 à 1 000 000.",
+    "pair": "Indiquez la date et l’heure, ou aucune des deux.",
+    "dateInvalid": "Saisissez une date valide.",
+    "timeSkipped": "Ce jour-là, les horloges sautent cette heure dans ce fuseau. Choisissez-en une autre.",
+    "untilBefore": "La fin doit venir après le début.",
+    "belowUsed": "Il a déjà servi plus de fois que cela.",
+    "cantClear": "Une fois fixé, cela peut changer mais pas disparaître.",
+    "refused": "Cela n’a pas été accepté."
+  },
+  "refused": {
+    "codeTaken": "Vous avez déjà un code de ce nom.",
+    "codeRefused": "Ce code n’a pas été accepté.",
+    "belowUsed": "Il a déjà servi plus de fois que cela.",
+    "valueRefused": "Cette remise n’a pas été acceptée.",
+    "untilRefused": "La fin doit venir après le début.",
+    "eventGone": "Cet événement n’est plus le vôtre. La page a été rechargée.",
+    "gone": "Ce code n’est plus là. La page a été rechargée.",
+    "forbidden": "Seul le propriétaire de l’organisation peut voir ou modifier les codes promo : les remises sont du chiffre d’affaires.",
+    "noOrganization": "Les codes promo appartiennent à une organisation, et votre compte n’est que sur un événement. Le propriétaire de l’organisation peut en créer.",
+    "rateLimited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+    "noAnswer": "Aucune réponse n’est arrivée. Vérifiez la liste, puis réessayez.",
+    "other": "C’est refusé.",
+    "chooseOrganization": "Votre compte appartient à plusieurs organisations, et cette page ne sait pas encore choisir entre elles."
+  },
+  "status": {
+    "created": "{{code}} est créé.",
+    "saved": "{{code}} est enregistré.",
+    "stopped": "{{code}} est arrêté.",
+    "usedAgain": "{{code}} peut de nouveau servir."
+  }
+}

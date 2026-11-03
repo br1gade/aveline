@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { NEW_VENUE_VALUES, venueFormValues } from './form-model';
+import { NEW_VENUE_VALUES, newVenueValues, venueFormValues, venueLanguages } from './form-model';
 import { createVenuePayload, updateVenuePayload } from './payload';
 import type { VenueFormValues } from './schemas';
 import type { Venue } from './types';
@@ -12,6 +12,7 @@ const filled: VenueFormValues = {
   mapUrl: '',
   arrivalDate: '',
   arrivalTime: '',
+  translations: {},
 };
 
 const venue: Venue = {
@@ -21,6 +22,7 @@ const venue: Venue = {
   address: '12 Garden Lane, Yerevan',
   mapUrl: 'https://maps.example.com/?q=garden',
   arriveAt: '2027-06-12T13:30:00.000Z',
+  translations: { ru: { name: 'Садовый зал', address: 'Садовая, 12' } },
 };
 
 describe('a new venue', () => {
@@ -62,12 +64,15 @@ describe('correcting a venue', () => {
       mapUrl: 'https://maps.example.com/?q=garden',
       arrivalDate: '2027-06-12',
       arrivalTime: '17:30',
+      translations: {},
     });
   });
 
   it('sends nothing when nothing changed', () => {
     const initial = venueFormValues(venue, 'Asia/Yerevan');
-    expect(updateVenuePayload(initial, { ...initial }, 'Asia/Yerevan')).toEqual({});
+    expect(updateVenuePayload(initial, { ...initial }, 'Asia/Yerevan', venue.translations)).toEqual(
+      {},
+    );
   });
 
   it('sends only what changed', () => {
@@ -77,9 +82,17 @@ describe('correcting a venue', () => {
         initial,
         { ...initial, address: '14 Garden Lane, Yerevan' },
         'Asia/Yerevan',
+        venue.translations,
       ),
     ).toEqual({ address: '14 Garden Lane, Yerevan' });
-    expect(updateVenuePayload(initial, { ...initial, role: 'OTHER' }, 'Asia/Yerevan')).toEqual({
+    expect(
+      updateVenuePayload(
+        initial,
+        { ...initial, role: 'OTHER' },
+        'Asia/Yerevan',
+        venue.translations,
+      ),
+    ).toEqual({
       role: 'OTHER',
     });
   });
@@ -87,14 +100,19 @@ describe('correcting a venue', () => {
   it('sends a moved arrival as UTC, from the time alone', () => {
     const initial = venueFormValues(venue, 'Asia/Yerevan');
     expect(
-      updateVenuePayload(initial, { ...initial, arrivalTime: '18:00' }, 'Asia/Yerevan'),
+      updateVenuePayload(
+        initial,
+        { ...initial, arrivalTime: '18:00' },
+        'Asia/Yerevan',
+        venue.translations,
+      ),
     ).toEqual({ arriveAt: '2027-06-12T14:00:00.000Z' });
   });
 
   it('clears the map link and the arrival with null', () => {
     const initial = venueFormValues(venue, 'Asia/Yerevan');
     const cleared = { ...initial, mapUrl: '', arrivalDate: '', arrivalTime: '' };
-    expect(updateVenuePayload(initial, cleared, 'Asia/Yerevan')).toEqual({
+    expect(updateVenuePayload(initial, cleared, 'Asia/Yerevan', venue.translations)).toEqual({
       mapUrl: null,
       arriveAt: null,
     });
@@ -104,5 +122,58 @@ describe('correcting a venue', () => {
     expect(
       venueFormValues({ ...venue, mapUrl: null, arriveAt: null }, 'Asia/Yerevan'),
     ).toMatchObject({ mapUrl: '', arrivalDate: '', arrivalTime: '' });
+  });
+});
+
+describe('a venue’s other languages (design PD-109)', () => {
+  it('shows each of the event’s other languages’ stored words, empty where none', () => {
+    expect(venueFormValues(venue, 'Asia/Yerevan', ['ru', 'en']).translations).toEqual({
+      ru: { name: 'Садовый зал', address: 'Садовая, 12' },
+      en: { name: '', address: '' },
+    });
+  });
+
+  it('shows the event’s languages but the default, and the default when it has words', () => {
+    expect(venueLanguages({ locales: ['hy', 'ru', 'en'], defaultLocale: 'hy' }, venue)).toEqual([
+      'ru',
+      'en',
+    ]);
+    expect(venueLanguages({ locales: ['ru', 'en'], defaultLocale: 'ru' }, venue)).toEqual([
+      'ru',
+      'en',
+    ]);
+    expect(newVenueValues(['en']).translations).toEqual({ en: { name: '', address: '' } });
+  });
+
+  it('sends a new venue’s typed languages, and none when nothing was typed', () => {
+    const translations = {
+      en: { name: 'Garden Hall', address: '' },
+      fr: { name: '', address: '' },
+    };
+    expect(createVenuePayload({ ...filled, translations }, 'Asia/Yerevan')).toMatchObject({
+      translations: { en: { name: 'Garden Hall' } },
+    });
+    expect(
+      createVenuePayload(
+        { ...filled, translations: { fr: { name: '', address: '' } } },
+        'Asia/Yerevan',
+      ),
+    ).not.toHaveProperty('translations');
+  });
+
+  it('sends a changed language whole, null for one emptied, nothing when unchanged', () => {
+    const initial = venueFormValues(venue, 'Asia/Yerevan', ['ru']);
+    const update = (ru: { name: string; address: string }) =>
+      updateVenuePayload(
+        initial,
+        { ...initial, translations: { ru } },
+        'Asia/Yerevan',
+        venue.translations,
+      );
+    expect(update({ name: 'Садовый зал', address: 'Садовая, 12' })).toEqual({});
+    expect(update({ name: 'Сад', address: 'Садовая, 12' })).toEqual({
+      translations: { ru: { name: 'Сад', address: 'Садовая, 12' } },
+    });
+    expect(update({ name: '', address: '' })).toEqual({ translations: { ru: null } });
   });
 });

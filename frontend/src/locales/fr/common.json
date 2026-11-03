@@ -25,5 +25,9 @@
     "rate-limited": "Trop de tentatives. Attendez une minute, puis réessayez.",
     "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez.",
     "server": "Une erreur s’est produite de notre côté. Veuillez réessayer dans un instant."
+  },
+  "dialog": {
+    "cancel": "Annuler",
+    "working": "En cours…"
   }
 }

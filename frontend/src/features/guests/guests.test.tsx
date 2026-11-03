@@ -227,7 +227,9 @@ function GuestsPage() {
   );
 }
 
-function renderList(path: string | string[] = '/app/events/e1/guests') {
+function renderList(
+  path: string | Array<string | { pathname: string; state: unknown }> = '/app/events/e1/guests',
+) {
   const Stub = createRoutesStub([
     {
       path: '/app/events/:eventId/guests',
@@ -275,6 +277,26 @@ describe('GuestList: reading', () => {
     expect(hakobyans).toHaveTextContent('Not coming');
     expect(hakobyans).toHaveTextContent('The groom’s family');
     expect(hakobyans).toHaveTextContent('Checked in');
+  });
+
+  it('links each guest to recording their answer, on a page of its own', async () => {
+    serve();
+    renderList();
+    await screen.findByText('3 guests in 2 households');
+    expect(
+      within(household('Petrosyan family')).getByRole('link', {
+        name: 'Record an answer: Armen Petrosyan',
+      }),
+    ).toHaveAttribute('href', expect.stringMatching(/^\/app\/events\/e1\/guests\/[^/]+\/answer$/));
+  });
+
+  it('says what the page that sent the host here did, with the focus', async () => {
+    serve();
+    renderList([
+      { pathname: '/app/events/e1/guests', state: { status: 'The answer for Ani is recorded.' } },
+    ]);
+    const status = await screen.findByText('The answer for Ani is recorded.');
+    await waitFor(() => expect(status).toHaveFocus());
   });
 
   it('keeps the households in the order they came', async () => {
@@ -651,6 +673,9 @@ describe('GuestList: editing a guest', () => {
     renderList();
     expect(await screen.findByText('Details erased at their request')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit: Armen Petrosyan' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Record an answer: Armen Petrosyan' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove: Armen Petrosyan' })).toBeInTheDocument();
   });
 

@@ -154,8 +154,9 @@
     "data": {
       "venues": "Les lieux viennent de la liste des lieux de l’événement, dans la langue de chaque invité.",
       "venuesLink": "Aller aux lieux",
-      "timeline": "Le déroulé vient de l’événement lui-même ; il ne peut pas encore être modifié dans l’application.",
-      "countdown": "Il compte jusqu’au début de l’événement, dans le fuseau horaire de l’événement."
+      "timeline": "Le déroulé vient de l’événement lui-même : chaque moment qui n’est pas réservé à l’équipe, dans la langue de chaque invité.",
+      "countdown": "Il compte jusqu’au début de l’événement, dans le fuseau horaire de l’événement.",
+      "timelineLink": "Aller au déroulé"
     },
     "layout": "Mise en page",
     "layoutHelp": "L’aperçu ne sait pas encore dessiner les mises en page de ce modèle : votre choix est conservé pour le jour où il le pourra.",

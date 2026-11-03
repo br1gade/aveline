@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { runningOrderPath } from '@/features/events';
+
 import { BLOCK_EDITING, type BlockType } from '@/features/invitation-renderer';
 import { StatusLine, usePageStatus, type PageActions } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
@@ -103,6 +105,11 @@ function DataNote({ type, eventId }: { type: BlockType; eventId: string }) {
       {data === 'venues' ? (
         <Link to={venuesPath(eventId)} className={TEXT_LINK}>
           {t('section.data.venuesLink')}
+        </Link>
+      ) : null}
+      {data === 'timeline' ? (
+        <Link to={runningOrderPath(eventId)} className={TEXT_LINK}>
+          {t('section.data.timelineLink')}
         </Link>
       ) : null}
     </p>

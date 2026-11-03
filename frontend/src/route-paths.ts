@@ -32,11 +32,15 @@ export const APP_PATHS = {
   welcome: '/app/welcome',
   /** Static, so it ranks above `event`'s `:eventId`. */
   newEvent: '/app/events/new',
+  /** Events put away. Static, so it ranks above `event`'s `:eventId`. */
+  archivedEvents: '/app/events/archived',
   event: '/app/events/:eventId',
   editEvent: '/app/events/:eventId/edit',
   guests: '/app/events/:eventId/guests',
   /** Static, so it would rank above a `:guestId` under `guests` too. */
   importGuests: '/app/events/:eventId/guests/import',
+  /** An answer a guest gave by phone or in person, recorded by the host. */
+  recordAnswer: '/app/events/:eventId/guests/:guestId/answer',
   venues: '/app/events/:eventId/venues',
   /** Static, so it would rank above a `:venueId` under `venues` too. */
   newVenue: '/app/events/:eventId/venues/new',
@@ -81,6 +85,12 @@ export const APP_PATHS = {
   followUps: '/app/events/:eventId/follow-ups',
   /** Who works on this event: members, open invitations, roles. */
   team: '/app/events/:eventId/team',
+  /** The day's running order: what happens when, and where. */
+  runningOrder: '/app/events/:eventId/running-order',
+  /** The organization's own: who must not be contacted, across every event. */
+  suppressions: '/app/suppressions',
+  /** The organization's own: discounts on tickets, for every event or one. */
+  promoCodes: '/app/promo-codes',
   /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */
   publicEvents: '/events',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */

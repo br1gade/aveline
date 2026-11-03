@@ -91,12 +91,33 @@ import ruPublicEvent from './ru/public-event.json';
 import ruTicketOrder from './ru/ticket-order.json';
 import ruTicketOrders from './ru/ticket-orders.json';
 import ruTicketSales from './ru/ticket-sales.json';
+import enRunningOrder from './en/running-order.json';
+import frRunningOrder from './fr/running-order.json';
+import hyRunningOrder from './hy/running-order.json';
+import ruRunningOrder from './ru/running-order.json';
+import enRecordedAnswer from './en/recorded-answer.json';
+import ruRecordedAnswer from './ru/recorded-answer.json';
+import hyRecordedAnswer from './hy/recorded-answer.json';
+import frRecordedAnswer from './fr/recorded-answer.json';
+import enSuppressions from './en/suppressions.json';
+import ruSuppressions from './ru/suppressions.json';
+import hySuppressions from './hy/suppressions.json';
+import frSuppressions from './fr/suppressions.json';
+import enPromoCodes from './en/promo-codes.json';
+import ruPromoCodes from './ru/promo-codes.json';
+import hyPromoCodes from './hy/promo-codes.json';
+import frPromoCodes from './fr/promo-codes.json';
+
 /**
  * Every namespace in every language. English is the source of the keys; Armenian and Russian are
  * drafts until a native reader checks them (design PD-9). French ships as translated (design C-23).
  */
 export const resources = {
   en: {
+    'promo-codes': enPromoCodes,
+    suppressions: enSuppressions,
+    'recorded-answer': enRecordedAnswer,
+    'running-order': enRunningOrder,
     account: enAccount,
     agreements: enAgreements,
     app: enApp,
@@ -122,6 +143,10 @@ export const resources = {
     venues: enVenues,
   },
   fr: {
+    'promo-codes': frPromoCodes,
+    suppressions: frSuppressions,
+    'recorded-answer': frRecordedAnswer,
+    'running-order': frRunningOrder,
     account: frAccount,
     agreements: frAgreements,
     app: frApp,
@@ -147,6 +172,10 @@ export const resources = {
     venues: frVenues,
   },
   hy: {
+    'promo-codes': hyPromoCodes,
+    suppressions: hySuppressions,
+    'recorded-answer': hyRecordedAnswer,
+    'running-order': hyRunningOrder,
     account: hyAccount,
     agreements: hyAgreements,
     app: hyApp,
@@ -172,6 +201,10 @@ export const resources = {
     venues: hyVenues,
   },
   ru: {
+    'promo-codes': ruPromoCodes,
+    suppressions: ruSuppressions,
+    'recorded-answer': ruRecordedAnswer,
+    'running-order': ruRunningOrder,
     account: ruAccount,
     agreements: ruAgreements,
     app: ruApp,

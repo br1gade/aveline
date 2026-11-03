@@ -9,6 +9,7 @@ describe('a refused venue, mapped to the form', () => {
     ['address must be a string', 'address'],
     ['mapUrl must be shorter than or equal to 500 characters', 'mapUrl'],
     ['arriveAt must be a date-time such as 2027-06-12T15:00:00Z', 'arrivalDate'],
+    ['translations: ru.name must be text of at most 160 characters', 'translations'],
   ])('puts “%s” under %s', (message, field) => {
     expect(refusedVenueFields([message])).toEqual([{ field, code: 'refused' }]);
   });
@@ -17,7 +18,6 @@ describe('a refused venue, mapped to the form', () => {
     'latitude: give latitude and longitude together',
     'longitude: give latitude and longitude together',
     'capacity must not be less than 1',
-    'translations: "de" is not a language code',
     '1 timeline entr(ies) and 0 table(s) still point at this venue; move them first',
   ])('leaves “%s” to the general message, since the form has no such field', (message) => {
     expect(refusedVenueFields([message])).toEqual([]);

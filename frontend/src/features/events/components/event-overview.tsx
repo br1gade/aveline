@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { isLanguage } from '@/lib/i18n';
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import { APP_PATHS } from '@/route-paths';
+import { StatusLine, useDialogOpener, usePageStatus } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import type { EventOverviewData } from '../load';
@@ -20,6 +21,7 @@ import {
   invitationPath,
   ordersPath,
   photosPath,
+  runningOrderPath,
   seatingPath,
   teamPath,
   ticketSalesPath,
@@ -27,6 +29,13 @@ import {
 } from '../paths';
 import type { EventDetail } from '../types';
 import { HeadcountSummary } from './headcount-summary';
+import {
+  ArchivedNotice,
+  ArchiveDialog,
+  DeleteDialog,
+  PutAwaySection,
+  type PutAwayDialog,
+} from './put-away';
 
 function Detail({ term, children }: { term: string; children: ReactNode }) {
   return (
@@ -101,6 +110,9 @@ function EventLinks({ event }: { event: EventDetail }) {
         <Link to={venuesPath(event.id)}>{t('overview.venues')}</Link>
       </Button>
       <Button asChild variant="outline">
+        <Link to={runningOrderPath(event.id)}>{t('overview.runningOrder')}</Link>
+      </Button>
+      <Button asChild variant="outline">
         <Link to={seatingPath(event.id)}>{t('overview.seating')}</Link>
       </Button>
       <Button asChild variant="outline">
@@ -152,6 +164,14 @@ function EventLinks({ event }: { event: EventDetail }) {
 export function EventOverview({ data }: { data: EventOverviewData }) {
   const { t } = useTranslation('events');
   const { event } = data;
+  const { page, status, statusRef } = usePageStatus(data);
+  const [dialog, setDialog] = useState<PutAwayDialog | null>(null);
+  const { remember, restoreFocus } = useDialogOpener();
+  const open = (next: PutAwayDialog, opener: HTMLElement) => {
+    remember(opener);
+    setDialog(next);
+  };
+  const context = { event, page, onClose: () => setDialog(null), restoreFocus };
   return (
     <section className="flex flex-col gap-6">
       <Link
@@ -164,8 +184,13 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
         <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{event.title}</h1>
         <EventLinks event={event} />
       </div>
+      <StatusLine statusRef={statusRef}>{status}</StatusLine>
+      <ArchivedNotice event={event} where="overview" />
       <EventDetails event={event} />
       <HeadcountSummary result={data.headcount} mode={event.attendanceMode} />
+      <PutAwaySection event={event} page={page} onOpen={open} />
+      {dialog === 'archive' ? <ArchiveDialog {...context} /> : null}
+      {dialog === 'delete' ? <DeleteDialog {...context} /> : null}
     </section>
   );
 }

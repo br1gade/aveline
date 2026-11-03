@@ -156,5 +156,6 @@
     "tooManyCategories": "At most ten categories.",
     "categoryTooLong": "Each category up to 40 characters.",
     "refused": "Check this: it was refused."
-  }
+  },
+  "promoCodes": "Promo codes, for all your organization’s events"
 }

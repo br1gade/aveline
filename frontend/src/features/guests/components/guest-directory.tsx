@@ -122,6 +122,7 @@ interface Sending {
 }
 
 interface ResultsProps {
+  eventId: string;
   households: readonly Household[];
   visible: readonly VisibleHousehold[];
   sides: SideNames;
@@ -132,6 +133,7 @@ interface ResultsProps {
 }
 
 function Results({
+  eventId,
   households,
   visible,
   sides,
@@ -158,6 +160,7 @@ function Results({
       {visible.map(({ household, guests }) => (
         <HouseholdCard
           key={household.id}
+          eventId={eventId}
           household={household}
           guests={guests}
           sides={sides}
@@ -334,6 +337,7 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
         <StatusLine statusRef={statusRef}>{status}</StatusLine>
         {/* In the toolbar's own container, so the toolbar stays in view down the whole list. */}
         <Results
+          eventId={event.id}
           households={households}
           visible={visible}
           sides={sides}

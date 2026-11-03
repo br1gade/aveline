@@ -603,7 +603,7 @@ describe('a dialog’s focus and its request', () => {
     await user.click(await screen.findByRole('button', { name: 'Remove Davit' }));
     const dialog = await screen.findByRole('alertdialog');
     await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
-    expect(await within(dialog).findByRole('button', { name: 'Saving…' })).toBeDisabled();
+    expect(await within(dialog).findByRole('button', { name: 'Working…' })).toBeDisabled();
     release();
     await screen.findByText('Davit is off the team.');
     expect(presses).toEqual(['remove']);

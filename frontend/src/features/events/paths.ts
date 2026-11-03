@@ -65,3 +65,11 @@ export function followUpsPath(eventId: string): string {
 export function teamPath(eventId: string): string {
   return generatePath(APP_PATHS.team, { eventId });
 }
+
+export function runningOrderPath(eventId: string): string {
+  return generatePath(APP_PATHS.runningOrder, { eventId });
+}
+
+export function recordAnswerPath(eventId: string, guestId: string): string {
+  return generatePath(APP_PATHS.recordAnswer, { eventId, guestId });
+}

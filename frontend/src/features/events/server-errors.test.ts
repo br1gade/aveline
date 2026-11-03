@@ -37,19 +37,27 @@ describe('refusedFields', () => {
     ]);
   });
 
-  it('explains an end time the form cannot change', () => {
+  it('puts a refused end on the end’s date', () => {
     expect(refusedFields(['endsAt: must be after startsAt'])).toEqual([
-      { field: 'date', code: 'endsBefore' },
+      { field: 'endDate', code: 'endsBefore' },
+    ]);
+  });
+
+  it('puts a refused side on its field, and a refused language’s words on that section', () => {
+    expect(
+      refusedFields([
+        'sideBLabel must be shorter than or equal to 60 characters',
+        'translations: en.title must be text of at most 200 characters',
+      ]),
+    ).toEqual([
+      { field: 'sideBLabel', code: 'refused' },
+      { field: 'translations', code: 'refused' },
     ]);
   });
 
   it('marks no field for anything else, which the form’s general message covers', () => {
     expect(
-      refusedFields([
-        'translations: en.title is too long',
-        'each value in locales must be a string',
-        'constructor: not a field',
-      ]),
+      refusedFields(['each value in locales must be a string', 'constructor: not a field']),
     ).toEqual([]);
   });
 });

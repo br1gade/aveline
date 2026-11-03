@@ -1,7 +1,8 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-import { SelectField, TextInputField } from '@/ui/app-form';
+import { useLanguageName } from '@/lib/i18n';
+import { SelectField, TextInputField, TranslationFields } from '@/ui/app-form';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
 import type { VenueFormInput, VenueFormValues } from '../schemas';
@@ -44,10 +45,63 @@ function ArrivalFields({ form, timeZone }: { form: VenueForm; timeZone: string }
 }
 
 /**
+ * The name and address in each of the event's other languages (design PD-109). Guests reading one
+ * see its words here, else the plain name and address: the backend has no step between.
+ */
+function VenueTranslations({
+  form,
+  languages,
+  defaultLocale,
+}: {
+  form: VenueForm;
+  languages: readonly string[];
+  defaultLocale: string;
+}) {
+  const { t } = useTranslation('venues');
+  const languageName = useLanguageName();
+  const fieldText = useVenueFieldText();
+  const { errors } = form.formState;
+  if (languages.length === 0) return null;
+  return (
+    <TranslationFields
+      legend={t('fields.otherLanguages')}
+      help={t('fields.otherLanguagesHelp')}
+      languages={languages}
+      languageName={languageName}
+      fields={[
+        { key: 'name' as const, label: (language) => t('fields.nameIn', { language }) },
+        { key: 'address' as const, label: (language) => t('fields.addressIn', { language }) },
+      ]}
+      inputProps={(language, field) => form.register(`translations.${language}.${field}`)}
+      errorOf={(language, field) => fieldText(errors.translations?.[language]?.[field])}
+      noteOf={(language) =>
+        language === defaultLocale
+          ? t('fields.defaultOverride', { language: languageName(language) })
+          : undefined
+      }
+      error={fieldText(errors.translations)}
+    />
+  );
+}
+
+interface VenueFieldsProps {
+  form: VenueForm;
+  timeZone: string;
+  /** The event's languages the venue's words are typed in, besides the plain ones. */
+  languages?: readonly string[] | undefined;
+  defaultLocale?: string | undefined;
+}
+
+/**
  * The fields adding and correcting share (design PD-46). No coordinates: the guest page gives
  * directions through the map link (R-19). No role is chosen for a new venue.
  */
-export function VenueFields({ form, timeZone }: { form: VenueForm; timeZone: string }) {
+export function VenueFields({
+  form,
+  timeZone,
+  languages = [],
+  defaultLocale = '',
+}: VenueFieldsProps) {
   const { t } = useTranslation('venues');
   const fieldText = useVenueFieldText();
   const { errors } = form.formState;
@@ -90,6 +144,7 @@ export function VenueFields({ form, timeZone }: { form: VenueForm; timeZone: str
         {...form.register('mapUrl')}
       />
       <ArrivalFields form={form} timeZone={timeZone} />
+      <VenueTranslations form={form} languages={languages} defaultLocale={defaultLocale} />
     </>
   );
 }

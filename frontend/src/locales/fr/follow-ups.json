@@ -13,7 +13,7 @@
   },
   "chase": {
     "title": "Relancer ceux qui n’ont pas répondu",
-    "lead": "Relance les foyers qui ont l’invitation et n’ont pas répondu. Quelqu’un qui a dit « je ne sais pas encore » a répondu et n’est pas relancé. Un foyer reçoit au plus un rappel par jour. Aveline envoie aussi des rappels d’elle-même 21, 7 et 2 jours avant l’événement, sauf s’ils ont été désactivés.",
+    "lead": "Relance les foyers qui ont l’invitation et n’ont pas répondu. Quelqu’un qui a dit « pas encore sûr » a répondu, et n’est pas relancé. Un foyer reçoit au plus une relance par jour. Aveline relance aussi d’elle-même avant l’événement, sauf si c’est désactivé ci-dessous.",
     "expected": {
       "due_one": "Rappel prévu : {{count, number}} foyer.",
       "due_many": "Rappel prévu : {{count, number}} foyers.",
@@ -130,5 +130,18 @@
     "rateLimited": "Trop d’essais. Attendez une minute et appuyez de nouveau : personne ne le reçoit deux fois.",
     "noAnswer": "Aucune réponse. Le message est peut-être parti : appuyer de nouveau est sans risque, personne ne le reçoit deux fois.",
     "other": "Cela n’a pas été accepté. La raison, en anglais :"
+  },
+  "automatic": {
+    "title": "Relances automatiques",
+    "label": "Relancer d’elle-même 21, 7 et 2 jours avant l’événement",
+    "help": "Aux foyers qui ont l’invitation et n’ont pas répondu, seulement tant qu’elle est publiée, et seulement la relance due à ce moment-là, pour que personne n’en reçoive plusieurs à la fois. Les hôtes qui relancent par téléphone peuvent préférer les couper.",
+    "nowOn": "Actuellement : activées.",
+    "nowOff": "Actuellement : désactivées. Personne n’est relancé tant que vous n’appuyez pas ci-dessous.",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "savedOn": "Les relances automatiques sont activées pour cet événement.",
+    "savedOff": "Les relances automatiques sont désactivées pour cet événement.",
+    "forbidden": "Votre rôle sur cet événement ne permet pas de modifier ceci. Son propriétaire ou un coordinateur le peut.",
+    "refused": "La modification a été refusée. Rechargez la page, puis réessayez."
   }
 }

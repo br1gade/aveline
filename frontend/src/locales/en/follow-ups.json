@@ -13,7 +13,7 @@
   },
   "chase": {
     "title": "Chase who hasn’t answered",
-    "lead": "Reminds the households that have the invitation and haven’t answered. Someone who said “not sure yet” has answered, and isn’t chased. A household gets at most one reminder a day. Aveline also sends reminders by itself 21, 7 and 2 days before the event, unless they’ve been switched off for it.",
+    "lead": "Reminds the households that have the invitation and haven’t answered. Someone who said “not sure yet” has answered, and isn’t chased. A household gets at most one reminder a day. Aveline also reminds by itself before the event, unless that’s switched off below.",
     "expected": {
       "due_one": "Expected to get a reminder: {{count, number}} household.",
       "due_other": "Expected to get a reminder: {{count, number}} households.",
@@ -112,5 +112,18 @@
     "rateLimited": "Too many tries. Wait a minute and press again: nobody gets it twice.",
     "noAnswer": "No answer came. It may have gone out: pressing again is safe, and nobody gets it twice.",
     "other": "This wasn’t accepted. The reason, in English:"
+  },
+  "automatic": {
+    "title": "Automatic reminders",
+    "label": "Remind by itself 21, 7 and 2 days before the event",
+    "help": "To households that have the invitation and haven’t answered, only while it is published, and only the one due at the time, so nobody gets several at once. Hosts who chase by phone may want them off.",
+    "nowOn": "Now: on.",
+    "nowOff": "Now: off. Nobody is reminded unless you press below.",
+    "save": "Save",
+    "saving": "Saving…",
+    "savedOn": "Automatic reminders are on for this event.",
+    "savedOff": "Automatic reminders are off for this event.",
+    "forbidden": "Your role on this event can’t change this. Its owner or a coordinator can.",
+    "refused": "The change was refused. Reload the page, then try again."
   }
 }

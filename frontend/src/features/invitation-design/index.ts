@@ -21,4 +21,4 @@ export {
   previewRequestOf,
 } from './load';
 export { getDesign, listMedia } from './api';
-export type { LibraryItem, Question } from './types';
+export type { Design, LibraryItem, Question, RsvpFieldsConfig } from './types';

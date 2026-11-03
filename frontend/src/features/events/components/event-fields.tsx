@@ -7,6 +7,7 @@ import { NativeSelectOption } from '@/ui/kit/native-select';
 import type { EventFormInput, EventFormValues } from '../schemas';
 import { EVENT_TYPES } from '../types';
 import { useEventFieldText } from '../use-field-text';
+import { DetailFields } from './detail-fields';
 import { LanguageFields } from './language-fields';
 
 export type EventForm = UseFormReturn<EventFormInput, unknown, EventFormValues>;
@@ -18,6 +19,8 @@ interface EventFieldsProps {
   zones: readonly string[];
   /** The languages to offer (`languageOptions`). */
   languages: readonly string[];
+  /** The event's stored `translations`, when correcting one. */
+  stored?: unknown;
 }
 
 /** No type is chosen for a new event: "Choose…" stays until the host picks one (design PD-42). */
@@ -82,7 +85,7 @@ function WhenFields({ form, zones }: { form: EventForm; zones: readonly string[]
 }
 
 /** The fields creating and correcting share, in the order a host thinks of them. */
-export function EventFields({ form, mode, zones, languages }: EventFieldsProps) {
+export function EventFields({ form, mode, zones, languages, stored }: EventFieldsProps) {
   const { t } = useTranslation('events');
   const fieldText = useEventFieldText();
   const { errors } = form.formState;
@@ -103,6 +106,7 @@ export function EventFields({ form, mode, zones, languages }: EventFieldsProps) 
       />
       <WhenFields form={form} zones={zones} />
       <LanguageFields form={form} options={languages} />
+      {mode === 'edit' ? <DetailFields form={form} stored={stored} /> : null}
     </>
   );
 }

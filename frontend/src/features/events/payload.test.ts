@@ -29,6 +29,11 @@ const filled: EventFormValues = {
   timezone: 'Asia/Yerevan',
   locales: ['hy', 'en'],
   defaultLocale: 'hy',
+  endDate: '',
+  endTime: '',
+  sideALabel: '',
+  sideBLabel: '',
+  translations: {},
 };
 
 describe('a new event', () => {
@@ -79,49 +84,63 @@ describe('updatePayload', () => {
   const initial = formValuesOf(event);
 
   it('sends nothing when nothing changed', () => {
-    expect(updatePayload(initial, { ...initial })).toEqual({});
+    expect(updatePayload(initial, { ...initial }, event.translations)).toEqual({});
   });
 
   it('sends only the field that changed', () => {
-    expect(updatePayload(initial, { ...initial, title: 'Anna and Davit' })).toEqual({
+    expect(
+      updatePayload(initial, { ...initial, title: 'Anna and Davit' }, event.translations),
+    ).toEqual({
       title: 'Anna and Davit',
     });
-    expect(updatePayload(initial, { ...initial, hostsLabel: 'Anna and Davit' })).toEqual({
+    expect(
+      updatePayload(initial, { ...initial, hostsLabel: 'Anna and Davit' }, event.translations),
+    ).toEqual({
       hostsLabel: 'Anna and Davit',
     });
-    expect(updatePayload(initial, { ...initial, type: 'ENGAGEMENT' })).toEqual({
+    expect(updatePayload(initial, { ...initial, type: 'ENGAGEMENT' }, event.translations)).toEqual({
       type: 'ENGAGEMENT',
     });
-    expect(updatePayload(initial, { ...initial, defaultLocale: 'en' })).toEqual({
-      defaultLocale: 'en',
-    });
+    expect(updatePayload(initial, { ...initial, defaultLocale: 'en' }, event.translations)).toEqual(
+      {
+        defaultLocale: 'en',
+      },
+    );
   });
 
   it('sends the new start when the date or the time changed', () => {
-    expect(updatePayload(initial, { ...initial, date: '2027-07-03' })).toEqual({
+    expect(updatePayload(initial, { ...initial, date: '2027-07-03' }, event.translations)).toEqual({
       startsAt: '2027-07-03T11:00:00.000Z',
     });
-    expect(updatePayload(initial, { ...initial, time: '16:30' })).toEqual({
+    expect(updatePayload(initial, { ...initial, time: '16:30' }, event.translations)).toEqual({
       startsAt: '2027-06-12T12:30:00.000Z',
     });
   });
 
   it('keeps the typed time when only the zone changed, so the instant moves with it', () => {
-    expect(updatePayload(initial, { ...initial, timezone: 'Europe/Moscow' })).toEqual({
+    expect(
+      updatePayload(initial, { ...initial, timezone: 'Europe/Moscow' }, event.translations),
+    ).toEqual({
       startsAt: '2027-06-12T12:00:00.000Z',
       timezone: 'Europe/Moscow',
     });
   });
 
   it('sends no languages when the same ones are ticked in another order', () => {
-    expect(updatePayload(initial, { ...initial, locales: ['hy', 'en'] })).toEqual({});
+    expect(
+      updatePayload(initial, { ...initial, locales: ['hy', 'en'] }, event.translations),
+    ).toEqual({});
   });
 
   it('keeps the event’s order of languages and adds new ones after it', () => {
-    expect(updatePayload(initial, { ...initial, locales: ['hy', 'ru', 'en'] })).toEqual({
+    expect(
+      updatePayload(initial, { ...initial, locales: ['hy', 'ru', 'en'] }, event.translations),
+    ).toEqual({
       locales: ['en', 'hy', 'ru'],
     });
-    expect(updatePayload(initial, { ...initial, locales: ['hy'] })).toEqual({ locales: ['hy'] });
+    expect(updatePayload(initial, { ...initial, locales: ['hy'] }, event.translations)).toEqual({
+      locales: ['hy'],
+    });
   });
 });
 
@@ -159,5 +178,94 @@ describe('languages', () => {
       locales: ['ru'],
       defaultLocale: 'ru',
     });
+  });
+});
+
+describe('the end, the sides and the other languages (design PD-109, PD-110)', () => {
+  const translated: EventDetail = {
+    ...event,
+    locales: ['hy', 'en', 'ru'],
+    endsAt: '2027-06-12T20:00:00.000Z',
+    sideALabel: 'Anna’s family',
+    translations: {
+      en: { title: 'The wedding', hostsLabel: 'Anna & Davit' },
+      fr: { title: 'Mariage' },
+    },
+  };
+  const initial = formValuesOf(translated);
+  const edit = (changes: Partial<EventFormValues>) =>
+    updatePayload(initial, { ...initial, ...changes }, translated.translations);
+
+  it('shows the end in the event’s zone, the sides, and every language’s stored words', () => {
+    expect(initial).toMatchObject({
+      endDate: '2027-06-13',
+      endTime: '00:00',
+      sideALabel: 'Anna’s family',
+      sideBLabel: '',
+    });
+    expect(initial.translations).toMatchObject({
+      en: { title: 'The wedding', hostsLabel: 'Anna & Davit' },
+      ru: { title: '', hostsLabel: '' },
+      fr: { title: 'Mariage', hostsLabel: '' },
+    });
+  });
+
+  it('sends nothing when nothing changed', () => {
+    expect(edit({})).toEqual({});
+  });
+
+  it('sends a new end as UTC, and null for one emptied', () => {
+    expect(edit({ endTime: '01:30' })).toEqual({ endsAt: '2027-06-12T21:30:00.000Z' });
+    expect(edit({ endDate: '', endTime: '' })).toEqual({ endsAt: null });
+  });
+
+  it('sends no end for a new zone when there is none', () => {
+    const open = formValuesOf({ ...translated, endsAt: null });
+    expect(
+      updatePayload(open, { ...open, timezone: 'Europe/Paris' }, translated.translations),
+    ).not.toHaveProperty('endsAt');
+  });
+
+  it('moves the end with a new zone, as it moves the start', () => {
+    expect(edit({ timezone: 'Europe/Paris' })).toMatchObject({
+      timezone: 'Europe/Paris',
+      endsAt: '2027-06-12T22:00:00.000Z',
+    });
+  });
+
+  it('sends a side changed, and null for one emptied', () => {
+    expect(edit({ sideALabel: '', sideBLabel: 'Davit’s family' })).toEqual({
+      sideALabel: null,
+      sideBLabel: 'Davit’s family',
+    });
+  });
+
+  it('sends a changed language whole, and null for one emptied', () => {
+    expect(
+      edit({
+        translations: {
+          ...initial.translations,
+          en: { title: 'Our wedding', hostsLabel: 'Anna & Davit' },
+          ru: { title: 'Свадьба', hostsLabel: '' },
+        },
+      }),
+    ).toEqual({
+      translations: {
+        en: { title: 'Our wedding', hostsLabel: 'Anna & Davit' },
+        ru: { title: 'Свадьба' },
+      },
+    });
+    expect(
+      edit({ translations: { ...initial.translations, en: { title: '', hostsLabel: '' } } }),
+    ).toEqual({ translations: { en: null } });
+  });
+
+  it('leaves alone a language no longer ticked, whose words stay stored', () => {
+    expect(
+      edit({
+        locales: ['hy', 'ru'],
+        translations: { ...initial.translations, en: { title: '', hostsLabel: '' } },
+      }),
+    ).toEqual({ locales: ['hy', 'ru'] });
   });
 });

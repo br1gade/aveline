@@ -67,7 +67,8 @@
     "history": "Historique des réponses",
     "released": "Un refus a libéré sa place à {{table}}, le {{when}}",
     "releasedAt": "Un refus a libéré sa place à {{table}} ({{venue}}), le {{when}}",
-    "releasedNoTable": "Un refus a libéré sa place, le {{when}}"
+    "releasedNoTable": "Un refus a libéré sa place, le {{when}}",
+    "recordAnswer": "Enregistrer une réponse"
   },
   "fields": {
     "firstName": "Prénom",

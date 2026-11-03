@@ -387,6 +387,24 @@ describe('Correcting a venue', () => {
     expect(patched).toEqual([{ address: '1 Church Square, Vagharshapat' }]);
   });
 
+  it('corrects the English name, sending the language whole, and empties none it doesn’t show', async () => {
+    serve([
+      { ...CHURCH, translations: { en: { name: 'Saint Hripsime', address: 'Mashtots St' } } },
+    ]);
+    const patched = answer('patch', '/events/e1/venues/v1', saved());
+    const user = renderAt('/app/events/e1/venues/v1/edit');
+    const name = await screen.findByLabelText('Name in English');
+    expect(name).toHaveValue('Saint Hripsime');
+    expect(name).toHaveAttribute('lang', 'en');
+    await user.clear(name);
+    await user.type(name, 'Saint Hripsime Church');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await screen.findByRole('heading', { name: 'Venues' });
+    expect(patched).toEqual([
+      { translations: { en: { name: 'Saint Hripsime Church', address: 'Mashtots St' } } },
+    ]);
+  });
+
   it('clears the map link and the arrival with null', async () => {
     serve();
     const patched = answer('patch', '/events/e1/venues/v1', saved());

@@ -33,7 +33,12 @@
     "door": "Մուտք · Aveline",
     "followUps": "Հիշեցումներ և երախտագիտություն · Aveline",
     "team": "Թիմը · Aveline",
-    "venueDirectory": "Վայրերի տեղեկատու · Aveline"
+    "venueDirectory": "Վայրերի տեղեկատու · Aveline",
+    "archivedEvents": "Արխիվացված միջոցառումներ · Aveline",
+    "recordAnswer": "Պատասխանի գրանցում · Aveline",
+    "runningOrder": "Օրվա ծրագիր · Aveline",
+    "suppressions": "Ում չի կարելի գրել · Aveline",
+    "promoCodes": "Պրոմոկոդեր · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",
@@ -51,7 +56,12 @@
     "title": "Ձեր միջոցառումները",
     "empty": "Ձեր միջոցառումները կհայտնվեն այստեղ։",
     "create": "Ստեղծել միջոցառում",
-    "createFirst": "Ստեղծեք ձեր առաջին միջոցառումը"
+    "createFirst": "Ստեղծեք ձեր առաջին միջոցառումը",
+    "more": "Այլ",
+    "archived": "Արխիվացված միջոցառումներ",
+    "suppressions": "Ում չի կարելի գրել",
+    "promoCodes": "Պրոմոկոդեր",
+    "organization": "Ում չի կարելի գրել ցանկը և պրոմոկոդերը ձեր կազմակերպությանն են պատկանում և գործում են բոլոր միջոցառումների համար։"
   },
   "welcome": {
     "title": "Ստեղծեք ձեր կազմակերպությունը",

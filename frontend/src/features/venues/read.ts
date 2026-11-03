@@ -31,6 +31,7 @@ export function readVenues(venues: readonly VenueWire[]): Venue[] {
     address: venue.address,
     mapUrl: venue.mapUrl,
     arriveAt: venue.arriveAt,
+    translations: venue.translations ?? {},
   }));
 }
 

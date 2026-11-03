@@ -63,7 +63,8 @@
     "history": "Պատասխանների պատմություն",
     "released": "Հրաժարումից հետո ազատվեց նրա տեղը՝ {{table}}, {{when}}",
     "releasedAt": "Հրաժարումից հետո ազատվեց նրա տեղը՝ {{table}} ({{venue}}), {{when}}",
-    "releasedNoTable": "Հրաժարումից հետո ազատվեց նրա տեղը, {{when}}"
+    "releasedNoTable": "Հրաժարումից հետո ազատվեց նրա տեղը, {{when}}",
+    "recordAnswer": "Գրանցել պատասխանը"
   },
   "fields": {
     "firstName": "Անուն",

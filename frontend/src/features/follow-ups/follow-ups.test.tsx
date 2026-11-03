@@ -60,6 +60,7 @@ interface Served {
   startsAt: string;
   households: object[];
   delivery: object[];
+  remindersEnabled?: boolean;
   guestsResponse?: () => Response;
   deliveryResponse?: () => Response;
 }
@@ -130,6 +131,9 @@ function serve(initial: Partial<Served> = {}) {
         defaultLocale: 'en',
         sideALabel: null,
         sideBLabel: null,
+        ...(state.remindersEnabled === undefined
+          ? {}
+          : { remindersEnabled: state.remindersEnabled }),
         invitation: state.status
           ? { slug: SLUG, status: state.status, isExpired: state.isExpired }
           : null,
@@ -659,5 +663,67 @@ describe('a draft', () => {
     renderPage();
     await screen.findByText('Reminders can be sent once the invitation is published.');
     expect(reads).toBe(0);
+  });
+});
+
+describe('the automatic reminders', () => {
+  const box = () => screen.findByRole('checkbox', { name: /Remind by itself 21, 7 and 2 days/ });
+
+  it('are on unless the event says otherwise, and Save waits for a change', async () => {
+    serve();
+    renderPage();
+    expect(await box()).toBeChecked();
+    expect(screen.getByText('Now: on.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('switch off with the settings call alone, then say so', async () => {
+    const { state, reads } = serve();
+    const received: unknown[] = [];
+    server.use(
+      http.patch(`${API}/events/e1/settings`, async ({ request }) => {
+        received.push(await request.json());
+        state.remindersEnabled = false;
+        return HttpResponse.json({ id: 'e1', remindersEnabled: false, visibility: 'PRIVATE' });
+      }),
+    );
+    const user = renderPage();
+    await user.click(await box());
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const status = await screen.findByText('Automatic reminders are off for this event.');
+    await waitFor(() => expect(status).toHaveFocus());
+    expect(received).toEqual([{ remindersEnabled: false }]);
+    expect(reads.event).toBe(2);
+    expect(screen.getByText(/Now: off/)).toBeInTheDocument();
+  });
+
+  it('switch back on', async () => {
+    serve({ remindersEnabled: false });
+    const received: unknown[] = [];
+    server.use(
+      http.patch(`${API}/events/e1/settings`, async ({ request }) => {
+        received.push(await request.json());
+        return HttpResponse.json({ id: 'e1', remindersEnabled: true });
+      }),
+    );
+    const user = renderPage();
+    expect(await box()).not.toBeChecked();
+    await user.click(await box());
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await screen.findByText('Automatic reminders are on for this event.');
+    expect(received).toEqual([{ remindersEnabled: true }]);
+  });
+
+  it('word a 403, and keep the choice to try again', async () => {
+    serve();
+    server.use(http.patch(`${API}/events/e1/settings`, refused(403)));
+    const user = renderPage();
+    await user.click(await box());
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your role on this event can’t change this.',
+    );
+    expect(await box()).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 });

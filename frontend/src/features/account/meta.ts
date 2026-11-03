@@ -37,7 +37,12 @@ type AppPage =
   | 'orders'
   | 'door'
   | 'followUps'
-  | 'team';
+  | 'team'
+  | 'archivedEvents'
+  | 'recordAnswer'
+  | 'runningOrder'
+  | 'suppressions'
+  | 'promoCodes';
 
 export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
   const t = createI18n(language).getFixedT(language, 'account');

@@ -46,7 +46,7 @@ function EditForm({ event, onSuggested }: EditFormProps) {
 
   const onSubmit = async (values: EventFormValues) => {
     setProblem(null);
-    const body = updatePayload(initial, values);
+    const body = updatePayload(initial, values, event.translations);
     if (Object.keys(body).length === 0) {
       await navigate(eventPath(event.id));
       return;
@@ -77,6 +77,7 @@ function EditForm({ event, onSuggested }: EditFormProps) {
           mode="edit"
           zones={zones}
           languages={languageOptions(event.locales)}
+          stored={event.translations}
         />
         <div className="flex flex-wrap items-center gap-3">
           <SubmitButton isSubmitting={isSubmitting} className="w-auto">

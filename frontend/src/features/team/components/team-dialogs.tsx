@@ -1,17 +1,12 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
-import type { PageActions } from '@/ui/app-form';
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/ui/kit/alert-dialog';
+  AskFirstDialog,
+  useDialogAction,
+  type DialogContext as PageDialogContext,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import {
   Dialog,
@@ -27,44 +22,12 @@ import { refusalOf, type TeamRefusal } from '../refusals';
 import type { EventRole, OpenInvite, TeamMember } from '../types';
 import { RoleChoices, TeamProblem, useRoleName } from './shared';
 
-interface DialogContext {
+interface DialogContext extends PageDialogContext {
   eventId: string;
-  page: PageActions;
-  onClose: () => void;
-  /** Back to what opened the dialog, when nothing was done. */
-  restoreFocus: (closing: Event) => void;
 }
 
-/**
- * One press inside a dialog. It can't be dismissed while the request runs, so a refusal always has
- * somewhere to show, and a late answer can't close the next dialog.
- */
-function useDialogAction({ page, onClose, restoreFocus }: DialogContext) {
-  const [isBusy, setIsBusy] = useState(false);
-  const [refusal, setRefusal] = useState<TeamRefusal | null>(null);
-  const isDone = useRef(false);
-  /** After an action, to the status line; otherwise back to what opened the dialog. */
-  const onCloseAutoFocus = (closing: Event) =>
-    isDone.current ? page.focusStatus(closing) : restoreFocus(closing);
-  const onOpenChange = (isOpen: boolean) => {
-    if (!isOpen && !isBusy) onClose();
-  };
-  const run = async (action: () => Promise<void>, message: string) => {
-    setRefusal(null);
-    setIsBusy(true);
-    try {
-      await action();
-      await page.done(message);
-      isDone.current = true;
-      onClose();
-    } catch (error) {
-      const found = refusalOf(error);
-      setRefusal(found);
-      setIsBusy(false);
-      if (found.isStale) page.reload();
-    }
-  };
-  return { isBusy, refusal, run, onCloseAutoFocus, onOpenChange };
+function useTeamDialogAction(context: DialogContext) {
+  return useDialogAction<TeamRefusal>(context, refusalOf);
 }
 
 /**
@@ -76,7 +39,7 @@ export function ChangeRoleDialog({ member, ...context }: DialogContext & { membe
   const roleName = useRoleName();
   const labelId = useId();
   const [role, setRole] = useState<EventRole | null>(member.role);
-  const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useDialogAction(context);
+  const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useTeamDialogAction(context);
   const save = (chosen: EventRole) =>
     run(
       () => changeRole(browserSession().api, context.eventId, member.userId, chosen),
@@ -118,60 +81,19 @@ export function ChangeRoleDialog({ member, ...context }: DialogContext & { membe
   );
 }
 
-interface AskFirstProps {
-  onOpenChange: (isOpen: boolean) => void;
-  onCloseAutoFocus: (closing: Event) => void;
-  title: string;
-  body: string;
-  confirmLabel: string;
-  isBusy: boolean;
-  refusal: TeamRefusal | null;
-  onConfirm: () => void;
-}
-
-function AskFirst({
-  onOpenChange,
-  onCloseAutoFocus,
-  title,
-  body,
-  confirmLabel,
-  isBusy,
-  refusal,
-  onConfirm,
-}: AskFirstProps) {
-  const { t } = useTranslation('team');
-  return (
-    <AlertDialog open onOpenChange={onOpenChange}>
-      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{body}</AlertDialogDescription>
-        </AlertDialogHeader>
-        {refusal ? <TeamProblem refusal={refusal} /> : null}
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isBusy}>{t('dialog.cancel')}</AlertDialogCancel>
-          <Button variant="destructive" disabled={isBusy} onClick={onConfirm}>
-            {isBusy ? t('dialog.saving') : confirmLabel}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 /** Taking someone off the team asks first: they are locked out at once. */
 export function RemoveMemberDialog({ member, ...context }: DialogContext & { member: TeamMember }) {
   const { t } = useTranslation('team');
-  const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useDialogAction(context);
+  const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useTeamDialogAction(context);
   return (
-    <AskFirst
+    <AskFirstDialog
       onOpenChange={onOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
       title={t('remove.title', { name: member.name })}
       body={t('remove.body')}
       confirmLabel={t('remove.confirm')}
       isBusy={isBusy}
-      refusal={refusal}
+      problem={refusal ? <TeamProblem refusal={refusal} /> : null}
       onConfirm={() =>
         void run(
           () => removeMember(browserSession().api, context.eventId, member.userId),
@@ -188,16 +110,16 @@ export function WithdrawInviteDialog({
   ...context
 }: DialogContext & { invite: OpenInvite }) {
   const { t } = useTranslation('team');
-  const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useDialogAction(context);
+  const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useTeamDialogAction(context);
   return (
-    <AskFirst
+    <AskFirstDialog
       onOpenChange={onOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
       title={t('withdraw.title', { email: invite.email })}
       body={t('withdraw.body')}
       confirmLabel={t('withdraw.confirm')}
       isBusy={isBusy}
-      refusal={refusal}
+      problem={refusal ? <TeamProblem refusal={refusal} /> : null}
       onConfirm={() =>
         void run(
           () => withdrawInvite(browserSession().api, context.eventId, invite.email),

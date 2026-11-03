@@ -32,7 +32,12 @@
       "other": "Vérifiez ce champ.",
       "capacity": "Saisissez un nombre entier de 1 à 100 000, ou laissez vide.",
       "cantClear": "Une fois renseigné, ce champ peut être modifié mais pas vidé."
-    }
+    },
+    "otherLanguages": "Dans les autres langues de l’événement",
+    "otherLanguagesHelp": "Les invités qui lisent l’une de ces langues voient son nom et son adresse. Laissés vides, ils voient le nom et l’adresse ci-dessus.",
+    "nameIn": "Nom en {{language}}",
+    "addressIn": "Adresse en {{language}}",
+    "defaultOverride": "Les invités qui lisent la langue par défaut ({{language}}) voient ces mots au lieu du nom et de l’adresse ci-dessus. Videz les deux pour afficher ceux-ci."
   },
   "form": {
     "newTitle": "Ajouter un lieu",

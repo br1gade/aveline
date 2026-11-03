@@ -161,6 +161,7 @@
     "conflict": "Quelqu’un vient de modifier l’invitation. La page a été rechargée ; réessayez.",
     "sendRefused": "L’invitation ne peut pas être envoyée pour le moment.",
     "other": "Cela n’a pas été accepté. Réessayez.",
-    "expired": "Le délai de cette invitation est écoulé, elle ne peut donc pas être envoyée. La page a été rechargée."
+    "expired": "Le délai de cette invitation est écoulé, elle ne peut donc pas être envoyée. La page a été rechargée.",
+    "archived": "Cet événement est archivé : son invitation ne peut être ni publiée ni rouverte. Rétablissez-le d’abord depuis la page de l’événement."
   }
 }

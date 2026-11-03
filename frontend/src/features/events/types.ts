@@ -11,6 +11,8 @@ export interface EventSummary {
   /** ISO 8601 UTC. Shown in `timezone`, the event's own zone (docs/API.md §1). */
   startsAt: string;
   timezone: string;
+  /** Whose event it is; the list also holds events the caller was invited onto in another. */
+  organizationId?: string;
 }
 
 export const EVENT_TYPES = [
@@ -44,6 +46,9 @@ export interface EventInvitation {
 /** An event as `GET /events/:id`, `POST /events` and `PATCH /events/:id` return it. */
 export type EventVisibility = 'PRIVATE' | 'UNLISTED' | 'PUBLIC';
 
+/** `ARCHIVED` is put away; `statusBeforeArchive` is what bringing it back restores. */
+export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'ARCHIVED';
+
 export interface EventDetail extends EventSummary {
   type: EventType;
   hostsLabel: string;
@@ -67,6 +72,12 @@ export interface EventDetail extends EventSummary {
   visibility?: EventVisibility;
   /** The venues in the host's order; the seating page reads which ones guests see (FR-52). */
   venues?: Array<{ id: string; role: string; name?: string }>;
+  /** Whether Aveline reminds non-responders by itself 21, 7 and 2 days before; on unless switched off. */
+  remindersEnabled?: boolean;
+  status?: EventStatus;
+  statusBeforeArchive?: EventStatus | null;
+  /** Per-language title and hosts, as the backend stores them: `{ ru: { title, hostsLabel } }`. */
+  translations?: unknown;
   /** The running order; only which venue each entry is at, and whether guests see it. */
   timeline?: Array<{ venueId: string | null; isInternal: boolean }>;
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { instantFromWallTime } from '@/lib/time';
+import { instantFromWallTime, type ZonedInstant } from '@/lib/time';
 
 import { EVENT_TYPES } from './types';
 
@@ -20,6 +20,7 @@ export type EventFieldCode =
   | 'defaultLanguage'
   | 'timezone'
   | 'endsBefore'
+  | 'endPair'
   | 'refused';
 
 const code = (value: EventFieldCode) => ({ error: value });
@@ -57,6 +58,42 @@ function checkStart(values: StartFields, ctx: z.RefinementCtx): void {
     ctx.addIssue({ code: 'custom', path: ['time'], message: 'timeSkipped' });
 }
 
+interface EndFields extends StartFields {
+  endDate: string;
+  endTime: string;
+}
+
+/**
+ * The end is optional: both or neither. When both, a time that exists in the event's zone that
+ * day, after the start, as the backend requires (`endsAt: must be after startsAt`).
+ */
+function checkEnd(values: EndFields, ctx: z.RefinementCtx): void {
+  const { endDate: date, endTime: time } = values;
+  if (!date && !time) return;
+  if (!date || !time) {
+    ctx.addIssue({ code: 'custom', path: [date ? 'endTime' : 'endDate'], message: 'endPair' });
+    return;
+  }
+  const issue = endIssue(instantFromWallTime({ date, time }, values.timezone), values);
+  if (issue) ctx.addIssue({ code: 'custom', ...issue });
+}
+
+function endIssue(end: ZonedInstant, start: StartFields) {
+  if (end.kind === 'invalid') return { path: ['endDate'], message: 'dateInvalid' };
+  if (end.kind === 'skipped') return { path: ['endTime'], message: 'timeSkipped' };
+  const begins = instantFromWallTime(start, start.timezone);
+  if (begins.kind === 'instant' && end.iso <= begins.iso) {
+    return { path: ['endDate'], message: 'endsBefore' };
+  }
+  return null;
+}
+
+/** A language's title and hosts, each bounded as the backend bounds them (`EVENT_TRANSLATABLE`). */
+const translation = z.object({
+  title: z.string().trim().max(200, code('tooLong')),
+  hostsLabel: z.string().trim().max(200, code('tooLong')),
+});
+
 function checkDefaultLanguage(
   values: { locales: string[]; defaultLocale: string },
   ctx: z.RefinementCtx,
@@ -67,8 +104,9 @@ function checkDefaultLanguage(
 }
 
 /**
- * Creating and correcting share one form. Only the hosts differ: optional when creating, where the
- * title stands in, and required when correcting, where the backend refuses an empty one.
+ * Creating and correcting share one form. The hosts differ: optional when creating, where the
+ * title stands in, and required when correcting, where the backend refuses an empty one. The end,
+ * the sides and the other languages are shown when correcting only (design PD-109, PD-110).
  */
 export function eventFormSchema(mode: 'create' | 'edit') {
   return z
@@ -82,8 +120,16 @@ export function eventFormSchema(mode: 'create' | 'edit') {
       timezone: z.string().min(1, code('choose')),
       locales: z.array(z.string()).min(1, code('languages')).max(10, code('languages')),
       defaultLocale: z.string(),
+      endDate: z.string(),
+      endTime: z.string(),
+      sideALabel: text(0, 60),
+      sideBLabel: text(0, 60),
+      translations: z.record(z.string(), translation),
     })
     .superRefine(checkStart, { when: whenPassed(['date', 'time', 'timezone']) })
+    .superRefine(checkEnd, {
+      when: whenPassed(['date', 'time', 'timezone', 'endDate', 'endTime']),
+    })
     .superRefine(checkDefaultLanguage, { when: whenPassed(['locales']) });
 }
 

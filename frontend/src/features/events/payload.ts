@@ -1,6 +1,8 @@
 import type { components } from '@/api/schema';
+import { translatedLanguages, translationEdits } from '@/lib/i18n';
 import { instantFromWallTime } from '@/lib/time';
 
+import { EVENT_TRANSLATED } from './form-model';
 import type { EventFormValues } from './schemas';
 
 type Schemas = components['schemas'];
@@ -25,6 +27,50 @@ export function createPayload(values: EventFormValues): Schemas['CreateEventDto'
   };
 }
 
+/** The end as UTC, or `null` for none. The form's schema refused anything that is not one instant. */
+function endsAtOf(values: EventFormValues): string | null {
+  if (!values.endDate && !values.endTime) return null;
+  const end = instantFromWallTime({ date: values.endDate, time: values.endTime }, values.timezone);
+  if (end.kind !== 'instant') throw new Error(`The form let through a ${end.kind} end`);
+  return end.iso;
+}
+
+/** A new zone moves a typed end with it, as it moves the start. */
+function isEndEdited(initial: EventFormValues, values: EventFormValues): boolean {
+  return (
+    values.endDate !== initial.endDate ||
+    values.endTime !== initial.endTime ||
+    (values.timezone !== initial.timezone && values.endDate !== '')
+  );
+}
+
+/** The words of the languages the form shows, against what is stored: one language whole, or `null`. */
+function translationsEdited(values: EventFormValues, stored: unknown) {
+  const shown = translatedLanguages(values.locales, values.defaultLocale, stored, EVENT_TRANSLATED);
+  const edited = Object.fromEntries(
+    shown.map((language) => [
+      language,
+      values.translations[language] ?? { title: '', hostsLabel: '' },
+    ]),
+  );
+  return translationEdits(stored, edited, EVENT_TRANSLATED);
+}
+
+/** The end, the sides and the other languages: what only correcting shows (design PD-110). */
+function detailEdits(
+  initial: EventFormValues,
+  values: EventFormValues,
+  stored: unknown,
+): Schemas['UpdateEventDto'] {
+  const body: Schemas['UpdateEventDto'] = {};
+  if (isEndEdited(initial, values)) body.endsAt = endsAtOf(values);
+  if (values.sideALabel !== initial.sideALabel) body.sideALabel = values.sideALabel || null;
+  if (values.sideBLabel !== initial.sideBLabel) body.sideBLabel = values.sideBLabel || null;
+  const translations = translationsEdited(values, stored);
+  if (Object.keys(translations).length > 0) body.translations = translations;
+  return body;
+}
+
 function isSameSet(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((value) => b.includes(value));
 }
@@ -47,12 +93,14 @@ function isStartEdited(initial: EventFormValues, values: EventFormValues): boole
 
 /**
  * Only what the host changed (docs/API.md §6: omitted means unchanged), so an edit never writes
- * back a value someone else changed meanwhile. A new zone keeps the typed time, so the start moves
- * with it. Languages are compared as a set: reordering them is not a change.
+ * back a value someone else changed meanwhile. A new zone keeps the typed times, so the start and
+ * end move with it. Languages are compared as a set: reordering them is not a change. An emptied
+ * end or side is `null`, which clears it; `stored` is the event's `translations` as loaded.
  */
 export function updatePayload(
   initial: EventFormValues,
   values: EventFormValues,
+  stored: unknown,
 ): Schemas['UpdateEventDto'] {
   const body: Schemas['UpdateEventDto'] = {};
   if (values.type !== initial.type) body.type = values.type;
@@ -64,5 +112,5 @@ export function updatePayload(
     body.locales = keptOrder(initial.locales, values.locales);
   }
   if (values.defaultLocale !== initial.defaultLocale) body.defaultLocale = values.defaultLocale;
-  return body;
+  return { ...body, ...detailEdits(initial, values, stored) };
 }

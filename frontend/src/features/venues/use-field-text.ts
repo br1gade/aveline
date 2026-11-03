@@ -1,4 +1,3 @@
-import type { FieldError } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import type { VenueFieldCode } from './schemas';
@@ -21,11 +20,14 @@ function isFieldCode(code: string): code is VenueFieldCode {
 }
 
 /** A field's error in words, from the code the schema or `refusedVenueFields` gave it. */
-export function useVenueFieldText(): (error: FieldError | undefined) => string | undefined {
+export function useVenueFieldText(): (
+  error: { message?: unknown } | undefined,
+) => string | undefined {
   const { t } = useTranslation('venues');
   return (error) => {
-    if (!error) return undefined;
-    const code = error.message ?? '';
+    // A section whose own fields carry the errors has no message of its own: nothing to say.
+    if (typeof error?.message !== 'string') return undefined;
+    const code = error.message;
     return isFieldCode(code) ? t(`fields.errors.${code}`) : t('fields.errors.other');
   };
 }

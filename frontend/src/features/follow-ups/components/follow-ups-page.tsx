@@ -4,9 +4,11 @@ import { Link } from 'react-router';
 
 import { eventPath } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
+import { StatusLine, usePageStatus, type PageActions } from '@/ui/app-form';
 
 import { chaseOffer, expectedChase, expectedThanks, thankOffer } from '../audience';
 import type { FollowUpsData } from '../load';
+import { AutomaticReminders } from './automatic-reminders';
 import { ChasePanel } from './chase-panel';
 import { ThankPanel } from './thank-panel';
 
@@ -33,7 +35,7 @@ function ExpectedProblem({ data }: { data: FollowUpsData }) {
   return null;
 }
 
-function Panels({ data }: { data: FollowUpsData }) {
+function Panels({ data, page }: { data: FollowUpsData; page: PageActions }) {
   const { t } = useTranslation('follow-ups');
   const audiences = useAudiences(data);
   const { event, now } = data;
@@ -46,6 +48,7 @@ function Panels({ data }: { data: FollowUpsData }) {
       ) : (
         <ExpectedProblem data={data} />
       )}
+      <AutomaticReminders event={event} page={page} />
       <ChasePanel
         eventId={event.id}
         slug={invitation.slug}
@@ -70,6 +73,7 @@ function Panels({ data }: { data: FollowUpsData }) {
 export function FollowUpsPage({ data }: { data: FollowUpsData }) {
   const { t } = useTranslation('follow-ups');
   const { event } = data;
+  const { page, status, statusRef } = usePageStatus(data);
   return (
     <section className="flex flex-col gap-6">
       <Link
@@ -82,7 +86,8 @@ export function FollowUpsPage({ data }: { data: FollowUpsData }) {
         <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('title')}</h1>
         <p className="text-muted-foreground m-0">{event.title}</p>
       </div>
-      <Panels data={data} />
+      <StatusLine statusRef={statusRef}>{status}</StatusLine>
+      <Panels data={data} page={page} />
     </section>
   );
 }

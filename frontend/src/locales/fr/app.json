@@ -33,7 +33,12 @@
     "door": "L’entrée · Aveline",
     "followUps": "Rappels et remerciements · Aveline",
     "team": "L’équipe · Aveline",
-    "venueDirectory": "L’annuaire des lieux · Aveline"
+    "venueDirectory": "L’annuaire des lieux · Aveline",
+    "archivedEvents": "Événements archivés · Aveline",
+    "recordAnswer": "Enregistrer une réponse · Aveline",
+    "runningOrder": "Déroulé de la journée · Aveline",
+    "suppressions": "Personnes à ne pas contacter · Aveline",
+    "promoCodes": "Codes promo · Aveline"
   },
   "shell": {
     "loading": "Chargement…",
@@ -51,7 +56,12 @@
     "title": "Vos événements",
     "empty": "Vos événements apparaîtront ici.",
     "create": "Créer un événement",
-    "createFirst": "Créer votre premier événement"
+    "createFirst": "Créer votre premier événement",
+    "more": "Plus",
+    "archived": "Événements archivés",
+    "suppressions": "Personnes à ne pas contacter",
+    "promoCodes": "Codes promo",
+    "organization": "Les personnes à ne pas contacter et les codes promo appartiennent à votre organisation : ils valent pour chaque événement."
   },
   "welcome": {
     "title": "Configurer votre organisation",

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { eventPath, followUpsPath, type EventDetail } from '@/features/events';
+import { ArchivedNotice, eventPath, followUpsPath, type EventDetail } from '@/features/events';
 import { formatEventDay, formatEventTime } from '@/lib/time';
 import { StatusLine, usePageStatus } from '@/ui/app-form';
 
@@ -71,6 +71,7 @@ export function InvitationPage({ data }: { data: InvitationPageData }) {
       ) : (
         <p className="m-0">{t('page.noInvitation')}</p>
       )}
+      <ArchivedNotice event={event} where="invitation" />
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {invitation?.status === 'DRAFT' && draft ? (
         <PublishPanel eventId={event.id} slug={invitation.slug} draft={draft} page={page} />

@@ -33,7 +33,12 @@
     "door": "The door · Aveline",
     "followUps": "Reminders and thanks · Aveline",
     "team": "The team · Aveline",
-    "venueDirectory": "The venue directory · Aveline"
+    "venueDirectory": "The venue directory · Aveline",
+    "archivedEvents": "Archived events · Aveline",
+    "recordAnswer": "Record an answer · Aveline",
+    "runningOrder": "Running order · Aveline",
+    "suppressions": "Who must not be contacted · Aveline",
+    "promoCodes": "Promo codes · Aveline"
   },
   "shell": {
     "loading": "Loading…",
@@ -51,7 +56,12 @@
     "title": "Your events",
     "empty": "Your events will appear here.",
     "create": "Create an event",
-    "createFirst": "Create your first event"
+    "createFirst": "Create your first event",
+    "more": "More",
+    "archived": "Archived events",
+    "suppressions": "Who must not be contacted",
+    "promoCodes": "Promo codes",
+    "organization": "Who must not be contacted, and promo codes, are your organization’s own: they apply to every event."
   },
   "welcome": {
     "title": "Set up your organization",

@@ -696,14 +696,52 @@ describe('EditEvent', () => {
     expect(received).toEqual([{ hostsLabel: 'Anna & Davit!' }]);
   });
 
-  it('explains an end time it cannot change, at the date', async () => {
+  it('offers each other ticked language’s title and hosts, and sends one changed whole', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    const user = at();
+    await user.click(await screen.findByRole('checkbox', { name: 'Русский' }));
+    const title = await screen.findByLabelText('Title in Русский');
+    expect(title).toHaveAttribute('lang', 'ru');
+    await user.type(title, 'Свадьба');
+    await save(user);
+    await waitFor(() => expect(received).toHaveLength(1));
+    expect(received[0]).toMatchObject({ translations: { ru: { title: 'Свадьба' } } });
+  });
+
+  it('marks a language’s word that is too long on its own field, and nothing on the section', async () => {
+    const user = at();
+    await user.click(await screen.findByRole('checkbox', { name: 'Русский' }));
+    const title = await screen.findByLabelText('Title in Русский');
+    fireEvent.change(title, { target: { value: 'A'.repeat(201) } });
+    await save(user);
+    await waitFor(() =>
+      expect(title).toHaveAccessibleDescription(expect.stringContaining('This is too long.')),
+    );
+    expect(screen.queryByText('Check this field.')).not.toBeInTheDocument();
+  });
+
+  it('sends an end typed in the event’s zone, and a new side', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    const user = at();
+    await user.type(await screen.findByLabelText('First side'), 'Anna’s family');
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2027-06-12' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '23:00' } });
+    await save(user);
+    await waitFor(() => expect(received).toHaveLength(1));
+    expect(received[0]).toEqual({
+      endsAt: '2027-06-13T06:00:00.000Z',
+      sideALabel: 'Anna’s family',
+    });
+  });
+
+  it('puts the backend’s refusal of the end on the end’s date', async () => {
     answer('patch', '/events/e1', refusal(400, ['endsAt: must be after startsAt']));
     const user = at();
     await typeWhen('2027-08-01', '04:00');
     await save(user);
     await waitFor(() =>
-      expect(screen.getByLabelText('Date')).toHaveAccessibleDescription(
-        'The event’s end time is earlier than this, and it can’t be changed here yet.',
+      expect(screen.getByLabelText('End date')).toHaveAccessibleDescription(
+        expect.stringContaining('The end must come after the start.'),
       ),
     );
   });

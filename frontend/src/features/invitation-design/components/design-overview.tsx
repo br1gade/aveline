@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { ArchivedNotice } from '@/features/events';
 import { BLOCK_TYPES, type BlockType } from '@/features/invitation-renderer';
 import { BlockerList, readBlockers } from '@/features/sending';
 import { StatusLine, usePageStatus } from '@/ui/app-form';
@@ -113,6 +114,7 @@ function Overview({ data, design }: { data: DesignData; design: Design }) {
         <DesignState design={design} />
       </DesignHeader>
       <DesignLinks design={design} />
+      <ArchivedNotice event={data.event} where="design" />
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       <Blockers design={design} />
       <p className="m-0">

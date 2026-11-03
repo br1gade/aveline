@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, redirect } from 'react-router';
 
 import { appMeta, needsOrganization, ownOrganization, requireSignedIn } from '@/features/account';
-import { EventList, listEvents } from '@/features/events';
+import { ArrivalStatus, EventList, listEvents } from '@/features/events';
 import { languageOfMatches } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 import { Button } from '@/ui/kit/button';
@@ -42,7 +42,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </Button>
         ) : null}
       </div>
+      <ArrivalStatus />
       <EventList events={events} />
+      <nav aria-label={t('home.more')} className="flex flex-col gap-2">
+        <h2 className="m-0 text-lg font-medium">{t('home.more')}</h2>
+        {[
+          { to: APP_PATHS.archivedEvents, label: t('home.archived') },
+          { to: APP_PATHS.suppressions, label: t('home.suppressions') },
+          { to: APP_PATHS.promoCodes, label: t('home.promoCodes') },
+        ].map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
+          >
+            {link.label}
+          </Link>
+        ))}
+        <p className="text-muted-foreground m-0 text-sm">{t('home.organization')}</p>
+      </nav>
     </section>
   );
 }

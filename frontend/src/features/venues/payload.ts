@@ -1,6 +1,8 @@
 import type { components } from '@/api/schema';
+import { translationEdits } from '@/lib/i18n';
 import { instantFromWallTime } from '@/lib/time';
 
+import { VENUE_TRANSLATED } from './form-model';
 import type { VenueUpdate } from './api';
 import type { HallFormValues, VenueFormValues } from './schemas';
 
@@ -27,6 +29,7 @@ export function createVenuePayload(
   profileId?: string,
 ): Schemas['CreateVenueDto'] {
   const arriveAt = arrivalOf(values, timeZone);
+  const translations = translationEdits({}, values.translations, VENUE_TRANSLATED);
   return {
     role: values.role,
     name: values.name,
@@ -34,6 +37,7 @@ export function createVenuePayload(
     ...(values.mapUrl ? { mapUrl: values.mapUrl } : {}),
     ...(arriveAt ? { arriveAt } : {}),
     ...(profileId ? { profileId } : {}),
+    ...(Object.keys(translations).length > 0 ? { translations } : {}),
   };
 }
 
@@ -44,12 +48,14 @@ function isArrivalEdited(initial: VenueFormValues, values: VenueFormValues): boo
 /**
  * Only what the host changed (docs/API.md §6: omitted means unchanged), so a correction never
  * writes back a value someone else changed meanwhile. An emptied map link or arrival is `null`,
- * which clears it.
+ * which clears it; a language's words go whole, or `null` when emptied. `stored` is the venue's
+ * `translations` as loaded.
  */
 export function updateVenuePayload(
   initial: VenueFormValues,
   values: VenueFormValues,
   timeZone: string,
+  stored: unknown,
 ): VenueUpdate {
   const body: VenueUpdate = {};
   if (values.role !== initial.role) body.role = values.role;
@@ -57,6 +63,8 @@ export function updateVenuePayload(
   if (values.address !== initial.address) body.address = values.address;
   if (values.mapUrl !== initial.mapUrl) body.mapUrl = values.mapUrl || null;
   if (isArrivalEdited(initial, values)) body.arriveAt = arrivalOf(values, timeZone);
+  const translations = translationEdits(stored, values.translations, VENUE_TRANSLATED);
+  if (Object.keys(translations).length > 0) body.translations = translations;
   return body;
 }
 

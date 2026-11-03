@@ -25,6 +25,8 @@ export interface Venue {
   mapUrl: string | null;
   /** When guests should arrive, ISO 8601 UTC; shown and typed in the event's zone. */
   arriveAt: string | null;
+  /** Per-language name and address, as the backend stores them: `{ ru: { name, address } }`. */
+  translations: unknown;
 }
 
 export interface VenueWire {
@@ -34,6 +36,7 @@ export interface VenueWire {
   address: string;
   mapUrl: string | null;
   arriveAt: string | null;
+  translations?: unknown;
 }
 
 /** `POST` and `PATCH` return the venue with the notice; `DELETE` returns `{ ok, notice }`. */

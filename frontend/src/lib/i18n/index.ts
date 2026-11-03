@@ -11,3 +11,11 @@ export {
   negotiatedLanguageHandle,
   passLoaderHeaders,
 } from './page-route';
+export {
+  labelEdits,
+  translatedLanguages,
+  translationEdits,
+  translationValues,
+  wordsIn,
+} from './translation-edits';
+export { useLanguageName } from './use-language-name';

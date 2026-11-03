@@ -103,6 +103,7 @@ describe('adding a venue from the directory', () => {
     mapUrl: '',
     arrivalDate: '',
     arrivalTime: '',
+    translations: {},
   };
 
   it('names the hall, whose coordinates and capacity the server copies', () => {

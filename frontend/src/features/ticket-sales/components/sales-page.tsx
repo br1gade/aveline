@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { eventPath, ordersPath } from '@/features/events';
+import { APP_PATHS } from '@/route-paths';
 import { StatusLine, usePageStatus } from '@/ui/app-form';
 
 import type { TicketSalesData } from '../load';
@@ -33,6 +34,9 @@ export function TicketSalesPage({ data }: { data: TicketSalesData }) {
       <VisibilityPanel key={event.visibility ?? 'PRIVATE'} data={data} page={page} />
       <AnnouncementPanel data={data} page={page} />
       <TicketTypesPanel data={data} page={page} />
+      <Link to={APP_PATHS.promoCodes} className={LINK}>
+        {t('promoCodes')}
+      </Link>
       <Link to={ordersPath(event.id)} className={LINK}>
         {t('toOrders')}
       </Link>

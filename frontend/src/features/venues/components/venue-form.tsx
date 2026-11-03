@@ -11,7 +11,7 @@ import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { createVenue, updateVenue } from '../api';
-import { NEW_VENUE_VALUES, venueFormValues } from '../form-model';
+import { newVenueValues, venueFormValues, venueLanguages } from '../form-model';
 import type { NewVenueData } from '../load';
 import { venuesPath } from '../paths';
 import { createVenuePayload, updateVenuePayload } from '../payload';
@@ -35,23 +35,23 @@ interface VenueFormProps {
 /** What a save writes to: a correction of `venueId` from its baseline, or a new venue. */
 interface SaveTarget {
   baseline: VenueFormValues | null;
-  venueId: string | undefined;
+  venue: Venue | null;
   hall: DirectoryHall | null;
 }
 
 /** Sends the form; `null` when a correction changed nothing, so nothing was sent. */
 async function saveVenue(
   event: EventDetail,
-  { baseline, venueId, hall }: SaveTarget,
+  { baseline, venue, hall }: SaveTarget,
   values: VenueFormValues,
 ): Promise<EventNotice | null> {
   const { api } = browserSession();
-  if (!baseline || !venueId) {
+  if (!baseline || !venue) {
     return createVenue(api, event.id, createVenuePayload(values, event.timezone, hall?.id));
   }
-  const body = updateVenuePayload(baseline, values, event.timezone);
+  const body = updateVenuePayload(baseline, values, event.timezone, venue.translations);
   if (Object.keys(body).length === 0) return null;
-  return updateVenue(api, event.id, venueId, body);
+  return updateVenue(api, event.id, venue.id, body);
 }
 
 function FormActions({
@@ -108,10 +108,13 @@ export function VenueForm({ event, venue, directory, onHallRetired, onSuggested 
   const schema = useMemo(() => venueFormSchema(event.timezone), [event.timezone]);
   // The baseline is the venue as the form first showed it, as the event form's is: a later reload
   // of the page must not move it.
-  const [baseline] = useState(() => (venue ? venueFormValues(venue, event.timezone) : null));
+  const [languages] = useState(() => venueLanguages(event, venue));
+  const [baseline] = useState(() =>
+    venue ? venueFormValues(venue, event.timezone, languages) : null,
+  );
   const form = useForm<VenueFormInput, unknown, VenueFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: baseline ?? NEW_VENUE_VALUES,
+    defaultValues: baseline ?? newVenueValues(languages),
   });
   const { isSubmitting } = form.formState;
 
@@ -123,7 +126,7 @@ export function VenueForm({ event, venue, directory, onHallRetired, onSuggested 
   const onSubmit = async (values: VenueFormValues) => {
     setProblem(null);
     try {
-      const notice = await saveVenue(event, { baseline, venueId: venue?.id, hall }, values);
+      const notice = await saveVenue(event, { baseline, venue, hall }, values);
       if (notice?.isSuggested && event.invitation) {
         onSuggested({ slug: event.invitation.slug, households: notice.householdsInvited });
       } else {
@@ -149,7 +152,12 @@ export function VenueForm({ event, venue, directory, onHallRetired, onSuggested 
         {directory ? (
           <DirectoryPicker directory={directory} form={form} hall={hall} onChoose={setHall} />
         ) : null}
-        <VenueFields form={form} timeZone={event.timezone} />
+        <VenueFields
+          form={form}
+          timeZone={event.timezone}
+          languages={languages}
+          defaultLocale={event.defaultLocale}
+        />
         <FormActions eventId={event.id} isEditing={venue !== null} isSubmitting={isSubmitting} />
       </AppForm>
     </section>

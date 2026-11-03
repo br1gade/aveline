@@ -1,11 +1,8 @@
-import { LANGUAGES } from '@/lib/i18n';
-import { wallTimeOf } from '@/lib/time';
+import { LANGUAGES, translationValues } from '@/lib/i18n';
+import { DEFAULT_TIME_ZONE, wallTimeOf } from '@/lib/time';
 
 import type { EventFormInput, EventFormValues } from './schemas';
 import type { EventDetail } from './types';
-
-/** The backend's own default zone and language (docs/API.md §6, "Creating an event"). */
-export const DEFAULT_TIME_ZONE = 'Asia/Yerevan';
 
 export const NEW_EVENT_VALUES: EventFormInput = {
   type: '',
@@ -16,10 +13,27 @@ export const NEW_EVENT_VALUES: EventFormInput = {
   timezone: DEFAULT_TIME_ZONE,
   locales: ['hy'],
   defaultLocale: 'hy',
+  endDate: '',
+  endTime: '',
+  sideALabel: '',
+  sideBLabel: '',
+  translations: {},
 };
 
-/** An event as the form shows it: its start read in its own zone, never the device's. */
+/** What an event's title and hosts are called in `translations`. */
+export const EVENT_TRANSLATED = ['title', 'hostsLabel'] as const;
+
+/** Every language the form could show, so ticking one reveals its stored words, or empty ones. */
+function formLanguages(event: EventDetail): string[] {
+  const stored = event.translations;
+  const keys = typeof stored === 'object' && stored !== null ? Object.keys(stored) : [];
+  const offered = languageOptions(event.locales);
+  return [...offered, ...keys.filter((key) => !offered.includes(key))];
+}
+
+/** An event as the form shows it: its start and end read in its own zone, never the device's. */
 export function formValuesOf(event: EventDetail): EventFormValues {
+  const end = event.endsAt ? wallTimeOf(event.endsAt, event.timezone) : { date: '', time: '' };
   return {
     type: event.type,
     title: event.title.trim(),
@@ -28,6 +42,11 @@ export function formValuesOf(event: EventDetail): EventFormValues {
     timezone: event.timezone,
     locales: [...event.locales],
     defaultLocale: event.defaultLocale,
+    endDate: end.date,
+    endTime: end.time,
+    sideALabel: (event.sideALabel ?? '').trim(),
+    sideBLabel: (event.sideBLabel ?? '').trim(),
+    translations: translationValues(event.translations, formLanguages(event), EVENT_TRANSLATED),
   };
 }
 

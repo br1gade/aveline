@@ -349,6 +349,37 @@ describe('InvitationPage: replies', () => {
   });
 });
 
+describe('InvitationPage: an archived event', () => {
+  it('says what it refuses, linking back to the event to bring it back', async () => {
+    serve({ status: 'CLOSED' });
+    server.use(
+      http.get(`${API}/events/e1`, () =>
+        HttpResponse.json({ ...event('CLOSED'), status: 'ARCHIVED' }),
+      ),
+    );
+    renderPage();
+    expect(
+      await screen.findByText(/can’t be published or reopened until it’s brought back/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Bring it back on the event’s page.' }),
+    ).toHaveAttribute('href', '/app/events/e1');
+  });
+
+  it('words reopening refused because the event is archived', async () => {
+    serve({ status: 'CLOSED' });
+    answer(
+      `/invitations/${SLUG}/reopen`,
+      refusal(400, 'This event is archived; bring it back with POST /events/:id/unarchive first'),
+    );
+    const user = renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Take replies again' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This event is archived, so its invitation can’t be published or reopened.',
+    );
+  });
+});
+
 describe('InvitationPage: its time', () => {
   it('says until when guests can open it, in the event’s zone', async () => {
     serve({

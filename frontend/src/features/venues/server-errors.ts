@@ -1,6 +1,6 @@
 import type { VenueFieldCode } from './schemas';
 
-export type VenueField = 'role' | 'name' | 'address' | 'mapUrl' | 'arrivalDate';
+export type VenueField = 'role' | 'name' | 'address' | 'mapUrl' | 'arrivalDate' | 'translations';
 
 export interface FieldRefusal {
   field: VenueField;
@@ -11,8 +11,8 @@ export interface FieldRefusal {
  * Where each property's refusal goes on the venue form. The service prefixes its messages with the
  * property ("latitude: …"), class-validator starts with it and no colon ("name must be…", FR-20),
  * and the role check reads "role must be one of…". All put the property first, which is all this
- * reads; the words are the page's own. Coordinates, capacity and translations are not on the form,
- * so a refusal of one is the form's general message.
+ * reads; the words are the page's own. Coordinates and capacity are not on the form, so a refusal
+ * of one is the form's general message; a refused language's words go on that section.
  */
 const BY_PROPERTY: Readonly<Record<string, FieldRefusal>> = {
   role: { field: 'role', code: 'refused' },
@@ -20,6 +20,7 @@ const BY_PROPERTY: Readonly<Record<string, FieldRefusal>> = {
   address: { field: 'address', code: 'refused' },
   mapUrl: { field: 'mapUrl', code: 'refused' },
   arriveAt: { field: 'arrivalDate', code: 'refused' },
+  translations: { field: 'translations', code: 'refused' },
 };
 
 const LEADING_PROPERTY = /^([A-Za-z]+)(?::| )/;

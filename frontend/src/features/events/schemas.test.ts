@@ -79,3 +79,60 @@ describe('the event form', () => {
     expect(parsed).toMatchObject({ title: 'Anna & Davit', hostsLabel: 'Anna' });
   });
 });
+
+describe('the end, the sides and the other languages', () => {
+  it('takes no end, or both its date and time, after the start', () => {
+    expect(problems('edit', { ...valid, hostsLabel: 'A' })).toEqual({});
+    expect(problems('edit', { ...valid, hostsLabel: 'A', endDate: '2027-06-12' })).toEqual({
+      endTime: 'endPair',
+    });
+    expect(
+      problems('edit', { ...valid, hostsLabel: 'A', endDate: '2027-06-12', endTime: '15:00' }),
+    ).toEqual({ endDate: 'endsBefore' });
+    expect(
+      problems('edit', { ...valid, hostsLabel: 'A', endDate: '2027-06-12', endTime: '23:00' }),
+    ).toEqual({});
+  });
+
+  it('refuses an end the clocks skip in the event’s zone', () => {
+    expect(
+      problems('edit', {
+        ...valid,
+        hostsLabel: 'A',
+        date: '2027-03-27',
+        timezone: 'Europe/Berlin',
+        endDate: '2027-03-28',
+        endTime: '02:30',
+      }),
+    ).toEqual({ endTime: 'timeSkipped' });
+  });
+
+  it('takes a side up to 60 characters and each language’s words up to 200', () => {
+    expect(
+      problems('edit', {
+        ...valid,
+        hostsLabel: 'A',
+        sideALabel: 'A'.repeat(60),
+        translations: { ru: { title: 'A'.repeat(200), hostsLabel: 'A'.repeat(200) } },
+      }),
+    ).toEqual({});
+    expect(
+      problems('edit', {
+        ...valid,
+        hostsLabel: 'A',
+        translations: { ru: { title: '', hostsLabel: 'A'.repeat(201) } },
+      }),
+    ).toEqual({ 'translations.ru.hostsLabel': 'tooLong' });
+  });
+
+  it('keeps the backend’s limits on the sides and on each language’s words', () => {
+    expect(
+      problems('edit', {
+        ...valid,
+        hostsLabel: 'A',
+        sideALabel: 'A'.repeat(61),
+        translations: { ru: { title: 'A'.repeat(201), hostsLabel: '' } },
+      }),
+    ).toEqual({ sideALabel: 'tooLong', 'translations.ru.title': 'tooLong' });
+  });
+});

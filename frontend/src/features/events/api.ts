@@ -20,9 +20,33 @@ import type {
 
 type Schemas = components['schemas'];
 
-/** Every event the caller can reach, soonest first: a plain array, not an envelope. */
-export function listEvents(api: ApiClient): Promise<EventSummary[]> {
-  return expectData<EventSummary[]>(api.GET('/api/v1/events'));
+/**
+ * Every event the caller can reach, soonest first: a plain array, not an envelope. Archived events
+ * are left out, unless `isArchiveWanted` asks for them, and then they alone are listed.
+ */
+export function listEvents(
+  api: ApiClient,
+  options: { isArchiveWanted?: boolean } = {},
+): Promise<EventSummary[]> {
+  const query = options.isArchiveWanted ? { params: { query: { archived: true } } } : {};
+  return expectData<EventSummary[]>(api.GET('/api/v1/events', query));
+}
+
+/** Always allowed, and reversible: replies stop, the listing comes down. Needs `event:delete`. */
+export async function archiveEvent(api: ApiClient, id: string): Promise<void> {
+  await expectData<unknown>(api.POST('/api/v1/events/{id}/archive', { params: { path: { id } } }));
+}
+
+/** The event's status comes back; its invitation stays closed until it is reopened. */
+export async function unarchiveEvent(api: ApiClient, id: string): Promise<void> {
+  await expectData<unknown>(
+    api.POST('/api/v1/events/{id}/unarchive', { params: { path: { id } } }),
+  );
+}
+
+/** For good, files included: only an event never published, through which no money moved. */
+export async function deleteEvent(api: ApiClient, id: string): Promise<void> {
+  await expectData<unknown>(api.DELETE('/api/v1/events/{id}', { params: { path: { id } } }));
 }
 
 /** Creates the event, its draft invitation and the caller's place on it, in one request. */

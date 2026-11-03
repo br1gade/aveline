@@ -77,3 +77,20 @@ describe('the venue form’s checks', () => {
     });
   });
 });
+
+describe('a venue’s other languages', () => {
+  const base = { ...NEW_VENUE_VALUES, role: 'CEREMONY', name: 'Church', address: 'Main St' };
+  it.each([
+    [{ name: 'A'.repeat(160), address: 'A'.repeat(300) }, {}],
+    [{ name: 'A'.repeat(161), address: '' }, { 'translations.ru.name': 'tooLong' }],
+    [{ name: '', address: 'A'.repeat(301) }, { 'translations.ru.address': 'tooLong' }],
+  ])('bounds them as the backend does: %#', (ru, expected) => {
+    const result = venueFormSchema('Asia/Yerevan').safeParse({ ...base, translations: { ru } });
+    const problems = result.success
+      ? {}
+      : Object.fromEntries(
+          result.error.issues.map((issue) => [issue.path.join('.'), issue.message]),
+        );
+    expect(problems).toEqual(expected);
+  });
+});

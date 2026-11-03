@@ -502,6 +502,25 @@ hosts', all passed. No page had a hydration error, an Armenian page with a price
 no serious or critical violation in 34 runs, and no token appeared in the console or in any request
 outside the API but the guest's own emailed links. They were not run against the real backend.
 
+On 3 November 2026 a throwaway script walked the host gaps before the pilot the same way, against a
+stateful mock of the API: home and its organization links, the archived events, an event's
+overview published, a draft and archived, with the archive and delete dialogs open (the delete box
+ticked); the invitation's page and the designer of an archived event; correcting an event with its
+end, sides and other languages; correcting a venue in other languages; the running order, with its
+add, edit (marking a venue's last guest entry for the team, so the warning shows) and remove
+dialogs; the reminders page with its switch; the guest list; recording an answer, valid and refused
+before sending; who must not be contacted, with its lift dialog; and promo codes, with the limit and
+stop dialogs; and, at home, a status carried in the history entry shown once and gone on reload. In
+hy, ru, en and fr at 360 px, touch, and 1280 px: 200 checks passed, each with the right `<html lang>`,
+no raw key, nothing past the screen's right edge and no console error, and axe found no violation in
+200 runs. At 360 px every link, button, input, select, checkbox and radio measured at least 44 px,
+a checkbox or radio by the unseen area that takes its press; Radix's hidden native inputs beside them
+(`aria-hidden`, no pointer events) were left out. No guest token, served by the mock on every guest,
+appeared in a page, its address, storage or the console. The first run found the archived notice's
+inline link 20 to 42 px tall, now a full-height link, and "Use again" named "Use SPRING again", whose
+visible words weren't in its name, now "Use again: SPRING". Everything ran on the mock; nothing here was
+run against the real backend, and `npm run test:e2e` still has no tests.
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -642,6 +661,17 @@ outside the API but the guest's own emailed links. They were not run against the
 | 3 Nov 2026 | `WordedRefusal`, `useDialogOpener` and `WRAPPING_BUTTON` are in `ui/app-form`. A dialog of the new pages can't be dismissed while its request runs | Three features had near-identical copies. Radix returns the focus to a trigger these dialogs lack, so it fell to the body; and a late answer could lose its refusal or close the next dialog. The older dialogs keep their own (the seating's, the guest list's) |
 | 3 Nov 2026 | The follow-ups page reads its clock in the loader, not once on mounting | A refusal reloads the page; with a clock frozen at mounting, the button stayed beside "the event has started", and a page opened before the event could never offer the thank-you |
 | 3 Nov 2026 | The listing adds `Vary: Cookie, Accept-Language` (`publicListingHeaders`) to the event page's one-minute cache rule | Its language comes from the cookie or the browser, not the address, so `/events` could come back from the browser's cache in the last language |
+| 3 Nov 2026 | **The host gaps before the pilot** are four new features, `running-order`, `recorded-answer`, `suppressions` and `promo-codes`, and additions to `events`, `venues` and `follow-ups` (design PD-106 to PD-118) | Each has its own reads and refusals. Recording an answer reads one guest and the invitation's questions, so it sits above `guests` and `invitation-design`, as `follow-ups` does above `guests` and `sending` |
+| 3 Nov 2026 | Who must not be contacted and promo codes are pages of the organization, at `/app/suppressions` and `/app/promo-codes`, not of an event | The backend scopes both to the organization role alone (FR-98, FR-6), and neither has an event in its path. Their dates and times without an event are in Asia/Yerevan, the backend's default zone, never the device's |
+| 3 Nov 2026 | `useDialogAction` and `AskFirstDialog` join `ui/app-form`, with `DialogContext`; the team's dialogs use the hook | The running order, archiving, suppressions and promo codes needed the same busy-locked dialog the team wrote first: four more copies otherwise. `WRAPPING_BUTTON` moves to `wrapping.ts` so the dialog can import it without a cycle through the index |
+| 3 Nov 2026 | Per-language words go through one helper, `lib/i18n/translation-edits.ts`, and one field group, `ui/app-form/translation-fields.tsx`, for the event, its venues and the running order | The backend replaces a language whole, and a host-facing form shows the same languages by the same rule; written once, tested once |
+| 3 Nov 2026 | `useLanguageName` moves from `features/events/components/language-fields.tsx` to `lib/i18n` | The running order and both translation sections name languages the same way |
+| 3 Nov 2026 | Deleting an event lands on `/app` with its status line carried in the navigation's state (`ArrivalStatus`), and recording an answer lands on the guest list the same way | The deleted event's pages no longer exist, and the guest list is a page of its own; the address carries no message, so a reload shows none |
+| 3 Nov 2026 | Recording an answer is a page, not a dialog over the guest list | A guest's answer carries the invitation's questions, which at 360 px are too many for a dialog |
+| 3 Nov 2026 | The suppression request body is cast in `features/suppressions/api.ts`, the one cast this change adds | `SuppressDto` declares no properties in `openapi.json` (FR-99); the body is typed from the DTO beside it, and the cast is recorded with its exit |
+| 3 Nov 2026 | The status line a page carries to the next (`ArrivalStatus`) is read once, then taken out of the browser's history entry | Left there, a reload or a return by Back said "deleted" or "recorded" again and took the focus |
+| 3 Nov 2026 | `TextInputField` and `SelectField` take a `labelLang`, and `TranslationFields` is generic over its fields | A host's question is in the event's language, not the page's, and a screen reader needs to know; the field union reached each caller as a string, which each narrowed again |
+| 3 Nov 2026 | `DEFAULT_TIME_ZONE` moves to `lib/time`; the team's dialogs use `AskFirstDialog`, whose busy label is the common "Working…" | Written three times, and copied once, otherwise. `useDialogAction` frees a dialog before throwing an error that isn't the API's, which had left it stuck busy |
 
 ## 12. Not yet built
 
@@ -657,12 +687,28 @@ outside the API but the guest's own emailed links. They were not run against the
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
-  door, reminders and thanks, and its team: billing (with the bank's return page,
-  `/billing/return`) and **archiving and deleting events**.
+  door, reminders and thanks, its team, its running order, recording answers, archiving and
+  deleting, who must not be contacted and promo codes: billing (with the bank's return page,
+  `/billing/return`).
+- Of the running order: ordering two entries at the same minute by hand (the client puts a new one
+  last); telling guests about a change, as no notice comes back (FR-94).
+- Of recording an answer: a whole household on one page; the guest's side, which is set on the guest;
+  agreeing to a statement for the guest (the backend refuses it from a host); taking an answer back
+  (the API can't); and leaving the event-wide answer out to correct only a meal (FR-95).
+- Of an event's and a venue's words: the sides in each language (FR-96); per-language words for a
+  running-order entry are in its own dialog, the invitation's sections' in the designer.
+- Of archiving and deleting: knowing beforehand whether money moved through an event, so whether
+  deleting will be refused (FR-97).
+- Of who must not be contacted: the list for someone on an event only, outside the organization
+  (FR-98, PQ-17); a Telegram or push address, which a host never sees; choosing a reason; more than
+  the newest 500; matching a phone written differently; and an address already listed further down
+  than the newest 500, which is posted again, harmlessly (FR-99).
+- Of promo codes: a currency other than AMD; removing a limit or an end once set, and changing the
+  start; when a code was made; and knowing whether payments are off, so the pilot's line shows always
+  (FR-100, PQ-16).
 - Of reminders and thanks: the exact lists before pressing (FR-84; the page estimates them), who was
   suppressed (FR-85), who was thanked once the page is left, and receipts for either message (FR-87);
-  switching the automatic reminders off per event (`PATCH …/settings`, `remindersEnabled`), which the
-  page only mentions; sending to chosen households (the API takes none).
+  sending to chosen households (the API takes none).
 - Of the team: warning someone by name that they are changing or removing themselves, seeing an
   invitation that expired, and letting a coordinator read the team (FR-88); a door-only role (PQ-15,
   FR-90); saying a role in words in the invitation's email (FR-89).
@@ -678,21 +724,20 @@ outside the API but the guest's own emailed links. They were not run against the
   call); and the guest's own table shown elsewhere than the personal card. The seating chart and
   place cards are on the exports page since 30 October 2026.
 - Of designing the invitation: previewing edits before they are saved (the preview shows what is
-  saved); a warning before leaving a form with unsaved changes; the running order (`/timeline`),
-  which the TIMELINE section shows; cropping and focal points (not in the API either); host-tuned
+  saved); a warning before leaving a form with unsaved changes; cropping and focal points (not in the API either); host-tuned
   colours (BQ-3); template fonts in the browser (FR-9), so a font chosen does not show yet; the
   layouts the seeded templates name, which the renderer does not draw (FR-42).
-- Of the guest list: recording an answer for a guest (`PATCH …/guests/:guestId/rsvp`); seating from
+- Of the guest list: seating from
   the list itself (it is
   on the seating page); check-in from the list itself (it is on the door's page); exporting from the list itself (it is on the
   exports page); the guest's personal link, whose token is never shown; moving a guest into a
   household of their own (FR-30); a household's notes, which
   no endpoint writes; and a household picker better than a native select (DQ-16). The
-  single-guest read (`GET …/guests/:guestId`) is not used: the list holds everything the forms
-  show.
-- Of an event's details: the running order (`/timeline`); a venue's per-language name and address
-  (`translations`), and typing its coordinates and capacity, which only a directory hall supplies; its
-  end time, side labels and per-language title and hosts (`translations`; FR-24 has typed them, and no screen uses them yet); adding an
+  single-guest read (`GET …/guests/:guestId`) is used by recording an answer alone, for the answers
+  to the host's questions the list leaves out.
+- Of an event's details: typing a venue's coordinates and capacity, which only a directory hall
+  supplies; the end, the sides and the other languages when creating an event (correcting it has
+  them); adding an
   invitation to an event that has none (`POST /events/:id/invitation`); a custom slug (no endpoint exists). Of the dashboard: catering,
   bar, playlist and engagement. A link to a published invitation from the overview: a private
   event's generic link is a 404.
@@ -711,8 +756,7 @@ outside the API but the guest's own emailed links. They were not run against the
   the newest fifty (the API lists no more); choosing how long a file is kept (a server setting);
   downloading an earlier record, deliberately (it would build today's lists); and failure words
   finer than "something went wrong", which wait for the worker's codes (FR-59).
-- Of ticketing (pilot Milestone C): promo codes for the hosts (the API's
-  `/promo-codes`; checkout applies them); reordering ticket types (no endpoint); more than the
+- Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
   the announcement is not published (FR-71); a QR code for a ticket and a scanner at the door
   (PQ-13, a dependency); a

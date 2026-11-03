@@ -1,7 +1,18 @@
 import type { EventFieldCode } from './schemas';
 
 export type EventField =
-  'type' | 'title' | 'hostsLabel' | 'date' | 'time' | 'timezone' | 'locales' | 'defaultLocale';
+  | 'type'
+  | 'title'
+  | 'hostsLabel'
+  | 'date'
+  | 'time'
+  | 'timezone'
+  | 'locales'
+  | 'defaultLocale'
+  | 'endDate'
+  | 'sideALabel'
+  | 'sideBLabel'
+  | 'translations';
 
 export interface FieldRefusal {
   field: EventField;
@@ -18,8 +29,10 @@ const BY_PROPERTY: Readonly<Record<string, FieldRefusal>> = {
   title: { field: 'title', code: 'refused' },
   hostsLabel: { field: 'hostsLabel', code: 'refused' },
   startsAt: { field: 'date', code: 'refused' },
-  // The end is not on the form yet: a start after it is refused, and said so at the date.
-  endsAt: { field: 'date', code: 'endsBefore' },
+  endsAt: { field: 'endDate', code: 'endsBefore' },
+  sideALabel: { field: 'sideALabel', code: 'refused' },
+  sideBLabel: { field: 'sideBLabel', code: 'refused' },
+  translations: { field: 'translations', code: 'refused' },
   timezone: { field: 'timezone', code: 'timezone' },
   locales: { field: 'locales', code: 'refused' },
   defaultLocale: { field: 'defaultLocale', code: 'defaultLanguage' },

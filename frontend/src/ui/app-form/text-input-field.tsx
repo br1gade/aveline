@@ -6,12 +6,14 @@ import { Input } from '@/ui/kit/input';
 
 interface TextInputFieldProps extends Omit<ComponentProps<typeof Input>, 'id'> {
   label: string;
+  /** The label's language, when it isn't the page's: a host's question, say. */
+  labelLang?: string | undefined;
   help?: string | undefined;
   error?: string | undefined;
 }
 
 /** A labelled input whose help and error are tied to it; an error has an icon and words. */
-export function TextInputField({ label, help, error, ...input }: TextInputFieldProps) {
+export function TextInputField({ label, labelLang, help, error, ...input }: TextInputFieldProps) {
   const id = useId();
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
@@ -19,7 +21,9 @@ export function TextInputField({ label, help, error, ...input }: TextInputFieldP
 
   return (
     <Field data-invalid={error ? 'true' : undefined} className="gap-2">
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldLabel htmlFor={id} lang={labelLang}>
+        {label}
+      </FieldLabel>
       <Input
         id={id}
         aria-invalid={error ? true : undefined}
