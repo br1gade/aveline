@@ -838,8 +838,7 @@ tests were added for the breaks that first passed. Not run against the real back
   there (the guest list does); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the
   staff saying so.
-- The rest of the pilot plan: share tags, and the four-language
-  walkthroughs against the real backend. Seating jobs (F27's automatic seating) are followed in the
+- The rest of the pilot plan: the four-language walkthroughs against the real backend. Seating jobs (F27's automatic seating) are followed in the
   browser since 30 October 2026, and so are snapshot exports, in PDF, XLSX and CSV (F20, F49 and
   F27's exports), the same day. Template previews (F28),
   question order (F29) and logo uploads (F48) are built in the designer; name correction (F46),
