@@ -162,6 +162,7 @@
     "sendRefused": "L’invitation ne peut pas être envoyée pour le moment.",
     "other": "Cela n’a pas été accepté. Réessayez.",
     "expired": "Le délai de cette invitation est écoulé, elle ne peut donc pas être envoyée. La page a été rechargée.",
-    "archived": "Cet événement est archivé : son invitation ne peut être ni publiée ni rouverte. Rétablissez-le d’abord depuis la page de l’événement."
+    "archived": "Cet événement est archivé : son invitation ne peut être ni publiée ni rouverte. Rétablissez-le d’abord depuis la page de l’événement.",
+    "artworkPreparing": "Les illustrations du modèle sont encore en préparation : l’invitation ne peut pas encore être publiée. Attendez quelques minutes, puis publiez à nouveau."
   }
 }

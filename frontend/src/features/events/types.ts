@@ -93,7 +93,7 @@ export interface EventUpdated extends EventDetail {
   notice: EventNotice;
 }
 
-/** `headcount` from `GET /events/:id/dashboard`; the rest of the dashboard is not shown yet. */
+/** `headcount` from `GET /events/:id/dashboard`; `features/event-sheets` reads the rest. */
 export interface Headcount {
   /** Guests on the list, not households. */
   invited: number;

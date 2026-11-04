@@ -105,7 +105,8 @@
     "releasedOn": "{{name}}, {{when}}",
     "seatAgain": "Seat again",
     "dismiss": "Dismiss",
-    "noRoomAgain": "No free seat here to seat them again."
+    "noRoomAgain": "No free seat here to seat them again.",
+    "chairAction": "Chair"
   },
   "toSeat": {
     "title": "Coming, not seated yet",
@@ -141,7 +142,10 @@
     "adding": "Adding…",
     "addSubmit": "Add the table",
     "bulkSubmit": "Add the tables",
-    "editSubmit": "Save"
+    "editSubmit": "Save",
+    "venue": "Venue",
+    "venueHelp": "Moving it takes it off the drawn plan: you place it again in the new room.",
+    "venueOccupied": "Guests or freed seats are on this table: move them and dismiss the notes before changing its venue."
   },
   "seat": {
     "householdTitle": "Seat {{name}}",
@@ -163,7 +167,14 @@
     "seating": "Seating…",
     "moving": "Moving…",
     "partly": "Seated at {{table}}: {{seated}}. Not seated: {{notSeated}}.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "chair": "Numbered chair (optional)",
+    "chairHelp": "For printed place cards. Moving a guest clears it unless you choose one here.",
+    "noChair": "No particular chair",
+    "chairNumber": "Chair {{position}}",
+    "chairTaken": "Chair {{position}}: {{name}}",
+    "chairTitle": "Chair for {{name}}",
+    "chairSubmit": "Save the chair"
   },
   "remove": {
     "title": "Remove {{name}}?",
@@ -187,7 +198,9 @@
     "dismissed": "The note about {{name}} is dismissed.",
     "seatedAgain": "{{name}} seated again at {{table}}.",
     "published": "Guests now see their tables.",
-    "unpublished": "Guests no longer see their tables."
+    "unpublished": "Guests no longer see their tables.",
+    "chairSet": "{{name}} is on chair {{position}}.",
+    "chairCleared": "{{name}} has no particular chair now."
   },
   "fields": {
     "errors": {
@@ -228,7 +241,42 @@
       "chairTaken": "That chair was taken meanwhile. The page is up to date again.",
       "seat": "The seating changed meanwhile. The page is up to date again; try again.",
       "tableOccupied": "Guests are seated at this table now. Unseat them before removing it.",
-      "start": "Automatic seating couldn’t start."
+      "start": "Automatic seating couldn’t start.",
+      "chairOutside": "That chair is past the table’s seats. The page is up to date again.",
+      "venueHasGuests": "Guests or freed seats are on this table. Move them and dismiss the notes, then change its venue."
     }
+  },
+  "plan": {
+    "title": "Drawn plan",
+    "views": "How to see this plan",
+    "viewList": "Tables and guests",
+    "viewDrawing": "Drawn plan",
+    "lead": "Where each table stands in the room. Only you and your team see this; guests see their own table’s name. Drag a table, or press it and use the arrows.",
+    "canvas": "The room",
+    "noTables": "No tables on this plan yet. Add them under “Tables and guests”, then place them here.",
+    "seats": "{{taken}} of {{capacity}}",
+    "move": {
+      "up": "Move {{name}} up",
+      "down": "Move {{name}} down",
+      "left": "Move {{name}} left",
+      "right": "Move {{name}} right"
+    },
+    "shape": "Shape",
+    "shapes": {
+      "round": "Round",
+      "square": "Square",
+      "rectangle": "Rectangle",
+      "oval": "Oval"
+    },
+    "takeOff": "Take off the plan",
+    "waiting": "Not on the plan yet",
+    "place": "Place on the plan",
+    "placeAll": "Place them all",
+    "placing": "Placing…",
+    "moved": "{{name}} moved.",
+    "shapeSaved": "{{name}}: shape saved.",
+    "takenOff": "{{name}} taken off the plan.",
+    "placed_one": "{{count}} table placed.",
+    "placed_other": "{{count}} tables placed."
   }
 }

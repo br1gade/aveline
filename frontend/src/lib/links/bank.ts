@@ -13,3 +13,8 @@ export function bankAddress(address: string | null | undefined, origin: string):
     return null;
   }
 }
+
+/** Leaves for the bank's own page, where the payer pays (docs/PAYMENTS.md §1). A seam for tests. */
+export function leaveForBank(address: string): void {
+  window.location.assign(address);
+}

@@ -573,7 +573,6 @@ the canvas only within the team while it holds placeholder photographs.
 
 | Missing | Notes |
 |---|---|
-| Font preloading for the page's language | §3.1. The fonts are self-hosted through `@fontsource-variable` packages, split by script; nothing is preloaded yet |
 | The template "Maison" as data | R-27 to R-29. The renderer and the components are built in `frontend/src/` (22 October 2026); the template row is the backend's |
 | Structured desktop type sizes in `tokens.json` | Desktop sizes exist only in each style's usage note; the app's generator reads them from there ([ARCHITECTURE §8](../ARCHITECTURE.md#8-styling-tokens-and-fonts)). A `desktop` field per style would be sturdier: a request to the designer |
 | Storybook and visual tests | A10 in the setup proposal |

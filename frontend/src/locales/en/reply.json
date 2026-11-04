@@ -111,7 +111,12 @@
     "signerName": "Your full name",
     "typedHelp": "Typing your name is your signature.",
     "drawnHelp": "Your name is kept beside your signature.",
-    "saved": "Agreed: {{names}}"
+    "saved": "Agreed: {{names}}",
+    "showDrawing": "Show the signature for {{names}}",
+    "hideDrawing": "Hide the signature for {{names}}",
+    "drawingAlt": "The signature drawn for {{names}}",
+    "drawingFailed": "The signature couldn’t be shown.",
+    "drawingRetry": "Try again"
   },
   "pad": {
     "label": "Signature drawing area",

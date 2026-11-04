@@ -3,7 +3,8 @@
   "back": {
     "event": "Retour à l’événement",
     "design": "Retour à la conception",
-    "questions": "Retour aux questions"
+    "questions": "Retour aux questions",
+    "look": "Retour au modèle et à l’apparence"
   },
   "noInvitation": "Cet événement n’a pas d’invitation à concevoir. Un événement créé avant l’existence d’un modèle n’en a pas.",
   "nav": {
@@ -160,6 +161,7 @@
     },
     "layout": "Mise en page",
     "layoutHelp": "L’aperçu ne sait pas encore dessiner les mises en page de ce modèle : votre choix est conservé pour le jour où il le pourra.",
+    "layoutHelpCover": "L’aperçu dessine la mise en page Pleine largeur quand la couverture a une photo. Il ne sait pas encore dessiner les autres mises en page de ce modèle : votre choix est conservé pour le jour où il le pourra.",
     "defaultLayout": "Celle du modèle par défaut",
     "noLayouts": "Les mises en page du modèle n’ont pas pu être chargées : la mise en page reste telle quelle.",
     "defaultLanguage": "langue par défaut",
@@ -395,5 +397,42 @@
     "altTooLong": "300 caractères au plus.",
     "refused": "Cela n’a pas été accepté. Vérifiez.",
     "other": "Vérifiez ceci."
+  },
+  "add": {
+    "template": "Modèle",
+    "firstTemplate": "Le premier modèle d’Aveline",
+    "noList": "La liste des modèles n’a pas pu être lue : le premier d’Aveline sera utilisé. Vous pourrez le changer ensuite.",
+    "submit": "Ajouter une invitation",
+    "refused": {
+      "forbidden": "Votre rôle sur cet événement ne permet pas d’ajouter une invitation. Demandez à son propriétaire ou à son coordinateur.",
+      "noTemplate": "Aucun modèle n’est encore disponible : il n’y a rien à partir de quoi créer une invitation.",
+      "alreadyHas": "Cet événement a déjà une invitation. La page a été mise à jour.",
+      "templateGone": "Ce modèle n’est plus disponible. Choisissez-en un autre.",
+      "rateLimited": "Trop de demandes pour le moment. Attendez une minute, puis réessayez.",
+      "noAnswer": "Nous n’avons pas reçu de réponse. Vérifiez votre connexion et réessayez.",
+      "other": "L’invitation n’a pas pu être ajoutée."
+    }
+  },
+  "adopt": {
+    "title": "Aperçu : {{name}}",
+    "themeReset": "L’apparence revient à celle de ce modèle.",
+    "confirm": "Utiliser {{name}}",
+    "keep": "Garder {{name}}",
+    "preparing": "Les illustrations du modèle sont préparées pour cet événement. Cela prend généralement un instant.",
+    "stillPreparing": "Les illustrations sont encore en préparation. Vous pouvez regarder à nouveau dans un instant.",
+    "previewAgain": "Prévisualiser à nouveau",
+    "notOffered": "Cette version du modèle n’est pas proposée pour cet événement.",
+    "done": "L’invitation utilise maintenant {{name}}.",
+    "refused": {
+      "stale": "Le design a changé depuis cet aperçu, ou l’aperçu a expiré. Prévisualisez à nouveau avant de l’utiliser.",
+      "gone": "Ce modèle n’est plus proposé. Votre invitation n’a pas changé.",
+      "preparing": "Les illustrations du modèle ne sont pas encore prêtes. Attendez un instant et réessayez. Votre invitation n’a pas changé.",
+      "invalid": "Les illustrations du modèle n’ont pas pu être préparées. Votre invitation n’a pas changé.",
+      "unavailable": "Ce modèle n’est pas encore disponible. Votre invitation n’a pas changé.",
+      "forbidden": "Votre rôle sur cet événement permet de voir le design de l’invitation, mais pas de le modifier.",
+      "rateLimited": "Trop de demandes pour le moment. Attendez une minute, puis réessayez.",
+      "noAnswer": "Nous n’avons pas reçu de réponse. Vérifiez votre connexion et réessayez.",
+      "other": "Cela n’a pas pu être fait. Votre invitation n’a pas changé."
+    }
   }
 }

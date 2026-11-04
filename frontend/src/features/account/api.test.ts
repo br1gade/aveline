@@ -3,6 +3,7 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { createAppApi } from '@/api/client';
+import { organizationChoice } from '@/api/session';
 
 import { ownOrganization } from './api';
 
@@ -13,7 +14,10 @@ const server = setupServer();
 const api = createAppApi(ORIGIN, {});
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  organizationChoice.clear();
+});
 afterAll(() => server.close());
 
 describe('ownOrganization', () => {
@@ -37,12 +41,26 @@ describe('ownOrganization', () => {
     await expect(ownOrganization(api)).resolves.toEqual({
       organizationId: 'o1',
       name: 'Petrosyan Wedding',
+      role: 'OWNER',
     });
   });
 
   it('says so when the account has none', async () => {
     server.use(http.get(MEMBERSHIPS, () => HttpResponse.json({ items: [], nextCursor: null })));
     await expect(ownOrganization(api)).resolves.toBeNull();
+  });
+
+  it('names none among several until this tab chooses, then the one chosen', async () => {
+    const several = [
+      { organizationId: 'o1', name: 'Petrosyan Wedding', role: 'OWNER' },
+      { organizationId: 'o2', name: 'Ani Events', role: 'STAFF' },
+    ];
+    server.use(
+      http.get(MEMBERSHIPS, () => HttpResponse.json({ items: several, nextCursor: null })),
+    );
+    await expect(ownOrganization(api)).resolves.toBeNull();
+    organizationChoice.choose('o2');
+    await expect(ownOrganization(api)).resolves.toMatchObject({ organizationId: 'o2' });
   });
 
   it('does not read a refusal as having none', async () => {

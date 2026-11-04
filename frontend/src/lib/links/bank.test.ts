@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bankAddress } from './redirect';
+import { bankAddress } from './bank';
 
 const ORIGIN = 'https://aveline.test';
 

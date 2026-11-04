@@ -41,6 +41,7 @@ function record(subjectGuestId: string, statementVersionId = 'sv-2'): Acknowledg
     subjectGuestId,
     method: 'TYPED',
     createdAt: '2027-03-01T10:00:00.000Z',
+    mediaId: null,
   };
 }
 
@@ -221,7 +222,7 @@ describe('the acknowledgements read', () => {
       ],
     });
     expect(read.statements.map((statement) => statement.questionId)).toEqual(['q-sign']);
-    expect(read.records[0]).toEqual({ ...record('g1'), method: 'DRAWN' });
+    expect(read.records[0]).toEqual({ ...record('g1'), method: 'DRAWN', mediaId: 'm1' });
     expect(read.uploads.map((upload) => upload.status)).toEqual(['READY', 'FAILED', 'PROCESSING']);
   });
 });

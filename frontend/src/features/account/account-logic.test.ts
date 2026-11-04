@@ -21,6 +21,9 @@ describe('safeNext', () => {
     ['/apple', '/app'],
     ['/sign-in', '/app'],
     ['/app\\..\\evil', '/app'],
+    ['/billing/return', '/billing/return'],
+    ['/billing/return?orderId=1', '/app'],
+    ['/billing/returned', '/app'],
   ])('%s → %s', (next, expected) => {
     expect(safeNext(next)).toBe(expected);
   });

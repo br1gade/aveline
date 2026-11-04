@@ -36,12 +36,19 @@ export interface ReleasedSeat {
   releasedAt: string;
 }
 
+/** What the plan can draw; one the client doesn't know is drawn round. */
+export type TableShape = 'round' | 'rectangle' | 'square' | 'oval';
+
 export interface SeatingTable {
   id: string;
   arrangementId: string;
   name: string;
   capacity: number;
   zone: string | null;
+  /** Its place on the drawn plan, in CSS pixels (design PD-135); `null` until placed. */
+  posX: number | null;
+  posY: number | null;
+  shape: TableShape;
   guests: SeatedGuest[];
   released: ReleasedSeat[];
 }
@@ -112,6 +119,9 @@ export interface TableWire {
   name: string;
   capacity: number;
   zone: string | null;
+  posX?: number | null;
+  posY?: number | null;
+  shape?: string | null;
   guests: SeatedWire[];
   released?: ReleasedWire[];
 }

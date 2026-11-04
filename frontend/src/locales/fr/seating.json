@@ -114,7 +114,8 @@
     "releasedOn": "{{name}}, le {{when}}",
     "seatAgain": "Replacer",
     "dismiss": "Effacer la mention",
-    "noRoomAgain": "Pas de place libre ici pour les replacer."
+    "noRoomAgain": "Pas de place libre ici pour les replacer.",
+    "chairAction": "Chaise"
   },
   "toSeat": {
     "title": "Viennent, pas encore placés",
@@ -152,7 +153,10 @@
     "adding": "Ajout…",
     "addSubmit": "Ajouter la table",
     "bulkSubmit": "Ajouter les tables",
-    "editSubmit": "Enregistrer"
+    "editSubmit": "Enregistrer",
+    "venue": "Lieu",
+    "venueHelp": "La déplacer la retire du plan dessiné : vous la replacez dans la nouvelle salle.",
+    "venueOccupied": "Cette table a des invités ou des places libérées : déplacez-les et retirez les mentions avant de changer de lieu."
   },
   "seat": {
     "householdTitle": "Placer {{name}}",
@@ -177,7 +181,14 @@
     "seating": "Placement…",
     "moving": "Déplacement…",
     "partly": "Placés à {{table}} : {{seated}}. Pas placés : {{notSeated}}.",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "chair": "Chaise numérotée (facultatif)",
+    "chairHelp": "Pour les marque-places imprimés. Déplacer un invité l’efface, sauf si vous en choisissez une ici.",
+    "noChair": "Pas de chaise précise",
+    "chairNumber": "Chaise {{position}}",
+    "chairTaken": "Chaise {{position}} : {{name}}",
+    "chairTitle": "Chaise de {{name}}",
+    "chairSubmit": "Enregistrer la chaise"
   },
   "remove": {
     "title": "Retirer {{name}} ?",
@@ -202,7 +213,9 @@
     "dismissed": "La mention concernant {{name}} est effacée.",
     "seatedAgain": "{{name}} replacé à {{table}}.",
     "published": "Les invités voient maintenant leur table.",
-    "unpublished": "Les invités ne voient plus leur table."
+    "unpublished": "Les invités ne voient plus leur table.",
+    "chairSet": "{{name}} est sur la chaise {{position}}.",
+    "chairCleared": "{{name}} n’a plus de chaise précise."
   },
   "fields": {
     "errors": {
@@ -243,7 +256,43 @@
       "chairTaken": "Cette chaise a été prise entre-temps. La page est de nouveau à jour.",
       "seat": "Le placement a changé entre-temps. La page est de nouveau à jour ; réessayez.",
       "tableOccupied": "Des invités sont maintenant assis à cette table. Libérez leurs places avant de la retirer.",
-      "start": "Le placement automatique n’a pas pu démarrer."
+      "start": "Le placement automatique n’a pas pu démarrer.",
+      "chairOutside": "Cette chaise dépasse le nombre de places de la table. La page est à jour.",
+      "venueHasGuests": "Cette table a des invités ou des places libérées. Déplacez-les, retirez les mentions, puis changez de lieu."
     }
+  },
+  "plan": {
+    "title": "Plan dessiné",
+    "views": "Comment voir ce plan",
+    "viewList": "Tables et invités",
+    "viewDrawing": "Plan dessiné",
+    "lead": "Où se trouve chaque table dans la salle. Seuls vous et votre équipe le voyez ; les invités voient le nom de leur table. Faites glisser une table, ou appuyez dessus et utilisez les flèches.",
+    "canvas": "La salle",
+    "noTables": "Pas encore de tables sur ce plan. Ajoutez-les dans « Tables et invités », puis placez-les ici.",
+    "seats": "{{taken}} sur {{capacity}}",
+    "move": {
+      "up": "Déplacer {{name}} vers le haut",
+      "down": "Déplacer {{name}} vers le bas",
+      "left": "Déplacer {{name}} vers la gauche",
+      "right": "Déplacer {{name}} vers la droite"
+    },
+    "shape": "Forme",
+    "shapes": {
+      "round": "Ronde",
+      "square": "Carrée",
+      "rectangle": "Rectangulaire",
+      "oval": "Ovale"
+    },
+    "takeOff": "Retirer du plan",
+    "waiting": "Pas encore sur le plan",
+    "place": "Placer sur le plan",
+    "placeAll": "Tout placer",
+    "placing": "Placement…",
+    "moved": "{{name}} déplacée.",
+    "shapeSaved": "{{name}} : forme enregistrée.",
+    "takenOff": "{{name}} retirée du plan.",
+    "placed_one": "{{count}} table placée.",
+    "placed_other": "{{count}} tables placées.",
+    "placed_many": "{{count}} tables placées."
   }
 }

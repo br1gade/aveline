@@ -6,7 +6,7 @@ import type { EveryPage } from '@/api/every-page';
 import { browserSession } from '@/api/session';
 import { eventPath, type EventDetail } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
-import { ProblemAlert, StatusLine } from '@/ui/app-form';
+import { ProblemAlert, StatusLine, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Dialog, DialogContent, DialogTitle } from '@/ui/kit/dialog';
 
@@ -141,16 +141,93 @@ function BoardDialogs({ dialogs, load, moderation }: DialogsProps) {
   );
 }
 
+interface BulkProps {
+  inTab: readonly GalleryPhoto[];
+  chosen: ReadonlySet<string>;
+  setChosen: (ids: ReadonlySet<string>) => void;
+  moderation: ReturnType<typeof useModeration>;
+}
+
+/** Choosing all of a tab and approving them, one request each (design PD-136, FR-112). */
+function BulkBar({ inTab, chosen, setChosen, moderation }: BulkProps) {
+  const { t } = useTranslation('gallery');
+  const [isRunning, setIsRunning] = useState(false);
+  const count = inTab.filter((photo) => chosen.has(photo.id)).length;
+  const isAll = count === inTab.length;
+  const approve = async () => {
+    setIsRunning(true);
+    const ids = inTab.filter((photo) => chosen.has(photo.id)).map((photo) => photo.id);
+    try {
+      setChosen(new Set(await moderation.approveChosen(ids)));
+    } finally {
+      setIsRunning(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant="outline"
+        className={WRAPPING_BUTTON}
+        disabled={isRunning}
+        onClick={() => setChosen(new Set(isAll ? [] : inTab.map((photo) => photo.id)))}
+      >
+        {isAll ? t('host.bulk.none') : t('host.bulk.all', { count: inTab.length })}
+      </Button>
+      <Button
+        className={WRAPPING_BUTTON}
+        disabled={isRunning || count === 0}
+        onClick={() => void approve()}
+      >
+        {t('host.bulk.approve', { count })}
+      </Button>
+      {moderation.progress ? <p className="m-0 text-sm">{moderation.progress}</p> : null}
+    </div>
+  );
+}
+
+function photoLoader(eventId: string) {
+  return (id: string) => (variant: PhotoVariant, signal: AbortSignal) =>
+    eventPhotoFile(browserSession().api, { eventId, mediaId: id }, variant, signal);
+}
+
+function BoardStatus({ moderation }: { moderation: ReturnType<typeof useModeration> }) {
+  const { t } = useTranslation('gallery');
+  return (
+    <>
+      {moderation.refusal ? (
+        <ProblemAlert
+          problem={moderation.refusal}
+          refused={(status) => t(status === 403 ? 'host.refusedAction' : 'host.failed')}
+        />
+      ) : null}
+      <StatusLine statusRef={moderation.statusRef}>{moderation.said?.text ?? ''}</StatusLine>
+    </>
+  );
+}
+
+function choiceFor(id: string, chosen: ReadonlySet<string>, setChosen: BulkProps['setChosen']) {
+  return {
+    isChosen: chosen.has(id),
+    toggle: (isChosen: boolean) => {
+      const next = new Set(chosen);
+      if (isChosen) next.add(id);
+      else next.delete(id);
+      setChosen(next);
+    },
+  };
+}
+
 function Board({ event, every }: { event: EventDetail; every: EveryPage<GalleryPhoto> }) {
   const { t, i18n } = useTranslation('gallery');
   const moderation = useModeration(event.id, every.items);
   const [tab] = useTab();
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
   const [drawn, setDrawn] = useState(CARDS_AT_A_TIME);
   const dialogs = useCardActions();
   const zone = { timeZone: event.timezone, locale: i18n.language };
-  const load = (id: string) => (variant: PhotoVariant, signal: AbortSignal) =>
-    eventPhotoFile(browserSession().api, { eventId: event.id, mediaId: id }, variant, signal);
+  const load = photoLoader(event.id);
   const inTab = moderation.photos.filter((photo) => tabOf(photo) === tab);
+  const canApproveSeveral = (tab === 'review' || tab === 'hidden') && inTab.length > 1;
   const actions: CardActions = {
     decide: (photo, decision) => void moderation.decide(photo, decision),
     remove: dialogs.setRemoving,
@@ -159,18 +236,22 @@ function Board({ event, every }: { event: EventDetail; every: EveryPage<GalleryP
   return (
     <>
       <Limits every={{ ...every, items: moderation.photos }} />
-      {moderation.refusal ? (
-        <ProblemAlert
-          problem={moderation.refusal}
-          refused={(status) => t(status === 403 ? 'host.refusedAction' : 'host.failed')}
-        />
-      ) : null}
-      <StatusLine statusRef={moderation.statusRef}>{moderation.said?.text ?? ''}</StatusLine>
+      <BoardStatus moderation={moderation} />
       <Tabs photos={moderation.photos} />
       {inTab.length === 0 ? <p className="m-0">{t(`host.empty.${tab}`)}</p> : null}
+      {canApproveSeveral ? (
+        <BulkBar inTab={inTab} chosen={chosen} setChosen={setChosen} moderation={moderation} />
+      ) : null}
       <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {inTab.slice(0, drawn).map((photo) => (
-          <ModerationCard key={photo.id} photo={photo} load={load} zone={zone} actions={actions} />
+          <ModerationCard
+            key={photo.id}
+            photo={photo}
+            load={load}
+            zone={zone}
+            actions={actions}
+            choice={canApproveSeveral ? choiceFor(photo.id, chosen, setChosen) : undefined}
+          />
         ))}
       </ul>
       {inTab.length > drawn ? (

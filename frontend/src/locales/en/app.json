@@ -42,7 +42,12 @@
     "vendors": "Vendors · Aveline",
     "eventVendors": "The event’s vendors · Aveline",
     "newBooking": "Book a vendor · Aveline",
-    "booking": "A booking · Aveline"
+    "booking": "A booking · Aveline",
+    "organizations": "Choose an organization · Aveline",
+    "billing": "Plan and invoices · Aveline",
+    "billingReturn": "Back from the bank · Aveline",
+    "sheets": "What guests’ answers add up to · Aveline",
+    "designAdoption": "Preview a template · Aveline"
   },
   "shell": {
     "loading": "Loading…",
@@ -66,7 +71,8 @@
     "suppressions": "Who must not be contacted",
     "promoCodes": "Promo codes",
     "vendors": "Vendors",
-    "organization": "Who must not be contacted, promo codes and vendors are your organization’s own: they apply to every event."
+    "organization": "Who must not be contacted, promo codes and vendors are your organization’s own: they apply to every event.",
+    "billing": "Plan and invoices"
   },
   "welcome": {
     "title": "Set up your organization",
@@ -81,5 +87,17 @@
     },
     "submit": "Continue",
     "submitting": "Setting up…"
+  },
+  "organizations": {
+    "title": "Which organization are you working in?",
+    "lead": "Your account belongs to several. This tab works in the one you choose; another tab can work in another.",
+    "current": "Working in {{name}}",
+    "change": "Change organization",
+    "role": {
+      "OWNER": "Owner",
+      "MANAGER": "Manager",
+      "MEMBER": "Member",
+      "VIEWER": "Viewer"
+    }
   }
 }

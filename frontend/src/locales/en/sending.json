@@ -152,6 +152,7 @@
     "sendRefused": "The invitation can’t be sent right now.",
     "other": "This wasn’t accepted. Try again.",
     "expired": "This invitation’s time has run out, so it can’t be sent. The page has been reloaded.",
-    "archived": "This event is archived, so its invitation can’t be published or reopened. Bring it back on the event’s page first."
+    "archived": "This event is archived, so its invitation can’t be published or reopened. Bring it back on the event’s page first.",
+    "artworkPreparing": "The template’s artwork is still being prepared, so the invitation can’t be published yet. Wait a few minutes, then publish again."
   }
 }

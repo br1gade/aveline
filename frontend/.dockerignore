@@ -1,0 +1,14 @@
+node_modules
+build
+.env
+.env.*
+!.env.example
+.git
+.react-router
+coverage
+test-results
+playwright-report
+docs
+.claude
+**/*.test.ts
+**/*.test.tsx

@@ -641,13 +641,10 @@ comment changes the design, update this file in the same change.
 - **In code since 22 October 2026, not yet against the real backend:** the renderer with all
   fourteen blocks, both guest routes and the reply flow, on the provisional defaults
   ([DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults)). They were checked in a
-  browser against a mock of the API; the end-to-end tests wait for the local backend to run. Not
-  yet in code:
-  - the `full-bleed` cover variant, which falls back to the arch (PD-37);
-  - the motion in §10: the cover settling on load and sections rising as they enter. The page
-    is complete without them;
-  - remembering the music choice for the session (§10). The music is off on every load, since
-    browsers do not play sound before a press.
+  browser against a mock of the API; the end-to-end tests wait for the local backend to run. Since
+  4 November 2026 the `full-bleed` cover (PD-141), the motion in §10 (PD-142) and remembering the
+  music choice for the session (PD-143) are in code too, built, not approved (DQ-53). After a full
+  reload the music usually says off until pressed, since browsers do not play sound before a press.
 - **The template "Maison"** as a database row: palettes, variants and fonts (R-27 to R-29). The
   backend inserts it.
 - **What the backend has to answer or build:** palette colours and roles in the guest payload

@@ -4,7 +4,7 @@ import { useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
-import { AppForm, TextInputField } from '@/ui/app-form';
+import { AppForm, SelectField, TextInputField } from '@/ui/app-form';
 
 import { createTable, updateTable } from '../api';
 import { newTablePayload, tableUpdatePayload } from '../payload';
@@ -19,6 +19,8 @@ import {
 import { refusedTableFields } from '../server-errors';
 import type { SeatingTable } from '../types';
 import { useTableFieldText } from '../use-field-text';
+import type { Plan } from '../plans';
+import { usePlanName } from './plan-tabs';
 import { FormDialog, FormFooter } from './shared';
 import type { SeatingHost } from './use-seating-host';
 
@@ -28,6 +30,8 @@ interface TableDialogProps {
   venueId: string | null;
   /** The table to edit; absent to add one. */
   table?: SeatingTable;
+  /** The plans it can move to, when editing (design PD-133). */
+  plans?: readonly Plan[];
 }
 
 type TableForm = UseFormReturn<TableFormInput, unknown, TableFormValues>;
@@ -37,14 +41,48 @@ export function unplaced(refusal: SeatingRefusal, marked: number): SeatingRefusa
   return refusal.key === 'check' && marked === 0 ? { ...refusal, key: 'other' } : refusal;
 }
 
-function valuesOf(table: SeatingTable | undefined): TableFormValues {
-  return { name: table?.name ?? '', capacity: table?.capacity ?? 10, zone: table?.zone ?? '' };
+function valuesOf(table: SeatingTable | undefined, venueId: string | null): TableFormValues {
+  return {
+    name: table?.name ?? '',
+    capacity: table?.capacity ?? 10,
+    zone: table?.zone ?? '',
+    venueId: venueId ?? '',
+  };
+}
+
+/** A table moves only with nobody at it: the backend refuses otherwise, which is said beforehand. */
+function VenueField({
+  plans,
+  table,
+  form,
+}: {
+  plans: readonly Plan[];
+  table: SeatingTable;
+  form: TableForm;
+}) {
+  const { t } = useTranslation('seating');
+  const nameOf = usePlanName();
+  const isOccupied = table.guests.length > 0 || table.released.length > 0;
+  if (plans.length < 2) return null;
+  return (
+    <SelectField
+      label={t('dialog.venue')}
+      help={isOccupied ? t('dialog.venueOccupied') : t('dialog.venueHelp')}
+      {...form.register('venueId')}
+    >
+      {plans.map((plan) => (
+        <option key={plan.arrangement.id} value={plan.arrangement.venueId ?? ''}>
+          {nameOf(plan)}
+        </option>
+      ))}
+    </SelectField>
+  );
 }
 
 /** Adds, or sends only what changed and nothing when nothing did; a 400 goes under its field. */
 function useTableSubmit({ host, venueId, table }: TableDialogProps, form: TableForm) {
   const { t } = useTranslation('seating');
-  const [initial] = useState(() => valuesOf(table));
+  const [initial] = useState(() => valuesOf(table, venueId));
   const [refusal, setRefusal] = useState<SeatingRefusal | null>(null);
   const write = async (values: TableFormValues): Promise<string | null> => {
     const { api } = browserSession();
@@ -75,21 +113,27 @@ function useTableSubmit({ host, venueId, table }: TableDialogProps, form: TableF
   return { submit, refusal };
 }
 
+function useDialogWords(table: SeatingTable | undefined) {
+  const { t } = useTranslation('seating');
+  return table
+    ? { title: t('dialog.editTitle', { name: table.name }), label: t('dialog.editSubmit') }
+    : { title: t('dialog.addTitle'), label: t('dialog.addSubmit') };
+}
+
 /** One table's name, seats and area (design PD-68), never below the guests already seated. */
 export function TableDialog(props: TableDialogProps) {
-  const { host, table } = props;
+  const { host, table, venueId, plans } = props;
   const { t } = useTranslation('seating');
   const fieldText = useTableFieldText();
   const seated = table?.guests.length ?? 0;
   const schema = useMemo(() => tableFormSchema(seated), [seated]);
   const form = useForm<TableFormInput, unknown, TableFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { ...valuesOf(table), capacity: String(table?.capacity ?? 10) },
+    defaultValues: { ...valuesOf(table, venueId), capacity: String(table?.capacity ?? 10) },
   });
   const { submit, refusal } = useTableSubmit(props, form);
   const { errors, isSubmitting } = form.formState;
-  const title = table ? t('dialog.editTitle', { name: table.name }) : t('dialog.addTitle');
-  const label = table ? t('dialog.editSubmit') : t('dialog.addSubmit');
+  const { title, label } = useDialogWords(table);
   return (
     <FormDialog host={host} title={title} refusal={refusal}>
       <AppForm onSubmit={form.handleSubmit(submit)}>
@@ -120,6 +164,7 @@ export function TableDialog(props: TableDialogProps) {
           error={fieldText(errors.zone)}
           {...form.register('zone')}
         />
+        {table ? <VenueField plans={plans ?? []} table={table} form={form} /> : null}
         <FormFooter isSubmitting={isSubmitting} label={isSubmitting ? t('dialog.saving') : label} />
       </AppForm>
     </FormDialog>

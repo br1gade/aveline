@@ -4,5 +4,4 @@
  * token is held by this tab only (`token-store.ts`).
  */
 export { OrderPage } from './components/order-page';
-export { bankAddress } from './redirect';
 export { forgetOrder, heldOrder, holdOrder, type HeldOrder } from './token-store';

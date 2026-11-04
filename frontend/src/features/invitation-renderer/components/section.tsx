@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 import { cx } from '@/ui';
 
@@ -17,10 +17,35 @@ interface SectionProps {
   columnClassName?: string;
 }
 
+/**
+ * A section rises as it first enters the screen (spec §10, design PD-142). Nothing starts hidden and
+ * no state changes: only a class, on a section that was below the screen when the page opened, whose
+ * CSS moves it and does nothing under `prefers-reduced-motion`. Without an observer, it simply stands.
+ */
+function useRiseOnEnter() {
+  const element = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const section = element.current;
+    if (!section || typeof IntersectionObserver === 'undefined') return;
+    let isFirst = true;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        if (!isFirst) section.classList.add('section-rise');
+        observer.disconnect();
+      }
+      isFirst = false;
+    });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+  return element;
+}
+
 /** One section of the letter: 64 px above it on phones, 96 on desktop (DESIGN_SYSTEM §4.1). */
 export function Section({ children, id, className, columnClassName }: SectionProps) {
+  const element = useRiseOnEnter();
   return (
-    <section id={id} className={cx(GUTTERS, 'pt-16 lg:pt-24', className)}>
+    <section ref={element} id={id} className={cx(GUTTERS, 'pt-16 lg:pt-24', className)}>
       <div className={cx(COLUMN, 'flex flex-col gap-6', columnClassName)}>{children}</div>
     </section>
   );

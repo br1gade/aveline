@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 
@@ -14,11 +15,12 @@ import { tablesOf, venueRoom } from '../tables';
 import type { SeatingTable } from '../types';
 import { AutoSeating } from './auto-seating';
 import { BulkTablesDialog } from './bulk-tables-dialog';
+import { PlanCanvas } from './plan-canvas';
 import { PlanSummary } from './plan-summary';
 import { PlanTabs } from './plan-tabs';
 import { PublishPanel } from './publish-panel';
 import { RemoveTableDialog } from './remove-table-dialog';
-import { MoveDialog, SeatDialog } from './seat-dialog';
+import { ChairDialog, MoveDialog, SeatDialog } from './seat-dialog';
 import { LINK, SeatingProblem } from './shared';
 import { TableDialog } from './table-dialog';
 import { TableList } from './table-list';
@@ -31,6 +33,7 @@ interface PlanViewProps {
   tables: readonly SeatingTable[];
   host: SeatingHost;
   dialog: SeatingDialog | null;
+  plans: readonly Plan[];
 }
 
 interface DialogProps {
@@ -40,17 +43,18 @@ interface DialogProps {
   tables: readonly SeatingTable[];
   room: number | null;
   households: readonly Household[];
+  plans: readonly Plan[];
 }
 
 /** The one dialog open, if any, with what it needs from the plan on screen. */
-function OpenDialog({ dialog, host, venueId, tables, room, households }: DialogProps) {
+function OpenDialog({ dialog, host, venueId, tables, room, households, plans }: DialogProps) {
   switch (dialog.kind) {
     case 'addTable':
       return <TableDialog host={host} venueId={venueId} />;
     case 'addTables':
       return <BulkTablesDialog host={host} venueId={venueId} />;
     case 'editTable':
-      return <TableDialog host={host} venueId={venueId} table={dialog.table} />;
+      return <TableDialog host={host} venueId={venueId} table={dialog.table} plans={plans} />;
     case 'removeTable':
       return <RemoveTableDialog host={host} table={dialog.table} />;
     case 'seat':
@@ -61,6 +65,15 @@ function OpenDialog({ dialog, host, venueId, tables, room, households }: DialogP
           guests={dialog.guests}
           tables={tables}
           venueRoom={room}
+        />
+      );
+    case 'chair':
+      // The live table: a refusal reloads the page behind the dialog, and a chair may be taken.
+      return (
+        <ChairDialog
+          host={host}
+          table={tables.find((table) => table.id === dialog.table.id) ?? dialog.table}
+          guest={dialog.guest}
         />
       );
     case 'move':
@@ -76,6 +89,38 @@ function OpenDialog({ dialog, host, venueId, tables, room, households }: DialogP
   }
 }
 
+/** The list or the drawing, in the address, so a reload and a plan's tab keep it. */
+function ViewChoice({ isDrawing }: { isDrawing: boolean }) {
+  const { t } = useTranslation('seating');
+  const [params] = useSearchParams();
+  const hrefFor = (isPlan: boolean) => {
+    const next = new URLSearchParams(params);
+    if (isPlan) next.set('view', 'plan');
+    else next.delete('view');
+    return `?${next.toString()}`;
+  };
+  return (
+    <nav aria-label={t('plan.views')} className="flex flex-wrap gap-x-4">
+      <Link
+        to={hrefFor(false)}
+        className={LINK}
+        aria-current={isDrawing ? undefined : 'page'}
+        preventScrollReset
+      >
+        {t('plan.viewList')}
+      </Link>
+      <Link
+        to={hrefFor(true)}
+        className={LINK}
+        aria-current={isDrawing ? 'page' : undefined}
+        preventScrollReset
+      >
+        {t('plan.viewDrawing')}
+      </Link>
+    </nav>
+  );
+}
+
 /** Whether anyone in the guest list is coming to this plan, seated or not, so an empty list says which. */
 function isAnyoneComing(
   households: readonly Household[],
@@ -87,27 +132,51 @@ function isAnyoneComing(
   );
 }
 
+function countToSeat(data: SeatingData, toSeat: ReturnType<typeof householdsToSeat>) {
+  if (data.households.kind !== 'ready') return null;
+  return toSeat.reduce((sum, each) => sum + each.guests.length, 0);
+}
+
+function latestOf(data: SeatingData, plan: Plan) {
+  return latestJobOf(data.jobs.kind === 'ready' ? data.jobs.value : [], plan.arrangement.id);
+}
+
 /** One plan: its numbers, automatic seating, its tables and who still needs a seat. */
-function PlanView({ data, plan, tables, host, dialog }: PlanViewProps) {
+/** The plan's tables, whose identity changes only with a reload, as the drawn plan waits for one. */
+function usePlanTables(tables: readonly SeatingTable[], arrangementId: string) {
   const { i18n } = useTranslation();
+  return useMemo(
+    () => tablesOf(tables, arrangementId, i18n.language),
+    [tables, arrangementId, i18n.language],
+  );
+}
+
+function PlanView({ data, plan, tables, host, dialog, plans }: PlanViewProps) {
+  const [params] = useSearchParams();
+  const isDrawing = params.get('view') === 'plan';
   const { event } = data;
-  const planTables = tablesOf(tables, plan.arrangement.id, i18n.language);
+  const planTables = usePlanTables(tables, plan.arrangement.id);
   const room = venueRoom(plan.arrangement, planTables);
   const mode = event.attendanceMode ?? 'EVENT_WIDE';
   const households = data.households.kind === 'ready' ? data.households.value : [];
   const toSeat = householdsToSeat(households, plan.arrangement, mode, planTables);
-  const toSeatCount =
-    data.households.kind === 'ready'
-      ? toSeat.reduce((sum, each) => sum + each.guests.length, 0)
-      : null;
-  const latest = latestJobOf(
-    data.jobs.kind === 'ready' ? data.jobs.value : [],
-    plan.arrangement.id,
-  );
+  const toSeatCount = countToSeat(data, toSeat);
+  const latest = latestOf(data, plan);
   const isComingHere = isAnyoneComing(households, plan, mode);
+  const summary = <PlanSummary plan={plan} tables={planTables} toSeat={toSeatCount} mode={mode} />;
+  if (isDrawing) {
+    return (
+      <>
+        {summary}
+        <ViewChoice isDrawing />
+        <PlanCanvas key={plan.arrangement.id} tables={planTables} host={host} />
+      </>
+    );
+  }
   return (
     <>
-      <PlanSummary plan={plan} tables={planTables} toSeat={toSeatCount} mode={mode} />
+      {summary}
+      <ViewChoice isDrawing={false} />
       <AutoSeating
         key={plan.arrangement.id}
         plan={plan.arrangement}
@@ -135,6 +204,7 @@ function PlanView({ data, plan, tables, host, dialog }: PlanViewProps) {
           tables={planTables}
           room={room}
           households={households}
+          plans={plans}
         />
       ) : null}
     </>
@@ -193,7 +263,14 @@ export function SeatingPage({ data }: { data: SeatingData }) {
       {plan ? (
         <>
           <PlanTabs plans={plans} current={plan} tables={tables.value} />
-          <PlanView data={data} plan={plan} tables={tables.value} host={host} dialog={dialog} />
+          <PlanView
+            data={data}
+            plan={plan}
+            tables={tables.value}
+            host={host}
+            dialog={dialog}
+            plans={plans}
+          />
         </>
       ) : null}
     </section>

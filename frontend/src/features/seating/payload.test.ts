@@ -44,3 +44,27 @@ describe('what a table’s save sends', () => {
     });
   });
 });
+
+describe('what a correction sends about the venue', () => {
+  const initial = { name: 'T', capacity: 4, zone: '', venueId: 'hall' };
+
+  it('sends nothing of it when it did not change', () => {
+    expect(tableUpdatePayload(initial, { ...initial })).toEqual({});
+  });
+
+  it('sends the new venue, and takes it off the old room’s plan', () => {
+    expect(tableUpdatePayload(initial, { ...initial, venueId: 'church' })).toEqual({
+      venueId: 'church',
+      posX: null,
+      posY: null,
+    });
+  });
+
+  it('clears the venue with null', () => {
+    expect(tableUpdatePayload(initial, { ...initial, venueId: '' })).toEqual({
+      venueId: null,
+      posX: null,
+      posY: null,
+    });
+  });
+});

@@ -29,7 +29,10 @@ const PATH_SEGMENTS = [...CREDENTIAL_SEGMENTS, ...PERSONAL_SEGMENTS];
  * check and an invitation, all as `?token=` (docs/API.md §2). The backend never logs those pages,
  * so this rule is the client's alone.
  */
-const QUERY_TOKEN: readonly [RegExp, string] = [/([?&]token=)[^&#\s]+/g, '$1[redacted]'];
+const QUERY_TOKEN: readonly [RegExp, string] = [
+  /([?&](?:token|orderId)=)[^&#\s]+/gi,
+  '$1[redacted]',
+];
 
 /** Query parameters that identify nobody and unlock nothing. */
 export const HARMLESS_QUERY_KEYS: ReadonlySet<string> = new Set([
@@ -49,12 +52,22 @@ function replaceAll(text: string, rules: ReadonlyArray<readonly [RegExp, string]
   );
 }
 
+/** The router matches a path whatever its case, so an error may quote it in any. */
+function anyCase([pattern, replacement]: readonly [RegExp, string]): readonly [RegExp, string] {
+  return [new RegExp(pattern.source, 'gi'), replacement];
+}
+
+/** An error may quote an address as it was asked for. A scheme's `://` keeps its two. */
+function withPlainSlashes(text: string): string {
+  return text.replace(/%2f/gi, '/').replace(/([^:/])\/{2,}/g, '$1/');
+}
+
 /**
  * Free text, such as an error's message or stack, with any capability path in it redacted, and
- * any `token=` value. Text is not a URL, so its other query values are left alone.
+ * any `token=` or bank's `orderId=` value. Text is not a URL, so its other query values are left alone.
  */
 export function redactText(text: string): string {
-  return replaceAll(text, [...PATH_SEGMENTS, QUERY_TOKEN]);
+  return replaceAll(withPlainSlashes(text), [...PATH_SEGMENTS.map(anyCase), QUERY_TOKEN]);
 }
 
 /** Whether a path carries a capability token: a guest, ticket or brief link, for example. */

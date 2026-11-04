@@ -45,7 +45,14 @@ function SeatedRow({ guest, table, host, actions }: RowProps & { guest: SeatedGu
         {guest.name}
         {notes ? <span className="text-muted-foreground text-sm"> · {notes}</span> : null}
       </p>
-      <div className="flex flex-none gap-2">
+      <div className="flex flex-none flex-wrap gap-2">
+        <Button
+          variant="outline"
+          aria-label={t('actionFor', { action: t('tables.chairAction'), name: guest.name })}
+          onClick={(event) => host.open({ kind: 'chair', table, guest }, event.currentTarget)}
+        >
+          {t('tables.chairAction')}
+        </Button>
         <Button
           variant="outline"
           aria-label={t('actionFor', { action: t('tables.move'), name: guest.name })}

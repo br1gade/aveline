@@ -219,6 +219,15 @@ describe('a section', () => {
     expect(layout).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it.each([
+    ['HERO', /draws Full bleed when the cover has a photograph/],
+    ['RSVP', /^The preview can’t draw this template’s layouts yet/],
+  ])('says what the preview draws of %s’s layouts', async (type, help) => {
+    serveDesign(server);
+    renderDesign(session, `/app/events/e1/design/sections/${type}`);
+    expect(await screen.findByLabelText('Layout')).toHaveAccessibleDescription(help);
+  });
+
   it('chooses the cover photo from the uploads', async () => {
     serveDesign(server, { library: libraryWire() });
     const sent = answer(server, 'patch', `/invitations/${SLUG}/blocks/HERO`);

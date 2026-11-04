@@ -12,7 +12,8 @@ export type SeatingDialog =
   | { kind: 'editTable'; table: SeatingTable }
   | { kind: 'removeTable'; table: SeatingTable }
   | { kind: 'seat'; household: HouseholdToSeat; guests: PersonToSeat[] }
-  | { kind: 'move'; table: SeatingTable; guest: SeatedGuest };
+  | { kind: 'move'; table: SeatingTable; guest: SeatedGuest }
+  | { kind: 'chair'; table: SeatingTable; guest: SeatedGuest };
 
 /** What a panel or a dialog needs from the page. */
 export interface SeatingHost {

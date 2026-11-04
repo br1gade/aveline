@@ -12,10 +12,13 @@ import { createI18n } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 
 import { CheckoutPage } from './components/checkout-page';
-import { leaveForBank } from './leave';
+import { leaveForBank } from '@/lib/links/bank';
 import { EVENT, PER_VENUE_RULES } from './test-data';
 
-vi.mock('./leave', () => ({ leaveForBank: vi.fn() }));
+vi.mock('@/lib/links/bank', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  leaveForBank: vi.fn(),
+}));
 
 const ORIGIN = 'http://api.test';
 const ORDERS = `${ORIGIN}/api/v1/public/events/:slug/orders`;

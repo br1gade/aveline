@@ -1,3 +1,4 @@
+import '@/locales/app';
 import { accountMeta, redirectIfSignedIn, Register } from '@/features/account';
 import {
   languageOf,

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { EventZone } from '@/lib/time';
 
 import { intlZoneName, zoneLabelKey } from './format';
+import type { ArtworkLoader } from './private-artwork';
 import type { Invitation, InvitationBlock } from './types';
 
 export interface InvitationContextValue {
@@ -14,11 +15,18 @@ export interface InvitationContextValue {
   renderReply?: ((block: InvitationBlock) => ReactNode) | undefined;
   /** Replaces the reply section's label and heading, as "Thank you" does once sent (PD-36). */
   replyHeading?: string | undefined;
+  /** Reads private artwork; absent where nothing can (a test of the page alone). */
+  artwork?: ArtworkLoader | undefined;
 }
 
 const InvitationContext = createContext<InvitationContextValue | null>(null);
 
 export const InvitationProvider = InvitationContext.Provider;
+
+/** The way this page reads private artwork, if any. */
+export function useArtwork(): ArtworkLoader | undefined {
+  return useContext(InvitationContext)?.artwork;
+}
 
 export function useInvitation(): InvitationContextValue {
   const value = useContext(InvitationContext);

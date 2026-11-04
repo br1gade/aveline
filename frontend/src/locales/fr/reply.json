@@ -112,7 +112,12 @@
     "signerName": "Votre nom complet",
     "typedHelp": "Saisir votre nom vaut signature.",
     "drawnHelp": "Votre nom est conservé à côté de votre signature.",
-    "saved": "Accepté : {{names}}"
+    "saved": "Accepté : {{names}}",
+    "showDrawing": "Afficher la signature : {{names}}",
+    "hideDrawing": "Masquer la signature : {{names}}",
+    "drawingAlt": "La signature dessinée pour : {{names}}",
+    "drawingFailed": "La signature n’a pas pu être affichée.",
+    "drawingRetry": "Réessayer"
   },
   "pad": {
     "label": "Zone de dessin de la signature",

@@ -1,0 +1,39 @@
+{
+  "back": "Back to the event",
+  "title": "What guests’ answers add up to",
+  "lead": "For the venue, the bar and the musician. It counts guests who are coming, as they answered.",
+  "refused": "These numbers aren’t available to your role on this event.",
+  "venue": {
+    "label": "Which venue",
+    "all": "Whole event",
+    "whole": "Everyone coming to the event",
+    "at": "At {{venue}}",
+    "everywhere": "For the whole event: this isn’t counted per venue."
+  },
+  "catering": {
+    "title": "Catering",
+    "covers_one": "{{count}} cover",
+    "covers_other": "{{count}} covers",
+    "noRequirements": "Nobody coming has named a requirement.",
+    "notes": "Guests’ notes"
+  },
+  "bar": {
+    "title": "Bar",
+    "none": "Nobody coming has named a drink.",
+    "answers_one": "{{count}} guest named a drink",
+    "answers_other": "{{count}} guests named a drink",
+    "count": "{{guests}} · {{share}}%"
+  },
+  "playlist": {
+    "title": "Playlist",
+    "none": "Nobody coming has asked for a song.",
+    "requests_one": "{{count}} request",
+    "requests_other": "{{count}} requests"
+  },
+  "engagement": {
+    "title": "Invitation views",
+    "none": "No views recorded. If guests have opened it, the count may not be running here.",
+    "total_one": "{{count}} view",
+    "total_other": "{{count}} views"
+  }
+}

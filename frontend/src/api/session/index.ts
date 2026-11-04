@@ -5,6 +5,7 @@ export { browserSession, createBrowserSession } from './browser-session';
 export type { BrowserSession, BrowserSessionDependencies } from './browser-session';
 export { createSessionChannel } from './channel';
 export type { SessionChannel } from './channel';
+export { isOrganizationRefusal, organizationChoice } from './organization';
 export { createSessionRefresher, REFRESH_LOCK } from './refresh';
 export type { RefreshDependencies } from './refresh';
 export { createTokenStore } from './token-store';

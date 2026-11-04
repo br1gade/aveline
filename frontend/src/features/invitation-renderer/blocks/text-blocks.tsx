@@ -4,7 +4,7 @@ import { safeExternalUrl } from '@/lib/links';
 import { ButtonLink, cx, EXTERNAL_LINK, Icon, SectionHeading } from '@/ui';
 
 import { ArchFrame } from '../components/arch-frame';
-import { imageSource } from '../components/image-source';
+import { InvitationImage } from '../components/invitation-image';
 import { Section, variantOf } from '../components/section';
 import {
   bodyContent,
@@ -36,11 +36,8 @@ export function StoryBlock({ block }: BlockProps) {
       )}
     >
       {photo ? (
-        <img
-          {...imageSource(photo)}
-          alt={photo.altText ?? ''}
-          loading="lazy"
-          decoding="async"
+        <InvitationImage
+          photo={photo}
           sizes="(min-width: 1024px) 16rem, 90vw"
           className="bg-sand aspect-[4/5] w-full object-cover lg:row-span-2 lg:aspect-[3/4]"
         />
@@ -103,14 +100,7 @@ export function SignatureBlock({ block }: BlockProps) {
     <Section columnClassName="items-center gap-4 text-center">
       {closing ? <p className="type-heading-2 text-heading m-0">{closing}</p> : null}
       {image ? (
-        <img
-          {...imageSource(image)}
-          alt={image.altText ?? ''}
-          sizes="240px"
-          loading="lazy"
-          decoding="async"
-          className="h-auto w-full max-w-[240px]"
-        />
+        <InvitationImage photo={image} sizes="240px" className="h-auto w-full max-w-[240px]" />
       ) : null}
       {photo ? <ArchFrame photo={photo} sizes="240px" className="w-full max-w-[240px]" /> : null}
     </Section>

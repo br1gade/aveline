@@ -9,8 +9,10 @@ export { DesignOverview } from './components/design-overview';
 export { DesignPreview } from './components/design-preview';
 export { DesignQuestions } from './components/design-questions';
 export { DesignSection } from './components/design-section';
+export { TemplateAdoption } from './components/template-adoption';
 export { EditDesignQuestion, NewDesignQuestion } from './components/question-pages';
 export {
+  loadAdoption,
   loadDesignLook,
   loadDesignMedia,
   loadDesignOverview,

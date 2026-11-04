@@ -1,3 +1,4 @@
+import '@/locales/public';
 import { OrderPage } from '@/features/ticket-order';
 import {
   createI18n,

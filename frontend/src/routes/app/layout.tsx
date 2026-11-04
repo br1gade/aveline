@@ -1,7 +1,13 @@
-import { Outlet } from 'react-router';
+import { Outlet, useLoaderData, type ShouldRevalidateFunctionArgs } from 'react-router';
 
-import { AppLoading, AppShell, requireSignedIn } from '@/features/account';
+import {
+  AppLoading,
+  AppShell,
+  requireOrganizationChosen,
+  requireSignedIn,
+} from '@/features/account';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
+import { APP_PATHS } from '@/route-paths';
 import { LeaveGuard } from '@/ui/app-form';
 
 import type { Route } from './+types/layout';
@@ -12,22 +18,29 @@ import type { Route } from './+types/layout';
  * `/app` route above.
  */
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-  await requireSignedIn(request);
-  return null;
+  const { api } = await requireSignedIn(request);
+  const settled = await requireOrganizationChosen(api, new URL(request.url));
+  return settled?.canChange ? { name: settled.current?.name ?? null } : null;
 }
 clientLoader.hydrate = true as const;
 
-/** A search or a filter on the same page needs no new session check. */
-export const shouldRevalidate = revalidateUnlessQueryOnly;
+/**
+ * A search or a filter on the same page needs no new session check. Leaving the chooser reads it
+ * again, as it names the organization chosen.
+ */
+export function shouldRevalidate(args: ShouldRevalidateFunctionArgs) {
+  return args.currentUrl.pathname === APP_PATHS.organizations || revalidateUnlessQueryOnly(args);
+}
 
 export function HydrateFallback() {
   return <AppLoading />;
 }
 
 export default function AppLayout() {
+  const organization = useLoaderData<typeof clientLoader>();
   return (
     <LeaveGuard>
-      <AppShell>
+      <AppShell organization={organization ?? undefined}>
         <Outlet />
       </AppShell>
     </LeaveGuard>

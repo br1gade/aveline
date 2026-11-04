@@ -24,6 +24,7 @@ import {
   photosPath,
   runningOrderPath,
   seatingPath,
+  sheetsPath,
   teamPath,
   ticketSalesPath,
   venuesPath,
@@ -100,62 +101,39 @@ function EventDetails({ event }: { event: EventDetail }) {
   );
 }
 
+function EventLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Button asChild variant="outline">
+      <Link to={to}>{children}</Link>
+    </Button>
+  );
+}
+
 function EventLinks({ event }: { event: EventDetail }) {
   const { t } = useTranslation('events');
   return (
     <div className="flex flex-wrap gap-2">
-      <Button asChild variant="outline">
-        <Link to={guestListPath(event.id)}>{t('overview.guests')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={venuesPath(event.id)}>{t('overview.venues')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={runningOrderPath(event.id)}>{t('overview.runningOrder')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={seatingPath(event.id)}>{t('overview.seating')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={exportsPath(event.id)}>{t('overview.exports')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={ticketSalesPath(event.id)}>{t('overview.ticketSales')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={ordersPath(event.id)}>{t('overview.orders')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={doorPath(event.id)}>{t('overview.door')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={teamPath(event.id)}>{t('overview.team')}</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={eventVendorsPath(event.id)}>{t('overview.vendors')}</Link>
-      </Button>
+      <EventLink to={guestListPath(event.id)}>{t('overview.guests')}</EventLink>
+      <EventLink to={venuesPath(event.id)}>{t('overview.venues')}</EventLink>
+      <EventLink to={runningOrderPath(event.id)}>{t('overview.runningOrder')}</EventLink>
+      <EventLink to={seatingPath(event.id)}>{t('overview.seating')}</EventLink>
+      <EventLink to={exportsPath(event.id)}>{t('overview.exports')}</EventLink>
+      <EventLink to={ticketSalesPath(event.id)}>{t('overview.ticketSales')}</EventLink>
+      <EventLink to={ordersPath(event.id)}>{t('overview.orders')}</EventLink>
+      <EventLink to={doorPath(event.id)}>{t('overview.door')}</EventLink>
+      <EventLink to={sheetsPath(event.id)}>{t('overview.sheets')}</EventLink>
+      <EventLink to={designPath(event.id)}>{t('overview.design')}</EventLink>
+      <EventLink to={teamPath(event.id)}>{t('overview.team')}</EventLink>
+      <EventLink to={eventVendorsPath(event.id)}>{t('overview.vendors')}</EventLink>
       {event.invitation ? (
         <>
-          <Button asChild variant="outline">
-            <Link to={designPath(event.id)}>{t('overview.design')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={invitationPath(event.id)}>{t('overview.publishSend')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={followUpsPath(event.id)}>{t('overview.followUps')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={photosPath(event.id)}>{t('overview.photos')}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={agreementsPath(event.id)}>{t('overview.agreements')}</Link>
-          </Button>
+          <EventLink to={invitationPath(event.id)}>{t('overview.publishSend')}</EventLink>
+          <EventLink to={followUpsPath(event.id)}>{t('overview.followUps')}</EventLink>
+          <EventLink to={photosPath(event.id)}>{t('overview.photos')}</EventLink>
+          <EventLink to={agreementsPath(event.id)}>{t('overview.agreements')}</EventLink>
         </>
       ) : null}
-      <Button asChild variant="outline">
-        <Link to={editEventPath(event.id)}>{t('overview.edit')}</Link>
-      </Button>
+      <EventLink to={editEventPath(event.id)}>{t('overview.edit')}</EventLink>
     </div>
   );
 }

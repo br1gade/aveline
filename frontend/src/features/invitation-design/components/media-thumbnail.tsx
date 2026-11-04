@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router';
 
-import { imageSource } from '@/features/invitation-renderer';
+import { browserSession } from '@/api/session';
+import { hostArtworkLoader, imageSource, type PrivateAsset } from '@/features/invitation-renderer';
+import { PrivateImage } from '@/ui';
 
 import type { DesignMedia } from '../types';
 
@@ -26,6 +29,43 @@ export function altTextOf(media: DesignMedia, languages: readonly string[]): str
   return Object.values(media.altText)[0];
 }
 
+/** A private picture, shown from memory: its address needs the host's bearer token (PD-140). */
+function PrivateThumbnail({ asset }: { asset: PrivateAsset }) {
+  const { eventId = '' } = useParams();
+  const className = 'bg-muted size-16 shrink-0 object-cover';
+  return (
+    <PrivateImage
+      id={asset.id}
+      load={(signal) => hostArtworkLoader(browserSession().api, eventId)(asset, signal)}
+      alt=""
+      className={className}
+      renderFailed={() => <span aria-hidden="true" className={`block ${className}`} />}
+    />
+  );
+}
+
+function Picture({ media }: { media: DesignMedia }) {
+  const { t } = useTranslation('design');
+  if (media.kind === 'AUDIO') {
+    return (
+      <span className="bg-muted text-muted-foreground flex size-16 shrink-0 items-center justify-center text-xs">
+        {t('media.kinds.AUDIO')}
+      </span>
+    );
+  }
+  if (media.privateAsset) return <PrivateThumbnail asset={media.privateAsset} />;
+  return (
+    <img
+      {...imageSource({ ...media, altText: null })}
+      sizes="64px"
+      alt=""
+      loading="lazy"
+      decoding="async"
+      className="bg-muted size-16 shrink-0 object-cover"
+    />
+  );
+}
+
 interface ThumbnailProps {
   media: DesignMedia;
   /** Where to look for its description first. */
@@ -42,20 +82,7 @@ export function MediaThumbnail({ media, languages }: ThumbnailProps) {
   const description = altTextOf(media, languages);
   return (
     <div className="flex min-w-0 items-center gap-3">
-      {media.kind === 'AUDIO' ? (
-        <span className="bg-muted text-muted-foreground flex size-16 shrink-0 items-center justify-center text-xs">
-          {t('media.kinds.AUDIO')}
-        </span>
-      ) : (
-        <img
-          {...imageSource({ ...media, altText: null })}
-          sizes="64px"
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="bg-muted size-16 shrink-0 object-cover"
-        />
-      )}
+      <Picture media={media} />
       <span className="flex min-w-0 flex-col">
         <span className="text-sm font-medium">{kindName(media.kind)}</span>
         <span className="text-muted-foreground text-sm break-words">

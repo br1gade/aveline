@@ -6,7 +6,7 @@ import { readPublicEnv } from '@/config/env';
 import { REPLY_HEADING_ID, type Invitation } from '@/features/invitation-renderer';
 import { Notice } from '@/ui';
 
-import { fetchReply, submitReply, type ReplyLink } from '../api';
+import { drawingFile, fetchReply, submitReply, type ReplyLink } from '../api';
 import { venueChoices } from '../attendance';
 import { fullName, type ReplyFormValues } from '../form-model';
 import { fieldConfig } from '../options';
@@ -15,7 +15,7 @@ import { classifySendError, type SendProblem } from '../server-errors';
 import type { SignatureContext } from '../signatures';
 import type { ReplyRecord, SubmitResult } from '../types';
 import { ReplyForm } from './reply-form';
-import { SavedReply, SentReply } from './saved-reply';
+import { SavedReply, SentReply, type SavedDrawing } from './saved-reply';
 import { useSignatureContext, useSigning } from './use-signing';
 
 type View = 'saved' | 'form' | 'sent';
@@ -144,6 +144,31 @@ function agreedNames(record: ReplyRecord, signatures: SignatureContext | null): 
   });
 }
 
+/** The drawn signatures, each with whom it was drawn for. */
+function savedDrawings(record: ReplyRecord, signatures: SignatureContext | null): SavedDrawing[] {
+  const people = [record.guest, ...record.household.members];
+  return (signatures?.drawn ?? []).map(({ acknowledgementId, guestIds }) => ({
+    acknowledgementId,
+    names: people
+      .filter((person) => guestIds.includes(person.id))
+      .map(fullName)
+      .join(', '),
+  }));
+}
+
+function drawingsOf(props: {
+  api: ApiClient;
+  link: ReplyLink;
+  record: ReplyRecord;
+  signatures: SignatureContext | null;
+}) {
+  const { api, link, record, signatures } = props;
+  return {
+    drawings: savedDrawings(record, signatures),
+    loadDrawing: (id: string, signal: AbortSignal) => drawingFile(api, link, id, signal),
+  };
+}
+
 /** The page's state: the reply as last read, which view shows, and when to read agreements. */
 function useReplyState(props: GuestReplyProps) {
   const [stored, setRecord] = useState(props.record);
@@ -168,6 +193,12 @@ function useReplyState(props: GuestReplyProps) {
   return { record, view, setView, names, setNames, refresh, update };
 }
 
+function useFocusOnSent(view: View) {
+  useEffect(() => {
+    if (view === 'sent') document.getElementById(REPLY_HEADING_ID)?.focus();
+  }, [view]);
+}
+
 /**
  * The reply section's content on a personal link (spec §6): the saved reply, the form, or the
  * confirmation. Once replies close, only the last reply shows.
@@ -190,9 +221,7 @@ export function GuestReply(props: GuestReplyProps) {
   const agreed = agreedNames(record, signatures);
   const { reloaded, reload } = useReload(api, link, state.update);
 
-  useEffect(() => {
-    if (view === 'sent') document.getElementById(REPLY_HEADING_ID)?.focus();
-  }, [view]);
+  useFocusOnSent(view);
 
   const send = sender({ props, api, record, signatures }, (fresh, coming) => {
     state.update(fresh);
@@ -205,7 +234,7 @@ export function GuestReply(props: GuestReplyProps) {
     onSentChange(false);
   }
 
-  const saved = { record, venues, agreed, zone };
+  const saved = { record, venues, agreed, zone, ...drawingsOf({ api, link, record, signatures }) };
   if (!invitation.isAcceptingResponses) {
     return record.rsvp.status === 'PENDING' ? null : (
       <Card>

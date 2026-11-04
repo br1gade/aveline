@@ -1,4 +1,7 @@
 import { expectData, type ApiClient } from '@/api/client';
+import { withPrivateArtwork } from '@/features/invitation-renderer';
+
+import { readAdoption, type AdoptionRead, type AdoptionWire } from './adoption';
 
 import type {
   Arrangement,
@@ -49,6 +52,74 @@ export async function listTemplates(api: ApiClient, eventId: string): Promise<De
     }),
   );
   return readTemplates(templates);
+}
+
+/**
+ * A template version's preview, against the design as it stands (docs/API.md §6). No change to the
+ * invitation. It needs the event-owned copies of private artwork made first, which it says.
+ */
+export async function startAdoption(
+  api: ApiClient,
+  slug: string,
+  body: { targetVersionId: string; expectedDesignRevision: string },
+): Promise<AdoptionRead> {
+  return readAdoption(
+    await expectData<AdoptionWire>(
+      api.POST('/api/v1/invitations/{slug}/template-upgrade-preview', {
+        params: { path: { slug } },
+        body,
+      }),
+    ),
+  );
+}
+
+export async function pollAdoption(
+  api: ApiClient,
+  slug: string,
+  previewId: string,
+): Promise<AdoptionRead> {
+  return readAdoption(
+    await expectData<AdoptionWire>(
+      api.GET('/api/v1/invitations/{slug}/template-upgrade-previews/{previewId}', {
+        params: { path: { slug, previewId } },
+      }),
+    ),
+  );
+}
+
+export interface AdoptionConfirm {
+  templateKey: string;
+  templateVersionId: string;
+  previewId: string;
+  expectedTemplateVersionId: string;
+  expectedDesignRevision: string;
+  /** A UUID, the same across a retry after no answer. */
+  idempotencyKey: string;
+}
+
+/** `openapi.json` declares only `templateKey`, so these five fields go unchecked by it (FR-114). */
+export async function confirmAdoption(
+  api: ApiClient,
+  slug: string,
+  body: AdoptionConfirm,
+): Promise<void> {
+  await expectData<unknown>(
+    api.POST('/api/v1/invitations/{slug}/template', { params: { path: { slug } }, body }),
+  );
+}
+
+/** Only for an event that has none; with no key, the backend picks its first active template. */
+export async function createInvitation(
+  api: ApiClient,
+  eventId: string,
+  templateKey: string | undefined,
+): Promise<void> {
+  await expectData<unknown>(
+    api.POST('/api/v1/events/{id}/invitation', {
+      params: { path: { id: eventId } },
+      body: templateKey ? { templateKey } : {},
+    }),
+  );
 }
 
 /** Resets the look and switches off what the new template cannot render; the page warns first. */
@@ -234,7 +305,7 @@ export function previewInvitation(
     api.GET('/api/v1/invitations/{slug}/template-preview', {
       params: { path: { slug }, query: queryOf(query) },
     }),
-  );
+  ).then(withPrivateArtwork);
 }
 
 /** A template with synthetic content in four languages; no customer data. */
@@ -248,5 +319,5 @@ export function previewTemplate(
     api.GET('/api/v1/events/{eventId}/design-templates/{templateKey}/preview', {
       params: { path: { eventId, templateKey }, query: queryOf({ locale }) },
     }),
-  );
+  ).then(withPrivateArtwork);
 }

@@ -1,7 +1,10 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { formatEventDay, formatEventTime, type EventZone } from '@/lib/time';
 import { Button } from '@/ui/kit/button';
+import { Checkbox } from '@/ui/kit/checkbox';
+import { Label } from '@/ui/kit/label';
 
 import { failureOf, tabOf } from '../status';
 import type { GalleryPhoto, PhotoVariant } from '../types';
@@ -27,6 +30,25 @@ interface CardProps {
   load: PhotoLoader;
   zone: EventZone;
   actions: CardActions;
+  /** Where several can be approved at once (design PD-136); absent elsewhere. */
+  choice?: { isChosen: boolean; toggle: (isChosen: boolean) => void } | undefined;
+}
+
+/** A box big enough to press, its whole row its target, named for the photo it chooses. */
+function ChooseBox({ choice, label }: { choice: NonNullable<CardProps['choice']>; label: string }) {
+  const id = useId();
+  return (
+    <div className="flex min-h-11 items-center gap-3">
+      <Checkbox
+        id={id}
+        checked={choice.isChosen}
+        onCheckedChange={(state) => choice.toggle(state === true)}
+      />
+      <Label htmlFor={id} className="font-normal break-words">
+        {label}
+      </Label>
+    </div>
+  );
 }
 
 /** The decisions a tab offers: approve what waits, hide what shows, approve what was refused. */
@@ -78,12 +100,13 @@ function NotReady({ photo }: { photo: GalleryPhoto }) {
  * One photo for the hosts (design PD-65): its small copy, its caption as the guest wrote it, when it
  * was shared in the event's zone, and the tab's actions. Who shared it is not said (FR-48).
  */
-export function ModerationCard({ photo, load, zone, actions }: CardProps) {
+export function ModerationCard({ photo, load, zone, actions, choice }: CardProps) {
   const { t } = useTranslation('gallery');
   const alt = photo.caption ?? t('host.alt');
   const when = `${formatEventDay(photo.createdAt, zone)}, ${formatEventTime(photo.createdAt, zone)}`;
   return (
     <li className="bg-card border-border flex min-w-0 flex-col gap-3 border p-3">
+      {choice ? <ChooseBox choice={choice} label={t('host.bulk.choose', { name: alt })} /> : null}
       {photo.processing === 'READY' ? (
         <button
           type="button"

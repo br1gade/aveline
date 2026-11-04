@@ -61,13 +61,14 @@ interface ReplyBarProps {
  */
 export function ReplyBar({ reply, isShown }: ReplyBarProps) {
   const { t } = useTranslation('invitation');
-  const bar = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLElement>(null);
   const statusText = useStatusText(reply);
   useScrollPadding(bar, isShown);
 
   return (
-    <div
+    <aside
       ref={bar}
+      aria-label={t('personal.reply')}
       hidden={!isShown}
       className="border-sand bg-porcelain text-ink fixed inset-x-0 bottom-0 z-20 flex flex-col gap-3 border-t px-5 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-(--shadow-float) min-[480px]:flex-row min-[480px]:items-center lg:hidden"
     >
@@ -89,6 +90,6 @@ export function ReplyBar({ reply, isShown }: ReplyBarProps) {
           {t('personal.reply')}
         </ButtonLink>
       )}
-    </div>
+    </aside>
   );
 }

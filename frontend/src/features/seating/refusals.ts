@@ -19,7 +19,15 @@ type ForbiddenKey =
   'addTable' | 'editTable' | 'removeTable' | 'seat' | 'unseat' | 'start' | 'publish';
 type MissingKey = 'plan' | 'table' | 'seat' | 'notSeated' | 'event';
 type ConflictKey =
-  'tableFull' | 'venueFull' | 'tableMoved' | 'chairTaken' | 'seat' | 'tableOccupied' | 'start';
+  | 'tableFull'
+  | 'venueFull'
+  | 'tableMoved'
+  | 'chairTaken'
+  | 'chairOutside'
+  | 'seat'
+  | 'tableOccupied'
+  | 'start'
+  | 'venueHasGuests';
 
 /** Under the `seating` namespace's `problems.`. */
 export type RefusalKey =
@@ -83,20 +91,25 @@ function seatConflictOf(messages: readonly string[]): RefusalKey {
 function conflictKey(action: SeatingAction, messages: readonly string[]): RefusalKey {
   if (SEATING.includes(action)) return seatConflictOf(messages);
   if (action === 'removeTable') return 'conflict.tableOccupied';
+  if (action === 'editTable' && messages.some((message) => message.startsWith('venueId: '))) {
+    return 'conflict.venueHasGuests';
+  }
   if (action === 'start') return 'conflict.start';
   return 'other';
 }
 
-function badRequestKey(action: SeatingAction): RefusalKey {
+function badRequestKey(action: SeatingAction, messages: readonly string[]): RefusalKey {
   if (TABLE_FORMS.includes(action)) return 'check';
-  return SEATING.includes(action) ? 'conflict.seat' : 'other';
+  if (!SEATING.includes(action)) return 'other';
+  const isPastTheTable = messages.some((message) => message.startsWith('position: outside'));
+  return isPastTheTable ? 'conflict.chairOutside' : 'conflict.seat';
 }
 
 function keyOf(action: SeatingAction, status: number, messages: readonly string[]): RefusalKey {
   if (status === 403) return `forbidden.${BY_ACTION[action].forbidden}`;
   if (status === 404) return `missing.${BY_ACTION[action].missing}`;
   if (status === 409) return conflictKey(action, messages);
-  if (status === 400) return badRequestKey(action);
+  if (status === 400) return badRequestKey(action, messages);
   return 'other';
 }
 
@@ -107,7 +120,9 @@ function keyOf(action: SeatingAction, status: number, messages: readonly string[
  */
 function isStaleAfter(action: SeatingAction, status: number): boolean {
   if (status === 404) return true;
-  if (status === 409) return SEATING.includes(action) || action === 'removeTable';
+  if (status === 409) {
+    return SEATING.includes(action) || action === 'removeTable' || action === 'editTable';
+  }
   return status === 400 && SEATING.includes(action);
 }
 

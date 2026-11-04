@@ -29,6 +29,7 @@ export interface AcknowledgementRecord {
   subjectGuestId: string;
   method: SignatureMethod;
   createdAt: string;
+  mediaId: string | null;
 }
 
 export type UploadStatus = 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED';
@@ -106,6 +107,38 @@ export function currentStatements(
   });
 }
 
+/** One drawn signature on the saved reply, and whom it was drawn for (design PD-137). */
+export interface DrawnAgreement {
+  /** The record to read the picture through: any of those it was signed for. */
+  acknowledgementId: string;
+  guestIds: string[];
+}
+
+/**
+ * The drawings behind the current wordings' agreements. Someone agreeing for a household makes one
+ * record per person with the same drawing, shown once with all their names.
+ */
+export function drawnAgreements(
+  statements: readonly Statement[],
+  records: readonly AcknowledgementRecord[],
+): DrawnAgreement[] {
+  const current = new Set(statements.map((statement) => statement.statementVersionId));
+  const byDrawing = new Map<string, DrawnAgreement>();
+  for (const record of records) {
+    if (record.method !== 'DRAWN' || !record.mediaId) continue;
+    if (!current.has(record.statementVersionId)) continue;
+    const held = byDrawing.get(record.mediaId);
+    if (held) held.guestIds.push(record.subjectGuestId);
+    else {
+      byDrawing.set(record.mediaId, {
+        acknowledgementId: record.id,
+        guestIds: [record.subjectGuestId],
+      });
+    }
+  }
+  return [...byDrawing.values()];
+}
+
 /** Who already agreed to each statement's current wording, by its question. */
 export function coveredGuests(
   statements: readonly Statement[],
@@ -178,6 +211,8 @@ export interface SignatureContext {
   /** Who already agreed to each statement's current wording, by question. */
   covered: ReadonlyMap<string, ReadonlySet<string>>;
   signer: Signer;
+  /** The drawn signatures behind those agreements, for the saved reply. */
+  drawn?: readonly DrawnAgreement[];
 }
 
 /** A statement this reply agrees to, and for whom. */

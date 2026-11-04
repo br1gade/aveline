@@ -100,7 +100,8 @@
     "followUps": "Reminders and thanks",
     "team": "The team",
     "vendors": "Vendors",
-    "runningOrder": "Running order"
+    "runningOrder": "Running order",
+    "sheets": "Catering, bar and music"
   },
   "headcount": {
     "title": "Guests",
@@ -147,7 +148,9 @@
     "body": "It may not exist, or your account isn’t on it.",
     "failed": "The event couldn’t be loaded. Please try again in a moment.",
     "rateLimited": "Too many requests just now. Wait a minute, then reload the page.",
-    "back": "Your events"
+    "back": "Your events",
+    "chooseOrganization": "Choose an organization",
+    "organization": "This page belongs to an organization. Choose which one this tab works in, then try again."
   },
   "attendance": {
     "back": "Back to the event",

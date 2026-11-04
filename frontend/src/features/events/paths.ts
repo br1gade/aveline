@@ -14,6 +14,10 @@ export function guestListPath(eventId: string): string {
   return generatePath(APP_PATHS.guests, { eventId });
 }
 
+export function sheetsPath(eventId: string): string {
+  return generatePath(APP_PATHS.sheets, { eventId });
+}
+
 export function venuesPath(eventId: string): string {
   return generatePath(APP_PATHS.venues, { eventId });
 }

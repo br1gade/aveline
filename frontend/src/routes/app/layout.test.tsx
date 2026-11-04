@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from '@/lib/i18n';
 import { useLeaveGuard } from '@/ui/app-form';
 
-import AppLayout from './layout';
+import AppLayout, { shouldRevalidate } from './layout';
 
 // The frame's header needs a session; what is tested here is what the layout puts around a page.
 vi.mock('@/features/account', async (importOriginal) => ({
@@ -53,5 +53,23 @@ describe('the app’s frame', () => {
     await user.click(screen.getByRole('link', { name: 'Elsewhere' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Leave without saving?' });
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+  });
+});
+
+describe('when the frame reads its organization again', () => {
+  const change = (from: string, to: string) =>
+    shouldRevalidate({
+      currentUrl: new URL(`http://app.test${from}`),
+      nextUrl: new URL(`http://app.test${to}`),
+      defaultShouldRevalidate: false,
+    } as Parameters<typeof shouldRevalidate>[0]);
+
+  it('reads it on leaving the chooser, as a choice was just made', () => {
+    expect(change('/app/organizations', '/app/billing')).toBe(true);
+  });
+
+  it('keeps it on a move between other pages, and on a search', () => {
+    expect(change('/app/billing', '/app')).toBe(false);
+    expect(change('/app/events/e1/guests', '/app/events/e1/guests?q=ani')).toBe(false);
   });
 });

@@ -52,6 +52,21 @@ describe('a private picture', () => {
     expect(screen.getByRole('img', { name: 'Your photo' })).toHaveAttribute('aria-busy', 'true');
   });
 
+  it('keeps a picture with no words from being announced while it loads', () => {
+    render(
+      <PrivateImage
+        id="m1"
+        load={() => new Promise(() => undefined)}
+        alt=""
+        renderFailed={failed}
+      />,
+    );
+    const frame = document.querySelector('[aria-hidden="true"]');
+    expect(frame).not.toBeNull();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(frame).not.toHaveAttribute('aria-busy');
+  });
+
   it('releases the object URL when it leaves the page', async () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test/gone');
     const revoke = vi.spyOn(URL, 'revokeObjectURL');

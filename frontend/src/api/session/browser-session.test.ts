@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { createBrowserSession } from './browser-session';
 import type { SessionChannel } from './channel';
+import { organizationChoice } from './organization';
 import type { TokenStore } from './token-store';
 
 const ORIGIN = 'http://api.test';
@@ -180,5 +181,51 @@ describe('createBrowserSession', () => {
 
     expect(authorization).toBe('Bearer a1');
     expect(signedOut).toHaveBeenCalledOnce();
+  });
+
+  describe('the organization this tab chose', () => {
+    afterEach(() => organizationChoice.clear());
+
+    function chosen() {
+      const { channel, fromAnotherTab } = testChannel();
+      const session = createBrowserSession({
+        baseUrl: ORIGIN,
+        store: memoryStore(),
+        channel,
+        schedule: () => () => undefined,
+      });
+      organizationChoice.choose('o2');
+      return { session, fromAnotherTab };
+    }
+
+    it('is forgotten on signing out, so the next account in this tab starts clear', async () => {
+      const { session } = chosen();
+      await session.signOut();
+      expect(organizationChoice.read()).toBeUndefined();
+    });
+
+    it('is forgotten when another tab signs out', () => {
+      const { fromAnotherTab } = chosen();
+      fromAnotherTab();
+      expect(organizationChoice.read()).toBeUndefined();
+    });
+
+    it('goes with a call that takes one, and not with one that doesn’t', async () => {
+      const { session } = chosen();
+      const seen: Record<string, string | null> = {};
+      server.use(
+        http.get(`${ORIGIN}/api/v1/promo-codes`, ({ request }) => {
+          seen.scoped = request.headers.get('x-aveline-organization-id');
+          return HttpResponse.json([]);
+        }),
+        http.get(`${ORIGIN}/api/v1/events/e1`, ({ request }) => {
+          seen.event = request.headers.get('x-aveline-organization-id');
+          return HttpResponse.json({});
+        }),
+      );
+      await session.api.GET('/api/v1/promo-codes');
+      await session.api.GET('/api/v1/events/{id}', { params: { path: { id: 'e1' } } });
+      expect(seen).toEqual({ scoped: 'o2', event: null });
+    });
   });
 });

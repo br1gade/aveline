@@ -100,7 +100,8 @@
     "followUps": "Rappels et remerciements",
     "team": "L’équipe",
     "vendors": "Prestataires",
-    "runningOrder": "Déroulé de la journée"
+    "runningOrder": "Déroulé de la journée",
+    "sheets": "Traiteur, bar et musique"
   },
   "headcount": {
     "title": "Invités",
@@ -151,7 +152,9 @@
     "body": "Il n’existe peut-être pas, ou votre compte n’y a pas accès.",
     "failed": "L’événement n’a pas pu être chargé. Veuillez réessayer dans un instant.",
     "rateLimited": "Trop de requêtes pour le moment. Attendez une minute, puis rechargez la page.",
-    "back": "Vos événements"
+    "back": "Vos événements",
+    "chooseOrganization": "Choisir une organisation",
+    "organization": "Cette page appartient à une organisation. Choisissez celle dans laquelle cet onglet travaille, puis réessayez."
   },
   "attendance": {
     "back": "Retour à l’événement",

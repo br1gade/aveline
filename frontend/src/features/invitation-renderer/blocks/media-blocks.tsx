@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cx, Icon, SectionHeading } from '@/ui';
 
-import { imageSource } from '../components/image-source';
+import { InvitationImage } from '../components/invitation-image';
 import { useMusic } from '../components/music';
 import { Section, variantOf } from '../components/section';
 import { photos, titledContent } from '../schemas';
@@ -47,11 +47,8 @@ interface PhotoProps {
 
 function Photo({ photo, className, phoneWidth }: PhotoProps) {
   return (
-    <img
-      {...imageSource(photo)}
-      alt={photo.altText ?? ''}
-      loading="lazy"
-      decoding="async"
+    <InvitationImage
+      photo={photo}
       sizes={`(min-width: 768px) 14rem, ${phoneWidth}`}
       className={cx('bg-sand block w-full object-cover', className)}
     />

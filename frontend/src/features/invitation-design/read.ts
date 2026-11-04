@@ -1,3 +1,5 @@
+import { privateAssetOf } from '@/features/invitation-renderer';
+
 import type { InvitationStatus } from '@/features/events';
 import { BUILT_IN_FIELDS, type QuestionType } from '@/features/invitation-renderer';
 
@@ -76,9 +78,12 @@ function readVariants(value: unknown): MediaVariant[] {
 }
 
 function readMedia(media: MediaWire): DesignMedia {
+  // An authored template's default artwork: read through the API, never by its address (PD-140).
+  const privateAsset = privateAssetOf(media.url);
   return {
     id: media.id,
-    url: media.url,
+    url: privateAsset ? '' : media.url,
+    ...(privateAsset ? { privateAsset } : {}),
     kind: media.kind,
     altText: readTranslated(media.altText),
     width: media.width ?? null,
@@ -120,6 +125,7 @@ function readSummary(template: TemplateWire): TemplateSummary {
   return {
     key: template.key,
     name: template.name,
+    ...(template.versionId ? { versionId: template.versionId } : {}),
     allowedFonts: stringsOf(template.allowedFonts),
     palettes: readPalettes(template.palettes),
     supportedBlocks: stringsOf(template.supportedBlocks),
@@ -201,6 +207,7 @@ function statusOf(status: string): InvitationStatus {
 export function readDesign(design: DesignWire): Design {
   return {
     slug: design.slug,
+    ...(design.designRevision ? { designRevision: design.designRevision } : {}),
     status: statusOf(design.status),
     isExpired: design.isExpired ?? false,
     event: {

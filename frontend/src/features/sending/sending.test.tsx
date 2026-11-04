@@ -264,6 +264,27 @@ describe('InvitationPage: a draft', () => {
     expect(reads.delivery).toBe(1);
   });
 
+  it('says artwork is still being prepared, in its own words, when publishing waits on it', async () => {
+    serve();
+    answer(`/invitations/${SLUG}/publish`, () =>
+      HttpResponse.json(
+        {
+          statusCode: 409,
+          message: 'Private design artwork must finish processing',
+          code: 'TEMPLATE_ASSET_NOT_READY',
+          requestId: 'r-1',
+        },
+        { status: 409 },
+      ),
+    );
+    const user = renderPage();
+    await user.click(await publishButton());
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Publish' }));
+    expect(await screen.findByText(/artwork is still being prepared/)).toBeInTheDocument();
+    expect(screen.queryByText(/Private design artwork/)).not.toBeInTheDocument();
+  });
+
   it('publishes nothing when the host cancels', async () => {
     serve();
     const published = answer(`/invitations/${SLUG}/publish`, refusal(500));

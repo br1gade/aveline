@@ -1,7 +1,7 @@
 import { cx } from '@/ui';
 
 import type { BlockMedia } from '../types';
-import { imageSource } from './image-source';
+import { InvitationImage } from './invitation-image';
 
 interface ArchFrameProps {
   photo: BlockMedia;
@@ -18,13 +18,10 @@ interface ArchFrameProps {
 export function ArchFrame({ photo, isEager = false, sizes, className }: ArchFrameProps) {
   return (
     <div className={cx('border-ornament box-border rounded-t-full border p-2', className)}>
-      <img
-        {...imageSource(photo)}
-        alt={photo.altText ?? ''}
+      <InvitationImage
+        photo={photo}
         sizes={sizes}
-        loading={isEager ? 'eager' : 'lazy'}
-        decoding="async"
-        {...(isEager ? { fetchPriority: 'high' as const } : {})}
+        isEager={isEager}
         className="bg-sand block aspect-[10/13] w-full rounded-t-full object-cover"
       />
     </div>

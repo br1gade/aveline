@@ -10,6 +10,7 @@ import { ProblemAlert } from '@/ui/app-form';
 
 import { designPath, designQuestionsPath } from '../paths';
 import { useRefusedText, type DesignAction } from '../refusals';
+import { AddInvitation } from './add-invitation';
 
 const LINK =
   'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
@@ -51,6 +52,7 @@ export function NoInvitation({ eventId, title }: { eventId: string; title: strin
     <section className="flex flex-col gap-5">
       <DesignHeader eventId={eventId} back="event" title={t('overview.title')} subtitle={title} />
       <p className="m-0 max-w-[40rem]">{t('noInvitation')}</p>
+      <AddInvitation eventId={eventId} />
     </section>
   );
 }

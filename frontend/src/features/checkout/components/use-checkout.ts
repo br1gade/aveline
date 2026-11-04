@@ -3,12 +3,12 @@ import { useNavigate, useRevalidator } from 'react-router';
 
 import { createRetryKey } from '@/api/retry-key';
 import type { Basket, PublicEvent } from '@/features/public-event';
-import { bankAddress, holdOrder } from '@/features/ticket-order';
+import { holdOrder } from '@/features/ticket-order';
+import { bankAddress, leaveForBank } from '@/lib/links';
 import { isLanguage } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 
 import { placeOrder } from '../api';
-import { leaveForBank } from '../leave';
 import { intentOf, orderBody } from '../payload';
 import { checkoutRefusal, type CheckoutRefusal } from '../refusals';
 import type { CheckoutValues, PaymentProvider } from '../types';

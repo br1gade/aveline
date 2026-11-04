@@ -61,10 +61,18 @@ export interface MediaVariant {
   url: string;
 }
 
+/** A private picture of an authored template: read through the API, never by address (PD-140). */
+export interface PrivateAsset {
+  id: string;
+  /** Set for a template's own sample artwork, which is read through the catalogue. */
+  templateKey?: string;
+}
+
 export interface BlockMedia {
   id: string;
-  /** The original, as uploaded. */
+  /** The original, as uploaded; empty for private artwork, which `privateAsset` names. */
   url: string;
+  privateAsset?: PrivateAsset | undefined;
   /** PHOTO, COVER, SIGNATURE, LOGO, AUDIO or DOCUMENT; new kinds may arrive. */
   kind: string;
   /** Already in the page's language; `null` when the host gave none. */

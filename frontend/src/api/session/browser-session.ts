@@ -3,6 +3,7 @@ import { readPublicEnv } from '@/config/env';
 import { createAppApi, createPublicApi, type ApiClient } from '../client';
 import { logOut, logOutEverywhere, refreshTokens, type SessionTokens } from './auth-calls';
 import { createSessionChannel, type SessionChannel } from './channel';
+import { organizationChoice } from './organization';
 import { createSessionRefresher } from './refresh';
 import { createTokenStore, type TokenPair, type TokenStore } from './token-store';
 
@@ -104,6 +105,7 @@ export function createBrowserSession(dependencies: BrowserSessionDependencies): 
 
   const end = () => {
     store.clear();
+    organizationChoice.clear();
     listeners.notify();
   };
 
@@ -128,6 +130,7 @@ export function createBrowserSession(dependencies: BrowserSessionDependencies): 
     getAccessToken: () => store.getAccessToken(),
     refreshSession: refreshOrEnd,
     getLanguage,
+    getOrganizationId: () => organizationChoice.read(),
   });
 
   channel.onLogout(end);

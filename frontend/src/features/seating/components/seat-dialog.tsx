@@ -16,6 +16,7 @@ import {
 
 import { assignSeat } from '../api';
 import type { HouseholdToSeat, PersonToSeat } from '../candidates';
+import { chairChoices, isOpenChair } from '../plan-layout';
 import { refusalOf, type SeatingRefusal } from '../refusals';
 import { seatOneByOne } from '../seat-household';
 import { freeSeats, roomFor } from '../tables';
@@ -70,6 +71,63 @@ function TableOption({ table, isHome }: { table: SeatingTable; isHome: boolean }
   return <option value={table.id}>{isHome ? t('seat.home', { name: label }) : label}</option>;
 }
 
+function TableField({
+  choice,
+  homeIds,
+  value,
+  onChange,
+}: {
+  choice: Choice;
+  homeIds: readonly string[];
+  value: string;
+  onChange: (tableId: string) => void;
+}) {
+  const { t } = useTranslation('seating');
+  return (
+    <SelectField
+      label={t('seat.table')}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {choice.tables.map((table) => (
+        <TableOption key={table.id} table={table} isHome={homeIds.includes(table.id)} />
+      ))}
+    </SelectField>
+  );
+}
+
+/** A numbered chair, for printed cards: optional, with those taken shown and unavailable. */
+function ChairField({
+  table,
+  guestId,
+  value,
+  onChange,
+}: {
+  table: SeatingTable;
+  guestId: string;
+  value: string;
+  onChange: (chair: string) => void;
+}) {
+  const { t } = useTranslation('seating');
+  return (
+    <SelectField
+      label={t('seat.chair')}
+      help={t('seat.chairHelp')}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      <option value="">{t('seat.noChair')}</option>
+      {chairChoices(table, guestId).map(({ position, takenBy }) => (
+        <option key={position} value={String(position)} disabled={takenBy !== null}>
+          {takenBy
+            ? t('seat.chairTaken', { position, name: takenBy })
+            : t('seat.chairNumber', { position })}
+        </option>
+      ))}
+    </SelectField>
+  );
+}
+
 /** Cancel, or Close when there is nothing to choose, and the press. */
 function SeatFooter({
   canSeat,
@@ -105,7 +163,20 @@ interface FormProps {
   homeIds: readonly string[];
   submitLabel: string;
   busyLabel: string;
-  onSeat: (tableId: string) => Promise<void>;
+  /** Whom a numbered chair is for: only one person is ever given one (design PD-134). */
+  chairFor?: string | undefined;
+  onSeat: (tableId: string, chair: number | undefined) => Promise<void>;
+}
+
+/** The table and chair picked, as they stand once a reload may have changed what's offered. */
+function useSeatPick(choice: Choice, chairFor: string | undefined) {
+  const [chosen, setChosen] = useState(choice.initial);
+  const [chair, setChair] = useState('');
+  // After a reload behind the dialog, a table that filled up is no longer offered.
+  const table = choice.tables.find((each) => each.id === chosen) ?? choice.tables[0];
+  // A chair chosen at a table that has since gone, or filled, is not sent to another.
+  const openChair = table && chairFor && isOpenChair(table, chairFor, chair) ? chair : '';
+  return { table, tableId: table?.id ?? choice.initial, openChair, setChosen, setChair };
 }
 
 /** The dialog's frame: a native select of the tables, or why there is none, and the press. */
@@ -117,17 +188,15 @@ function SeatForm({
   homeIds,
   submitLabel,
   busyLabel,
+  chairFor,
   onSeat,
 }: FormProps) {
-  const { t } = useTranslation('seating');
-  const [chosen, setChosen] = useState(choice.initial);
+  const { table, tableId, openChair, setChosen, setChair } = useSeatPick(choice, chairFor);
   const [isSending, setIsSending] = useState(false);
-  // After a reload behind the dialog, a table that filled up is no longer offered.
-  const tableId = choice.tables.some((table) => table.id === chosen) ? chosen : choice.initial;
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSending(true);
-    await onSeat(tableId);
+    await onSeat(tableId, openChair === '' ? undefined : Number(openChair));
     setIsSending(false);
   };
   return (
@@ -144,15 +213,18 @@ function SeatForm({
         {choice.note ? <p className="m-0 text-sm">{choice.note}</p> : null}
         <AppForm onSubmit={(event) => void submit(event)}>
           {choice.tables.length > 0 ? (
-            <SelectField
-              label={t('seat.table')}
+            <TableField
+              choice={choice}
+              homeIds={homeIds}
               value={tableId}
-              onChange={(event) => setChosen(event.target.value)}
-            >
-              {choice.tables.map((table) => (
-                <TableOption key={table.id} table={table} isHome={homeIds.includes(table.id)} />
-              ))}
-            </SelectField>
+              onChange={(next) => {
+                setChosen(next);
+                setChair('');
+              }}
+            />
+          ) : null}
+          {chairFor && table ? (
+            <ChairField table={table} guestId={chairFor} value={openChair} onChange={setChair} />
           ) : null}
           <SeatFooter
             canSeat={choice.tables.length > 0}
@@ -162,6 +234,27 @@ function SeatForm({
         </AppForm>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SeatLead({
+  refusal,
+  partly,
+  remaining,
+}: {
+  refusal: SeatingRefusal | null;
+  partly: Partly | null;
+  remaining: readonly PersonToSeat[];
+}) {
+  const { t } = useTranslation('seating');
+  return (
+    <>
+      {refusal ? <SeatingProblem refusal={refusal} /> : null}
+      {partly ? <p className="m-0 text-sm font-medium">{t('seat.partly', { ...partly })}</p> : null}
+      <p className="m-0">
+        {t('seat.who', { names: nameList(remaining.map((guest) => guest.name)) })}
+      </p>
+    </>
   );
 }
 
@@ -187,13 +280,18 @@ export function SeatDialog({ host, household, guests, tables, venueRoom }: SeatD
   const [partly, setPartly] = useState<Partly | null>(null);
   const names = (ids: readonly string[]) =>
     nameList(guests.filter((guest) => ids.includes(guest.id)).map((guest) => guest.name));
-  const seat = async (tableId: string) => {
+  const seat = async (tableId: string, chair: number | undefined) => {
     setRefusal(null);
     const table = tables.find((each) => each.id === tableId)?.name ?? '';
     const { api } = browserSession();
     const outcome = await seatOneByOne(
       remaining.map((guest) => guest.id),
-      (guestId) => assignSeat(api, host.eventId, { guestId, tableId }),
+      (guestId) =>
+        assignSeat(api, host.eventId, {
+          guestId,
+          tableId,
+          ...(chair === undefined ? {} : { position: chair }),
+        }),
     );
     if (outcome.error === null) {
       return host.saved(t('status.seated', { table, names: names(outcome.seated) }));
@@ -209,15 +307,7 @@ export function SeatDialog({ host, household, guests, tables, venueRoom }: SeatD
     );
     if (found.isStale || isPartly) host.reload();
   };
-  const lead = (
-    <>
-      {refusal ? <SeatingProblem refusal={refusal} /> : null}
-      {partly ? <p className="m-0 text-sm font-medium">{t('seat.partly', { ...partly })}</p> : null}
-      <p className="m-0">
-        {t('seat.who', { names: nameList(remaining.map((guest) => guest.name)) })}
-      </p>
-    </>
-  );
+  const lead = <SeatLead refusal={refusal} partly={partly} remaining={remaining} />;
   const title =
     guests.length > 1 || guests[0] === undefined
       ? t('seat.householdTitle', { name: household.name })
@@ -231,6 +321,7 @@ export function SeatDialog({ host, household, guests, tables, venueRoom }: SeatD
       homeIds={household.homeTableIds}
       submitLabel={t('seat.submit')}
       busyLabel={t('seat.seating')}
+      chairFor={remaining.length === 1 ? remaining[0]?.id : undefined}
       onSeat={seat}
     />
   );
@@ -270,11 +361,15 @@ export function MoveDialog({ host, table, guest, tables, households }: MoveDialo
     note: others.length === 0 ? t('seat.noRoom', { count: 1 }) : null,
   };
   const stay = staying(guest, table, households);
-  const move = async (tableId: string) => {
+  const move = async (tableId: string, chair: number | undefined) => {
     setRefusal(null);
     const target = tables.find((each) => each.id === tableId)?.name ?? '';
     try {
-      await assignSeat(browserSession().api, host.eventId, { guestId: guest.guestId, tableId });
+      await assignSeat(browserSession().api, host.eventId, {
+        guestId: guest.guestId,
+        tableId,
+        ...(chair === undefined ? {} : { position: chair }),
+      });
       await host.saved(t('status.moved', { name: guest.name, table: target }));
     } catch (error) {
       const found = refusalOf(error, 'move');
@@ -301,7 +396,68 @@ export function MoveDialog({ host, table, guest, tables, households }: MoveDialo
       homeIds={[]}
       submitLabel={t('seat.moveSubmit')}
       busyLabel={t('seat.moving')}
+      chairFor={guest.guestId}
       onSeat={move}
     />
+  );
+}
+
+interface ChairDialogProps {
+  host: SeatingHost;
+  table: SeatingTable;
+  guest: SeatedGuest;
+}
+
+/**
+ * A seated guest's numbered chair (design PD-134). The API's only way is seating them again at the
+ * same table, which keeps nothing it isn't sent: "no particular chair" clears it.
+ */
+export function ChairDialog({ host, table, guest }: ChairDialogProps) {
+  const { t } = useTranslation('seating');
+  const [chair, setChair] = useState(guest.position === null ? '' : String(guest.position));
+  const [isSending, setIsSending] = useState(false);
+  const [refusal, setRefusal] = useState<SeatingRefusal | null>(null);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const position = chair === '' ? null : Number(chair);
+    if (position === guest.position) return host.saved(null);
+    setRefusal(null);
+    setIsSending(true);
+    try {
+      await assignSeat(browserSession().api, host.eventId, {
+        guestId: guest.guestId,
+        tableId: table.id,
+        ...(position === null ? {} : { position }),
+      });
+      await host.saved(
+        position === null
+          ? t('status.chairCleared', { name: guest.name })
+          : t('status.chairSet', { name: guest.name, position }),
+      );
+    } catch (error) {
+      const found = refusalOf(error, 'seat');
+      setRefusal(found);
+      if (found.isStale) host.reload();
+    } finally {
+      setIsSending(false);
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(isOpen) => (isOpen ? undefined : host.close())}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="sm:max-w-[30rem]"
+        onCloseAutoFocus={host.restoreFocus}
+      >
+        <DialogHeader>
+          <DialogTitle>{t('seat.chairTitle', { name: guest.name })}</DialogTitle>
+        </DialogHeader>
+        {refusal ? <SeatingProblem refusal={refusal} /> : null}
+        <AppForm onSubmit={(event) => void submit(event)}>
+          <ChairField table={table} guestId={guest.guestId} value={chair} onChange={setChair} />
+          <SeatFooter canSeat label={t('seat.chairSubmit')} isSending={isSending} />
+        </AppForm>
+      </DialogContent>
+    </Dialog>
   );
 }

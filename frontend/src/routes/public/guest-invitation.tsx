@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data } from 'react-router';
 
+import { createPublicApi } from '@/api/client';
+import { readPublicEnv } from '@/config/env';
 import { GuestGallery } from '@/features/gallery';
 import { AgreeBeforeDoor, AgreementsNotice, useDoorAgreements } from '@/features/guest-agreements';
 import { NameCorrection, withCorrectedName, type CorrectedName } from '@/features/guest-name';
 import { GuestReply, replySummaryFrom, type ReplyRecord } from '@/features/guest-reply';
 import { loadReply } from '@/features/guest-reply/index.server';
 import {
+  guestArtworkLoader,
   InvitationNotFound,
   InvitationPage,
   invitationLanguage,
@@ -57,8 +60,18 @@ function withName(record: ReplyRecord, corrected: CorrectedName): ReplyRecord {
   return { ...record, guest: { ...record.guest, firstName, lastName } };
 }
 
+/** In the browser only: a picture's address holds the token, and goes where every guest call goes. */
+function useGuestArtwork({ slug, guestToken }: PersonalPageProps['link']) {
+  return useMemo(
+    () =>
+      guestArtworkLoader(createPublicApi(readPublicEnv().VITE_API_BASE_URL), { slug, guestToken }),
+    [slug, guestToken],
+  );
+}
+
 function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps) {
   const { t } = useTranslation('reply');
+  const artwork = useGuestArtwork(link);
   const [record, setRecord] = useState(savedRecord);
   const [isSent, setIsSent] = useState(false);
   const [corrected, setCorrected] = useState<CorrectedName | null>(null);
@@ -104,6 +117,7 @@ function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps
       replyHeading={isSent ? t('sent.heading') : undefined}
       languageHref={languageHref}
       renderPersonal={renderPersonal}
+      artwork={artwork}
       renderContributions={() => (
         <div className="flex flex-col gap-16">
           <AgreeBeforeDoor door={door} link={link} />

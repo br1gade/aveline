@@ -21,6 +21,33 @@ describe('createApiFetch', () => {
     expect(sent?.headers.get(REQUEST_ID_HEADER)).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  it.each([
+    ['/api/v1/subscription', 'org-1'],
+    ['/api/v1/events', 'org-1'],
+    ['/api/v1/events/e1/guests', null],
+    ['/api/v1/me/organizations', null],
+  ])('says which organization on %s only where it takes one', async (path, expected) => {
+    const fetchMock = vi.fn((_request: Request) => Promise.resolve(respond(200)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createApiFetch({ getOrganizationId: () => 'org-1' })(
+      new Request(`http://api.test${path}`),
+    );
+
+    expect(fetchMock.mock.calls[0]?.[0].headers.get('x-aveline-organization-id')).toBe(expected);
+  });
+
+  it('says none when this tab chose none', async () => {
+    const fetchMock = vi.fn((_request: Request) => Promise.resolve(respond(200)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createApiFetch({ getOrganizationId: () => undefined })(
+      new Request('http://api.test/api/v1/subscription'),
+    );
+
+    expect(fetchMock.mock.calls[0]?.[0].headers.has('x-aveline-organization-id')).toBe(false);
+  });
+
   it('refreshes once on 401 and retries with the new token', async () => {
     let token = 'old';
     const fetchMock = vi

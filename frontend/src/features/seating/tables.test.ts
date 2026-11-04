@@ -20,6 +20,9 @@ function table(
     name,
     capacity,
     zone: null,
+    posX: null,
+    posY: null,
+    shape: 'round',
     guests: Array.from({ length: seated }, (_, index) => ({
       guestId: `${id}-g${index}`,
       name: `Guest ${index}`,

@@ -14,6 +14,7 @@ import { pollUpload, waitFor } from '../signature-upload';
 import {
   coveredGuests,
   currentStatements,
+  drawnAgreements,
   type AcknowledgementsRead,
   type SignatureContext,
 } from '../signatures';
@@ -64,6 +65,7 @@ export function useSignatureContext(
     return {
       statements,
       covered: coveredGuests(statements, read?.records ?? []),
+      drawn: drawnAgreements(statements, read?.records ?? []),
       signer: { guestId: record.guest.id, name: fullName(record.guest) },
     };
   }, [invitation, read, record.guest]);

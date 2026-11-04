@@ -40,6 +40,8 @@ export function tableFormSchema(seated: number) {
     name: text(1, 60),
     capacity: wholeNumber(MAX_TABLE_SEATS, 'seats', Math.max(1, seated), 'belowSeated'),
     zone: text(0, 60),
+    /** `''` is the plan with no venue. Only correcting a table offers it. */
+    venueId: z.string().optional(),
   });
 }
 

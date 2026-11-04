@@ -1,3 +1,4 @@
+import '@/locales/app';
 import { AcceptInvite, accountMeta } from '@/features/account';
 import {
   languageOf,

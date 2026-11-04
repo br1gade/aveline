@@ -1,0 +1,143 @@
+{
+  "back": "Vos événements",
+  "title": "Formule et factures",
+  "pilot": {
+    "title": "Les formules payantes ne sont pas disponibles pendant le pilote gratuit.",
+    "body": "Rien n’a été débité et aucune facture n’a été émise. Votre formule actuelle reste inchangée, et les formules gratuites, vos événements, invitations, listes d’invités et billets gratuits continuent de fonctionner."
+  },
+  "current": {
+    "title": "Votre formule",
+    "none": "Votre organisation n’a pas encore choisi de formule. Vous pouvez en choisir une ci-dessous.",
+    "cancel": "Résilier à la fin de la période",
+    "resume": "Conserver la formule"
+  },
+  "standing": {
+    "active": "Active jusqu’au {{date}}.",
+    "ending": "Se termine le {{date}}. Vous la gardez jusque-là et pouvez encore la conserver.",
+    "lapsed": "La période s’est terminée le {{date}}. Rien ne se renouvelle tout seul : choisissez une formule pour recommencer.",
+    "trial": "À l’essai jusqu’au {{date}}.",
+    "pastDue": "Un paiement est en retard. La période court jusqu’au {{date}}.",
+    "ended": "Cette formule est terminée. Choisissez une formule pour recommencer.",
+    "unknown": "La période court jusqu’au {{date}}."
+  },
+  "cancel": {
+    "title": "Résilier à la fin de la période ?",
+    "body": "Vous gardez la formule jusqu’au {{date}} et pouvez changer d’avis d’ici là.",
+    "confirm": "Résilier à la fin de la période"
+  },
+  "plans": {
+    "title": "Formules",
+    "notEnforced": "Les événements, invités et langues indiqués sont ce que chaque formule doit inclure : Aveline ne les applique pas encore. La durée en ligne de l’invitation, elle, s’applique.",
+    "none": "Aucune formule n’est proposée pour le moment.",
+    "current": "Votre formule actuelle",
+    "choose": "Choisir cette formule"
+  },
+  "price": {
+    "free": "Gratuit",
+    "MONTHLY": "{{amount}} par mois",
+    "YEARLY": "{{amount}} par an",
+    "PER_EVENT": "{{amount}} par événement"
+  },
+  "limits": {
+    "events_one": "{{count}} événement par période",
+    "events_other": "{{count}} événements par période",
+    "eventsAny": "Nombre d’événements illimité",
+    "guests_one": "{{count}} invité par événement",
+    "guests_other": "{{count}} invités par événement",
+    "guestsAny": "Nombre d’invités illimité",
+    "languages_one": "{{count}} langue",
+    "languages_other": "{{count}} langues",
+    "lifetime_one": "L’invitation reste en ligne {{count}} jour après l’événement",
+    "lifetime_other": "L’invitation reste en ligne {{count}} jours après l’événement",
+    "lifetimeAny": "L’invitation reste en ligne sans date de fin",
+    "guests_many": "{{count}} invités par événement",
+    "events_many": "{{count}} événements par période",
+    "lifetime_many": "L’invitation reste en ligne {{count}} jours après l’événement",
+    "languages_many": "{{count}} langues"
+  },
+  "choose": {
+    "paid": {
+      "title": "Choisir {{name}} ?",
+      "body": "{{price}}. Vous irez sur la page de la banque pour payer. Votre formule commence une fois le paiement confirmé. Une facture en attente pour une autre formule est retirée.",
+      "confirm": "Aller à la banque"
+    },
+    "paidChange": {
+      "title": "Passer à {{name}} ?",
+      "body": "{{price}}. Vous irez sur la page de la banque pour payer. Votre formule reste la même tant que ce n’est pas payé, puis la nouvelle commence aussitôt. Une facture en attente pour une autre formule est retirée.",
+      "confirm": "Aller à la banque"
+    },
+    "free": {
+      "title": "Choisir {{name}} ?",
+      "body": "Elle est gratuite et commence maintenant. Une facture en attente de paiement est retirée.",
+      "confirm": "Choisir cette formule"
+    },
+    "freeOverPaid": {
+      "title": "Passer à {{name}} ?",
+      "body": "Elle est gratuite et commence maintenant. Le reste de la période payée s’arrête aussitôt, sans remboursement. Une facture en attente de paiement est retirée.",
+      "confirm": "Mettre fin à ma période payée et changer"
+    },
+    "pay": {
+      "title": "Payer la facture {{name}} ?",
+      "body": "{{price}}. Vous irez sur la page de la banque pour payer. Rien ne change tant que ce n’est pas payé.",
+      "confirm": "Aller à la banque"
+    }
+  },
+  "status": {
+    "activated": "{{name}} est maintenant votre formule.",
+    "leaving": "Passage à la page de la banque…",
+    "cancelled": "La formule se termine le {{date}}.",
+    "resumed": "La formule continue."
+  },
+  "invoices": {
+    "title": "Factures",
+    "zone": "Les dates sont à l’heure d’Erevan. Ouvrez une facture pour voir à quoi elle correspond.",
+    "none": "Aucune facture pour l’instant.",
+    "issued": "Émise le {{date}}",
+    "due": "à payer avant le {{date}}",
+    "paid": "payée le {{date}}",
+    "notTax": "Ce n’est pas un document fiscal : aucune taxe n’est encore calculée.",
+    "pay": "Payer cette facture"
+  },
+  "invoiceStatus": {
+    "ISSUED": "En attente de paiement",
+    "PAID": "Payée",
+    "VOID": "Retirée",
+    "DRAFT": "Non émise",
+    "UNCOLLECTIBLE": "Irrécouvrable",
+    "OTHER": "Statut inconnu"
+  },
+  "refused": {
+    "pilot": "Les formules payantes ne sont pas disponibles pendant le pilote gratuit.",
+    "forbidden": "Seul le propriétaire de votre organisation peut voir et modifier sa formule et ses factures.",
+    "noOrganization": "Les formules et factures appartiennent à une organisation, et votre compte n’en fait partie d’aucune.",
+    "chooseOrganization": "Choisissez l’organisation dans laquelle cet onglet travaille, puis réessayez.",
+    "planGone": "Cette formule n’est plus proposée. Rien n’a changé.",
+    "noBank": "Le paiement par carte n’est pas encore configuré ici. Rien n’a changé.",
+    "noSubscription": "Votre organisation n’a pas de formule à modifier. Rechargez la page.",
+    "periodEnded": "Cette période est déjà terminée. Choisissez une formule pour recommencer.",
+    "noInvoice": "Nous n’avons pas trouvé cette facture dans votre organisation.",
+    "noPayment": "Cette facture n’a pas encore de paiement à vérifier.",
+    "disagreement": "La banque et notre enregistrement de ce paiement ne concordent pas.",
+    "rateLimited": "Trop de demandes pour le moment. Attendez une minute, puis réessayez.",
+    "noAnswer": "Nous n’avons pas reçu de réponse. Vérifiez votre connexion et réessayez.",
+    "other": "Cela n’a pas pu être fait.",
+    "refunding": "Ce paiement est déjà en cours de remboursement. Vous n’avez rien à faire."
+  },
+  "chooseOrganization": "Choisir une organisation",
+  "return": {
+    "title": "Retour de la banque",
+    "paid": "Votre paiement est confirmé et votre formule est active.",
+    "awaitingBank": "La banque n’a pas encore confirmé ce paiement. Votre formule n’a pas changé pour l’instant. Attendez quelques minutes avant de payer à nouveau.",
+    "notPaid": "Ce paiement n’a pas abouti et aucun argent n’a été débité. Votre formule n’a pas changé.",
+    "replaced": "Cette facture a été remplacée par un choix de formule plus récent et son paiement n’a pas abouti : rien n’a été débité.",
+    "closed": "Cette facture ne peut plus être payée. Votre formule n’a pas changé.",
+    "nothing": "Il n’y a pas de facture à confirmer.",
+    "dontPayAgain": "Merci de ne pas payer à nouveau. Conservez la référence ci-dessus : elle nous permet de retrouver ce paiement.",
+    "checkAgain": "Vérifier à nouveau",
+    "tryAgain": "Réessayer",
+    "payAgain": "Payer à nouveau",
+    "toBilling": "Vers votre formule et vos factures",
+    "replacedOpen": "Cette facture a été remplacée par un choix de formule plus récent. Si vous l’avez payée à la banque, cet argent vous revient de lui-même. Vous n’avez rien à faire.",
+    "refunded": "Cette facture a été retirée, et ce qui a été payé vous est remboursé."
+  }
+}

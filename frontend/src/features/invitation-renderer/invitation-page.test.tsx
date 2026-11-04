@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { renderToString } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +9,8 @@ import { createI18n, type Language } from '@/lib/i18n';
 import { InvitationNotFound } from './components/invitation-not-found';
 import { block, invitationFixture } from './fixtures';
 import { InvitationPage, type InvitationPageProps } from './invitation-page';
+import { withPrivateArtwork } from './private-artwork';
+import { plantedToken } from '../../../test/tokens';
 
 class StubObserver {
   observe() {}
@@ -34,6 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('InvitationPage', () => {
@@ -328,5 +332,122 @@ describe('InvitationNotFound', () => {
     expect(container.querySelector('[lang="fr"]')).toHaveTextContent(
       'Cette invitation n’est pas disponible.',
     );
+  });
+});
+
+describe('private artwork on the page', () => {
+  const token = plantedToken();
+
+  const withArtwork = () =>
+    withPrivateArtwork(
+      invitationFixture({
+        coverUrl: `/api/v1/invitations/a/g/${token}/design-assets/cover/file`,
+        blocks: [
+          block('HERO', {
+            media: [
+              {
+                id: 'art',
+                url: `/api/v1/invitations/a/g/${token}/design-assets/art/file`,
+                kind: 'COVER',
+                altText: 'The arch',
+                width: 800,
+                height: 1000,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+
+  it('holds no address with the token, in the HTML the server would send', () => {
+    const html = renderToString(
+      <I18nextProvider i18n={createI18n('en')}>
+        <InvitationPage invitation={withArtwork()} />
+      </I18nextProvider>,
+    );
+    expect(html).not.toContain(token);
+    expect(html).not.toContain('design-assets');
+  });
+
+  it('reads it through the loader the route gives, once near the screen, and shows it from memory', async () => {
+    vi.useRealTimers();
+    vi.stubGlobal('IntersectionObserver', undefined);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:art');
+    vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);
+    const artwork = vi.fn(() => Promise.resolve(new Blob(['x'])));
+    renderPage({ invitation: withArtwork(), artwork });
+    await vi.waitFor(() =>
+      expect(screen.getByRole('img', { name: 'The arch' })).toHaveAttribute('src', 'blob:art'),
+    );
+    expect(artwork).toHaveBeenCalledWith({ id: 'art' }, expect.any(AbortSignal));
+    expect(document.body.innerHTML).not.toContain(token);
+  });
+
+  it('stands without it when it can’t be read', async () => {
+    vi.useRealTimers();
+    vi.stubGlobal('IntersectionObserver', undefined);
+    renderPage({ invitation: withArtwork(), artwork: () => Promise.reject(new Error('gone')) });
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+  });
+});
+
+describe('the full-bleed cover', () => {
+  const photo = {
+    id: 'p',
+    url: 'https://media.example/cover.jpg',
+    kind: 'COVER',
+    altText: 'The two of them',
+    width: 1600,
+    height: 2000,
+  };
+
+  it('fills the header with the photograph, with no arch', () => {
+    renderPage({
+      invitation: invitationFixture({
+        blocks: [block('HERO', { variant: 'full-bleed', media: [photo] })],
+      }),
+    });
+    const picture = screen.getByRole('img', { name: 'The two of them' });
+    expect(picture).toHaveAttribute('loading', 'eager');
+    expect(picture).toHaveClass('absolute');
+    expect(picture.parentElement?.tagName).toBe('HEADER');
+    expect(document.querySelector('.rounded-t-full')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+  });
+
+  it('sets every word on it over the scrim, in ivory or blush, never taupe', () => {
+    renderPage({
+      invitation: invitationFixture({
+        blocks: [
+          block('HERO', {
+            variant: 'full-bleed',
+            media: [photo],
+            content: { subtitle: 'invite you' },
+          }),
+        ],
+      }),
+    });
+    const scrim = screen.getByRole('heading', { level: 1 }).closest('.bg-burgundy-deep\\/65');
+    expect(scrim).not.toBeNull();
+    expect(screen.getByText('invite you')).toHaveClass('text-ivory');
+    expect(screen.getByText('invite you')).not.toHaveClass('text-text-muted');
+  });
+
+  it('falls back to the names alone with no photograph, as any cover does', () => {
+    renderPage({
+      invitation: invitationFixture({
+        blocks: [block('HERO', { variant: 'full-bleed', media: [] })],
+      }),
+    });
+    expect(document.querySelector('.bg-burgundy-deep\\/65')).toBeNull();
+  });
+
+  it('draws the arch for any other layout', () => {
+    renderPage({
+      invitation: invitationFixture({
+        blocks: [block('HERO', { variant: 'arch', media: [photo] })],
+      }),
+    });
+    expect(document.querySelector('.rounded-t-full')).not.toBeNull();
   });
 });

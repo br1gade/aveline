@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import type { TFunction } from 'i18next';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRevalidator } from 'react-router';
 
@@ -7,6 +8,7 @@ import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 
 import { moderatePhoto, removePhoto } from '../api';
+import { approveOneByOne, type BatchApproval } from '../moderate-batch';
 import { withoutPhoto } from '../list';
 import type { GalleryPhoto } from '../types';
 
@@ -23,6 +25,19 @@ function isStale(error: unknown): boolean {
   return isApiError(error) && (error.status === 404 || error.status === 409);
 }
 
+function bulkSentence(t: TFunction<'gallery'>, outcome: BatchApproval): string {
+  const approved = t('host.bulk.done', { count: outcome.approved.length });
+  const gone = outcome.gone.length > 0 ? t('host.bulk.gone', { count: outcome.gone.length }) : '';
+  const rest = outcome.rest.length > 0 ? t('host.bulk.rest', { count: outcome.rest.length }) : '';
+  return [approved, gone, rest].filter(Boolean).join(' ');
+}
+
+function useFocusOnSaid(said: Said | null, statusRef: RefObject<HTMLParagraphElement | null>) {
+  useEffect(() => {
+    if (said) statusRef.current?.focus();
+  }, [said, statusRef]);
+}
+
 /**
  * The hosts' gallery, changed in place from each answer rather than read whole again (FR-47): a
  * decision returns the photo as it now is, and a removal drops it. A photo changed meanwhile (404,
@@ -36,14 +51,14 @@ export function useModeration(eventId: string, loadedPhotos: readonly GalleryPho
   const [photos, setPhotos] = useState<GalleryPhoto[]>([...loadedPhotos]);
   const [said, setSaid] = useState<Said | null>(null);
   const [refusal, setRefusal] = useState<Problem | null>(null);
+  // How far a batch has come, in words but not in focus: only its end speaks and takes it.
+  const [progress, setProgress] = useState('');
   const statusRef = useRef<HTMLParagraphElement>(null);
   if (loadedPhotos !== source) {
     setSource(loadedPhotos);
     setPhotos([...loadedPhotos]);
   }
-  useEffect(() => {
-    if (said) statusRef.current?.focus();
-  }, [said]);
+  useFocusOnSaid(said, statusRef);
   const say = (text: string) => setSaid((before) => ({ id: (before?.id ?? 0) + 1, text }));
 
   const failed = async (error: unknown) => {
@@ -74,5 +89,21 @@ export function useModeration(eventId: string, loadedPhotos: readonly GalleryPho
       return false;
     }
   };
-  return { photos, said, refusal, statusRef, decide, remove };
+  /** Several approved in one press (design PD-136); those not reached stay chosen. */
+  const approveChosen = async (ids: readonly string[]): Promise<string[]> => {
+    setRefusal(null);
+    const { api } = browserSession();
+    const outcome = await approveOneByOne(
+      ids,
+      (id) => moderatePhoto(api, eventId, id, 'APPROVED'),
+      (position) => setProgress(t('host.bulk.progress', { position, count: ids.length })),
+    ).finally(() => setProgress(''));
+    const byId = new Map(outcome.approved.map((photo) => [photo.id, photo]));
+    setPhotos((held) => held.map((item) => byId.get(item.id) ?? item));
+    if (outcome.stop !== null) setRefusal(problemFrom(outcome.stop));
+    say(bulkSentence(t, outcome));
+    if (outcome.gone.length > 0) await revalidate();
+    return outcome.rest;
+  };
+  return { photos, said, refusal, statusRef, progress, decide, remove, approveChosen };
 }

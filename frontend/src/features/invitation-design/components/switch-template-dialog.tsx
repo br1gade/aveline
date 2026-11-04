@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { problemFrom } from '@/api/problems';
 import { browserSession } from '@/api/session';
@@ -15,7 +16,9 @@ import {
 } from '@/ui/kit/alert-dialog';
 import { Button } from '@/ui/kit/button';
 
+import { isPreviewRequired } from '../adoption';
 import { chooseTemplate } from '../api';
+import { designAdoptionPath } from '../paths';
 import { isStaleRefusal } from '../refusals';
 import { switchEffects } from '../template-switch';
 import type { Design, DesignTemplate, Theme } from '../types';
@@ -65,6 +68,7 @@ export function SwitchTemplateDialog({ design, target, page, onClose }: SwitchPr
   const [isSwitching, setIsSwitching] = useState(false);
   const [refusal, setRefusal] = useState<DesignRefusalState | null>(null);
   const isDoneRef = useRef(false);
+  const navigate = useNavigate();
 
   const confirm = async () => {
     setRefusal(null);
@@ -75,6 +79,13 @@ export function SwitchTemplateDialog({ design, target, page, onClose }: SwitchPr
       isDoneRef.current = true;
       onClose();
     } catch (error) {
+      // An authored template is previewed first (design PD-139); only this refusal says it is one.
+      if (isPreviewRequired(error) && target.versionId) {
+        // The leave guard may keep the host here, with the dialog still open.
+        setIsSwitching(false);
+        void navigate(designAdoptionPath(design.event.id, target.versionId));
+        return;
+      }
       setRefusal({ action: 'template', problem: problemFrom(error) });
       setIsSwitching(false);
       if (isStaleRefusal('template', error)) page.reload();

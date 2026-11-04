@@ -30,6 +30,14 @@ export default [
   route(relative(APP_PATHS.briefPage), 'routes/public/brief.tsx'),
   route(relative(ROUTE_PATHS.brief), 'routes/public/brief-link.tsx'),
 
+  // Its language comes from the same segment as the app's: the page under it needs the session.
+  route(
+    relative(ROUTE_PATHS.billingPaymentReturn),
+    'routes/app/route.tsx',
+    { id: 'billing-return-segment' },
+    [index('routes/app/billing-return.tsx')],
+  ),
+
   route(relative(ROUTE_PATHS.signIn), 'routes/account/sign-in.tsx'),
   route(relative(APP_PATHS.register), 'routes/account/register.tsx'),
   route(relative(ROUTE_PATHS.resetPassword), 'routes/account/reset-password.tsx'),
@@ -42,6 +50,7 @@ export default [
     layout('routes/app/layout.tsx', [
       index('routes/app/home.tsx'),
       route(underApp(APP_PATHS.welcome), 'routes/app/welcome.tsx'),
+      route(underApp(APP_PATHS.organizations), 'routes/app/organizations.tsx'),
       route(underApp(APP_PATHS.newEvent), 'routes/app/new-event.tsx'),
       route(underApp(APP_PATHS.archivedEvents), 'routes/app/archived-events.tsx'),
       route(underApp(APP_PATHS.event), 'routes/app/event.tsx'),
@@ -49,6 +58,7 @@ export default [
       route(underApp(APP_PATHS.guests), 'routes/app/guests.tsx'),
       route(underApp(APP_PATHS.importGuests), 'routes/app/guests-import.tsx'),
       route(underApp(APP_PATHS.recordAnswer), 'routes/app/record-answer.tsx'),
+      route(underApp(APP_PATHS.sheets), 'routes/app/event-sheets.tsx'),
       route(underApp(APP_PATHS.venues), 'routes/app/venues.tsx'),
       route(underApp(APP_PATHS.newVenue), 'routes/app/venue-new.tsx'),
       route(underApp(APP_PATHS.venueDirectory), 'routes/app/venue-directory.tsx'),
@@ -76,6 +86,7 @@ export default [
       route(underApp(APP_PATHS.team), 'routes/app/team.tsx'),
       route(underApp(APP_PATHS.runningOrder), 'routes/app/running-order.tsx'),
       route(underApp(APP_PATHS.suppressions), 'routes/app/suppressions.tsx'),
+      route(underApp(APP_PATHS.billing), 'routes/app/billing.tsx'),
       route(underApp(APP_PATHS.promoCodes), 'routes/app/promo-codes.tsx'),
       route(underApp(APP_PATHS.vendors), 'routes/app/vendors.tsx'),
       route(underApp(APP_PATHS.eventVendors), 'routes/app/event-vendors.tsx'),
@@ -85,6 +96,7 @@ export default [
     // Signed in, without the app's frame: the invitation's preview needs the whole window.
     layout('routes/app/preview-layout.tsx', [
       route(underApp(APP_PATHS.designPreview), 'routes/app/design-preview.tsx'),
+      route(underApp(APP_PATHS.designAdoption), 'routes/app/design-adoption.tsx'),
     ]),
   ]),
 

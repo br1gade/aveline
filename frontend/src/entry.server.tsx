@@ -4,16 +4,18 @@ import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import { renderToPipeableStream, type RenderToPipeableStreamOptions } from 'react-dom/server';
 import {
+  isRouteErrorResponse,
   ServerRouter,
   type EntryContext,
   type HandleDataRequestFunction,
+  type HandleErrorFunction,
   type RouterContextProvider,
 } from 'react-router';
 
 import { readPublicEnv } from '@/config/env';
 import { carriesCapability, redactText } from '@/lib/capability-links';
 import { applySecurityHeaders, capabilityPageHeaders, createNonce } from '@/lib/security/headers';
-import { APP_PATHS } from '@/route-paths';
+import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 
 /**
  * React Router's default Node entry, plus the security headers of setup proposal §5.11. The nonce
@@ -21,16 +23,42 @@ import { APP_PATHS } from '@/route-paths';
  */
 export const streamTimeout = 5_000;
 
+/** The router's own 4xx keeps the error it stands for, undeclared in its type. */
+function internalError(response: object): unknown {
+  return 'error' in response ? response.error : undefined;
+}
+
+function errorText(error: unknown): string {
+  if (error instanceof Error) return redactText(error.stack ?? error.message);
+  if (isRouteErrorResponse(error)) return `${String(error.status)} ${error.statusText}`;
+  return redactText(String(error));
+}
+
+/**
+ * Replaces React Router's own logging, which prints a loader's error whole: a guest page's address
+ * is its credential, and an error can quote it (root CLAUDE.md §3).
+ */
+export const handleError: HandleErrorFunction = (error, { request }) => {
+  if (request.signal.aborted) return;
+  console.error(errorText(isRouteErrorResponse(error) ? (internalError(error) ?? error) : error));
+};
+
 /**
  * Pages that show what a capability link opened without the token in their own address: the
  * buyer's order, read with the token the tab holds (design PD-81), and a vendor's brief (PD-124).
+ * The bank's return for a plan names its order number in the query until the page removes it
+ * (PD-130), so its address is kept the same way.
  */
 const SHOWS_A_CAPABILITY: ReadonlySet<string> = new Set([
   APP_PATHS.ticketOrder,
   APP_PATHS.briefPage,
+  ROUTE_PATHS.billingPaymentReturn,
 ]);
 
-function isCapabilityPage(url: URL): boolean {
+/** The router matches whatever the case and with a trailing slash, so these rules must too. */
+function isCapabilityPage(address: URL): boolean {
+  const url = new URL(address);
+  url.pathname = url.pathname.toLowerCase().replace(/\/+$/, '') || '/';
   return carriesCapability(url) || SHOWS_A_CAPABILITY.has(url.pathname.replace(/\.data$/, ''));
 }
 
@@ -141,9 +169,7 @@ function renderDocument(input: RenderInput): Promise<Response> {
           status = 500;
           if (isShellRendered) {
             // A guest page's URL is its credential; an error can quote it (root CLAUDE.md §3).
-            console.error(
-              redactText(error instanceof Error ? (error.stack ?? error.message) : String(error)),
-            );
+            console.error(errorText(error));
           }
         },
       },

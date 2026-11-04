@@ -1,0 +1,219 @@
+import { useId, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
+
+import type { Loaded } from '@/api/loaded';
+import { eventPath } from '@/features/events';
+import { LoadedProblem } from '@/features/sending';
+import { useLanguageName } from '@/lib/i18n';
+
+import { venueChoices, type SheetsData } from '../load';
+import type { BarSheet, CateringSheet, Engagement, EventSheets, Playlist } from '../types';
+
+const LINK =
+  'text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline';
+
+function Sheet({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section aria-labelledby={id} className="border-border flex flex-col gap-3 border p-4">
+      <h2 id={id} className="m-0 text-lg font-medium">
+        {title}
+      </h2>
+      {note ? <p className="text-muted-foreground m-0 text-sm">{note}</p> : null}
+      {children}
+    </section>
+  );
+}
+
+/** Counted rows, the label first, so a long one wraps rather than pushes the number away. */
+function Rows({ rows }: { rows: readonly { label: string; value: string }[] }) {
+  return (
+    <ul className="m-0 flex list-none flex-col gap-1 p-0">
+      {rows.map(({ label, value }, position) => (
+        <li key={position} className="flex justify-between gap-3">
+          <span className="min-w-0 break-words">{label}</span>
+          <span className="flex-none font-medium">{value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CateringBody({ sheet }: { sheet: CateringSheet }) {
+  const { t } = useTranslation('sheets');
+  return (
+    <>
+      <p className="m-0 text-lg font-medium">{t('catering.covers', { count: sheet.covers })}</p>
+      {sheet.requirements.length === 0 ? (
+        <p className="m-0">{t('catering.noRequirements')}</p>
+      ) : (
+        <Rows
+          rows={sheet.requirements.map(({ label, count }) => ({
+            label,
+            value: String(count),
+          }))}
+        />
+      )}
+      {sheet.notes.length > 0 ? (
+        <>
+          <h3 className="m-0 text-base font-medium">{t('catering.notes')}</h3>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {sheet.notes.map(({ guest, household, note }, position) => (
+              <li key={position} className="break-words">
+                <span className="font-medium">{guest}</span>
+                <span className="text-muted-foreground text-sm"> · {household}</span>
+                <span className="block">{note}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function BarBody({ sheet }: { sheet: BarSheet }) {
+  const { t } = useTranslation('sheets');
+  if (sheet.preferences.length === 0) return <p className="m-0">{t('bar.none')}</p>;
+  return (
+    <>
+      <p className="m-0">{t('bar.answers', { count: sheet.totalResponses })}</p>
+      <Rows
+        rows={sheet.preferences.map(({ label, guests, share }) => ({
+          label,
+          value: t('bar.count', { guests, share }),
+        }))}
+      />
+    </>
+  );
+}
+
+function PlaylistBody({ playlist }: { playlist: Playlist }) {
+  const { t } = useTranslation('sheets');
+  if (playlist.tracks.length === 0) return <p className="m-0">{t('playlist.none')}</p>;
+  return (
+    <Rows
+      rows={playlist.tracks.map(({ track, requests }) => ({
+        label: track,
+        value: t('playlist.requests', { count: requests }),
+      }))}
+    />
+  );
+}
+
+function EngagementBody({ engagement }: { engagement: Engagement }) {
+  const { t } = useTranslation('sheets');
+  const languageName = useLanguageName();
+  // Zero also comes back when the count isn't running (FR-111), so it isn't said as a fact.
+  if (engagement.totalViews === 0) return <p className="m-0">{t('engagement.none')}</p>;
+  return (
+    <>
+      <p className="m-0 text-lg font-medium">
+        {t('engagement.total', { count: engagement.totalViews })}
+      </p>
+      <Rows
+        rows={engagement.byLocale.map(({ locale, views }) => ({
+          label: languageName(locale),
+          value: String(views),
+        }))}
+      />
+    </>
+  );
+}
+
+function PartOf<T>({
+  read,
+  refused,
+  children,
+}: {
+  read: Loaded<T>;
+  refused: string;
+  children: (value: T) => ReactNode;
+}) {
+  return read.kind === 'ready' ? (
+    children(read.value)
+  ) : (
+    <LoadedProblem loaded={read} refusedText={refused} />
+  );
+}
+
+/** The venue choice, in the address; a link each, so it needs no script and survives a reload. */
+function VenueChoice({ data, sheets }: { data: SheetsData; sheets: EventSheets }) {
+  const { t } = useTranslation('sheets');
+  const choices = venueChoices(data.event, sheets);
+  const current = data.venue?.venue.id;
+  if (choices.length === 0) return null;
+  return (
+    <nav aria-label={t('venue.label')} className="flex flex-wrap gap-x-4">
+      <Link to="?" className={LINK} aria-current={current ? undefined : 'page'}>
+        {t('venue.all')}
+      </Link>
+      {choices.map(({ id, name }) => (
+        <Link
+          key={id}
+          to={`?venue=${encodeURIComponent(id)}`}
+          className={LINK}
+          aria-current={current === id ? 'page' : undefined}
+        >
+          {name}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function Sheets({ data, sheets }: { data: SheetsData; sheets: EventSheets }) {
+  const { t } = useTranslation('sheets');
+  const venue = data.venue;
+  const refused = t('refused');
+  const everywhere = venue ? t('venue.everywhere') : undefined;
+  const scope = venue ? t('venue.at', { venue: venue.venue.name }) : t('venue.whole');
+  return (
+    <>
+      <VenueChoice data={data} sheets={sheets} />
+      <Sheet title={t('catering.title')} note={scope}>
+        <PartOf
+          read={venue?.catering ?? { kind: 'ready', value: sheets.catering }}
+          refused={refused}
+        >
+          {(sheet) => <CateringBody sheet={sheet} />}
+        </PartOf>
+      </Sheet>
+      <Sheet title={t('bar.title')} note={scope}>
+        <PartOf read={venue?.bar ?? { kind: 'ready', value: sheets.bar }} refused={refused}>
+          {(sheet) => <BarBody sheet={sheet} />}
+        </PartOf>
+      </Sheet>
+      <Sheet title={t('playlist.title')} {...(everywhere ? { note: everywhere } : {})}>
+        <PlaylistBody playlist={sheets.playlist} />
+      </Sheet>
+      <Sheet title={t('engagement.title')} {...(everywhere ? { note: everywhere } : {})}>
+        <EngagementBody engagement={sheets.engagement} />
+      </Sheet>
+    </>
+  );
+}
+
+/**
+ * What guests' answers add up to, to hand to the venue, the bar and the musician (docs/API.md §6;
+ * design PD-131). Numbers, not charts, as the overview's are (PD-42).
+ */
+export function SheetsPage({ data }: { data: SheetsData }) {
+  const { t } = useTranslation('sheets');
+  return (
+    <section className="flex flex-col gap-5">
+      <Link to={eventPath(data.event.id)} className={`${LINK} self-start`}>
+        {t('back')}
+      </Link>
+      <div className="flex flex-col gap-1">
+        <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('title')}</h1>
+        <p className="text-muted-foreground m-0 break-words">{data.event.title}</p>
+      </div>
+      <p className="m-0 max-w-[40rem]">{t('lead')}</p>
+      <PartOf read={data.sheets} refused={t('refused')}>
+        {(sheets) => <Sheets data={data} sheets={sheets} />}
+      </PartOf>
+    </section>
+  );
+}

@@ -42,7 +42,12 @@
     "vendors": "Prestataires · Aveline",
     "eventVendors": "Les prestataires de l’événement · Aveline",
     "newBooking": "Réserver un prestataire · Aveline",
-    "booking": "Une réservation · Aveline"
+    "booking": "Une réservation · Aveline",
+    "organizations": "Choisir une organisation · Aveline",
+    "billing": "Formule et factures · Aveline",
+    "billingReturn": "Retour de la banque · Aveline",
+    "sheets": "Ce que donnent les réponses · Aveline",
+    "designAdoption": "Aperçu d’un modèle · Aveline"
   },
   "shell": {
     "loading": "Chargement…",
@@ -66,7 +71,8 @@
     "suppressions": "Personnes à ne pas contacter",
     "promoCodes": "Codes promo",
     "vendors": "Prestataires",
-    "organization": "Les personnes à ne pas contacter, les codes promo et les prestataires appartiennent à votre organisation : ils valent pour chaque événement."
+    "organization": "Les personnes à ne pas contacter, les codes promo et les prestataires appartiennent à votre organisation : ils valent pour chaque événement.",
+    "billing": "Formule et factures"
   },
   "welcome": {
     "title": "Configurer votre organisation",
@@ -81,5 +87,17 @@
     },
     "submit": "Continuer",
     "submitting": "Configuration…"
+  },
+  "organizations": {
+    "title": "Dans quelle organisation travaillez-vous ?",
+    "lead": "Votre compte appartient à plusieurs organisations. Cet onglet travaille dans celle que vous choisissez ; un autre onglet peut travailler dans une autre.",
+    "current": "Organisation : {{name}}",
+    "change": "Changer d’organisation",
+    "role": {
+      "OWNER": "Propriétaire",
+      "MANAGER": "Gestionnaire",
+      "MEMBER": "Membre",
+      "VIEWER": "Lecteur"
+    }
   }
 }

@@ -16,6 +16,14 @@ export interface Organization {
 export interface OwnOrganization {
   organizationId: string;
   name: string;
+  role?: string | undefined;
+}
+
+/** One row of `GET /me/organizations`. */
+export interface OwnOrganizationWire {
+  organizationId: string;
+  name: string;
+  role: string;
 }
 
 /** Accepting an invitation creates the account if there was none. No session comes back (FR-23). */

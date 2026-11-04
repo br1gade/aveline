@@ -408,7 +408,7 @@ describe('EventOverview', () => {
     overview({ event: { ...EVENT, invitation: null } });
     expect(await screen.findByText('No invitation yet.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Publish and send' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Design the invitation' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Design the invitation' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Guests’ photos' })).not.toBeInTheDocument();
   });
 });

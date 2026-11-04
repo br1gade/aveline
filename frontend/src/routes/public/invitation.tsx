@@ -1,6 +1,9 @@
 import { data } from 'react-router';
 
+import { createPublicApi } from '@/api/client';
+import { readPublicEnv } from '@/config/env';
 import {
+  guestArtworkLoader,
   InvitationNotFound,
   InvitationPage,
   invitationLanguage,
@@ -36,5 +39,13 @@ export default function GenericInvitation({ loaderData }: Route.ComponentProps) 
   if (loaderData.state === 'not-found') {
     return <InvitationNotFound />;
   }
-  return <InvitationPage invitation={loaderData.invitation} languageHref={languageHref} />;
+  return (
+    <InvitationPage
+      invitation={loaderData.invitation}
+      languageHref={languageHref}
+      artwork={guestArtworkLoader(createPublicApi(readPublicEnv().VITE_API_BASE_URL), {
+        slug: loaderData.invitation.slug,
+      })}
+    />
+  );
 }

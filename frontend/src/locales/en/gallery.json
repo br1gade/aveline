@@ -162,6 +162,19 @@
     "removeBody": "It is removed for everyone, and the guest who shared it can’t bring it back.",
     "keep": "Keep it",
     "removing": "Removing…",
-    "removeConfirm": "Remove photo"
+    "removeConfirm": "Remove photo",
+    "bulk": {
+      "choose": "Choose: {{name}}",
+      "all": "Choose all {{count}} on this tab",
+      "none": "Choose none",
+      "approve": "Approve chosen ({{count}})",
+      "progress": "Approving {{position}} of {{count}}…",
+      "done_one": "{{count}} photo approved.",
+      "done_other": "{{count}} photos approved.",
+      "gone_one": "{{count}} had changed meanwhile, so the list is up to date again.",
+      "gone_other": "{{count}} had changed meanwhile, so the list is up to date again.",
+      "rest_one": "{{count}} is still chosen: press again when you can.",
+      "rest_other": "{{count}} are still chosen: press again when you can."
+    }
   }
 }

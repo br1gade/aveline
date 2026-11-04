@@ -3,7 +3,8 @@
   "back": {
     "event": "Back to the event",
     "design": "Back to the design",
-    "questions": "Back to the questions"
+    "questions": "Back to the questions",
+    "look": "Back to the template and look"
   },
   "noInvitation": "This event has no invitation to design. An event created before any design template existed has none.",
   "nav": {
@@ -160,6 +161,7 @@
     },
     "layout": "Layout",
     "layoutHelp": "The preview can’t draw this template’s layouts yet: your choice is kept for when it can.",
+    "layoutHelpCover": "The preview draws Full bleed when the cover has a photograph. It can’t draw this template’s other layouts yet: your choice is kept for when it can.",
     "defaultLayout": "The template’s default",
     "noLayouts": "The template’s layouts couldn’t be loaded, so the layout stays as it is.",
     "defaultLanguage": "default language",
@@ -394,5 +396,42 @@
     "altTooLong": "At most 300 characters.",
     "refused": "This wasn’t accepted. Check it.",
     "other": "Check this."
+  },
+  "add": {
+    "template": "Template",
+    "firstTemplate": "Aveline’s first template",
+    "noList": "The templates couldn’t be listed, so Aveline’s first will be used. You can change it afterwards.",
+    "submit": "Add an invitation",
+    "refused": {
+      "forbidden": "Your role on this event can’t add an invitation. Ask its owner or coordinator.",
+      "noTemplate": "No template is available yet, so there’s nothing to build an invitation from.",
+      "alreadyHas": "This event already has an invitation. The page has been brought up to date.",
+      "templateGone": "That template is no longer available. Choose another.",
+      "rateLimited": "Too many requests just now. Wait a minute, then try again.",
+      "noAnswer": "We didn’t get an answer. Check your connection and try again.",
+      "other": "The invitation couldn’t be added."
+    }
+  },
+  "adopt": {
+    "title": "Preview: {{name}}",
+    "themeReset": "The look goes back to this template’s own.",
+    "confirm": "Use {{name}}",
+    "keep": "Keep {{name}}",
+    "preparing": "The template’s artwork is being prepared for this event. This usually takes a moment.",
+    "stillPreparing": "The artwork is still being prepared. You can look again in a moment.",
+    "previewAgain": "Preview again",
+    "notOffered": "This version of the template isn’t on offer for this event.",
+    "done": "The invitation now uses {{name}}.",
+    "refused": {
+      "stale": "The design changed since this preview, or the preview ran out. Preview it again before using it.",
+      "gone": "This template is no longer on offer. Your invitation hasn’t changed.",
+      "preparing": "The template’s artwork isn’t ready yet. Wait a moment and try again. Your invitation hasn’t changed.",
+      "invalid": "The template’s artwork couldn’t be prepared. Your invitation hasn’t changed.",
+      "unavailable": "This template isn’t available yet. Your invitation hasn’t changed.",
+      "forbidden": "Your role on this event can see the invitation’s design but not change it.",
+      "rateLimited": "Too many requests just now. Wait a minute, then try again.",
+      "noAnswer": "We didn’t get an answer. Check your connection and try again.",
+      "other": "This couldn’t be done. Your invitation hasn’t changed."
+    }
   }
 }

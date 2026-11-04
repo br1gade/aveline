@@ -83,3 +83,37 @@ export function useRefusedText(action: DesignAction): (status: number) => string
   return (status) =>
     t(`problems.${WORDS[action][status] ?? (status === 409 ? 'conflict' : 'other')}`);
 }
+
+export interface AddRefusal {
+  kind:
+    | 'forbidden'
+    | 'noTemplate'
+    | 'alreadyHas'
+    | 'templateGone'
+    | 'rateLimited'
+    | 'noAnswer'
+    | 'other';
+  isStale?: boolean;
+  /** The backend's sentence, where the page has no words for it. */
+  sentence?: string | undefined;
+  requestId?: string | undefined;
+}
+
+/**
+ * Adding an invitation: two 400s told apart by their words (`events.service.ts`,
+ * `createInvitation`; FR-28), and a 404 for a template gone meanwhile, by whichever route it came.
+ */
+export function addRefusalOf(error: unknown): AddRefusal {
+  if (!isApiError(error)) throw error;
+  const { status, messages, requestId } = error;
+  if (status === 0 || status >= 500) return { kind: 'noAnswer', requestId };
+  if (status === 403) return { kind: 'forbidden' };
+  if (status === 404) return { kind: 'templateGone', isStale: true };
+  if (status === 429) return { kind: 'rateLimited' };
+  const [first = ''] = messages;
+  if (first.startsWith('No design template is available')) return { kind: 'noTemplate' };
+  if (first.startsWith('This event already has an invitation')) {
+    return { kind: 'alreadyHas', isStale: true };
+  }
+  return { kind: 'other', sentence: messages.join(' ') };
+}

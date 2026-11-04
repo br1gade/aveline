@@ -1,8 +1,9 @@
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { EventZone } from '@/lib/time';
 import { formatEventDay } from '@/lib/time';
-import { Button, Eyebrow } from '@/ui';
+import { Button, Eyebrow, PrivateImage } from '@/ui';
 
 import type { VenueChoice } from '../attendance';
 import { attendingCount } from '../summary';
@@ -16,12 +17,64 @@ function useSummaryLine(record: ReplyRecord): string | null {
   return null;
 }
 
+export interface SavedDrawing {
+  acknowledgementId: string;
+  names: string;
+}
+
+/**
+ * A drawn signature, read only when asked for: through the guest's own link, and shown from memory,
+ * so the address that holds their token never reaches the page (ARCHITECTURE §9).
+ */
+function SavedSignature({
+  acknowledgementId,
+  names,
+  load,
+}: SavedDrawing & { load: NonNullable<SavedReplyProps['loadDrawing']> }) {
+  const { t } = useTranslation('reply');
+  const id = useId();
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="grid justify-items-start gap-2">
+      <Button
+        variant="quiet"
+        aria-expanded={isOpen}
+        aria-controls={id}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        {isOpen ? t('signature.hideDrawing', { names }) : t('signature.showDrawing', { names })}
+      </Button>
+      <div id={id} hidden={!isOpen}>
+        {isOpen ? (
+          <PrivateImage
+            id={acknowledgementId}
+            load={(signal) => load(acknowledgementId, signal)}
+            alt={t('signature.drawingAlt', { names })}
+            className="border-line h-auto max-h-40 w-full max-w-sm border bg-white object-contain"
+            renderFailed={(retry) => (
+              <span className="text-ink-muted flex flex-col items-start gap-1 text-sm">
+                {t('signature.drawingFailed')}
+                <Button variant="quiet" onClick={retry}>
+                  {t('signature.drawingRetry')}
+                </Button>
+              </span>
+            )}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 interface SavedReplyProps {
   record: ReplyRecord;
   /** The venues answered one by one in PER_VENUE, by their names on the page. */
   venues: readonly VenueChoice[];
   /** For each statement, who in the household has agreed to its current wording (PD-52). */
   agreed: readonly string[];
+  /** The drawn signatures among them, each shown on request (design PD-137). */
+  drawings?: readonly SavedDrawing[] | undefined;
+  loadDrawing?: ((id: string, signal: AbortSignal) => Promise<Blob>) | undefined;
   zone: EventZone;
   /** Opens the form; absent once replies are closed. */
   onChange?: (() => void) | undefined;
@@ -50,7 +103,8 @@ function VenueLines({ record, venues }: Pick<SavedReplyProps, 'record' | 'venues
 }
 
 /** "Your reply: Attending · 3 people", when it was sent, and Change reply (spec §6.2, PD-14). */
-export function SavedReply({ record, venues, agreed, zone, onChange }: SavedReplyProps) {
+export function SavedReply(props: SavedReplyProps) {
+  const { record, venues, agreed, drawings = [], loadDrawing, zone, onChange } = props;
   const { t } = useTranslation('reply');
   const line = useSummaryLine(record);
   if (!line) return null;
@@ -65,6 +119,11 @@ export function SavedReply({ record, venues, agreed, zone, onChange }: SavedRepl
           {t('signature.saved', { names })}
         </p>
       ))}
+      {loadDrawing
+        ? drawings.map((drawing) => (
+            <SavedSignature key={drawing.acknowledgementId} {...drawing} load={loadDrawing} />
+          ))
+        : null}
       {respondedAt ? (
         <p className="text-ink-muted m-0 text-sm leading-[22px]">
           {t('summary.sentOn', { date: formatEventDay(respondedAt, zone) })}

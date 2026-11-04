@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-
+import '@/locales/public';
 import { OrderPage } from '@/features/ticket-order';
 import {
   createI18n,
@@ -10,6 +8,8 @@ import {
   passLoaderHeaders,
   SOURCE_LANGUAGE,
 } from '@/lib/i18n';
+
+import { useDropBankQuery } from '@/lib/routing';
 
 import type { Route } from './+types/ticket-return';
 
@@ -30,22 +30,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: t('ticket-order:title') }, { name: 'robots', content: 'noindex, nofollow' }];
 }
 
-/** The bank's parameters may name its order number, which opens the payment's state (§9). */
-function useDropQuery() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const language = params.get('lang');
-    if ([...params.keys()].every((key) => key === 'lang')) return;
-    void navigate(
-      { search: language ? `?lang=${language}` : '' },
-      { replace: true, preventScrollReset: true },
-    );
-  }, [location.search, navigate]);
-}
-
 export default function TicketReturn() {
-  useDropQuery();
+  useDropBankQuery();
   return <OrderPage confirmFirst />;
 }

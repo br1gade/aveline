@@ -1,3 +1,4 @@
+import '@/locales/public';
 import { data } from 'react-router';
 
 import { ListingPage, publicListingMeta, readListingQuery } from '@/features/public-event';

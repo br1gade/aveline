@@ -49,9 +49,12 @@ interface SectionFormProps {
 function LayoutField({
   form,
   layouts,
+  isCover,
 }: {
   form: UseFormReturn<SectionFormValues>;
   layouts: readonly string[];
+  /** The cover is the one section whose full-bleed layout the preview draws (design PD-141). */
+  isCover: boolean;
 }) {
   const { t } = useTranslation('design');
   const layoutName = useLayoutName();
@@ -61,7 +64,7 @@ function LayoutField({
   return (
     <SelectField
       label={t('section.layout')}
-      help={t('section.layoutHelp')}
+      help={t(isCover ? 'section.layoutHelpCover' : 'section.layoutHelp')}
       error={fieldText(form.formState.errors.variant)}
       {...form.register('variant')}
     >
@@ -114,6 +117,25 @@ function useSave(
   return { baseline, refusal, save };
 }
 
+/** The section's layouts, or a line saying the template's couldn't be read. */
+function SectionLayout({
+  form,
+  layouts,
+  type,
+}: {
+  form: UseFormReturn<SectionFormValues>;
+  layouts: readonly string[] | null;
+  type: string;
+}) {
+  const { t } = useTranslation('design');
+  if (layouts === null) {
+    return <p className="text-muted-foreground m-0 text-sm">{t('section.noLayouts')}</p>;
+  }
+  return layouts.length > 0 ? (
+    <LayoutField form={form} layouts={layouts} isCover={type === 'HERO'} />
+  ) : null;
+}
+
 /**
  * A section's layout, words in each of the event's languages, colours and media, saved together
  * (design PD-57). Only the languages changed are sent, each over its stored copy.
@@ -135,10 +157,7 @@ export function SectionForm(props: SectionFormProps) {
   return (
     <AppForm onSubmit={form.handleSubmit(save)} className="gap-5">
       {refusal ? <DesignRefusal refusal={refusal} /> : null}
-      {layouts && layouts.length > 0 ? <LayoutField form={form} layouts={layouts} /> : null}
-      {layouts === null ? (
-        <p className="text-muted-foreground m-0 text-sm">{t('section.noLayouts')}</p>
-      ) : null}
+      <SectionLayout form={form} layouts={layouts} type={block.type} />
       {editing.fields.length > 0
         ? design.event.locales.map((locale) => (
             <LanguageFieldset

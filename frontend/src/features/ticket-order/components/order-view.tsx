@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+
+import { bankAddress } from '@/lib/links';
 import { generatePath, Link } from 'react-router';
 
 import { readPublicEnv } from '@/config/env';
@@ -9,7 +11,6 @@ import { ROUTE_PATHS } from '@/route-paths';
 import { Button, ButtonLink } from '@/ui';
 
 import { orderOutcome, type OrderOutcome } from '../outcome';
-import { bankAddress } from '../redirect';
 import type { OrderRead } from '../types';
 import { HoldCountdown } from './hold-countdown';
 import { TicketList } from './ticket-list';

@@ -17,11 +17,16 @@ export interface Refusal {
   messages: readonly string[];
   /** The invitation changed underneath: reload the page behind the message. */
   isStale: boolean;
+  /** Private artwork still being made: nothing is out of date, and waiting is the way on. */
+  isArtworkPreparing?: boolean;
 }
 
 export function refusalOf(error: unknown): Refusal {
   const problem = problemFrom(error);
   const status = problem.code === 'refused' ? problem.status : 0;
+  if (isApiError(error) && error.code === 'TEMPLATE_ASSET_NOT_READY') {
+    return { problem, messages: [], isStale: false, isArtworkPreparing: true };
+  }
   const messages = isApiError(error) && status === 400 ? error.messages : [];
   return { problem, messages, isStale: status === 400 || status === 404 || status === 409 };
 }
@@ -47,9 +52,10 @@ const WORDS: Readonly<Record<LifecycleAction, Partial<Record<number, ProblemKey>
 
 export function useRefusedText(
   action: LifecycleAction,
-): (status: number, messages?: readonly string[]) => string {
+): (status: number, messages?: readonly string[], isArtworkPreparing?: boolean) => string {
   const { t } = useTranslation('sending');
-  return (status, messages = []) => {
+  return (status, messages = [], isArtworkPreparing = false) => {
+    if (isArtworkPreparing) return t('problems.artworkPreparing');
     const isExpired = status === 400 && messages.some((message) => EXPIRED.test(message));
     if (status === 400 && messages.includes(ARCHIVED_SENTENCE)) return t('problems.archived');
     return t(`problems.${isExpired ? 'expired' : (WORDS[action][status] ?? 'other')}`);

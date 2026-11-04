@@ -1,6 +1,7 @@
 import i18next, { type i18n } from 'i18next';
 
-import { resources } from '@/locales';
+import '@/locales/guest';
+import { strings } from '@/locales/registry';
 
 /**
  * Interface strings in hy, ru and en (decision A2), and French, which the pilot plan adds
@@ -8,7 +9,8 @@ import { resources } from '@/locales';
  * checks them (design PD-9). French ships as translated, without a native reading (C-23).
  *
  * Each server render makes its own instance, so two requests in different languages never share
- * one. Resources are bundled, so initialisation is synchronous.
+ * one. Resources are bundled, so initialisation is synchronous. Routes add their own to the shared
+ * registry as they load (`locales/registry.ts`).
  */
 export const LANGUAGES = ['hy', 'ru', 'en', 'fr'] as const;
 export type Language = (typeof LANGUAGES)[number];
@@ -23,7 +25,7 @@ export function createI18n(language: Language): i18n {
   void instance.init({
     lng: language,
     fallbackLng: SOURCE_LANGUAGE,
-    resources,
+    resources: strings,
     defaultNS: 'common',
     initAsync: false,
     interpolation: { escapeValue: false },

@@ -16,6 +16,22 @@ export function fetchReply(api: ApiClient, link: ReplyLink): Promise<ReplyRecord
   );
 }
 
+/** A drawn agreement's picture, read through the guest's own link and shown from memory. */
+export function drawingFile(
+  api: ApiClient,
+  { slug, guestToken }: ReplyLink,
+  acknowledgementId: string,
+  signal: AbortSignal,
+): Promise<Blob> {
+  return expectData<Blob>(
+    api.GET('/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements/{acknowledgementId}/file', {
+      params: { path: { slug, guestToken, acknowledgementId } },
+      parseAs: 'blob',
+      signal,
+    }),
+  );
+}
+
 /**
  * The current statements, the household's agreements and the signer's drawings (docs/API.md §11).
  * The newest hundred records: a household of at most 21 agreeing to a few statements fits.

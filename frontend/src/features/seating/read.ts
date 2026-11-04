@@ -8,6 +8,7 @@ import {
   type ResultWire,
   type SeatingJob,
   type SeatingTable,
+  type TableShape,
   type TableWire,
   type UnseatedHousehold,
   type UnseatedWire,
@@ -30,6 +31,10 @@ export function readArrangements(wire: readonly ArrangementWire[]): Arrangement[
   }));
 }
 
+function shapeOf(shape: string | null | undefined): TableShape {
+  return shape === 'rectangle' || shape === 'square' || shape === 'oval' ? shape : 'round';
+}
+
 export function readTables(wire: readonly TableWire[]): SeatingTable[] {
   return wire.map((table) => ({
     id: table.id,
@@ -37,6 +42,9 @@ export function readTables(wire: readonly TableWire[]): SeatingTable[] {
     name: table.name,
     capacity: table.capacity,
     zone: table.zone,
+    posX: table.posX ?? null,
+    posY: table.posY ?? null,
+    shape: shapeOf(table.shape),
     guests: table.guests.map((guest) => ({
       guestId: guest.guestId,
       name: guest.name,

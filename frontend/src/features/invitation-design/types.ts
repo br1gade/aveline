@@ -1,3 +1,4 @@
+import type { PrivateAsset } from '@/features/invitation-renderer';
 import type { InvitationStatus } from '@/features/events';
 import type { BuiltInField, Invitation, QuestionType } from '@/features/invitation-renderer';
 
@@ -25,6 +26,8 @@ export interface MediaVariant {
 export interface DesignMedia {
   id: string;
   url: string;
+  /** Private artwork of an authored template, whose `url` is empty (design PD-140). */
+  privateAsset?: PrivateAsset | undefined;
   /** PHOTO, COVER, LOGO or AUDIO; new kinds may arrive. */
   kind: string;
   altText: Translated;
@@ -63,6 +66,8 @@ export interface Theme {
 export interface TemplateSummary {
   key: string;
   name: string;
+  /** The exact version, which an authored template is previewed and adopted by (design PD-139). */
+  versionId?: string | undefined;
   allowedFonts: readonly string[];
   palettes: readonly Palette[];
   /** An empty list means the template declares no restriction. */
@@ -115,6 +120,8 @@ export interface DesignEvent {
 /** `GET /invitations/:slug/design`: the invitation as the host edits it, every language kept. */
 export interface Design {
   slug: string;
+  /** What a template's preview and its confirmation are fenced by. */
+  designRevision?: string | undefined;
   status: InvitationStatus;
   isExpired: boolean;
   event: DesignEvent;
@@ -166,6 +173,7 @@ export interface BlockWire {
 export interface TemplateWire {
   key: string;
   name: string;
+  versionId?: string;
   allowedFonts: string[];
   palettes: unknown;
   supportedBlocks: string[];
@@ -185,6 +193,7 @@ export interface QuestionWire {
 
 export interface DesignWire {
   slug: string;
+  designRevision?: string;
   status: string;
   isExpired?: boolean;
   event: {

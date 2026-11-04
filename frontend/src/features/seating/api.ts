@@ -82,7 +82,7 @@ export async function deleteTable(api: ApiClient, eventId: string, tableId: stri
 export async function assignSeat(
   api: ApiClient,
   eventId: string,
-  body: { guestId: string; tableId: string },
+  body: { guestId: string; tableId: string; position?: number },
 ): Promise<void> {
   await expectData<unknown>(
     api.POST('/api/v1/events/{eventId}/seats', { params: { path: { eventId } }, body }),

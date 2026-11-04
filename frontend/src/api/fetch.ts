@@ -1,3 +1,5 @@
+import { ORGANIZATION_HEADER, takesOrganization } from './organization-scope';
+
 /**
  * The fetch underneath both API clients (setup proposal §5.4):
  *
@@ -14,6 +16,8 @@ export interface ApiFetchOptions {
   refreshSession?: () => Promise<boolean>;
   /** Read at each call, so a language switch applies to the next request. */
   getLanguage?: () => string | undefined;
+  /** The organization this tab chose, for the calls that take one (`organization-scope.ts`). */
+  getOrganizationId?: () => string | undefined;
 }
 
 export type ApiFetch = (request: Request) => Promise<Response>;
@@ -36,7 +40,10 @@ export function createApiFetch(options: ApiFetchOptions = {}): ApiFetch {
   };
 
   return async (incoming) => {
-    const request = withLanguage(withRequestId(incoming), options.getLanguage?.());
+    const request = withOrganization(
+      withLanguage(withRequestId(incoming), options.getLanguage?.()),
+      options.getOrganizationId?.(),
+    );
     const retry = request.clone();
     const response = await send(request);
     if (response.status !== 401 || !options.refreshSession) {
@@ -45,6 +52,15 @@ export function createApiFetch(options: ApiFetchOptions = {}): ApiFetch {
     const isRefreshed = await options.refreshSession();
     return isRefreshed ? send(retry) : response;
   };
+}
+
+function withOrganization(request: Request, organizationId: string | undefined): Request {
+  if (!organizationId || !takesOrganization(new URL(request.url).pathname)) {
+    return request;
+  }
+  const headers = new Headers(request.headers);
+  headers.set(ORGANIZATION_HEADER, organizationId);
+  return new Request(request, { headers });
 }
 
 function withRequestId(request: Request): Request {

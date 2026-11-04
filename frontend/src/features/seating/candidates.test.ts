@@ -46,6 +46,9 @@ function table(id: string, guestIds: string[], arrangementId = 'a-hall'): Seatin
     name: id,
     capacity: 10,
     zone: null,
+    posX: null,
+    posY: null,
+    shape: 'round',
     guests: guestIds.map((guestId) => ({
       guestId,
       name: guestId,

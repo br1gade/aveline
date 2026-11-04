@@ -1,3 +1,11 @@
+import ruSheets from './ru/sheets.json';
+import hySheets from './hy/sheets.json';
+import frSheets from './fr/sheets.json';
+import enSheets from './en/sheets.json';
+import ruBilling from './ru/billing.json';
+import hyBilling from './hy/billing.json';
+import frBilling from './fr/billing.json';
+import enBilling from './en/billing.json';
 import enAccount from './en/account.json';
 import enAgreements from './en/agreements.json';
 import enApp from './en/app.json';
@@ -122,6 +130,8 @@ import frVendors from './fr/vendors.json';
  */
 export const resources = {
   en: {
+    sheets: enSheets,
+    billing: enBilling,
     'promo-codes': enPromoCodes,
     brief: enBrief,
     vendors: enVendors,
@@ -153,6 +163,8 @@ export const resources = {
     venues: enVenues,
   },
   fr: {
+    sheets: frSheets,
+    billing: frBilling,
     'promo-codes': frPromoCodes,
     brief: frBrief,
     vendors: frVendors,
@@ -184,6 +196,8 @@ export const resources = {
     venues: frVenues,
   },
   hy: {
+    sheets: hySheets,
+    billing: hyBilling,
     'promo-codes': hyPromoCodes,
     brief: hyBrief,
     vendors: hyVendors,
@@ -215,6 +229,8 @@ export const resources = {
     venues: hyVenues,
   },
   ru: {
+    sheets: ruSheets,
+    billing: ruBilling,
     'promo-codes': ruPromoCodes,
     brief: ruBrief,
     vendors: ruVendors,

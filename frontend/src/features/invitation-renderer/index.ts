@@ -26,8 +26,15 @@ export {
   type InvitationPageData,
   type PreviewMeta,
 } from './page-data';
+export {
+  guestArtworkLoader,
+  hostArtworkLoader,
+  privateAssetOf,
+  withPrivateArtwork,
+  type ArtworkLoader,
+} from './private-artwork';
 export { invitationPalette } from './theme';
-export { BLOCK_TYPES, BUILT_IN_FIELDS } from './types';
+export { BLOCK_TYPES, BUILT_IN_FIELDS, type PrivateAsset } from './types';
 export type {
   AttendanceView,
   BlockMedia,

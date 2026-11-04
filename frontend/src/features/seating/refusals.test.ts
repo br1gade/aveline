@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { ApiError } from '@/api/errors';
@@ -72,9 +75,33 @@ describe('a seating refusal, by action and status (FR-6, FR-28)', () => {
 
   it('a 400 on a seat is the plan moving underneath, so it reloads', () => {
     expect(refusalOf(refused(400, 'position: outside table capacity'), 'seat')).toMatchObject({
+      key: 'conflict.chairOutside',
+      isStale: true,
+    });
+    expect(refusalOf(refused(400, 'Anything else'), 'seat')).toMatchObject({
       key: 'conflict.seat',
       isStale: true,
     });
+  });
+
+  it('tells a venue change refused for its guests from any other 409 on a table', () => {
+    const occupied = 'venueId: move guests and dismiss release markers before changing venue';
+    expect(refusalOf(refused(409, occupied), 'editTable')).toMatchObject({
+      key: 'conflict.venueHasGuests',
+      isStale: true,
+    });
+    expect(refusalOf(refused(409, 'Something else'), 'editTable').key).toBe('other');
+  });
+
+  it('reads the chair’s and the venue’s sentences from the backend’s own source', () => {
+    const source = readFileSync(
+      join(import.meta.dirname, '../../../../backend/src/modules/seating/seating.service.ts'),
+      'utf8',
+    );
+    expect(source).toContain("BadRequestException('position: outside table capacity')");
+    expect(source).toContain(
+      "ConflictException('venueId: move guests and dismiss release markers before changing venue')",
+    );
   });
 
   it('a 400 on a table form is the form’s, with the backend’s words kept', () => {

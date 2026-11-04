@@ -168,6 +168,22 @@
     "removeBody": "Elle est retirée pour tout le monde, et l’invité qui l’a partagée ne peut pas la rétablir.",
     "keep": "La garder",
     "removing": "Retrait…",
-    "removeConfirm": "Retirer la photo"
+    "removeConfirm": "Retirer la photo",
+    "bulk": {
+      "choose": "Choisir : {{name}}",
+      "all": "Choisir les {{count}} de cet onglet",
+      "none": "Ne rien choisir",
+      "approve": "Approuver la sélection ({{count}})",
+      "progress": "Approbation : {{position}} sur {{count}}…",
+      "done_one": "{{count}} photo approuvée.",
+      "done_other": "{{count}} photos approuvées.",
+      "gone_one": "{{count}} avait changé entre-temps : la liste est à jour.",
+      "gone_other": "{{count}} avaient changé entre-temps : la liste est à jour.",
+      "rest_one": "{{count}} reste choisie : appuyez à nouveau quand vous pourrez.",
+      "rest_other": "{{count}} restent choisies : appuyez à nouveau quand vous pourrez.",
+      "done_many": "{{count}} photos approuvées.",
+      "gone_many": "{{count}} avaient changé entre-temps : la liste est à jour.",
+      "rest_many": "{{count}} restent choisies : appuyez à nouveau quand vous pourrez."
+    }
   }
 }

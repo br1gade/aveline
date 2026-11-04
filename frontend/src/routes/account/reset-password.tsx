@@ -1,3 +1,4 @@
+import '@/locales/app';
 import { accountMeta, ResetPassword } from '@/features/account';
 import {
   languageOf,

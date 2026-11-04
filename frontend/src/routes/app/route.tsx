@@ -1,5 +1,7 @@
 import { Outlet } from 'react-router';
 
+import '@/locales/app';
+
 import { negotiatedLanguageData, negotiatedLanguageHandle, passLoaderHeaders } from '@/lib/i18n';
 import { revalidateOnLanguage } from '@/lib/routing';
 

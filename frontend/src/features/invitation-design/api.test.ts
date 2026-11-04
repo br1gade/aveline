@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { createAppApi } from '@/api/client';
 
-import { listTemplates, previewTemplate, uploadMedia } from './api';
+import { listTemplates, previewInvitation, previewTemplate, uploadMedia } from './api';
 import { API, CLASSIC, ORIGIN } from './test-data';
 
 const server = setupServer();
@@ -80,5 +80,33 @@ describe('the catalogue routes', () => {
       '/api/v1/events/e1/design-templates/classic/preview',
       '/api/v1/events/e1/design-templates/classic/preview?locale=fr',
     ]);
+  });
+});
+
+describe('a preview holding private artwork', () => {
+  const page = {
+    coverUrl: '/api/v1/events/e1/design-assets/cover/file',
+    blocks: [
+      {
+        type: 'HERO',
+        media: [{ id: 'a1', url: '/api/v1/events/e1/design-assets/a1/file', kind: 'COVER' }],
+      },
+    ],
+  };
+
+  it('of a template: comes out with no address in it', async () => {
+    server.use(
+      http.get(`${API}/events/e1/design-templates/classic/preview`, () => HttpResponse.json(page)),
+    );
+    const preview = await previewTemplate(api, 'e1', 'classic', undefined);
+    expect(JSON.stringify(preview)).not.toContain('design-assets');
+    expect(preview.coverUrl).toBeNull();
+  });
+
+  it('of the invitation: comes out with no address in it', async () => {
+    server.use(http.get(`${API}/invitations/a/template-preview`, () => HttpResponse.json(page)));
+    const preview = await previewInvitation(api, 'a', {});
+    expect(JSON.stringify(preview)).not.toContain('design-assets');
+    expect(preview.coverUrl).toBeNull();
   });
 });

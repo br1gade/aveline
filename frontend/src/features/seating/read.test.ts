@@ -65,6 +65,9 @@ describe('reading seating answers by naming their fields', () => {
       name: 'Table 1',
       capacity: 10,
       zone: null,
+      posX: 1,
+      posY: 2,
+      shape: 'round',
       guests: [
         { guestId: 'g1', name: 'Armen Petrosyan', position: 3, isReservation: true },
         { guestId: 'g2', name: 'Lusine Petrosyan', position: null, isReservation: false },
@@ -72,6 +75,18 @@ describe('reading seating answers by naming their fields', () => {
       released: [{ guestId: 'g3', name: 'Ani Sargsyan', releasedAt: '2027-05-01T10:00:00.000Z' }],
     });
     expect(JSON.stringify(table)).not.toContain('never');
+  });
+
+  it.each([
+    ['oval', 'oval'],
+    [null, 'round'],
+    [undefined, 'round'],
+    ['hexagon', 'round'],
+  ])('draws a shape of %s as %s', (shape, drawn) => {
+    const wire = [
+      { id: 't1', name: 'Table 1', capacity: 8, shape, guests: [], released: [] },
+    ] as unknown as TableWire[];
+    expect(readTables(wire)[0]?.shape).toBe(drawn);
   });
 
   it('reads a run with its result, the display code and sentence beside each reason', () => {

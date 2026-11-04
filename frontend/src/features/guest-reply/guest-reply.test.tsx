@@ -95,6 +95,7 @@ beforeEach(() => {
 afterEach(() => {
   server.resetHandlers();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 afterAll(() => server.close());
 
@@ -649,7 +650,48 @@ describe('agreeing to the hosts’ statement', () => {
         ],
       },
     ]);
-    vi.restoreAllMocks();
+  });
+
+  it('shows a drawing on the saved reply, read through the guest’s link and only on request', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:drawn');
+    vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);
+    const asked: unknown[] = [];
+    server.use(
+      http.get(ACKNOWLEDGEMENTS, () =>
+        HttpResponse.json({
+          statements: [STATEMENT],
+          records: ['g1', 'g2'].map((subjectGuestId) => ({
+            id: 'ack-1',
+            questionId: 'q-sign',
+            statementVersionId: 'sv-1',
+            subjectGuestId,
+            method: 'DRAWN',
+            mediaId: 'm-1',
+            createdAt: '2027-03-01T10:00:00.000Z',
+          })),
+          signatureUploads: [],
+          nextCursor: null,
+        }),
+      ),
+      http.get(`${ACKNOWLEDGEMENTS}/:id/file`, ({ params }) => {
+        asked.push(params.id);
+        return new HttpResponse(new Blob(['x'], { type: 'image/png' }));
+      }),
+    );
+    const { user } = renderReply({
+      invitation: SIGNED,
+      record: recordWith({ status: 'ATTENDING', respondedAt: '2027-03-01T10:00:00.000Z' }),
+    });
+    const show = await screen.findByRole('button', {
+      name: 'Show the signature for Armen Petrosyan, Lusine Petrosyan',
+    });
+    expect(asked).toEqual([]);
+    await user.click(show);
+    const picture = await screen.findByRole('img', {
+      name: 'The signature drawn for Armen Petrosyan, Lusine Petrosyan',
+    });
+    expect(picture).toHaveAttribute('src', 'blob:drawn');
+    expect(asked).toEqual(['ack-1']);
   });
 
   it('asks nothing of a household that already agreed to this wording', async () => {

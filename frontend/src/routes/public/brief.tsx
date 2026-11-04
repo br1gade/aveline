@@ -1,3 +1,4 @@
+import '@/locales/public';
 import { BriefPage } from '@/features/vendor-brief';
 import {
   createI18n,

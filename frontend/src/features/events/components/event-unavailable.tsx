@@ -2,12 +2,17 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { isApiError } from '@/api/errors';
+import { isOrganizationRefusal } from '@/api/session';
 import { APP_PATHS } from '@/route-paths';
 
-type Reason = 'missing' | 'rateLimited' | 'failed';
+const LINK =
+  'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
+
+type Reason = 'missing' | 'rateLimited' | 'failed' | 'organization';
 
 function reasonOf(error: unknown): Reason {
   if (!isApiError(error)) return 'failed';
+  if (isOrganizationRefusal(error.code)) return 'organization';
   if (error.status === 403 || error.status === 404) return 'missing';
   return error.status === 429 ? 'rateLimited' : 'failed';
 }
@@ -26,7 +31,9 @@ export function EventUnavailable({ error }: { error: unknown }) {
   return (
     <section className="flex max-w-[34rem] flex-col gap-4">
       <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">
-        {reason === 'missing' ? t('unavailable.title') : common('error.title')}
+        {reason === 'missing' || reason === 'organization'
+          ? t('unavailable.title')
+          : common('error.title')}
       </h1>
       <p className="m-0">
         {t(reason === 'missing' ? 'unavailable.body' : `unavailable.${reason}`)}
@@ -36,10 +43,12 @@ export function EventUnavailable({ error }: { error: unknown }) {
           {common('error.reference', { requestId })}
         </p>
       ) : null}
-      <Link
-        to={APP_PATHS.app}
-        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
-      >
+      {reason === 'organization' ? (
+        <Link to={APP_PATHS.organizations} className={LINK}>
+          {t('unavailable.chooseOrganization')}
+        </Link>
+      ) : null}
+      <Link to={APP_PATHS.app} className={LINK}>
         {t('unavailable.back')}
       </Link>
     </section>

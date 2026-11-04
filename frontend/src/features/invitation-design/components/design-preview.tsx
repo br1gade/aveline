@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { InvitationPage } from '@/features/invitation-renderer';
+import { browserSession } from '@/api/session';
+import { hostArtworkLoader, InvitationPage } from '@/features/invitation-renderer';
 import { createI18n, isLanguage, SOURCE_LANGUAGE } from '@/lib/i18n';
 
 import type { DesignPreviewData } from '../load';
@@ -55,15 +56,26 @@ function PreviewBar({ data }: { data: DesignPreviewData }) {
  * The invitation as guests read it: in its own language, with the renderer's own words in that
  * language too, whatever the host's interface is in (design PD-59).
  */
-function PreviewPage({ preview, data }: { preview: Preview; data: DesignPreviewData }) {
+export function PreviewPage({
+  preview,
+  eventId,
+  languageHref,
+}: {
+  preview: Preview;
+  eventId: string;
+  languageHref: (locale: string) => string;
+}) {
   const language = isLanguage(preview.locale) ? preview.locale : SOURCE_LANGUAGE;
   const i18n = useMemo(() => createI18n(language), [language]);
-  const { request } = data;
-  const languageHref = (locale: string) => designPreviewPath(data.event.id, { ...request, locale });
+  const artwork = useMemo(() => hostArtworkLoader(browserSession().api, eventId), [eventId]);
   return (
     <I18nextProvider i18n={i18n}>
       <div lang={preview.locale}>
-        <InvitationPage invitation={{ ...preview, isPreview: true }} languageHref={languageHref} />
+        <InvitationPage
+          invitation={{ ...preview, isPreview: true }}
+          languageHref={languageHref}
+          artwork={artwork}
+        />
       </div>
     </I18nextProvider>
   );
@@ -80,7 +92,11 @@ export function DesignPreview({ data }: { data: DesignPreviewData }) {
     <>
       <PreviewBar data={data} />
       {data.preview ? (
-        <PreviewPage preview={data.preview} data={data} />
+        <PreviewPage
+          preview={data.preview}
+          eventId={data.event.id}
+          languageHref={(locale) => designPreviewPath(data.event.id, { ...data.request, locale })}
+        />
       ) : (
         <main className="mx-auto max-w-[56rem] px-4 py-8 sm:px-8">
           <p className="m-0">{t('noInvitation')}</p>

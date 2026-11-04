@@ -93,9 +93,7 @@ export function PrivateImage({ id, load, alt, className, renderFailed }: Private
   return (
     <span
       ref={setHolder}
-      role="img"
-      aria-label={alt}
-      aria-busy="true"
+      {...(alt ? { role: 'img', 'aria-label': alt, 'aria-busy': true } : { 'aria-hidden': true })}
       className={cx('block motion-safe:animate-pulse', className)}
     />
   );

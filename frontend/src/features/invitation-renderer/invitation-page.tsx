@@ -6,7 +6,7 @@ import { ButtonLink, cx, LanguageSwitcher, StatusChip } from '@/ui';
 
 import { blockComponent } from './blocks/registry';
 import { InvitationProvider, useInvitation } from './context';
-import { Cover } from './components/cover';
+import { Cover, CoverPhoto, isFullBleed } from './components/cover';
 import { FooterMark } from './components/footer-mark';
 import { FloatingPause, MusicControl, MusicProvider } from './components/music';
 import { PersonalCard } from './components/personal-card';
@@ -19,6 +19,8 @@ import {
 } from './components/reply-summary';
 import { COLUMN, GUTTERS, Section } from './components/section';
 import { useStatusText } from './components/status-text';
+import type { ArtworkLoader } from './private-artwork';
+import { preloadFonts } from './fonts';
 import { invitationPalette } from './theme';
 import type { Invitation, InvitationBlock } from './types';
 
@@ -39,6 +41,8 @@ export interface InvitationPageProps {
   renderPersonal?: (() => ReactNode) | undefined;
   /** On personal links, a section after the letter: the guests' photos (PD-63). */
   renderContributions?: (() => ReactNode) | undefined;
+  /** How this page reads private artwork: the guest's link, or the host's session (PD-140). */
+  artwork?: ArtworkLoader | undefined;
 }
 
 function TopBar({ languageHref }: Pick<InvitationPageProps, 'languageHref'>) {
@@ -111,6 +115,37 @@ function canReply(invitation: Invitation): boolean {
   );
 }
 
+/**
+ * The photograph fills the first screen, with `burgundy-deep` at 65% behind every word on it, which
+ * holds 4.5:1 over even a white area (design PD-34), and a gradient rising from that to nothing.
+ */
+function FullBleedHeader({ cover, action, languageHref }: HeaderProps) {
+  return (
+    <header
+      data-theme="bordeaux"
+      className="bg-surface text-text relative flex min-h-svh flex-col lg:sticky lg:top-0 lg:row-span-2 lg:h-svh lg:overflow-y-auto"
+    >
+      <CoverPhoto block={cover} />
+      <div className="bg-burgundy-deep/65 relative px-5 pt-4 pb-2 lg:px-12">
+        <TopBar languageHref={languageHref} />
+      </div>
+      <div className="flex-auto" />
+      <div
+        aria-hidden="true"
+        className="from-burgundy-deep/65 relative h-24 bg-linear-to-t to-transparent"
+      />
+      <div className="bg-burgundy-deep/65 relative px-5 pb-18 lg:px-12 lg:pb-12">
+        <Cover block={cover} action={action} isOverPhoto />
+      </div>
+    </header>
+  );
+}
+
+type HeaderProps = Pick<LayoutProps, 'languageHref'> & {
+  cover: InvitationBlock;
+  action: ReactNode;
+};
+
 /** HERO first: the cover is the header, on top on phones and pinned left from 1024 px. */
 function CoverHeader({ cover, reply, languageHref }: LayoutProps & { cover: InvitationBlock }) {
   const { invitation } = useInvitation();
@@ -119,6 +154,9 @@ function CoverHeader({ cover, reply, languageHref }: LayoutProps & { cover: Invi
       <CoverReply reply={reply} />
     </div>
   ) : null;
+  if (isFullBleed(cover)) {
+    return <FullBleedHeader cover={cover} action={action} languageHref={languageHref} />;
+  }
   return (
     <header
       data-theme="bordeaux"
@@ -167,6 +205,11 @@ function PersonalCardSlot({
   );
 }
 
+/** A preview's page sits under the host's bar, and can't be answered. */
+function canSkipToReply(invitation: Invitation): boolean {
+  return !invitation.isPreview && invitation.blocks.some((block) => block.type === 'RSVP');
+}
+
 /**
  * The page (spec §4, §8). With HERO first, the cover is the header, and from 1024 px the open
  * card: the cover pinned in the left 5/12, the letter scrolling on the right. Otherwise one
@@ -183,11 +226,10 @@ function Layout({
   const isBarWanted = canReply(invitation);
   const isNothingInView =
     useVisibility(isBarWanted ? [REPLY_SECTION_ID, CARD_REPLY_ID] : []) === 'none';
-  const hasReplySection = invitation.blocks.some((block) => block.type === 'RSVP');
 
   return (
     <>
-      {hasReplySection ? <SkipToReply /> : null}
+      {canSkipToReply(invitation) ? <SkipToReply /> : null}
       <div
         className={cx(
           'bg-surface text-text min-h-svh [--letter-column:34rem] sm:[--letter-column:36rem] md:[--letter-column:40rem]',
@@ -238,12 +280,14 @@ export function InvitationPage({
   replyHeading,
   renderPersonal,
   renderContributions,
+  artwork,
 }: InvitationPageProps) {
   const zone = { timeZone: invitation.event.timezone, locale: invitation.locale };
   const palette = invitationPalette(invitation.theme);
   const summary = reply === undefined ? replyFromInvitation(invitation) : reply;
+  preloadFonts(invitation.locale);
   return (
-    <InvitationProvider value={{ invitation, zone, renderReply, replyHeading }}>
+    <InvitationProvider value={{ invitation, zone, renderReply, replyHeading, artwork }}>
       <MusicProvider url={invitation.musicUrl}>
         <div data-palette={palette.name} data-theme={palette.letterTheme}>
           <Layout

@@ -2,7 +2,15 @@ import type { ApiClient } from '@/api/client';
 import { loaded, type Loaded } from '@/api/loaded';
 import { getEvent, type EventDetail } from '@/features/events';
 
-import { getDesign, listMedia, listTemplates, previewInvitation, previewTemplate } from './api';
+import { adoptionRefusalOf, type AdoptionRead, type AdoptionRefusal } from './adoption';
+import {
+  getDesign,
+  listMedia,
+  listTemplates,
+  previewInvitation,
+  previewTemplate,
+  startAdoption,
+} from './api';
 import type { Design, DesignTemplate, LibraryItem, Preview, Question } from './types';
 
 /**
@@ -37,6 +45,46 @@ export async function loadDesignLook(api: ApiClient, eventId: string): Promise<D
     loaded(listTemplates(api, eventId)),
   ]);
   return { ...data, templates };
+}
+
+export interface AdoptionData extends DesignData {
+  /** The template this version belongs to; `null` when the catalogue no longer has it. */
+  target: DesignTemplate | null;
+  /** `null` with nothing to preview: no invitation, or that version gone. */
+  preview: AdoptionRead | null;
+  refusal: AdoptionRefusal | null;
+}
+
+/**
+ * Starts a preview on opening the page, and a new one each time it is read again: one expires, and
+ * goes stale when the design changes. It changes nothing on the invitation (docs/API.md §6).
+ */
+export async function loadAdoption(
+  api: ApiClient,
+  eventId: string,
+  versionId: string,
+): Promise<AdoptionData> {
+  const [data, templates] = await Promise.all([
+    loadDesign(api, eventId),
+    loaded(listTemplates(api, eventId)),
+  ]);
+  const target =
+    templates.kind === 'ready'
+      ? (templates.value.find((template) => template.versionId === versionId) ?? null)
+      : null;
+  const revision = data.design?.designRevision;
+  if (!data.design || !target || !revision) {
+    return { ...data, target, preview: null, refusal: null };
+  }
+  try {
+    const preview = await startAdoption(api, data.design.slug, {
+      targetVersionId: versionId,
+      expectedDesignRevision: revision,
+    });
+    return { ...data, target, preview, refusal: null };
+  } catch (error) {
+    return { ...data, target, preview: null, refusal: adoptionRefusalOf(error) };
+  }
 }
 
 export interface DesignSectionData extends DesignLookData {

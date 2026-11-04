@@ -6,6 +6,7 @@ import { createI18n, isLanguage, SOURCE_LANGUAGE } from '@/lib/i18n';
 
 import { fetchInvitation, type InvitationRequest } from './api';
 import type { InvitationPageData, PreviewMeta } from './page-data';
+import { withPrivateArtwork } from './private-artwork';
 import { occasionOf, type Invitation } from './types';
 
 /** "Anna & Davit · Wedding", in the page's language (spec §12). */
@@ -24,7 +25,10 @@ export function previewMeta(invitation: Invitation): PreviewMeta {
 export async function loadInvitationPage(request: InvitationRequest): Promise<InvitationPageData> {
   const api = createPublicApi(readServerEnv().API_INTERNAL_URL);
   try {
-    const invitation = await retryOnConflict(() => fetchInvitation(api, request));
+    // Before anything keeps it: a private picture's address on a personal page holds the token.
+    const invitation = withPrivateArtwork(
+      await retryOnConflict(() => fetchInvitation(api, request)),
+    );
     return { state: 'found', invitation, preview: previewMeta(invitation) };
   } catch (error) {
     if (isApiError(error) && error.status === 404) {

@@ -1,3 +1,4 @@
+import '@/locales/app';
 import { accountMeta, VerifyEmail } from '@/features/account';
 import {
   languageOf,

@@ -53,6 +53,16 @@ describe('redactUrl', () => {
 });
 
 describe('redactText', () => {
+  it.each([
+    ['failed on /tickets//abc123', 'failed on /tickets/[token]'],
+    ['failed on http://api/tickets//abc123', 'failed on http://api/tickets/[token]'],
+    ['failed on /tickets/%2Fabc123', 'failed on /tickets/[token]'],
+    ['failed on /tickets%2fabc123', 'failed on /tickets/[token]'],
+    ['failed on /invitations/anna//g//abc123', 'failed on /invitations/anna/g/[token]'],
+  ])('finds the token in %s, however its slashes are written', (text, expected) => {
+    expect(redactText(text)).toBe(expected);
+  });
+
   it('removes a guest token quoted inside an error message, and leaves other text alone', () => {
     expect(
       redactText('Error: failed GET http://api/invitations/anna-davit/g/abc123?x=1 (is it up?)'),

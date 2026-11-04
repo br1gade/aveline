@@ -30,6 +30,10 @@ export const APP_PATHS = {
   register: '/register',
   app: '/app',
   welcome: '/app/welcome',
+  /** The organization's plan and invoices. */
+  billing: '/app/billing',
+  /** Choosing an organization, for an account with several. */
+  organizations: '/app/organizations',
   /** Static, so it ranks above `event`'s `:eventId`. */
   newEvent: '/app/events/new',
   /** Events put away. Static, so it ranks above `event`'s `:eventId`. */
@@ -41,6 +45,8 @@ export const APP_PATHS = {
   importGuests: '/app/events/:eventId/guests/import',
   /** An answer a guest gave by phone or in person, recorded by the host. */
   recordAnswer: '/app/events/:eventId/guests/:guestId/answer',
+  /** Catering, bar, playlist and views: what guests' answers add up to. */
+  sheets: '/app/events/:eventId/sheets',
   venues: '/app/events/:eventId/venues',
   /** Static, so it would rank above a `:venueId` under `venues` too. */
   newVenue: '/app/events/:eventId/venues/new',
@@ -62,6 +68,8 @@ export const APP_PATHS = {
   designMedia: '/app/events/:eventId/design/media',
   /** Outside the app's frame: the invitation needs the whole window. */
   designPreview: '/app/events/:eventId/design/preview',
+  /** An authored template's preview and confirmation. */
+  designAdoption: '/app/events/:eventId/design/look/adopt/:versionId',
   /** Guests' photos to moderate; the API calls it the gallery. */
   photos: '/app/events/:eventId/photos',
   /** Who agreed to the hosts' statements, read-only. */

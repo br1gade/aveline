@@ -10,6 +10,10 @@ export function designLookPath(eventId: string): string {
   return generatePath(APP_PATHS.designLook, { eventId });
 }
 
+export function designAdoptionPath(eventId: string, versionId: string): string {
+  return generatePath(APP_PATHS.designAdoption, { eventId, versionId });
+}
+
 export function designSectionPath(eventId: string, blockType: string): string {
   return generatePath(APP_PATHS.designSection, { eventId, blockType });
 }

@@ -1,3 +1,4 @@
+import '@/locales/public';
 import { data } from 'react-router';
 
 import { readServerEnv } from '@/config/env.server';

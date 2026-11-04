@@ -1,6 +1,7 @@
 import { expectData, type ApiClient } from '@/api/client';
 import type { components } from '@/api/schema';
 
+import { listOwnOrganizations, settleChoice } from './organizations';
 import type { InviteAccepted, InviteKind, Organization, OwnOrganization } from './types';
 
 type Schemas = components['schemas'];
@@ -54,13 +55,9 @@ export function createOrganization(
 }
 
 /**
- * The account's organization, or null when it has none. With several, the oldest: only its name is
- * shown, and choosing one waits for the organization selector (ARCHITECTURE §12).
+ * The organization this tab works in, or null when it has none or hasn't chosen: read again each
+ * time, as a new one may just have been made.
  */
 export async function ownOrganization(api: ApiClient): Promise<OwnOrganization | null> {
-  const { items } = await expectData<{ items: OwnOrganization[] }>(
-    api.GET('/api/v1/me/organizations'),
-  );
-  const [first] = items;
-  return first ? { organizationId: first.organizationId, name: first.name } : null;
+  return settleChoice(await listOwnOrganizations(api)).current;
 }

@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate, useNavigation } from 'react-router';
+import { Link, useLocation, useNavigate, useNavigation } from 'react-router';
 
 import { browserSession } from '@/api/session';
 import { LANGUAGES, type Language } from '@/lib/i18n';
-import { ROUTE_PATHS } from '@/route-paths';
+import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 import { Icon, LanguageSwitcher } from '@/ui';
 import { LEAVE_UNASKED } from '@/ui/app-form';
 import { Alert, AlertDescription } from '@/ui/kit/alert';
@@ -78,8 +78,30 @@ function NavigationStatus() {
   );
 }
 
+/** Which organization this tab works in, for an account with several (design PD-138). */
+function CurrentOrganization({ name }: { name: string | null }) {
+  const { t } = useTranslation('app');
+  return (
+    <p className="m-0 flex flex-wrap items-center gap-x-2 text-sm">
+      {name ? <span className="break-words">{t('organizations.current', { name })}</span> : null}
+      <Link
+        to={APP_PATHS.organizations}
+        className="text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline"
+      >
+        {t('organizations.change')}
+      </Link>
+    </p>
+  );
+}
+
+interface AppShellProps {
+  children: ReactNode;
+  /** Shown only to an account with several: one organization needs no saying. */
+  organization?: { name: string | null } | undefined;
+}
+
 /** The signed-in app's frame: the wordmark, the language, and signing out (design PD-39). */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, organization }: AppShellProps) {
   const { t, i18n } = useTranslation('app');
   const { t: common } = useTranslation('common');
   const location = useLocation();
@@ -98,6 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <p className="text-primary m-0 font-serif text-lg tracking-[0.24em] uppercase">
           {common('appName')}
         </p>
+        {organization ? <CurrentOrganization name={organization.name} /> : null}
         <div className="flex flex-wrap items-center gap-2">
           <LanguageSwitcher
             current={i18n.language}

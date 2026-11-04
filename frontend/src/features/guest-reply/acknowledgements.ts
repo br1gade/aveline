@@ -26,6 +26,8 @@ interface RecordWire {
   subjectGuestId: string;
   method: string;
   createdAt: string;
+  /** The drawing behind a drawn agreement; shared by everyone it was signed for. */
+  mediaId?: string | null;
 }
 
 interface UploadWire {
@@ -69,6 +71,7 @@ function readRecord(wire: RecordWire): AcknowledgementRecord {
     subjectGuestId: wire.subjectGuestId,
     method,
     createdAt: wire.createdAt,
+    mediaId: wire.mediaId ?? null,
   };
 }
 
