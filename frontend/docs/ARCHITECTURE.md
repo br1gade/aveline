@@ -60,9 +60,9 @@ follows the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3 Novembe
 | Public event: `/events/:slug` | Server | A server `loader` against the public API; `meta` from the response's `metadata`, verbatim, its robots rule included |
 | Checkout: `/events/:slug/checkout?tickets=…&locale=…` | Server, the form included | The event from a server `loader`; the order posts from the browser. `private, no-store` |
 | Capability: `/tickets/:accessToken`, `/tickets`, `/tickets/return` | Server shell | The language negotiated (the order names none, FR-62); the order read and confirmed in the browser with the token the tab holds (§9). `noindex`; `no-referrer`; `no-store` |
-| Capability, later: `/briefs/:briefToken` | Server shell | Fetched in the browser; `noindex`; `no-referrer` |
+| Capability: `/briefs/:briefToken`, `/briefs` | Server shell | The language negotiated (the brief names none, FR-104); the brief read in the browser with the token the page holds in memory (§9). `noindex`; `no-referrer`; `no-store` |
 | Account: `/sign-in`, `/register`, `/reset-password`, `/verify-email`, `/accept-invite`, `/accept-event-invite` | Server, the form included | A server `loader` for the language only; forms submit from the browser. Sign-in and register skip to the app when a session is stored (`clientLoader`) |
-| App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit`, `/app/events/:eventId/guests`, `/app/events/:eventId/guests/import`, `/app/events/:eventId/venues`, `/app/events/:eventId/venues/new`, `/app/events/:eventId/venues/:venueId/edit`, `/app/events/:eventId/invitation`, `/app/events/:eventId/attendance`, the designer's pages under `/app/events/:eventId/design`, `/app/events/:eventId/photos`, `/app/events/:eventId/agreements`, `/app/events/:eventId/seating`, `/app/events/:eventId/exports`, `/app/events/:eventId/tickets` (with `…/types/new`, `…/types/:typeId` and `…/announcement`), `/app/events/:eventId/orders?status=…&order=…` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame. A change of query alone (the guest list's search and filter, the seating page's plan) reloads nothing: the root, the layout and the guest list skip it, and the `/app` segment reloads only when `?lang=` changes (`src/lib/routing`) |
+| App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit`, `/app/events/:eventId/guests`, `/app/events/:eventId/guests/import`, `/app/events/:eventId/venues`, `/app/events/:eventId/venues/new`, `/app/events/:eventId/venues/:venueId/edit`, `/app/events/:eventId/invitation`, `/app/events/:eventId/attendance`, the designer's pages under `/app/events/:eventId/design`, `/app/events/:eventId/photos`, `/app/events/:eventId/agreements`, `/app/events/:eventId/seating`, `/app/events/:eventId/exports`, `/app/events/:eventId/tickets` (with `…/types/new`, `…/types/:typeId` and `…/announcement`), `/app/events/:eventId/orders?status=…&order=…`, `/app/events/:eventId/vendors` (with `…/new` and `…/:bookingId`), `/app/vendors?category=…` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame. A change of query alone (the guest list's search and filter, the seating page's plan) reloads nothing: the root, the layout and the guest list skip it, and the `/app` segment reloads only when `?lang=` changes (`src/lib/routing`) |
 
 Rules:
 
@@ -312,6 +312,20 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   orders page and the ticket manifest, and is never logged. At the door it stays in one field, never
   in the address or storage (design PD-91). The bank's query on
   the return is taken out of the address too, since it may carry the payment's order number.
+- **A vendor's brief token** (since 4 November 2026, design PD-124) is held like the buyer's order,
+  but **in memory only**: nothing comes back to the page without its link, so no storage, cookie
+  or history state holds it. `/briefs/:briefToken` renders a frame that never reads it; after
+  hydration `features/vendor-brief/token-holder.ts` holds it and the address becomes `/briefs`,
+  which `entry.server.tsx` protects by its exact path beside `/tickets`. A reload holds nothing and
+  asks for the link again; "Try again" reads again with the token held. The token goes only to the
+  API's `/briefs/…`. On the host's side it arrives in `GET /events/:id/vendors` for a role with
+  `vendor:write`; `features/vendors/read.ts` names every field it keeps, and the booking page never
+  renders it, only hands `/briefs/<token>` on the client's public origin (`VITE_PUBLIC_ORIGIN`) to
+  the clipboard when Copy is pressed. Tests plant a token made at run time and check the page,
+  storage, the console and the address; a production build was checked the same way, with the
+  headers, the server's HTML and every request's address and referrer (4 November 2026, against a
+  mock). The development server's inline styles send the document's address as the referrer of
+  font requests; the production build's stylesheet does not.
 - **Not found:** a guest link that opens nothing (wrong, a draft, past its retention date) is a
   404 with the invitation's own not-found page, in all four languages.
 - **A guest's token** (their personal link segment) arrives in `GET /events/:eventId/guests` and
@@ -538,6 +552,28 @@ too, closing the page with something typed raised the browser's own question. In
 asked about in 10 runs of 10 before the guard followed each form through `subscribe`, and in none
 after. Not run against the real backend.
 
+On 4 November 2026 vendors and the vendor's brief were walked the same way, against a stateful mock
+of the vendor routes built from `vendors.service.ts`, `vendor-briefs.service.ts` and
+`access-policy.ts` at `34ac1e6`, with the role switched between an organization owner, an
+organization viewer, an event designer and an account on an event only: the organization's
+vendors, filtered by kind, refused before sending and after adding, and refused to an account with
+no organization; an event's vendors for the owner, the viewer (fee and link not theirs to see, a
+change refused) and the designer; booking, with the usual set ticked, the contacts warning, a fee
+refused and a booking made; a booking, its link copied, a new link and ending asked first, then
+engaged again; a booking not on the event; and the brief with every section and one the client
+doesn't know, a reload, a replaced link and an ended booking. In hy, ru, en and fr at 360 px, touch,
+and 1280 px: 984 checks passed, axe clean in 168 runs, and the 1,244 targets measured at 360 px were
+44 px at the least. No brief token, live or replaced, appeared in an address, storage, the history's
+state, a cache, a page or the console. The first runs found the brief's email and phone links 26 px
+tall, now full-height, and an Armenian link name that didn't hold its visible words, now "Բացել
+ամրագրումը՝ …". A production build, served by `react-router-serve` against the same mock, was
+checked for the token too: the headers on `/briefs/<token>`, `/briefs` and both `.data` requests,
+the server's HTML, the robots tag and no link preview, the address after hydration, every storage,
+the console, and every request's address and referrer, on the brief and on the host's booking page:
+28 checks passed. The same build's own request log prints `/briefs/<token>` (§12). The tests were
+then checked by breaking the code 45 ways in a copy of the tree: each break failed a test, after four
+tests were added for the breaks that first passed. Not run against the real backend.
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -691,6 +727,10 @@ after. Not run against the real backend.
 | 3 Nov 2026 | `DEFAULT_TIME_ZONE` moves to `lib/time`; the team's dialogs use `AskFirstDialog`, whose busy label is the common "Working…" | Written three times, and copied once, otherwise. `useDialogAction` frees a dialog before throwing an error that isn't the API's, which had left it stuck busy |
 | 3 Nov 2026 | Creating an event takes the end and the sides; its other languages stay on correcting it | `CreateEventDto` takes `endsAt` and the side labels but not `translations` (FR-101); a second request after creating would be a workaround, so the form says they come after |
 | 3 Nov 2026 | `normalizeName` moves from `features/guests` to `lib/text/name-search.ts`, with one romanisation of Armenian and Cyrillic that the door and the guest list both search through | Door staff type on a phone's Latin keyboard while names are often in Armenian or Russian, so "Armen" missed "Արմեն". Each name is indexed with its Latin form, once per read, and each word typed is tried as itself and in Latin. One spelling per letter: Armenian as in passports, Russian as usually typed ("yu", "ya", "y" for "й"), not as in passports ("iu", "ia", "i"); variants such as "Hakobian" for "Hakobyan" aren't matched |
+| 4 Nov 2026 | Vendors are one feature (`features/vendors`) for the organization's list and an event's bookings; the vendor's page is another (`features/vendor-brief`) | They share the vendor's words and refusals; the brief is a public page in another frame, with no session, and must not pull the app's code into its bundle |
+| 4 Nov 2026 | The usual sections for each kind of vendor are copied into `features/vendors/scopes.ts`, pinned by a test that reads `vendor-brief.ts` and `schema.prisma`; the booking always sends what is ticked | The backend doesn't expose them (FR-105). Sending the ticks makes the copy only a starting point: if it drifted, the host still sees exactly what the vendor gets |
+| 4 Nov 2026 | A vendor's brief token is held in memory only, unlike the buyer's order | The bank's return needs the order's token back; nothing needs the brief's, so a reload asks for the link again rather than keeping a credential in storage |
+| 4 Nov 2026 | Brief links are built on `VITE_PUBLIC_ORIGIN`, not the page's own address | A link sent to someone else must open where they are; a host working on another address would otherwise send a dead link |
 | 3 Nov 2026 | One guard against leaving unsaved changes, `LeaveGuard` in `ui/app-form`, around the app in `routes/app/layout.tsx`; each page form joins it with `useLeaveGuard` | React Router allows one blocker at a time, and a page can hold several forms (one per upload on the media page). It asks only when the pathname changes, since a search keeps the page's forms, and never while a save runs, so the page a save goes to isn't asked about. Each form is followed through React Hook Form's `subscribe`, which says a save has begun before its first wait, and the guard reads the forms at the moment of leaving: following `formState` in an effect lagged a render behind, so a save with nothing to send, which goes on at once, was asked about in the browser though not under the test library's `act()`. The session's end navigates with `LEAVE_UNASKED`, since nothing can be saved after it. The designer's built-in questions and descriptions now reset their baseline after a save, as its look and sections did: otherwise a saved form still read as changed, and the next save compared against the old values. A hall chosen from the directory now marks the name and address it fills as changed |
 
 ## 12. Not yet built
@@ -708,7 +748,7 @@ after. Not run against the real backend.
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
   door, reminders and thanks, its team, its running order, recording answers, archiving and
-  deleting, who must not be contacted and promo codes: billing (with the bank's return page,
+  deleting, who must not be contacted, promo codes and vendors: billing (with the bank's return page,
   `/billing/return`).
 - Of the running order: ordering two entries at the same minute by hand (the client puts a new one
   last); telling guests about a change, as no notice comes back (FR-94).
@@ -734,8 +774,17 @@ after. Not run against the real backend.
   FR-90); saying a role in words in the invitation's email (FR-89).
 - Of the venue directory: coordinates and notes on the staff's form, clearing a city or capacity,
   bringing a retired hall back, and a page outside any event (FR-91); per-language halls (the API has
-  none); the vendor screens, so `venueProfiles` is not read; starting a correction from a hall (the
-  API takes no `profileId` there).
+  none); starting a correction from a hall (the API takes no `profileId` there). The vendor screens
+  read `venueProfiles` since 4 November 2026, read-only.
+- Of vendors: correcting or removing a vendor once added, and a vendor's notes (FR-102); booking
+  for someone on an event only, who can't read the organization's list (FR-103); adding or
+  correcting a hall, which Aveline's staff do; clearing a fee or a currency other than AMD
+  (FR-106); withdrawing a brief link without making another (FR-108, PQ-20); the usual sections
+  read from the backend rather than a pinned copy (FR-105); more than one organization (above).
+- Of the vendor's brief: the language it is in, translated titles and venues, the hosts' names for
+  the sides and the sections' purposes in the vendor's language (FR-104, PQ-19); the day-by-day
+  answers, guests' ids and who freed a seat, which the page leaves out (FR-107, PQ-18); keeping the
+  brief across a reload, deliberately; a page in Aveline's or the hosts' own design (DQ-42).
 - Of the public listing: a date or time on a card, and marking a card's language (FR-92); a list of
   categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, until FR-92.
 - Of seating: drawing the plan (a table's `posX`, `posY` and `shape`); choosing a numbered chair
@@ -797,10 +846,11 @@ after. Not run against the real backend.
   the gallery (F19) and the hosts' view of agreements (F25) since 29 October 2026.
 - A "verify your email" banner and a way to ask for the email again: nothing says whether an
   address is verified (FR-5).
-- Capability pages: briefs.
 - A production server that logs no capability path: `react-router-serve`, used locally, logs
-  every address, `/tickets/<token>` included (BACKEND_REQUESTS §4).
-- Our own production server, Docker image and deployment (A7, FR-11).
+  every address, `/tickets/<token>` and `/briefs/<token>` included (BACKEND_REQUESTS §4).
+- Our own production server, Docker image and deployment (A7, FR-11). A production build needs
+  `VITE_PUBLIC_ORIGIN` set to its public https origin: brief links are built on it, and the booking
+  page refuses to copy one on a local or `http` origin from a real `https` page (BACKEND_REQUESTS §4).
 - CI (BA-3), Sentry, Storybook (A10).
 - Font preloading and bundle budgets for the guest page.
 - The end-to-end and axe tests (`test/e2e/`, §10): written once the local backend can run.

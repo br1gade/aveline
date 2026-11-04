@@ -1,0 +1,117 @@
+{
+  "title": "Your brief · Aveline",
+  "opening": "Opening your brief…",
+  "loading": "Loading your brief…",
+  "heading": "Brief for {{vendor}}",
+  "until": "Until {{when}}",
+  "zone": "Times are in the event’s time zone, {{timeZone}}.",
+  "status": "Your booking: {{status}}",
+  "statuses": {
+    "ENQUIRED": "Enquired",
+    "QUOTED": "Quoted",
+    "CONFIRMED": "Confirmed",
+    "COMPLETED": "Completed"
+  },
+  "language": "The event’s own words below are shown as its hosts wrote them.",
+  "venues": {
+    "title": "Where",
+    "none": "No venue given yet.",
+    "arrive": "Arrive by {{time}}",
+    "map": "Map for {{name}} (opens in a new tab)",
+    "roles": {
+      "CEREMONY": "Ceremony",
+      "RECEPTION": "Reception",
+      "AFTER_PARTY": "After-party",
+      "PREPARATION": "Preparation",
+      "OTHER": "Venue"
+    }
+  },
+  "given": {
+    "none": "This brief shares the event and its venues only."
+  },
+  "sections": {
+    "headcount": "Headcount",
+    "catering": "Catering",
+    "bar": "Bar",
+    "playlist": "Requested songs",
+    "timeline": "Running order",
+    "seating": "Seating",
+    "households": "Households",
+    "contacts": "Guests’ contact details"
+  },
+  "nothingYet": "None yet.",
+  "unknown": "This page can’t show this part of the brief yet. Ask the hosts for it.",
+  "pair": "{{label}}: {{value}}",
+  "listSeparator": ", ",
+  "none": {
+    "heading": "Open your brief from its link",
+    "body": "This page doesn’t keep your brief after a reload. Open the link you were sent again."
+  },
+  "gone": {
+    "heading": "This link no longer works",
+    "body": "A newer link may have replaced it, or the booking may have ended. Ask whoever sent it to you."
+  },
+  "ended": {
+    "heading": "This booking was ended",
+    "body": "The hosts ended this booking, so its brief is no longer shared."
+  },
+  "rateLimited": {
+    "body": "Too many requests just now. Wait a moment, then try again."
+  },
+  "failed": {
+    "body": "Your brief couldn’t be loaded.",
+    "retry": "Try again",
+    "reference": "Reference: {{requestId}}"
+  },
+  "headcount": {
+    "counts": "{{attending}} coming of {{invited}} invited · {{declined}} not coming · {{undecided}} not sure · {{pending}} not answered",
+    "attending": "Coming",
+    "invited": "Invited",
+    "declined": "Not coming",
+    "undecided": "Not sure yet",
+    "pending": "Not answered yet",
+    "households": "Households",
+    "responseRate": "{{rate}}% have answered",
+    "bySide": "By side",
+    "byVenue": "By venue",
+    "sides": {
+      "SIDE_A": "First side",
+      "SIDE_B": "Second side",
+      "SHARED": "Both sides",
+      "UNKNOWN": "Side not known"
+    }
+  },
+  "catering": {
+    "covers": "Covers: {{value}}",
+    "requirements": "Dietary requirements",
+    "noRequirements": "No dietary requirements given.",
+    "notes": "Guests’ notes",
+    "note": "{{guest}} ({{household}}): {{note}}"
+  },
+  "bar": {
+    "total": "Guests who chose a drink: {{value}}",
+    "none": "No drink preferences given."
+  },
+  "playlist": {
+    "track_one": "{{track}} — asked for once",
+    "track_other": "{{track}} — asked for {{count}} times",
+    "none": "No songs requested yet."
+  },
+  "timeline": {
+    "none": "Nothing in the running order yet.",
+    "noName": "An entry without a name",
+    "at": "at {{venue}}"
+  },
+  "seating": {
+    "none": "No tables yet.",
+    "venue": "At {{venue}}",
+    "zone": "Area: {{zone}}",
+    "seats": "{{seated}} of {{capacity}} seats taken",
+    "freed_one": "{{count}} seat freed by a guest who declined",
+    "freed_other": "{{count}} seats freed by guests who declined",
+    "empty": "Nobody seated here yet."
+  },
+  "contacts": {
+    "none": "No email or phone given."
+  }
+}

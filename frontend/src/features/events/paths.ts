@@ -70,6 +70,18 @@ export function runningOrderPath(eventId: string): string {
   return generatePath(APP_PATHS.runningOrder, { eventId });
 }
 
+export function eventVendorsPath(eventId: string): string {
+  return generatePath(APP_PATHS.eventVendors, { eventId });
+}
+
+export function newBookingPath(eventId: string): string {
+  return generatePath(APP_PATHS.newBooking, { eventId });
+}
+
+export function bookingPath(eventId: string, bookingId: string): string {
+  return generatePath(APP_PATHS.booking, { eventId, bookingId });
+}
+
 export function recordAnswerPath(eventId: string, guestId: string): string {
   return generatePath(APP_PATHS.recordAnswer, { eventId, guestId });
 }

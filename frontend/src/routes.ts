@@ -27,6 +27,8 @@ export default [
   route(relative(APP_PATHS.ticketOrder), 'routes/public/ticket-order.tsx'),
   route(relative(ROUTE_PATHS.ticketPaymentReturn), 'routes/public/ticket-return.tsx'),
   route(relative(ROUTE_PATHS.ticket), 'routes/public/ticket-link.tsx'),
+  route(relative(APP_PATHS.briefPage), 'routes/public/brief.tsx'),
+  route(relative(ROUTE_PATHS.brief), 'routes/public/brief-link.tsx'),
 
   route(relative(ROUTE_PATHS.signIn), 'routes/account/sign-in.tsx'),
   route(relative(APP_PATHS.register), 'routes/account/register.tsx'),
@@ -75,6 +77,10 @@ export default [
       route(underApp(APP_PATHS.runningOrder), 'routes/app/running-order.tsx'),
       route(underApp(APP_PATHS.suppressions), 'routes/app/suppressions.tsx'),
       route(underApp(APP_PATHS.promoCodes), 'routes/app/promo-codes.tsx'),
+      route(underApp(APP_PATHS.vendors), 'routes/app/vendors.tsx'),
+      route(underApp(APP_PATHS.eventVendors), 'routes/app/event-vendors.tsx'),
+      route(underApp(APP_PATHS.newBooking), 'routes/app/event-vendor-new.tsx'),
+      route(underApp(APP_PATHS.booking), 'routes/app/event-vendor.tsx'),
     ]),
     // Signed in, without the app's frame: the invitation's preview needs the whole window.
     layout('routes/app/preview-layout.tsx', [

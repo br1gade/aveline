@@ -23,9 +23,12 @@ export const streamTimeout = 5_000;
 
 /**
  * Pages that show what a capability link opened without the token in their own address: the
- * buyer's order, read with the token the tab holds (design PD-81).
+ * buyer's order, read with the token the tab holds (design PD-81), and a vendor's brief (PD-124).
  */
-const SHOWS_A_CAPABILITY: ReadonlySet<string> = new Set([APP_PATHS.ticketOrder]);
+const SHOWS_A_CAPABILITY: ReadonlySet<string> = new Set([
+  APP_PATHS.ticketOrder,
+  APP_PATHS.briefPage,
+]);
 
 function isCapabilityPage(url: URL): boolean {
   return carriesCapability(url) || SHOWS_A_CAPABILITY.has(url.pathname.replace(/\.data$/, ''));

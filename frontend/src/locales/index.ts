@@ -107,6 +107,14 @@ import enPromoCodes from './en/promo-codes.json';
 import ruPromoCodes from './ru/promo-codes.json';
 import hyPromoCodes from './hy/promo-codes.json';
 import frPromoCodes from './fr/promo-codes.json';
+import enBrief from './en/brief.json';
+import ruBrief from './ru/brief.json';
+import hyBrief from './hy/brief.json';
+import frBrief from './fr/brief.json';
+import enVendors from './en/vendors.json';
+import ruVendors from './ru/vendors.json';
+import hyVendors from './hy/vendors.json';
+import frVendors from './fr/vendors.json';
 
 /**
  * Every namespace in every language. English is the source of the keys; Armenian and Russian are
@@ -115,6 +123,8 @@ import frPromoCodes from './fr/promo-codes.json';
 export const resources = {
   en: {
     'promo-codes': enPromoCodes,
+    brief: enBrief,
+    vendors: enVendors,
     suppressions: enSuppressions,
     'recorded-answer': enRecordedAnswer,
     'running-order': enRunningOrder,
@@ -144,6 +154,8 @@ export const resources = {
   },
   fr: {
     'promo-codes': frPromoCodes,
+    brief: frBrief,
+    vendors: frVendors,
     suppressions: frSuppressions,
     'recorded-answer': frRecordedAnswer,
     'running-order': frRunningOrder,
@@ -173,6 +185,8 @@ export const resources = {
   },
   hy: {
     'promo-codes': hyPromoCodes,
+    brief: hyBrief,
+    vendors: hyVendors,
     suppressions: hySuppressions,
     'recorded-answer': hyRecordedAnswer,
     'running-order': hyRunningOrder,
@@ -202,6 +216,8 @@ export const resources = {
   },
   ru: {
     'promo-codes': ruPromoCodes,
+    brief: ruBrief,
+    vendors: ruVendors,
     suppressions: ruSuppressions,
     'recorded-answer': ruRecordedAnswer,
     'running-order': ruRunningOrder,

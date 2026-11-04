@@ -1,0 +1,203 @@
+{
+  "title": "Vendors",
+  "lead": "Your organization’s own vendors, which only it sees, and Aveline’s list, which every organization sees. Book one for an event from that event’s page.",
+  "cantCorrect": "A vendor you add can’t be corrected or removed yet. Check the details before adding one.",
+  "backHome": "Back to your events",
+  "backEvent": "Back to the event",
+  "backBookings": "Back to the event’s vendors",
+  "pair": "{{label}}: {{value}}",
+  "listSeparator": ", ",
+  "filter": {
+    "label": "Show vendors by kind",
+    "all": "All"
+  },
+  "list": {
+    "title": "Vendors to choose from",
+    "empty": "No vendors yet. Add your own below.",
+    "emptyCategory": "No vendors of this kind yet.",
+    "curated": "Aveline’s list",
+    "own": "Yours",
+    "email": "Email",
+    "phone": "Phone"
+  },
+  "halls": {
+    "title": "Halls in the venue directory",
+    "capacity": "seats {{value}}"
+  },
+  "add": {
+    "title": "Add a vendor",
+    "lead": "Only your organization sees the vendors it adds.",
+    "name": "Name",
+    "category": "Kind of vendor",
+    "chooseCategory": "Choose a kind",
+    "email": "Email",
+    "phone": "Phone",
+    "optional": "Optional.",
+    "submit": "Add the vendor",
+    "adding": "Adding…"
+  },
+  "status": {
+    "added": "{{name}} was added.",
+    "saved": "The booking was saved.",
+    "unchanged": "Nothing had changed, so nothing was sent.",
+    "newLink": "A new link was made, and the one sent before no longer works. Copy the new one to send it.",
+    "ended": "The booking with {{name}} was ended. Their link no longer works.",
+    "engaged": "{{name}} is engaged again, with a new link. Copy it to send it.",
+    "booked": "Booked. Copy the brief link below to send it to the vendor."
+  },
+  "errors": {
+    "required": "Choose one.",
+    "nameShort": "Give at least 2 characters.",
+    "tooLong": "This is too long.",
+    "email": "Enter an email address, like name@example.com.",
+    "fee": "Enter a whole number of dram, digits only, like 150000.",
+    "feeTooLarge": "This fee is too large.",
+    "cantClear": "A fee once agreed can be changed, not removed.",
+    "refused": "This was refused. Check it and try again."
+  },
+  "refused": {
+    "forbidden": {
+      "add": "Your role can’t add vendors. The organization’s owner or a manager can.",
+      "bookings": "Vendors aren’t part of your role on this event. The event’s owner or a coordinator can see them.",
+      "book": "Your role can’t book vendors. The event’s owner or a coordinator can.",
+      "change": "Your role can’t change bookings. The event’s owner or a coordinator can.",
+      "newLink": "Your role can’t replace brief links. The event’s owner or a coordinator can.",
+      "end": "Your role can’t end bookings. The event’s owner or a coordinator can.",
+      "engageAgain": "Your role can’t engage a vendor again. The event’s owner or a coordinator can."
+    },
+    "noOrganization": "Vendors are kept by an organization, and your account isn’t a member of one: you may have been invited onto an event only. Ask the organization’s owner to book a vendor, or to add you to the organization.",
+    "chooseOrganization": "You belong to more than one organization, and this page can’t choose between them yet.",
+    "rateLimited": "Too many requests just now. Wait a moment, then try again.",
+    "vendorGone": "That vendor isn’t on your organization’s list or Aveline’s any more. Choose another.",
+    "bookingGone": "This booking is no longer on the event. The page has been reloaded.",
+    "fields": "Some details were refused. Check the marked fields.",
+    "noAnswer": "There was no answer. Check your connection, then try again.",
+    "other": "This was refused:"
+  },
+  "categories": {
+    "VENUE": "Venue",
+    "CATERING": "Catering",
+    "BAR": "Bar",
+    "DECOR": "Decor",
+    "PHOTOGRAPHY": "Photography",
+    "VIDEOGRAPHY": "Video",
+    "MUSIC": "Music",
+    "PRINT": "Print",
+    "OTHER": "Other"
+  },
+  "statuses": {
+    "ENQUIRED": "Enquired",
+    "QUOTED": "Quoted",
+    "CONFIRMED": "Confirmed",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Ended"
+  },
+  "scopes": {
+    "legend": "What their brief shares",
+    "none": "Nothing ticked: the brief shares the event and its venues only.",
+    "noneShort": "the event and its venues only",
+    "contactsWarning": "Guests’ contact details give this vendor the email address and phone number of every guest who is coming.",
+    "headcount": {
+      "label": "Headcount",
+      "help": "How many are coming, by side and by venue. Numbers only."
+    },
+    "catering": {
+      "label": "Catering",
+      "help": "Covers and dietary requirements, with each guest’s note under their name."
+    },
+    "bar": {
+      "label": "Bar",
+      "help": "Drink preferences as quantities."
+    },
+    "playlist": {
+      "label": "Requested songs",
+      "help": "The songs guests asked for."
+    },
+    "timeline": {
+      "label": "Running order",
+      "help": "What happens when, and where."
+    },
+    "seating": {
+      "label": "Seating",
+      "help": "Tables, their size, and who sits at each by name."
+    },
+    "households": {
+      "label": "Households",
+      "help": "The names of the guests who are coming, grouped by household."
+    },
+    "contacts": {
+      "label": "Guests’ contact details",
+      "help": "The email and phone of every guest who is coming."
+    }
+  },
+  "fee": {
+    "label": "Agreed fee, in dram (AMD)",
+    "help": "Optional. Whole dram, digits only.",
+    "cantClearHelp": "Whole dram, digits only. It can be changed, not removed.",
+    "hidden": "not yours to see",
+    "none": "none agreed",
+    "amount": "{{amount}}"
+  },
+  "bookings": {
+    "title": "Vendors",
+    "lead": "Who is booked for this event, and what each one’s brief shares with them.",
+    "book": "Book a vendor",
+    "organization": "Your organization’s vendors",
+    "listTitle": "Booked for this event",
+    "empty": "Nobody is booked yet.",
+    "open": "Open the booking",
+    "openFor": "Open the booking with {{name}}"
+  },
+  "booking": {
+    "title": "A booking",
+    "shares": "Shares",
+    "fee": "Fee",
+    "category": "Kind",
+    "status": "State",
+    "formTitle": "Correct the booking",
+    "scopesHelp": "The vendor sees the change the next time they open their brief.",
+    "save": "Save the booking",
+    "saving": "Saving…",
+    "missing": "This booking isn’t on the event. It may have been opened from an old link."
+  },
+  "book": {
+    "title": "Book a vendor",
+    "lead": "Choose a vendor, what their brief shares, and the fee if one is agreed. Booking makes the link you send them.",
+    "vendor": "Vendor",
+    "vendorHelp": "Vendors already booked are changed on their own booking’s page.",
+    "chooseVendor": "Choose a vendor",
+    "option": "{{name}} ({{marks}})",
+    "alreadyBooked": "already booked",
+    "ended": "booking ended, books again",
+    "scopesHelp": "The usual set for this kind of vendor is ticked to start with. The vendor reads exactly what is ticked.",
+    "submit": "Book the vendor",
+    "booking": "Booking…",
+    "organization": "Your organization’s vendors"
+  },
+  "link": {
+    "title": "The brief link",
+    "lead": "Send this link to the vendor. It opens their brief without an account, so treat it like a key: anyone who has it can read the brief.",
+    "copy": "Copy the brief link",
+    "replace": "Make a new link",
+    "copied": "The link was copied. Paste it into your message to the vendor.",
+    "refused": "Your browser didn’t allow copying. Try again, or use another browser.",
+    "unsendable": "This copy of Aveline doesn’t know its public address, so the link wouldn’t open for the vendor. Nothing was copied. Tell whoever runs Aveline.",
+    "hidden": "The link isn’t yours to see. The event’s owner or a coordinator can send it.",
+    "ended": "The booking was ended, so its link no longer works."
+  },
+  "newLink": {
+    "title": "Make a new link?",
+    "body": "The link sent to {{name}} stops working at once. They’ll need the new one to read their brief.",
+    "confirm": "Make a new link"
+  },
+  "end": {
+    "open": "End the booking",
+    "title": "End the booking with {{name}}?",
+    "body": "Their brief link stops working at once. The booking is kept, with its fee, and can be engaged again.",
+    "confirm": "End the booking"
+  },
+  "ended": {
+    "lead": "This booking was ended. Engaging the vendor again makes a new link to send them.",
+    "again": "Engage again"
+  }
+}

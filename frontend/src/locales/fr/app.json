@@ -38,7 +38,11 @@
     "recordAnswer": "Enregistrer une réponse · Aveline",
     "runningOrder": "Déroulé de la journée · Aveline",
     "suppressions": "Personnes à ne pas contacter · Aveline",
-    "promoCodes": "Codes promo · Aveline"
+    "promoCodes": "Codes promo · Aveline",
+    "vendors": "Prestataires · Aveline",
+    "eventVendors": "Les prestataires de l’événement · Aveline",
+    "newBooking": "Réserver un prestataire · Aveline",
+    "booking": "Une réservation · Aveline"
   },
   "shell": {
     "loading": "Chargement…",
@@ -61,7 +65,8 @@
     "archived": "Événements archivés",
     "suppressions": "Personnes à ne pas contacter",
     "promoCodes": "Codes promo",
-    "organization": "Les personnes à ne pas contacter et les codes promo appartiennent à votre organisation : ils valent pour chaque événement."
+    "vendors": "Prestataires",
+    "organization": "Les personnes à ne pas contacter, les codes promo et les prestataires appartiennent à votre organisation : ils valent pour chaque événement."
   },
   "welcome": {
     "title": "Configurer votre organisation",

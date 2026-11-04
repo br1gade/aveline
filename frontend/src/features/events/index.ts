@@ -11,11 +11,14 @@ export { EventUnavailable } from './components/event-unavailable';
 export { NotifyGuests, type NotifyBack, type NotifyOffer } from './components/notify-guests';
 export { loadEventOverview } from './load';
 export {
+  bookingPath,
   doorPath,
   eventPath,
+  eventVendorsPath,
   exportsPath,
   followUpsPath,
   guestListPath,
+  newBookingPath,
   ordersPath,
   recordAnswerPath,
   runningOrderPath,

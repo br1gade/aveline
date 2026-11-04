@@ -91,6 +91,13 @@ export const APP_PATHS = {
   suppressions: '/app/suppressions',
   /** The organization's own: discounts on tickets, for every event or one. */
   promoCodes: '/app/promo-codes',
+  /** The organization's own vendors, and Aveline's curated list beside them. */
+  vendors: '/app/vendors',
+  /** Who is engaged for this event, each with the brief they read. */
+  eventVendors: '/app/events/:eventId/vendors',
+  /** Static, so it ranks above `booking`'s `:bookingId`. */
+  newBooking: '/app/events/:eventId/vendors/new',
+  booking: '/app/events/:eventId/vendors/:bookingId',
   /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */
   publicEvents: '/events',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */
@@ -100,4 +107,9 @@ export const APP_PATHS = {
    * static path ranks above `ROUTE_PATHS.ticket`'s `:accessToken`.
    */
   ticketOrder: '/tickets',
+  /**
+   * A vendor's brief once its link's token is out of the address (design PD-124). The static path
+   * ranks above `ROUTE_PATHS.brief`'s `:briefToken`.
+   */
+  briefPage: '/briefs',
 } as const;

@@ -1,0 +1,203 @@
+{
+  "title": "Prestataires",
+  "lead": "Les prestataires de votre organisation, qu’elle seule voit, et la liste d’Aveline, que toutes les organisations voient. Réservez-en un pour un événement depuis la page de cet événement.",
+  "cantCorrect": "Un prestataire ajouté ne peut pas encore être corrigé ni retiré. Vérifiez ses coordonnées avant de l’ajouter.",
+  "backHome": "Retour à vos événements",
+  "backEvent": "Retour à l’événement",
+  "backBookings": "Retour aux prestataires de l’événement",
+  "pair": "{{label}} : {{value}}",
+  "listSeparator": ", ",
+  "filter": {
+    "label": "Afficher les prestataires par type",
+    "all": "Tous"
+  },
+  "list": {
+    "title": "Prestataires disponibles",
+    "empty": "Aucun prestataire pour l’instant. Ajoutez les vôtres ci-dessous.",
+    "emptyCategory": "Aucun prestataire de ce type pour l’instant.",
+    "curated": "Liste d’Aveline",
+    "own": "Les vôtres",
+    "email": "E-mail",
+    "phone": "Téléphone"
+  },
+  "halls": {
+    "title": "Salles de l’annuaire des lieux",
+    "capacity": "{{value}} places"
+  },
+  "add": {
+    "title": "Ajouter un prestataire",
+    "lead": "Seule votre organisation voit les prestataires qu’elle ajoute.",
+    "name": "Nom",
+    "category": "Type de prestataire",
+    "chooseCategory": "Choisissez un type",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "optional": "Facultatif.",
+    "submit": "Ajouter le prestataire",
+    "adding": "Ajout…"
+  },
+  "status": {
+    "added": "{{name}} a été ajouté.",
+    "saved": "La réservation a été enregistrée.",
+    "unchanged": "Rien n’avait changé, donc rien n’a été envoyé.",
+    "newLink": "Un nouveau lien a été créé, et celui envoyé auparavant ne fonctionne plus. Copiez le nouveau pour l’envoyer.",
+    "ended": "La réservation avec {{name}} a pris fin. Son lien ne fonctionne plus.",
+    "engaged": "{{name}} est de nouveau engagé, avec un nouveau lien. Copiez-le pour l’envoyer.",
+    "booked": "Réservé. Copiez le lien du brief ci-dessous pour l’envoyer au prestataire."
+  },
+  "errors": {
+    "required": "Choisissez-en un.",
+    "nameShort": "Saisissez au moins 2 caractères.",
+    "tooLong": "C’est trop long.",
+    "email": "Saisissez une adresse e-mail, comme nom@exemple.com.",
+    "fee": "Saisissez un nombre entier de drams, en chiffres seulement, comme 150000.",
+    "feeTooLarge": "Ce montant est trop élevé.",
+    "cantClear": "Un montant convenu peut être modifié, pas supprimé.",
+    "refused": "Cela a été refusé. Vérifiez et réessayez."
+  },
+  "refused": {
+    "forbidden": {
+      "add": "Votre rôle ne permet pas d’ajouter des prestataires. Le propriétaire de l’organisation ou un responsable le peut.",
+      "bookings": "Les prestataires ne font pas partie de votre rôle sur cet événement. Son propriétaire ou un coordinateur peut les voir.",
+      "book": "Votre rôle ne permet pas de réserver des prestataires. Le propriétaire de l’événement ou un coordinateur le peut.",
+      "change": "Votre rôle ne permet pas de modifier les réservations. Le propriétaire de l’événement ou un coordinateur le peut.",
+      "newLink": "Votre rôle ne permet pas de remplacer les liens de brief. Le propriétaire de l’événement ou un coordinateur le peut.",
+      "end": "Votre rôle ne permet pas de mettre fin aux réservations. Le propriétaire de l’événement ou un coordinateur le peut.",
+      "engageAgain": "Votre rôle ne permet pas d’engager à nouveau un prestataire. Le propriétaire de l’événement ou un coordinateur le peut."
+    },
+    "noOrganization": "Les prestataires appartiennent à une organisation, et votre compte n’en est pas membre : vous avez peut-être été invité sur un événement seulement. Demandez à son propriétaire de réserver un prestataire, ou de vous ajouter à l’organisation.",
+    "chooseOrganization": "Vous appartenez à plusieurs organisations, et cette page ne sait pas encore choisir entre elles.",
+    "rateLimited": "Trop de demandes pour l’instant. Patientez un moment, puis réessayez.",
+    "vendorGone": "Ce prestataire n’est plus sur la liste de votre organisation ni sur celle d’Aveline. Choisissez-en un autre.",
+    "bookingGone": "Cette réservation n’est plus sur l’événement. La page a été rechargée.",
+    "fields": "Certaines informations ont été refusées. Vérifiez les champs signalés.",
+    "noAnswer": "Aucune réponse. Vérifiez votre connexion, puis réessayez.",
+    "other": "Cela a été refusé :"
+  },
+  "categories": {
+    "VENUE": "Lieu",
+    "CATERING": "Traiteur",
+    "BAR": "Bar",
+    "DECOR": "Décoration",
+    "PHOTOGRAPHY": "Photographie",
+    "VIDEOGRAPHY": "Vidéo",
+    "MUSIC": "Musique",
+    "PRINT": "Impression",
+    "OTHER": "Autre"
+  },
+  "statuses": {
+    "ENQUIRED": "Demande envoyée",
+    "QUOTED": "Devis reçu",
+    "CONFIRMED": "Confirmée",
+    "COMPLETED": "Terminée",
+    "CANCELLED": "Annulée"
+  },
+  "scopes": {
+    "legend": "Ce que son brief partage",
+    "none": "Rien de coché : le brief ne partage que l’événement et ses lieux.",
+    "noneShort": "l’événement et ses lieux seulement",
+    "contactsWarning": "Les coordonnées des invités donnent à ce prestataire l’adresse e-mail et le téléphone de chaque invité présent.",
+    "headcount": {
+      "label": "Nombre d’invités",
+      "help": "Combien viennent, par côté et par lieu. Des chiffres seulement."
+    },
+    "catering": {
+      "label": "Traiteur",
+      "help": "Couverts et régimes alimentaires, avec la note de chaque invité sous son nom."
+    },
+    "bar": {
+      "label": "Bar",
+      "help": "Préférences de boissons, en quantités."
+    },
+    "playlist": {
+      "label": "Chansons demandées",
+      "help": "Les chansons demandées par les invités."
+    },
+    "timeline": {
+      "label": "Déroulé",
+      "help": "Ce qui se passe, quand et où."
+    },
+    "seating": {
+      "label": "Plan de table",
+      "help": "Les tables, leur taille, et qui s’assoit à chacune, par nom."
+    },
+    "households": {
+      "label": "Foyers",
+      "help": "Les noms des invités présents, regroupés par foyer."
+    },
+    "contacts": {
+      "label": "Coordonnées des invités",
+      "help": "L’e-mail et le téléphone de chaque invité présent."
+    }
+  },
+  "fee": {
+    "label": "Montant convenu, en drams (AMD)",
+    "help": "Facultatif. Des drams entiers, en chiffres seulement.",
+    "cantClearHelp": "Des drams entiers, en chiffres seulement. Il peut être modifié, pas supprimé.",
+    "hidden": "pas à vous de le voir",
+    "none": "aucun convenu",
+    "amount": "{{amount}}"
+  },
+  "bookings": {
+    "title": "Prestataires",
+    "lead": "Qui est réservé pour cet événement, et ce que le brief de chacun partage avec lui.",
+    "book": "Réserver un prestataire",
+    "organization": "Les prestataires de votre organisation",
+    "listTitle": "Réservés pour cet événement",
+    "empty": "Personne n’est encore réservé.",
+    "open": "Ouvrir la réservation",
+    "openFor": "Ouvrir la réservation avec {{name}}"
+  },
+  "booking": {
+    "title": "Une réservation",
+    "shares": "Partage",
+    "fee": "Montant",
+    "category": "Type",
+    "status": "État",
+    "formTitle": "Corriger la réservation",
+    "scopesHelp": "Le prestataire voit la modification la prochaine fois qu’il ouvre son brief.",
+    "save": "Enregistrer la réservation",
+    "saving": "Enregistrement…",
+    "missing": "Cette réservation n’est pas sur l’événement. Elle a peut-être été ouverte depuis un ancien lien."
+  },
+  "book": {
+    "title": "Réserver un prestataire",
+    "lead": "Choisissez un prestataire, ce que son brief partage, et le montant s’il est convenu. La réservation crée le lien que vous lui envoyez.",
+    "vendor": "Prestataire",
+    "vendorHelp": "Un prestataire déjà réservé se modifie sur la page de sa réservation.",
+    "chooseVendor": "Choisissez un prestataire",
+    "option": "{{name}} ({{marks}})",
+    "alreadyBooked": "déjà réservé",
+    "ended": "réservation annulée, se réserve à nouveau",
+    "scopesHelp": "L’ensemble habituel pour ce type de prestataire est coché au départ. Le prestataire lit exactement ce qui est coché.",
+    "submit": "Réserver le prestataire",
+    "booking": "Réservation…",
+    "organization": "Les prestataires de votre organisation"
+  },
+  "link": {
+    "title": "Le lien du brief",
+    "lead": "Envoyez ce lien au prestataire. Il ouvre son brief sans compte, alors traitez-le comme une clé : quiconque l’a peut lire le brief.",
+    "copy": "Copier le lien du brief",
+    "replace": "Créer un nouveau lien",
+    "copied": "Le lien a été copié. Collez-le dans votre message au prestataire.",
+    "refused": "Votre navigateur n’a pas permis la copie. Réessayez, ou utilisez un autre navigateur.",
+    "unsendable": "Cette installation d’Aveline ne connaît pas son adresse publique, le lien ne s’ouvrirait donc pas chez le prestataire. Rien n’a été copié. Prévenez la personne qui gère Aveline.",
+    "hidden": "Le lien n’est pas à vous de le voir. Le propriétaire de l’événement ou un coordinateur peut l’envoyer.",
+    "ended": "La réservation a pris fin, son lien ne fonctionne donc plus."
+  },
+  "newLink": {
+    "title": "Créer un nouveau lien ?",
+    "body": "Le lien envoyé à {{name}} cesse de fonctionner tout de suite. Il lui faudra le nouveau pour lire son brief.",
+    "confirm": "Créer un nouveau lien"
+  },
+  "end": {
+    "open": "Mettre fin à la réservation",
+    "title": "Mettre fin à la réservation avec {{name}} ?",
+    "body": "Son lien de brief cesse de fonctionner tout de suite. La réservation est conservée, avec son montant, et peut être engagée à nouveau.",
+    "confirm": "Mettre fin à la réservation"
+  },
+  "ended": {
+    "lead": "Cette réservation a pris fin. Engager à nouveau le prestataire crée un nouveau lien à lui envoyer.",
+    "again": "Engager à nouveau"
+  }
+}

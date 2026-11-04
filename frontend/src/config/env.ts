@@ -8,7 +8,11 @@ import { z } from 'zod';
 const publicSchema = z.object({
   /** The API origin for browser calls. Empty means the page's own origin (the Vite proxy, Caddy). */
   VITE_API_BASE_URL: z.string().default(''),
-  /** This client's public origin, for return URLs handed to a bank. */
+  /**
+   * This client's public origin, for return URLs handed to a bank and the brief links hosts send.
+   * Must be set for production: the default is the development server's (a brief link built on
+   * it is refused, `features/vendors/brief-link.ts`).
+   */
   VITE_PUBLIC_ORIGIN: z.url().default('http://localhost:5173'),
   /** Where uploaded media is served from; it goes into the Content Security Policy. */
   VITE_MEDIA_BASE_URL: z.string().default(''),

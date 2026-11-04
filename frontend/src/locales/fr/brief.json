@@ -1,0 +1,119 @@
+{
+  "title": "Votre brief · Aveline",
+  "opening": "Ouverture de votre brief…",
+  "loading": "Chargement de votre brief…",
+  "heading": "Brief pour {{vendor}}",
+  "until": "Jusqu’au {{when}}",
+  "zone": "Les heures sont celles du fuseau de l’événement, {{timeZone}}.",
+  "status": "Votre réservation : {{status}}",
+  "statuses": {
+    "ENQUIRED": "Demande envoyée",
+    "QUOTED": "Devis reçu",
+    "CONFIRMED": "Confirmée",
+    "COMPLETED": "Terminée"
+  },
+  "language": "Les mots propres à l’événement sont affichés tels que les hôtes les ont écrits.",
+  "venues": {
+    "title": "Où",
+    "none": "Aucun lieu indiqué pour l’instant.",
+    "arrive": "Arrivée avant {{time}}",
+    "map": "Carte pour {{name}} (nouvel onglet)",
+    "roles": {
+      "CEREMONY": "Cérémonie",
+      "RECEPTION": "Réception",
+      "AFTER_PARTY": "After-party",
+      "PREPARATION": "Préparatifs",
+      "OTHER": "Lieu"
+    }
+  },
+  "given": {
+    "none": "Ce brief ne partage que l’événement et ses lieux."
+  },
+  "sections": {
+    "headcount": "Nombre d’invités",
+    "catering": "Traiteur",
+    "bar": "Bar",
+    "playlist": "Chansons demandées",
+    "timeline": "Déroulé",
+    "seating": "Plan de table",
+    "households": "Foyers",
+    "contacts": "Coordonnées des invités"
+  },
+  "nothingYet": "Rien pour l’instant.",
+  "unknown": "Cette page ne peut pas encore afficher cette partie du brief. Demandez-la aux hôtes.",
+  "pair": "{{label}} : {{value}}",
+  "listSeparator": ", ",
+  "none": {
+    "heading": "Ouvrez votre brief depuis son lien",
+    "body": "Cette page ne garde pas votre brief après un rechargement. Rouvrez le lien que l’on vous a envoyé."
+  },
+  "gone": {
+    "heading": "Ce lien ne fonctionne plus",
+    "body": "Un lien plus récent l’a peut-être remplacé, ou la réservation a pris fin. Demandez à la personne qui vous l’a envoyé."
+  },
+  "ended": {
+    "heading": "Cette réservation a pris fin",
+    "body": "Les hôtes ont mis fin à cette réservation, son brief n’est donc plus partagé."
+  },
+  "rateLimited": {
+    "body": "Trop de demandes pour l’instant. Patientez un moment, puis réessayez."
+  },
+  "failed": {
+    "body": "Votre brief n’a pas pu être chargé.",
+    "retry": "Réessayer",
+    "reference": "Référence : {{requestId}}"
+  },
+  "headcount": {
+    "counts": "{{attending}} présents sur {{invited}} invités · {{declined}} absents · {{undecided}} indécis · {{pending}} sans réponse",
+    "attending": "Présents",
+    "invited": "Invités",
+    "declined": "Absents",
+    "undecided": "Pas encore sûrs",
+    "pending": "Pas encore répondu",
+    "households": "Foyers",
+    "responseRate": "{{rate}} % ont répondu",
+    "bySide": "Par côté",
+    "byVenue": "Par lieu",
+    "sides": {
+      "SIDE_A": "Premier côté",
+      "SIDE_B": "Second côté",
+      "SHARED": "Les deux côtés",
+      "UNKNOWN": "Côté inconnu"
+    }
+  },
+  "catering": {
+    "covers": "Couverts : {{value}}",
+    "requirements": "Régimes alimentaires",
+    "noRequirements": "Aucun régime alimentaire indiqué.",
+    "notes": "Notes des invités",
+    "note": "{{guest}} ({{household}}) : {{note}}"
+  },
+  "bar": {
+    "total": "Invités ayant choisi une boisson : {{value}}",
+    "none": "Aucune préférence de boisson indiquée."
+  },
+  "playlist": {
+    "track_one": "{{track}} — demandée {{count}} fois",
+    "track_many": "{{track}} — demandée {{count}} fois",
+    "track_other": "{{track}} — demandée {{count}} fois",
+    "none": "Aucune chanson demandée pour l’instant."
+  },
+  "timeline": {
+    "none": "Rien dans le déroulé pour l’instant.",
+    "noName": "Une étape sans nom",
+    "at": "à {{venue}}"
+  },
+  "seating": {
+    "none": "Aucune table pour l’instant.",
+    "venue": "À {{venue}}",
+    "zone": "Zone : {{zone}}",
+    "seats": "{{seated}} places occupées sur {{capacity}}",
+    "freed_one": "{{count}} place libérée par un invité qui s’est désisté",
+    "freed_many": "{{count}} places libérées par des invités qui se sont désistés",
+    "freed_other": "{{count}} places libérées par des invités qui se sont désistés",
+    "empty": "Personne n’est encore placé ici."
+  },
+  "contacts": {
+    "none": "Ni e-mail ni téléphone indiqué."
+  }
+}

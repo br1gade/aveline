@@ -38,7 +38,11 @@
     "recordAnswer": "Record an answer · Aveline",
     "runningOrder": "Running order · Aveline",
     "suppressions": "Who must not be contacted · Aveline",
-    "promoCodes": "Promo codes · Aveline"
+    "promoCodes": "Promo codes · Aveline",
+    "vendors": "Vendors · Aveline",
+    "eventVendors": "The event’s vendors · Aveline",
+    "newBooking": "Book a vendor · Aveline",
+    "booking": "A booking · Aveline"
   },
   "shell": {
     "loading": "Loading…",
@@ -61,7 +65,8 @@
     "archived": "Archived events",
     "suppressions": "Who must not be contacted",
     "promoCodes": "Promo codes",
-    "organization": "Who must not be contacted, and promo codes, are your organization’s own: they apply to every event."
+    "vendors": "Vendors",
+    "organization": "Who must not be contacted, promo codes and vendors are your organization’s own: they apply to every event."
   },
   "welcome": {
     "title": "Set up your organization",

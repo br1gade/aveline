@@ -15,6 +15,7 @@ import {
   designPath,
   doorPath,
   editEventPath,
+  eventVendorsPath,
   exportsPath,
   followUpsPath,
   guestListPath,
@@ -129,6 +130,9 @@ function EventLinks({ event }: { event: EventDetail }) {
       </Button>
       <Button asChild variant="outline">
         <Link to={teamPath(event.id)}>{t('overview.team')}</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={eventVendorsPath(event.id)}>{t('overview.vendors')}</Link>
       </Button>
       {event.invitation ? (
         <>
