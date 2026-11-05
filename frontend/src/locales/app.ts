@@ -4,6 +4,7 @@ import enAgreements from './en/agreements.json';
 import enApp from './en/app.json';
 import enBilling from './en/billing.json';
 import enCustomers from './en/customers.json';
+import enAccessReviews from './en/access-reviews.json';
 import enDataRequests from './en/data-requests.json';
 import enDesign from './en/design.json';
 import enDoor from './en/door.json';
@@ -30,6 +31,7 @@ import frAgreements from './fr/agreements.json';
 import frApp from './fr/app.json';
 import frBilling from './fr/billing.json';
 import frCustomers from './fr/customers.json';
+import frAccessReviews from './fr/access-reviews.json';
 import frDataRequests from './fr/data-requests.json';
 import frDesign from './fr/design.json';
 import frDoor from './fr/door.json';
@@ -56,6 +58,7 @@ import hyAgreements from './hy/agreements.json';
 import hyApp from './hy/app.json';
 import hyBilling from './hy/billing.json';
 import hyCustomers from './hy/customers.json';
+import hyAccessReviews from './hy/access-reviews.json';
 import hyDataRequests from './hy/data-requests.json';
 import hyDesign from './hy/design.json';
 import hyDoor from './hy/door.json';
@@ -82,6 +85,7 @@ import ruAgreements from './ru/agreements.json';
 import ruApp from './ru/app.json';
 import ruBilling from './ru/billing.json';
 import ruCustomers from './ru/customers.json';
+import ruAccessReviews from './ru/access-reviews.json';
 import ruDataRequests from './ru/data-requests.json';
 import ruDesign from './ru/design.json';
 import ruDoor from './ru/door.json';
@@ -114,6 +118,7 @@ addStrings({
     app: enApp,
     billing: enBilling,
     customers: enCustomers,
+    'access-reviews': enAccessReviews,
     'data-requests': enDataRequests,
     design: enDesign,
     door: enDoor,
@@ -142,6 +147,7 @@ addStrings({
     app: frApp,
     billing: frBilling,
     customers: frCustomers,
+    'access-reviews': frAccessReviews,
     'data-requests': frDataRequests,
     design: frDesign,
     door: frDoor,
@@ -170,6 +176,7 @@ addStrings({
     app: hyApp,
     billing: hyBilling,
     customers: hyCustomers,
+    'access-reviews': hyAccessReviews,
     'data-requests': hyDataRequests,
     design: hyDesign,
     door: hyDoor,
@@ -198,6 +205,7 @@ addStrings({
     app: ruApp,
     billing: ruBilling,
     customers: ruCustomers,
+    'access-reviews': ruAccessReviews,
     'data-requests': ruDataRequests,
     design: ruDesign,
     door: ruDoor,

@@ -3,7 +3,8 @@
     "title": "Personnel d’Aveline",
     "lead": "Outils pour l’équipe d’Aveline. Chacun indique s’il n’est pas destiné à votre rôle.",
     "customers": "Clients",
-    "dataRequests": "Demandes sur les données"
+    "dataRequests": "Demandes sur les données",
+    "accessReviews": "Revues d’accès"
   },
   "title": "Clients",
   "back": "Retour aux outils",

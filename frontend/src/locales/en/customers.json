@@ -3,7 +3,8 @@
     "title": "Aveline staff",
     "lead": "Tools for Aveline’s own team. Each says if it is not for your role.",
     "customers": "Customers",
-    "dataRequests": "Data requests"
+    "dataRequests": "Data requests",
+    "accessReviews": "Access reviews"
   },
   "title": "Customers",
   "back": "Back to staff tools",

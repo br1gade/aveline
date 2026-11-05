@@ -127,3 +127,34 @@ describe('framing (design PD-153)', () => {
     },
   );
 });
+
+describe('the camera, by the page first loaded (Permissions-Policy)', () => {
+  const token = plantedToken();
+  const cameraOf = async (path: string) => {
+    const headers = new Headers();
+    const context = { staticHandlerContext: { loaderData: {} } };
+    await handleRequest(
+      new Request(`http://app.test${path}`, { method: 'HEAD' }),
+      200,
+      headers,
+      context as unknown as Parameters<typeof handleRequest>[3],
+      undefined as unknown as Parameters<typeof handleRequest>[4],
+    );
+    return /camera=\([^)]*\)/.exec(headers.get('Permissions-Policy') ?? '')?.[0];
+  };
+
+  it.each([`/invitations/autumn/g/${token}`, `/briefs/${token}`, '/tickets', '/Tickets/'])(
+    'closes it on %s, which shows what a capability opened',
+    async (path) => {
+      expect(await cameraOf(path)).toBe('camera=()');
+    },
+  );
+
+  // The policy is the document's: a page that goes on into the app keeps it open for the door.
+  it.each(['/app/events/e1/door', '/', '/sign-in', '/billing/return', '/BILLING/return/'])(
+    'leaves it to this origin on %s',
+    async (path) => {
+      expect(await cameraOf(path)).toBe('camera=(self)');
+    },
+  );
+});

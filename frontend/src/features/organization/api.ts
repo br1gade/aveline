@@ -1,4 +1,5 @@
 import { expectData, type ApiClient } from '@/api/client';
+import { ORGANIZATION_HEADER } from '@/api/organization-scope';
 
 import type {
   CurrentOrganization,
@@ -12,10 +13,21 @@ import { readInvite, readMember, roleOf } from './read';
 
 const PAGE_SIZE = 50;
 
+/**
+ * Another organization than the tab's own, which only Aveline's staff may name (docs/API.md §6): the
+ * header a call sets itself is kept over the tab's choice (`api/fetch.ts`).
+ */
+function naming(organizationId: string | undefined) {
+  return organizationId ? { headers: { [ORGANIZATION_HEADER]: organizationId } } : {};
+}
+
 /** Any member may read this (`event:read`), so it gives the revision that leaving needs. */
-export async function getCurrentOrganization(api: ApiClient): Promise<CurrentOrganization> {
+export async function getCurrentOrganization(
+  api: ApiClient,
+  organizationId?: string,
+): Promise<CurrentOrganization> {
   const { name, accessRevision } = await expectData<CurrentOrganization>(
-    api.GET('/api/v1/organizations/current'),
+    api.GET('/api/v1/organizations/current', naming(organizationId)),
   );
   return { name, accessRevision };
 }
@@ -25,7 +37,11 @@ export async function renameOrganization(api: ApiClient, name: string): Promise<
 }
 
 /** Names and roles, no contacts; needs `member:manage`, which is an owner's. */
-export async function listMembers(api: ApiClient, cursor?: string): Promise<MembersPage> {
+export async function listMembers(
+  api: ApiClient,
+  cursor?: string,
+  organizationId?: string,
+): Promise<MembersPage> {
   const page = await expectData<{
     items: MemberWire[];
     nextCursor: string | null;
@@ -33,6 +49,7 @@ export async function listMembers(api: ApiClient, cursor?: string): Promise<Memb
   }>(
     api.GET('/api/v1/organizations/current/members', {
       params: { query: { limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) } },
+      ...naming(organizationId),
     }),
   );
   return {

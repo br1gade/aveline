@@ -37,6 +37,19 @@ describe('createApiFetch', () => {
     expect(fetchMock.mock.calls[0]?.[0].headers.get('x-aveline-organization-id')).toBe(expected);
   });
 
+  it('keeps the organization a call names itself, over the one this tab chose', async () => {
+    const fetchMock = vi.fn((_request: Request) => Promise.resolve(respond(200)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createApiFetch({ getOrganizationId: () => 'org-1' })(
+      new Request('http://api.test/api/v1/organizations/current/members', {
+        headers: { 'x-aveline-organization-id': 'org-2' },
+      }),
+    );
+
+    expect(fetchMock.mock.calls[0]?.[0].headers.get('x-aveline-organization-id')).toBe('org-2');
+  });
+
   it('says none when this tab chose none', async () => {
     const fetchMock = vi.fn((_request: Request) => Promise.resolve(respond(200)));
     vi.stubGlobal('fetch', fetchMock);

@@ -14,6 +14,7 @@ import enCommon from './en/common.json';
 import enTeam from './en/team.json';
 import enFollowUps from './en/follow-ups.json';
 import enCustomers from './en/customers.json';
+import enAccessReviews from './en/access-reviews.json';
 import enDataRequests from './en/data-requests.json';
 import enDesign from './en/design.json';
 import enEvents from './en/events.json';
@@ -35,6 +36,7 @@ import frCommon from './fr/common.json';
 import frTeam from './fr/team.json';
 import frFollowUps from './fr/follow-ups.json';
 import frCustomers from './fr/customers.json';
+import frAccessReviews from './fr/access-reviews.json';
 import frDataRequests from './fr/data-requests.json';
 import frDesign from './fr/design.json';
 import frEvents from './fr/events.json';
@@ -56,6 +58,7 @@ import hyCommon from './hy/common.json';
 import hyTeam from './hy/team.json';
 import hyFollowUps from './hy/follow-ups.json';
 import hyCustomers from './hy/customers.json';
+import hyAccessReviews from './hy/access-reviews.json';
 import hyDataRequests from './hy/data-requests.json';
 import hyDesign from './hy/design.json';
 import hyEvents from './hy/events.json';
@@ -77,6 +80,7 @@ import ruCommon from './ru/common.json';
 import ruTeam from './ru/team.json';
 import ruFollowUps from './ru/follow-ups.json';
 import ruCustomers from './ru/customers.json';
+import ruAccessReviews from './ru/access-reviews.json';
 import ruDataRequests from './ru/data-requests.json';
 import ruDesign from './ru/design.json';
 import ruEvents from './ru/events.json';
@@ -168,6 +172,7 @@ export const resources = {
     team: enTeam,
     'follow-ups': enFollowUps,
     customers: enCustomers,
+    'access-reviews': enAccessReviews,
     'data-requests': enDataRequests,
     design: enDesign,
     events: enEvents,
@@ -206,6 +211,7 @@ export const resources = {
     team: frTeam,
     'follow-ups': frFollowUps,
     customers: frCustomers,
+    'access-reviews': frAccessReviews,
     'data-requests': frDataRequests,
     design: frDesign,
     events: frEvents,
@@ -244,6 +250,7 @@ export const resources = {
     team: hyTeam,
     'follow-ups': hyFollowUps,
     customers: hyCustomers,
+    'access-reviews': hyAccessReviews,
     'data-requests': hyDataRequests,
     design: hyDesign,
     events: hyEvents,
@@ -282,6 +289,7 @@ export const resources = {
     team: ruTeam,
     'follow-ups': ruFollowUps,
     customers: ruCustomers,
+    'access-reviews': ruAccessReviews,
     'data-requests': ruDataRequests,
     design: ruDesign,
     events: ruEvents,

@@ -39,6 +39,7 @@ export const APP_PATHS = {
   staffCustomers: '/app/staff/customers',
   staffNewEvent: '/app/staff/customers/:organizationId/new-event',
   staffDataRequests: '/app/staff/data-requests',
+  staffAccessReviews: '/app/staff/access-reviews',
   /** The organization itself: its name, members and invitations. */
   organization: '/app/organization',
   /** Static, so it ranks above `event`'s `:eventId`. */

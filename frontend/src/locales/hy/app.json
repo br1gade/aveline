@@ -56,7 +56,8 @@
     "organization": "Ձեր կազմակերպությունը · Aveline",
     "staff": "Աշխատակիցներ · Aveline",
     "staffCustomers": "Հաճախորդներ · Aveline",
-    "staffDataRequests": "Տվյալների հարցումներ · Aveline"
+    "staffDataRequests": "Տվյալների հարցումներ · Aveline",
+    "staffAccessReviews": "Մուտքի ստուգումներ · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

@@ -47,6 +47,15 @@ describe('security headers', () => {
     expect(page.get('Content-Security-Policy')).toContain("frame-ancestors 'none';");
   });
 
+  it('lets only this origin use the camera, and nothing the microphone or location', () => {
+    const page = new Headers();
+    applySecurityHeaders(page, { nonce: 'n', isProduction: false });
+    expect(page.get('Permissions-Policy')).toBe('camera=(self), microphone=(), geolocation=()');
+    const closed = new Headers();
+    applySecurityHeaders(closed, { nonce: 'n', isProduction: false, camera: 'none' });
+    expect(closed.get('Permissions-Policy')).toBe('camera=(), microphone=(), geolocation=()');
+  });
+
   it('makes a fresh nonce each time', () => {
     expect(createNonce()).not.toBe(createNonce());
     expect(createNonce()).toMatch(/^[A-Za-z0-9+/]{22}==$/);

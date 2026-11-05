@@ -57,10 +57,24 @@ const SHOWS_A_CAPABILITY: ReadonlySet<string> = new Set([
 ]);
 
 /** The router matches whatever the case and with a trailing slash, so these rules must too. */
-function isCapabilityPage(address: URL): boolean {
+function normalised(address: URL): URL {
   const url = new URL(address);
   url.pathname = url.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  return url;
+}
+
+function isCapabilityPage(address: URL): boolean {
+  const url = normalised(address);
   return carriesCapability(url) || SHOWS_A_CAPABILITY.has(url.pathname.replace(/\.data$/, ''));
+}
+
+/**
+ * The camera is the door's alone, and closed where a capability is shown. Not on the bank's return,
+ * which goes on into the app: the policy holds for the whole document, the door included.
+ */
+function cameraOf(address: URL): 'self' | 'none' {
+  const isBankReturn = normalised(address).pathname === ROUTE_PATHS.billingPaymentReturn;
+  return isCapabilityPage(address) && !isBankReturn ? 'none' : 'self';
 }
 
 /**
@@ -128,6 +142,7 @@ export default function handleRequest(
     mediaOrigin: env.VITE_MEDIA_BASE_URL,
     apiOrigin: env.VITE_API_BASE_URL,
     framing: framingOf(new URL(request.url)),
+    camera: cameraOf(new URL(request.url)),
   });
 
   if (request.method.toUpperCase() === 'HEAD') {

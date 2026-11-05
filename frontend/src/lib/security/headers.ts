@@ -11,6 +11,16 @@ export interface SecurityOptions {
   apiOrigin?: string | undefined;
   /** Who may frame the page: nobody, or the app itself for the designer's draft preview. */
   framing?: 'none' | 'self';
+  /** Who may use the camera, which the door's scanner alone asks for: this origin, or nobody. */
+  camera?: 'self' | 'none';
+}
+
+/**
+ * The browser's features this document may use. It holds for the document's whole life, client
+ * navigation included, so the camera closes only on a page that never goes on into the app.
+ */
+function permissionsPolicy(camera: 'self' | 'none'): string {
+  return `camera=(${camera === 'self' ? 'self' : ''}), microphone=(), geolocation=()`;
 }
 
 export function createNonce(): string {
@@ -55,6 +65,7 @@ export function contentSecurityPolicy(options: SecurityOptions): string {
 export function applySecurityHeaders(headers: Headers, options: SecurityOptions): void {
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-Frame-Options', options.framing === 'self' ? 'SAMEORIGIN' : 'DENY');
+  headers.set('Permissions-Policy', permissionsPolicy(options.camera ?? 'self'));
   if (options.isProduction) {
     headers.set('Content-Security-Policy', contentSecurityPolicy(options));
   }

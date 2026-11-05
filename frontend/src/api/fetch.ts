@@ -54,8 +54,16 @@ export function createApiFetch(options: ApiFetchOptions = {}): ApiFetch {
   };
 }
 
+/**
+ * A call that names its own organization keeps it: Aveline's staff read a customer's this way, and the
+ * tab's own choice would show them their organization's members in its place.
+ */
 function withOrganization(request: Request, organizationId: string | undefined): Request {
-  if (!organizationId || !takesOrganization(new URL(request.url).pathname)) {
+  if (
+    !organizationId ||
+    request.headers.has(ORGANIZATION_HEADER) ||
+    !takesOrganization(new URL(request.url).pathname)
+  ) {
     return request;
   }
   const headers = new Headers(request.headers);

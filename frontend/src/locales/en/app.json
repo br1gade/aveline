@@ -56,7 +56,8 @@
     "organization": "Your organization · Aveline",
     "staff": "Staff · Aveline",
     "staffCustomers": "Customers · Aveline",
-    "staffDataRequests": "Data requests · Aveline"
+    "staffDataRequests": "Data requests · Aveline",
+    "staffAccessReviews": "Access reviews · Aveline"
   },
   "shell": {
     "loading": "Loading…",

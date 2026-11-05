@@ -26,6 +26,9 @@ export function StaffHome({ access }: { access: Loaded<unknown> }) {
             <Link to={APP_PATHS.staffDataRequests} className={LINK}>
               {t('home.dataRequests')}
             </Link>
+            <Link to={APP_PATHS.staffAccessReviews} className={LINK}>
+              {t('home.accessReviews')}
+            </Link>
           </nav>
         </>
       ) : (

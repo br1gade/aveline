@@ -36,7 +36,9 @@ with numbered chairs and tables moved between venues, approving several photos, 
 the saved reply, choosing between organizations, adopting an authored template with its private
 artwork, the full-bleed cover, the invitation's motion, the music remembered, font preloading, bundle
 budgets, and our own production server. Since 5 November, the organization's own settings, an event's
-activity, the public data-request form, and who still has to agree on the agreements page. Since 2 November it
+activity, the public data-request form, and who still has to agree on the agreements page; then the
+essentials for Aveline's own staff, opening customers' accounts, data-subject requests and access
+reviews, a ticket's QR code and the door's scanner, and a `Permissions-Policy` for the camera. Since 2 November it
 follows the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3 November
 ([BACKEND_REQUESTS](BACKEND_REQUESTS.md) §6); none of this has yet run against the real backend.
 
@@ -100,7 +102,7 @@ invitation's publishing and sending, how guests answer, the designer, guests' ph
 agreements and the seating, the exports, ticket sales (`/app/events/:eventId/tickets`, its types
 and announcement), the orders and an event's activity, the organization's own settings
 (`/app/organization`, beside the chooser at `/app/organizations`), Aveline's own staff's tools
-(`/app/staff`, its customers and its data requests); the public price list and
+(`/app/staff`, its customers, data requests and access reviews); the public price list and
 data-request form, `/pricing` and `/privacy-request`; checkout, `/events/:slug/checkout`, and the buyer's order once
 its token is out of the address, `/tickets`. The static `/app/events/new` ranks above
 `/app/events/:eventId`; `/venues/new` would rank above a `/venues/:venueId`, and `/guests/import`
@@ -674,6 +676,20 @@ work after someone else's change and a non-owner told they weren't in the organi
 tested and fixed or recorded (FR-124 to FR-126). **Nothing here ran against a real backend, a real
 bank or two real memberships.**
 
+**Access reviews and the camera's policy (5 November 2026)** were walked on a mock in hy, ru, en and fr,
+at 360 px with touch and at 1280 px, beside the staff's other screens: 1,401 checks passed, axe clean in
+216 runs, and 2,756 targets measured were 44 px at the least. The walk handed over, closed and declined,
+offered no owner as a successor, waited for a choice and for the name, refused SUPPORT and a customer in
+words, showed a reference when a name couldn't be read, and read the page again after a 409. Three of the
+page tests were checked by breaking the code: owners offered, the name matched exactly, and the header
+left off, each failing. A review then found the Close dialog asked for the name when it had
+typed the reference in; that is fixed and tested, and the access-review step was walked again in all
+eight combinations with a check for it. Every check passed, two combinations only on a second run, as
+the first timed out on its opening page under the machine's load. A production build on our own server sent `camera=()` on the buyer's order, a
+brief and a guest's page, and `camera=(self)` on the app, the door and the bank's return; the door's
+scanner still read a fake camera's ticket under it. **No real administrator account, closure or
+handover has run.**
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -860,6 +876,9 @@ bank or two real memberships.**
 | 5 Nov 2026 | **`CreateEvent` takes a `create` prop,** and staff reach it by a link carrying the customer's name in router state, which an address sent by someone else can't | One form, not two that drift, and it says whose event this is. Without the name it goes back to choosing (PD-166) |
 | 5 Nov 2026 | **An export's answer is held only in the page's memory, and goes to a file you save** (PD-169) | The backend keeps no copy (FR-128), and a person's data doesn't belong in storage, the address or a log |
 | 5 Nov 2026 | **`uqr` draws a ticket's QR code and `jsqr` reads it** (PD-171, PD-173), exact versions, MIT and Apache-2.0, neither with dependencies or install scripts. `uqr` gives a grid, drawn here as an inline SVG path, safe on the server. `jsqr` is its own 130 KB chunk, loaded on opening the camera | One path on every browser, as `BarcodeDetector` is missing on iPhone Safari as far as we know, so one path is tested and one runs. `jsqr` has had no release for some years; the format doesn't change, and it can be swapped behind `use-camera.ts` |
+| 5 Nov 2026 | **A call that names its own organization keeps it:** `withOrganization` in `api/fetch.ts` no longer overwrites an `X-Aveline-Organization-Id` the call set, and `getCurrentOrganization` and `listMembers` take an organization to name | Access reviews read a customer's organization by naming it, which only staff may. A staff member with an organization of their own would otherwise have been shown their own members to hand someone else's over to |
+| 5 Nov 2026 | **Access reviews are a feature of their own,** `features/access-reviews`, at `/app/staff/access-reviews`, ten a page with each card reading its organization's name (PD-175, FR-133) | A review carries no name, and fifty name reads would spend half of staff's 100 a minute (FR-7) |
+| 5 Nov 2026 | **`Permissions-Policy`** on every document: `camera=(self), microphone=(), geolocation=()`, and `camera=()` on the pages that show a capability, but for the bank's return | The door's scanner alone uses the camera. The policy holds for the document's whole life, client navigation included, so it closes only on pages that never go on into the app; the bank's return does |
 
 ## 12. Not yet built
 
@@ -881,19 +900,20 @@ bank or two real memberships.**
 - Of the data-request form: reviewed words and a privacy notice to link to (PQ-25), a way for a guest with
   no account to find it (PQ-26), and notes that can't be lost or added to by someone else (FR-126).
   Handling a request is Aveline's staff's.
-- Of Aveline's own staff's tools (C-24): authoring templates and access reviews, which follow; enquiries,
-  which wait until the backend enables them, and with them carrying out a request that has no address; paging
+- Of Aveline's own staff's tools (C-24): authoring templates, which waits as enquiries do: the backend refuses
+  drafts, edits and uploads while `TEMPLATE_AUTHORING_ENABLED` and `TEMPLATE_ASSETS_ENABLED` are off, and
+  publishing until a renderer manifest is registered in its code. Enquiries, which wait until the backend enables them, and with them carrying out a request that has no address; paging
   past the newest 50 organizations and the 200 soonest-due requests (FR-127); recovering an export whose answer was lost
   (FR-128). How a requester is verified is an open question (PQ-29). Telling a customer's own organization from
   one they're merely on (FR-130); a staff member who belongs to an organization sees no link to their tools
   (PD-165). Binding an enquiry, which a request with an address can also need, and which answers the backend's
-  words as they came (PD-168). Only a mock has met these: no real staff account and no real erasure.
+  words as they came (PD-168). Access reviews' names, read one by one (FR-133). Only a mock has met these: no real
+  staff account, no real erasure and no real closure.
 - Of a ticket's QR code and the door's scanner (C-25, PD-171 to PD-174): **a real camera has never read a code.**
   A fake camera in Chromium has, so an iPhone and an Android phone, in real light at a real door, are still to
   come, as are a real refusal of permission, which the walk's browser can't produce, and a code on a printed
   page. How long a code should be held, and how often a real picture freezes without saying so, need a real door
-  (PD-173). The camera's permission covers the whole origin, as no `Permissions-Policy` limits it to `/app`: worth
-  adding before going live, on full-page loads alone, as client navigation doesn't change it.
+  (PD-173).
 - Of billing: saying beforehand that paid plans are off, on the billing page or the public price
   list (FR-109); a plan's words in other languages (FR-110); more than the newest
   hundred invoices (FR-110); a real bank: only the mock's return has been followed.
@@ -902,8 +922,8 @@ bank or two real memberships.**
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
   door, reminders and thanks, its team, its running order, recording answers, archiving and
   deleting, who must not be contacted, promo codes, vendors, billing with the bank's return, what guests' answers add up to, the organization's settings, an event's activity, a ticket's QR code and
-  the door's scanner, and Aveline's own staff's customers and data requests: nothing is left unbuilt as a
-  screen, though every one waits for its design (DQ-13 to DQ-68).
+  the door's scanner, and Aveline's own staff's customers, data requests and access reviews: nothing is left
+  unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-69).
 - Of what guests' answers add up to: printing it, which exports do; views beyond their count by
   language, and telling no views from no count (FR-111); paging the answers and the guest book, and
   a yes-or-no answer in the event's language (FR-117).
