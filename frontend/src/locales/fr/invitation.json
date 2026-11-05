@@ -143,5 +143,9 @@
   },
   "footer": {
     "logo": "Aveline Events"
+  },
+  "preview": {
+    "header": "La couverture de l’invitation, en aperçu",
+    "main": "L’invitation, en aperçu"
   }
 }

@@ -155,7 +155,7 @@ describe('the event’s sheets', () => {
     };
     server.use(http.get(`${API}/events/e1/dashboard`, () => HttpResponse.json(oneVenue)));
     await open('/sheets?venue=v1');
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Which venue' })).not.toBeInTheDocument();
   });
 
   it('offers no venue choice when guests answer once for the event', async () => {
@@ -166,7 +166,7 @@ describe('the event’s sheets', () => {
       http.get(`${API}/events/e1/dashboard`, () => HttpResponse.json(dashboard)),
     );
     await open('/sheets?venue=v2');
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Which venue' })).not.toBeInTheDocument();
     expect(
       within(screen.getByRole('region', { name: 'Catering' })).getByText('40 covers'),
     ).toBeInTheDocument();

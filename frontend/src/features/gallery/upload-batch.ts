@@ -34,6 +34,8 @@ export interface BatchOptions {
   shouldStop: () => boolean;
   /** The position of the photo being sent, for "Sharing 2 of 5…". */
   onSending?: (index: number) => void;
+  /** Makes a photo over the limit smaller first (`shrink.ts`); as chosen without it. */
+  shrink?: (file: File) => Promise<File>;
 }
 
 const OWN_REFUSALS: Readonly<Record<number, FileOutcome>> = {
@@ -66,7 +68,13 @@ function isOutcome(value: FileOutcome | BatchStop): value is FileOutcome {
   return value.kind === 'refused';
 }
 
-async function sendOne(file: File, send: (file: File) => Promise<GalleryPhoto>) {
+/** The checks are on what is sent: a photo made smaller is checked once it is (design PD-150). */
+async function sendOne(
+  chosen: File,
+  send: (file: File) => Promise<GalleryPhoto>,
+  shrink: (file: File) => Promise<File>,
+) {
+  const file = await shrink(chosen);
   const problem = photoProblem(file);
   if (problem) return { kind: 'refused', reason: problem } satisfies FileOutcome;
   try {
@@ -79,13 +87,13 @@ async function sendOne(file: File, send: (file: File) => Promise<GalleryPhoto>) 
 export async function sendBatch(
   files: readonly File[],
   send: (file: File) => Promise<GalleryPhoto>,
-  { shouldStop, onSending }: BatchOptions,
+  { shouldStop, onSending, shrink = (file) => Promise.resolve(file) }: BatchOptions,
 ): Promise<BatchResult> {
   const outcomes: FileOutcome[] = files.map(() => ({ kind: 'notSent' }));
   for (const [index, file] of files.entries()) {
     if (index > 0 && shouldStop()) return finish(outcomes, { kind: 'stopped' });
     onSending?.(index);
-    const result = await sendOne(file, send);
+    const result = await sendOne(file, send, shrink);
     if (result.kind === 'shared' || isOutcome(result)) {
       outcomes[index] = result;
       continue;

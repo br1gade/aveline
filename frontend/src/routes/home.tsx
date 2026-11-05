@@ -5,6 +5,9 @@ import { APP_PATHS } from '@/route-paths';
 
 import type { Route } from './+types/home';
 
+const LINK =
+  'text-action inline-flex min-h-11 items-center underline decoration-1 underline-offset-3 hover:decoration-2';
+
 export function meta(_args: Route.MetaArgs) {
   return [{ title: 'Aveline' }, { name: 'robots', content: 'noindex' }];
 }
@@ -18,12 +21,14 @@ export default function Home() {
         {t('home.title')}
       </h1>
       <p>{t('home.body')}</p>
-      <Link
-        to={APP_PATHS.publicEvents}
-        className="text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3 hover:decoration-2"
-      >
-        {t('home.browse')}
-      </Link>
+      <nav className="flex flex-wrap gap-x-6">
+        <Link to={APP_PATHS.publicEvents} className={LINK}>
+          {t('home.browse')}
+        </Link>
+        <Link to={APP_PATHS.pricing} className={LINK}>
+          {t('home.pricing')}
+        </Link>
+      </nav>
     </main>
   );
 }

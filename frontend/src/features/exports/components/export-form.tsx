@@ -2,7 +2,7 @@ import { useId, type RefObject } from 'react';
 import { Controller, type Control, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-import { AppForm, SelectField, SubmitButton } from '@/ui/app-form';
+import { AppForm, SelectField, SubmitButton, useLeaveGuard } from '@/ui/app-form';
 import { FieldDescription, FieldLegend, FieldSet } from '@/ui/kit/field';
 import { Label } from '@/ui/kit/label';
 import { RadioGroup, RadioGroupItem } from '@/ui/kit/radio-group';
@@ -163,7 +163,11 @@ export function ExportForm({ form, exports, text, headingRef }: ExportFormProps)
   const { t } = useTranslation('exports');
   const kind = form.watch('kind');
   const placed = exports.refusal?.at === AT_FORM ? exports.refusal : null;
-  const onSubmit = form.handleSubmit((values) => exports.create(intentOf(values), AT_FORM));
+  // Choices changed and not yet made into an export ask before the page is left (design PD-146).
+  useLeaveGuard(form);
+  const onSubmit = form.handleSubmit(async (values) => {
+    if (await exports.create(intentOf(values), AT_FORM)) form.reset(values);
+  });
   return (
     <section aria-labelledby="exports-form" className={PANEL}>
       <h2

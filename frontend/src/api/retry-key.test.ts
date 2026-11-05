@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ApiError } from './errors';
-import { createRetryKey } from './retry-key';
+import { createRetryKey, type PendingKey } from './retry-key';
 
 describe('the key that makes a start safe to send again', () => {
   const keys = () => {
@@ -65,5 +65,35 @@ describe('the key that makes a start safe to send again', () => {
     retry.next('guest list, PDF');
     retry.settle(null);
     expect(retry.isPending('guest list, PDF')).toBe(false);
+  });
+});
+
+describe('the key kept across a reload (design PD-152)', () => {
+  /** A tab's storage: what one page wrote, the next page reads. */
+  function tab() {
+    let kept: PendingKey | null = null;
+    return { read: () => kept, write: (pending: PendingKey | null) => void (kept = pending) };
+  }
+  let made = 0;
+  const make = () => `key-${++made}`;
+
+  it('sends the key the page before had pending for the same intent', () => {
+    const store = tab();
+    const before = createRetryKey(make, store);
+    const key = before.next('order a');
+    before.settle(new ApiError({ status: 0, messages: [] }));
+    expect(createRetryKey(make, store).next('order a')).toBe(key);
+  });
+
+  it('makes a new one for another intent, and once the press was answered', () => {
+    const store = tab();
+    const before = createRetryKey(make, store);
+    const key = before.next('order a');
+    expect(createRetryKey(make, store).next('order b')).not.toBe(key);
+    const again = createRetryKey(make, store);
+    const answered = again.next('order b');
+    again.settle(null);
+    expect(store.read()).toBeNull();
+    expect(createRetryKey(make, store).next('order b')).not.toBe(answered);
   });
 });

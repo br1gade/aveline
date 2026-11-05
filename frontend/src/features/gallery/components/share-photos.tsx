@@ -12,10 +12,11 @@ import {
   captionToSend,
   choiceProblem,
   PHOTO_ACCEPT,
-  photoProblem,
+  chosenPhotoProblem,
   PHOTOS_PER_GUEST,
 } from '../rules';
 import type { GalleryPhoto } from '../types';
+import { shrinkPhoto } from '../shrink';
 import { sendBatch, stillChosen, type BatchResult } from '../upload-batch';
 import { BatchSummary } from './batch-summary';
 
@@ -51,6 +52,7 @@ function useShare({ api, link, onShared }: ShareProps) {
     const result = await sendBatch(files, (file) => uploadPhoto(api, link, file, caption), {
       shouldStop: () => isStopped.current,
       onSending: (index) => setSending({ current: index + 1, total: files.length }),
+      shrink: shrinkPhoto,
     });
     setSending(null);
     setBatch({ files, result });
@@ -68,7 +70,7 @@ function useShare({ api, link, onShared }: ShareProps) {
 function choiceErrorOf(files: readonly File[]): ChoiceError | null {
   const problem = choiceProblem(files.length);
   if (problem) return problem;
-  return files.every((file) => photoProblem(file)) ? 'allRefused' : null;
+  return files.every((file) => chosenPhotoProblem(file)) ? 'allRefused' : null;
 }
 
 interface PickerProps {
@@ -119,7 +121,7 @@ function ChosenFiles({ files }: { files: readonly File[] }) {
   return (
     <ul className="m-0 grid list-none gap-1 p-0 text-sm leading-5">
       {files.map((file, index) => {
-        const problem = photoProblem(file);
+        const problem = chosenPhotoProblem(file);
         return (
           <li key={`${index}-${file.name}`} className="flex flex-wrap gap-x-2">
             <bdi className="break-all">{file.name}</bdi>
@@ -240,7 +242,7 @@ export function SharePhotos(props: ShareProps) {
   const choice = useChoice();
   const { files, caption } = choice;
   const { sending, batch, send, stop } = useShare(props);
-  const sendable = files.filter((file) => !photoProblem(file)).length;
+  const sendable = files.filter((file) => !chosenPhotoProblem(file)).length;
 
   const shareChosen = async () => {
     const problem = choiceErrorOf(files);

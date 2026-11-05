@@ -135,5 +135,11 @@
     "toBilling": "To your plan and invoices",
     "replacedOpen": "This invoice was replaced by a newer choice of plan. If you paid it at the bank, that money comes back to you by itself. You don’t need to do anything.",
     "refunded": "This invoice was withdrawn, and what was paid for it goes back to you."
+  },
+  "pricing": {
+    "title": "Prices",
+    "lead": "What each Aveline plan costs and what it includes.",
+    "start": "Create an account",
+    "metaTitle": "Prices · Aveline"
   }
 }

@@ -63,7 +63,8 @@ export function PreviewPage({
 }: {
   preview: Preview;
   eventId: string;
-  languageHref: (locale: string) => string;
+  /** None in the draft preview, whose language the section page chooses. */
+  languageHref?: ((locale: string) => string) | undefined;
 }) {
   const language = isLanguage(preview.locale) ? preview.locale : SOURCE_LANGUAGE;
   const i18n = useMemo(() => createI18n(language), [language]);

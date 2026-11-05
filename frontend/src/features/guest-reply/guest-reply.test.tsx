@@ -5,10 +5,12 @@ import { setupServer } from 'msw/node';
 import type { ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
+import { createRoutesStub } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Invitation } from '@/features/invitation-renderer';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { GuestReply, type GuestReplyProps } from './components/guest-reply';
 import { eventWide, perVenueRecord } from './test-data';
@@ -139,6 +141,25 @@ function renderReply(overrides: Partial<GuestReplyProps> = {}) {
   );
   render(<GuestReply {...props} />, { wrapper });
   return { props, user: userEvent.setup() };
+}
+
+/** The reply inside the app's leave guard, as the guest's page mounts it (PD-146). */
+function renderGuarded() {
+  const props = { invitation: INVITATION, link: LINK, record: recordWith() };
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/',
+        Component: () => <GuestReply {...props} onReplied={vi.fn()} onSentChange={vi.fn()} />,
+      },
+    ]),
+  );
+  render(
+    <I18nextProvider i18n={createI18n('en')}>
+      <Stub />
+    </I18nextProvider>,
+  );
+  return userEvent.setup();
 }
 
 /** Inside one field or fieldset, by its id: the same question appears once per person. */
@@ -362,6 +383,45 @@ describe('GuestReply', () => {
       await screen.findByRole('link', { name: 'This question needs an answer.' }),
     ).toHaveAttribute('href', '#reply-status');
     expect(screen.queryByText('Sign here')).toBeNull();
+  });
+
+  it('asks before the page is left with a reply half-made, and not once it is sent (PD-146)', async () => {
+    replyWith(() => HttpResponse.json(SENT, { status: 201 }));
+    const user = renderGuarded();
+    expect(isLeavingAsked()).toBe(false);
+    await user.click(await screen.findByLabelText('Regretfully declining'));
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+    expect(await screen.findByText('Your reply has been received.')).toBeInTheDocument();
+    expect(isLeavingAsked()).toBe(false);
+  });
+
+  it('forgets a reload’s carried-over draft once the reply is sent, so Change asks nothing (PD-146)', async () => {
+    let sends = 0;
+    const changed = {
+      statusCode: 409,
+      message: 'attendanceRevision: attendance policy changed; reload the invitation and reconfirm',
+      code: 'ATTENDANCE_CHANGED',
+      action: 'RELOAD',
+    };
+    replyWith(() => {
+      sends += 1;
+      return sends === 1
+        ? HttpResponse.json(changed, { status: 409 })
+        : HttpResponse.json(SENT, { status: 201 });
+    });
+    const user = renderGuarded();
+    await user.click(await screen.findByLabelText('Regretfully declining'));
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+    await user.click(await screen.findByRole('button', { name: 'Reload' }));
+    // What was typed is carried over the reload, unsent: leaving asks before anything else is done.
+    await screen.findByText(/The hosts have changed how guests reply|Regretfully declining/);
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(await screen.findByLabelText('Regretfully declining'));
+    await user.click(screen.getByRole('button', { name: 'Send reply' }));
+    await user.click(await screen.findByRole('button', { name: 'Change reply' }));
+    await screen.findByRole('button', { name: 'Send reply' });
+    expect(isLeavingAsked()).toBe(false);
   });
 
   it('keeps the entries and says to wait when there are too many attempts', async () => {

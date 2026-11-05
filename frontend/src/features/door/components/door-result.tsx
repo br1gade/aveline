@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { guestListPath } from '@/features/events';
+import type { Guest } from '@/features/guests';
 import { Icon, type IconName } from '@/ui';
 import { cn } from '@/ui/cn';
 import { Button } from '@/ui/kit/button';
@@ -26,6 +27,7 @@ const CALM_REFUSALS: ReadonlySet<DoorRefusal['kind']> = new Set(['linkChanged', 
 function toneOf(result: DoorResult): Tone {
   if (result.kind === 'arrived') return result.wasExpected ? 'good' : 'calm';
   if (result.kind === 'admittedUnlinked') return 'good';
+  if (result.kind === 'addedNotHere') return 'problem';
   if (result.kind !== 'refused') return 'calm';
   return CALM_REFUSALS.has(result.refusal.kind) ? 'calm' : 'problem';
 }
@@ -34,7 +36,7 @@ function nameOf(result: DoorResult): string | null {
   return result.kind === 'ticketUsed' ? null : result.name || null;
 }
 
-function useRefusalWords() {
+export function useRefusalWords() {
   const { t } = useTranslation('door');
   return (refusal: DoorRefusal): ReactNode => {
     // Each of these has its own outcome, and is never shown as a refusal.
@@ -104,6 +106,8 @@ function useResultWords(timeZone: string) {
         return [t('result.ticketUsed'), earlier(result.isOurEarlierPress)];
       case 'undone':
         return [t('result.undone')];
+      case 'addedNotHere':
+        return [t('result.addedNotHere'), refusalWords(result.refusal)];
       default:
         return [refusalWords(result.refusal)];
     }
@@ -116,43 +120,51 @@ interface ActionsProps {
   eventId: string;
 }
 
+/** Checking in again, where it can help: the agreement now given, or a walk-in now on the list. */
+function TryAgain({ result, door, eventId, guest }: ActionsProps & { guest: Guest }) {
+  const { t } = useTranslation('door');
+  const isToAgree = result.kind === 'refused' && result.refusal.kind === 'mustAgree';
+  if (!isToAgree && result.kind !== 'addedNotHere') return null;
+  return (
+    <>
+      <Button
+        variant="outline"
+        disabled={door.state.running !== null}
+        className={WRAPPING}
+        onClick={() => void door.actions.checkIn(guest)}
+      >
+        {t('result.tryAgain')}
+      </Button>
+      {isToAgree ? (
+        <Link
+          to={`${guestListPath(eventId)}?${new URLSearchParams({ q: guest.name }).toString()}`}
+          className={LINK}
+        >
+          {t('result.sendAgain')}
+        </Link>
+      ) : null}
+    </>
+  );
+}
+
 function ResultActions({ result, door, eventId }: ActionsProps) {
   const { t } = useTranslation('door');
-  const isBusy = door.state.running !== null;
   const guestId = 'guestId' in result ? result.guestId : null;
   const guest = guestId === null ? undefined : door.guests.byId.get(guestId);
   const isHere = result.kind === 'arrived' || result.kind === 'alreadyHere';
-  const isToAgree = result.kind === 'refused' && result.refusal.kind === 'mustAgree';
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {isHere && guest ? (
         <Button
           variant="outline"
-          disabled={isBusy}
+          disabled={door.state.running !== null}
           className={WRAPPING}
           onClick={() => void door.actions.undo(guest)}
         >
           {t('result.undo')}
         </Button>
       ) : null}
-      {isToAgree && guest ? (
-        <>
-          <Button
-            variant="outline"
-            disabled={isBusy}
-            className={WRAPPING}
-            onClick={() => void door.actions.checkIn(guest)}
-          >
-            {t('result.tryAgain')}
-          </Button>
-          <Link
-            to={`${guestListPath(eventId)}?${new URLSearchParams({ q: guest.name }).toString()}`}
-            className={LINK}
-          >
-            {t('result.sendAgain')}
-          </Link>
-        </>
-      ) : null}
+      {guest ? <TryAgain result={result} door={door} eventId={eventId} guest={guest} /> : null}
       <Button variant="ghost" className={cn(WRAPPING, 'ml-auto')} onClick={door.actions.dismiss}>
         {t('result.dismiss')}
       </Button>

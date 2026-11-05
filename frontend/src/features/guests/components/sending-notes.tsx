@@ -52,6 +52,7 @@ export function SendingNotes({ event, delivery, sender }: SendingNotesProps) {
         <LoadedProblem loaded={delivery} refusedText={t('invite.refused')} />
       ) : null}
       {send.refusal ? <RefusalAlert refusal={send.refusal} action="send" /> : null}
+      {send.partly ? <p className="m-0">{t('send.partly', { ...send.partly })}</p> : null}
       {send.outcome ? <SendOutcomeView outcome={send.outcome} eventId={event.id} /> : null}
       {send.pending ? (
         <SendConfirmDialog

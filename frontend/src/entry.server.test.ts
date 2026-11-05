@@ -98,3 +98,32 @@ describe("the server's error log", () => {
     expect(log).not.toHaveBeenCalled();
   });
 });
+
+describe('framing (design PD-153)', () => {
+  async function documentHeaders(path: string): Promise<Headers> {
+    const headers = new Headers();
+    const context = { staticHandlerContext: { loaderData: {} } };
+    await handleRequest(
+      new Request(`http://app.test${path}`, { method: 'HEAD' }),
+      200,
+      headers,
+      context as unknown as Parameters<typeof handleRequest>[3],
+      undefined as unknown as Parameters<typeof handleRequest>[4],
+    );
+    return headers;
+  }
+
+  it.each(['/app/events/e1/design/draft-preview', '/APP/events/e1/design/draft-preview/'])(
+    'lets the designer’s draft preview, %s, be framed by the app itself',
+    async (path) => {
+      expect((await documentHeaders(path)).get('X-Frame-Options')).toBe('SAMEORIGIN');
+    },
+  );
+
+  it.each(['/app/events/e1/design/preview', '/app/events/e1/design', '/events', '/'])(
+    'lets nobody frame %s',
+    async (path) => {
+      expect((await documentHeaders(path)).get('X-Frame-Options')).toBe('DENY');
+    },
+  );
+});

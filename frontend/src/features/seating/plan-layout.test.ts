@@ -4,6 +4,8 @@ import {
   ARROW_STEP,
   canvasSize,
   chairChoices,
+  chairsToSend,
+  chosenForOthers,
   clampPosition,
   draggedTo,
   freeCells,
@@ -202,6 +204,31 @@ describe('chairs', () => {
   it('leaves the guest’s own chair free for them', () => {
     const choices = chairChoices(table('t', { capacity: 2, guests: [seated('a', 2)] }), 'a');
     expect(choices[1]).toEqual({ position: 2, takenBy: null });
+  });
+});
+
+describe('chairs for a whole household (PD-149)', () => {
+  const seated = { guestId: 'a', name: 'Guest a', position: 2, isReservation: false };
+  const ani = { id: 'g1', name: 'Ani' };
+  const karen = { id: 'g2', name: 'Karen' };
+  const at = table('t', { capacity: 4, guests: [seated] });
+
+  it('shows a chair chosen for someone else in the dialog as theirs', () => {
+    const choices = chairChoices(
+      at,
+      'g2',
+      chosenForOthers([ani, karen], { g1: '3', g2: '' }, 'g2'),
+    );
+    expect(choices.map(({ takenBy }) => takenBy)).toEqual([null, 'Guest a', 'Ani', null]);
+  });
+
+  it('sends each person’s chair, in their order, leaving out none chosen', () => {
+    expect(chairsToSend(at, [ani, karen], { g1: '1', g2: '' })).toEqual(new Map([['g1', 1]]));
+  });
+
+  it('drops a chair taken meanwhile, and a second choice of the same chair', () => {
+    expect(chairsToSend(at, [ani, karen], { g1: '2', g2: '4' })).toEqual(new Map([['g2', 4]]));
+    expect(chairsToSend(at, [ani, karen], { g1: '3', g2: '3' })).toEqual(new Map([['g1', 3]]));
   });
 });
 

@@ -45,7 +45,8 @@
     "seats_other": "{{named}} of {{count}} seats named",
     "edit": "Edit household",
     "addHere": "Add a guest here",
-    "invitation": "Invitation:"
+    "invitation": "Invitation:",
+    "recordAnswers": "Record their answers"
   },
   "actionFor": "{{action}}: {{name}}",
   "row": {
@@ -218,7 +219,8 @@
     "submit_other": "Send to {{count, number}} households",
     "sending": "Sending…",
     "none": "Tick the households to send the invitation to.",
-    "tooMany": "Choose up to {{limit, number}} households at a time, or send to everyone not yet invited from Publish and send."
+    "sendingPart": "Sending, part {{current}} of {{total}}…",
+    "partly": "The send stopped after {{sent, number}} of {{total, number}} households; what they were sent is below. Send again: nobody already invited is sent a second invitation."
   },
   "history": {
     "title": "Answer history: {{name}}",

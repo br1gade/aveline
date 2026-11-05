@@ -11,6 +11,7 @@ import { ApiError } from '@/api/errors';
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import type { EventDetail } from '@/features/events';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { importGuests } from './api';
 import { ImportGuests } from './components/import-guests';
@@ -131,14 +132,16 @@ function ImportPage() {
 }
 
 function renderImport(language: 'en' | 'ru' = 'en') {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/guests/import',
-      loader: ({ params }) => loadGuestImports(session().api, params.eventId ?? ''),
-      Component: ImportPage,
-    },
-    { path: '/app/events/:eventId/guests', Component: () => <p>Guest list</p> },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/guests/import',
+        loader: ({ params }) => loadGuestImports(session().api, params.eventId ?? ''),
+        Component: ImportPage,
+      },
+      { path: '/app/events/:eventId/guests', Component: () => <p>Guest list</p> },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n(language)}>
       <Stub initialEntries={['/app/events/e1/guests/import']} />
@@ -159,6 +162,17 @@ async function choose(
 }
 
 describe('ImportGuests: uploading', () => {
+  it('asks before the page is left with a file chosen, and not once it is imported (PD-146)', async () => {
+    serve();
+    imports();
+    const user = renderImport();
+    await choose(user, csv());
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByText('Every row was imported: 2 guests.')).toBeInTheDocument();
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('sends the chosen file, and says everything was imported', async () => {
     serve();
     imports();

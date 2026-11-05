@@ -202,7 +202,8 @@
     "chairNumber": "Стул {{position}}",
     "chairTaken": "Стул {{position}}: {{name}}",
     "chairTitle": "Стул для гостя {{name}}",
-    "chairSubmit": "Сохранить стул"
+    "chairSubmit": "Сохранить стул",
+    "chairFor": "Стул для: {{name}} (необязательно)"
   },
   "remove": {
     "title": "Удалить «{{name}}»?",

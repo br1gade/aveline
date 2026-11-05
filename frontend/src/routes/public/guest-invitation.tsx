@@ -19,6 +19,7 @@ import {
 } from '@/features/invitation-renderer';
 import { loadInvitationPage } from '@/features/invitation-renderer/index.server';
 import { Notice } from '@/ui';
+import { LeaveGuard } from '@/ui/app-form';
 
 import type { Route } from './+types/guest-invitation';
 
@@ -109,22 +110,25 @@ function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps
     ) : (
       <Notice tone="error">{t('errors.loadFailed')}</Notice>
     );
+  // A reply half-typed asks before the page is left, as the app's forms do (design PD-146).
   return (
-    <InvitationPage
-      invitation={invitation}
-      reply={record ? replySummaryFrom(record) : undefined}
-      renderReply={renderReply}
-      replyHeading={isSent ? t('sent.heading') : undefined}
-      languageHref={languageHref}
-      renderPersonal={renderPersonal}
-      artwork={artwork}
-      renderContributions={() => (
-        <div className="flex flex-col gap-16">
-          <AgreeBeforeDoor door={door} link={link} />
-          <GuestGallery invitation={invitation} link={link} />
-        </div>
-      )}
-    />
+    <LeaveGuard>
+      <InvitationPage
+        invitation={invitation}
+        reply={record ? replySummaryFrom(record) : undefined}
+        renderReply={renderReply}
+        replyHeading={isSent ? t('sent.heading') : undefined}
+        languageHref={languageHref}
+        renderPersonal={renderPersonal}
+        artwork={artwork}
+        renderContributions={() => (
+          <div className="flex flex-col gap-16">
+            <AgreeBeforeDoor door={door} link={link} />
+            <GuestGallery invitation={invitation} link={link} />
+          </div>
+        )}
+      />
+    </LeaveGuard>
   );
 }
 

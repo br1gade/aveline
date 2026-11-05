@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { OrdersPage } from './components/orders-page';
 import { loadOrders, type OrdersData } from './load';
@@ -158,22 +159,24 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 function renderAt(path: string) {
-  const Stub = createRoutesStub([
-    {
-      path: APP_PATHS.orders,
-      loader: ({ params, request }) => {
-        if (!current.session) throw new Error('No session');
-        return loadOrders(
-          current.session.api,
-          params.eventId ?? '',
-          new URL(request.url).searchParams,
-        );
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: APP_PATHS.orders,
+        loader: ({ params, request }) => {
+          if (!current.session) throw new Error('No session');
+          return loadOrders(
+            current.session.api,
+            params.eventId ?? '',
+            new URL(request.url).searchParams,
+          );
+        },
+        Component: () => <OrdersPage data={useLoaderData<OrdersData>()} />,
       },
-      Component: () => <OrdersPage data={useLoaderData<OrdersData>()} />,
-    },
-    { path: APP_PATHS.event, Component: () => <p>Event page</p> },
-    { path: APP_PATHS.ticketSales, Component: () => <p>Sales page</p> },
-  ]);
+      { path: APP_PATHS.event, Component: () => <p>Event page</p> },
+      { path: APP_PATHS.ticketSales, Component: () => <p>Sales page</p> },
+    ]),
+  );
   const view = render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={[path]} />
@@ -288,6 +291,18 @@ describe('cancelling (PD-88)', () => {
 });
 
 describe('reconciling (PD-89)', () => {
+  it('asks before the page is left with a guest chosen to link, and not once it is closed (PD-146)', async () => {
+    const { user } = renderAt('/app/events/e1/orders?order=o1');
+    await user.click(await screen.findByRole('button', { name: 'Link to a guest: Anna Sargsyan' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(isLeavingAsked()).toBe(false);
+    await user.selectOptions(within(dialog).getByLabelText('Guest'), 'g-lusine');
+    expect(isLeavingAsked()).toBe(true);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('links a ticket to an invited guest, expecting the guest it has now', async () => {
     server.use(
       http.post(
@@ -390,6 +405,7 @@ describe('reconciling (PD-89)', () => {
     );
     const dialog = await screen.findByRole('dialog');
     await user.type(await within(dialog).findByLabelText('First name'), 'Ani');
+    expect(isLeavingAsked()).toBe(true);
     await user.click(within(dialog).getByRole('button', { name: 'Register' }));
     await waitFor(() =>
       expect(sent.filter((each) => each.method === 'POST')).toEqual([

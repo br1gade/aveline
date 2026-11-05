@@ -32,17 +32,19 @@ export async function listGuests(
 }
 
 /**
- * Resolves to nothing. The response carries the new guest's token whatever the caller may see
- * (FR-29), so it is not read; the list reloads instead, and shows what the server stored.
+ * Resolves to the new guest's id alone, which the door needs to check a walk-in in. The response
+ * carries the guest's token whatever the caller may see (FR-29), so nothing else of it is kept; the
+ * list reloads instead, and shows what the server stored.
  */
 export async function addGuest(
   api: ApiClient,
   eventId: string,
   body: Schemas['AddGuestDto'],
-): Promise<void> {
-  await expectData<unknown>(
+): Promise<{ id: string }> {
+  const { id } = await expectData<{ id: string }>(
     api.POST('/api/v1/events/{eventId}/guests', { params: { path: { eventId } }, body }),
   );
+  return { id };
 }
 
 /** Omitted fields are unchanged; `householdId` moves the guest. Resolves to nothing, as adding does. */

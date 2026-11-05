@@ -122,13 +122,15 @@ function NewRoute() {
 }
 
 function renderDirectory() {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/venues/directory',
-      loader: ({ params }) => loadDirectoryPage(session().api, params.eventId ?? ''),
-      Component: DirectoryRoute,
-    },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/venues/directory',
+        loader: ({ params }) => loadDirectoryPage(session().api, params.eventId ?? ''),
+        Component: DirectoryRoute,
+      },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={['/app/events/e1/venues/directory']} />
@@ -265,6 +267,7 @@ describe('the directory’s own page', () => {
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByLabelText('Name'), 'New Hall');
     await user.type(within(dialog).getByLabelText('Address'), '3 Street');
+    expect(isLeavingAsked()).toBe(true);
     const save = within(dialog).getByRole('button', { name: 'Save' });
     await waitFor(() => expect(save).toBeEnabled());
     await user.click(save);

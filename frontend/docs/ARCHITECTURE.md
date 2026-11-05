@@ -307,7 +307,9 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   pages say "not available" for both. With no permissions endpoint (FR-6), every action is offered
   and a 403 is explained when it happens.
 - **Headers** (`src/entry.server.tsx`, `src/lib/security`): a nonce-based Content Security Policy
-  in production, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`. Every response for a
+  in production, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, but for the designer's
+  draft preview (`/app/events/:eventId/design/draft-preview`), which the app frames itself:
+  `frame-ancestors 'self'` and `SAMEORIGIN` there alone (PD-153). Every response for a
   path that carries a capability token (a personal invitation today), or a `?token=` query (the
   reset, email and invitation pages; `carriesCapability`), gets
   `Referrer-Policy: no-referrer`, `Cache-Control: private, no-store` and
@@ -804,6 +806,16 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
 | 4 Nov 2026 | The bank's return confirms the newest invoice, storing nothing | The return can't name it, and at most one plan invoice is open; a stored number would be one more thing to keep and to get wrong (PD-130, FR-110) |
 | 4 Nov 2026 | An authored template's preview starts in its route's `clientLoader`, a new one on each read | A preview changes nothing on the invitation, expires and goes stale by design, and a reload then simply gets a fresh one; an effect would have made two under StrictMode |
 | 4 Nov 2026 | The drawn plan has no scaling: one API unit is one CSS pixel, in a canvas that scrolls | The API says "the editor's own units"; scaling to a phone would shrink tables below a finger, and adds arithmetic to get wrong |
+| 4 Nov 2026 | The answers to the host's questions and the guest book are two pages beside the sheets, not more sections on it; the sheets' section, rows and header move to `event-sheets/components/parts.tsx` | Each is a read of its own and can be long, and the sheets page stays one read of the dashboard (docs/API.md §6). The answers page asks for the language in the address and marks what comes back with the language the response names (§6) |
+| 4 Nov 2026 | The public price list, `/pricing`, is read on the server like the public listing and shares billing's plan cards (`PlanCards`); its route brings the app's strings as well as the public ones | A plan's price and limits are billing's words, and a namespace belongs to one bundle (§8). The next step from the page is creating an account, which loads the app's strings anyway; the guest page's budget is untouched |
+| 4 Nov 2026 | Every form now joins the leave guard: dialogs' forms through `useLeaveGuard`, a choice held in a component's state through `useLeaveGuardWhen`, and the guest's page gets a `LeaveGuard` of its own | A phone's Back left a dialog's work behind without a word. No history entry is pushed for a dialog: Back still means leaving the page, so it asks, as a link does. A made export now resets its form, or the page would go on asking about choices already sent (PD-146) |
+| 4 Nov 2026 | A household's answers are recorded on a page of their own, one React Hook Form per member reusing the single guest's fields, and saved by one press; `oneByOne` moves from seating's FR-53 stand-in to `lib/queue` for both | The fields bind to one guest's paths, so a form per member keeps them unchanged. What is sent decides whether a member changed, so one nobody has heard from is never asked to answer. The API records one guest per request (FR-118) |
+| 4 Nov 2026 | `addGuest` reads back the new guest's `id`, field by field, and nothing else; the door adds a walk-in with it and checks them in by that id | The door can't find someone new in a list read before they existed, and two people can share a name. The answer's `token` still goes no further (FR-29) |
+| 4 Nov 2026 | The seat dialog offers a chair for each person it seats; `chairChoices` takes the chairs picked in the dialog for the others, and `chairsToSend` decides what goes | A household was never given chairs (PD-134). A chair picked for one person is shown as theirs to the rest, so the dialog can't send the same chair twice; one taken meanwhile is dropped, as one person's always was (PD-149) |
+| 4 Nov 2026 | A JPEG or WebP over 10 MiB is drawn smaller in the browser, on a canvas, just before it is sent, and the 10 MiB check is on what is sent; one within the limit goes untouched | A phone's large photo was refused outright. No dependency: `createImageBitmap` turns it the right way up and the canvas re-encodes it as its own type. Only photos over the limit are touched, so the hosts' keepsakes keep their quality; PNG and AVIF are left, as transparency and AVIF encoding don't survive a canvas everywhere (PD-150) |
+| 4 Nov 2026 | Households chosen on the guest list are sent a thousand at a time (`sendInBatches`, on `oneByOne`), one part after another, stopping at the first refusal | `SendInvitationDto` takes at most 1,000 `guestIds` (`@ArrayMaxSize(1_000)` at `34ac1e6`), one per household. A part sent again sends nothing twice: a household reached is counted in `alreadySent`, and each message's `dedupeKey` is unique (`invitation-sender.service.ts`), so no key of our own is needed (PD-151) |
+| 4 Nov 2026 | Checkout's idempotency key outlives a reload: `createRetryKey` takes an optional store, and checkout's keeps the pending key per event in this tab's `sessionStorage`, read and written inside try/catch | A buyer who reloads after no answer and asks for the same order again gets the order already made, with its payment, not a second reservation (docs/API.md §5). The intent is stored as a SHA-256 digest of the order, which holds names and emails; the same key with another order would be a 409, so a changed order makes a new one as before (PD-152) |
+| 5 Nov 2026 | **A section's unsaved edits are previewed** in a frame beside its form: the section page lays its form over the saved preview (`draftInvitation`) and posts the page to `/app/events/:eventId/design/draft-preview`, which draws it with `InvitationPage`. That one path may be framed, by the app itself (`frame-ancestors 'self'`, `SAMEORIGIN`); every other keeps `'none'` and `DENY` | No endpoint takes unsaved content. The renderer lays out by the viewport's width, so a pane beside the form would draw the desktop page squeezed; a frame 390 px wide draws what a phone shows. The overlay restates the backend's language fallback and its layout fallback, pinned by tests until FR-120. The frame and the page talk only to each other, by origin, window and a versioned message type (PD-153). The plan was approved before building |
 
 ## 12. Not yet built
 
@@ -817,21 +829,22 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
   (FR-9, FR-42, docs/API.md §6); choosing one when creating an event; `templateSetup`'s state on a new
   event; an edit of an event's override of a template's default artwork. Adoption has only met a mock:
   the backend's gate answers 503 today.
-- Of billing: a public pricing page (`GET /plans` is public; the page is signed in); saying beforehand
-  that paid plans are off (FR-109); a plan's words in other languages (FR-110); more than the newest
+- Of billing: saying beforehand that paid plans are off, on the billing page or the public price
+  list (FR-109); a plan's words in other languages (FR-110); more than the newest
   hundred invoices (FR-110); a real bank: only the mock's return has been followed.
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
   door, reminders and thanks, its team, its running order, recording answers, archiving and
   deleting, who must not be contacted, promo codes, vendors, billing with the bank's return, and what guests' answers add up to: nothing is
-  left unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-53).
-- Of what guests' answers add up to: the guest book (`GET …/guest-book`), the sheet of answers to the
-  host's own questions (`GET …/answers`), which the brief left out; printing it, which exports do; views
-  beyond their count by language, and telling no views from no count (FR-111).
+  left unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-60).
+- Of what guests' answers add up to: printing it, which exports do; views beyond their count by
+  language, and telling no views from no count (FR-111); paging the answers and the guest book, and
+  a yes-or-no answer in the event's language (FR-117).
 - Of the running order: ordering two entries at the same minute by hand (the client puts a new one
   last); telling guests about a change, as no notice comes back (FR-94).
-- Of recording an answer: a whole household on one page; the guest's side, which is set on the guest;
+- Of recording an answer: a household's answers in one read and one request, all or nothing (FR-118;
+  the page reads and records each member in turn); the guest's side, which is set on the guest;
   agreeing to a statement for the guest (the backend refuses it from a host); taking an answer back
   (the API can't); and leaving the event-wide answer out to correct only a meal (FR-95).
 - Of an event's and a venue's words: the sides in each language (FR-96); per-language words for a
@@ -866,13 +879,14 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
   brief across a reload, deliberately; a page in Aveline's or the hosts' own design (DQ-42).
 - Of the public listing: a date or time on a card, and marking a card's language (FR-92); a list of
   categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, until FR-92.
-- Of seating: saving many places at once, a table's revision between two hosts (FR-113); chairs for a
-  whole household; seating from the drawn plan, which holds no guests; seating a household in one
+- Of seating: saving many places at once, a table's revision between two hosts (FR-113); seating from
+  the drawn plan, which holds no guests; seating a household in one
   request (FR-53); seating at check-in; unseating everyone to plan again (the API has no such
   call); and the guest's own table shown elsewhere than the personal card. The seating chart and
   place cards are on the exports page since 30 October 2026.
-- Of designing the invitation: previewing edits before they are saved (the preview shows what is
-  saved); cropping and focal points (not in the API either); host-tuned
+- Of designing the invitation: previewing the look's and the questions' edits before they are saved
+  (the renderer applies neither the theme nor the fonts yet, and shows a notice for the questions);
+  a draft preview built by the backend rather than the browser (FR-120); cropping and focal points (not in the API either); host-tuned
   colours (BQ-3); template fonts in the browser (FR-9), so a font chosen does not show yet; the
   layouts the seeded templates name, which the renderer does not draw (FR-42).
 - Of the guest list: seating from
@@ -887,13 +901,12 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
   supplies; the other languages when creating an event (FR-101; correcting it has them); a custom slug
   (no endpoint exists). A link to a published invitation from the overview: a private event's generic
   link is a 404.
-- Of publishing and sending: sending to more than 1,000 chosen households at once (the backend's
-  limit; "send to every household not yet invited" has none); telling guests about a change other
-  than from the event edit, the venue screens and a change of how guests answer.
+- Of publishing and sending: telling guests about a change other than from the event edit, the
+  venue screens and a change of how guests answer.
 - Of the guest's reply: a "please answer again" line on the personal card.
 - Of guests' photos: a switch for the hosts (FR-46); the guest's own count and the gallery's
   closing date (FR-50); who shared a photo, for the hosts (FR-48); the storage used (FR-47);
-  approving several in one request (FR-112); making a large photo smaller before sending it; and a photo's own
+  approving several in one request (FR-112); making a PNG or AVIF over 10 MiB smaller; and a photo's own
   status read (FR-41).
 - Of the agreements: on their own page, who has not agreed yet (the door works it out, FR-78), and a
   filter by statement (FR-49).
@@ -906,13 +919,10 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
   the announcement is not published (FR-71); a QR code for a ticket and a scanner at the door
   (PQ-13, a dependency); a
   household on one order (PQ-12); naming the event on an order opened from its email in another
-  tab (FR-62); "on sale from" before a type's sales open (FR-66); a checkout key kept across a
-  reload.
-- Of leaving with unsaved changes (DQ-39): the forms in dialogs, which a phone's Back still leaves;
-  the guest's reply; importing a spreadsheet and making an export, which hold a file or choices,
-  not typed work.
-- Of the door: working offline (PQ-14); a QR scanner (PQ-13); seating at check-in; adding a walk-in
-  there (the guest list does); checking in a household at once (FR-83); undoing an unlinked ticket
+  tab (FR-62); "on sale from" before a type's sales open (FR-66).
+- Of the door: working offline (PQ-14); a QR scanner (PQ-13); seating at check-in; a walk-in joining
+  a household already on the list, which needs one of its seats free; adding a walk-in again safely
+  after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the
   staff saying so.
 - The rest of the pilot plan: the four-language walkthroughs against the real backend. Seating jobs (F27's automatic seating) are followed in the

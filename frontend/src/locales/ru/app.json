@@ -21,6 +21,7 @@
     "editDesignQuestion": "Изменить вопрос · Aveline",
     "designMedia": "Фото и музыка · Aveline",
     "designPreview": "Предпросмотр · Aveline",
+    "designDraftPreview": "Предпросмотр несохранённых изменений · Aveline",
     "photos": "Фото гостей · Aveline",
     "agreements": "Согласия · Aveline",
     "seating": "Рассадка · Aveline",
@@ -36,6 +37,7 @@
     "venueDirectory": "Каталог площадок · Aveline",
     "archivedEvents": "Архивные мероприятия · Aveline",
     "recordAnswer": "Записать ответ · Aveline",
+    "recordHousehold": "Записать ответы семьи · Aveline",
     "runningOrder": "Программа дня · Aveline",
     "suppressions": "Кому нельзя писать · Aveline",
     "promoCodes": "Промокоды · Aveline",
@@ -47,6 +49,8 @@
     "billing": "Тариф и счета · Aveline",
     "billingReturn": "Возврат из банка · Aveline",
     "sheets": "Итоги ответов гостей · Aveline",
+    "answersSheet": "Ответы на ваши вопросы · Aveline",
+    "guestBook": "Гостевая книга · Aveline",
     "designAdoption": "Просмотр шаблона · Aveline"
   },
   "shell": {

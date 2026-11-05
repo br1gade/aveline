@@ -188,7 +188,8 @@
     "chairNumber": "Chaise {{position}}",
     "chairTaken": "Chaise {{position}} : {{name}}",
     "chairTitle": "Chaise de {{name}}",
-    "chairSubmit": "Enregistrer la chaise"
+    "chairSubmit": "Enregistrer la chaise",
+    "chairFor": "Chaise de {{name}} (facultatif)"
   },
   "remove": {
     "title": "Retirer {{name}} ?",

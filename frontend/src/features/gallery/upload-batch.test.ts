@@ -22,6 +22,31 @@ function sender(...answers: Array<GalleryPhoto | ApiError>) {
 
 const keepGoing = { shouldStop: () => false };
 
+describe('a photo made smaller before it goes (PD-150)', () => {
+  const big = picked('big.jpg', 'image/jpeg', 14 * 1024 * 1024);
+
+  it('sends the smaller photo, and checks its size, not the one chosen', async () => {
+    const small = picked('big.jpg', 'image/jpeg', 3_000_000);
+    const send = sender(photo({ id: 'p1' }));
+    const result = await sendBatch([big], send, {
+      ...keepGoing,
+      shrink: () => Promise.resolve(small),
+    });
+    expect(send).toHaveBeenCalledWith(small);
+    expect(result.outcomes[0]?.kind).toBe('shared');
+  });
+
+  it('refuses one still over 10 MiB without sending it', async () => {
+    const send = sender();
+    const result = await sendBatch([big], send, {
+      ...keepGoing,
+      shrink: (file) => Promise.resolve(file),
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(result.outcomes[0]).toEqual({ kind: 'refused', reason: 'size' });
+  });
+});
+
 describe('sending several photos, one after another', () => {
   it('sends each in turn and says what became of it', async () => {
     const send = sender(photo({ id: 'p1' }), photo({ id: 'p2' }), photo({ id: 'p3' }));

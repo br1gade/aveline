@@ -2,8 +2,15 @@ import type { ApiClient } from '@/api/client';
 import { loaded, type Loaded } from '@/api/loaded';
 import { getEvent, type EventDetail } from '@/features/events';
 
-import { getSheets, getVenueBar, getVenueCatering } from './api';
-import type { BarSheet, CateringSheet, EventSheets, SheetVenue } from './types';
+import { getAnswers, getGuestBook, getSheets, getVenueBar, getVenueCatering } from './api';
+import type {
+  AnswersSheet,
+  BarSheet,
+  CateringSheet,
+  EventSheets,
+  GuestBookEntry,
+  SheetVenue,
+} from './types';
 
 export interface VenueSheets {
   venue: SheetVenue;
@@ -46,4 +53,37 @@ export async function loadSheets(
     loaded(getVenueBar(api, eventId, venue.id)),
   ]);
   return { event, sheets, venue: { venue, catering, bar } };
+}
+
+export interface AnswersData {
+  event: EventDetail;
+  answers: Loaded<AnswersSheet>;
+  /** The language in the address, if any; the sheet's own `locale` is what came back. */
+  asked: string | null;
+}
+
+/** No language in the address asks for none, and the backend answers in the event's own. */
+export async function loadAnswers(
+  api: ApiClient,
+  eventId: string,
+  locale: string | null,
+): Promise<AnswersData> {
+  const [event, answers] = await Promise.all([
+    getEvent(api, eventId),
+    loaded(getAnswers(api, eventId, locale)),
+  ]);
+  return { event, answers, asked: locale };
+}
+
+export interface GuestBookData {
+  event: EventDetail;
+  book: Loaded<GuestBookEntry[]>;
+}
+
+export async function loadGuestBook(api: ApiClient, eventId: string): Promise<GuestBookData> {
+  const [event, book] = await Promise.all([
+    getEvent(api, eventId),
+    loaded(getGuestBook(api, eventId)),
+  ]);
+  return { event, book };
 }

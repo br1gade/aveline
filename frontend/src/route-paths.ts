@@ -45,8 +45,14 @@ export const APP_PATHS = {
   importGuests: '/app/events/:eventId/guests/import',
   /** An answer a guest gave by phone or in person, recorded by the host. */
   recordAnswer: '/app/events/:eventId/guests/:guestId/answer',
+  /** The same for each member of a household, on one page. */
+  recordHousehold: '/app/events/:eventId/households/:householdId/answer',
   /** Catering, bar, playlist and views: what guests' answers add up to. */
   sheets: '/app/events/:eventId/sheets',
+  /** What guests answered to the host's own questions. */
+  answersSheet: '/app/events/:eventId/sheets/answers',
+  /** The messages guests left with their answers. */
+  guestBook: '/app/events/:eventId/sheets/guest-book',
   venues: '/app/events/:eventId/venues',
   /** Static, so it would rank above a `:venueId` under `venues` too. */
   newVenue: '/app/events/:eventId/venues/new',
@@ -68,6 +74,8 @@ export const APP_PATHS = {
   designMedia: '/app/events/:eventId/design/media',
   /** Outside the app's frame: the invitation needs the whole window. */
   designPreview: '/app/events/:eventId/design/preview',
+  /** A section's unsaved edits, drawn in a frame on its page: the only page the app frames. */
+  designDraftPreview: '/app/events/:eventId/design/draft-preview',
   /** An authored template's preview and confirmation. */
   designAdoption: '/app/events/:eventId/design/look/adopt/:versionId',
   /** Guests' photos to moderate; the API calls it the gallery. */
@@ -106,6 +114,8 @@ export const APP_PATHS = {
   /** Static, so it ranks above `booking`'s `:bookingId`. */
   newBooking: '/app/events/:eventId/vendors/new',
   booking: '/app/events/:eventId/vendors/:bookingId',
+  /** The price list, for anyone. */
+  pricing: '/pricing',
   /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */
   publicEvents: '/events',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */

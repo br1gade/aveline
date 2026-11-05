@@ -14,6 +14,7 @@ import { createI18n } from '@/lib/i18n';
 import { uploadPhoto } from './api';
 import { GuestGallery } from './components/guest-gallery';
 import { readPhoto } from './read';
+import { shrinkPhoto } from './shrink';
 import { itemWire, picked } from './test-data';
 
 // jsdom's File and FormData are not Node's, which Node's fetch sends; the multipart body itself is
@@ -23,6 +24,12 @@ vi.mock('./api', async (importOriginal) => ({
   uploadPhoto: vi.fn(),
 }));
 const upload = vi.mocked(uploadPhoto);
+// jsdom draws nothing on a canvas; `shrink.test.ts` tests the drawing, so the page's tests stub it.
+vi.mock('./shrink', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  shrinkPhoto: vi.fn((file: File) => Promise.resolve(file)),
+}));
+const shrink = vi.mocked(shrinkPhoto);
 
 const ORIGIN = 'http://api.test';
 /** Made at run time, so no committed fixture holds a token. */
@@ -153,6 +160,35 @@ describe('the guest gallery (PD-63)', () => {
         timeout: 3000,
       },
     );
+  });
+
+  it('takes a JPEG over 10 MiB, to be made smaller, and still refuses a PNG that size (PD-150)', async () => {
+    listing([]);
+    const { user } = renderGallery();
+    await screen.findByText('You haven’t shared any photos yet.');
+    await user.upload(screen.getByLabelText('Choose photos'), [
+      picked('phone.jpg', 'image/jpeg', 14 * 1024 * 1024),
+      picked('scan.png', 'image/png', 14 * 1024 * 1024),
+    ]);
+    expect(screen.getByText('Ready to share')).toBeInTheDocument();
+    expect(screen.getByText('Larger than 10 MB')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share 1 photo' })).toBeInTheDocument();
+  });
+
+  it('sends the smaller photo when one over 10 MiB is shared (PD-150)', async () => {
+    listing([]);
+    const smaller = picked('phone.jpg', 'image/jpeg', 3_000_000);
+    shrink.mockResolvedValueOnce(smaller);
+    upload.mockResolvedValueOnce({ ...readPhoto(itemWire({ id: 'n1' })), isOwn: true });
+    const { user } = renderGallery();
+    await screen.findByText('You haven’t shared any photos yet.');
+    await user.upload(screen.getByLabelText('Choose photos'), [
+      picked('phone.jpg', 'image/jpeg', 14 * 1024 * 1024),
+    ]);
+    listing([itemWire({ id: 'n1', isOwn: true })]);
+    await user.click(screen.getByRole('button', { name: 'Share 1 photo' }));
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(upload.mock.calls[0]?.[2]).toBe(smaller);
   });
 
   it('sends a caption when one photo is chosen', async () => {

@@ -5,7 +5,13 @@ import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
 import type { EventDetail } from '@/features/events';
-import { AppForm, SubmitButton, WRAPPING_BUTTON, type DialogContext } from '@/ui/app-form';
+import {
+  AppForm,
+  type DialogContext,
+  SubmitButton,
+  useLeaveGuard,
+  WRAPPING_BUTTON,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/ui/kit/dialog';
 
@@ -81,6 +87,7 @@ export function EntryDialog(props: EntryDialogProps) {
     resolver: zodResolver(entryFormSchema(event.timezone)),
     defaultValues: initial,
   });
+  useLeaveGuard(form);
   const { isBusy, refusal, save, onCloseAutoFocus, onOpenChange } = useSaveEntry(props, initial);
   const hidden = useHiddenNames(form, props);
   return (

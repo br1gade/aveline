@@ -36,6 +36,17 @@ describe('security headers', () => {
     expect(prod.get('Content-Security-Policy')).toContain("'nonce-n'");
   });
 
+  it('lets a page be framed by its own origin alone when asked, and by nobody otherwise', () => {
+    const framed = new Headers();
+    applySecurityHeaders(framed, { nonce: 'n', isProduction: true, framing: 'self' });
+    expect(framed.get('X-Frame-Options')).toBe('SAMEORIGIN');
+    expect(framed.get('Content-Security-Policy')).toContain("frame-ancestors 'self';");
+    const page = new Headers();
+    applySecurityHeaders(page, { nonce: 'n', isProduction: true });
+    expect(page.get('X-Frame-Options')).toBe('DENY');
+    expect(page.get('Content-Security-Policy')).toContain("frame-ancestors 'none';");
+  });
+
   it('makes a fresh nonce each time', () => {
     expect(createNonce()).not.toBe(createNonce());
     expect(createNonce()).toMatch(/^[A-Za-z0-9+/]{22}==$/);

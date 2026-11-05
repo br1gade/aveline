@@ -18,6 +18,13 @@ export const PHOTO_TYPES: readonly string[] = [
 export const PHOTO_ACCEPT = [...PHOTO_TYPES, '.jpg', '.jpeg', '.png', '.webp', '.avif'].join(',');
 
 export const PHOTO_LIMIT_BYTES = 10 * 1024 * 1024;
+
+/** The types made smaller when they are over the limit (`shrink.ts`): none with transparency. */
+const SHRINKABLE_TYPES: readonly string[] = ['image/jpeg', 'image/webp'];
+
+export function isShrinkable(type: string): boolean {
+  return SHRINKABLE_TYPES.includes(type);
+}
 export const PHOTOS_PER_GUEST = 20;
 export const PHOTOS_PER_EVENT = 1000;
 export const EVENT_STORAGE_BYTES = 2 * 1024 * 1024 * 1024;
@@ -29,6 +36,15 @@ export function photoProblem(file: { type: string; size: number }): PhotoProblem
   if (!PHOTO_TYPES.includes(file.type)) return 'type';
   if (file.size === 0) return 'empty';
   return file.size > PHOTO_LIMIT_BYTES ? 'size' : null;
+}
+
+/**
+ * A photo as it is chosen: a JPEG or WebP over the limit is let through, as it is made smaller
+ * before it is sent, and its size is checked then (design PD-150).
+ */
+export function chosenPhotoProblem(file: { type: string; size: number }): PhotoProblem | null {
+  const problem = photoProblem(file);
+  return problem === 'size' && isShrinkable(file.type) ? null : problem;
 }
 
 /** Nothing chosen, or more than a guest may share in all. */

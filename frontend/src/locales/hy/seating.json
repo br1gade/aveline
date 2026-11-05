@@ -173,7 +173,8 @@
     "chairNumber": "Աթոռ {{position}}",
     "chairTaken": "Աթոռ {{position}}՝ {{name}}",
     "chairTitle": "{{name}}-ի աթոռը",
-    "chairSubmit": "Պահել աթոռը"
+    "chairSubmit": "Պահել աթոռը",
+    "chairFor": "Աթոռ՝ {{name}}-ի համար (ըստ ցանկության)"
   },
   "remove": {
     "title": "Հեռացնե՞լ {{name}}-ը",

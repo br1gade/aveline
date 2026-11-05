@@ -4,6 +4,7 @@ import {
   arrivalOf,
   doorReducer,
   INITIAL_DOOR,
+  WALK_IN_RUNNING,
   pollDelay,
   type DoorEvent,
   type DoorState,
@@ -36,10 +37,7 @@ const noAnswer: DoorRefusal = { kind: 'noAnswer' };
 
 describe('checking someone in', () => {
   it('marks them here and says so, with their table', () => {
-    const state = play(
-      { type: 'sent', running: 'g1' },
-      { type: 'checkedIn', guest: armen, answer },
-    );
+    const state = play({ type: 'sent', running: 'g1' }, { type: 'checkedIn', answer });
     expect(state.running).toBeNull();
     expect(arrivalOf(armen, state)).toEqual({ isHere: true, at: ARRIVED_AT });
     expect(state.result).toMatchObject({
@@ -54,7 +52,6 @@ describe('checking someone in', () => {
   it('flags someone who declined or never answered, who is let in all the same', () => {
     const state = play({
       type: 'checkedIn',
-      guest: armen,
       answer: { ...answer, wasExpected: false },
     });
     expect(state.result).toMatchObject({ kind: 'arrived', wasExpected: false });
@@ -106,6 +103,52 @@ describe('checking someone in', () => {
   });
 });
 
+describe('a walk-in, added and checked in at the door (PD-148)', () => {
+  it('marks them here and says they weren’t expected', () => {
+    const state = play(
+      { type: 'sent', running: 'g9' },
+      {
+        type: 'checkedIn',
+        answer: { ...answer, guestId: 'g9', name: 'Narek', wasExpected: false },
+      },
+    );
+    expect(state.running).toBeNull();
+    expect(arrivalOf(doorGuest('g9', 'Narek'), state)).toEqual({ isHere: true, at: ARRIVED_AT });
+    expect(state.result).toMatchObject({ kind: 'arrived', guestId: 'g9', wasExpected: false });
+  });
+
+  it('frees the door for the next write when adding them is refused', () => {
+    const state = play({ type: 'sent', running: WALK_IN_RUNNING }, { type: 'walkInRefused' });
+    expect(state.running).toBeNull();
+    expect(state.result).toBeNull();
+  });
+
+  it('remembers a walk-in’s check-in that got no answer as an earlier press', () => {
+    const narek = doorGuest('g9', 'Narek');
+    const state = play(
+      { type: 'sent', running: 'g9' },
+      { type: 'walkInNotHere', guestId: 'g9', name: 'Narek', refusal: noAnswer },
+      refusedCheckIn({ kind: 'alreadyHere', arrivedAt: ARRIVED_AT }, narek),
+    );
+    expect(state.result).toMatchObject({ kind: 'alreadyHere', isOurEarlierPress: true });
+  });
+
+  it('says they were added but aren’t here yet when the check-in is refused', () => {
+    const state = play(
+      { type: 'sent', running: 'g9' },
+      { type: 'walkInNotHere', guestId: 'g9', name: 'Narek', refusal: noAnswer },
+    );
+    expect(state.running).toBeNull();
+    expect(state.result).toEqual({
+      kind: 'addedNotHere',
+      guestId: 'g9',
+      name: 'Narek',
+      refusal: noAnswer,
+    });
+    expect(arrivalOf(doorGuest('g9', 'Narek'), state).isHere).toBe(false);
+  });
+});
+
 describe('when no answer comes', () => {
   it('says it may have counted, and marks nobody', () => {
     const state = play(refusedCheckIn(noAnswer));
@@ -147,7 +190,7 @@ describe('when no answer comes', () => {
   it('forgets the earlier press once that guest has an answer', () => {
     const state = play(
       refusedCheckIn(noAnswer),
-      { type: 'checkedIn', guest: armen, answer },
+      { type: 'checkedIn', answer },
       { type: 'undone', guest: armen },
       refusedCheckIn({ kind: 'alreadyHere', arrivedAt: ARRIVED_AT }),
     );
@@ -266,10 +309,7 @@ describe('admitting a ticket: one arrival with its guest', () => {
 
 describe('undoing', () => {
   it('takes them off, restoring the row', () => {
-    const state = play(
-      { type: 'checkedIn', guest: armen, answer },
-      { type: 'undone', guest: armen },
-    );
+    const state = play({ type: 'checkedIn', answer }, { type: 'undone', guest: armen });
     expect(arrivalOf(armen, state)).toEqual({ isHere: false, at: null });
     expect(state.result).toEqual({ kind: 'undone', name: 'Armen Petrosyan' });
   });
@@ -281,7 +321,7 @@ describe('undoing', () => {
 
   it('counts someone not checked in as undone already', () => {
     const state = play(
-      { type: 'checkedIn', guest: armen, answer },
+      { type: 'checkedIn', answer },
       { type: 'undoRefused', guest: armen, refusal: { kind: 'notCheckedIn' } },
     );
     expect(state.result).toEqual({ kind: 'undone', name: 'Armen Petrosyan' });
@@ -290,7 +330,7 @@ describe('undoing', () => {
 
   it('leaves them here when the undo is refused', () => {
     const state = play(
-      { type: 'checkedIn', guest: armen, answer },
+      { type: 'checkedIn', answer },
       { type: 'undoRefused', guest: armen, refusal: { kind: 'forbidden' } },
     );
     expect(arrivalOf(armen, state).isHere).toBe(true);
@@ -303,7 +343,7 @@ describe('reading the list again', () => {
   const read: DoorEvent = { type: 'listRead' };
 
   it('lets the list replace what this phone marked', () => {
-    const state = play({ type: 'checkedIn', guest: armen, answer }, started, read);
+    const state = play({ type: 'checkedIn', answer }, started, read);
     const listed = doorGuest('g1', 'Armen', { isCheckedIn: true, arrivedAt: LATER });
     expect(arrivalOf(listed, state)).toEqual({ isHere: true, at: LATER });
     expect(state.marks.size).toBe(0);
@@ -316,19 +356,19 @@ describe('reading the list again', () => {
   });
 
   it('keeps a mark made after that read began, which the list can’t know', () => {
-    const state = play(started, { type: 'checkedIn', guest: armen, answer }, read);
+    const state = play(started, { type: 'checkedIn', answer }, read);
     expect(arrivalOf(armen, state)).toEqual({ isHere: true, at: ARRIVED_AT });
   });
 
   it('keeps the result on screen', () => {
-    const before = play({ type: 'checkedIn', guest: armen, answer });
+    const before = play({ type: 'checkedIn', answer });
     expect(doorReducer(doorReducer(before, started), read).result).toEqual(before.result);
   });
 });
 
 describe('dismissing', () => {
   it('clears the result and nothing else', () => {
-    const state = play({ type: 'checkedIn', guest: armen, answer }, { type: 'dismissed' });
+    const state = play({ type: 'checkedIn', answer }, { type: 'dismissed' });
     expect(state.result).toBeNull();
     expect(arrivalOf(armen, state).isHere).toBe(true);
   });

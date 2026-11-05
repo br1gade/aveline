@@ -6,11 +6,12 @@ import { useTranslation } from 'react-i18next';
 import { browserSession } from '@/api/session';
 import {
   AppForm,
+  type DialogContext,
   SubmitButton,
   TextInputField,
   useDialogAction,
+  useLeaveGuard,
   WRAPPING_BUTTON,
-  type DialogContext,
 } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import {
@@ -90,6 +91,7 @@ export function LimitsDialog({ promo, zone, ...context }: LimitsDialogProps) {
     resolver: zodResolver(limitsFormSchema(promo, zone)),
     defaultValues: initial,
   });
+  useLeaveGuard(form);
   const action = useDialogAction(context, promoRefusalOf);
   const save = async (values: LimitsFormValues) => {
     const body = limitsPayload(initial, values, zone);

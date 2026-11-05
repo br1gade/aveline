@@ -351,6 +351,17 @@ describe('changing a role', () => {
     return screen.findByRole('dialog');
   }
 
+  it('asks before the page is left with another role chosen, and not once it is chosen back (PD-146)', async () => {
+    serve();
+    const user = renderPage();
+    const dialog = await openChange(user);
+    expect(isLeavingAsked()).toBe(false);
+    await user.click(within(dialog).getByRole('radio', { name: 'Viewer' }));
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(within(dialog).getByRole('radio', { name: /Coordinator · now/ }));
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('sends the new role, marks the current, and refuses no change', async () => {
     const reads = serve();
     const received: unknown[] = [];

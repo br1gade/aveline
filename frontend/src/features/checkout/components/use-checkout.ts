@@ -9,6 +9,7 @@ import { isLanguage } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 
 import { placeOrder } from '../api';
+import { checkoutKeyStore, intentDigest } from '../key-store';
 import { intentOf, orderBody } from '../payload';
 import { checkoutRefusal, type CheckoutRefusal } from '../refusals';
 import type { CheckoutValues, PaymentProvider } from '../types';
@@ -34,14 +35,16 @@ interface CheckoutInput {
 /**
  * Placing the order. One idempotency key per attempt (docs/API.md §5): a press after no answer or
  * a server failure sends the same key with the same order, and gets the order the first press
- * may have made, with its payment; anything changed, or any refusal, makes a new one. A retry is
- * always the buyer's own press, never automatic.
+ * may have made, with its payment; anything changed, or any refusal, makes a new one. The key
+ * outlives a reload in this tab, so the same order asked for again sends it too (PD-152). A retry
+ * is always the buyer's own press, never automatic.
  */
 export function useCheckout({ event, basket, provider }: CheckoutInput) {
   const api = useCheckoutApi(event.locale);
   const navigate = useNavigate();
   const revalidator = useRevalidator();
-  const [retry] = useState(() => createRetryKey());
+  // Kept in this tab, so a reload after no answer asks for the same order with the same key.
+  const [retry] = useState(() => createRetryKey(undefined, checkoutKeyStore(event.slug)));
   const [refusal, setRefusal] = useState<CheckoutRefusal | null>(null);
   const [isSending, setIsSending] = useState(false);
 
@@ -57,7 +60,7 @@ export function useCheckout({ event, basket, provider }: CheckoutInput) {
     try {
       const placed = await placeOrder(api, event.slug, {
         ...body,
-        idempotencyKey: retry.next(intentOf(body)),
+        idempotencyKey: retry.next(await intentDigest(intentOf(body))),
       });
       retry.settle(null);
       holdOrder({ accessToken: placed.accessToken, slug: event.slug });

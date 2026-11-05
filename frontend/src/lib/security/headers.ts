@@ -1,7 +1,7 @@
 /**
  * Response headers for every page (setup proposal §5.11): a nonce-based Content Security Policy,
- * no MIME sniffing, no framing. Capability pages add their own referrer and cache rules in their
- * route's `headers` export.
+ * no MIME sniffing, and no framing, but for the one page the app frames itself (design PD-153).
+ * Capability pages add their own referrer and cache rules in their route's `headers` export.
  */
 export interface SecurityOptions {
   nonce: string;
@@ -9,6 +9,8 @@ export interface SecurityOptions {
   isProduction: boolean;
   mediaOrigin?: string | undefined;
   apiOrigin?: string | undefined;
+  /** Who may frame the page: nobody, or the app itself for the designer's draft preview. */
+  framing?: 'none' | 'self';
 }
 
 export function createNonce(): string {
@@ -40,7 +42,7 @@ export function contentSecurityPolicy(options: SecurityOptions): string {
     ['media-src', ["'self'", media]],
     ['font-src', ["'self'"]],
     ['connect-src', ["'self'", api]],
-    ['frame-ancestors', ["'none'"]],
+    ['frame-ancestors', [options.framing === 'self' ? "'self'" : "'none'"]],
     ['base-uri', ["'self'"]],
     ['form-action', ["'self'"]],
     ['object-src', ["'none'"]],
@@ -52,7 +54,7 @@ export function contentSecurityPolicy(options: SecurityOptions): string {
 
 export function applySecurityHeaders(headers: Headers, options: SecurityOptions): void {
   headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('X-Frame-Options', 'DENY');
+  headers.set('X-Frame-Options', options.framing === 'self' ? 'SAMEORIGIN' : 'DENY');
   if (options.isProduction) {
     headers.set('Content-Security-Policy', contentSecurityPolicy(options));
   }

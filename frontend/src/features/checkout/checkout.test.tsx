@@ -287,6 +287,21 @@ describe('refusals and retries (PD-80)', () => {
     expect(posted[2]?.idempotencyKey).not.toBe(posted[0]?.idempotencyKey);
   });
 
+  it('sends the same key after a reload, for the same order, and keeps no names in this tab (PD-152)', async () => {
+    serveOrders(() => refusal(502, 'Bad Gateway'), paid);
+    const first = renderCheckout('general.1');
+    await fillOne(first.user);
+    await first.user.click(await submit());
+    await screen.findByRole('alert');
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain('Anna');
+    first.unmount();
+    const { user } = renderCheckout('general.1');
+    await fillOne(user);
+    await user.click(await submit());
+    await screen.findByText('The order page');
+    expect(posted[1]?.idempotencyKey).toBe(posted[0]?.idempotencyKey);
+  });
+
   it('reads the event again when fewer tickets remain, keeping the people typed', async () => {
     serveOrders(() => refusal(409, 'Only 1 ticket(s) remain; 2 were requested'));
     const { user } = renderCheckout();

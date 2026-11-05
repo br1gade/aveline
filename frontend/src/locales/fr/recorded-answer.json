@@ -59,5 +59,16 @@
   },
   "status": {
     "recorded": "La réponse de {{name}} est enregistrée."
+  },
+  "household": {
+    "title": "Enregistrer les réponses du foyer",
+    "lead": "La réponse de chaque personne, comme pour un invité, enregistrées ensemble. Seules celles que vous modifiez sont envoyées : les autres restent telles quelles, avec ou sans réponse.",
+    "save": "Enregistrer les réponses",
+    "notify": "Prévenir chaque personne enregistrée",
+    "recorded": "Les réponses de {{name}} ont été enregistrées.",
+    "partly": "Enregistrées : {{recorded}}. Non enregistrées : {{notRecorded}}. Corrigez ce qui est indiqué et enregistrez à nouveau ; seul le reste est envoyé.",
+    "nothing": "Rien n’a changé, donc rien n’a été envoyé.",
+    "erased": "{{name}} : ses données ont été effacées à sa demande, aucune réponse ne peut être enregistrée.",
+    "gone": "Ce foyer n’est plus sur la liste des invités."
   }
 }

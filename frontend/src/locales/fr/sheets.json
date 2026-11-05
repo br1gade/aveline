@@ -39,5 +39,32 @@
     "total_one": "{{count}} vue",
     "total_other": "{{count}} vues",
     "total_many": "{{count}} vues"
+  },
+  "more": "Plus de réponses des invités",
+  "answers": {
+    "back": "Retour aux récapitulatifs",
+    "title": "Réponses à vos questions",
+    "lead": "Ce que les invités ont répondu aux questions de votre invitation. Un choix est compté parmi les invités qui viennent, ce que vous commandez, et parmi tous ceux qui ont répondu.",
+    "language": "Langue des questions",
+    "untitled": "Une question sans texte",
+    "answered_one": "{{count}} réponse",
+    "answered_other": "{{count}} réponses",
+    "answered_many": "{{count}} réponses",
+    "tally": "{{attending}} qui viennent · {{total}} en tout",
+    "who": "Qui a répondu quoi",
+    "none": "Votre invitation ne pose pas de questions qui lui soient propres.",
+    "otherLanguage": "Les questions ne sont pas publiées dans cette langue ; elles sont affichées en {{language}}.",
+    "status": {
+      "ATTENDING": "Vient",
+      "DECLINED": "Ne vient pas",
+      "UNDECIDED": "Pas encore sûr",
+      "PENDING": "Sans réponse"
+    }
+  },
+  "guestBook": {
+    "title": "Livre d’or",
+    "lead": "Les messages laissés par les invités avec leur réponse, les plus récents d’abord.",
+    "none": "Personne n’a encore laissé de message.",
+    "at": "{{day}}, {{time}}"
   }
 }

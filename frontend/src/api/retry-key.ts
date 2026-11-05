@@ -13,6 +13,18 @@ export interface RetryKey {
   settle: (error: unknown) => void;
 }
 
+/** A key sent and not yet answered, with the intent it was sent for. */
+export interface PendingKey {
+  key: string;
+  intent: string;
+}
+
+/** Where a pending key outlives the page: checkout keeps it for a reload (design PD-152). */
+export interface PendingKeyStore {
+  read: () => PendingKey | null;
+  write: (pending: PendingKey | null) => void;
+}
+
 /**
  * A refusal is an answer: the work was not queued. No answer, and a server failure, are not: a
  * request may have queued the work before the API or a gateway in front of it failed (the
@@ -30,16 +42,25 @@ function isAnswered(status: number): boolean {
  * key: an export's key carries its intent, and changed intent is a 409. PD-53's retry id works the
  * same way.
  */
-export function createRetryKey(make: () => string = () => crypto.randomUUID()): RetryKey {
-  let pending: { key: string; intent: string } | null = null;
+export function createRetryKey(
+  make: () => string = () => crypto.randomUUID(),
+  store?: PendingKeyStore,
+): RetryKey {
+  let pending = store?.read() ?? null;
   return {
     next: (intent = '') => {
-      if (pending?.intent !== intent) pending = { key: make(), intent };
+      if (pending?.intent !== intent) {
+        pending = { key: make(), intent };
+        store?.write(pending);
+      }
       return pending.key;
     },
     isPending: (intent = '') => pending?.intent === intent,
     settle: (error) => {
-      if (error === null || (isApiError(error) && isAnswered(error.status))) pending = null;
+      if (error === null || (isApiError(error) && isAnswered(error.status))) {
+        pending = null;
+        store?.write(null);
+      }
     },
   };
 }

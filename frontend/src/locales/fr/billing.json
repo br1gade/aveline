@@ -139,5 +139,11 @@
     "toBilling": "Vers votre formule et vos factures",
     "replacedOpen": "Cette facture a été remplacée par un choix de formule plus récent. Si vous l’avez payée à la banque, cet argent vous revient de lui-même. Vous n’avez rien à faire.",
     "refunded": "Cette facture a été retirée, et ce qui a été payé vous est remboursé."
+  },
+  "pricing": {
+    "title": "Tarifs",
+    "lead": "Ce que coûte chaque formule Aveline et ce qu’elle comprend.",
+    "start": "Créer un compte",
+    "metaTitle": "Tarifs · Aveline"
   }
 }

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { Invitation } from '@/features/invitation-renderer';
 import { Button, Icon, Notice, useIsHydrated } from '@/ui';
 import { ErrorSummary } from '@/ui/form';
+import { useLeaveGuard, useLeaveGuardWhen } from '@/ui/app-form';
 
 import { venueChoices } from '../attendance';
 import { fieldId, flattenErrors } from '../fields';
@@ -304,6 +305,10 @@ export function ReplyForm(props: ReplyFormProps) {
   const isSendingRef = useRef(false);
   const errorText = useErrorText(record.household.seatsAllotted);
   const isSending = form.formState.isSubmitting;
+  // Leaving asks while the reply differs from what was read (design PD-146). A draft carried over a
+  // reload is the form's starting point, so its changes count without being dirty.
+  useLeaveGuard(form);
+  useLeaveGuardWhen(Boolean(props.draft) && !isSending);
 
   async function onValid(values: ReplyFormValues) {
     if (isSendingRef.current) return;

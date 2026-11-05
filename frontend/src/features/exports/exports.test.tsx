@@ -10,6 +10,7 @@ import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 import { saveFile } from '@/ui/save-file';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { ExportsPage } from './components/exports-page';
 import { loadExports, type ExportsData } from './load';
@@ -141,17 +142,19 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 function renderPage() {
-  const Stub = createRoutesStub([
-    {
-      path: APP_PATHS.exports,
-      loader: ({ params }) => {
-        if (!current.session) throw new Error('No session in this test');
-        return loadExports(current.session.api, params.eventId ?? '');
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: APP_PATHS.exports,
+        loader: ({ params }) => {
+          if (!current.session) throw new Error('No session in this test');
+          return loadExports(current.session.api, params.eventId ?? '');
+        },
+        Component: () => <ExportsPage data={useLoaderData<ExportsData>()} />,
       },
-      Component: () => <ExportsPage data={useLoaderData<ExportsData>()} />,
-    },
-    { path: APP_PATHS.event, Component: () => <p>Event page</p> },
-  ]);
+      { path: APP_PATHS.event, Component: () => <p>Event page</p> },
+    ]),
+  );
   const view = render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={['/app/events/e1/exports']} />
@@ -187,6 +190,30 @@ describe('making an export (PD-74)', () => {
       within(await made()).getByRole('button', { name: /^Download: Guest list \(PDF\)/ }),
     ).toBeInTheDocument();
   });
+
+  it('asks before the page is left with choices not yet made, and not once they are (PD-146)', async () => {
+    serveCreate((body) => queued(body));
+    serveSnapshot(snapshotWire({ id: 'new', createdAt: '2026-10-30T11:00:00.000Z' }));
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('radio', { name: 'CSV' }));
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(await makeButton());
+    await waitFor(() => expect(posted).toHaveLength(1));
+    await waitFor(() => expect(isLeavingAsked()).toBe(false));
+  });
+
+  it.each([403, 503])(
+    'keeps asking before the page is left after a %i, as nothing was made',
+    async (status) => {
+      serveCreate(() => refusal(status));
+      const { user } = renderPage();
+      await user.click(await screen.findByRole('radio', { name: 'CSV' }));
+      await user.click(await makeButton());
+      await waitFor(() => expect(posted).toHaveLength(1));
+      await screen.findByRole('alert');
+      expect(isLeavingAsked()).toBe(true);
+    },
+  );
 
   it('asks nothing of contacts for a seating chart, and makes it without them', async () => {
     serveCreate((body) => queued(body));

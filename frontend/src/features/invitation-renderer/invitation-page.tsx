@@ -116,12 +116,24 @@ function canReply(invitation: Invitation): boolean {
 }
 
 /**
+ * A preview sits inside the app, the draft preview in a frame of its page, so its header and main
+ * are named to be told from the app's (design PD-153). A guest's page names neither.
+ */
+function usePreviewLabels(invitation: Invitation) {
+  const { t } = useTranslation('invitation');
+  return invitation.isPreview
+    ? { header: t('preview.header'), main: t('preview.main') }
+    : { header: undefined, main: undefined };
+}
+
+/**
  * The photograph fills the first screen, with `burgundy-deep` at 65% behind every word on it, which
  * holds 4.5:1 over even a white area (design PD-34), and a gradient rising from that to nothing.
  */
-function FullBleedHeader({ cover, action, languageHref }: HeaderProps) {
+function FullBleedHeader({ cover, action, languageHref, label }: HeaderProps) {
   return (
     <header
+      aria-label={label}
       data-theme="bordeaux"
       className="bg-surface text-text relative flex min-h-svh flex-col lg:sticky lg:top-0 lg:row-span-2 lg:h-svh lg:overflow-y-auto"
     >
@@ -144,10 +156,17 @@ function FullBleedHeader({ cover, action, languageHref }: HeaderProps) {
 type HeaderProps = Pick<LayoutProps, 'languageHref'> & {
   cover: InvitationBlock;
   action: ReactNode;
+  /** In a preview only, to tell its landmarks from the app's around it (design PD-153). */
+  label: string | undefined;
 };
 
 /** HERO first: the cover is the header, on top on phones and pinned left from 1024 px. */
-function CoverHeader({ cover, reply, languageHref }: LayoutProps & { cover: InvitationBlock }) {
+function CoverHeader({
+  cover,
+  reply,
+  languageHref,
+  label,
+}: LayoutProps & { cover: InvitationBlock; label: string | undefined }) {
   const { invitation } = useInvitation();
   const action = canReply(invitation) ? (
     <div className="hidden lg:block">
@@ -155,10 +174,13 @@ function CoverHeader({ cover, reply, languageHref }: LayoutProps & { cover: Invi
     </div>
   ) : null;
   if (isFullBleed(cover)) {
-    return <FullBleedHeader cover={cover} action={action} languageHref={languageHref} />;
+    return (
+      <FullBleedHeader cover={cover} action={action} languageHref={languageHref} label={label} />
+    );
   }
   return (
     <header
+      aria-label={label}
       data-theme="bordeaux"
       className="bg-surface text-text flex flex-col px-5 pt-4 pb-18 lg:sticky lg:top-0 lg:row-span-2 lg:h-svh lg:overflow-y-auto lg:px-12 lg:pb-12"
     >
@@ -170,9 +192,12 @@ function CoverHeader({ cover, reply, languageHref }: LayoutProps & { cover: Invi
   );
 }
 
-function PlainHeader({ languageHref }: Pick<LayoutProps, 'languageHref'>) {
+function PlainHeader({
+  languageHref,
+  label,
+}: Pick<LayoutProps, 'languageHref'> & { label: string | undefined }) {
   return (
-    <header className={GUTTERS}>
+    <header aria-label={label} className={GUTTERS}>
       <div className={cx(COLUMN, 'pt-4')}>
         <TopBar languageHref={languageHref} />
       </div>
@@ -226,6 +251,7 @@ function Layout({
   const isBarWanted = canReply(invitation);
   const isNothingInView =
     useVisibility(isBarWanted ? [REPLY_SECTION_ID, CARD_REPLY_ID] : []) === 'none';
+  const labels = usePreviewLabels(invitation);
 
   return (
     <>
@@ -244,12 +270,16 @@ function Layout({
             invitation={invitation}
             reply={reply}
             languageHref={languageHref}
+            label={labels.header}
           />
         ) : (
-          <PlainHeader languageHref={languageHref} />
+          <PlainHeader languageHref={languageHref} label={labels.header} />
         )}
         {/* 80 px before the footer, unless the letter already ends on a burgundy band. */}
-        <main className="min-w-0 pb-20 has-[>section[data-theme=bordeaux]:last-child]:pb-0 lg:pb-24">
+        <main
+          aria-label={labels.main}
+          className="min-w-0 pb-20 has-[>section[data-theme=bordeaux]:last-child]:pb-0 lg:pb-24"
+        >
           <PersonalCardSlot
             reply={reply}
             hasCover={Boolean(cover)}

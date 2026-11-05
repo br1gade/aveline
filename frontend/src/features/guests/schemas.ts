@@ -27,6 +27,9 @@ export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 /** A household holds at most twenty: more is a data-entry mistake (`csv-guests.ts`). */
 export const MAX_SEATS = 20;
 
+/** A first or last name's longest, as `AddGuestDto` takes it. */
+export const NAME_LENGTH = 80;
+
 const text = (minimum: 0 | 1, limit: number) =>
   z.string().trim().min(minimum, code('required')).max(limit, code('tooLong'));
 
@@ -56,8 +59,8 @@ function checkNewSeats(values: { household: string; seats: string }, ctx: z.Refi
  */
 export const guestFormSchema = z
   .object({
-    firstName: text(1, 80),
-    lastName: text(0, 80),
+    firstName: text(1, NAME_LENGTH),
+    lastName: text(0, NAME_LENGTH),
     email: text(0, 320),
     phone: text(0, 40),
     locale: z.string(),

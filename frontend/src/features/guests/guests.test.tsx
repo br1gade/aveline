@@ -10,8 +10,11 @@ import { createBrowserSession, type BrowserSession } from '@/api/session';
 import type { EventDetail } from '@/features/events';
 import { createI18n } from '@/lib/i18n';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { GuestList } from './components/guest-list';
+import { SendBar } from './components/send-bar';
+import { SendingNotes } from './components/sending-notes';
 import { loadGuestList, type GuestListData } from './load';
 import { guestWire, guestWithoutContact, householdWire } from './test-data';
 import type { HouseholdWire } from './types';
@@ -230,17 +233,19 @@ function GuestsPage() {
 function renderList(
   path: string | Array<string | { pathname: string; state: unknown }> = '/app/events/e1/guests',
 ) {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/guests',
-      loader: ({ params }) => loadGuestList(session().api, params.eventId ?? ''),
-      shouldRevalidate: revalidateUnlessQueryOnly,
-      Component: GuestsPage,
-    },
-    { path: '/app/events/:eventId/guests/import', Component: () => <p>Import page</p> },
-    { path: '/app/events/:eventId/invitation', Component: () => <p>Invitation page</p> },
-    { path: '/app/events/:eventId', Component: () => <p>Event page</p> },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/guests',
+        loader: ({ params }) => loadGuestList(session().api, params.eventId ?? ''),
+        shouldRevalidate: revalidateUnlessQueryOnly,
+        Component: GuestsPage,
+      },
+      { path: '/app/events/:eventId/guests/import', Component: () => <p>Import page</p> },
+      { path: '/app/events/:eventId/invitation', Component: () => <p>Invitation page</p> },
+      { path: '/app/events/:eventId', Component: () => <p>Event page</p> },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={typeof path === 'string' ? [path] : path} />
@@ -755,7 +760,74 @@ describe('GuestList: editing a guest', () => {
   });
 });
 
+describe('GuestList: recording a household’s answers (PD-147)', () => {
+  it('links a household of two or more to its page, and not one alone', async () => {
+    serve();
+    renderList();
+    const family = await screen.findByRole('link', {
+      name: 'Record their answers: Petrosyan family',
+    });
+    expect(family).toHaveAttribute('href', '/app/events/e1/households/h1/answer');
+    expect(
+      screen.queryByRole('link', { name: 'Record their answers: Hakobyan' }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('GuestList: a send in parts (PD-151)', () => {
+  it('says which part is going on the send button', () => {
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <SendBar
+          count={1001}
+          isSending
+          progress={{ current: 1, total: 2 }}
+          onChooseShown={vi.fn()}
+          onClear={vi.fn()}
+          onSend={vi.fn()}
+        />
+      </I18nextProvider>,
+    );
+    expect(screen.getByRole('button', { name: 'Sending, part 1 of 2…' })).toBeDisabled();
+  });
+
+  it('says how far a send that stopped partway got, and that sending again is safe', async () => {
+    const send = {
+      refusal: null,
+      outcome: null,
+      pending: null,
+      partly: { sent: 1000, total: 1001 },
+    };
+    const sender = { send } as unknown as Parameters<typeof SendingNotes>[0]['sender'];
+    const Stub = createRoutesStub([
+      {
+        path: '/',
+        Component: () => <SendingNotes event={EVENT} delivery={null} sender={sender} />,
+      },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub />
+      </I18nextProvider>,
+    );
+    expect(
+      await screen.findByText(/The send stopped after 1,000 of 1,001 households.*Send again/),
+    ).toBeInTheDocument();
+  });
+});
+
 describe('GuestList: adding a guest', () => {
+  it('asks before the page is left with a guest half-added, and not once the dialog is cancelled', async () => {
+    serve();
+    const user = renderList();
+    await user.click(await screen.findByRole('button', { name: 'Add a guest' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('First name'), 'Lilit');
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(isLeavingAsked()).toBe(false);
+  });
+
   it('gives a new guest a household of their own, with its seats', async () => {
     const reads = serve();
     const received = answer('post', '/events/e1/guests', savedGuest);
@@ -835,8 +907,10 @@ describe('GuestList: a household', () => {
     const dialog = await screen.findByRole('dialog');
     await user.clear(within(dialog).getByLabelText('Seats'));
     await user.type(within(dialog).getByLabelText('Seats'), '5');
+    expect(isLeavingAsked()).toBe(true);
     await save(user);
     expect(await screen.findByText('Petrosyan family was saved.')).toBeInTheDocument();
+    expect(isLeavingAsked()).toBe(false);
     expect(received).toEqual([{ seatsAllotted: 5 }]);
     expect(reads.guests).toBe(2);
   });

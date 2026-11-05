@@ -140,7 +140,7 @@ export function SectionMedia(props: SectionMediaProps) {
         <p className="text-muted-foreground m-0 text-sm">{t('section.onlyFirst', { name })}</p>
       ) : null}
       <Attached {...shared} />
-      <h3 className="m-0 text-sm font-medium">{t('section.candidates')}</h3>
+      <h2 className="m-0 text-sm font-medium">{t('section.candidates')}</h2>
       <Candidates {...shared} />
       <Link to={designMediaPath(eventId)} className={TEXT_LINK}>
         {t('section.upload')}

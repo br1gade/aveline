@@ -13,6 +13,7 @@ import { RecentArrivals } from './recent-arrivals';
 import { LINK } from './shared';
 import { TicketForm } from './ticket-form';
 import { useDoor } from './use-door';
+import { WalkInForm } from './walk-in-form';
 
 const BY_PARAM = 'by';
 
@@ -87,12 +88,15 @@ export function DoorPage({ data }: { data: DoorData }) {
           {isByCode ? (
             <TicketForm door={door} />
           ) : (
-            <FindGuest
-              door={door}
-              eventId={event.id}
-              timeZone={event.timezone}
-              defaultLocale={event.defaultLocale}
-            />
+            <>
+              <FindGuest
+                door={door}
+                eventId={event.id}
+                timeZone={event.timezone}
+                defaultLocale={event.defaultLocale}
+              />
+              <WalkInForm door={door} />
+            </>
           )}
           <MustAgreeList door={door} defaultLocale={event.defaultLocale} />
           {counts ? <RecentArrivals counts={counts} timeZone={event.timezone} /> : null}

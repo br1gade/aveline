@@ -35,5 +35,31 @@
     "none": "No views recorded. If guests have opened it, the count may not be running here.",
     "total_one": "{{count}} view",
     "total_other": "{{count}} views"
+  },
+  "more": "More from guests’ answers",
+  "answers": {
+    "back": "Back to the sheets",
+    "title": "Answers to your questions",
+    "lead": "What guests answered to the questions your invitation asks. A choice is counted among guests coming, what you order for, and among everyone who answered.",
+    "language": "Language of the questions",
+    "untitled": "A question without words",
+    "answered_one": "{{count}} answered",
+    "answered_other": "{{count}} answered",
+    "tally": "{{attending}} coming · {{total}} in all",
+    "who": "Who answered what",
+    "none": "Your invitation asks no questions of its own.",
+    "otherLanguage": "The questions aren’t published in that language, so they are shown in {{language}}.",
+    "status": {
+      "ATTENDING": "Coming",
+      "DECLINED": "Not coming",
+      "UNDECIDED": "Not sure yet",
+      "PENDING": "Not answered"
+    }
+  },
+  "guestBook": {
+    "title": "Guest book",
+    "lead": "The messages guests left with their answers, newest first.",
+    "none": "Nobody has left a message yet.",
+    "at": "{{day}}, {{time}}"
   }
 }

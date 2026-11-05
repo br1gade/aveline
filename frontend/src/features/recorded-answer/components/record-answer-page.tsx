@@ -29,7 +29,7 @@ import { AttendanceFields, type AnswerForm } from './attendance-fields';
 import { QuestionFields } from './question-fields';
 
 /** A refusal in our words (FR-6: a 403 is worded, not hidden). */
-function AnswerProblem({ refusal }: { refusal: AnswerRefusal }) {
+export function AnswerProblem({ refusal }: { refusal: AnswerRefusal }) {
   const { t } = useTranslation('recorded-answer');
   return (
     <WordedRefusal

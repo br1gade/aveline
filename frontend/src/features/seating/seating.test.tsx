@@ -10,6 +10,7 @@ import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
 import { APP_PATHS } from '@/route-paths';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { SeatingPage } from './components/seating-page';
 import { loadSeating, type SeatingData } from './load';
@@ -156,19 +157,21 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 function renderPage(path = '/app/events/e1/seating?plan=a-hall') {
-  const Stub = createRoutesStub([
-    {
-      path: APP_PATHS.seating,
-      loader: ({ params }) => {
-        if (!current.session) throw new Error('No session in this test');
-        return loadSeating(current.session.api, params.eventId ?? '');
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: APP_PATHS.seating,
+        loader: ({ params }) => {
+          if (!current.session) throw new Error('No session in this test');
+          return loadSeating(current.session.api, params.eventId ?? '');
+        },
+        Component: () => <SeatingPage data={useLoaderData<SeatingData>()} />,
+        // As the route module has it: a plan's tab is a change of query alone.
+        shouldRevalidate: revalidateUnlessQueryOnly,
       },
-      Component: () => <SeatingPage data={useLoaderData<SeatingData>()} />,
-      // As the route module has it: a plan's tab is a change of query alone.
-      shouldRevalidate: revalidateUnlessQueryOnly,
-    },
-    { path: APP_PATHS.event, Component: () => <p>Event page</p> },
-  ]);
+      { path: APP_PATHS.event, Component: () => <p>Event page</p> },
+    ]),
+  );
   const view = render(
     <I18nextProvider i18n={createI18n('en')}>
       <Stub initialEntries={[path]} />
@@ -401,6 +404,40 @@ describe('tables (PD-68)', () => {
 });
 
 describe('seating by hand (PD-69)', () => {
+  it('gives each member of a household a chair of their own, never the same one twice (PD-149)', async () => {
+    write('post', '/events/e1/seats', () => ({ guestId: 'x' }));
+    const { user } = renderPage();
+    await user.click(
+      await screen.findByRole('button', { name: 'Seat the household: Sargsyan family' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Seat Sargsyan family' });
+    await user.selectOptions(within(dialog).getByLabelText('Table'), 't2');
+    await user.selectOptions(within(dialog).getByLabelText(/Chair for Ani Sargsyan/), '1');
+    const karens = within(dialog).getByLabelText(/Chair for Karen Sargsyan/);
+    expect(within(karens).getByRole('option', { name: 'Chair 1: Ani Sargsyan' })).toBeDisabled();
+    await user.selectOptions(karens, '2');
+    await user.click(within(dialog).getByRole('button', { name: 'Seat' }));
+    expect(
+      await screen.findByText('Seated at Table 2: Ani Sargsyan, Karen Sargsyan.'),
+    ).toBeInTheDocument();
+    expect(sent.map(({ body }) => body)).toEqual([
+      { guestId: 'g4', tableId: 't2', position: 1 },
+      { guestId: 'g5', tableId: 't2', position: 2 },
+    ]);
+  });
+
+  it('forgets the chairs picked when another table is chosen', async () => {
+    const { user } = renderPage();
+    await user.click(
+      await screen.findByRole('button', { name: 'Seat the household: Sargsyan family' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Seat Sargsyan family' });
+    await user.selectOptions(within(dialog).getByLabelText('Table'), 't2');
+    await user.selectOptions(within(dialog).getByLabelText(/Chair for Ani Sargsyan/), '3');
+    await user.selectOptions(within(dialog).getByLabelText('Table'), 't10');
+    expect(within(dialog).getByLabelText(/Chair for Ani Sargsyan/)).toHaveValue('');
+  });
+
   it('seats a household one guest at a time, stops at a refusal, and sends only the rest again', async () => {
     let posts = 0;
     write('post', '/events/e1/seats', () => {
@@ -414,7 +451,7 @@ describe('seating by hand (PD-69)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Seat Sargsyan family' });
     expect(within(dialog).getByText('Seating: Ani Sargsyan, Karen Sargsyan')).toBeInTheDocument();
     expect(
-      within(dialog)
+      within(within(dialog).getByLabelText('Table'))
         .getAllByRole('option')
         .map((option) => option.textContent),
     ).toEqual(['Table 1 · 2 free seats', 'Table 2 · 3 free seats', 'Table 10 · 8 free seats']);
@@ -436,6 +473,17 @@ describe('seating by hand (PD-69)', () => {
       { guestId: 'g5', tableId: 't1' },
       { guestId: 'g5', tableId: 't2' },
     ]);
+  });
+
+  it('asks before the page is left with another table chosen, and not once the dialog closes (PD-146)', async () => {
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Seat: Davit Petrosyan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Seat Davit Petrosyan' });
+    expect(isLeavingAsked()).toBe(false);
+    await user.selectOptions(within(dialog).getByLabelText('Table'), 't1');
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(isLeavingAsked()).toBe(false);
   });
 
   it('seats one guest at their household’s table, chosen first', async () => {

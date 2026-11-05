@@ -394,6 +394,7 @@ describe('a code already made', () => {
     const limit = within(dialog).getByLabelText('How many times it can be used (optional)');
     await user.clear(limit);
     await user.type(limit, '3');
+    expect(isLeavingAsked()).toBe(true);
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(
       await within(dialog).findByText('It has been used more times than that already.'),

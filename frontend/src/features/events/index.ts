@@ -21,7 +21,9 @@ export {
   newBookingPath,
   ordersPath,
   recordAnswerPath,
+  recordHouseholdPath,
   runningOrderPath,
+  sheetsPath,
   teamPath,
   ticketSalesPath,
 } from './paths';

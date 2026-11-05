@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useRevalidator } from 'react-router';
 
 import { browserSession } from '@/api/session';
-import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
 
 import { importGuests } from '../api';
 import type { GuestImportsData } from '../load';
@@ -34,6 +34,8 @@ function ImportForm({ eventId, hasResult, onResult }: ImportFormProps) {
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const refused = useRefusedText('import', false);
   const form = useForm<ImportFormValues>({ resolver: zodResolver(importFormSchema) });
+  // A file chosen and not yet imported asks before the page is left (design PD-146).
+  useLeaveGuard(form);
   const { errors, isSubmitting } = form.formState;
   const fileError =
     errors.files?.message === 'required' ? t('fields.errors.chooseFile') : fieldText(errors.files);

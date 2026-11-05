@@ -433,5 +433,19 @@
       "noAnswer": "We didn’t get an answer. Check your connection and try again.",
       "other": "This couldn’t be done. Your invitation hasn’t changed."
     }
+  },
+  "draftPreview": {
+    "title": "Preview",
+    "show": "Show the preview",
+    "hide": "Hide the preview",
+    "language": "Language of the preview",
+    "unsaved": "Showing your changes, not yet saved.",
+    "saved": "Showing what is saved.",
+    "hidden": "Guests don’t see this section now; it is shown here so you can see it.",
+    "loading": "Loading the preview…",
+    "failed": "The preview couldn’t be loaded. You can still edit and save.",
+    "frameTitle": "The invitation with your changes, as a phone shows it",
+    "waiting": "Preparing the preview…",
+    "notFramed": "This page shows a section’s unsaved changes inside the section’s own page."
   }
 }

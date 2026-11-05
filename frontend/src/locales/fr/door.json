@@ -85,7 +85,8 @@
     "undo": "Annuler",
     "tryAgain": "Réessayer",
     "sendAgain": "Renvoyer son invitation",
-    "dismiss": "OK"
+    "dismiss": "OK",
+    "addedNotHere": "Ajouté à la liste des invités, mais pas encore enregistré à l’arrivée."
   },
   "refused": {
     "mustAgree": "Pas encore admis : cette personne doit d’abord accepter la déclaration des hôtes, depuis le lien de son invitation, sur son propre téléphone. Personne ne peut accepter pour elle ici.",
@@ -101,5 +102,18 @@
     "noAnswer": "Aucune réponse. L’arrivée a peut-être été comptée : appuyez à nouveau, sans risque.",
     "other": "Refusé :",
     "reference": "Référence : {{requestId}}"
+  },
+  "walkIn": {
+    "open": "Quelqu’un qui n’est pas sur la liste",
+    "help": "La personne est ajoutée à la liste des invités dans un foyer à elle, avec une place, puis enregistrée à l’arrivée. Toute personne qui l’accompagne s’ajoute de la même façon.",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "submit": "Ajouter et enregistrer l’arrivée",
+    "adding": "Ajout…",
+    "errors": {
+      "required": "Saisissez son prénom.",
+      "tooLong": "80 caractères au plus."
+    },
+    "mayBeAdded": "Aucune réponse n’est venue : la personne a peut-être été ajoutée quand même. Cherchez-la ci-dessus avant de l’ajouter à nouveau."
   }
 }

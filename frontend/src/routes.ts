@@ -22,6 +22,7 @@ export default [
   route(relative(ROUTE_PATHS.genericInvitation), 'routes/public/invitation.tsx'),
   route(relative(ROUTE_PATHS.guestInvitation), 'routes/public/guest-invitation.tsx'),
   route(relative(APP_PATHS.publicEvents), 'routes/public/events.tsx'),
+  route(relative(APP_PATHS.pricing), 'routes/public/pricing.tsx'),
   route(relative(ROUTE_PATHS.publicEvent), 'routes/public/event.tsx'),
   route(relative(APP_PATHS.checkout), 'routes/public/checkout.tsx'),
   route(relative(APP_PATHS.ticketOrder), 'routes/public/ticket-order.tsx'),
@@ -58,7 +59,10 @@ export default [
       route(underApp(APP_PATHS.guests), 'routes/app/guests.tsx'),
       route(underApp(APP_PATHS.importGuests), 'routes/app/guests-import.tsx'),
       route(underApp(APP_PATHS.recordAnswer), 'routes/app/record-answer.tsx'),
+      route(underApp(APP_PATHS.recordHousehold), 'routes/app/record-household.tsx'),
       route(underApp(APP_PATHS.sheets), 'routes/app/event-sheets.tsx'),
+      route(underApp(APP_PATHS.answersSheet), 'routes/app/event-answers.tsx'),
+      route(underApp(APP_PATHS.guestBook), 'routes/app/event-guest-book.tsx'),
       route(underApp(APP_PATHS.venues), 'routes/app/venues.tsx'),
       route(underApp(APP_PATHS.newVenue), 'routes/app/venue-new.tsx'),
       route(underApp(APP_PATHS.venueDirectory), 'routes/app/venue-directory.tsx'),
@@ -96,6 +100,7 @@ export default [
     // Signed in, without the app's frame: the invitation's preview needs the whole window.
     layout('routes/app/preview-layout.tsx', [
       route(underApp(APP_PATHS.designPreview), 'routes/app/design-preview.tsx'),
+      route(underApp(APP_PATHS.designDraftPreview), 'routes/app/design-draft-preview.tsx'),
       route(underApp(APP_PATHS.designAdoption), 'routes/app/design-adoption.tsx'),
     ]),
   ]),

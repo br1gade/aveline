@@ -1,17 +1,20 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
+import { READY_MESSAGE } from './draft-message';
 import {
   answer,
+  API,
   designWire,
   EVENT,
   libraryWire,
   ORIGIN,
+  previewWire,
   refusal,
   serveDesign,
   SLUG,
@@ -333,5 +336,107 @@ describe('a 429 and a server failure', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Show: Reply section' }));
     expect(await screen.findByText('Reference: req-9')).toBeInTheDocument();
+  });
+});
+
+describe('previewing a section’s unsaved edits (PD-153)', () => {
+  /** The saved page in the language asked for, counting the languages asked. */
+  function servePreview(reply = (locale: string) => HttpResponse.json(previewWire(locale))) {
+    const asked: string[] = [];
+    server.use(
+      http.get(`${API}/invitations/${SLUG}/template-preview`, ({ request }) => {
+        const locale = new URL(request.url).searchParams.get('locale') ?? '';
+        asked.push(locale);
+        return reply(locale);
+      }),
+    );
+    return asked;
+  }
+
+  /** The frame says it is ready, as its page does once loaded; what it is then sent is watched. */
+  function frameReady() {
+    const frame = screen.getByTitle(/as a phone shows it/);
+    const framed = frame instanceof HTMLIFrameElement ? frame.contentWindow : null;
+    if (!framed) throw new Error('No frame');
+    const sent = vi.spyOn(framed, 'postMessage');
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: READY_MESSAGE,
+        origin: window.location.origin,
+        source: framed,
+      }),
+    );
+    return { frame, sent };
+  }
+
+  const lastDraft = (sent: ReturnType<typeof frameReady>['sent']) =>
+    JSON.stringify(sent.mock.calls.at(-1)?.[0] ?? null);
+
+  it('draws the words typed, in the language chosen, in a frame of the app’s own', async () => {
+    serveDesign(server);
+    const asked = servePreview();
+    const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
+    await user.click(await screen.findByRole('button', { name: 'Show the preview' }));
+    const { frame, sent } = frameReady();
+    expect(frame).toHaveAttribute('src', '/app/events/e1/design/draft-preview');
+    await waitFor(() => expect(asked).toEqual(['hy']));
+    await user.selectOptions(screen.getByLabelText('Language of the preview'), 'en');
+    await waitFor(() => expect(asked).toEqual(['hy', 'en']));
+    const english = screen.getByRole('group', { name: 'English' });
+    await user.type(within(english).getByLabelText('Line under the names'), 'invite you');
+    await waitFor(() => expect(lastDraft(sent)).toContain('invite you'));
+    expect(lastDraft(sent)).toContain('"locale":"en"');
+    // Only ever to the app's own origin, never to whatever the frame might have become.
+    expect(sent).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: 'draft' }),
+      window.location.origin,
+    );
+    expect(screen.getByText('Showing your changes, not yet saved.')).toBeInTheDocument();
+  });
+
+  it('says when the saved page can’t be read, and leaves the form to edit and save', async () => {
+    serveDesign(server);
+    servePreview(() => refusal(403)());
+    const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
+    await user.click(await screen.findByRole('button', { name: 'Show the preview' }));
+    expect(
+      await screen.findByText('The preview couldn’t be loaded. You can still edit and save.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+
+  it('sends nothing to a frame that a stranger, or the page itself, says is ready', async () => {
+    serveDesign(server);
+    const asked = servePreview();
+    const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
+    await user.click(await screen.findByRole('button', { name: 'Show the preview' }));
+    const frame = screen.getByTitle(/as a phone shows it/);
+    const framed = frame instanceof HTMLIFrameElement ? frame.contentWindow : null;
+    if (!framed) throw new Error('No frame');
+    const sent = vi.spyOn(framed, 'postMessage');
+    const origin = window.location.origin;
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: READY_MESSAGE,
+        origin: 'https://evil.example',
+        source: framed,
+      }),
+    );
+    window.dispatchEvent(
+      new MessageEvent('message', { data: READY_MESSAGE, origin, source: window }),
+    );
+    await waitFor(() => expect(asked).toEqual(['hy']));
+    const english = await screen.findByRole('group', { name: 'English' });
+    await user.type(within(english).getByLabelText('Line under the names'), 'x');
+    await screen.findByText('Showing your changes, not yet saved.');
+    expect(sent).not.toHaveBeenCalled();
+  });
+
+  it('reads nothing until the preview is asked for', async () => {
+    serveDesign(server);
+    const asked = servePreview();
+    renderDesign(session, '/app/events/e1/design/sections/HERO');
+    await screen.findByRole('button', { name: 'Show the preview' });
+    expect(asked).toEqual([]);
   });
 });

@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { memo, useId, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 
-import { recordAnswerPath } from '@/features/events';
+import { recordAnswerPath, recordHouseholdPath } from '@/features/events';
 import { DeliveryLine, type DeliveryText } from '@/features/sending';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
@@ -219,14 +219,41 @@ function ChooseBox({
   );
 }
 
-/** Choosing it for sending, correcting it, and adding a guest to it while a seat is free. */
+/**
+ * Recording the whole household's answers on one page (design PD-147), where it has two people or
+ * more whose answer can be recorded; one alone has their own link.
+ */
+function RecordHouseholdLink({
+  eventId,
+  household,
+  t,
+}: Pick<HouseholdCardProps, 'eventId' | 'household' | 't'>) {
+  const answerable = household.guests.filter((guest) => !guest.isErased);
+  if (answerable.length < 2) return null;
+  return (
+    <Button asChild variant="ghost">
+      <Link
+        to={recordHouseholdPath(eventId, household.id)}
+        aria-label={t('actionFor', { action: t('household.recordAnswers'), name: household.name })}
+      >
+        {t('household.recordAnswers')}
+      </Link>
+    </Button>
+  );
+}
+
+/**
+ * Choosing it for sending, correcting it, recording its answers, and adding a guest to it while a
+ * seat is free.
+ */
 function HouseholdActions({
+  eventId,
   household,
   t,
   onOpen,
   isChosen,
   onChoose,
-}: Pick<HouseholdCardProps, 'household' | 't' | 'onOpen' | 'isChosen' | 'onChoose'>) {
+}: Pick<HouseholdCardProps, 'eventId' | 'household' | 't' | 'onOpen' | 'isChosen' | 'onChoose'>) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {isChosen === null ? null : (
@@ -239,6 +266,7 @@ function HouseholdActions({
       >
         {t('household.edit')}
       </Button>
+      <RecordHouseholdLink eventId={eventId} household={household} t={t} />
       {hasFreeSeat(household) ? (
         <Button
           variant="ghost"
@@ -288,6 +316,7 @@ export const HouseholdCard = memo(function HouseholdCard({
           {delivery ? <DeliveryLine text={delivery} label={t('household.invitation')} /> : null}
         </div>
         <HouseholdActions
+          eventId={eventId}
           household={household}
           t={t}
           onOpen={onOpen}

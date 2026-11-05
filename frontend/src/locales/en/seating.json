@@ -174,7 +174,8 @@
     "chairNumber": "Chair {{position}}",
     "chairTaken": "Chair {{position}}: {{name}}",
     "chairTitle": "Chair for {{name}}",
-    "chairSubmit": "Save the chair"
+    "chairSubmit": "Save the chair",
+    "chairFor": "Chair for {{name}} (optional)"
   },
   "remove": {
     "title": "Remove {{name}}?",

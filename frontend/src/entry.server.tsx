@@ -5,6 +5,7 @@ import { isbot } from 'isbot';
 import { renderToPipeableStream, type RenderToPipeableStreamOptions } from 'react-dom/server';
 import {
   isRouteErrorResponse,
+  matchPath,
   ServerRouter,
   type EntryContext,
   type HandleDataRequestFunction,
@@ -63,6 +64,16 @@ function isCapabilityPage(address: URL): boolean {
 }
 
 /**
+ * The designer's draft preview is drawn in a frame on the section page, at a phone's width (design
+ * PD-153), so the app itself may frame it; no other page may be framed by anyone.
+ */
+function framingOf(address: URL): 'none' | 'self' {
+  return matchPath(APP_PATHS.designDraftPreview, address.pathname.replace(/\/+$/, ''))
+    ? 'self'
+    : 'none';
+}
+
+/**
  * A capability page keeps its referrer, cache and robots rules on every response, the error
  * boundary's included: when a loader fails, React Router skips the route's own `headers`.
  */
@@ -116,6 +127,7 @@ export default function handleRequest(
     isProduction: import.meta.env.PROD,
     mediaOrigin: env.VITE_MEDIA_BASE_URL,
     apiOrigin: env.VITE_API_BASE_URL,
+    framing: framingOf(new URL(request.url)),
   });
 
   if (request.method.toUpperCase() === 'HEAD') {

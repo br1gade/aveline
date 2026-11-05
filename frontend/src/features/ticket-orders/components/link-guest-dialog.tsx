@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Loaded } from '@/api/loaded';
 import { browserSession } from '@/api/session';
 import type { Household } from '@/features/guests';
-import type { PageActions } from '@/ui/app-form';
+import { type PageActions, useLeaveGuardWhen } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import {
   Dialog,
@@ -98,6 +98,7 @@ export function LinkGuestDialog(props: LinkGuestProps) {
   const labelOf = (id: string) =>
     candidates.find((candidate) => candidate.guestId === id)?.label ?? '';
   const { isBusy, refusal, link } = useLink(props, labelOf);
+  useLeaveGuardWhen(!isBusy && guestId !== '');
   return (
     <Dialog open onOpenChange={(isOpen) => (isOpen ? undefined : onClose())}>
       <DialogContent className="sm:max-w-[30rem]" onCloseAutoFocus={page.focusStatus}>

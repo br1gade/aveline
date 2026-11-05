@@ -1,8 +1,10 @@
 import type {
+  AnswersSheet,
   BarSheet,
   CateringSheet,
   Engagement,
   EventSheets,
+  GuestBookEntry,
   Playlist,
   SheetVenue,
 } from './types';
@@ -65,4 +67,31 @@ export function readSheets(wire: DashboardWire): EventSheets {
     },
     venues: readVenues(wire.headcount.venues),
   };
+}
+
+/** The wire also carries `required`, `options` and each stored `value`, which no screen reads. */
+export type AnswersWire = AnswersSheet;
+
+export function readAnswers({ locale, questions }: AnswersWire): AnswersSheet {
+  return {
+    locale,
+    questions: questions.map(({ id, type, prompt, answered, tally, responses }) => ({
+      id,
+      type,
+      prompt,
+      answered,
+      tally: tally?.map(({ option, attending, total }) => ({ option, attending, total })) ?? null,
+      responses: responses.map(({ guestId, name, household, status, display }) => ({
+        guestId,
+        name,
+        household,
+        status,
+        display,
+      })),
+    })),
+  };
+}
+
+export function readGuestBook(wire: GuestBookEntry[]): GuestBookEntry[] {
+  return wire.map(({ from, message, at }) => ({ from, message, at }));
 }

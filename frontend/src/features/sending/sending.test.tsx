@@ -11,7 +11,9 @@ import type { EventDetail, InvitationStatus } from '@/features/events';
 import { createI18n } from '@/lib/i18n';
 
 import { InvitationPage } from './components/invitation-page';
+import { useSend } from './components/use-send';
 import { loadInvitationPage, type InvitationPageData } from './load';
+import { readDelivery } from './read';
 import type { DeliveryWire, SendResultWire } from './types';
 
 const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
@@ -551,5 +553,75 @@ describe('InvitationPage: sending', () => {
     renderPage();
     expect(await screen.findByText('This event has no invitation yet.')).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+});
+
+describe('sending to more households than one send takes (PD-151)', () => {
+  const ids = Array.from({ length: 1001 }, (_, index) => `g${index}`);
+
+  /** The guest list's use of the hook, without drawing a thousand households. */
+  function ManyChosen() {
+    const send = useSend({ slug: SLUG, report: readDelivery(report({ invited: 5 })) });
+    return (
+      <>
+        <button type="button" onClick={() => send.request({ guestIds: ids, households: 1001 })}>
+          {send.progress ? `Part ${send.progress.current} of ${send.progress.total}` : 'Send'}
+        </button>
+        {send.partly ? <p>{`Stopped after ${send.partly.sent} of ${send.partly.total}`}</p> : null}
+        {send.outcome ? <p>{`Queued ${send.outcome.queued}`}</p> : null}
+      </>
+    );
+  }
+
+  let loads = 0;
+  function renderMany() {
+    loads = 0;
+    const load = () => {
+      loads += 1;
+      return null;
+    };
+    const Stub = createRoutesStub([{ path: '/', Component: ManyChosen, loader: load }]);
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub />
+      </I18nextProvider>,
+    );
+    return userEvent.setup();
+  }
+
+  it('sends a thousand at a time, in order, saying which part is going and adding up what each did', async () => {
+    let release = () => undefined as void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sent: unknown[] = [];
+    server.use(
+      http.post(`${API}/invitations/${SLUG}/send`, async ({ request }) => {
+        sent.push(await request.json());
+        if (sent.length === 2) await held;
+        return HttpResponse.json(sendResult({ queued: 1 }));
+      }),
+    );
+    const user = renderMany();
+    await user.click(await screen.findByRole('button', { name: 'Send' }));
+    expect(await screen.findByRole('button', { name: 'Part 2 of 2' })).toBeInTheDocument();
+    release();
+    expect(await screen.findByText('Queued 2')).toBeInTheDocument();
+    expect(sent.map((body) => (body as { guestIds: string[] }).guestIds.length)).toEqual([1000, 1]);
+    expect((sent[1] as { guestIds: string[] }).guestIds).toEqual(['g1000']);
+  });
+
+  it('says how far it got when a part is refused, keeping what the first did', async () => {
+    let sends = 0;
+    answer(`/invitations/${SLUG}/send`, () => {
+      sends += 1;
+      return sends === 2 ? refusal(503)() : HttpResponse.json(sendResult({ queued: 1000 }));
+    });
+    const user = renderMany();
+    await user.click(await screen.findByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('Stopped after 1000 of 1001')).toBeInTheDocument();
+    expect(screen.getByText('Queued 1000')).toBeInTheDocument();
+    // What went is in the delivery report now, so the page reads it again.
+    await waitFor(() => expect(loads).toBe(2));
   });
 });

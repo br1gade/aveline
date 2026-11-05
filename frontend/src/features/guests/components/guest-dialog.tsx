@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
 import type { EventDetail } from '@/features/events';
-import { AppForm, ProblemAlert, SubmitButton } from '@/ui/app-form';
+import { AppForm, ProblemAlert, SubmitButton, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import {
   Dialog,
@@ -119,6 +119,7 @@ export function GuestDialog({
     resolver: zodResolver(guestFormSchema),
     defaultValues: defaults,
   });
+  useLeaveGuard(form);
   const { submit, refusal } = useGuestSubmit({ eventId: event.id, target, form, options, host });
   const refused = useRefusedText(target.kind, refusal?.isOnFields ?? false);
   const { isSubmitting } = form.formState;

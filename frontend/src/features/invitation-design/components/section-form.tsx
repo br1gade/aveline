@@ -30,6 +30,7 @@ import { refusedProperties } from '../server-errors';
 import type { Design, DesignBlock, LibraryItem } from '../types';
 import { useFieldText } from '../use-field-text';
 import { DesignRefusal, type DesignRefusalState } from './design-parts';
+import { DraftPreview } from './draft-preview';
 import { LanguageFieldset } from './language-fieldset';
 import { SectionMedia } from './section-media';
 import { SwatchColours } from './swatch-colours';
@@ -136,12 +137,26 @@ function SectionLayout({
   ) : null;
 }
 
+function SectionFooter({ isSubmitting, eventId }: { isSubmitting: boolean; eventId: string }) {
+  const { t } = useTranslation('design');
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <SubmitButton isSubmitting={isSubmitting} className="w-auto">
+        {isSubmitting ? t('section.saving') : t('section.save')}
+      </SubmitButton>
+      <Button asChild variant="ghost">
+        <Link to={designPath(eventId)}>{t('section.cancel')}</Link>
+      </Button>
+    </div>
+  );
+}
+
 /**
  * A section's layout, words in each of the event's languages, colours and media, saved together
- * (design PD-57). Only the languages changed are sent, each over its stored copy.
+ * (design PD-57). Only the languages changed are sent, each over its stored copy. Beside it, the
+ * page as it would be once saved (PD-153).
  */
 export function SectionForm(props: SectionFormProps) {
-  const { t } = useTranslation('design');
   const { design, block, editing, layouts, library } = props;
   const schema = useMemo(() => sectionFormSchema(editing), [editing]);
   const [initial] = useState(() => sectionFormValues(block, editing, design.event.locales));
@@ -155,45 +170,43 @@ export function SectionForm(props: SectionFormProps) {
   const withoutCopy = languagesWithoutCopy(block, design.event.locales);
   const { isSubmitting } = form.formState;
   return (
-    <AppForm onSubmit={form.handleSubmit(save)} className="gap-5">
-      {refusal ? <DesignRefusal refusal={refusal} /> : null}
-      <SectionLayout form={form} layouts={layouts} type={block.type} />
-      {editing.fields.length > 0
-        ? design.event.locales.map((locale) => (
-            <LanguageFieldset
-              key={locale}
-              form={form}
-              locale={locale}
-              isDefault={locale === design.event.defaultLocale}
-              editing={editing}
-              hasCopy={!withoutCopy.includes(locale)}
-              type={block.type}
-            />
-          ))
-        : null}
-      {editing.hasSwatches ? <SwatchColours form={form} /> : null}
-      {editing.media === 'none' ? null : (
-        <SectionMedia
-          form={form}
-          use={editing.media}
-          library={library}
-          shown={block.media}
-          eventId={design.event.id}
-          languages={design.event.locales}
-          type={block.type}
-        />
-      )}
-      {form.formState.errors.assetIds ? (
-        <ErrorLine id="section-media-error">{fieldText(form.formState.errors.assetIds)}</ErrorLine>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-3">
-        <SubmitButton isSubmitting={isSubmitting} className="w-auto">
-          {isSubmitting ? t('section.saving') : t('section.save')}
-        </SubmitButton>
-        <Button asChild variant="ghost">
-          <Link to={designPath(design.event.id)}>{t('section.cancel')}</Link>
-        </Button>
-      </div>
-    </AppForm>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,40rem)_25rem]">
+      <AppForm onSubmit={form.handleSubmit(save)} className="gap-5">
+        {refusal ? <DesignRefusal refusal={refusal} /> : null}
+        <SectionLayout form={form} layouts={layouts} type={block.type} />
+        {editing.fields.length > 0
+          ? design.event.locales.map((locale) => (
+              <LanguageFieldset
+                key={locale}
+                form={form}
+                locale={locale}
+                isDefault={locale === design.event.defaultLocale}
+                editing={editing}
+                hasCopy={!withoutCopy.includes(locale)}
+                type={block.type}
+              />
+            ))
+          : null}
+        {editing.hasSwatches ? <SwatchColours form={form} /> : null}
+        {editing.media === 'none' ? null : (
+          <SectionMedia
+            form={form}
+            use={editing.media}
+            library={library}
+            shown={block.media}
+            eventId={design.event.id}
+            languages={design.event.locales}
+            type={block.type}
+          />
+        )}
+        {form.formState.errors.assetIds ? (
+          <ErrorLine id="section-media-error">
+            {fieldText(form.formState.errors.assetIds)}
+          </ErrorLine>
+        ) : null}
+        <SectionFooter isSubmitting={isSubmitting} eventId={design.event.id} />
+      </AppForm>
+      <DraftPreview form={form} {...props} />
+    </div>
   );
 }

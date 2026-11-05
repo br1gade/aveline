@@ -4,7 +4,7 @@ import { isAnswerable, type AskedQuestion, type Asking, type HostField } from '.
 import type { AnswerFormValues, FormAnswer } from './form-model';
 import type { AnsweringGuest, Reply } from './types';
 
-type HostRsvp = components['schemas']['HostRsvpDto'];
+export type HostRsvp = components['schemas']['HostRsvpDto'];
 type CustomAnswer = components['schemas']['CustomAnswerDto'];
 
 function isSame(a: FormAnswer, b: FormAnswer): boolean {

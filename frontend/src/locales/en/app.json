@@ -21,6 +21,7 @@
     "editDesignQuestion": "Edit a question · Aveline",
     "designMedia": "Photos and music · Aveline",
     "designPreview": "Preview · Aveline",
+    "designDraftPreview": "Preview of unsaved changes · Aveline",
     "photos": "Guests’ photos · Aveline",
     "agreements": "Agreements · Aveline",
     "seating": "Seating · Aveline",
@@ -36,6 +37,7 @@
     "venueDirectory": "The venue directory · Aveline",
     "archivedEvents": "Archived events · Aveline",
     "recordAnswer": "Record an answer · Aveline",
+    "recordHousehold": "Record the household’s answers · Aveline",
     "runningOrder": "Running order · Aveline",
     "suppressions": "Who must not be contacted · Aveline",
     "promoCodes": "Promo codes · Aveline",
@@ -47,6 +49,8 @@
     "billing": "Plan and invoices · Aveline",
     "billingReturn": "Back from the bank · Aveline",
     "sheets": "What guests’ answers add up to · Aveline",
+    "answersSheet": "Answers to your questions · Aveline",
+    "guestBook": "Guest book · Aveline",
     "designAdoption": "Preview a template · Aveline"
   },
   "shell": {

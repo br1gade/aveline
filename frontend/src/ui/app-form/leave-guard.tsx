@@ -130,3 +130,18 @@ export function useLeaveGuard<Values extends FieldValues>({
     };
   }, [registry, formId, subscribe]);
 }
+
+/**
+ * The same for a form whose state isn't a React Hook Form's: a dialog's choice held in component
+ * state. The caller says whether it differs from where it started, and not while it is being saved.
+ * Closing the form clears it. Outside `LeaveGuard` it does nothing.
+ */
+export function useLeaveGuardWhen(hasUnsavedChanges: boolean): void {
+  const registry = useContext(LeaveGuardContext);
+  const formId = useId();
+  useEffect(() => {
+    if (!registry) return undefined;
+    registry.mark(formId, hasUnsavedChanges);
+    return () => registry.mark(formId, false);
+  }, [registry, formId, hasUnsavedChanges]);
+}

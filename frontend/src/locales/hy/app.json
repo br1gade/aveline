@@ -21,6 +21,7 @@
     "editDesignQuestion": "Հարցի խմբագրում · Aveline",
     "designMedia": "Լուսանկարներ և երաժշտություն · Aveline",
     "designPreview": "Նախադիտում · Aveline",
+    "designDraftPreview": "Չպահված փոփոխությունների նախադիտում · Aveline",
     "photos": "Հյուրերի լուսանկարներ · Aveline",
     "agreements": "Համաձայնություններ · Aveline",
     "seating": "Նստեցում · Aveline",
@@ -36,6 +37,7 @@
     "venueDirectory": "Վայրերի տեղեկատու · Aveline",
     "archivedEvents": "Արխիվացված միջոցառումներ · Aveline",
     "recordAnswer": "Պատասխանի գրանցում · Aveline",
+    "recordHousehold": "Գրանցել ընտանիքի պատասխանները · Aveline",
     "runningOrder": "Օրվա ծրագիր · Aveline",
     "suppressions": "Ում չի կարելի գրել · Aveline",
     "promoCodes": "Պրոմոկոդեր · Aveline",
@@ -47,6 +49,8 @@
     "billing": "Փաթեթ և հաշիվներ · Aveline",
     "billingReturn": "Վերադարձ բանկից · Aveline",
     "sheets": "Հյուրերի պատասխանների ամփոփում · Aveline",
+    "answersSheet": "Պատասխաններ ձեր հարցերին · Aveline",
+    "guestBook": "Հյուրերի գիրք · Aveline",
     "designAdoption": "Ձևանմուշի նախադիտում · Aveline"
   },
   "shell": {

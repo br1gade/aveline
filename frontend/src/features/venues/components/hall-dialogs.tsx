@@ -7,10 +7,11 @@ import type { Loaded } from '@/api/loaded';
 import { browserSession } from '@/api/session';
 import {
   AppForm,
+  type PageActions,
   SelectField,
   SubmitButton,
   TextInputField,
-  type PageActions,
+  useLeaveGuard,
 } from '@/ui/app-form';
 import {
   AlertDialog,
@@ -195,6 +196,7 @@ export function HallDialog({ hall, operators, ...context }: HallDialogProps) {
   const [initial] = useState(() => valuesOf(hall));
   const schema = useMemo(() => hallFormSchema(initial), [initial]);
   const form = useForm<HallFormValues>({ resolver: zodResolver(schema), defaultValues: initial });
+  useLeaveGuard(form);
   const { isBusy, refusal, save, onCloseAutoFocus, onOpenChange } = useHallSave(
     hall,
     initial,

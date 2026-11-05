@@ -434,5 +434,19 @@
       "noAnswer": "Nous n’avons pas reçu de réponse. Vérifiez votre connexion et réessayez.",
       "other": "Cela n’a pas pu être fait. Votre invitation n’a pas changé."
     }
+  },
+  "draftPreview": {
+    "title": "Aperçu",
+    "show": "Afficher l’aperçu",
+    "hide": "Masquer l’aperçu",
+    "language": "Langue de l’aperçu",
+    "unsaved": "Vos modifications, pas encore enregistrées.",
+    "saved": "Ce qui est enregistré.",
+    "hidden": "Les invités ne voient pas cette section pour l’instant ; elle est affichée ici pour que vous la voyiez.",
+    "loading": "Chargement de l’aperçu…",
+    "failed": "L’aperçu n’a pas pu être chargé. Vous pouvez toujours modifier et enregistrer.",
+    "frameTitle": "L’invitation avec vos modifications, telle qu’un téléphone l’affiche",
+    "waiting": "Préparation de l’aperçu…",
+    "notFramed": "Cette page montre les modifications non enregistrées d’une section, dans la page de cette section."
   }
 }

@@ -147,7 +147,7 @@ function SectionPage({ data, design }: Omit<SectionProps, 'page'>) {
   const { page, status, statusRef } = usePageStatus(data);
   const name = useSectionName()(data.type);
   return (
-    <section className="flex max-w-[40rem] flex-col gap-5">
+    <section className="flex max-w-[40rem] flex-col gap-5 lg:max-w-[67rem]">
       <DesignHeader
         eventId={design.event.id}
         back="design"

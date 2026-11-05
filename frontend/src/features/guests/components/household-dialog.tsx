@@ -4,7 +4,7 @@ import { useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
-import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import {
   Dialog,
@@ -80,6 +80,7 @@ export function HouseholdDialog(props: HouseholdDialogProps) {
     resolver: zodResolver(schema),
     defaultValues: householdFormValues(household),
   });
+  useLeaveGuard(form);
   const { submit, refusal } = useHouseholdSubmit(props, form);
   const refused = useRefusedText('household', refusal?.isOnFields ?? false);
   const { errors, isSubmitting } = form.formState;

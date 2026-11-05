@@ -85,7 +85,8 @@
     "undo": "Undo",
     "tryAgain": "Try again",
     "sendAgain": "Send their invitation again",
-    "dismiss": "OK"
+    "dismiss": "OK",
+    "addedNotHere": "Added to the guest list, but not checked in yet."
   },
   "refused": {
     "mustAgree": "Not let in yet: they still have to agree to the hosts’ statement, from their invitation’s link on their own phone. Nobody can agree for them here.",
@@ -101,5 +102,18 @@
     "noAnswer": "No answer came. It may have counted: press again, which is safe.",
     "other": "It was refused:",
     "reference": "Reference: {{requestId}}"
+  },
+  "walkIn": {
+    "open": "Someone not on the list",
+    "help": "They are added to the guest list in a household of their own, with one seat, and checked in. Anyone with them is added the same way.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "submit": "Add and check in",
+    "adding": "Adding…",
+    "errors": {
+      "required": "Type their first name.",
+      "tooLong": "Keep it to 80 characters."
+    },
+    "mayBeAdded": "No answer came, so they may have been added all the same. Search for them above before adding them again."
   }
 }

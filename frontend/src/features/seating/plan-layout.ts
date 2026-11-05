@@ -127,8 +127,15 @@ export interface ChairChoice {
   takenBy: string | null;
 }
 
-/** Each numbered chair at a table. Only the seat's own `position` says who has one. */
-export function chairChoices(table: SeatingTable, guestId: string): ChairChoice[] {
+/**
+ * Each numbered chair at a table. Only the seat's own `position` says who has one; `chosenHere` are
+ * those picked in the same dialog for someone else, by number, with whom.
+ */
+export function chairChoices(
+  table: SeatingTable,
+  guestId: string,
+  chosenHere: ReadonlyMap<number, string> = new Map(),
+): ChairChoice[] {
   const sitting = new Map(
     table.guests
       .filter((guest) => guest.guestId !== guestId && guest.position !== null)
@@ -136,7 +143,7 @@ export function chairChoices(table: SeatingTable, guestId: string): ChairChoice[
   );
   return Array.from({ length: table.capacity }, (_, index) => ({
     position: index + 1,
-    takenBy: sitting.get(index + 1) ?? null,
+    takenBy: sitting.get(index + 1) ?? chosenHere.get(index + 1) ?? null,
   }));
 }
 
@@ -146,4 +153,45 @@ export function isOpenChair(table: SeatingTable, guestId: string, chair: string)
   return chairChoices(table, guestId).some(
     ({ position, takenBy }) => String(position) === chair && takenBy === null,
   );
+}
+
+/** A dialog's chair choices, by guest id; an empty string is no particular chair. */
+export type ChairPicks = Readonly<Record<string, string>>;
+
+interface Person {
+  id: string;
+  name: string;
+}
+
+/** The chairs picked in a dialog for everyone but this guest, so they aren't offered twice. */
+export function chosenForOthers(
+  people: readonly Person[],
+  picks: ChairPicks,
+  guestId: string,
+): Map<number, string> {
+  return new Map(
+    people
+      .filter(({ id }) => id !== guestId && (picks[id] ?? '') !== '')
+      .map(({ id, name }) => [Number(picks[id]), name]),
+  );
+}
+
+/**
+ * Each person's chair as it can still be sent, in their order (design PD-149): one taken or gone
+ * since it was picked is dropped, and so is a second pick of a chair the dialog already gives.
+ */
+export function chairsToSend(
+  table: SeatingTable,
+  people: readonly Person[],
+  picks: ChairPicks,
+): Map<string, number> {
+  const sending = new Map<string, number>();
+  const given = new Set<string>();
+  for (const { id } of people) {
+    const chair = picks[id] ?? '';
+    if (chair === '' || given.has(chair) || !isOpenChair(table, id, chair)) continue;
+    given.add(chair);
+    sending.set(id, Number(chair));
+  }
+  return sending;
 }

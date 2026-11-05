@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useRevalidator } from 'react-router';
 
 import { browserSession } from '@/api/session';
+import { oneByOne } from '@/lib/queue';
 
 import { updateTable } from '../api';
 import type { TableUpdate } from '../payload';
 import { freeCells, placedPosition, type Position } from '../plan-layout';
 import { refusalOf } from '../refusals';
-import { seatOneByOne } from '../seat-household';
 import type { SeatingTable } from '../types';
 import type { SeatingHost } from './use-seating-host';
 
@@ -61,7 +61,7 @@ function placeOneByOne(
   cells: readonly Position[],
 ) {
   const byId = new Map(waiting.map((table, index) => [table.id, cells[index]]));
-  return seatOneByOne(
+  return oneByOne(
     waiting.map((table) => table.id),
     async (tableId) => {
       const cell = byId.get(tableId);
@@ -170,7 +170,7 @@ export function usePlanCanvas(tables: readonly SeatingTable[], host: SeatingHost
     );
     await revalidate();
     if (outcome.error !== null) refused(outcome.error);
-    setSaid(t('plan.placed', { count: outcome.seated.length }));
+    setSaid(t('plan.placed', { count: outcome.done.length }));
     setIsPlacing(false);
   };
 

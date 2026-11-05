@@ -89,3 +89,7 @@ export function bookingPath(eventId: string, bookingId: string): string {
 export function recordAnswerPath(eventId: string, guestId: string): string {
   return generatePath(APP_PATHS.recordAnswer, { eventId, guestId });
 }
+
+export function recordHouseholdPath(eventId: string, householdId: string): string {
+  return generatePath(APP_PATHS.recordHousehold, { eventId, householdId });
+}

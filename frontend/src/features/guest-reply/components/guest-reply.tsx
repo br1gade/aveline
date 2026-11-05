@@ -130,7 +130,9 @@ function useReload(api: ApiClient, link: ReplyLink, onFresh: (fresh: ReplyRecord
       setReloaded((before) => ({ ...before, isFailed: true }));
     }
   };
-  return { reloaded, reload };
+  /** Once a reply is sent, what was typed before the reload is spent: Change starts from it. */
+  const forgetDraft = () => setReloaded((before) => ({ ...before, draft: null }));
+  return { reloaded, reload, forgetDraft };
 }
 
 /** Who in the household has agreed to each statement, for the saved reply. */
@@ -219,7 +221,7 @@ export function GuestReply(props: GuestReplyProps) {
   const zone = { timeZone: invitation.event.timezone, locale };
   const venues = venueChoices(record, invitation);
   const agreed = agreedNames(record, signatures);
-  const { reloaded, reload } = useReload(api, link, state.update);
+  const { reloaded, reload, forgetDraft } = useReload(api, link, state.update);
 
   useFocusOnSent(view);
 
@@ -227,6 +229,7 @@ export function GuestReply(props: GuestReplyProps) {
     state.update(fresh);
     state.setNames(coming);
     state.setView('sent');
+    forgetDraft();
     onSentChange(true);
   });
   function change() {

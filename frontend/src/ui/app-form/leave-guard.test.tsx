@@ -7,9 +7,10 @@ import { createRoutesStub, Link, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createI18n } from '@/lib/i18n';
+import { Dialog, DialogContent, DialogTitle } from '@/ui/kit/dialog';
 
 import { guardedRoutes, isLeavingAsked } from './guarded-routes';
-import { LEAVE_UNASKED, useLeaveGuard } from './leave-guard';
+import { LEAVE_UNASKED, useLeaveGuard, useLeaveGuardWhen } from './leave-guard';
 
 type AfterSave = 'reset' | 'navigate' | 'navigate at once' | 'refused';
 
@@ -200,5 +201,108 @@ describe('leaving a page with unsaved changes', () => {
     await user.type(await screen.findByLabelText('Name'), 'Ani');
     await user.click(screen.getByRole('link', { name: 'Elsewhere' }));
     expect(await elsewhere()).toBeInTheDocument();
+  });
+});
+
+/** A dialog's form, as the app's are, with the phone's Back pressed while it is open. */
+function DialogPage({ isFormDialog }: { isFormDialog: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  return (
+    <main>
+      <h1>Dialog page</h1>
+      <button type="button" onClick={() => setIsOpen(true)}>
+        Open
+      </button>
+      {isOpen ? (
+        <Dialog open onOpenChange={setIsOpen}>
+          <DialogContent aria-describedby={undefined}>
+            <DialogTitle>Add someone</DialogTitle>
+            {isFormDialog ? <NameForm label="Name" /> : <ChoiceForm />}
+            <button type="button" onClick={() => void navigate(-1)}>
+              Phone back
+            </button>
+            <button type="button" onClick={() => setIsOpen(false)}>
+              Close
+            </button>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </main>
+  );
+}
+
+/** A choice held in the component's state, as the seating and team dialogs hold theirs. */
+function ChoiceForm() {
+  const [isChosen, setIsChosen] = useState(false);
+  useLeaveGuardWhen(isChosen);
+  return (
+    <label>
+      <input type="checkbox" checked={isChosen} onChange={() => setIsChosen(!isChosen)} />
+      Chosen
+    </label>
+  );
+}
+
+function renderDialogPage(isFormDialog = true) {
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      { path: '/before', Component: () => <h1>Before</h1> },
+      { path: '/dialog', Component: () => <DialogPage isFormDialog={isFormDialog} /> },
+    ]),
+  );
+  render(
+    <I18nextProvider i18n={createI18n('en')}>
+      <Stub initialEntries={['/before', '/dialog']} initialIndex={1} />
+    </I18nextProvider>,
+  );
+  return userEvent.setup();
+}
+
+describe('leaving with a dialog’s form open (design PD-146)', () => {
+  it('asks before Back leaves typed work in a dialog, and Cancel keeps the dialog and its work', async () => {
+    const user = renderDialogPage();
+    await user.click(await screen.findByRole('button', { name: 'Open' }));
+    await user.type(screen.getByLabelText('Name'), 'Ani');
+    await user.click(screen.getByRole('button', { name: 'Phone back' }));
+    const ask = await screen.findByRole('alertdialog', { name: 'Leave without saving?' });
+    await user.click(within(ask).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('dialog', { name: 'Add someone' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Ani');
+  });
+
+  it('goes back once the dialog is closed without saving', async () => {
+    const user = renderDialogPage();
+    await user.click(await screen.findByRole('button', { name: 'Open' }));
+    await user.type(screen.getByLabelText('Name'), 'Ani');
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    await user.click(screen.getByRole('button', { name: 'Phone back' }));
+    expect(await screen.findByRole('heading', { name: 'Before' })).toBeInTheDocument();
+  });
+
+  it('asks about a choice held in state while it is made, and not once it is undone', async () => {
+    const user = renderDialogPage(false);
+    await user.click(await screen.findByRole('button', { name: 'Open' }));
+    expect(isLeavingAsked()).toBe(false);
+    await user.click(screen.getByLabelText('Chosen'));
+    expect(isLeavingAsked()).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Phone back' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cancel' }),
+    );
+    await user.click(screen.getByLabelText('Chosen'));
+    expect(isLeavingAsked()).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Phone back' }));
+    expect(await screen.findByRole('heading', { name: 'Before' })).toBeInTheDocument();
+  });
+
+  it('forgets a choice once its dialog is gone', async () => {
+    const user = renderDialogPage(false);
+    await user.click(await screen.findByRole('button', { name: 'Open' }));
+    await user.click(screen.getByLabelText('Chosen'));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(isLeavingAsked()).toBe(false);
   });
 });

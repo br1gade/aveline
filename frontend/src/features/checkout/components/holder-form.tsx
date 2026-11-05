@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { PublicEvent } from '@/features/public-event';
 import { useIsHydrated } from '@/ui';
 import { Button } from '@/ui/kit/button';
+import { useLeaveGuard } from '@/ui/app-form';
 
 import { attendeeBody } from '../payload';
 import { blankPerson } from '../roster';
@@ -47,6 +48,8 @@ export function HolderForm({
     resolver: zodResolver(schema),
     defaultValues: { people: [blankPerson(ticketTypeId)] },
   });
+  // Registering a holder from the orders page asks before it is left half-typed (design PD-146).
+  useLeaveGuard(form);
   const setting = useMemo(() => ({ event, rules, isBusy }), [event, rules, isBusy]);
   const send = (values: HolderValues) => {
     const [person] = values.people;

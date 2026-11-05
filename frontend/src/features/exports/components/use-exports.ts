@@ -65,7 +65,8 @@ function useCreate({ eventId, list, place, say, text }: Context) {
   const { t } = useTranslation('exports');
   const retry = useRef(createRetryKey());
   const [creatingAt, setCreatingAt] = useState<string | null>(null);
-  const create = async (intent: Intent, at: string) => {
+  /** Whether the export was made, so the form can count its choices as done. */
+  const create = async (intent: Intent, at: string): Promise<boolean> => {
     const intentName = intentKey(intent);
     const isKeyReused = retry.current.isPending(intentName);
     place(null);
@@ -77,9 +78,11 @@ function useCreate({ eventId, list, place, say, text }: Context) {
       list.apply([made]);
       list.follow();
       say(t('status.started', { what: text.what(made) }));
+      return true;
     } catch (error) {
       retry.current.settle(error);
       place({ at, intent, refusal: await refusedCreate(error, intent, isKeyReused, list) });
+      return false;
     } finally {
       setCreatingAt(null);
     }

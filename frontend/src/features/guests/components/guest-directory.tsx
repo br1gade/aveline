@@ -276,8 +276,8 @@ function ListSendBar({
   return (
     <SendBar
       count={sender.count}
-      isTooMany={sender.isTooMany}
       isSending={sender.send.isSending}
+      progress={sender.send.progress}
       onChooseShown={() => sender.chooseAll(visible.map(({ household }) => household.id))}
       onClear={sender.clear}
       onSend={sender.sendChosen}

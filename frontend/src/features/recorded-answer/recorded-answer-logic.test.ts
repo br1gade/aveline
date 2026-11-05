@@ -4,118 +4,15 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ApiError, networkError } from '@/api/errors';
-import type { Design } from '@/features/invitation-design';
 
-import { askingOf, type Asking } from './asking';
 import { answerFormValues, type AnswerFormValues } from './form-model';
 import { answerPayload } from './payload';
 import { readAnsweringGuest } from './read';
 import { refusalOf, SENTENCES } from './refusals';
 import { answerFormSchema } from './schemas';
-import type { AnsweringGuest, GuestAnswerWire } from './types';
-
-const OFF = { isEnabled: false, options: null };
-
-const DESIGN: Pick<Design, 'questions' | 'rsvpFields'> = {
-  questions: [
-    {
-      id: 'q-meal',
-      type: 'SINGLE_CHOICE',
-      required: true,
-      prompt: { hy: 'Ճաշ', en: 'Meal' },
-      options: { hy: ['Միս', 'Ձուկ'], en: ['Meat', 'Fish'] },
-      answerCount: 3,
-      statementVersionId: null,
-    },
-    {
-      id: 'q-car',
-      type: 'BOOLEAN',
-      required: false,
-      prompt: { en: 'Do you need parking?' },
-      options: {},
-      answerCount: 0,
-      statementVersionId: null,
-    },
-    {
-      id: 'q-songs',
-      type: 'MULTI_CHOICE',
-      required: false,
-      prompt: { en: 'Dances' },
-      options: { en: ['Waltz', 'Kochari', 'Tango'] },
-      answerCount: 0,
-      statementVersionId: null,
-    },
-    {
-      id: 'q-note',
-      type: 'TEXT',
-      required: false,
-      prompt: { en: 'Anything else?' },
-      options: {},
-      answerCount: 0,
-      statementVersionId: null,
-    },
-    {
-      id: 'q-photos',
-      type: 'SIGNATURE',
-      required: true,
-      prompt: { en: 'I agree to be photographed' },
-      options: {},
-      answerCount: 0,
-      statementVersionId: 'sv1',
-    },
-  ],
-  rsvpFields: {
-    dietary: {
-      isEnabled: true,
-      options: [
-        { key: 'vegetarian', label: { en: 'Vegetarian', hy: 'Բուսակեր' } },
-        { key: 'halal', label: { en: 'Halal' } },
-      ],
-    },
-    drinkPreference: { isEnabled: true, options: null },
-    songRequest: OFF,
-    message: { isEnabled: true, options: null },
-    attribution: { isEnabled: true, options: null },
-  },
-};
-
-const ASKING: Asking = askingOf(DESIGN, 'en');
-
-function wire(overrides: Partial<GuestAnswerWire> = {}): GuestAnswerWire {
-  return {
-    id: 'g1',
-    name: 'Armen Petrosyan',
-    token: 'secret-token',
-    email: 'armen@example.am',
-    phone: '+37491000000',
-    isAnonymized: false,
-    attendance: { mode: 'EVENT_WIDE', revision: 1, status: 'ATTENDING', venues: [] },
-    rsvpStatus: 'ATTENDING',
-    rsvp: {
-      status: 'ATTENDING',
-      dietary: ['vegetarian'],
-      dietaryNotes: null,
-      drinkPreference: 'Wine',
-      songRequest: null,
-      message: null,
-    },
-    answers: [
-      { questionId: 'q-meal', value: 1 },
-      { questionId: 'q-photos', value: { acknowledgementId: 'a1' } },
-    ],
-    ...overrides,
-  };
-}
-
-const PER_VENUE = {
-  mode: 'PER_VENUE' as const,
-  revision: 3,
-  status: 'PENDING',
-  venues: [
-    { venueId: 'church', venue: 'Saint Gayane', status: 'ATTENDING' },
-    { venueId: 'hall', venue: 'The hall', status: 'PENDING' },
-  ],
-};
+import { askingOf } from './asking';
+import { ASKING, DESIGN, PER_VENUE, wire } from './test-data';
+import type { AnsweringGuest } from './types';
 
 describe('reading the guest', () => {
   it('keeps the answer so far and never the guest’s token or contacts', () => {

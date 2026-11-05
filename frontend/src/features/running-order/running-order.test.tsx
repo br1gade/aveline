@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
 import { RunningOrderPage } from './components/running-order-page';
 import { loadRunningOrder, type RunningOrderData } from './load';
@@ -113,13 +114,15 @@ function Page() {
 }
 
 function renderPage(language: 'en' | 'hy' = 'en') {
-  const Stub = createRoutesStub([
-    {
-      path: '/app/events/:eventId/running-order',
-      loader: ({ params }) => loadRunningOrder(session().api, params.eventId ?? ''),
-      Component: Page,
-    },
-  ]);
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      {
+        path: '/app/events/:eventId/running-order',
+        loader: ({ params }) => loadRunningOrder(session().api, params.eventId ?? ''),
+        Component: Page,
+      },
+    ]),
+  );
   render(
     <I18nextProvider i18n={createI18n(language)}>
       <Stub initialEntries={['/app/events/e1/running-order']} />
@@ -184,6 +187,7 @@ describe('adding an entry', () => {
     await user.type(within(dialog).getByLabelText('English'), 'Vows');
     await user.type(within(dialog).getByLabelText('Time'), '15:00');
     await user.selectOptions(within(dialog).getByLabelText('Where'), 'church');
+    expect(isLeavingAsked()).toBe(true);
     await user.click(await submit(dialog, 'Add'));
     const status = await screen.findByText('“Vows” is in the running order.');
     await waitFor(() => expect(status).toHaveFocus());

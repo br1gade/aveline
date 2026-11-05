@@ -211,6 +211,19 @@ describe('InvitationPage', () => {
     expect(screen.queryByText('Your table')).toBeNull();
   });
 
+  it('names a preview’s header and main, to tell them from the app’s, and a guest’s page’s neither', () => {
+    const { unmount } = renderPage({
+      invitation: invitationFixture({ guest: null, isAcceptingResponses: false, isPreview: true }),
+    });
+    expect(screen.getByRole('main', { name: 'The invitation, in preview' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('banner', { name: 'The invitation’s cover, in preview' }),
+    ).toBeInTheDocument();
+    unmount();
+    renderPage({ invitation: invitationFixture() });
+    expect(screen.getByRole('main')).not.toHaveAttribute('aria-label');
+  });
+
   it('says a preview collects no replies, in place of the closed notice', () => {
     const renderReply = vi.fn(() => <p>form</p>);
     renderPage({

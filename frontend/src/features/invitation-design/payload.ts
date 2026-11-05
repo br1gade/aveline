@@ -55,7 +55,7 @@ function trimmedFields(values: Readonly<Record<string, string>>): Record<string,
 }
 
 /** One language's copy, written over what is stored so fields the form does not show survive. */
-function languageCopy(
+export function languageCopy(
   stored: Readonly<JsonObject> | undefined,
   values: LanguageCopyValues,
   editing: BlockEditing,
@@ -89,7 +89,7 @@ function contentEdit(
 }
 
 /** `settings` is replaced whole, so the stored settings are sent with the new swatches. */
-function settingsEdit(block: DesignBlock, colours: readonly string[]): JsonObject {
+export function settingsEdit(block: DesignBlock, colours: readonly string[]): JsonObject {
   const rest = Object.fromEntries(
     Object.entries(block.settings).filter(([key]) => key !== 'palette'),
   );

@@ -7,6 +7,7 @@ export { DesignLook } from './components/design-look';
 export { DesignMedia } from './components/design-media';
 export { DesignOverview } from './components/design-overview';
 export { DesignPreview } from './components/design-preview';
+export { DraftPreviewFrame } from './components/draft-preview-frame';
 export { DesignQuestions } from './components/design-questions';
 export { DesignSection } from './components/design-section';
 export { TemplateAdoption } from './components/template-adoption';

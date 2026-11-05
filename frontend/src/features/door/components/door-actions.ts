@@ -1,14 +1,17 @@
 import type { Dispatch } from 'react';
 
 import { browserSession } from '@/api/session';
-import type { Guest } from '@/features/guests';
+import { addGuest, type Guest } from '@/features/guests';
 
 import { admitTicket, checkIn, undoCheckIn } from '../api';
-import { CODE_RUNNING, type DoorEvent } from '../arrival';
+import { CODE_RUNNING, WALK_IN_RUNNING, type DoorEvent } from '../arrival';
 import { isListStale, refusalOf, type DoorRefusal } from '../refusals';
+import { walkInBody, walkInName, type WalkInValues } from '../walk-in';
 
 export interface DoorActions {
   checkIn: (guest: Guest) => Promise<void>;
+  /** The refusal to add them, for the form to show; `null` once they are on the list. */
+  walkIn: (values: WalkInValues) => Promise<DoorRefusal | null>;
   undo: (guest: Guest) => Promise<void>;
   /** Whether the field should be emptied: the code was answered and is done with. */
   admit: (code: string) => Promise<boolean>;
@@ -35,6 +38,37 @@ function keepsCode(refusal: DoorRefusal): boolean {
 }
 
 /**
+ * Adds a walk-in with the guest list's own call, then checks them in (design PD-148). A refusal to
+ * add them goes back to the form; once added, the outcome is the door's like any arrival's.
+ */
+function walkInAction({ eventId, dispatch, reloadGuests, refreshCounts }: DoorActionsContext) {
+  return async (values: WalkInValues): Promise<DoorRefusal | null> => {
+    dispatch({ type: 'sent', running: WALK_IN_RUNNING });
+    let id: string;
+    try {
+      ({ id } = await addGuest(browserSession().api, eventId, walkInBody(values)));
+    } catch (error) {
+      dispatch({ type: 'walkInRefused' });
+      const refusal = refusalOf(error, 'checkIn');
+      // Adding takes no key (FR-119): one with no answer may have been added, so the list is read.
+      if (refusal.kind === 'noAnswer') reloadGuests();
+      return refusal;
+    }
+    // On the list now, so Undo and a second try find them there.
+    reloadGuests();
+    dispatch({ type: 'sent', running: id });
+    try {
+      dispatch({ type: 'checkedIn', answer: await checkIn(browserSession().api, eventId, id) });
+      refreshCounts();
+    } catch (error) {
+      const refusal = refusalOf(error, 'checkIn');
+      dispatch({ type: 'walkInNotHere', guestId: id, name: walkInName(values), refusal });
+    }
+    return null;
+  };
+}
+
+/**
  * The door's writes. Nothing is shown as done before the server answers, and a refusal that shows
  * the page out of date reads again only what it needs.
  */
@@ -50,7 +84,7 @@ export function doorActions(context: DoorActionsContext): DoorActions {
       dispatch({ type: 'sent', running: guest.id });
       try {
         const answer = await checkIn(browserSession().api, eventId, guest.id);
-        dispatch({ type: 'checkedIn', guest, answer });
+        dispatch({ type: 'checkedIn', answer });
         refreshCounts();
       } catch (error) {
         const refusal = refusalOf(error, 'checkIn');
@@ -58,6 +92,7 @@ export function doorActions(context: DoorActionsContext): DoorActions {
         followUp(refusal);
       }
     },
+    walkIn: walkInAction(context),
     undo: async (guest) => {
       dispatch({ type: 'sent', running: guest.id });
       try {

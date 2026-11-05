@@ -98,14 +98,14 @@ describe('the token stops at the API module', () => {
     expect(JSON.stringify(await listGuests(api, 'e1'))).not.toContain(token);
   });
 
-  it('gives back nothing from adding or editing, whose answers carry the token', async () => {
+  it('gives back only the new guest’s id from adding, and nothing from editing, whose answers carry the token', async () => {
     const token = crypto.randomUUID();
     const withToken = () => HttpResponse.json({ id: 'g9', householdId: 'h9', token });
     server.use(
       http.post(`${API}/events/e1/guests`, withToken),
       http.patch(`${API}/events/e1/guests/g9`, withToken),
     );
-    await expect(addGuest(api, 'e1', { firstName: 'Lilit' })).resolves.toBeUndefined();
+    await expect(addGuest(api, 'e1', { firstName: 'Lilit' })).resolves.toEqual({ id: 'g9' });
     await expect(updateGuest(api, 'e1', 'g9', { lastName: 'Hakobyan' })).resolves.toBeUndefined();
   });
 

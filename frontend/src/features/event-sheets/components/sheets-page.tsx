@@ -1,44 +1,15 @@
-import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import type { Loaded } from '@/api/loaded';
 import { eventPath } from '@/features/events';
-import { LoadedProblem } from '@/features/sending';
 import { useLanguageName } from '@/lib/i18n';
 
 import { venueChoices, type SheetsData } from '../load';
 import type { BarSheet, CateringSheet, Engagement, EventSheets, Playlist } from '../types';
 
-const LINK =
-  'text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline';
+import { answersSheetPath, guestBookPath } from '../paths';
 
-function Sheet({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
-  const id = useId();
-  return (
-    <section aria-labelledby={id} className="border-border flex flex-col gap-3 border p-4">
-      <h2 id={id} className="m-0 text-lg font-medium">
-        {title}
-      </h2>
-      {note ? <p className="text-muted-foreground m-0 text-sm">{note}</p> : null}
-      {children}
-    </section>
-  );
-}
-
-/** Counted rows, the label first, so a long one wraps rather than pushes the number away. */
-function Rows({ rows }: { rows: readonly { label: string; value: string }[] }) {
-  return (
-    <ul className="m-0 flex list-none flex-col gap-1 p-0">
-      {rows.map(({ label, value }, position) => (
-        <li key={position} className="flex justify-between gap-3">
-          <span className="min-w-0 break-words">{label}</span>
-          <span className="flex-none font-medium">{value}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import { LINK, PartOf, Rows, Sheet, SheetHeader } from './parts';
 
 function CateringBody({ sheet }: { sheet: CateringSheet }) {
   const { t } = useTranslation('sheets');
@@ -122,22 +93,6 @@ function EngagementBody({ engagement }: { engagement: Engagement }) {
   );
 }
 
-function PartOf<T>({
-  read,
-  refused,
-  children,
-}: {
-  read: Loaded<T>;
-  refused: string;
-  children: (value: T) => ReactNode;
-}) {
-  return read.kind === 'ready' ? (
-    children(read.value)
-  ) : (
-    <LoadedProblem loaded={read} refusedText={refused} />
-  );
-}
-
 /** The venue choice, in the address; a link each, so it needs no script and survives a reload. */
 function VenueChoice({ data, sheets }: { data: SheetsData; sheets: EventSheets }) {
   const { t } = useTranslation('sheets');
@@ -197,20 +152,28 @@ function Sheets({ data, sheets }: { data: SheetsData; sheets: EventSheets }) {
 
 /**
  * What guests' answers add up to, to hand to the venue, the bar and the musician (docs/API.md §6;
- * design PD-131). Numbers, not charts, as the overview's are (PD-42).
+ * design PD-131). Numbers, not charts, as the overview's are (PD-42). The answers to the host's
+ * own questions and the guest book are pages of their own (PD-144).
  */
 export function SheetsPage({ data }: { data: SheetsData }) {
   const { t } = useTranslation('sheets');
   return (
     <section className="flex flex-col gap-5">
-      <Link to={eventPath(data.event.id)} className={`${LINK} self-start`}>
-        {t('back')}
-      </Link>
-      <div className="flex flex-col gap-1">
-        <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('title')}</h1>
-        <p className="text-muted-foreground m-0 break-words">{data.event.title}</p>
-      </div>
+      <SheetHeader
+        back={t('back')}
+        backTo={eventPath(data.event.id)}
+        title={t('title')}
+        subject={data.event.title}
+      />
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
+      <nav aria-label={t('more')} className="flex flex-wrap gap-x-4">
+        <Link to={answersSheetPath(data.event.id)} className={LINK}>
+          {t('answers.title')}
+        </Link>
+        <Link to={guestBookPath(data.event.id)} className={LINK}>
+          {t('guestBook.title')}
+        </Link>
+      </nav>
       <PartOf read={data.sheets} refused={t('refused')}>
         {(sheets) => <Sheets data={data} sheets={sheets} />}
       </PartOf>

@@ -369,6 +369,113 @@ describe('the door, by name (PD-90)', () => {
   });
 });
 
+describe('a walk-in, added at the door (PD-148)', () => {
+  const NAREK = {
+    ...CHECKED_IN,
+    guestId: 'g9',
+    name: 'Narek Sargsyan',
+    seating: [],
+    wasExpected: false,
+  };
+  const withNarek = [
+    ...HOUSEHOLDS,
+    {
+      id: 'h9',
+      name: 'Narek Sargsyan',
+      seatsAllotted: 1,
+      seatsNamed: 1,
+      guests: [guestWire('g9', 'Narek Sargsyan', { rsvpStatus: 'PENDING', seating: [] })],
+    },
+  ];
+
+  /** Adding answers with the new guest's token, as the API does; the list then has them. */
+  function answerAdd(reply: () => Response = () => HttpResponse.json({ id: 'g9', token: TOKEN })) {
+    const bodies: unknown[] = [];
+    server.use(
+      http.post(`${API}/events/e1/guests`, async ({ request }) => {
+        bodies.push(await request.clone().json());
+        sent.push({ method: 'POST', path: new URL(request.url).pathname });
+        const answer = reply();
+        if (answer.ok) {
+          server.use(http.get(`${API}/events/e1/guests`, () => HttpResponse.json(withNarek)));
+        }
+        return answer;
+      }),
+    );
+    return bodies;
+  }
+
+  function answerNarek(reply: () => Response) {
+    server.use(http.post(`${API}/events/e1/guests/g9/check-in`, record(reply)));
+  }
+
+  async function addWalkIn(user: ReturnType<typeof userEvent.setup>, first: string, last = '') {
+    await user.click(await screen.findByText('Someone not on the list'));
+    await user.type(screen.getByLabelText('First name'), first);
+    if (last) await user.type(screen.getByLabelText('Last name'), last);
+    await user.click(screen.getByRole('button', { name: 'Add and check in' }));
+  }
+
+  it('adds them in a household of their own and checks them in, never showing the token', async () => {
+    const bodies = answerAdd();
+    answerNarek(() => HttpResponse.json(NAREK, { status: 201 }));
+    const { user, container } = renderAt();
+    await addWalkIn(user, 'Narek', 'Sargsyan');
+    expect(await within(outcome()).findByText(/They weren’t expected/)).toBeInTheDocument();
+    expect(bodies).toEqual([{ firstName: 'Narek', lastName: 'Sargsyan', seatsAllotted: 1 }]);
+    expect(writes()).toEqual([
+      { method: 'POST', path: '/api/v1/events/e1/guests' },
+      { method: 'POST', path: '/api/v1/events/e1/guests/g9/check-in' },
+    ]);
+    expect(await within(outcome()).findByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('First name')).not.toBeVisible();
+    expect(container.innerHTML).not.toContain(TOKEN);
+  });
+
+  it('says they were added but not checked in when that is refused, and checks them in again', async () => {
+    answerAdd();
+    answerNarek(() => refusal(503, 'Service Unavailable'));
+    const { user } = renderAt();
+    await addWalkIn(user, 'Narek', 'Sargsyan');
+    expect(
+      await within(outcome()).findByText('Added to the guest list, but not checked in yet.'),
+    ).toBeInTheDocument();
+    answerNarek(() => HttpResponse.json(NAREK, { status: 201 }));
+    await user.click(await within(outcome()).findByRole('button', { name: 'Try again' }));
+    expect(await within(outcome()).findByText(/They weren’t expected/)).toBeInTheDocument();
+  });
+
+  it('keeps what was typed when adding is refused, and checks nobody in', async () => {
+    answerAdd(() => refusal(403, 'Forbidden'));
+    const { user } = renderAt();
+    await addWalkIn(user, 'Narek');
+    expect(
+      await screen.findByText(
+        'Your role on this event can’t let people in. Ask the event’s owner to add you as a coordinator.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('First name')).toHaveValue('Narek');
+    expect(writes()).toEqual([{ method: 'POST', path: '/api/v1/events/e1/guests' }]);
+  });
+
+  it('reads the list again after no answer, and says to search before adding again', async () => {
+    answerAdd(() => refusal(502, 'Bad Gateway'));
+    const { user } = renderAt();
+    await addWalkIn(user, 'Narek');
+    expect(await screen.findByText(/they may have been added all the same/)).toBeInTheDocument();
+    await waitFor(() => expect(reads('/events/e1/guests')).toHaveLength(2));
+    expect(screen.getByRole('button', { name: 'Add and check in' })).toBeEnabled();
+  });
+
+  it('asks for a first name before sending anything', async () => {
+    const { user } = renderAt();
+    await user.click(await screen.findByText('Someone not on the list'));
+    await user.click(screen.getByRole('button', { name: 'Add and check in' }));
+    expect(await screen.findByText('Type their first name.')).toBeInTheDocument();
+    expect(writes()).toEqual([]);
+  });
+});
+
 describe('the door, by code (PD-91)', () => {
   it('switches in the address, keeping whatever else is there', async () => {
     const { user } = renderAt('/app/events/e1/door?lang=fr');

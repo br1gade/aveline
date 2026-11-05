@@ -49,7 +49,8 @@
     "seats_other": "{{named}} places nommées sur {{count}}",
     "edit": "Modifier le foyer",
     "addHere": "Ajouter un invité ici",
-    "invitation": "Invitation :"
+    "invitation": "Invitation :",
+    "recordAnswers": "Enregistrer leurs réponses"
   },
   "actionFor": "{{action}} : {{name}}",
   "row": {
@@ -227,7 +228,8 @@
     "submit_other": "Envoyer à {{count, number}} foyers",
     "sending": "Envoi…",
     "none": "Cochez les foyers auxquels envoyer l’invitation.",
-    "tooMany": "Choisissez au plus {{limit, number}} foyers à la fois, ou envoyez à tous ceux qui ne l’ont pas encore reçue depuis Publier et envoyer."
+    "sendingPart": "Envoi, partie {{current}} sur {{total}}…",
+    "partly": "L’envoi s’est arrêté après {{sent, number}} foyers sur {{total, number}} ; ce qui leur a été envoyé figure ci-dessous. Envoyez à nouveau : personne de déjà invité ne reçoit une seconde invitation."
   },
   "history": {
     "title": "Historique des réponses : {{name}}",

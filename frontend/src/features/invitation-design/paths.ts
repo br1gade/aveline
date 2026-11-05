@@ -50,6 +50,11 @@ export function designPreviewPath(eventId: string, query: PreviewQuery = {}): st
   return `${generatePath(APP_PATHS.designPreview, { eventId })}${suffix}`;
 }
 
+/** The frame the section page draws its unsaved edits in (design PD-153). */
+export function designDraftPreviewPath(eventId: string): string {
+  return generatePath(APP_PATHS.designDraftPreview, { eventId });
+}
+
 /** The venues page, where an address is typed once for every section that shows it. */
 export function venuesPath(eventId: string): string {
   return generatePath(APP_PATHS.venues, { eventId });

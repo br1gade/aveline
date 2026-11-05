@@ -21,6 +21,7 @@
     "editDesignQuestion": "Modifier une question · Aveline",
     "designMedia": "Photos et musique · Aveline",
     "designPreview": "Aperçu · Aveline",
+    "designDraftPreview": "Aperçu des modifications non enregistrées · Aveline",
     "photos": "Photos des invités · Aveline",
     "agreements": "Accords · Aveline",
     "seating": "Placement · Aveline",
@@ -36,6 +37,7 @@
     "venueDirectory": "L’annuaire des lieux · Aveline",
     "archivedEvents": "Événements archivés · Aveline",
     "recordAnswer": "Enregistrer une réponse · Aveline",
+    "recordHousehold": "Enregistrer les réponses du foyer · Aveline",
     "runningOrder": "Déroulé de la journée · Aveline",
     "suppressions": "Personnes à ne pas contacter · Aveline",
     "promoCodes": "Codes promo · Aveline",
@@ -47,6 +49,8 @@
     "billing": "Formule et factures · Aveline",
     "billingReturn": "Retour de la banque · Aveline",
     "sheets": "Ce que donnent les réponses · Aveline",
+    "answersSheet": "Réponses à vos questions · Aveline",
+    "guestBook": "Livre d’or · Aveline",
     "designAdoption": "Aperçu d’un modèle · Aveline"
   },
   "shell": {

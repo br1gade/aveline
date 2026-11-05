@@ -31,7 +31,9 @@ export type DoorResult =
     }
   | { kind: 'ticketUsed'; isOurEarlierPress: boolean }
   | { kind: 'undone'; name: string }
-  | { kind: 'refused'; refusal: DoorRefusal; guestId: string | null; name: string | null };
+  | { kind: 'refused'; refusal: DoorRefusal; guestId: string | null; name: string | null }
+  /** A walk-in on the list now, whose check-in was refused: they can be checked in from it. */
+  | { kind: 'addedNotHere'; refusal: DoorRefusal; guestId: string; name: string };
 
 interface Mark {
   isHere: boolean;
@@ -41,7 +43,7 @@ interface Mark {
 }
 
 export interface DoorState {
-  /** What runs now: a guest's id, or `CODE_RUNNING`. One at a time. */
+  /** What runs now: a guest's id, `CODE_RUNNING` or `WALK_IN_RUNNING`. One at a time. */
   running: string | null;
   marks: ReadonlyMap<string, Mark>;
   writes: number;
@@ -55,6 +57,8 @@ export interface DoorState {
 }
 
 export const CODE_RUNNING = 'code';
+/** A walk-in being added, before they have an id. */
+export const WALK_IN_RUNNING = 'walk-in';
 
 export const INITIAL_DOOR: DoorState = {
   running: null,
@@ -68,7 +72,10 @@ export const INITIAL_DOOR: DoorState = {
 
 export type DoorEvent =
   | { type: 'sent'; running: string }
-  | { type: 'checkedIn'; guest: Guest; answer: DoorArrival }
+  | { type: 'checkedIn'; answer: DoorArrival }
+  /** Adding a walk-in was refused: nothing changed but that nothing runs. */
+  | { type: 'walkInRefused' }
+  | { type: 'walkInNotHere'; guestId: string; name: string; refusal: DoorRefusal }
   | { type: 'checkInRefused'; guest: Guest; refusal: DoorRefusal }
   | { type: 'admitted'; answer: DoorAdmission; guest: Guest | undefined }
   | { type: 'admitRefused'; refusal: DoorRefusal; nameOf: (guestId: string) => string | null }
@@ -107,8 +114,8 @@ function seatsOf(guest: Guest | undefined): DoorSeat[] {
   return (guest?.seats ?? []).map(({ table, venue }) => ({ table, venue }));
 }
 
-function checkedIn(state: DoorState, guest: Guest, answer: DoorArrival): DoorState {
-  const next = marked(withoutLost(state, guest.id), guest.id, {
+function checkedIn(state: DoorState, answer: DoorArrival): DoorState {
+  const next = marked(withoutLost(state, answer.guestId), answer.guestId, {
     isHere: true,
     at: answer.arrivedAt,
   });
@@ -127,6 +134,17 @@ function alreadyHere(state: DoorState, guest: Guest, known: string | null): Door
     isOurEarlierPress,
   };
   return { ...next, result };
+}
+
+/** Added, not let in. A check-in with no answer may still have counted, as anyone else's may. */
+function walkInNotHere(
+  state: DoorState,
+  { guestId, name, refusal }: Extract<DoorEvent, { type: 'walkInNotHere' }>,
+): DoorState {
+  const result: DoorResult = { kind: 'addedNotHere', guestId, name, refusal };
+  return refusal.kind === 'noAnswer'
+    ? { ...state, lostPresses: new Set(state.lostPresses).add(guestId), result }
+    : { ...state, result };
 }
 
 function checkInRefused(state: DoorState, guest: Guest, refusal: DoorRefusal): DoorState {
@@ -229,7 +247,11 @@ export function doorReducer(state: DoorState, event: DoorEvent): DoorState {
     case 'sent':
       return { ...state, running: event.running };
     case 'checkedIn':
-      return checkedIn(settled, event.guest, event.answer);
+      return checkedIn(settled, event.answer);
+    case 'walkInRefused':
+      return settled;
+    case 'walkInNotHere':
+      return walkInNotHere(settled, event);
     case 'checkInRefused':
       return checkInRefused(settled, event.guest, event.refusal);
     case 'admitted':

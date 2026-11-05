@@ -6,6 +6,7 @@ import {
   AskFirstDialog,
   useDialogAction,
   type DialogContext as PageDialogContext,
+  useLeaveGuardWhen,
 } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import {
@@ -40,6 +41,7 @@ export function ChangeRoleDialog({ member, ...context }: DialogContext & { membe
   const labelId = useId();
   const [role, setRole] = useState<EventRole | null>(member.role);
   const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useTeamDialogAction(context);
+  useLeaveGuardWhen(!isBusy && role !== member.role);
   const save = (chosen: EventRole) =>
     run(
       () => changeRole(browserSession().api, context.eventId, member.userId, chosen),
