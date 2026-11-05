@@ -27,14 +27,16 @@ export type VendorRefusal =
   | { kind: 'noAnswer'; requestId?: string | undefined; isStale?: undefined }
   | { kind: 'other'; sentence: string; requestId?: string | undefined; isStale?: undefined };
 
-/** The form fields a 400 names, from its details or the backend's `field: …` prefix. */
+/** The form fields a 400 names: its details, the backend's `field: …` prefix, or class-validator's "field must…". */
 function refusedFields(error: {
   details: ReadonlyArray<{ field: string | null }>;
   fieldErrors: Readonly<Record<string, unknown>>;
+  messages: readonly string[];
 }): string[] {
   const named = [
     ...error.details.flatMap((detail) => (detail.field ? [detail.field] : [])),
     ...Object.keys(error.fieldErrors),
+    ...error.messages.flatMap((said) => /^(\w+) must\b/.exec(said)?.[1] ?? []),
   ];
   return [...new Set(named.flatMap((field) => REFUSED_FIELDS[field] ?? []))];
 }

@@ -4,6 +4,7 @@ import { blankPerson } from './roster';
 import { checkoutSchema } from './schemas';
 import { EVENT_WIDE_RULES, PER_VENUE_RULES } from './test-data';
 import type { CheckoutValues, PersonValues } from './types';
+import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
 
 function person(overrides: Partial<PersonValues> = {}): PersonValues {
   return { ...blankPerson('general'), firstName: 'Anna', answers: { 'q-meal': '0' }, ...overrides };
@@ -37,6 +38,14 @@ describe("checkout's own checks", () => {
       ['buyerFirstName', 'required'],
       ['buyerEmail', 'email'],
     ]);
+  });
+
+  it.each(ADDRESSES_THE_BACKEND_TAKES)('leaves the address %s to the backend', (address) => {
+    expect(issues(values({ buyerEmail: address }))).toEqual([]);
+  });
+
+  it.each(ADDRESSES_NOBODY_TAKES)('refuses the address %s', (address) => {
+    expect(issues(values({ buyerEmail: address }))).toEqual([['buyerEmail', 'email']]);
   });
 
   it('keeps the buyer’s whole name within 120 characters', () => {

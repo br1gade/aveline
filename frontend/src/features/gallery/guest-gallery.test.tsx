@@ -162,7 +162,7 @@ describe('the guest gallery (PD-63)', () => {
     );
   });
 
-  it('takes a JPEG over 10 MiB, to be made smaller, and still refuses a PNG that size (PD-150)', async () => {
+  it('takes a JPEG or PNG over 10 MiB, to be made smaller (PD-150)', async () => {
     listing([]);
     const { user } = renderGallery();
     await screen.findByText('You haven’t shared any photos yet.');
@@ -170,9 +170,9 @@ describe('the guest gallery (PD-63)', () => {
       picked('phone.jpg', 'image/jpeg', 14 * 1024 * 1024),
       picked('scan.png', 'image/png', 14 * 1024 * 1024),
     ]);
-    expect(screen.getByText('Ready to share')).toBeInTheDocument();
-    expect(screen.getByText('Larger than 10 MB')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Share 1 photo' })).toBeInTheDocument();
+    expect(screen.getAllByText('Ready to share')).toHaveLength(2);
+    expect(screen.queryByText('Larger than 10 MB')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share 2 photos' })).toBeInTheDocument();
   });
 
   it('sends the smaller photo when one over 10 MiB is shared (PD-150)', async () => {

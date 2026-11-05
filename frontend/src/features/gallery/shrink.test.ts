@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { isShrinkable, PHOTO_LIMIT_BYTES } from './rules';
+import { PHOTO_LIMIT_BYTES } from './rules';
 import { shrinkPhoto, SHRINK_EDGE, targetSize } from './shrink';
 import { picked } from './test-data';
 
@@ -20,16 +20,14 @@ describe('how much smaller a photo is made (PD-150)', () => {
   it('never makes a side nothing', () => {
     expect(targetSize(100_000, 10)).toEqual({ width: SHRINK_EDGE, height: 1 });
   });
-
-  it('makes only JPEG and WebP smaller, which keep no transparency to lose', () => {
-    expect(['image/jpeg', 'image/webp'].every(isShrinkable)).toBe(true);
-    expect(['image/png', 'image/avif', 'image/heic', 'image/svg+xml'].some(isShrinkable)).toBe(
-      false,
-    );
-  });
 });
 
 describe('making a photo smaller in the browser', () => {
+  /** The colour each fill was made in, as a real context would use the one set at that moment. */
+  const fills: string[] = [];
+  const context = { fillStyle: '' };
+  const fillRect = vi.fn(() => fills.push(context.fillStyle));
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -38,12 +36,22 @@ describe('making a photo smaller in the browser', () => {
   /** A browser that can decode and draw: the bitmap's size, and the bytes the canvas gives back. */
   function canDraw(width: number, height: number, bytes: number) {
     const draw = vi.fn();
+    fillRect.mockClear();
+    fills.length = 0;
+    context.fillStyle = '';
     vi.stubGlobal(
       'createImageBitmap',
       vi.fn(() => Promise.resolve({ width, height, close: vi.fn() })),
     );
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      get fillStyle() {
+        return context.fillStyle;
+      },
+      set fillStyle(colour: string) {
+        context.fillStyle = colour;
+      },
       drawImage: draw,
+      fillRect,
     } as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (
       this: HTMLCanvasElement,
@@ -73,7 +81,18 @@ describe('making a photo smaller in the browser', () => {
     expect(shrunk).toMatchObject({ name: 'big.jpg', type: 'image/jpeg' });
   });
 
-  it('keeps the original when the browser gives back another type', async () => {
+  it('sends a WebP as a JPEG when the browser can’t encode WebP', async () => {
+    canDraw(8000, 6000, 3_000_000);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((done, type) => {
+      const blob = new Blob(['y'], { type: type === 'image/webp' ? 'image/png' : (type ?? '') });
+      Object.defineProperty(blob, 'size', { value: 3_000_000 });
+      done(blob);
+    });
+    const shrunk = await shrinkPhoto(picked('big.webp', 'image/webp', OVER));
+    expect(shrunk).toMatchObject({ name: 'big.jpg', type: 'image/jpeg' });
+  });
+
+  it('keeps the original when the browser can’t give it back as anything asked for', async () => {
     canDraw(8000, 6000, 3_000_000);
     const webp = picked('big.webp', 'image/webp', OVER);
     vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((done) =>
@@ -101,8 +120,34 @@ describe('making a photo smaller in the browser', () => {
 
   it('leaves a type it doesn’t make smaller for the checks to refuse', async () => {
     const draw = canDraw(8000, 6000, 1_000);
-    const png = picked('big.png', 'image/png', OVER);
-    await expect(shrinkPhoto(png)).resolves.toBe(png);
+    const heic = picked('big.heic', 'image/heic', OVER);
+    await expect(shrinkPhoto(heic)).resolves.toBe(heic);
     expect(draw).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['scan.png', 'image/png', 'scan.jpg'],
+    ['phone.avif', 'image/avif', 'phone.jpg'],
+    ['SCAN.PNG', 'image/png', 'SCAN.jpg'],
+    ['no-extension', 'image/png', 'no-extension.jpg'],
+  ])('sends %s as a JPEG on white, which any browser can make', async (name, type, sent) => {
+    const draw = canDraw(8000, 6000, 3_000_000);
+    const shrunk = await shrinkPhoto(picked(name, type, OVER));
+    expect(shrunk).toMatchObject({ name: sent, type: 'image/jpeg' });
+    expect(fillRect).toHaveBeenCalledWith(0, 0, SHRINK_EDGE, 2880);
+    expect(fills).toEqual(['#ffffff']);
+    // White behind the picture, not over it.
+    expect(fillRect.mock.invocationCallOrder[0]).toBeLessThan(
+      draw.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it.each([
+    ['big.jpg', 'image/jpeg'],
+    ['big.webp', 'image/webp'],
+  ])('draws %s with no white behind it, as nothing shows through', async (name, type) => {
+    canDraw(8000, 6000, 3_000_000);
+    await shrinkPhoto(picked(name, type, OVER));
+    expect(fillRect).not.toHaveBeenCalled();
   });
 });

@@ -10,6 +10,7 @@ import { Button } from '@/ui/kit/button';
 
 import type { EventOverviewData } from '../load';
 import {
+  activityPath,
   agreementsPath,
   attendancePath,
   designPath,
@@ -124,6 +125,7 @@ function EventLinks({ event }: { event: EventDetail }) {
       <EventLink to={sheetsPath(event.id)}>{t('overview.sheets')}</EventLink>
       <EventLink to={designPath(event.id)}>{t('overview.design')}</EventLink>
       <EventLink to={teamPath(event.id)}>{t('overview.team')}</EventLink>
+      <EventLink to={activityPath(event.id)}>{t('overview.activity')}</EventLink>
       <EventLink to={eventVendorsPath(event.id)}>{t('overview.vendors')}</EventLink>
       {event.invitation ? (
         <>

@@ -1,0 +1,126 @@
+{
+  "title": "Your organization",
+  "back": "Back to your events",
+  "refused": "This account isn’t in an organization yet. Create one from your events page.",
+  "datesNote": "Dates here are in Yerevan time.",
+  "name": {
+    "title": "Name",
+    "label": "The organization’s name",
+    "save": "Save the name",
+    "saving": "Saving…",
+    "error": "Use 2 to 160 characters."
+  },
+  "members": {
+    "title": "Members",
+    "lead": "People in the organization, with what they may do. Only an owner sees this list.",
+    "refused": "Only an owner can see the members. Your events, and leaving the organization, stay open to you.",
+    "joined": "{{role}} · joined {{date}}",
+    "change": "Change role",
+    "changeFor": "Change role: {{name}}",
+    "makeOwner": "Make owner",
+    "makeOwnerFor": "Make owner: {{name}}",
+    "remove": "Remove",
+    "removeFor": "Remove: {{name}}",
+    "more": "Show more members",
+    "loading": "Loading…",
+    "moreFailed": "More members couldn’t be loaded. Please try again."
+  },
+  "role": {
+    "OWNER": {
+      "name": "Owner",
+      "about": "Everything, including billing and who is in the organization."
+    },
+    "MANAGER": {
+      "name": "Manager",
+      "about": "Runs events, but not billing or who is in the organization."
+    },
+    "MEMBER": {
+      "name": "Member",
+      "about": "Can read events and change nothing, for now the same as a viewer."
+    },
+    "VIEWER": {
+      "name": "Viewer",
+      "about": "Can read events and change nothing."
+    },
+    "unknown": "Another role"
+  },
+  "changeRole": {
+    "title": "Change the role of {{name}}",
+    "body": "It applies from their next request. If this is your own role, you may lose this page.",
+    "label": "Role",
+    "save": "Change role",
+    "cancel": "Cancel",
+    "saving": "Saving…"
+  },
+  "remove": {
+    "title": "Remove {{name}} from the organization?",
+    "body": "They lose every role in this organization and its events, with their pending invitations and unfinished work. Events and their history stay. If this is you, you lose access at once.",
+    "confirm": "Remove"
+  },
+  "owner": {
+    "title": "Make {{name}} an owner?",
+    "body": "They can then do everything, including billing and removing people. You stay an owner too.",
+    "confirm": "Make owner"
+  },
+  "invites": {
+    "title": "Invitations",
+    "none": "No invitations are waiting.",
+    "refused": "Only an owner can see the invitations.",
+    "line": "{{role}} · until {{date}}",
+    "withdraw": "Withdraw",
+    "withdrawFor": "Withdraw: {{email}}",
+    "withdrawTitle": "Withdraw the invitation to {{email}}?",
+    "withdrawBody": "The emailed link stops working. Only a new invitation brings it back.",
+    "expired": "{{role}} · expired {{date}}"
+  },
+  "invite": {
+    "title": "Invite someone",
+    "lead": "We email them a link. Inviting the same address again replaces the earlier link. Someone already in another organization can’t join yet.",
+    "email": "Email address",
+    "emailError": "Type a valid email address.",
+    "role": "Role",
+    "send": "Send the invitation",
+    "sending": "Sending…"
+  },
+  "leave": {
+    "title": "Leaving",
+    "lead": "You lose your roles in this organization and its events. If you are its only owner, make someone else an owner first.",
+    "open": "Leave the organization",
+    "askTitle": "Leave this organization?",
+    "askBody": "You lose access at once, and only a new invitation brings it back.",
+    "confirm": "Leave"
+  },
+  "close": {
+    "title": "Closing the organization",
+    "lead": "An owner can ask Aveline’s staff to close it. Nothing is removed until they decide, and events and payment history are kept either way.",
+    "open": "Ask to close it",
+    "askTitle": "Ask Aveline to close this organization?",
+    "askBody": "Everyone keeps access until staff decide. Asking twice does no harm, as this page can’t show whether you already have.",
+    "confirm": "Ask to close it"
+  },
+  "status": {
+    "renamed": "The name is saved.",
+    "roleChanged": "{{name}} is now: {{role}}.",
+    "removed": "{{name}} is no longer in the organization.",
+    "madeOwner": "{{name}} is now an owner too.",
+    "invited": "An invitation has gone to {{email}}.",
+    "withdrawn": "The invitation to {{email}} is withdrawn.",
+    "closeAsked": "Your request has gone to Aveline’s staff. Nothing changes until they decide."
+  },
+  "refusal": {
+    "forbidden": "Only an owner can do this.",
+    "onlyOwner": "Only an owner can ask for this.",
+    "rateLimited": "Too many requests just now. Please wait a moment and try again.",
+    "noAnswer": "We didn’t get an answer. Please try again.",
+    "changed": "Someone changed the organization’s people meanwhile. This page has been read again: please try again.",
+    "handover": "An owner has to stay. Make someone else an owner first, here or on the events they own.",
+    "memberGone": "That person is no longer an active member, so this can’t be done. This page has been read again.",
+    "alreadyMember": "That person is already a member. This page has been read again.",
+    "noInvite": "That invitation is no longer waiting. This page has been read again.",
+    "emailRefused": "Type a valid email address.",
+    "nameRefused": "Use 2 to 160 characters.",
+    "chooseOrganization": "Choose which organization to work in, then try again.",
+    "noOrganization": "This account isn’t in that organization any more.",
+    "other": "That wasn’t accepted:"
+  }
+}

@@ -9,6 +9,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession, type TokenStore } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { LeaveGuard } from '@/ui/app-form';
+
+import { isUnloadAsked } from '../../../test/unload';
 
 import { AcceptInvite } from './components/accept-invite';
 import { CreateOrganization } from './components/create-organization';
@@ -112,7 +115,34 @@ function answer(method: 'post' | 'get', path: string, response: () => Response) 
 const refusal = (status: number) => () =>
   HttpResponse.json({ statusCode: status, message: 'refused' }, { status });
 
+const addressRefused = () =>
+  HttpResponse.json({ statusCode: 400, message: 'email must be an email' }, { status: 400 });
+
+/** The backend has the last word on an address, and what it says goes on the field. */
+async function expectOnTheField() {
+  expect(await screen.findByText('Enter an email address, like name@example.com.')).toBeVisible();
+  expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+}
+
 describe('SignIn', () => {
+  it('puts the backend’s refusal of an address on its field', async () => {
+    answer('post', '/auth/login', addressRefused);
+    const user = renderAt('/sign-in', SignIn);
+    await user.type(screen.getByLabelText('Email'), 'a..b@example.am');
+    await user.type(screen.getByLabelText('Password'), 'correct horse');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await expectOnTheField();
+  });
+
+  it('leads to asking about one’s data, for someone with no account (PD-157)', () => {
+    renderAt('/sign-in', SignIn);
+    expect(screen.getByRole('link', { name: 'Ask about your data' })).toHaveAttribute(
+      'href',
+      '/privacy-request',
+    );
+  });
+
   it('checks the fields before sending anything', async () => {
     const user = renderAt('/sign-in', SignIn);
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -176,6 +206,23 @@ describe('Register', () => {
     expect(await screen.findByText(/Welcome page/)).toBeInTheDocument();
   });
 
+  it('puts the backend’s refusal of an address on its field', async () => {
+    answer('post', '/auth/register', addressRefused);
+    const user = renderAt('/register', Register);
+    await fillIn(user);
+    await expectOnTheField();
+  });
+
+  it('keeps a refusal of something else off the address', async () => {
+    answer('post', '/auth/register', () =>
+      HttpResponse.json({ statusCode: 400, message: 'password must be longer' }, { status: 400 }),
+    );
+    const user = renderAt('/register', Register);
+    await fillIn(user);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-invalid');
+  });
+
   it('says "check your email" for an address that already had an account', async () => {
     answer('post', '/auth/register', () => HttpResponse.json({ accepted: true }, { status: 202 }));
     answer('post', '/auth/login', refusal(401));
@@ -186,6 +233,14 @@ describe('Register', () => {
 });
 
 describe('ResetPassword', () => {
+  it('puts the backend’s refusal of an address on its field', async () => {
+    answer('post', '/auth/password-reset', addressRefused);
+    const user = renderAt('/reset-password', ResetPassword);
+    await user.type(screen.getByLabelText('Email'), 'a..b@example.am');
+    await user.click(screen.getByRole('button', { name: 'Send the link' }));
+    await expectOnTheField();
+  });
+
   it('answers the same for any address', async () => {
     const sent = answer('post', '/auth/password-reset', () => HttpResponse.json({ sent: true }));
     const user = renderAt('/reset-password', ResetPassword);
@@ -313,6 +368,28 @@ describe('AcceptInvite', () => {
 });
 
 describe('CreateOrganization', () => {
+  it('asks before a name typed is lost (PD-146)', async () => {
+    const Stub = createRoutesStub([
+      {
+        path: '/app/welcome-form',
+        Component: () => (
+          <LeaveGuard>
+            <CreateOrganization />
+          </LeaveGuard>
+        ),
+      },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub initialEntries={['/app/welcome-form']} />
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+    expect(isUnloadAsked()).toBe(false);
+    await user.type(await screen.findByLabelText('Name'), 'Petrosyan');
+    expect(isUnloadAsked()).toBe(true);
+  });
+
   async function create(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByLabelText('Name'), 'Petrosyan Wedding');
     await user.click(screen.getByLabelText('A planner or an agency'));

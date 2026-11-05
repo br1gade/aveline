@@ -4,7 +4,7 @@ import { useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
-import { AppForm, TextInputField } from '@/ui/app-form';
+import { AppForm, TextInputField, useLeaveGuard } from '@/ui/app-form';
 
 import { createTables } from '../api';
 import { bulkTablesPayload } from '../payload';
@@ -69,6 +69,7 @@ export function BulkTablesDialog({ host, venueId }: BulkProps) {
     resolver: zodResolver(bulkTablesSchema),
     defaultValues: { namePrefix: t('dialog.defaultPrefix'), count: '10', capacity: '10', zone: '' },
   });
+  useLeaveGuard(form);
   const { submit, refusal } = useBulkSubmit({ host, venueId }, form);
   const { errors, isSubmitting } = form.formState;
   const number = {

@@ -101,7 +101,8 @@
     "team": "The team",
     "vendors": "Vendors",
     "runningOrder": "Running order",
-    "sheets": "Catering, bar and music"
+    "sheets": "Catering, bar and music",
+    "activity": "Activity"
   },
   "headcount": {
     "title": "Guests",

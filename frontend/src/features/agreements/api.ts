@@ -1,3 +1,4 @@
+import { readEveryPage } from '@/api/every-page';
 import { expectData, type ApiClient } from '@/api/client';
 
 import { readPage } from './read';
@@ -24,6 +25,17 @@ export async function listAgreements(
     }),
   );
   return readPage(wire);
+}
+
+/** 2,000 agreements, and a fifth of a minute's requests (FR-78). */
+const MAX_AGREEMENT_PAGES = 20;
+
+/** Every agreement, as far as it is sensible to read; `isComplete` says if it stopped early. */
+export function readAllAgreements(api: ApiClient, eventId: string, deadline: () => AbortSignal) {
+  return readEveryPage(async (after) => {
+    const page = await listAgreements(api, eventId, after, deadline());
+    return { items: page.records, nextCursor: page.nextCursor };
+  }, MAX_AGREEMENT_PAGES);
 }
 
 /** A drawn agreement's image; the bearer token cannot go in an `<img src>` (`PrivateImage`). */

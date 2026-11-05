@@ -7,6 +7,7 @@ import { createPublicApi } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { problemFrom } from '@/api/problems';
 import { readPublicEnv } from '@/config/env';
+import { useLeaveGuard } from '@/ui/app-form';
 import { Button, Notice, useIsHydrated } from '@/ui';
 import { TextField } from '@/ui/form';
 
@@ -83,6 +84,7 @@ function useCorrection(props: NameCorrectionProps, onDone: () => void) {
     resolver: zodResolver(nameSchema),
     defaultValues: { firstName: saved.firstName, lastName: saved.lastName ?? '' },
   });
+  useLeaveGuard(form);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const send = async (values: NameValues) => {
     setRefusal(null);

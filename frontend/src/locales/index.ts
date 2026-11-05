@@ -7,6 +7,7 @@ import hyBilling from './hy/billing.json';
 import frBilling from './fr/billing.json';
 import enBilling from './en/billing.json';
 import enAccount from './en/account.json';
+import enActivity from './en/activity.json';
 import enAgreements from './en/agreements.json';
 import enApp from './en/app.json';
 import enCommon from './en/common.json';
@@ -25,6 +26,7 @@ import enSeating from './en/seating.json';
 import enSending from './en/sending.json';
 import enVenues from './en/venues.json';
 import frAccount from './fr/account.json';
+import frActivity from './fr/activity.json';
 import frAgreements from './fr/agreements.json';
 import frApp from './fr/app.json';
 import frCommon from './fr/common.json';
@@ -43,6 +45,7 @@ import frSeating from './fr/seating.json';
 import frSending from './fr/sending.json';
 import frVenues from './fr/venues.json';
 import hyAccount from './hy/account.json';
+import hyActivity from './hy/activity.json';
 import hyAgreements from './hy/agreements.json';
 import hyApp from './hy/app.json';
 import hyCommon from './hy/common.json';
@@ -61,6 +64,7 @@ import hySeating from './hy/seating.json';
 import hySending from './hy/sending.json';
 import hyVenues from './hy/venues.json';
 import ruAccount from './ru/account.json';
+import ruActivity from './ru/activity.json';
 import ruAgreements from './ru/agreements.json';
 import ruApp from './ru/app.json';
 import ruCommon from './ru/common.json';
@@ -80,21 +84,25 @@ import ruSending from './ru/sending.json';
 import ruVenues from './ru/venues.json';
 
 import enCheckout from './en/checkout.json';
+import enPrivacyRequest from './en/privacy-request.json';
 import enPublicEvent from './en/public-event.json';
 import enTicketOrder from './en/ticket-order.json';
 import enTicketOrders from './en/ticket-orders.json';
 import enTicketSales from './en/ticket-sales.json';
 import frCheckout from './fr/checkout.json';
+import frPrivacyRequest from './fr/privacy-request.json';
 import frPublicEvent from './fr/public-event.json';
 import frTicketOrder from './fr/ticket-order.json';
 import frTicketOrders from './fr/ticket-orders.json';
 import frTicketSales from './fr/ticket-sales.json';
 import hyCheckout from './hy/checkout.json';
+import hyPrivacyRequest from './hy/privacy-request.json';
 import hyPublicEvent from './hy/public-event.json';
 import hyTicketOrder from './hy/ticket-order.json';
 import hyTicketOrders from './hy/ticket-orders.json';
 import hyTicketSales from './hy/ticket-sales.json';
 import ruCheckout from './ru/checkout.json';
+import ruPrivacyRequest from './ru/privacy-request.json';
 import ruPublicEvent from './ru/public-event.json';
 import ruTicketOrder from './ru/ticket-order.json';
 import ruTicketOrders from './ru/ticket-orders.json';
@@ -111,9 +119,13 @@ import enSuppressions from './en/suppressions.json';
 import ruSuppressions from './ru/suppressions.json';
 import hySuppressions from './hy/suppressions.json';
 import frSuppressions from './fr/suppressions.json';
+import enOrganization from './en/organization.json';
 import enPromoCodes from './en/promo-codes.json';
+import ruOrganization from './ru/organization.json';
 import ruPromoCodes from './ru/promo-codes.json';
+import hyOrganization from './hy/organization.json';
 import hyPromoCodes from './hy/promo-codes.json';
+import frOrganization from './fr/organization.json';
 import frPromoCodes from './fr/promo-codes.json';
 import enBrief from './en/brief.json';
 import ruBrief from './ru/brief.json';
@@ -132,6 +144,7 @@ export const resources = {
   en: {
     sheets: enSheets,
     billing: enBilling,
+    organization: enOrganization,
     'promo-codes': enPromoCodes,
     brief: enBrief,
     vendors: enVendors,
@@ -139,6 +152,7 @@ export const resources = {
     'recorded-answer': enRecordedAnswer,
     'running-order': enRunningOrder,
     account: enAccount,
+    activity: enActivity,
     agreements: enAgreements,
     app: enApp,
     checkout: enCheckout,
@@ -153,6 +167,7 @@ export const resources = {
     'guest-agreements': enGuestAgreements,
     guests: enGuests,
     invitation: enInvitation,
+    'privacy-request': enPrivacyRequest,
     'public-event': enPublicEvent,
     reply: enReply,
     seating: enSeating,
@@ -165,6 +180,7 @@ export const resources = {
   fr: {
     sheets: frSheets,
     billing: frBilling,
+    organization: frOrganization,
     'promo-codes': frPromoCodes,
     brief: frBrief,
     vendors: frVendors,
@@ -172,6 +188,7 @@ export const resources = {
     'recorded-answer': frRecordedAnswer,
     'running-order': frRunningOrder,
     account: frAccount,
+    activity: frActivity,
     agreements: frAgreements,
     app: frApp,
     checkout: frCheckout,
@@ -186,6 +203,7 @@ export const resources = {
     'guest-agreements': frGuestAgreements,
     guests: frGuests,
     invitation: frInvitation,
+    'privacy-request': frPrivacyRequest,
     'public-event': frPublicEvent,
     reply: frReply,
     seating: frSeating,
@@ -198,6 +216,7 @@ export const resources = {
   hy: {
     sheets: hySheets,
     billing: hyBilling,
+    organization: hyOrganization,
     'promo-codes': hyPromoCodes,
     brief: hyBrief,
     vendors: hyVendors,
@@ -205,6 +224,7 @@ export const resources = {
     'recorded-answer': hyRecordedAnswer,
     'running-order': hyRunningOrder,
     account: hyAccount,
+    activity: hyActivity,
     agreements: hyAgreements,
     app: hyApp,
     checkout: hyCheckout,
@@ -219,6 +239,7 @@ export const resources = {
     'guest-agreements': hyGuestAgreements,
     guests: hyGuests,
     invitation: hyInvitation,
+    'privacy-request': hyPrivacyRequest,
     'public-event': hyPublicEvent,
     reply: hyReply,
     seating: hySeating,
@@ -231,6 +252,7 @@ export const resources = {
   ru: {
     sheets: ruSheets,
     billing: ruBilling,
+    organization: ruOrganization,
     'promo-codes': ruPromoCodes,
     brief: ruBrief,
     vendors: ruVendors,
@@ -238,6 +260,7 @@ export const resources = {
     'recorded-answer': ruRecordedAnswer,
     'running-order': ruRunningOrder,
     account: ruAccount,
+    activity: ruActivity,
     agreements: ruAgreements,
     app: ruApp,
     checkout: ruCheckout,
@@ -252,6 +275,7 @@ export const resources = {
     'guest-agreements': ruGuestAgreements,
     guests: ruGuests,
     invitation: ruInvitation,
+    'privacy-request': ruPrivacyRequest,
     'public-event': ruPublicEvent,
     reply: ruReply,
     seating: ruSeating,

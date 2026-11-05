@@ -36,5 +36,16 @@
     "drawingFailed": "La signature n’a pas pu être chargée.",
     "retry": "Réessayer"
   },
-  "olderRestarted": "Les accords ont changé entre-temps ; la liste repart donc des plus récents."
+  "olderRestarted": "Les accords ont changé entre-temps ; la liste repart donc des plus récents.",
+  "stillToAgree": {
+    "title": "Qui doit encore donner son accord",
+    "lead": "Les invités qui viennent et n’ont pas accepté la formulation actuelle d’une déclaration obligatoire. C’est une indication : la décision se prend à l’entrée le jour même.",
+    "show": "Voir qui doit encore donner son accord",
+    "reading": "Lecture…",
+    "none": "Toutes les personnes qui viennent ont donné leur accord.",
+    "partial": "Il y a trop d’accords pour tous les lire : une personne de la liste a donc peut-être déjà donné le sien.",
+    "failed": "La lecture a échoué. Veuillez réessayer.",
+    "tryAgain": "Réessayer",
+    "untitled": "Une déclaration sans texte dans cette langue"
+  }
 }

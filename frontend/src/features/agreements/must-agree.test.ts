@@ -5,12 +5,14 @@ import type { Question } from '@/features/invitation-design';
 import {
   agreementsFrom,
   mergeNewest,
+  owedByStatement,
   peopleWhoMustAgree,
   requiredStatements,
   statementsStillOwed,
   statementWords,
+  type RequiredStatement,
 } from './must-agree';
-import { doorGuest, doorHousehold } from './test-data';
+import { doorGuest, doorHousehold } from '../door/test-data';
 
 function question(overrides: Partial<Question> = {}): Question {
   return {
@@ -118,5 +120,30 @@ describe('reading the newest agreements again', () => {
     expect(statementsStillOwed('g1', statements, agreed)).toEqual([]);
     expect(statementsStillOwed('g2', statements, agreed)).toEqual([]);
     expect(statementsStillOwed('g3', statements, agreed)).toHaveLength(1);
+  });
+});
+
+describe('who still owes each statement', () => {
+  const rules = { questionId: 'q1', versionId: 'v1', prompt: { en: 'The rules' } };
+  const photos = { questionId: 'q2', versionId: 'v2', prompt: { en: 'Photos' } };
+  const person = (name: string, owed: RequiredStatement[]) => ({
+    guest: doorGuest(name, name),
+    owed,
+  });
+
+  it('lists each statement’s people, in the statements’ order, with those it owes none left out', () => {
+    expect(
+      owedByStatement(
+        [rules, photos],
+        [person('Ani', [photos]), person('Aram', [rules, photos])],
+      ).map(({ statement, names }) => [statement.versionId, names]),
+    ).toEqual([
+      ['v1', ['Aram']],
+      ['v2', ['Ani', 'Aram']],
+    ]);
+  });
+
+  it('has nothing to say of a statement nobody owes', () => {
+    expect(owedByStatement([rules], [])).toEqual([]);
   });
 });

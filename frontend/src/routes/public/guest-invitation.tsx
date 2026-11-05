@@ -7,7 +7,12 @@ import { readPublicEnv } from '@/config/env';
 import { GuestGallery } from '@/features/gallery';
 import { AgreeBeforeDoor, AgreementsNotice, useDoorAgreements } from '@/features/guest-agreements';
 import { NameCorrection, withCorrectedName, type CorrectedName } from '@/features/guest-name';
-import { GuestReply, replySummaryFrom, type ReplyRecord } from '@/features/guest-reply';
+import {
+  GuestReply,
+  ReconfirmNotice,
+  replySummaryFrom,
+  type ReplyRecord,
+} from '@/features/guest-reply';
 import { loadReply } from '@/features/guest-reply/index.server';
 import {
   guestArtworkLoader,
@@ -87,6 +92,7 @@ function PersonalPage({ invitation: read, savedRecord, link }: PersonalPageProps
   const renderPersonal = record
     ? () => (
         <>
+          <ReconfirmNotice record={record} />
           <AgreementsNotice door={door} />
           <NameCorrection
             saved={record.guest}

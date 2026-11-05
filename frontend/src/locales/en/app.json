@@ -51,7 +51,9 @@
     "sheets": "What guests’ answers add up to · Aveline",
     "answersSheet": "Answers to your questions · Aveline",
     "guestBook": "Guest book · Aveline",
-    "designAdoption": "Preview a template · Aveline"
+    "designAdoption": "Preview a template · Aveline",
+    "activity": "Activity · Aveline",
+    "organization": "Your organization · Aveline"
   },
   "shell": {
     "loading": "Loading…",
@@ -76,7 +78,8 @@
     "promoCodes": "Promo codes",
     "vendors": "Vendors",
     "organization": "Who must not be contacted, promo codes and vendors are your organization’s own: they apply to every event.",
-    "billing": "Plan and invoices"
+    "billing": "Plan and invoices",
+    "organizationSettings": "Your organization: name and members"
   },
   "welcome": {
     "title": "Set up your organization",

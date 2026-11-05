@@ -10,6 +10,7 @@ import {
   type CheckoutRules,
   type PublicEvent,
 } from '@/features/public-event';
+import { useLeaveGuard } from '@/ui/app-form';
 
 import { isComing } from '../attendance';
 import type { CheckoutRefusal } from '../refusals';
@@ -121,11 +122,16 @@ export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
     },
   });
   const [quote, setQuote] = useState<PromoQuote | null>(null);
+  useLeaveGuard(form);
   const checkout = useCheckout({ event, basket, provider });
   const { refusal } = checkout;
   const place = async (values: CheckoutValues) => {
     const refused = await checkout.submit(values, quote?.code ?? null);
-    if (!refused) return;
+    if (!refused) {
+      // Placed, so nothing is lost: the browser's "Leave site?" mustn't stand before the bank.
+      form.reset(values);
+      return;
+    }
     markRefused(form, rules, refused);
     if (refused.kind === 'promo') setQuote(null);
   };

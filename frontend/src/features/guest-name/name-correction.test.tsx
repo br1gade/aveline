@@ -5,9 +5,13 @@ import { setupServer } from 'msw/node';
 import type { ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
+import { createRoutesStub } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createI18n } from '@/lib/i18n';
+import { LeaveGuard } from '@/ui/app-form';
+
+import { isUnloadAsked } from '../../../test/unload';
 
 import { NameCorrection, type NameCorrectionProps } from './components/name-correction';
 
@@ -69,6 +73,33 @@ async function open(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('correcting one’s own name (PD-64)', () => {
+  it('asks before a correction typed is lost (PD-146)', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => {
+      const Stub = createRoutesStub([
+        { path: '/', Component: () => <LeaveGuard>{children}</LeaveGuard> },
+      ]);
+      return (
+        <I18nextProvider i18n={createI18n('en')}>
+          <Stub />
+        </I18nextProvider>
+      );
+    };
+    render(
+      <NameCorrection
+        saved={{ firstName: 'Armen', lastName: 'Petrosyan' }}
+        link={LINK}
+        locale="en"
+        onCorrected={vi.fn()}
+      />,
+      { wrapper },
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Correct my name' }));
+    expect(isUnloadAsked()).toBe(false);
+    await user.type(screen.getByLabelText('First name'), 'x');
+    expect(isUnloadAsked()).toBe(true);
+  });
+
   it('opens prefilled, and clears an emptied surname with null', async () => {
     answering(corrected);
     const { user, props, container } = renderForm();

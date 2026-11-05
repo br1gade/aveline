@@ -8,7 +8,7 @@ import { problemFrom, type Problem } from '@/api/problems';
 import { createRetryKey } from '@/api/retry-key';
 import { browserSession } from '@/api/session';
 import { APP_PATHS } from '@/route-paths';
-import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
+import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
 import { FieldLegend, FieldSet } from '@/ui/kit/field';
 import { Label } from '@/ui/kit/label';
 import { RadioGroup, RadioGroupItem } from '@/ui/kit/radio-group';
@@ -61,6 +61,7 @@ export function CreateOrganization() {
     resolver: zodResolver(organizationSchema),
     defaultValues: { name: '', kind: 'HOST' },
   });
+  useLeaveGuard(form);
   const { errors, isSubmitting } = form.formState;
 
   const onSubmit = async (values: OrganizationValues) => {

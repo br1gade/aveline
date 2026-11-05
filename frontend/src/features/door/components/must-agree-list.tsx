@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { arrivalOf } from '../arrival';
-import { peopleWhoMustAgree, statementWords } from '../must-agree';
+import { peopleWhoMustAgree, statementWords } from '@/features/agreements';
 import type { Door } from './use-door';
 
 const SUMMARY = 'flex min-h-11 cursor-pointer items-center font-medium';

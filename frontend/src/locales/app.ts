@@ -1,4 +1,5 @@
 import enAccount from './en/account.json';
+import enActivity from './en/activity.json';
 import enAgreements from './en/agreements.json';
 import enApp from './en/app.json';
 import enBilling from './en/billing.json';
@@ -8,6 +9,7 @@ import enEvents from './en/events.json';
 import enExports from './en/exports.json';
 import enFollowUps from './en/follow-ups.json';
 import enGuests from './en/guests.json';
+import enOrganization from './en/organization.json';
 import enPromoCodes from './en/promo-codes.json';
 import enRecordedAnswer from './en/recorded-answer.json';
 import enRunningOrder from './en/running-order.json';
@@ -21,6 +23,7 @@ import enTicketSales from './en/ticket-sales.json';
 import enVendors from './en/vendors.json';
 import enVenues from './en/venues.json';
 import frAccount from './fr/account.json';
+import frActivity from './fr/activity.json';
 import frAgreements from './fr/agreements.json';
 import frApp from './fr/app.json';
 import frBilling from './fr/billing.json';
@@ -30,6 +33,7 @@ import frEvents from './fr/events.json';
 import frExports from './fr/exports.json';
 import frFollowUps from './fr/follow-ups.json';
 import frGuests from './fr/guests.json';
+import frOrganization from './fr/organization.json';
 import frPromoCodes from './fr/promo-codes.json';
 import frRecordedAnswer from './fr/recorded-answer.json';
 import frRunningOrder from './fr/running-order.json';
@@ -43,6 +47,7 @@ import frTicketSales from './fr/ticket-sales.json';
 import frVendors from './fr/vendors.json';
 import frVenues from './fr/venues.json';
 import hyAccount from './hy/account.json';
+import hyActivity from './hy/activity.json';
 import hyAgreements from './hy/agreements.json';
 import hyApp from './hy/app.json';
 import hyBilling from './hy/billing.json';
@@ -52,6 +57,7 @@ import hyEvents from './hy/events.json';
 import hyExports from './hy/exports.json';
 import hyFollowUps from './hy/follow-ups.json';
 import hyGuests from './hy/guests.json';
+import hyOrganization from './hy/organization.json';
 import hyPromoCodes from './hy/promo-codes.json';
 import hyRecordedAnswer from './hy/recorded-answer.json';
 import hyRunningOrder from './hy/running-order.json';
@@ -65,6 +71,7 @@ import hyTicketSales from './hy/ticket-sales.json';
 import hyVendors from './hy/vendors.json';
 import hyVenues from './hy/venues.json';
 import ruAccount from './ru/account.json';
+import ruActivity from './ru/activity.json';
 import ruAgreements from './ru/agreements.json';
 import ruApp from './ru/app.json';
 import ruBilling from './ru/billing.json';
@@ -74,6 +81,7 @@ import ruEvents from './ru/events.json';
 import ruExports from './ru/exports.json';
 import ruFollowUps from './ru/follow-ups.json';
 import ruGuests from './ru/guests.json';
+import ruOrganization from './ru/organization.json';
 import ruPromoCodes from './ru/promo-codes.json';
 import ruRecordedAnswer from './ru/recorded-answer.json';
 import ruRunningOrder from './ru/running-order.json';
@@ -93,6 +101,7 @@ import { addStrings } from './registry';
 addStrings({
   en: {
     account: enAccount,
+    activity: enActivity,
     agreements: enAgreements,
     app: enApp,
     billing: enBilling,
@@ -102,6 +111,7 @@ addStrings({
     exports: enExports,
     'follow-ups': enFollowUps,
     guests: enGuests,
+    organization: enOrganization,
     'promo-codes': enPromoCodes,
     'recorded-answer': enRecordedAnswer,
     'running-order': enRunningOrder,
@@ -117,6 +127,7 @@ addStrings({
   },
   fr: {
     account: frAccount,
+    activity: frActivity,
     agreements: frAgreements,
     app: frApp,
     billing: frBilling,
@@ -126,6 +137,7 @@ addStrings({
     exports: frExports,
     'follow-ups': frFollowUps,
     guests: frGuests,
+    organization: frOrganization,
     'promo-codes': frPromoCodes,
     'recorded-answer': frRecordedAnswer,
     'running-order': frRunningOrder,
@@ -141,6 +153,7 @@ addStrings({
   },
   hy: {
     account: hyAccount,
+    activity: hyActivity,
     agreements: hyAgreements,
     app: hyApp,
     billing: hyBilling,
@@ -150,6 +163,7 @@ addStrings({
     exports: hyExports,
     'follow-ups': hyFollowUps,
     guests: hyGuests,
+    organization: hyOrganization,
     'promo-codes': hyPromoCodes,
     'recorded-answer': hyRecordedAnswer,
     'running-order': hyRunningOrder,
@@ -165,6 +179,7 @@ addStrings({
   },
   ru: {
     account: ruAccount,
+    activity: ruActivity,
     agreements: ruAgreements,
     app: ruApp,
     billing: ruBilling,
@@ -174,6 +189,7 @@ addStrings({
     exports: ruExports,
     'follow-ups': ruFollowUps,
     guests: ruGuests,
+    organization: ruOrganization,
     'promo-codes': ruPromoCodes,
     'recorded-answer': ruRecordedAnswer,
     'running-order': ruRunningOrder,

@@ -9,6 +9,7 @@ import { readInviteSent, readTeam } from './read';
 import { refusalOf, SENTENCES } from './refusals';
 import { inviteSchema } from './schemas';
 import type { InviteSentWire, TeamWire } from './types';
+import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
 
 const refused = (status: number, message: string) =>
   new ApiError({ status, messages: [message], requestId: `r-${status}` });
@@ -172,5 +173,16 @@ describe('the backend’s sentences', () => {
     const sources =
       backend('modules/events/team.service.ts') + backend('infra/auth/account.service.ts');
     for (const [words] of SENTENCES) expect(sources).toContain(words);
+  });
+});
+
+describe('an address invited to the team', () => {
+  it.each(ADDRESSES_THE_BACKEND_TAKES)('leaves %s to the backend', (email) => {
+    expect(inviteSchema.safeParse({ email, role: 'COORDINATOR' }).success).toBe(true);
+  });
+
+  it.each(ADDRESSES_NOBODY_TAKES)('refuses %s, saying so', (email) => {
+    const parsed = inviteSchema.safeParse({ email, role: 'COORDINATOR' });
+    expect(parsed.error?.issues[0]?.message).toBe('email');
   });
 });

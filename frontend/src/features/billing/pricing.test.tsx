@@ -88,6 +88,14 @@ describe('the price list', () => {
     }
   });
 
+  it('leads to asking about one’s data (PD-157)', () => {
+    show([]);
+    expect(screen.getByRole('link', { name: 'Ask about your data' })).toHaveAttribute(
+      'href',
+      '/privacy-request',
+    );
+  });
+
   it('marks the plan’s English words as English on a page in Armenian', () => {
     show([managed], 'hy');
     expect(screen.getByText('Managed')).toHaveAttribute('lang', 'en');

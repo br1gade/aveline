@@ -4,7 +4,7 @@ import { useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
-import { AppForm, SelectField, TextInputField } from '@/ui/app-form';
+import { AppForm, SelectField, TextInputField, useLeaveGuard } from '@/ui/app-form';
 
 import { createTable, updateTable } from '../api';
 import { newTablePayload, tableUpdatePayload } from '../payload';
@@ -131,6 +131,7 @@ export function TableDialog(props: TableDialogProps) {
     resolver: zodResolver(schema),
     defaultValues: { ...valuesOf(table, venueId), capacity: String(table?.capacity ?? 10) },
   });
+  useLeaveGuard(form);
   const { submit, refusal } = useTableSubmit(props, form);
   const { errors, isSubmitting } = form.formState;
   const { title, label } = useDialogWords(table);

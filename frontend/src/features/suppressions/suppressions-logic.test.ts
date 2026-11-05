@@ -16,6 +16,7 @@ import {
 } from './rules';
 import { suppressionSchema } from './schemas';
 import type { SuppressionWire } from './types';
+import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
 
 function wire(overrides: Partial<SuppressionWire> = {}): SuppressionWire {
   return {
@@ -160,5 +161,25 @@ describe('the backend', () => {
 
   it('still lists at most the limit the page warns of', () => {
     expect(read('modules/communications/suppression.service.ts')).toContain(`take: ${LIST_LIMIT}`);
+  });
+});
+
+describe('an address not to contact', () => {
+  it.each(ADDRESSES_THE_BACKEND_TAKES)('takes %s by email', (address) => {
+    expect(suppressionSchema.safeParse({ channel: 'EMAIL', address }).success).toBe(true);
+  });
+
+  it.each(ADDRESSES_NOBODY_TAKES)('refuses %s by email, saying so', (address) => {
+    const parsed = suppressionSchema.safeParse({ channel: 'EMAIL', address });
+    expect(parsed.error?.issues[0]?.message).toBe('email');
+  });
+
+  it('still reads a phone’s rule for a phone, not an address’s', () => {
+    expect(suppressionSchema.safeParse({ channel: 'SMS', address: 'ani@example.am' }).success).toBe(
+      false,
+    );
+    expect(suppressionSchema.safeParse({ channel: 'SMS', address: '+37491123456' }).success).toBe(
+      true,
+    );
   });
 });

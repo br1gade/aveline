@@ -3,7 +3,8 @@ import type { Question } from '@/features/invitation-design';
 import { inLanguage } from '@/features/ticket-sales';
 
 /**
- * Who still has to agree before the door (docs/API.md §11; design PD-93). The backend refuses them
+ * Who still has to agree before the door (docs/API.md §11; design PD-93, and PD-155 for the hosts'
+ * agreements page). The backend refuses them
  * at check-in and at admission, and says who only then, one at a time; no read says it beforehand.
  * `acknowledgementsRequiredBeforeCheckIn` names statements, not people, and only in a public
  * event's checkout. So **a temporary stand-in** compares the design's required statements with the
@@ -95,4 +96,22 @@ export function peopleWhoMustAgree(
       return owed.length > 0 ? [{ guest, owed }] : [];
     }),
   );
+}
+
+export interface StillOwed {
+  statement: RequiredStatement;
+  names: string[];
+}
+
+/** The same people, statement by statement, in the design's order; none left out of a statement. */
+export function owedByStatement(
+  statements: readonly RequiredStatement[],
+  people: readonly PersonWhoMustAgree[],
+): StillOwed[] {
+  return statements.flatMap((statement) => {
+    const names = people
+      .filter(({ owed }) => owed.some(({ versionId }) => versionId === statement.versionId))
+      .map(({ guest }) => guest.name);
+    return names.length > 0 ? [{ statement, names }] : [];
+  });
 }

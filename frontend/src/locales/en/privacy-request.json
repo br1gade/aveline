@@ -1,0 +1,24 @@
+{
+  "metaTitle": "Ask about your data · Aveline",
+  "title": "Ask about your data",
+  "lead": "Anyone may ask what Aveline holds about their email address, or ask for it to be corrected or erased. You don’t need an account.",
+  "kind": {
+    "legend": "What would you like?",
+    "EXPORT": "A copy of what is held about me",
+    "ERASURE": "Erase what is held about me",
+    "RECTIFICATION": "Correct what is held about me"
+  },
+  "email": "Your email address",
+  "emailHelp": "We’ll check it’s yours before answering.",
+  "notes": "Anything to add (optional)",
+  "notesHelp": "For a correction, say what should change. Up to 2,000 characters.",
+  "submit": "Send the request",
+  "submitting": "Sending…",
+  "sent": "We’ve recorded your request. We’ll check who you are and answer by {{date}}, Yerevan time.",
+  "sameAnswer": "This message is the same whether or not anything is held about that address.",
+  "errors": {
+    "email": "Type a valid email address.",
+    "notes": "Keep it to 2,000 characters.",
+    "refused": "The request wasn’t accepted. Check what you typed and try again."
+  }
+}

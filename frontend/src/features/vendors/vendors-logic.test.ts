@@ -13,6 +13,7 @@ import { feeProblem, vendorFormSchema } from './schemas';
 import { BRIEF_SECTIONS, inSectionOrder, USUAL_SECTIONS, VENDOR_CATEGORIES } from './scopes';
 import { bookingWire, plantedToken, vendorWire, without } from './test-data';
 import type { Booking, BookingWire } from './types';
+import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
 
 const backend = (path: string) =>
   readFileSync(join(process.cwd(), '..', 'backend', 'src', path), 'utf8');
@@ -318,7 +319,10 @@ describe('why a vendor call was refused', () => {
     ).toEqual({ kind: 'fields', fields: ['fee'] });
     expect(
       vendorRefusalOf(apiError(400, ['email must be an email'], undefined, []), 'add'),
-    ).toEqual({ kind: 'other', sentence: 'email must be an email', requestId: 'r-400' });
+    ).toEqual({ kind: 'fields', fields: ['email'] });
+    expect(
+      vendorRefusalOf(apiError(400, ['Something else entirely'], undefined, []), 'add'),
+    ).toEqual({ kind: 'other', sentence: 'Something else entirely', requestId: 'r-400' });
     expect(vendorRefusalOf(apiError(400, ['name: too short', 'phone: too long']), 'add')).toEqual({
       kind: 'fields',
       fields: ['name', 'phone'],
@@ -347,5 +351,23 @@ describe('why a vendor call was refused', () => {
 
   it('throws on anything that is not the API’s, as a bug', () => {
     expect(() => vendorRefusalOf(new TypeError('boom'), 'list')).toThrow('boom');
+  });
+});
+
+describe('a vendor’s address', () => {
+  const vendor = (email: string) =>
+    vendorFormSchema.safeParse({
+      name: 'Flowers',
+      category: VENDOR_CATEGORIES[0],
+      email,
+      phone: '',
+    });
+
+  it.each(['', ...ADDRESSES_THE_BACKEND_TAKES])('leaves “%s” to the backend', (email) => {
+    expect(vendor(email).success).toBe(true);
+  });
+
+  it.each(ADDRESSES_NOBODY_TAKES)('refuses %s, saying so', (email) => {
+    expect(vendor(email).error?.issues[0]?.message).toBe('email');
   });
 });

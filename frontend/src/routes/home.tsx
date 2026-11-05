@@ -28,6 +28,9 @@ export default function Home() {
         <Link to={APP_PATHS.pricing} className={LINK}>
           {t('home.pricing')}
         </Link>
+        <Link to={APP_PATHS.privacyRequest} className={LINK}>
+          {t('home.privacy')}
+        </Link>
       </nav>
     </main>
   );

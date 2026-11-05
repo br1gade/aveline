@@ -13,6 +13,7 @@ import { PlanCards } from './plan-list';
  */
 export function PricingPage({ plans }: { plans: readonly Plan[] }) {
   const { t } = useTranslation('billing');
+  const { t: common } = useTranslation('common');
   return (
     <PublicFrame>
       <div className="flex flex-col gap-3">
@@ -33,6 +34,12 @@ export function PricingPage({ plans }: { plans: readonly Plan[] }) {
           </Link>
         )}
       />
+      <Link
+        to={APP_PATHS.privacyRequest}
+        className="text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3"
+      >
+        {common('home.privacy')}
+      </Link>
     </PublicFrame>
   );
 }

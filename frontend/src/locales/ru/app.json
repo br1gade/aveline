@@ -51,7 +51,9 @@
     "sheets": "Итоги ответов гостей · Aveline",
     "answersSheet": "Ответы на ваши вопросы · Aveline",
     "guestBook": "Гостевая книга · Aveline",
-    "designAdoption": "Просмотр шаблона · Aveline"
+    "designAdoption": "Просмотр шаблона · Aveline",
+    "activity": "История действий · Aveline",
+    "organization": "Ваша организация · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",
@@ -76,7 +78,8 @@
     "promoCodes": "Промокоды",
     "vendors": "Подрядчики",
     "organization": "Список тех, кому нельзя писать, промокоды и подрядчики принадлежат вашей организации и действуют для всех мероприятий.",
-    "billing": "Тариф и счета"
+    "billing": "Тариф и счета",
+    "organizationSettings": "Ваша организация: название и участники"
   },
   "welcome": {
     "title": "Создайте организацию",

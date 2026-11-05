@@ -6,6 +6,7 @@ import { CheckoutPage } from '@/features/checkout';
 import { EventNotFound, publicEventLanguage, readBasket } from '@/features/public-event';
 import { loadPublicEvent } from '@/features/public-event/index.server';
 import { checkoutHeaders } from '@/lib/security/headers';
+import { LeaveGuard } from '@/ui/app-form';
 
 import type { Route } from './+types/checkout';
 
@@ -43,11 +44,13 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
   }
   const { event } = loaderData;
   return (
-    <CheckoutPage
-      event={event}
-      basket={readBasket(loaderData.tickets, event.ticketTypes)}
-      isSalesClosed={loaderData.isSalesClosed}
-      provider={loaderData.provider}
-    />
+    <LeaveGuard>
+      <CheckoutPage
+        event={event}
+        basket={readBasket(loaderData.tickets, event.ticketTypes)}
+        isSalesClosed={loaderData.isSalesClosed}
+        provider={loaderData.provider}
+      />
+    </LeaveGuard>
   );
 }

@@ -11,6 +11,7 @@ import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-fo
 
 import { safeNext } from '../safe-next';
 import { signInSchema, type SignInValues } from '../schemas';
+import { isAddressRefused } from '../address-refused';
 import { useFieldText } from '../use-field-text';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
@@ -18,6 +19,7 @@ import { AccountLink } from './account-link';
 /** A wrong password and an unknown address are the same 401, and say the same thing (API.md §2). */
 export function SignIn() {
   const { t } = useTranslation('account');
+  const { t: common } = useTranslation('common');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fieldText = useFieldText();
@@ -35,7 +37,8 @@ export function SignIn() {
       session.start(await logIn(session.publicApi, values));
       await navigate(safeNext(searchParams.get('next')));
     } catch (error) {
-      setProblem(problemFrom(error));
+      if (isAddressRefused(error)) form.setError('email', { message: 'email' });
+      else setProblem(problemFrom(error));
     }
   };
 
@@ -43,6 +46,7 @@ export function SignIn() {
     <>
       <AccountLink to={ROUTE_PATHS.resetPassword}>{t('links.forgotPassword')}</AccountLink>
       <AccountLink to={APP_PATHS.register}>{t('links.register')}</AccountLink>
+      <AccountLink to={APP_PATHS.privacyRequest}>{common('home.privacy')}</AccountLink>
     </>
   );
 

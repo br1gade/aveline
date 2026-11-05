@@ -9,7 +9,7 @@ import { cn } from '@/ui/cn';
 import { Button } from '@/ui/kit/button';
 
 import type { DoorResult } from '../arrival';
-import { statementWords } from '../must-agree';
+import { statementWords } from '@/features/agreements';
 import type { DoorRefusal } from '../refusals';
 import type { Door } from './use-door';
 import { LINK, useEventTime, useSeatWords, WRAPPING } from './shared';

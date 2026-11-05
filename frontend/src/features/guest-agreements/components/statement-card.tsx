@@ -4,6 +4,7 @@ import { useForm, useWatch, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { DrawingPad, SIGNER_NAME_LIMIT, type ReplyLink, type Signee } from '@/features/guest-reply';
+import { useLeaveGuard } from '@/ui/app-form';
 import { Button, Notice, useIsHydrated } from '@/ui';
 import { ChoiceCard, Chip, Fieldset, TextField } from '@/ui/form';
 
@@ -125,6 +126,7 @@ function useStatementForm({ agreement, door, link, signerId, onAgreed }: Stateme
     resolver: zodResolver(schema),
     defaultValues: EMPTY_AGREEMENT,
   });
+  useLeaveGuard(form);
   const [refusal, setRefusal] = useState<AgreementRefusal | null>(null);
   const send = async (values: AgreementValues) => {
     setRefusal(null);

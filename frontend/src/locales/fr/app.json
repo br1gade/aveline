@@ -51,7 +51,9 @@
     "sheets": "Ce que donnent les réponses · Aveline",
     "answersSheet": "Réponses à vos questions · Aveline",
     "guestBook": "Livre d’or · Aveline",
-    "designAdoption": "Aperçu d’un modèle · Aveline"
+    "designAdoption": "Aperçu d’un modèle · Aveline",
+    "activity": "Activité · Aveline",
+    "organization": "Votre organisation · Aveline"
   },
   "shell": {
     "loading": "Chargement…",
@@ -76,7 +78,8 @@
     "promoCodes": "Codes promo",
     "vendors": "Prestataires",
     "organization": "Les personnes à ne pas contacter, les codes promo et les prestataires appartiennent à votre organisation : ils valent pour chaque événement.",
-    "billing": "Formule et factures"
+    "billing": "Formule et factures",
+    "organizationSettings": "Votre organisation : nom et membres"
   },
   "welcome": {
     "title": "Configurer votre organisation",

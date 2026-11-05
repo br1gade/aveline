@@ -52,14 +52,14 @@ describe('a caption', () => {
 describe('a photo as it is chosen, before it is made smaller (PD-150)', () => {
   const over = 10 * 1024 * 1024 + 1;
 
-  it('lets a JPEG or WebP over 10 MiB through, as it is made smaller before it goes', () => {
-    expect(chosenPhotoProblem({ type: 'image/jpeg', size: over })).toBeNull();
-    expect(chosenPhotoProblem({ type: 'image/webp', size: over })).toBeNull();
-  });
+  it.each(['image/jpeg', 'image/webp', 'image/png', 'image/avif'])(
+    'lets %s over 10 MiB through, as it is made smaller before it goes',
+    (type) => {
+      expect(chosenPhotoProblem({ type, size: over })).toBeNull();
+    },
+  );
 
-  it('still refuses a PNG or AVIF over 10 MiB, an empty file, HEIC and SVG', () => {
-    expect(chosenPhotoProblem({ type: 'image/png', size: over })).toBe('size');
-    expect(chosenPhotoProblem({ type: 'image/avif', size: over })).toBe('size');
+  it('still refuses an empty file, HEIC and SVG', () => {
     expect(chosenPhotoProblem({ type: 'image/jpeg', size: 0 })).toBe('empty');
     expect(chosenPhotoProblem({ type: 'image/heic', size: 1 })).toBe('type');
     expect(chosenPhotoProblem({ type: 'image/svg+xml', size: 1 })).toBe('type');

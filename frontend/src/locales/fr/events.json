@@ -101,7 +101,8 @@
     "team": "L’équipe",
     "vendors": "Prestataires",
     "runningOrder": "Déroulé de la journée",
-    "sheets": "Traiteur, bar et musique"
+    "sheets": "Traiteur, bar et musique",
+    "activity": "Activité"
   },
   "headcount": {
     "title": "Invités",

@@ -333,3 +333,174 @@ describe('the hosts’ agreements (PD-66)', () => {
     expect(screen.getByText('The newest 3 agreements are shown.')).toBeInTheDocument();
   });
 });
+
+describe('who still has to agree (PD-155)', () => {
+  const SHOW = 'See who still has to agree';
+  const region = () => screen.getByRole('region', { name: 'Who still has to agree' });
+  const everyoneAgreed = () =>
+    ['g1', 'g2'].flatMap((subjectGuestId) =>
+      ['v2', 'r1'].map((statementVersionId) =>
+        recordWire({
+          id: `${subjectGuestId}-${statementVersionId}`,
+          subjectGuestId,
+          statementVersionId,
+        }),
+      ),
+    );
+
+  /** Counts each read of the agreements, the page's own first one included. */
+  function countingReads(records: unknown[], nextCursor: string | null = null) {
+    const reads = { count: 0 };
+    server.use(
+      http.get(`${API}/events/e1/acknowledgements`, () => {
+        reads.count += 1;
+        return HttpResponse.json({ items: records, nextCursor } as never);
+      }),
+    );
+    return reads;
+  }
+
+  it('reads nothing more until asked, then names those who owe each statement', async () => {
+    serve();
+    const reads = countingReads([recordWire({ subjectGuestId: 'g1', statementVersionId: 'r1' })]);
+    const { user } = renderPage();
+    const show = await screen.findByRole('button', { name: SHOW });
+    expect(reads.count).toBe(1);
+    await user.click(show);
+    const rules = await within(region()).findByRole('heading', {
+      level: 3,
+      name: 'I accept the venue’s rules',
+    });
+    expect(reads.count).toBe(2);
+    expect(rules.parentElement).toHaveTextContent('Lusine Petrosyan');
+    expect(rules.parentElement).not.toHaveTextContent('Armen Petrosyan');
+    expect(document.body.innerHTML).not.toContain(TOKEN);
+  });
+
+  it('says when everyone coming has agreed', async () => {
+    serve();
+    countingReads(everyoneAgreed());
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: SHOW }));
+    expect(await within(region()).findByText('Everyone coming has agreed.')).toBeInTheDocument();
+  });
+
+  it('says so when there were too many to read', async () => {
+    serve();
+    const reads = countingReads(everyoneAgreed(), 'more');
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: SHOW }));
+    expect(await within(region()).findByText(/too many agreements/)).toBeInTheDocument();
+    expect(reads.count).toBe(21);
+  });
+
+  it('doesn’t say everyone has agreed when it couldn’t read them all', async () => {
+    serve();
+    countingReads(everyoneAgreed(), 'more');
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: SHOW }));
+    await within(region()).findByText(/too many agreements/);
+    expect(within(region()).queryByText('Everyone coming has agreed.')).not.toBeInTheDocument();
+  });
+
+  it('leaves out someone already through the door, who agreed to get there', async () => {
+    serve();
+    countingReads([]);
+    server.use(
+      http.get(`${API}/events/e1/guests`, () =>
+        HttpResponse.json([
+          {
+            ...HOUSEHOLDS[0],
+            guests: [guest('g1', 'Armen'), { ...guest('g2', 'Lusine'), isCheckedIn: true }],
+          },
+        ]),
+      ),
+    );
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: SHOW }));
+    const said = await within(region()).findByRole('status');
+    expect(said).toHaveTextContent('Armen Petrosyan');
+    expect(said).not.toHaveTextContent('Lusine Petrosyan');
+  });
+
+  it('calls a statement with no words a statement, rather than nothing', async () => {
+    serve();
+    countingReads([]);
+    server.use(
+      http.get(`${API}/invitations/anna-davit/design`, () =>
+        HttpResponse.json({ ...DESIGN, questions: [question('q-x', 'SIGNATURE', {}, 'x1')] }),
+      ),
+    );
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: SHOW }));
+    expect(
+      await within(region()).findByText('A statement without words in this language'),
+    ).toBeInTheDocument();
+  });
+
+  it('can’t be pressed again while it reads', async () => {
+    serve();
+    const { user } = renderPage();
+    const show = await screen.findByRole('button', { name: SHOW });
+    let letGo = () => undefined as void;
+    const held = new Promise<void>((resolve) => {
+      letGo = resolve;
+    });
+    server.use(
+      http.get(`${API}/events/e1/guests`, async () => {
+        await held;
+        return HttpResponse.json(HOUSEHOLDS);
+      }),
+    );
+    await user.click(show);
+    expect(show).toBeDisabled();
+    letGo();
+    await within(region()).findByText(/Lusine Petrosyan/);
+  });
+
+  it('offers trying again after a failure, which reads again', async () => {
+    serve();
+    let isDown = true;
+    server.use(
+      http.get(`${API}/events/e1/guests`, () =>
+        isDown
+          ? HttpResponse.json({ statusCode: 500, message: 'Boom' }, { status: 500 })
+          : HttpResponse.json(HOUSEHOLDS),
+      ),
+    );
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: SHOW }));
+    expect(await within(region()).findByRole('alert')).toHaveTextContent('couldn’t be read');
+    isDown = false;
+    await user.click(within(region()).getByRole('button', { name: 'Try again' }));
+    expect(await within(region()).findByRole('status')).toHaveTextContent('Lusine Petrosyan');
+  });
+
+  it('words a role that can’t see the guest list, with nothing to press', async () => {
+    serve();
+    const { user } = renderPage();
+    const show = await screen.findByRole('button', { name: SHOW });
+    server.use(
+      http.get(`${API}/events/e1/guests`, () =>
+        HttpResponse.json({ statusCode: 403, message: 'Forbidden' }, { status: 403 }),
+      ),
+    );
+    await user.click(show);
+    expect(await within(region()).findByRole('alert')).toHaveTextContent(
+      'not available to your role',
+    );
+    expect(within(region()).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('isn’t offered when nothing has to be agreed to', async () => {
+    serve([]);
+    server.use(
+      http.get(`${API}/invitations/anna-davit/design`, () =>
+        HttpResponse.json({ ...DESIGN, questions: [DESIGN.questions[0]] }),
+      ),
+    );
+    renderPage();
+    await screen.findByText('This invitation asks guests to agree to nothing.');
+    expect(screen.queryByRole('button', { name: SHOW })).not.toBeInTheDocument();
+  });
+});

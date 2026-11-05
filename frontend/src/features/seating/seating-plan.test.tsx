@@ -3,11 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { I18nextProvider } from 'react-i18next';
-import { createRoutesStub, useLoaderData } from 'react-router';
+import { createRoutesStub, Link, useLoaderData } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
+import { LeaveGuard } from '@/ui/app-form';
 import { APP_PATHS } from '@/route-paths';
 
 import { SeatingPage } from './components/seating-page';
@@ -336,6 +337,57 @@ describe('drawing the plan', () => {
     expect(patches).toHaveLength(2);
     expect(patches[0]?.body).not.toEqual(patches[1]?.body);
     expect(await screen.findByText('1 table placed.')).toBeInTheDocument();
+  });
+});
+
+describe('leaving a table’s dialog with changes typed', () => {
+  async function openGuarded() {
+    const Stub = createRoutesStub([
+      {
+        path: APP_PATHS.seating,
+        loader: ({ params }) => {
+          if (!current.session) throw new Error('No session in this test');
+          return loadSeating(current.session.api, params.eventId ?? '');
+        },
+        HydrateFallback: () => null,
+        Component: function Guarded() {
+          const data = useLoaderData<SeatingData>();
+          return (
+            <LeaveGuard>
+              <SeatingPage data={data} />
+              <Link to="/elsewhere">Elsewhere</Link>
+            </LeaveGuard>
+          );
+        },
+      },
+      { path: '/elsewhere', Component: () => <h1>Elsewhere</h1> },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub initialEntries={[LIST]} />
+      </I18nextProvider>,
+    );
+    await screen.findByRole('heading', { level: 1 });
+  }
+
+  /** The page's own link is behind the dialog, as the phone's Back is not. */
+  const leave = () =>
+    fireEvent.click(screen.getByRole('link', { name: 'Elsewhere', hidden: true }));
+
+  it('asks when correcting a table', async () => {
+    await openGuarded();
+    await userEvent.click(screen.getByRole('button', { name: 'Edit: Table 1' }));
+    await userEvent.type(await screen.findByLabelText('Name'), ' by the door');
+    leave();
+    expect(await screen.findByRole('alertdialog', { name: 'Leave without saving?' })).toBeVisible();
+  });
+
+  it('asks when adding several', async () => {
+    await openGuarded();
+    await userEvent.click(screen.getByRole('button', { name: 'Add several tables' }));
+    await userEvent.type(await screen.findByLabelText('How many'), '2');
+    leave();
+    expect(await screen.findByRole('alertdialog', { name: 'Leave without saving?' })).toBeVisible();
   });
 });
 

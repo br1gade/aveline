@@ -7,7 +7,8 @@ import { createBrowserSession, type TokenStore } from '@/api/session';
 import { registerAndSignIn } from './flows';
 import { needsOrganization } from './landing';
 import { safeNext } from './safe-next';
-import { organizationSchema, registerSchema, signInSchema } from './schemas';
+import { organizationSchema, registerSchema, resetRequestSchema, signInSchema } from './schemas';
+import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
 
 describe('safeNext', () => {
   it.each([
@@ -135,5 +136,31 @@ describe('registerAndSignIn', () => {
   it('passes on anything else', async () => {
     const { session } = answerLogin(() => HttpResponse.json({ statusCode: 429 }, { status: 429 }));
     await expect(registerAndSignIn(session, values)).rejects.toMatchObject({ status: 429 });
+  });
+});
+
+describe('an address, wherever an account gives one', () => {
+  const forms: Array<[string, (email: string) => { success: boolean }]> = [
+    ['signing in', (email) => signInSchema.safeParse({ email, password: 'correct horse' })],
+    [
+      'registering',
+      (email) =>
+        registerSchema.safeParse({
+          name: 'Ani Grigoryan',
+          email,
+          password: 'correct horse battery',
+        }),
+    ],
+    ['asking to reset', (email) => resetRequestSchema.safeParse({ email })],
+  ];
+
+  describe.each(forms)('%s', (_, parse) => {
+    it.each(ADDRESSES_THE_BACKEND_TAKES)('leaves %s to the backend', (email) => {
+      expect(parse(email).success).toBe(true);
+    });
+
+    it.each(ADDRESSES_NOBODY_TAKES)('refuses %s', (email) => {
+      expect(parse(email).success).toBe(false);
+    });
   });
 });

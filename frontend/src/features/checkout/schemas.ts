@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { isEmailShaped } from '@/lib/text';
+
 import type { CheckoutQuestion, CheckoutRules } from '@/features/public-event';
 
 import { hasVenueAnswer, isComing } from './attendance';
@@ -39,7 +41,7 @@ function required(limit: number) {
 }
 
 const email = text(LIMITS.email).refine(
-  (value) => value.trim() === '' || z.email().safeParse(value.trim()).success,
+  (value) => value.trim() === '' || isEmailShaped(value.trim()),
   { error: 'email' satisfies CheckoutFieldCode },
 );
 

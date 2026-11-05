@@ -16,6 +16,7 @@ import {
   type ResetRequestValues,
 } from '../schemas';
 import { useFieldText } from '../use-field-text';
+import { isAddressRefused } from '../address-refused';
 import { useLinkToken } from '../use-link-token';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
@@ -56,7 +57,8 @@ function RequestLink() {
       await requestPasswordReset(browserSession().publicApi, email);
       setIsSent(true);
     } catch (error) {
-      setProblem(problemFrom(error));
+      if (isAddressRefused(error)) form.setError('email', { message: 'email' });
+      else setProblem(problemFrom(error));
     }
   };
 

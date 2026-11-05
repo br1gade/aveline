@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { isEmailShaped } from '@/lib/text';
+
 import { toMinor } from '@/lib/money';
 
 import { BRIEF_SECTIONS, CHOOSABLE_STATUSES, VENDOR_CATEGORIES } from './scopes';
@@ -34,7 +36,7 @@ export const vendorFormSchema = z.object({
     .string()
     .trim()
     .max(200, 'tooLong')
-    .refine((value) => !value || z.email().safeParse(value).success, 'email'),
+    .refine((value) => !value || isEmailShaped(value), 'email'),
   phone: z.string().trim().max(40, 'tooLong'),
 });
 

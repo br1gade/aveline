@@ -15,6 +15,7 @@ import { groupAgreements, type StatementInfo } from '../group';
 import type { AgreementsData } from '../load';
 import type { AgreementsPage as RecordsPage } from '../types';
 import { StatementBlock } from './statement-group';
+import { StillToAgree } from './still-to-agree';
 
 const LINK =
   'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
@@ -135,7 +136,10 @@ export function AgreementsPage({ data }: { data: AgreementsData }) {
       </div>
       <p className="m-0">{t('intro')}</p>
       {records.kind === 'ready' ? (
-        <Agreements data={data} first={records.value} />
+        <>
+          <StillToAgree event={event} questions={data.statements} />
+          <Agreements data={data} first={records.value} />
+        </>
       ) : (
         <LoadedProblem loaded={records} refusedText={t('refused')} />
       )}

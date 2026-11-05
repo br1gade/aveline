@@ -1,23 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { readEveryPage } from '@/api/every-page';
 import { isApiError } from '@/api/errors';
 import { browserSession } from '@/api/session';
-import { listAgreements } from '@/features/agreements';
+import {
+  agreementsFrom,
+  listAgreements,
+  mergeNewest,
+  readAllAgreements,
+  requiredStatements,
+  type Agreements,
+  type RequiredStatement,
+} from '@/features/agreements';
 import type { EventDetail } from '@/features/events';
 import { getDesign } from '@/features/invitation-design';
 
 import { readDeadline } from '../api';
-import {
-  agreementsFrom,
-  mergeNewest,
-  requiredStatements,
-  type Agreements,
-  type RequiredStatement,
-} from '../must-agree';
-
-/** 2,000 agreements, and a fifth of a minute's requests (FR-78). */
-const MAX_AGREEMENT_PAGES = 20;
 
 export type MustAgreeRead =
   /** Nothing is required, or not known yet: nothing to show. */
@@ -32,12 +29,12 @@ export type MustAgreeRead =
       isComplete: boolean;
     };
 
-async function readAll(eventId: string) {
-  const { api } = browserSession();
-  const { items, isComplete } = await readEveryPage(async (after) => {
-    const page = await listAgreements(api, eventId, after, readDeadline());
-    return { items: page.records, nextCursor: page.nextCursor };
-  }, MAX_AGREEMENT_PAGES);
+async function readAgreed(eventId: string) {
+  const { items, isComplete } = await readAllAgreements(
+    browserSession().api,
+    eventId,
+    readDeadline,
+  );
   return { agreements: agreementsFrom(items), isComplete };
 }
 
@@ -56,7 +53,7 @@ async function readFully(
   try {
     statements ??= await readStatements(event);
     if (statements.length === 0) return { kind: 'nothing' };
-    return { kind: 'ready', statements, ...(await readAll(event.id)) };
+    return { kind: 'ready', statements, ...(await readAgreed(event.id)) };
   } catch (error) {
     if (!isApiError(error)) throw error;
     return { kind: 'unread', statements };

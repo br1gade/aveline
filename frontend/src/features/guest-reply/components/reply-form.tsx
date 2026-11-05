@@ -33,6 +33,7 @@ import { ReplyFormProvider, useReplyForm, type SigningActions } from './form-con
 import { AnswerSection, HouseholdSection, PartySection } from './household-sections';
 import { QuestionSection } from './question-section';
 import { SignatureSections } from './signature-section';
+import { ReconfirmNotice } from './reconfirm-notice';
 
 /**
  * The respondent's own answers to the host's questions. When others on the form answer the same
@@ -216,13 +217,6 @@ function Alerts({ problem, attempt, onReload }: AlertsProps) {
       <ProblemNotice problem={problem} onReload={onReload} />
     </div>
   );
-}
-
-/** After the host changed how guests answer, every answer counts again from nothing (PD-51). */
-function ReconfirmNotice({ record }: { record: ReplyRecord }) {
-  const { t } = useTranslation('reply');
-  if (!record.attendance.needsReconfirmation) return null;
-  return <Notice>{t('venues.reconfirm')}</Notice>;
 }
 
 /**

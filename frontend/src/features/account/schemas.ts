@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { isEmailShaped } from '@/lib/text';
+
 /**
  * The forms' checks, with the backend's own limits (backend/src/infra/auth/dto), so a refusal is
  * rare. The server stays the authority. Messages are codes, worded by `useFieldText`.
@@ -13,7 +15,7 @@ const required = (limit: number) =>
     .min(1, { error: 'required' satisfies FieldCode, abort: true })
     .max(limit, { error: 'tooLong' satisfies FieldCode });
 
-const email = required(200).pipe(z.email({ error: 'email' satisfies FieldCode }));
+const email = required(200).refine(isEmailShaped, { error: 'email' satisfies FieldCode });
 
 /** Not trimmed: a password is exactly what was typed. */
 const password = z

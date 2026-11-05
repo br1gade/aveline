@@ -11,6 +11,7 @@ import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-fo
 
 import { registerAndSignIn } from '../flows';
 import { registerSchema, type RegisterValues } from '../schemas';
+import { isAddressRefused } from '../address-refused';
 import { useFieldText } from '../use-field-text';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
@@ -47,7 +48,8 @@ export function Register() {
       if (outcome === 'check-email') setIsCheckingEmail(true);
       else await navigate(APP_PATHS.welcome);
     } catch (error) {
-      setProblem(problemFrom(error));
+      if (isAddressRefused(error)) form.setError('email', { message: 'email' });
+      else setProblem(problemFrom(error));
     }
   };
 

@@ -34,5 +34,16 @@
     "drawingFailed": "The signature couldn’t be loaded.",
     "retry": "Try again"
   },
-  "olderRestarted": "The agreements changed meanwhile, so the list starts again from the newest."
+  "olderRestarted": "The agreements changed meanwhile, so the list starts again from the newest.",
+  "stillToAgree": {
+    "title": "Who still has to agree",
+    "lead": "Guests who are coming and haven’t agreed to the current wording of a required statement. This is a guide: the door decides on the day.",
+    "show": "See who still has to agree",
+    "reading": "Reading…",
+    "none": "Everyone coming has agreed.",
+    "partial": "There were too many agreements to read them all, so someone listed may already have agreed.",
+    "failed": "This couldn’t be read. Please try again.",
+    "tryAgain": "Try again",
+    "untitled": "A statement without words in this language"
+  }
 }

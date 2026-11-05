@@ -49,6 +49,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         {[
           { to: APP_PATHS.archivedEvents, label: t('home.archived') },
           { to: APP_PATHS.suppressions, label: t('home.suppressions') },
+          { to: APP_PATHS.organization, label: t('home.organizationSettings') },
           { to: APP_PATHS.billing, label: t('home.billing') },
           { to: APP_PATHS.promoCodes, label: t('home.promoCodes') },
           { to: APP_PATHS.vendors, label: t('home.vendors') },

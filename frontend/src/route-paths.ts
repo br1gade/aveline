@@ -34,6 +34,8 @@ export const APP_PATHS = {
   billing: '/app/billing',
   /** Choosing an organization, for an account with several. */
   organizations: '/app/organizations',
+  /** The organization itself: its name, members and invitations. */
+  organization: '/app/organization',
   /** Static, so it ranks above `event`'s `:eventId`. */
   newEvent: '/app/events/new',
   /** Events put away. Static, so it ranks above `event`'s `:eventId`. */
@@ -101,6 +103,8 @@ export const APP_PATHS = {
   followUps: '/app/events/:eventId/follow-ups',
   /** Who works on this event: members, open invitations, roles. */
   team: '/app/events/:eventId/team',
+  /** Who changed something on the event. */
+  activity: '/app/events/:eventId/activity',
   /** The day's running order: what happens when, and where. */
   runningOrder: '/app/events/:eventId/running-order',
   /** The organization's own: who must not be contacted, across every event. */
@@ -116,6 +120,8 @@ export const APP_PATHS = {
   booking: '/app/events/:eventId/vendors/:bookingId',
   /** The price list, for anyone. */
   pricing: '/pricing',
+  /** Asking what is held about an address, for anyone. */
+  privacyRequest: '/privacy-request',
   /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */
   publicEvents: '/events',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */

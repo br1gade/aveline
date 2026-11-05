@@ -35,7 +35,8 @@ the bank's return, what guests' answers add up to, adding an invitation, drawing
 with numbered chairs and tables moved between venues, approving several photos, a drawn signature on
 the saved reply, choosing between organizations, adopting an authored template with its private
 artwork, the full-bleed cover, the invitation's motion, the music remembered, font preloading, bundle
-budgets, and our own production server. Since 2 November it
+budgets, and our own production server. Since 5 November, the organization's own settings, an event's
+activity, the public data-request form, and who still has to agree on the agreements page. Since 2 November it
 follows the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3 November
 ([BACKEND_REQUESTS](BACKEND_REQUESTS.md) §6); none of this has yet run against the real backend.
 
@@ -97,7 +98,9 @@ outside links to, are in `APP_PATHS` beside them: registering, the app's home, o
 event pages, an event's guest list and import, its venues (adding and correcting one) and its
 invitation's publishing and sending, how guests answer, the designer, guests' photos, the
 agreements and the seating, the exports, ticket sales (`/app/events/:eventId/tickets`, its types
-and announcement) and the orders; checkout, `/events/:slug/checkout`, and the buyer's order once
+and announcement), the orders and an event's activity, the organization's own settings
+(`/app/organization`, beside the chooser at `/app/organizations`); the public price list and
+data-request form, `/pricing` and `/privacy-request`; checkout, `/events/:slug/checkout`, and the buyer's order once
 its token is out of the address, `/tickets`. The static `/app/events/new` ranks above
 `/app/events/:eventId`; `/venues/new` would rank above a `/venues/:venueId`, and `/guests/import`
 above a `/guests/:guestId`.
@@ -397,6 +400,13 @@ Pure, safe to render on the server, light on JavaScript. Specified by
 - **The bank's return for a plan** is protected as a capability page, as its query may name the
   payment's order number (`/tickets/return` already was, by its path). It stores nothing: confirm is
   asked of the newest invoice (PD-130), and the order number stops at `features/billing/read.ts`.
+- **The data-request form** (`/privacy-request`, design PD-156) holds what someone types about a person,
+  so like checkout its page is `no-store`, with no copy for the Back button of a shared computer. The
+  address and notes go in a POST and leave the page when sent; a production build was checked for them
+  in addresses, referrers, storage and the page. **An event's activity** names people and is an
+  owner's; only the fields a row shows reach the page, and no route it shows can hold a token, as the
+  trail records patterns. **Organization invitations:** the answer's development link holds a token, and
+  the reader keeps only the address and role.
 - **The production server** (`server/`) logs one line per request: the method (one it doesn't know
   is `OTHER`), the path through `redactUrl` with its query dropped whole, the status and the time. The
   path is first decoded until it stops changing (at most four times, then `[unreadable]`), its `.`,
@@ -641,6 +651,22 @@ logged for repeated slashes and double encoding, and `freeCells` looping for eve
 each now tested and fixed. **Nothing here ran against a real backend, a real bank, two real memberships
 (the gate is off) or a real authored template (adoption answers 503).**
 
+On 5 November 2026 organization settings, an event's activity and the data-request form were walked the
+same way, against a stateful mock built from the backend's code at `34ac1e6`, with everything
+`96a2ff2` added: the answers and the guest book, a walk-in, a household's answers and chairs, a dialog's
+form asking before Back, the price list, a large photo really made smaller, the draft preview at a
+phone's width, who still has to agree, and the card asking a household to answer again. In hy, ru, en and
+fr at 360 px, touch, and 1280 px: 2,606 checks passed on 61 screens, axe clean in 488 runs, and the 3,824 targets
+measured at 360 px were 44 px at the least. **This walk found what the tests couldn't:** six
+forms never joined to the leave guard, though each form's own tests passed. Sending past 1,000 and
+checkout's key across a reload have tests but no walk. A production build on our own server then passed
+110 checks, the data-request form's among them: what is typed reaches no address, referrer, storage or
+page, and no cache keeps the page. The tests were checked by breaking the code 184 ways in a copy: 182
+failed a test, one survivor got a test, and the other is the `HEAD` branch that can't be seen. A review
+of the change found what those hadn't, such as a retry that could never work after someone else's change
+and a non-owner told they weren't in the organization, each now tested and fixed or recorded (FR-124 to
+FR-126). **Nothing here ran against a real backend, a real bank or two real memberships.**
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -816,6 +842,11 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
 | 4 Nov 2026 | Households chosen on the guest list are sent a thousand at a time (`sendInBatches`, on `oneByOne`), one part after another, stopping at the first refusal | `SendInvitationDto` takes at most 1,000 `guestIds` (`@ArrayMaxSize(1_000)` at `34ac1e6`), one per household. A part sent again sends nothing twice: a household reached is counted in `alreadySent`, and each message's `dedupeKey` is unique (`invitation-sender.service.ts`), so no key of our own is needed (PD-151) |
 | 4 Nov 2026 | Checkout's idempotency key outlives a reload: `createRetryKey` takes an optional store, and checkout's keeps the pending key per event in this tab's `sessionStorage`, read and written inside try/catch | A buyer who reloads after no answer and asks for the same order again gets the order already made, with its payment, not a second reservation (docs/API.md §5). The intent is stored as a SHA-256 digest of the order, which holds names and emails; the same key with another order would be a 409, so a changed order makes a new one as before (PD-152) |
 | 5 Nov 2026 | **A section's unsaved edits are previewed** in a frame beside its form: the section page lays its form over the saved preview (`draftInvitation`) and posts the page to `/app/events/:eventId/design/draft-preview`, which draws it with `InvitationPage`. That one path may be framed, by the app itself (`frame-ancestors 'self'`, `SAMEORIGIN`); every other keeps `'none'` and `DENY` | No endpoint takes unsaved content. The renderer lays out by the viewport's width, so a pane beside the form would draw the desktop page squeezed; a frame 390 px wide draws what a phone shows. The overlay restates the backend's language fallback and its layout fallback, pinned by tests until FR-120. The frame and the page talk only to each other, by origin, window and a versioned message type (PD-153). The plan was approved before building |
+| 5 Nov 2026 | **Every form joins the leave guard,** six more after a walk found they didn't ask, and `every-form.test.ts` reads every form so a new one has to give a reason not to. Checkout's answer resets its form before the bank | PD-146 said every form, and the tests of each form couldn't see the ones never wired. The browser's own question would otherwise stand between a buyer and the bank (PD-146) |
+| 5 Nov 2026 | `door/must-agree.ts` moved to `features/agreements`, with the door's reading of every agreement | The agreements page needs the same answer, and the door already imported agreements. Its test moved unchanged (PD-155) |
+| 5 Nov 2026 | **The organization's settings are their own feature,** `features/organization`, not part of `features/account` or `features/team` | Its roles, revisions and refusals are its own. Account keeps who you are and which organization this tab works in; team keeps one event's people (PD-159) |
+| 5 Nov 2026 | A guest's PNG or AVIF over the limit becomes a JPEG on white | A canvas can't encode AVIF, and a lossless PNG at this size often stays over the limit. Transparency goes, with nothing said while it happens, under the open DQ-58 (PD-150) |
+| 5 Nov 2026 | **An email address is checked for its shape only, everywhere,** by `isEmailShaped` in `lib/text`: one `@`, no spaces, a dot after it. Each form's backend `@IsEmail()` has the last word, and its 400 goes on the field, which the account forms and the vendor form didn't do | Zod's `z.email()` refused addresses the backend takes, such as `анна@пример.рф` and `a!b@example.am`, so someone could be unable to buy a ticket or file a data request. The check refuses what `@IsEmail()` also refuses (`a@b`) and never what it takes; a test pins the DTOs to its defaults. Chromium's `type="email"` may send a mixed-script domain as punycode, which `@IsEmail()` also takes. Suppressions have no backend format check, so the shape is all that stands there |
 
 ## 12. Not yet built
 
@@ -829,6 +860,19 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
   (FR-9, FR-42, docs/API.md §6); choosing one when creating an event; `templateSetup`'s state on a new
   event; an edit of an event's override of a template's default artwork. Adoption has only met a mock:
   the backend's gate answers 503 today.
+- Of the organization: marking the caller's own row (FR-121); saying a closure review is open, and its
+  outcome (FR-122, PQ-27); telling erased members from active ones (FR-125); handling a review, which is
+  Aveline's staff's. Only a mock has met it.
+- Of an event's activity: telling an empty trail from an unreadable one, words per action, and more than
+  the newest hundred (FR-123).
+- Of the data-request form: reviewed words and a privacy notice to link to (PQ-25), a way for a guest with
+  no account to find it (PQ-26), and notes that can't be lost or added to by someone else (FR-126).
+  Handling a request is Aveline's staff's.
+- Of leaving with unsaved changes: Back to the same page with another view closes a dialog on it without
+  asking (PD-146).
+- Tools for Aveline's own staff, none of them planned here: opening an organization for a customer,
+  authoring templates, handling data requests and access reviews, and enquiries (disabled pending
+  rollout).
 - Of billing: saying beforehand that paid plans are off, on the billing page or the public price
   list (FR-109); a plan's words in other languages (FR-110); more than the newest
   hundred invoices (FR-110); a real bank: only the mock's return has been followed.
@@ -836,8 +880,8 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
   door, reminders and thanks, its team, its running order, recording answers, archiving and
-  deleting, who must not be contacted, promo codes, vendors, billing with the bank's return, and what guests' answers add up to: nothing is
-  left unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-60).
+  deleting, who must not be contacted, promo codes, vendors, billing with the bank's return, what guests' answers add up to, the organization's settings and an event's activity: nothing is
+  left unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-64).
 - Of what guests' answers add up to: printing it, which exports do; views beyond their count by
   language, and telling no views from no count (FR-111); paging the answers and the guest book, and
   a yes-or-no answer in the event's language (FR-117).
@@ -903,12 +947,11 @@ each now tested and fixed. **Nothing here ran against a real backend, a real ban
   link is a 404.
 - Of publishing and sending: telling guests about a change other than from the event edit, the
   venue screens and a change of how guests answer.
-- Of the guest's reply: a "please answer again" line on the personal card.
 - Of guests' photos: a switch for the hosts (FR-46); the guest's own count and the gallery's
   closing date (FR-50); who shared a photo, for the hosts (FR-48); the storage used (FR-47);
-  approving several in one request (FR-112); making a PNG or AVIF over 10 MiB smaller; and a photo's own
+  approving several in one request (FR-112); and a photo's own
   status read (FR-41).
-- Of the agreements: on their own page, who has not agreed yet (the door works it out, FR-78), and a
+- Of the agreements: who has not agreed yet as a read of the backend's (FR-78; the page and the door work it out), and a
   filter by statement (FR-49).
 - Of exports: who made each (FR-61); cancelling one queued (the API has no such call); more than
   the newest fifty (the API lists no more); choosing how long a file is kept (a server setting);

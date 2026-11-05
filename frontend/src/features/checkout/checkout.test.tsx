@@ -13,7 +13,9 @@ import { APP_PATHS } from '@/route-paths';
 
 import { CheckoutPage } from './components/checkout-page';
 import { leaveForBank } from '@/lib/links/bank';
+import { LeaveGuard } from '@/ui/app-form';
 import { EVENT, PER_VENUE_RULES } from './test-data';
+import { isUnloadAsked } from '../../../test/unload';
 
 vi.mock('@/lib/links/bank', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -84,12 +86,14 @@ function renderCheckout(tickets = 'general.2') {
       Component: () => {
         const { event, tickets: param } = useLoaderData<Loaded>();
         return (
-          <CheckoutPage
-            event={event}
-            basket={readBasket(param, event.ticketTypes)}
-            isSalesClosed={false}
-            provider="FAKE"
-          />
+          <LeaveGuard>
+            <CheckoutPage
+              event={event}
+              basket={readBasket(param, event.ticketTypes)}
+              isSalesClosed={false}
+              provider="FAKE"
+            />
+          </LeaveGuard>
         );
       },
     },
@@ -376,6 +380,30 @@ describe('paying and promo codes (PD-82)', () => {
     await user.click(await screen.findByRole('button', { name: 'Continue to payment' }));
     await waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.test/pay?id=1'));
     expect(heldOrder()).toEqual({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    // The browser's "Leave site?" would stand between the buyer and the bank.
+    await waitFor(() => expect(isUnloadAsked()).toBe(false));
+  });
+
+  it('asks before names typed are lost, and not before anything is', async () => {
+    const { user } = renderCheckout('table.1');
+    await screen.findByRole('region', { name: 'Your details' });
+    expect(isUnloadAsked()).toBe(false);
+    await fillBuyer(user);
+    expect(isUnloadAsked()).toBe(true);
+  });
+
+  it('keeps asking after a refusal, as the names typed are still there to lose', async () => {
+    serveOrders(() =>
+      HttpResponse.json({ statusCode: 500, message: 'Boom', requestId: 'r-1' }, { status: 500 }),
+    );
+    const { user } = renderCheckout('table.1');
+    await fillBuyer(user);
+    const card = await name(user, 1, 'Anna', { total: 1, type: 'Table' });
+    await user.click(within(card).getByRole('radio', { name: 'Fish' }));
+    await user.click(await screen.findByRole('button', { name: 'Continue to payment' }));
+    await screen.findByRole('alert');
+    expect(isUnloadAsked()).toBe(true);
+    expect(within(card).getByRole('radio', { name: 'Fish' })).toBeChecked();
   });
 
   it('applies a promo code the server accepts, and sends it with the order', async () => {
