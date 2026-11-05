@@ -7,7 +7,7 @@ export { Register } from './components/register';
 export { ResetPassword } from './components/reset-password';
 export { SignIn } from './components/sign-in';
 export { VerifyEmail } from './components/verify-email';
-export { needsOrganization } from './landing';
+export { firstStopFor } from './landing';
 export { accountMeta, appMeta } from './meta';
 export { forgetSettledOrganization, listOwnOrganizations } from './organizations';
 export { redirectIfSignedIn, requireOrganizationChosen, requireSignedIn } from './require-session';

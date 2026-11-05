@@ -43,7 +43,7 @@
   order, recording answers, archiving, who must not be contacted, promo codes, vendors and their
   briefs, on PD-106 to PD-125; on 4 November, billing and the organizer's gaps, on PD-126 to PD-143, and the last screens the backend allows, on PD-144 to PD-152; on 5 November,
   previewing unsaved edits, organization settings, an event's activity and the data-request form, on
-  PD-153 to PD-163.
+  PD-153 to PD-163, the essentials for Aveline's own staff, on PD-164 to PD-170, and a ticket's QR code and the door's scanner, on PD-171 to PD-174.
   See [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## 2. This folder
@@ -83,11 +83,11 @@ with them, the spec and the code govern and the difference is a review finding
 
 | Kind | IDs | Where | State on 18 October |
 |---|---|---|---|
-| **Confirmed** | C-1 to C-23 | [DESIGN_DECISIONS §2](DESIGN_DECISIONS.md#2-confirmed) | Binding. C-21 and C-22 were verified in the backend code on 18 October. C-23, French without a native reading or French screens, was decided by the frontend lead on 29 October |
+| **Confirmed** | C-1 to C-27 | [DESIGN_DECISIONS §2](DESIGN_DECISIONS.md#2-confirmed) | Binding. C-21 and C-22 were verified in the backend code on 18 October. C-23, French without a native reading or French screens, was decided by the frontend lead on 29 October |
 | **Recommendations** | R-1 to R-33 | [DESIGN_DECISIONS §3](DESIGN_DECISIONS.md#3-recommendations) | None accepted yet |
 | **Assumptions** | AS-1 to AS-12 | [DESIGN_DECISIONS §4](DESIGN_DECISIONS.md#4-assumptions) | Unverified |
-| **Open questions** | DQ-1 to DQ-64 (designer), PQ-1 to PQ-28 (product and the frontend lead), BQ-1 to BQ-11 (backend) | [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) | 99 open. The review's Q10 was answered by the code (C-21); BQ-4, BQ-5, BQ-8 and BQ-9 by the backend on 23 October. DQ-13, DQ-14, DQ-15, PQ-10 and PQ-11 were added that day, DQ-16 on 24 October, DQ-17 on 25 October, DQ-18 and DQ-19 on 28 October, DQ-20 and DQ-21 on 29 October, DQ-22 and DQ-23 on 30 October, DQ-24 and PQ-12 and PQ-13 on 31 October, DQ-25 on 2 November, DQ-26, DQ-27 to DQ-31, PQ-14 and PQ-15 on 3 November, and DQ-32 to DQ-60 and PQ-16 to PQ-24 between then and 5 November, when DQ-61 to DQ-64 and PQ-25 to PQ-28 were added |
-| **Provisional defaults** | PD-1 to PD-163 | [DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults) | What to build on while the questions stay open. PD-13 closed on 18 October; PD-15, PD-16, PD-22 and PD-23 on 23 October, when the backend answered BQ-4, BQ-9, BQ-8 and BQ-5. PD-44 and PD-45 were added on 24 October, PD-46 to PD-49 on 25 October, PD-50 to PD-55 on 28 October, when the backend allowed signature questions again and PD-52 took PD-23's place, PD-56 to PD-62 on 29 October, for the invitation designer, and PD-63 to PD-66 the same day, for guests' photos, names and agreements, PD-67 to PD-72 on 30 October, for seating, and PD-73 to PD-77 the same day, for exports, PD-78 to PD-83 on 31 October, for buyers, PD-84 to PD-89 on 2 November, for the hosts' ticket sales, and PD-90 to PD-105 on 3 November, for the door and the pilot's gaps |
+| **Open questions** | DQ-1 to DQ-68 (designer), PQ-1 to PQ-29 (product and the frontend lead), BQ-1 to BQ-11 (backend) | [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) | 102 open. PQ-13 and PQ-28 were answered on 5 November (C-25, C-24). The review's Q10 was answered by the code (C-21); BQ-4, BQ-5, BQ-8 and BQ-9 by the backend on 23 October. DQ-13, DQ-14, DQ-15, PQ-10 and PQ-11 were added that day, DQ-16 on 24 October, DQ-17 on 25 October, DQ-18 and DQ-19 on 28 October, DQ-20 and DQ-21 on 29 October, DQ-22 and DQ-23 on 30 October, DQ-24 and PQ-12 and PQ-13 on 31 October, DQ-25 on 2 November, DQ-26, DQ-27 to DQ-31, PQ-14 and PQ-15 on 3 November, and DQ-32 to DQ-60 and PQ-16 to PQ-24 between then and 5 November, when DQ-61 to DQ-68 and PQ-25 to PQ-29 were added |
+| **Provisional defaults** | PD-1 to PD-174 | [DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults) | What to build on while the questions stay open. PD-13 closed on 18 October; PD-15, PD-16, PD-22 and PD-23 on 23 October, when the backend answered BQ-4, BQ-9, BQ-8 and BQ-5. PD-44 and PD-45 were added on 24 October, PD-46 to PD-49 on 25 October, PD-50 to PD-55 on 28 October, when the backend allowed signature questions again and PD-52 took PD-23's place, PD-56 to PD-62 on 29 October, for the invitation designer, and PD-63 to PD-66 the same day, for guests' photos, names and agreements, PD-67 to PD-72 on 30 October, for seating, and PD-73 to PD-77 the same day, for exports, PD-78 to PD-83 on 31 October, for buyers, PD-84 to PD-89 on 2 November, for the hosts' ticket sales, and PD-90 to PD-105 on 3 November, for the door and the pilot's gaps |
 | **Review findings** | VR-01 to VR-36; 23 fixes | [DESIGN_REVIEW.md](DESIGN_REVIEW.md) | 9 fixes done; 11 findings fixed and 1 partly; the rest open |
 
 **How to tell them apart in practice:** a statement backed by a C- item is a decision. One backed
@@ -108,16 +108,16 @@ the specs is a recommendation.
   `eb77cd4`, on PD-50 to PD-55. On 29 October, the invitation designer, on PD-56 to PD-62, and
   guests' photos, names and agreements, on PD-63 to PD-66. On 30 October, seating, on PD-67 to
   PD-72, and exports, on PD-73 to PD-77. Tickets and the door followed, on PD-78 to PD-94, and on
-  3 November the pilot's gaps, on PD-95 to PD-105, and everything since, on PD-106 to PD-163. Still to come: the end-to-end and accessibility tests
+  3 November the pilot's gaps, on PD-95 to PD-105, and everything since, on PD-106 to PD-174. Still to come: the end-to-end and accessibility tests
   against the real backend.
 - **Keeping the registers current** as answers arrive (rule 7).
 
 **Waits for its owner:**
 
-- **The designer's fixes and decisions** (DQ-1 to DQ-64). Until then, work follows PD-1 to PD-14,
-  PD-27 to PD-39, PD-41, PD-42, PD-44 to PD-48 and PD-50 to PD-163.
-- **Product decisions** (PQ-1 to PQ-28), on PD-17 to PD-20, PD-40, PD-43, PD-79, PD-91, PD-94 and
-  PD-99. PD-15 and PD-16
+- **The designer's fixes and decisions** (DQ-1 to DQ-68). Until then, work follows PD-1 to PD-14,
+  PD-27 to PD-39, PD-41, PD-42, PD-44 to PD-48 and PD-50 to PD-174.
+- **Product decisions** (PQ-1 to PQ-29), on PD-17 to PD-20, PD-40, PD-43, PD-79, PD-91, PD-94,
+  PD-99 and PD-168. PD-15 and PD-16
   closed on 23 October.
 - **Backend changes** (BQ-1 to BQ-3, BQ-6, BQ-7, BQ-10, BQ-11), on PD-21 and PD-24 to PD-26.
   PD-22 and PD-23 closed on 23 October. The publish blockers' codes (FR-32), on PD-49; the codes
@@ -164,7 +164,7 @@ shared-document process, with the backend developer's review. This work did not 
   reader.
 - **The published review page is not corrected.** It stays a snapshot.
 - **The backend questions are not yet sent.** They are listed in
-  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-93, BQ-1 to BQ-11), and
+  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-132, BQ-1 to BQ-11), and
   [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) still holds their reasoning.
 - **The launch gates are not yet in `docs/GOING_LIVE.md`** (§6).
 - **The guest, account, event, guest-list, venue, invitation, attendance, design, photo, agreement, seating, export, ticket, door, reminder, team, directory and listing pages have not run against the real backend.** They were

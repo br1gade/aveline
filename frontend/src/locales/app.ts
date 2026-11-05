@@ -3,6 +3,8 @@ import enActivity from './en/activity.json';
 import enAgreements from './en/agreements.json';
 import enApp from './en/app.json';
 import enBilling from './en/billing.json';
+import enCustomers from './en/customers.json';
+import enDataRequests from './en/data-requests.json';
 import enDesign from './en/design.json';
 import enDoor from './en/door.json';
 import enEvents from './en/events.json';
@@ -27,6 +29,8 @@ import frActivity from './fr/activity.json';
 import frAgreements from './fr/agreements.json';
 import frApp from './fr/app.json';
 import frBilling from './fr/billing.json';
+import frCustomers from './fr/customers.json';
+import frDataRequests from './fr/data-requests.json';
 import frDesign from './fr/design.json';
 import frDoor from './fr/door.json';
 import frEvents from './fr/events.json';
@@ -51,6 +55,8 @@ import hyActivity from './hy/activity.json';
 import hyAgreements from './hy/agreements.json';
 import hyApp from './hy/app.json';
 import hyBilling from './hy/billing.json';
+import hyCustomers from './hy/customers.json';
+import hyDataRequests from './hy/data-requests.json';
 import hyDesign from './hy/design.json';
 import hyDoor from './hy/door.json';
 import hyEvents from './hy/events.json';
@@ -75,6 +81,8 @@ import ruActivity from './ru/activity.json';
 import ruAgreements from './ru/agreements.json';
 import ruApp from './ru/app.json';
 import ruBilling from './ru/billing.json';
+import ruCustomers from './ru/customers.json';
+import ruDataRequests from './ru/data-requests.json';
 import ruDesign from './ru/design.json';
 import ruDoor from './ru/door.json';
 import ruEvents from './ru/events.json';
@@ -105,6 +113,8 @@ addStrings({
     agreements: enAgreements,
     app: enApp,
     billing: enBilling,
+    customers: enCustomers,
+    'data-requests': enDataRequests,
     design: enDesign,
     door: enDoor,
     events: enEvents,
@@ -131,6 +141,8 @@ addStrings({
     agreements: frAgreements,
     app: frApp,
     billing: frBilling,
+    customers: frCustomers,
+    'data-requests': frDataRequests,
     design: frDesign,
     door: frDoor,
     events: frEvents,
@@ -157,6 +169,8 @@ addStrings({
     agreements: hyAgreements,
     app: hyApp,
     billing: hyBilling,
+    customers: hyCustomers,
+    'data-requests': hyDataRequests,
     design: hyDesign,
     door: hyDoor,
     events: hyEvents,
@@ -183,6 +197,8 @@ addStrings({
     agreements: ruAgreements,
     app: ruApp,
     billing: ruBilling,
+    customers: ruCustomers,
+    'data-requests': ruDataRequests,
     design: ruDesign,
     door: ruDoor,
     events: ruEvents,

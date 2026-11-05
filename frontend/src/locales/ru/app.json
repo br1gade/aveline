@@ -53,7 +53,10 @@
     "guestBook": "Гостевая книга · Aveline",
     "designAdoption": "Просмотр шаблона · Aveline",
     "activity": "История действий · Aveline",
-    "organization": "Ваша организация · Aveline"
+    "organization": "Ваша организация · Aveline",
+    "staff": "Сотрудники · Aveline",
+    "staffCustomers": "Клиенты · Aveline",
+    "staffDataRequests": "Запросы о данных · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",
@@ -79,7 +82,8 @@
     "vendors": "Подрядчики",
     "organization": "Список тех, кому нельзя писать, промокоды и подрядчики принадлежат вашей организации и действуют для всех мероприятий.",
     "billing": "Тариф и счета",
-    "organizationSettings": "Ваша организация: название и участники"
+    "organizationSettings": "Ваша организация: название и участники",
+    "staff": "Инструменты сотрудников Aveline"
   },
   "welcome": {
     "title": "Создайте организацию",

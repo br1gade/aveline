@@ -68,7 +68,9 @@
     "notIssued": "Non émis",
     "valid": "Valable",
     "used": "Entré",
-    "cancelled": "Annulé"
+    "cancelled": "Annulé",
+    "qrFor": "Code QR du billet de {{holder}}",
+    "qrHint": "Augmentez la luminosité de votre écran au moment du scan à l’entrée."
   },
   "totals": {
     "discount": "Remise",

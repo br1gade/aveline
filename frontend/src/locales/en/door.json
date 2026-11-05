@@ -115,5 +115,21 @@
       "tooLong": "Keep it to 80 characters."
     },
     "mayBeAdded": "No answer came, so they may have been added all the same. Search for them above before adding them again."
+  },
+  "scan": {
+    "open": "Scan a ticket",
+    "close": "Stop the camera",
+    "opening": "Opening the camera…",
+    "viewfinder": "What the camera sees",
+    "hint": "Hold the ticket’s code in the frame. It is read by itself.",
+    "notTicket": "That code isn’t a ticket, so nothing was sent.",
+    "problem": {
+      "refused": "The camera isn’t allowed. Allow it in the browser’s settings, or type the code below.",
+      "none": "This device has no camera to use. Please type the code below.",
+      "busy": "The camera couldn’t open or stopped, perhaps in use elsewhere. Try again, or type the code below.",
+      "insecure": "The camera only opens on a secure page. Please type the code below.",
+      "noReader": "The scanner couldn’t be loaded. Reload the page once the connection is back, or type the code below."
+    },
+    "sending": "Sending…"
   }
 }

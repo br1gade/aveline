@@ -115,5 +115,21 @@
       "tooLong": "80 caractères au plus."
     },
     "mayBeAdded": "Aucune réponse n’est venue : la personne a peut-être été ajoutée quand même. Cherchez-la ci-dessus avant de l’ajouter à nouveau."
+  },
+  "scan": {
+    "open": "Scanner un billet",
+    "close": "Arrêter la caméra",
+    "opening": "Ouverture de la caméra…",
+    "viewfinder": "Ce que voit la caméra",
+    "hint": "Gardez le code du billet dans le cadre. Il est lu tout seul.",
+    "notTicket": "Ce code n’est pas un billet : rien n’a été envoyé.",
+    "problem": {
+      "refused": "L’accès à la caméra n’est pas autorisé. Autorisez-le dans les réglages du navigateur, ou saisissez le code ci-dessous.",
+      "none": "Cet appareil n’a pas de caméra utilisable. Saisissez le code ci-dessous.",
+      "busy": "La caméra n’a pas pu s’ouvrir ou s’est arrêtée, peut-être utilisée ailleurs. Réessayez, ou saisissez le code ci-dessous.",
+      "insecure": "La caméra ne s’ouvre que sur une page sécurisée. Saisissez le code ci-dessous.",
+      "noReader": "Le lecteur n’a pas pu être chargé. Rechargez la page une fois la connexion revenue, ou saisissez le code ci-dessous."
+    },
+    "sending": "Envoi…"
   }
 }

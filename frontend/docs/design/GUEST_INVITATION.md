@@ -100,7 +100,7 @@ publishes the seating (B16 / D4), on the personal card since 30 October 2026 (PD
 
 - map coordinates (F9). The page keeps its links rather than an embedded map (R-19);
 - a link to get reminders on Telegram, `guest.telegramLink`, which carries the guest's token
-  (BQ-11).
+  (BQ-11). Not shown: the button is dropped (C-26).
 
 **Not available, so not designed:** a reply-by date (BQ-7).
 
@@ -648,10 +648,10 @@ comment changes the design, update this file in the same change.
 - **The template "Maison"** as a database row: palettes, variants and fonts (R-27 to R-29). The
   backend inserts it.
 - **What the backend has to answer or build:** palette colours and roles in the guest payload
-  (BQ-1 to BQ-3), a reply-by date (BQ-7), a safe Telegram link
-  (BQ-11).
-- **Designs the backend's new data waits for:** the guest's table (`guest.seating`), map
-  coordinates and the Telegram link (§3).
+  (BQ-1 to BQ-3), a reply-by date (BQ-7), a safe Telegram link in the invitation's email
+  (BQ-11). The button on the page is dropped (C-26).
+- **Designs the backend's new data waits for:** the guest's table (`guest.seating`) and map
+  coordinates (§3).
 - **Product decisions:** the default dietary and drink choices offered to hosts, and which
   built-in questions are on by default (PQ-1 to PQ-3).
 - **Copy review:** all Armenian and Russian copy by a native reader (DQ-9).

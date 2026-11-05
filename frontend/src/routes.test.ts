@@ -12,12 +12,17 @@ describe('the pages and their ways in', () => {
     ['organization', 'routes/app/organization.tsx'],
     ['activity', 'routes/app/activity.tsx'],
     ['privacyRequest', 'routes/public/privacy-request.tsx'],
+    ['staff', 'routes/app/staff.tsx'],
+    ['staffCustomers', 'routes/app/staff-customers.tsx'],
+    ['staffNewEvent', 'routes/app/staff-new-event.tsx'],
+    ['staffDataRequests', 'routes/app/staff-data-requests.tsx'],
   ])('%s is a route, to its own file', (path, file) => {
     expect(source('routes.ts')).toContain(`APP_PATHS.${path}), '${file}'`);
   });
 
   it.each([
     ['routes/app/home.tsx', 'APP_PATHS.organization'],
+    ['routes/app/home.tsx', 'APP_PATHS.staff'],
     ['routes/home.tsx', 'APP_PATHS.privacyRequest'],
     ['features/account/components/sign-in.tsx', 'APP_PATHS.privacyRequest'],
     ['features/billing/components/pricing-page.tsx', 'APP_PATHS.privacyRequest'],

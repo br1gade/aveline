@@ -13,6 +13,8 @@ import enApp from './en/app.json';
 import enCommon from './en/common.json';
 import enTeam from './en/team.json';
 import enFollowUps from './en/follow-ups.json';
+import enCustomers from './en/customers.json';
+import enDataRequests from './en/data-requests.json';
 import enDesign from './en/design.json';
 import enEvents from './en/events.json';
 import enDoor from './en/door.json';
@@ -32,6 +34,8 @@ import frApp from './fr/app.json';
 import frCommon from './fr/common.json';
 import frTeam from './fr/team.json';
 import frFollowUps from './fr/follow-ups.json';
+import frCustomers from './fr/customers.json';
+import frDataRequests from './fr/data-requests.json';
 import frDesign from './fr/design.json';
 import frEvents from './fr/events.json';
 import frDoor from './fr/door.json';
@@ -51,6 +55,8 @@ import hyApp from './hy/app.json';
 import hyCommon from './hy/common.json';
 import hyTeam from './hy/team.json';
 import hyFollowUps from './hy/follow-ups.json';
+import hyCustomers from './hy/customers.json';
+import hyDataRequests from './hy/data-requests.json';
 import hyDesign from './hy/design.json';
 import hyEvents from './hy/events.json';
 import hyDoor from './hy/door.json';
@@ -70,6 +76,8 @@ import ruApp from './ru/app.json';
 import ruCommon from './ru/common.json';
 import ruTeam from './ru/team.json';
 import ruFollowUps from './ru/follow-ups.json';
+import ruCustomers from './ru/customers.json';
+import ruDataRequests from './ru/data-requests.json';
 import ruDesign from './ru/design.json';
 import ruEvents from './ru/events.json';
 import ruDoor from './ru/door.json';
@@ -159,6 +167,8 @@ export const resources = {
     common: enCommon,
     team: enTeam,
     'follow-ups': enFollowUps,
+    customers: enCustomers,
+    'data-requests': enDataRequests,
     design: enDesign,
     events: enEvents,
     door: enDoor,
@@ -195,6 +205,8 @@ export const resources = {
     common: frCommon,
     team: frTeam,
     'follow-ups': frFollowUps,
+    customers: frCustomers,
+    'data-requests': frDataRequests,
     design: frDesign,
     events: frEvents,
     door: frDoor,
@@ -231,6 +243,8 @@ export const resources = {
     common: hyCommon,
     team: hyTeam,
     'follow-ups': hyFollowUps,
+    customers: hyCustomers,
+    'data-requests': hyDataRequests,
     design: hyDesign,
     events: hyEvents,
     door: hyDoor,
@@ -267,6 +281,8 @@ export const resources = {
     common: ruCommon,
     team: ruTeam,
     'follow-ups': ruFollowUps,
+    customers: ruCustomers,
+    'data-requests': ruDataRequests,
     design: ruDesign,
     events: ruEvents,
     door: ruDoor,

@@ -14,6 +14,8 @@ import { DoorPage } from './components/door-page';
 import { loadDoor, type DoorData } from './load';
 
 const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
+const decoder = vi.hoisted(() => ({ read: (): unknown => null }));
+vi.mock('jsqr', () => ({ default: () => decoder.read() }));
 vi.mock('@/api/session', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   browserSession: () => {
@@ -476,7 +478,105 @@ describe('a walk-in, added at the door (PD-148)', () => {
   });
 });
 
+describe('a ticket scanned at the door (PD-173)', () => {
+  const SCANNED = 'ABCDEFGH12345678';
+  let code = SCANNED;
+  const track = { stop: () => undefined, addEventListener: () => undefined };
+
+  beforeEach(() => {
+    code = SCANNED;
+    decoder.read = () => ({ data: code });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: () => Promise.resolve({ getTracks: () => [track] }) },
+    });
+    Element.prototype.scrollIntoView = () => undefined;
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(HTMLVideoElement.prototype, 'videoWidth', 'get').mockReturnValue(640);
+    vi.spyOn(HTMLVideoElement.prototype, 'videoHeight', 'get').mockReturnValue(480);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: () => undefined,
+      getImageData: () => ({ data: new Uint8ClampedArray(4) }),
+    } as unknown as RenderingContext);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  async function scan() {
+    const { user } = renderAt('/app/events/e1/door?by=code');
+    await user.click(await screen.findByRole('button', { name: 'Scan a ticket' }));
+    return user;
+  }
+  const admitted = () =>
+    HttpResponse.json(
+      { code: SCANNED, admittedAt: ARRIVED_AT, holderName: 'Anna', guestId: null },
+      { status: 201 },
+    );
+  const field = () => screen.getByRole('textbox', { name: 'Ticket code' });
+
+  it('leaves the typed field empty when it goes through', async () => {
+    answerCode(admitted);
+    await scan();
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    expect(field()).toHaveValue('');
+  });
+
+  it('puts a code with no answer in the field, so “press again” has something to press', async () => {
+    let answers = [() => HttpResponse.error(), admitted];
+    answerCode(() => {
+      const [answer, ...rest] = answers;
+      answers = rest;
+      return answer ? answer() : admitted();
+    });
+    const user = await scan();
+    expect(await screen.findByText(/No answer came/)).toBeInTheDocument();
+    await waitFor(() => expect(field()).toHaveValue(SCANNED));
+    await user.click(screen.getByRole('button', { name: 'Admit' }));
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    expect(field()).toHaveValue('');
+  });
+
+  it('doesn’t call another ticket your earlier press', async () => {
+    let answers = [() => HttpResponse.error(), () => refusal(400, 'Ticket already used')];
+    answerCode(() => {
+      const [answer, ...rest] = answers;
+      answers = rest;
+      return answer ? answer() : refusal(400, 'Ticket already used');
+    });
+    await scan();
+    expect(await screen.findByText(/No answer came/)).toBeInTheDocument();
+    code = 'ZZZZZZZZ12345678';
+    expect(await screen.findByText(/already been admitted/)).toBeInTheDocument();
+    expect(screen.queryByText(/your earlier press/)).not.toBeInTheDocument();
+  });
+
+  it('keeps a lost code in the field when another goes through', async () => {
+    let answers = [() => HttpResponse.error(), admitted];
+    answerCode(() => {
+      const [answer, ...rest] = answers;
+      answers = rest;
+      return answer ? answer() : admitted();
+    });
+    await scan();
+    await waitFor(() => expect(field()).toHaveValue(SCANNED));
+    code = 'ZZZZZZZZ12345678';
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    // Still the first one's: that guest may be standing there, and it hasn't been answered.
+    expect(field()).toHaveValue(SCANNED);
+  });
+});
+
 describe('the door, by code (PD-91)', () => {
+  it('offers the camera above the typed field, and not by name', async () => {
+    const byCode = renderAt('/app/events/e1/door?by=code');
+    const scan = await screen.findByRole('button', { name: 'Scan a ticket' });
+    const field = await screen.findByRole('textbox', { name: 'Ticket code' });
+    expect(scan.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    byCode.unmount();
+    renderAt('/app/events/e1/door');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('button', { name: 'Scan a ticket' })).not.toBeInTheDocument();
+  });
+
   it('switches in the address, keeping whatever else is there', async () => {
     const { user } = renderAt('/app/events/e1/door?lang=fr');
     await user.click(await screen.findByRole('link', { name: 'By ticket code' }));

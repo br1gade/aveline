@@ -35,7 +35,7 @@ the sections it names have been updated to match it.
 | A7 | Deployment layout | **Open — decide with the backend developer.** Options: one domain through Caddy (§5.13's recommendation) or `app.` and `api.` subdomains | Part of FR-11 and B-5 |
 | A8 | A `frontend/AGENTS.md` pointer for Codex | **Open** | — |
 | A9 | Claude Code's sandbox | **Open — decide later.** Options: a trial after the scaffold, from day one, or never (§10.4) | Rules, hooks and CI apply meanwhile |
-| A10 | When to add Storybook | **Open.** Options: during setup, or together with the invitation renderer | — |
+| A10 | When to add Storybook | **Not for now** (design C-27, 5 November 2026), to be looked at again before going live | — |
 | A11 | This proposal | **Delete it once ARCHITECTURE.md and WORKFLOW.md absorb these decisions**, as recommended | Git history keeps it |
 | A12 | Design first, or features first? | **Recommendation, at the frontend lead's request:** design the invitation and a small set of tokens first, with Claude Design; build the organizer app's features first. Confirm or change | Below. The invitation design and tokens are in [design/](design/BRAND_BRIEF.md) (12 October 2026) |
 
@@ -99,7 +99,7 @@ screen where looks are the product, into rework.
 **Why speed matters.** [`docs/BACKLOG.md`](../../docs/BACKLOG.md) (8 October) says the client,
 F1, is the only P0 still blocking the free pilot. So this proposal keeps the setup small: gates
 such as bundle budgets and Lighthouse arrive with the screens they guard, not before. When
-Storybook arrives is open (A10).
+Storybook arrives is settled: not for now (A10).
 
 **What the frontend needs from the backend first** (§16): response schemas in the OpenAPI
 document (0 of 139 operations have one today); `GET /me` and per-event permissions; rate limits
@@ -109,8 +109,8 @@ requests into a protected `main` for both teams.
 **Decided on 9 October** (decision record): React Router 8 with server rendering from day one,
 i18next, `localStorage` with cross-tab locks, Node 26, the frontend fast lane, and no frontend
 merges into `main` for now. **Awaiting review:** the temporary integration workflow (§3.8).
-**Still open:** the merge method into `main`, the deployment layout, the sandbox, the AGENTS.md
-pointer, and when to add Storybook.
+**Still open:** the merge method into `main`, the deployment layout, the sandbox and the AGENTS.md
+pointer.
 
 ---
 
@@ -664,7 +664,7 @@ There are two visual systems.
 - **Fonts are self-hosted WOFF2.** Licences need confirming (§15), and new template fonts need a
   delivery answer (FR-9). Two fonts in the API.md example, Inter and Cormorant Garamond, have no
   Armenian glyphs, so fallback stacks matter.
-- **When to add Storybook is open (A10).** It pays for itself most with blocks × variants ×
+- **When to add Storybook: not for now (A10).** It pays for itself most with blocks × variants ×
   languages × palettes, which is why the recommendation was to add it with the renderer.
 
 ### 5.9 Language, time and money
@@ -1145,7 +1145,7 @@ backend use `@demo.test` addresses, never real ones.
 strings, locale negotiation, the list envelope, token rotation — are tested against the real
 backend, because "a mock that is wrong in the same way as the code proves nothing".
 
-**Later, with what they guard:** Storybook with axe (when is open, A10); bundle and Lighthouse
+**Later, with what they guard:** Storybook with axe (not for now, A10); bundle and Lighthouse
 budgets for the guest page; visual regression if templates multiply. There is no coverage
 percentage; `lib/` and `api/` are tested thoroughly instead.
 
@@ -1230,7 +1230,7 @@ and some of it costs more than it returns for a two-person team racing to a pilo
 | 113 ADRs, a ~282-entry question register, five authority tiers, milestone files | Yes | **Reject the weight** | Aveline's hierarchy is already simple: `docs/` is the contract and the nearest rules file wins. A decision log plus `BACKEND_REQUESTS.md` |
 | Milestone commits (`M97–M99` in one), `dev` and `implementation/*` branches | Yes | **Reject** | Focused `frontend/*` branches, one pull request per change |
 | Kubb: types, Zod, fakers, MSW handlers | Yes | **Defer** | There are no response schemas to generate from yet (FR-1) |
-| Storybook 10 with axe on every story | Yes | **Open (A10)** | It pays off most with the invitation renderer; timing undecided |
+| Storybook 10 with axe on every story | Yes | **Not for now (A10)** | It pays off most with the invitation renderer; to be looked at again before going live |
 | Lighthouse CI, bundle budgets, degradation gates | Yes | **Defer** | For the guest page, once it exists |
 | Register of unconsumed operations | Yes | **Defer** | Useful once most screens exist |
 | husky with lint-staged | Yes | **Defer** | Repository-wide hooks would affect the backend team |

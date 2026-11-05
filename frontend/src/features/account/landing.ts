@@ -1,13 +1,18 @@
+import { APP_PATHS } from '@/route-paths';
+
 import type { OwnOrganization } from './types';
 
 /**
- * Where a signed-in person starts. With no organization and no event they have just registered,
- * so they create their organization (docs/API.md §6, "Becoming a tenant"). Someone brought onto
- * one event, door staff for example, has no organization and needs none.
+ * Where a signed-in person must go first, if anywhere. With no organization and no event they have
+ * just registered, so they create their organization (docs/API.md §6, "Becoming a tenant"), unless
+ * they are Aveline's staff, who belong to none by design. Someone brought onto one event, door staff
+ * for example, has no organization and needs none.
  */
-export function needsOrganization(
+export function firstStopFor(
   organization: OwnOrganization | null,
   eventCount: number,
-): boolean {
-  return organization === null && eventCount === 0;
+  isStaff: boolean,
+): string | null {
+  if (organization !== null || eventCount > 0) return null;
+  return isStaff ? APP_PATHS.staff : APP_PATHS.welcome;
 }

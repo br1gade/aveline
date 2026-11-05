@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { Link, redirect } from 'react-router';
 
-import { appMeta, needsOrganization, ownOrganization, requireSignedIn } from '@/features/account';
+import { appMeta, firstStopFor, ownOrganization, requireSignedIn } from '@/features/account';
+import { isAvelineStaff } from '@/features/customers';
 import { ArrivalStatus, EventList, listEvents } from '@/features/events';
 import { languageOfMatches } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
@@ -11,12 +12,14 @@ import type { Route } from './+types/home';
 
 /** No organization and no event: a new account, which sets up its organization first. */
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-  const { api } = await requireSignedIn(request);
+  const session = await requireSignedIn(request);
+  const { api } = session;
   const [organization, events] = await Promise.all([ownOrganization(api), listEvents(api)]);
-  if (needsOrganization(organization, events.length)) {
-    throw redirect(APP_PATHS.welcome);
-  }
-  return { organization, events };
+  // Asked only with no organization of their own: a customer with one has no need to be refused.
+  const isStaff = organization === null && (await isAvelineStaff(api));
+  const firstStop = firstStopFor(organization, events.length, isStaff);
+  if (firstStop) throw redirect(firstStop);
+  return { organization, events, isStaff };
 }
 
 export function meta({ matches }: Route.MetaArgs) {
@@ -25,7 +28,7 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation('app');
-  const { organization, events } = loaderData;
+  const { organization, events, isStaff } = loaderData;
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -49,6 +52,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         {[
           { to: APP_PATHS.archivedEvents, label: t('home.archived') },
           { to: APP_PATHS.suppressions, label: t('home.suppressions') },
+          ...(isStaff ? [{ to: APP_PATHS.staff, label: t('home.staff') }] : []),
           { to: APP_PATHS.organization, label: t('home.organizationSettings') },
           { to: APP_PATHS.billing, label: t('home.billing') },
           { to: APP_PATHS.promoCodes, label: t('home.promoCodes') },

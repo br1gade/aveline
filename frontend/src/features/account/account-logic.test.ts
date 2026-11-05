@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createBrowserSession, type TokenStore } from '@/api/session';
 
 import { registerAndSignIn } from './flows';
-import { needsOrganization } from './landing';
+import { firstStopFor } from './landing';
 import { safeNext } from './safe-next';
 import { organizationSchema, registerSchema, resetRequestSchema, signInSchema } from './schemas';
 import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
@@ -30,19 +30,28 @@ describe('safeNext', () => {
   });
 });
 
-describe('needsOrganization', () => {
+describe('firstStopFor', () => {
   const organization = { organizationId: 'o1', name: 'Petrosyan Wedding' };
 
   it('sends a new account, with no organization and no event, to create one', () => {
-    expect(needsOrganization(null, 0)).toBe(true);
+    expect(firstStopFor(null, 0, false)).toBe('/app/welcome');
+  });
+
+  it('sends staff, who belong to no organization by design, to their tools instead', () => {
+    expect(firstStopFor(null, 0, true)).toBe('/app/staff');
+  });
+
+  it('lets staff who do have something in', () => {
+    expect(firstStopFor(null, 1, true)).toBeNull();
+    expect(firstStopFor(organization, 0, true)).toBeNull();
   });
 
   it('lets someone brought onto one event in without an organization', () => {
-    expect(needsOrganization(null, 1)).toBe(false);
+    expect(firstStopFor(null, 1, false)).toBeNull();
   });
 
   it('lets an organization with no events yet in', () => {
-    expect(needsOrganization(organization, 0)).toBe(false);
+    expect(firstStopFor(organization, 0, false)).toBeNull();
   });
 });
 

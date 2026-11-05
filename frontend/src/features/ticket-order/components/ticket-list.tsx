@@ -4,6 +4,7 @@ import type { PublicEvent } from '@/features/public-event';
 import { StatusChip } from '@/ui';
 
 import type { BuyerOrder, BuyerTicket } from '../types';
+import { TicketQr } from './ticket-qr';
 
 interface Holder {
   key: string;
@@ -72,6 +73,9 @@ export function TicketList({ order, event }: { order: BuyerOrder; event: PublicE
                 <p className="m-0 text-2xl font-medium tracking-[0.12em] break-all tabular-nums">
                   {holder.ticket.code}
                 </p>
+                {holder.ticket.status === 'VALID' ? (
+                  <TicketQr code={holder.ticket.code} holder={holder.name || t('ticket.noName')} />
+                ) : null}
                 <TicketState ticket={holder.ticket} />
               </>
             ) : (

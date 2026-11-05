@@ -128,6 +128,42 @@ describe("the buyer's order (PD-81)", () => {
     expect(reads.get).toBe(0);
   });
 
+  it('draws a QR code for a ticket that can still be used, naming its holder and never its code', async () => {
+    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    serveRead(() => HttpResponse.json({ ...orderWire(), accessToken: TOKEN }));
+    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
+    renderAt('/tickets');
+    const tickets = await screen.findByRole('region', { name: 'Tickets' });
+    const items = within(tickets).getAllByRole('listitem');
+    const drawing = within(items[0]!).getByRole('img', {
+      name: 'QR code for Anna Sargsyan’s ticket',
+    });
+    expect(drawing.tagName.toLowerCase()).toBe('svg');
+    expect(drawing.outerHTML).not.toContain('SAMPLE-CODE');
+    expect(within(items[0]!).getByText(/brightness/)).toBeVisible();
+    expect(within(items[0]!).getByText('SAMPLE-CODE-1')).toBeVisible();
+    // Admitted already: nothing left to scan, and it still says so.
+    expect(within(items[1]!).queryByRole('img')).not.toBeInTheDocument();
+    expect(within(items[1]!).queryByText(/brightness/)).not.toBeInTheDocument();
+    expect(within(items[1]!).getByText('Admitted')).toBeVisible();
+  });
+
+  it.each(['VOID', 'REFUNDED'])('draws none for a ticket that is %s', async (status) => {
+    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    const wire = orderWire() as { tickets: Array<Record<string, unknown>> };
+    serveRead(() =>
+      HttpResponse.json({
+        ...wire,
+        accessToken: TOKEN,
+        tickets: wire.tickets.map((ticket) => ({ ...ticket, status })),
+      }),
+    );
+    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
+    renderAt('/tickets');
+    const tickets = await screen.findByRole('region', { name: 'Tickets' });
+    expect(within(tickets).queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it('shows each person with their ticket, code and state, and the event this tab came from', async () => {
     holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
     serveRead(() => HttpResponse.json({ ...orderWire(), accessToken: TOKEN }));

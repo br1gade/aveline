@@ -53,7 +53,10 @@
     "guestBook": "Livre d’or · Aveline",
     "designAdoption": "Aperçu d’un modèle · Aveline",
     "activity": "Activité · Aveline",
-    "organization": "Votre organisation · Aveline"
+    "organization": "Votre organisation · Aveline",
+    "staff": "Personnel · Aveline",
+    "staffCustomers": "Clients · Aveline",
+    "staffDataRequests": "Demandes sur les données · Aveline"
   },
   "shell": {
     "loading": "Chargement…",
@@ -79,7 +82,8 @@
     "vendors": "Prestataires",
     "organization": "Les personnes à ne pas contacter, les codes promo et les prestataires appartiennent à votre organisation : ils valent pour chaque événement.",
     "billing": "Formule et factures",
-    "organizationSettings": "Votre organisation : nom et membres"
+    "organizationSettings": "Votre organisation : nom et membres",
+    "staff": "Outils du personnel d’Aveline"
   },
   "welcome": {
     "title": "Configurer votre organisation",

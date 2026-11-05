@@ -53,7 +53,10 @@
     "guestBook": "Հյուրերի գիրք · Aveline",
     "designAdoption": "Ձևանմուշի նախադիտում · Aveline",
     "activity": "Գործողություններ · Aveline",
-    "organization": "Ձեր կազմակերպությունը · Aveline"
+    "organization": "Ձեր կազմակերպությունը · Aveline",
+    "staff": "Աշխատակիցներ · Aveline",
+    "staffCustomers": "Հաճախորդներ · Aveline",
+    "staffDataRequests": "Տվյալների հարցումներ · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",
@@ -79,7 +82,8 @@
     "vendors": "Մատակարարներ",
     "organization": "Ում չի կարելի գրել ցանկը, պրոմոկոդերը և մատակարարները ձեր կազմակերպությանն են պատկանում և գործում են բոլոր միջոցառումների համար։",
     "billing": "Փաթեթ և հաշիվներ",
-    "organizationSettings": "Ձեր կազմակերպությունը՝ անվանում և անդամներ"
+    "organizationSettings": "Ձեր կազմակերպությունը՝ անվանում և անդամներ",
+    "staff": "Aveline-ի աշխատակիցների գործիքներ"
   },
   "welcome": {
     "title": "Ստեղծեք ձեր կազմակերպությունը",

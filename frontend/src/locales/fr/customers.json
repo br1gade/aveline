@@ -1,0 +1,58 @@
+{
+  "home": {
+    "title": "Personnel d’Aveline",
+    "lead": "Outils pour l’équipe d’Aveline. Chacun indique s’il n’est pas destiné à votre rôle.",
+    "customers": "Clients",
+    "dataRequests": "Demandes sur les données"
+  },
+  "title": "Clients",
+  "back": "Retour aux outils",
+  "list": {
+    "title": "Trouver un client",
+    "searchLabel": "Nom de l’organisation, ou une partie",
+    "search": "Rechercher",
+    "limit": "Les 50 plus récentes sont affichées.",
+    "none": "Aucune organisation trouvée.",
+    "owners": "Propriétaires : {{addresses}}",
+    "invited": "Invités, pas encore acceptés : {{addresses}}",
+    "events_one": "{{count, number}} événement",
+    "events_other": "{{count, number}} événements",
+    "setUp": "Préparer un événement",
+    "setUpFor": "Préparer un événement : {{name}}",
+    "events_many": "{{count, number}} événements"
+  },
+  "open": {
+    "title": "Ouvrir un compte",
+    "lead": "Cela ouvre l’organisation du client et lui envoie une invitation à en devenir propriétaire. Vous n’en devenez pas membre, et il choisit son propre mot de passe.",
+    "name": "Nom de l’organisation",
+    "nameError": "Utilisez de 2 à 160 caractères.",
+    "kind": "Pour qui",
+    "email": "Adresse e-mail du propriétaire",
+    "emailError": "Saisissez une adresse e-mail valide.",
+    "submit": "Ouvrir le compte",
+    "opening": "Ouverture…",
+    "invited": "{{name}} est ouverte, et une invitation lui a été envoyée.",
+    "existing": "Cette adresse figure déjà dans {{name}}, comme membre ou invitée : rien de nouveau n’a été ouvert et aucun e-mail n’est parti. Vérifiez qu’il s’agit bien de celle du client avant d’y créer un événement.",
+    "several": "Cette adresse figure dans plusieurs organisations. Choisissez celle du client.",
+    "use": "Utiliser {{name}}",
+    "severalNone": "Cette adresse figure dans plusieurs organisations, qui ne peuvent pas être listées ici, car il peut s’agir d’invitations en attente. Demandez au client laquelle il veut dire, ou d’accepter d’abord."
+  },
+  "kind": {
+    "HOST": "Un couple ou une famille",
+    "PLANNER": "Un organisateur ou une agence",
+    "CORPORATE": "Une entreprise"
+  },
+  "newEvent": {
+    "lead": "L’événement est créé dans {{name}}, l’organisation du client. Vous le gérez depuis votre rôle de personnel."
+  },
+  "refusal": {
+    "needsChoice": "Choisissez l’organisation concernée.",
+    "forbidden": "Cette page est réservée au personnel d’Aveline. Vos événements restent accessibles depuis votre page d’accueil.",
+    "rateLimited": "Trop de requêtes pour le moment. Patientez un instant et réessayez.",
+    "emailRefused": "Saisissez une adresse e-mail valide.",
+    "nameRefused": "Utilisez de 2 à 160 caractères.",
+    "gone": "Cette organisation n’est plus la sienne, ou n’existe plus. Recherchez-la à nouveau.",
+    "noAnswer": "Nous n’avons pas reçu de réponse. Veuillez réessayer.",
+    "other": "Cela n’a pas été accepté :"
+  }
+}

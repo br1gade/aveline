@@ -53,7 +53,10 @@
     "guestBook": "Guest book · Aveline",
     "designAdoption": "Preview a template · Aveline",
     "activity": "Activity · Aveline",
-    "organization": "Your organization · Aveline"
+    "organization": "Your organization · Aveline",
+    "staff": "Staff · Aveline",
+    "staffCustomers": "Customers · Aveline",
+    "staffDataRequests": "Data requests · Aveline"
   },
   "shell": {
     "loading": "Loading…",
@@ -79,7 +82,8 @@
     "vendors": "Vendors",
     "organization": "Who must not be contacted, promo codes and vendors are your organization’s own: they apply to every event.",
     "billing": "Plan and invoices",
-    "organizationSettings": "Your organization: name and members"
+    "organizationSettings": "Your organization: name and members",
+    "staff": "Aveline staff tools"
   },
   "welcome": {
     "title": "Set up your organization",

@@ -99,7 +99,8 @@ event pages, an event's guest list and import, its venues (adding and correcting
 invitation's publishing and sending, how guests answer, the designer, guests' photos, the
 agreements and the seating, the exports, ticket sales (`/app/events/:eventId/tickets`, its types
 and announcement), the orders and an event's activity, the organization's own settings
-(`/app/organization`, beside the chooser at `/app/organizations`); the public price list and
+(`/app/organization`, beside the chooser at `/app/organizations`), Aveline's own staff's tools
+(`/app/staff`, its customers and its data requests); the public price list and
 data-request form, `/pricing` and `/privacy-request`; checkout, `/events/:slug/checkout`, and the buyer's order once
 its token is out of the address, `/tickets`. The static `/app/events/new` ranks above
 `/app/events/:eventId`; `/venues/new` would rank above a `/venues/:venueId`, and `/guests/import`
@@ -854,6 +855,11 @@ bank or two real memberships.**
 | 5 Nov 2026 | A guest's PNG or AVIF over the limit becomes a JPEG on white | A canvas can't encode AVIF, and a lossless PNG at this size often stays over the limit. Transparency goes, with nothing said while it happens, under the open DQ-58 (PD-150) |
 | 5 Nov 2026 | **An email address is checked for its shape only, everywhere,** by `isEmailShaped` in `lib/text`: one `@`, no spaces, a dot after it. Each form's backend `@IsEmail()` has the last word, and its 400 goes on the field, which the account forms and the vendor form didn't do | Zod's `z.email()` refused addresses the backend takes, such as `анна@пример.рф` and `a!b@example.am`, so someone could be unable to buy a ticket or file a data request. The check refuses what `@IsEmail()` also refuses (`a@b`) and never what it takes; a test pins the DTOs to its defaults. Chromium's `type="email"` may send a mixed-script domain as punycode, which `@IsEmail()` also takes. Suppressions have no backend format check, so the shape is all that stands there |
 | 5 Nov 2026 | **With a dialog open, the leave guard holds the same page in another view too.** Back from a dialog to `?view=plan` used to close it without asking | Nothing behind a dialog can be pressed, so a change of view while one is open is Back, and the view it goes to may hold no such dialog. Back and Forward only: a page writing its own query, as the guest list's search box does after a pause, keeps the dialog and asks nothing, and with no dialog open a search still keeps its forms (PD-146) |
+| 5 Nov 2026 | **Aveline's staff's tools are features of their own,** `features/customers` and `features/data-requests`, at `/app/staff`, hidden from customers unlike FR-6 (PD-164) | `docs/API.md` calls this a staff console, not the host app. A customer who opens the address gets a worded 403, and the server decides every action |
+| 5 Nov 2026 | **Who is staff is found by asking,** `isAvelineStaff` reading `GET /concierge/organizations`, and only for an account with no organization. The plan had read `platformRole` from the access token, which was written and removed the same day | `docs/API.md`: "Do not decode the JWT to decide what UI to show — ask the API and handle 403". A new staff account would otherwise be told to create an organization (PD-165) |
+| 5 Nov 2026 | **`CreateEvent` takes a `create` prop,** and staff reach it by a link carrying the customer's name in router state, which an address sent by someone else can't | One form, not two that drift, and it says whose event this is. Without the name it goes back to choosing (PD-166) |
+| 5 Nov 2026 | **An export's answer is held only in the page's memory, and goes to a file you save** (PD-169) | The backend keeps no copy (FR-128), and a person's data doesn't belong in storage, the address or a log |
+| 5 Nov 2026 | **`uqr` draws a ticket's QR code and `jsqr` reads it** (PD-171, PD-173), exact versions, MIT and Apache-2.0, neither with dependencies or install scripts. `uqr` gives a grid, drawn here as an inline SVG path, safe on the server. `jsqr` is its own 130 KB chunk, loaded on opening the camera | One path on every browser, as `BarcodeDetector` is missing on iPhone Safari as far as we know, so one path is tested and one runs. `jsqr` has had no release for some years; the format doesn't change, and it can be swapped behind `use-camera.ts` |
 
 ## 12. Not yet built
 
@@ -875,9 +881,19 @@ bank or two real memberships.**
 - Of the data-request form: reviewed words and a privacy notice to link to (PQ-25), a way for a guest with
   no account to find it (PQ-26), and notes that can't be lost or added to by someone else (FR-126).
   Handling a request is Aveline's staff's.
-- Tools for Aveline's own staff, not planned here and waiting on a decision (PQ-28): opening an organization
-  for a customer, authoring templates, handling data requests and access reviews, and enquiries (disabled
-  pending rollout).
+- Of Aveline's own staff's tools (C-24): authoring templates and access reviews, which follow; enquiries,
+  which wait until the backend enables them, and with them carrying out a request that has no address; paging
+  past the newest 50 organizations and the 200 soonest-due requests (FR-127); recovering an export whose answer was lost
+  (FR-128). How a requester is verified is an open question (PQ-29). Telling a customer's own organization from
+  one they're merely on (FR-130); a staff member who belongs to an organization sees no link to their tools
+  (PD-165). Binding an enquiry, which a request with an address can also need, and which answers the backend's
+  words as they came (PD-168). Only a mock has met these: no real staff account and no real erasure.
+- Of a ticket's QR code and the door's scanner (C-25, PD-171 to PD-174): **a real camera has never read a code.**
+  A fake camera in Chromium has, so an iPhone and an Android phone, in real light at a real door, are still to
+  come, as are a real refusal of permission, which the walk's browser can't produce, and a code on a printed
+  page. How long a code should be held, and how often a real picture freezes without saying so, need a real door
+  (PD-173). The camera's permission covers the whole origin, as no `Permissions-Policy` limits it to `/app`: worth
+  adding before going live, on full-page loads alone, as client navigation doesn't change it.
 - Of billing: saying beforehand that paid plans are off, on the billing page or the public price
   list (FR-109); a plan's words in other languages (FR-110); more than the newest
   hundred invoices (FR-110); a real bank: only the mock's return has been followed.
@@ -885,8 +901,9 @@ bank or two real memberships.**
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
   door, reminders and thanks, its team, its running order, recording answers, archiving and
-  deleting, who must not be contacted, promo codes, vendors, billing with the bank's return, what guests' answers add up to, the organization's settings and an event's activity: nothing is
-  left unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-64).
+  deleting, who must not be contacted, promo codes, vendors, billing with the bank's return, what guests' answers add up to, the organization's settings, an event's activity, a ticket's QR code and
+  the door's scanner, and Aveline's own staff's customers and data requests: nothing is left unbuilt as a
+  screen, though every one waits for its design (DQ-13 to DQ-68).
 - Of what guests' answers add up to: printing it, which exports do; views beyond their count by
   language, and telling no views from no count (FR-111); paging the answers and the guest book, and
   a yes-or-no answer in the event's language (FR-117).
@@ -964,11 +981,10 @@ bank or two real memberships.**
   finer than "something went wrong", which wait for the worker's codes (FR-59).
 - Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
-  the announcement is not published (FR-71); a QR code for a ticket and a scanner at the door
-  (PQ-13, a dependency); a
+  the announcement is not published (FR-71); a
   household on one order (PQ-12); naming the event on an order opened from its email in another
   tab (FR-62); "on sale from" before a type's sales open (FR-66).
-- Of the door: working offline (PQ-14); a QR scanner (PQ-13); seating at check-in; a walk-in joining
+- Of the door: working offline (PQ-14); what the QR scanner still lacks, listed above (C-25); seating at check-in; a walk-in joining
   a household already on the list, which needs one of its seats free; adding a walk-in again safely
   after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the
@@ -985,13 +1001,13 @@ bank or two real memberships.**
   or TLS: the proxy's, which isn't chosen. A production build needs
   `VITE_PUBLIC_ORIGIN` set to its public https origin: brief links are built on it, and the booking
   page refuses to copy one on a local or `http` origin from a real `https` page (BACKEND_REQUESTS §4).
-- CI (BA-3), Sentry, Storybook (A10). The root push gate, `npm run ci:local`, needs Linux and Docker, so it
+- CI (BA-3). Sentry and Storybook aren't wanted for now, to be looked at again before going live (C-27). The root push gate, `npm run ci:local`, needs Linux and Docker, so it
   has run on no frontend commit made on the Mac this is written on (BACKEND_REQUESTS §3, §4); those commits
   name it as not run.
 - The end-to-end and axe tests (`test/e2e/`, §10): written once the local backend can run.
   `npm run test:e2e` finds no tests until then.
 - Of the invitation's polish: music starting by itself after a full reload, which browsers refuse
   before a press (PD-143).
-- The Telegram reminders link (`guest.telegramLink`): the data exists since 23 October 2026, but it
-  is not designed, and the link carries the guest's token (BQ-11). The guest's table is shown on
-  the personal card since 30 October 2026 (design PD-71).
+- The Telegram reminders button isn't wanted (C-26). `guest.telegramLink` stays unread, and the link in
+  the invitation's email, which carries the guest's token, is the backend's (BQ-11). The guest's table is
+  shown on the personal card since 30 October 2026 (design PD-71).

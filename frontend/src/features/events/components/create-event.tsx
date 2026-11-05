@@ -4,7 +4,9 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import type { ApiClient } from '@/api/client';
 import { type Problem } from '@/api/problems';
+import type { components } from '@/api/schema';
 import { browserSession } from '@/api/session';
 import { DEFAULT_TIME_ZONE, timeZoneOptions } from '@/lib/time';
 import { AppForm, ProblemAlert, SubmitButton, useLeaveGuard } from '@/ui/app-form';
@@ -15,7 +17,10 @@ import { eventPath } from '../paths';
 import { createPayload } from '../payload';
 import { markRefusals, useRefusedText } from '../refusals';
 import { eventFormSchema, type EventFormInput, type EventFormValues } from '../schemas';
+import type { EventDetail } from '../types';
 import { EventFields } from './event-fields';
+
+type Schemas = components['schemas'];
 
 const schema = eventFormSchema('create');
 
@@ -24,7 +29,14 @@ const schema = eventFormSchema('create');
  * generated, never asked for. The page replaces itself with the new event, so Back cannot send
  * the form a second time.
  */
-export function CreateEvent() {
+export function CreateEvent({
+  lead,
+  create = createEvent,
+}: {
+  /** Words of its own, for staff setting one up in a customer's organization. */
+  lead?: string;
+  create?: (api: ApiClient, body: Schemas['CreateEventDto']) => Promise<EventDetail>;
+}) {
   const { t } = useTranslation('events');
   const navigate = useNavigate();
   const refused = useRefusedText('create');
@@ -40,7 +52,7 @@ export function CreateEvent() {
   const onSubmit = async (values: EventFormValues) => {
     setProblem(null);
     try {
-      const event = await createEvent(browserSession().api, createPayload(values));
+      const event = await create(browserSession().api, createPayload(values));
       await navigate(eventPath(event.id), { replace: true });
     } catch (error) {
       setProblem(markRefusals(error, form.setError));
@@ -50,7 +62,7 @@ export function CreateEvent() {
   return (
     <section className="flex max-w-[30rem] flex-col gap-5">
       <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('create.title')}</h1>
-      <p className="text-muted-foreground m-0">{t('create.lead')}</p>
+      <p className="text-muted-foreground m-0">{lead ?? t('create.lead')}</p>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
       <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
         <EventFields form={form} mode="create" zones={zones} languages={languageOptions()} />

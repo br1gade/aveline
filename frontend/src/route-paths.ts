@@ -34,6 +34,11 @@ export const APP_PATHS = {
   billing: '/app/billing',
   /** Choosing an organization, for an account with several. */
   organizations: '/app/organizations',
+  /** Aveline's own staff: not linked for customers. */
+  staff: '/app/staff',
+  staffCustomers: '/app/staff/customers',
+  staffNewEvent: '/app/staff/customers/:organizationId/new-event',
+  staffDataRequests: '/app/staff/data-requests',
   /** The organization itself: its name, members and invitations. */
   organization: '/app/organization',
   /** Static, so it ranks above `event`'s `:eventId`. */

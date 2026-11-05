@@ -11,7 +11,7 @@ import { FindGuest } from './find-guest';
 import { MustAgreeList } from './must-agree-list';
 import { RecentArrivals } from './recent-arrivals';
 import { LINK } from './shared';
-import { TicketForm } from './ticket-form';
+import { TicketByCode } from './ticket-form';
 import { useDoor } from './use-door';
 import { WalkInForm } from './walk-in-form';
 
@@ -86,7 +86,7 @@ export function DoorPage({ data }: { data: DoorData }) {
           <ArrivalCounts read={door.arrivals} timeZone={event.timezone} />
           <MethodSwitch isByCode={isByCode} />
           {isByCode ? (
-            <TicketForm door={door} />
+            <TicketByCode door={door} />
           ) : (
             <>
               <FindGuest
