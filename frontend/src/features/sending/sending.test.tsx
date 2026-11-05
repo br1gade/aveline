@@ -459,7 +459,8 @@ describe('InvitationPage: sending', () => {
     expect(dialog).toHaveTextContent('1 household has no usable address');
     expect(sent).toEqual([]);
     await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-    expect(await screen.findByRole('heading', { name: 'What happened' })).toHaveFocus();
+    // Under the send panel's own heading here.
+    expect(await screen.findByRole('heading', { level: 3, name: 'What happened' })).toHaveFocus();
     expect(sent).toEqual([{}]);
   });
 
@@ -479,6 +480,9 @@ describe('InvitationPage: sending', () => {
     expect(outcome).not.toHaveTextContent('123456789');
     expect(outcome).toHaveTextContent('5 households already had it');
     expect(outcome).toHaveTextContent('Not sent: 1 household');
+    expect(
+      within(outcome).getByRole('heading', { level: 4, name: 'Not sent: 1 household' }),
+    ).toBeVisible();
     expect(outcome).toHaveTextContent('For a bounce, correct the address on the guest list');
     expect(outcome).toHaveTextContent('Can’t be reached: 1 household');
     expect(

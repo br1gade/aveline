@@ -92,7 +92,7 @@ function nextStep(outcome: OrderOutcome, slug: string | undefined, label: string
   return (
     <Link
       to={generatePath(ROUTE_PATHS.publicEvent, { slug })}
-      className="text-action justify-self-start underline underline-offset-3"
+      className="text-action inline-flex min-h-11 items-center justify-self-start underline underline-offset-3"
     >
       {label}
     </Link>

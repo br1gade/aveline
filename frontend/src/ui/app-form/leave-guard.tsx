@@ -10,7 +10,13 @@ import {
 } from 'react';
 import type { FieldValues, UseFormSubscribe } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useBeforeUnload, useBlocker, type BlockerFunction } from 'react-router';
+import {
+  NavigationType,
+  useBeforeUnload,
+  useBlocker,
+  type BlockerFunction,
+  type Path,
+} from 'react-router';
 
 import { AskFirstDialog } from './ask-first-dialog';
 import { useDialogOpener } from './use-dialog-opener';
@@ -46,21 +52,40 @@ function useUnsavedForms() {
 }
 
 /**
+ * Back or Forward to the same page in another view, with a dialog open. Nothing behind a dialog can be
+ * pressed, and the view it goes to may hold no such dialog, as seating's drawn plan doesn't. Back and
+ * Forward only: a page writing its own query, as a search box does after a pause, keeps the dialog.
+ */
+function isViewChangeUnderDialog(
+  current: Path,
+  next: Path,
+  historyAction: NavigationType,
+): boolean {
+  return (
+    historyAction === NavigationType.Pop &&
+    current.search !== next.search &&
+    document.querySelector('[role="dialog"]') !== null
+  );
+}
+
+/**
  * The app's one guard against leaving unsaved changes (design PD-119): React Router allows one
  * blocker at a time, and a page can hold several forms. A link or Back to another page asks first;
  * a search on the same page keeps its forms, so it doesn't, and nor does a navigation marked
- * `LEAVE_UNASKED`. A reload or closing the tab gets the browser's own question. Each form says
- * whether it has changes through `useLeaveGuard`.
+ * `LEAVE_UNASKED`. With a dialog open, Back to the same page in another view asks too. A reload or
+ * closing the tab gets the browser's own question. Each form says whether it has changes through
+ * `useLeaveGuard`.
  */
 export function LeaveGuard({ children }: { children: ReactNode }) {
   const { t } = useTranslation('common');
   const { hasUnsaved, mark } = useUnsavedForms();
   const { remember, restoreFocus } = useDialogOpener();
-  const shouldAsk: BlockerFunction = ({ currentLocation, nextLocation }) => {
+  const shouldAsk: BlockerFunction = ({ currentLocation, nextLocation, historyAction }) => {
     const isLeaving =
       hasUnsaved() &&
-      currentLocation.pathname !== nextLocation.pathname &&
-      !isLeaveUnasked(nextLocation.state);
+      !isLeaveUnasked(nextLocation.state) &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        isViewChangeUnderDialog(currentLocation, nextLocation, historyAction));
     if (isLeaving && document.activeElement instanceof HTMLElement) {
       remember(document.activeElement);
     }

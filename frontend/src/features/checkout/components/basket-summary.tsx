@@ -53,7 +53,10 @@ export function BasketSummary({ basket }: { basket: Basket }) {
           {money(sumMinor(lines.map((line) => line.totalMinor)))}
         </span>
       </p>
-      <Link to={back} className="text-action justify-self-start underline underline-offset-3">
+      <Link
+        to={back}
+        className="text-action inline-flex min-h-11 items-center justify-self-start underline underline-offset-3"
+      >
         {t('basket.change')}
       </Link>
     </section>

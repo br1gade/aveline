@@ -651,21 +651,27 @@ logged for repeated slashes and double encoding, and `freeCells` looping for eve
 each now tested and fixed. **Nothing here ran against a real backend, a real bank, two real memberships
 (the gate is off) or a real authored template (adoption answers 503).**
 
-On 5 November 2026 organization settings, an event's activity and the data-request form were walked the
-same way, against a stateful mock built from the backend's code at `34ac1e6`, with everything
-`96a2ff2` added: the answers and the guest book, a walk-in, a household's answers and chairs, a dialog's
-form asking before Back, the price list, a large photo really made smaller, the draft preview at a
-phone's width, who still has to agree, and the card asking a household to answer again. In hy, ru, en and
-fr at 360 px, touch, and 1280 px: 2,606 checks passed on 61 screens, axe clean in 488 runs, and the 3,824 targets
-measured at 360 px were 44 px at the least. **This walk found what the tests couldn't:** six
-forms never joined to the leave guard, though each form's own tests passed. Sending past 1,000 and
-checkout's key across a reload have tests but no walk. A production build on our own server then passed
-110 checks, the data-request form's among them: what is typed reaches no address, referrer, storage or
-page, and no cache keeps the page. The tests were checked by breaking the code 184 ways in a copy: 182
-failed a test, one survivor got a test, and the other is the `HEAD` branch that can't be seen. A review
-of the change found what those hadn't, such as a retry that could never work after someone else's change
-and a non-owner told they weren't in the organization, each now tested and fixed or recorded (FR-124 to
-FR-126). **Nothing here ran against a real backend, a real bank or two real memberships.**
+On 5 November 2026 organization settings, an event's activity and the data-request form were walked
+the same way, against a stateful mock built from the backend's code at `34ac1e6`, with everything
+`96a2ff2` added: the answers and the guest book, a walk-in, a household's answers and chairs, a
+dialog's form asking before Back, the price list, a large photo really made smaller, the draft preview
+at a phone's width, who still has to agree, and the card asking a household to answer again. In hy,
+ru, en and fr at 360 px, touch, and 1280 px: 2,824 checks passed on 64 screens, axe clean in 512 runs,
+and the targets measured at 360 px, over 28,000 with the long list, were 44 px at the least. (A first
+full run's misses were the script's, in the expected number format and a Vite reload; those runs
+passed once corrected.) **This walk found what the tests couldn't:** six forms never joined to the
+leave guard, though each form's own tests passed. Sending past 1,000 was walked with 1,001 households,
+a thousand at a time, stopped partway with the choice kept, then pressed again; checkout's key was
+walked across real reloads, the same order keeping it and another taking a new one, with no name or
+address stored. Those walks found three links under 44 px on checkout and the buyer's order, and a
+heading out of order on the guest list after a send, all fixed. A production build on our own server
+then passed 110 checks, the data-request form's among them: what is typed reaches no address,
+referrer, storage or page, and no cache keeps the page. The tests were checked by breaking the code
+184 ways in a copy: 182 failed a test, one survivor got a test, and the other is the `HEAD` branch
+that can't be seen. A review of the change found what those hadn't, such as a retry that could never
+work after someone else's change and a non-owner told they weren't in the organization, each now
+tested and fixed or recorded (FR-124 to FR-126). **Nothing here ran against a real backend, a real
+bank or two real memberships.**
 
 ## 11. Decision log
 
@@ -847,6 +853,7 @@ FR-126). **Nothing here ran against a real backend, a real bank or two real memb
 | 5 Nov 2026 | **The organization's settings are their own feature,** `features/organization`, not part of `features/account` or `features/team` | Its roles, revisions and refusals are its own. Account keeps who you are and which organization this tab works in; team keeps one event's people (PD-159) |
 | 5 Nov 2026 | A guest's PNG or AVIF over the limit becomes a JPEG on white | A canvas can't encode AVIF, and a lossless PNG at this size often stays over the limit. Transparency goes, with nothing said while it happens, under the open DQ-58 (PD-150) |
 | 5 Nov 2026 | **An email address is checked for its shape only, everywhere,** by `isEmailShaped` in `lib/text`: one `@`, no spaces, a dot after it. Each form's backend `@IsEmail()` has the last word, and its 400 goes on the field, which the account forms and the vendor form didn't do | Zod's `z.email()` refused addresses the backend takes, such as `анна@пример.рф` and `a!b@example.am`, so someone could be unable to buy a ticket or file a data request. The check refuses what `@IsEmail()` also refuses (`a@b`) and never what it takes; a test pins the DTOs to its defaults. Chromium's `type="email"` may send a mixed-script domain as punycode, which `@IsEmail()` also takes. Suppressions have no backend format check, so the shape is all that stands there |
+| 5 Nov 2026 | **With a dialog open, the leave guard holds the same page in another view too.** Back from a dialog to `?view=plan` used to close it without asking | Nothing behind a dialog can be pressed, so a change of view while one is open is Back, and the view it goes to may hold no such dialog. Back and Forward only: a page writing its own query, as the guest list's search box does after a pause, keeps the dialog and asks nothing, and with no dialog open a search still keeps its forms (PD-146) |
 
 ## 12. Not yet built
 
@@ -868,11 +875,9 @@ FR-126). **Nothing here ran against a real backend, a real bank or two real memb
 - Of the data-request form: reviewed words and a privacy notice to link to (PQ-25), a way for a guest with
   no account to find it (PQ-26), and notes that can't be lost or added to by someone else (FR-126).
   Handling a request is Aveline's staff's.
-- Of leaving with unsaved changes: Back to the same page with another view closes a dialog on it without
-  asking (PD-146).
-- Tools for Aveline's own staff, none of them planned here: opening an organization for a customer,
-  authoring templates, handling data requests and access reviews, and enquiries (disabled pending
-  rollout).
+- Tools for Aveline's own staff, not planned here and waiting on a decision (PQ-28): opening an organization
+  for a customer, authoring templates, handling data requests and access reviews, and enquiries (disabled
+  pending rollout).
 - Of billing: saying beforehand that paid plans are off, on the billing page or the public price
   list (FR-109); a plan's words in other languages (FR-110); more than the newest
   hundred invoices (FR-110); a real bank: only the mock's return has been followed.
@@ -980,7 +985,9 @@ FR-126). **Nothing here ran against a real backend, a real bank or two real memb
   or TLS: the proxy's, which isn't chosen. A production build needs
   `VITE_PUBLIC_ORIGIN` set to its public https origin: brief links are built on it, and the booking
   page refuses to copy one on a local or `http` origin from a real `https` page (BACKEND_REQUESTS §4).
-- CI (BA-3), Sentry, Storybook (A10).
+- CI (BA-3), Sentry, Storybook (A10). The root push gate, `npm run ci:local`, needs Linux and Docker, so it
+  has run on no frontend commit made on the Mac this is written on (BACKEND_REQUESTS §3, §4); those commits
+  name it as not run.
 - The end-to-end and axe tests (`test/e2e/`, §10): written once the local backend can run.
   `npm run test:e2e` finds no tests until then.
 - Of the invitation's polish: music starting by itself after a full reload, which browsers refuse

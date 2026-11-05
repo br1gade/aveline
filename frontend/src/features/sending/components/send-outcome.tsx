@@ -10,15 +10,19 @@ import type { SendOutcome, SentHousehold, UnreachableHousehold } from '../types'
 export function OutcomeGroup({
   title,
   help,
+  isUnderPage = false,
   children,
 }: {
   title: string;
   help: string;
+  /** Directly under the page's heading, with no panel's between, so one level higher. */
+  isUnderPage?: boolean | undefined;
   children: ReactNode;
 }) {
+  const Heading = isUnderPage ? 'h3' : 'h4';
   return (
     <div className="flex flex-col gap-1.5">
-      <h4 className="m-0 text-sm font-medium">{title}</h4>
+      <Heading className="m-0 text-sm font-medium">{title}</Heading>
       <p className="m-0 text-sm">{help}</p>
       {children}
     </div>
@@ -64,12 +68,20 @@ export function ReasonList({ entries }: { entries: readonly UnreachableHousehold
   );
 }
 
+interface SendOutcomeProps {
+  outcome: SendOutcome;
+  eventId: string;
+  /** On a page with no panel's heading above it, such as the guest list. */
+  isUnderPage?: boolean;
+}
+
 /** Who nothing can reach. */
-function UnreachableGroup({ outcome, eventId }: { outcome: SendOutcome; eventId: string }) {
+function UnreachableGroup({ outcome, eventId, isUnderPage }: SendOutcomeProps) {
   const { t } = useTranslation('sending');
   return (
     <OutcomeGroup
       title={t('outcome.unreachableTitle', { count: outcome.unreachable.length })}
+      isUnderPage={isUnderPage}
       help={t('outcome.unreachableHelp')}
     >
       <ReasonList entries={outcome.unreachable} />
@@ -97,7 +109,8 @@ function isEmpty(outcome: SendOutcome): boolean {
  * from the host — nothing, a conversation or a corrected address, or an address to add. The heading
  * takes the focus when a result arrives.
  */
-export function SendOutcomeView({ outcome, eventId }: { outcome: SendOutcome; eventId: string }) {
+export function SendOutcomeView({ outcome, eventId, isUnderPage = false }: SendOutcomeProps) {
+  const Heading = isUnderPage ? 'h2' : 'h3';
   const { t } = useTranslation('sending');
   const titleId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -107,14 +120,14 @@ export function SendOutcomeView({ outcome, eventId }: { outcome: SendOutcome; ev
       aria-labelledby={titleId}
       className="bg-card border-border flex flex-col gap-4 border px-5 py-4"
     >
-      <h3
+      <Heading
         id={titleId}
         ref={headingRef}
         tabIndex={-1}
         className="m-0 text-base font-medium outline-none"
       >
         {t('outcome.title')}
-      </h3>
+      </Heading>
       {outcome.queued > 0 ? (
         <div className="flex flex-col gap-1.5">
           <p className="m-0">{t('outcome.queued', { count: outcome.queued })}</p>
@@ -132,13 +145,14 @@ export function SendOutcomeView({ outcome, eventId }: { outcome: SendOutcome; ev
       {outcome.suppressed.length > 0 ? (
         <OutcomeGroup
           title={t('outcome.suppressedTitle', { count: outcome.suppressed.length })}
+          isUnderPage={isUnderPage}
           help={t('outcome.suppressedHelp')}
         >
           <SentList households={outcome.suppressed} />
         </OutcomeGroup>
       ) : null}
       {outcome.unreachable.length > 0 ? (
-        <UnreachableGroup outcome={outcome} eventId={eventId} />
+        <UnreachableGroup outcome={outcome} eventId={eventId} isUnderPage={isUnderPage} />
       ) : null}
       {isEmpty(outcome) ? <p className="m-0">{t('outcome.nobody')}</p> : null}
     </section>

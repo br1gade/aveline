@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { I18nextProvider } from 'react-i18next';
-import { createRoutesStub, Link, useNavigate } from 'react-router';
+import { createRoutesStub, Link, useLocation, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createI18n } from '@/lib/i18n';
@@ -222,6 +222,9 @@ function DialogPage({ isFormDialog }: { isFormDialog: boolean }) {
             <button type="button" onClick={() => void navigate(-1)}>
               Phone back
             </button>
+            <button type="button" onClick={() => void navigate('/dialog?q=ani', { replace: true })}>
+              Page writes its query
+            </button>
             <button type="button" onClick={() => setIsOpen(false)}>
               Close
             </button>
@@ -270,6 +273,77 @@ describe('leaving with a dialog’s form open (design PD-146)', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(screen.getByRole('dialog', { name: 'Add someone' })).toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toHaveValue('Ani');
+  });
+
+  describe('when Back stays on the same page with another view', () => {
+    /** Another view of the page may hold no dialog at all, as seating's drawn plan doesn't. */
+    function renderTwoViews() {
+      const Stub = createRoutesStub(
+        guardedRoutes([{ path: '/dialog', Component: () => <DialogPage isFormDialog /> }]),
+      );
+      render(
+        <I18nextProvider i18n={createI18n('en')}>
+          <Stub initialEntries={['/dialog?view=plan', '/dialog']} initialIndex={1} />
+        </I18nextProvider>,
+      );
+      return userEvent.setup();
+    }
+
+    it('asks, and Cancel keeps the dialog and its work', async () => {
+      const user = renderTwoViews();
+      await user.click(await screen.findByRole('button', { name: 'Open' }));
+      await user.type(screen.getByLabelText('Name'), 'Ani');
+      await user.click(screen.getByRole('button', { name: 'Phone back' }));
+      const ask = await screen.findByRole('alertdialog', { name: 'Leave without saving?' });
+      await user.click(within(ask).getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(screen.getByLabelText('Name')).toHaveValue('Ani');
+    });
+
+    it('asks nothing when the page writes its own query, as a search box does after a pause', async () => {
+      const user = renderTwoViews();
+      await user.click(await screen.findByRole('button', { name: 'Open' }));
+      await user.type(screen.getByLabelText('Name'), 'Ani');
+      await user.click(screen.getByRole('button', { name: 'Page writes its query' }));
+      await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Ani'));
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('asks nothing of a page’s own form with no dialog open, as it stays', async () => {
+      function PageWithBack() {
+        const navigate = useNavigate();
+        const { search } = useLocation();
+        return (
+          <main>
+            <NameForm label="Name" />
+            <button type="button" onClick={() => void navigate(-1)}>
+              Phone back
+            </button>
+            <p>Address: {search}</p>
+          </main>
+        );
+      }
+      const Stub = createRoutesStub(guardedRoutes([{ path: '/form', Component: PageWithBack }]));
+      render(
+        <I18nextProvider i18n={createI18n('en')}>
+          <Stub initialEntries={['/form?q=ani', '/form']} initialIndex={1} />
+        </I18nextProvider>,
+      );
+      const user = userEvent.setup();
+      await user.type(await screen.findByLabelText('Name'), 'Ani');
+      await user.click(screen.getByRole('button', { name: 'Phone back' }));
+      expect(await screen.findByText('Address: ?q=ani')).toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Name')).toHaveValue('Ani');
+    });
+
+    it('asks nothing of a dialog with nothing typed', async () => {
+      const user = renderTwoViews();
+      await user.click(await screen.findByRole('button', { name: 'Open' }));
+      await user.click(screen.getByRole('button', { name: 'Phone back' }));
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
   });
 
   it('goes back once the dialog is closed without saving', async () => {

@@ -1141,6 +1141,18 @@ describe('GuestList: the invitation', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('?invite=sent');
   });
 
+  it('keeps what a send says in order under the page’s own heading', async () => {
+    serve();
+    answer('post', '/invitations/anna-davit-3f8a1c20/send', () =>
+      sendResult({ suppressed: [{ householdName: 'Sargsyan', toAddress: 'ani@example.am' }] }),
+    );
+    const user = renderList();
+    await user.click(await screen.findByRole('checkbox', { name: 'Choose Petrosyan family' }));
+    await user.click(screen.getByRole('button', { name: 'Send to 1 household' }));
+    await screen.findByRole('heading', { level: 2, name: 'What happened' });
+    expect(screen.getByRole('heading', { level: 3, name: 'Not sent: 1 household' })).toBeVisible();
+  });
+
   it('sends to the households chosen, naming one guest of each, then reloads', async () => {
     const reads = serve();
     const sent = answer('post', '/invitations/anna-davit-3f8a1c20/send', () => sendResult());
@@ -1148,7 +1160,8 @@ describe('GuestList: the invitation', () => {
     await user.click(await screen.findByRole('checkbox', { name: 'Choose Petrosyan family' }));
     expect(screen.getByText('1 household chosen')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Send to 1 household' }));
-    expect(await screen.findByRole('heading', { name: 'What happened' })).toHaveFocus();
+    // Right under the page's own heading here, as no panel's heading stands above it.
+    expect(await screen.findByRole('heading', { level: 2, name: 'What happened' })).toHaveFocus();
     expect(sent).toEqual([{ guestIds: ['g1'] }]);
     expect(screen.getByText('On its way to 1 household. Nothing more to do.')).toBeInTheDocument();
     await waitFor(() => expect(reads.delivery).toBe(2));

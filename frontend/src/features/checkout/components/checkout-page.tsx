@@ -24,7 +24,10 @@ function Body({ event, basket, isSalesClosed, provider }: CheckoutPageProps) {
     return (
       <Notice
         action={
-          <Link to={back} className="text-action underline underline-offset-3">
+          <Link
+            to={back}
+            className="text-action inline-flex min-h-11 items-center underline underline-offset-3"
+          >
             {t('chooseTickets')}
           </Link>
         }
@@ -48,7 +51,7 @@ export function CheckoutPage(props: CheckoutPageProps) {
       <header className="grid gap-3">
         <Link
           to={`${generatePath(ROUTE_PATHS.publicEvent, { slug: event.slug })}?locale=${event.locale}`}
-          className="text-action justify-self-start text-sm underline underline-offset-3"
+          className="text-action inline-flex min-h-11 items-center justify-self-start text-sm underline underline-offset-3"
         >
           {t('back')}
         </Link>
