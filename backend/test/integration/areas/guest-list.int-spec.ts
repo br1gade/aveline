@@ -72,8 +72,8 @@ describe('Guest list (integration)', () => {
       const last = HOUSEHOLDS_PER_BATCH;
       expect(result).toMatchObject({ status: 'PARTIAL', rowsImported: HOUSEHOLDS_PER_BATCH, rowsFailed: 2 });
       expect(result.errors).toEqual([
-        { row: last + 2, message: `Could not save G${last}: an unexpected error; try the row again` },
-        { row: last + 3, message: `Could not save G${last}b: an unexpected error; try the row again` },
+        { row: last + 2, reason: 'NOT_SAVED', message: `Could not save G${last}: an unexpected error; try the row again` },
+        { row: last + 3, reason: 'NOT_SAVED', message: `Could not save G${last}b: an unexpected error; try the row again` },
       ]);
       expect(await prisma.guest.count({ where: { eventId, firstName: { startsWith: 'G' } } })).toBe(HOUSEHOLDS_PER_BATCH);
       expect(await prisma.household.count({ where: { eventId, name: `H${last}` } })).toBe(0);

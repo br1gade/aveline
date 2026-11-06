@@ -198,6 +198,7 @@ test/
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/me` | Current account identity and explicit email-verification state, without credentials |
 | `POST` | `/api/v1/auth/register` | Create an account (202 either way; log in next) |
 | `POST` | `/api/v1/auth/login` | Exchange credentials for a token pair |
 | `POST` | `/api/v1/auth/refresh` | Rotate a refresh token; the old one is revoked |
@@ -248,6 +249,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `POST` | `/api/v1/events` | **Create an event** and its draft invitation |
 | `POST` | `/api/v1/events/:id/invitation` | Add an invitation to an event that has none |
 | `GET` | `/api/v1/events` | List events |
+| `GET` | `/api/v1/events/:id/access` | Effective permissions for this account on this exact event |
 | `GET` | `/api/v1/events/:id` | Detail with venues and timeline |
 | `PATCH` | `/api/v1/events/:id` | Correct title, dates, time zone, languages; says whether to tell guests |
 | `PATCH` | `/api/v1/events/:id/settings` | Flip automatic RSVP reminders on or off |
@@ -271,6 +273,9 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | `GET` | `/api/v1/events/:id/playlist` | Deduplicated song requests |
 | `GET` | `/api/v1/events/:id/guest-book` | Messages left by guests |
 | `GET` | `/api/v1/events/:eventId/answers` | Answers to the host's own questions, counted and listed |
+| `GET` | `/api/v1/events/:eventId/guest-book/entries` | Paged guest-book entries, undated last, without contacts |
+| `GET` | `/api/v1/events/:eventId/answers/questions` | Paged questions with complete option tallies |
+| `GET` | `/api/v1/events/:eventId/answers/questions/:questionId/responses` | Paged answers to one event-owned question |
 
 #### Designing the invitation
 
@@ -278,6 +283,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 |---|---|---|
 | `GET` | `/api/v1/events/:eventId/design-templates/:templateKey/preview` | Synthetic four-language renderer preview; invitation:read |
 | `GET` | `/api/v1/invitations/:slug/template-preview` | Authorized event-content template preview; no publishing or RSVP |
+| `POST` | `/api/v1/invitations/:slug/template-preview` | Render one unsaved block edit without writing; invitation:design |
 | `PATCH` | `/api/v1/invitations/:slug/question-order` | Atomic complete question order with expectedOrder conflict check |
 | `GET` | `/api/v1/events/:eventId/design-templates` | The template catalogue and its constraints |
 | `POST` | `/api/v1/invitations/:slug/template` | Switch template; unsupported blocks are disabled |
@@ -410,6 +416,7 @@ its records are references to regenerate, never historical snapshots.
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/v1/organizations` | Create your organization; the caller becomes OWNER |
+| `GET` | `/api/v1/organizations/current/access` | Effective organization permissions and event-creation capability |
 | `GET` | `/api/v1/organizations/current` | Your organization, its plan and its counts |
 | `PATCH` | `/api/v1/organizations/current` | Rename it |
 | `GET` | `/api/v1/me/organizations` | Bounded own membership selector |
@@ -446,6 +453,7 @@ registration, not bank certification or credentials.
 |---|---|---|
 | `POST` | `/api/v1/privacy/requests` | Ask what is held, or for erasure (**public**) |
 | `GET` | `/api/v1/privacy/requests` | Open requests, soonest due first |
+| `GET` | `/api/v1/privacy/requests/:requestId/submissions` | Paged, separately stored unverified public text; privacy:manage |
 | `PATCH` | `/api/v1/privacy/requests/:requestId` | Move one through verification |
 | `POST` | `/api/v1/privacy/requests/:requestId/fulfil` | Carry out a verified request |
 | `GET` | `/api/v1/suppressions` | Addresses that will not be contacted |

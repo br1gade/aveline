@@ -1618,6 +1618,7 @@ model DataSubjectRequest {
   erasureCheckpointId String?
   erasureResult Json?
   enquirySubjects DataSubjectRequestEnquirySubject[]
+  publicSubmissions PrivacyRequestSubmission[]
   organizationId String?
   guestId        String?
   userId         String?
@@ -1635,6 +1636,18 @@ model DataSubjectRequest {
   @@index([status, dueAt])
   @@index([subjectEmail])
   @@map("data_subject_requests")
+}
+
+/// Public text is unverified and cannot amend staff notes or establish identity.
+model PrivacyRequestSubmission {
+  id String @id @default(cuid())
+  requestId String
+  request DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  notes String?
+  createdAt DateTime @default(now())
+
+  @@index([requestId, createdAt, id])
+  @@map("privacy_request_submissions")
 }
 
 enum DataSubjectRequestKind {

@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { webcrypto } from 'node:crypto';
 import { assertAttendanceRevision, lockAttendancePolicy, normalizePersonAttendance } from '../rsvp/attendance/attendance-context';
-import { answersProblem, unansweredRequired } from '../rsvp/answers';
+import { answeredQuestionIds, answersProblem, unansweredRequired } from '../rsvp/answers';
 import { builtInAnswerProblem } from '../rsvp/rsvp-fields';
 import { CreateOrderDto, OrderLineDto } from './dto/create-order.dto';
 import { OrderAttendeeDto } from './dto/attendee.dto';
@@ -44,7 +44,7 @@ function validatePerson(person: OrderAttendeeDto & { status: import('@prisma/cli
   const questions = (event.invitation?.questions ?? []).filter((question) => question.type !== 'SIGNATURE');
   const supplied = person.answers ?? [];
   const error = answersProblem(questions, supplied) ?? builtInAnswerProblem(event.invitation?.rsvpFields, person);
-  const missing = unansweredRequired(questions, new Set(supplied.map((answer) => answer.questionId)), person.status);
+  const missing = unansweredRequired(questions, answeredQuestionIds([], supplied), person.status);
   if (error || missing) throw new BadRequestException(`attendees: ${error ?? `answer ${missing!.id} is required`}`);
 }
 

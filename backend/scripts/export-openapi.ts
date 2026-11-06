@@ -16,6 +16,9 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { AppModule } from '../src/app.module';
 import { FEEDBACK_MODELS } from '../src/common/feedback.dto';
 import { completeOpenApiDocument } from '../src/common/openapi-document';
+import { openApiRoutePolicies } from '../src/common/openapi-route-policy';
+import { addInferredResponses } from './openapi/inferred-responses';
+import { validateResponseSchemas } from './openapi/validate-responses';
 
 const OUTPUT = 'openapi.json';
 
@@ -36,10 +39,15 @@ async function exportSchema(): Promise<void> {
     .addServer('http://localhost:3000', 'Local development')
     .build();
 
+  const policies = openApiRoutePolicies(app);
   const document = completeOpenApiDocument(
     SwaggerModule.createDocument(app, config, { extraModels: FEEDBACK_MODELS }),
+    policies,
   );
   await app.close();
+
+  addInferredResponses(document, policies);
+  validateResponseSchemas(document);
 
   const generated = JSON.stringify(document, null, 2);
   const paths = Object.keys(document.paths).length;

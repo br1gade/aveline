@@ -44,6 +44,7 @@ export function isAuditable(request: AuditableRequest): boolean {
   if (!WRITING_METHODS.has(request.method.toUpperCase())) return false;
 
   const route = normalizeRoute(request.route);
+  if (request.method.toUpperCase() === 'POST' && route === '/invitations/:slug/template-preview') return false;
   return !EXCLUDED_PREFIXES.some((prefix) => route.startsWith(prefix));
 }
 

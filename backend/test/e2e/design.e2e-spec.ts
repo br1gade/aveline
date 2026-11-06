@@ -67,6 +67,32 @@ describe('Invitation design (e2e)', () => {
     return { ...seeded, authorization };
   };
 
+  it('previews unsaved content through the server serializer without writing or exposing a guest capability', async () => {
+    const { slug, authorization, primaryGuestToken } = await designer();
+    const before = await prisma.invitation.findUniqueOrThrow({ where: { slug }, include: { blocks: true } });
+    const { body } = await http().post(`/api/v1/invitations/${slug}/template-preview`)
+      .query({ locale: 'en' }).set('Authorization', authorization)
+      .send({ type: 'HERO', content: { en: { title: 'An unsaved draft' } }, variant: 'split' }).expect(200);
+    expect(body).toMatchObject({ isPreview: true, previewSource: 'EVENT_DRAFT', isAcceptingResponses: false, baseDesignRevision: String(before.designRevision) });
+    expect((body.blocks as { type: string; content: unknown }[]).find((block) => block.type === 'HERO')).toMatchObject({ content: { title: 'An unsaved draft' } });
+    expect(JSON.stringify(body)).not.toContain(primaryGuestToken);
+    expect(await prisma.invitation.findUniqueOrThrow({ where: { slug }, include: { blocks: true } })).toEqual(before);
+  });
+
+  it('applies design permission and template validation to an unsaved preview', async () => {
+    const { slug, eventId, authorization } = await designer();
+    const viewer = await authenticateAs(app, prisma, { eventId, role: 'VIEWER' });
+    const path = `/api/v1/invitations/${slug}/template-preview`;
+    await http().post(path).send({ type: 'HERO' }).expect(401);
+    await http().post(path).set('Authorization', viewer.authorization).send({ type: 'HERO' }).expect(403);
+    const rejected = await http().post(path).set('Authorization', authorization).send({ type: 'HERO', variant: 'not-supported' }).expect(400);
+    expect(JSON.stringify(rejected.body)).toContain('variant:');
+    await http().post(path).set('Authorization', authorization).send({ type: 'HERO', settings: null }).expect(400);
+    const other = await seedEvent(prisma);
+    const asset = await prisma.mediaAsset.create({ data: { eventId: other.eventId, kind: 'PHOTO', url: 'https://images.example.test/foreign.jpg' } });
+    await http().post(path).set('Authorization', authorization).send({ type: 'HERO', assetIds: [asset.id] }).expect(400);
+  });
+
   describe('templates', () => {
     it('lists what a designer may choose, with its constraints', async () => {
       const { authorization, eventId } = await designer();
@@ -80,6 +106,7 @@ describe('Invitation design (e2e)', () => {
       expect(body[0].allowedFonts).toContain('Inter');
       expect(body[0].supportedBlocks).toEqual([BlockType.HERO, BlockType.RSVP]);
       expect(body[0].blockVariants).toEqual({ HERO: ['full-bleed', 'split'], RSVP: ['split', 'stacked'] });
+      expect(body[0]).toMatchObject({ provenance: 'SEED_RELEASE', requiresAdoptionPreview: true });
     });
 
     // B46: the block edit could switch on a block the template cannot render,
@@ -524,7 +551,7 @@ describe('Invitation design (e2e)', () => {
         slug,
         status: 'DRAFT',
         event: { locales: ['hy', 'en'], defaultLocale: 'hy' },
-        template: { key: 'test-template', supportedBlocks: ['HERO', 'RSVP'] },
+        template: { key: 'test-template', supportedBlocks: ['HERO', 'RSVP'], blockVariants: { HERO: ['full-bleed', 'split'], RSVP: ['split', 'stacked'] } },
       });
       expect(body.blocks).toEqual([
         expect.objectContaining({

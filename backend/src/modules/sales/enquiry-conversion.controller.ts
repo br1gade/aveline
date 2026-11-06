@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Body, Controller, Header, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { ConvertEnquiryDto } from './dto/enquiry-conversion.dto';
 import { EnquiryConversionService } from './enquiry-conversion.service';
@@ -14,6 +14,9 @@ export class EnquiryConversionController {
   constructor(private readonly conversion: EnquiryConversionService) {}
   @Post(':enquiryId/conversion') @Header('Cache-Control', 'private, no-store')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiHeader({ name: 'X-Aveline-Organization-Id', required: false, description: 'Explicit existing-customer organization selection, verified during conversion' })
+  @ApiCreatedResponse({ description: 'New draft setup' })
+  @ApiOkResponse({ description: 'Replay of the same committed setup' })
   async convert(@Req() request: Request & { actor: RequestActor }, @Param('enquiryId') enquiryId: string, @Body() dto: ConvertEnquiryDto, @Res({ passthrough: true }) response: Response) {
     const { wasExisting, ...result } = await this.conversion.convert(request.actor.userId, enquiryId, { key: String(request.headers['idempotency-key'] ?? ''), dto, organizationSelector: request.headers['x-aveline-organization-id'] as string | undefined });
     response.status(wasExisting ? 200 : 201);

@@ -5,6 +5,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AnswersSheetService } from './answers-sheet.service';
 import { OperationsService } from './operations.service';
 import { RequirePermission } from '../../infra/auth/actor';
+import { OperationsReportsService } from './operations-reports.service';
+import { ReportQueryDto } from './dto/report-query.dto';
 
 @ApiTags('operations')
 @EventScope('eventId')
@@ -13,6 +15,7 @@ export class OperationsController {
   constructor(
     private readonly operations: OperationsService,
     private readonly answers: AnswersSheetService,
+    private readonly reports: OperationsReportsService,
   ) {}
 
   @RequirePermission('operations:read')
@@ -75,5 +78,26 @@ export class OperationsController {
   @ApiOperation({ summary: 'Messages left by guests' })
   guestBook(@Param('eventId') eventId: string) {
     return this.operations.guestBook(eventId);
+  }
+
+  @RequirePermission('operations:read')
+  @Get('guest-book/entries')
+  @ApiOperation({ summary: 'Bounded guest-book entries, newest dated first, without contact details' })
+  guestBookPage(@Param('eventId') eventId: string, @Query() query: ReportQueryDto) {
+    return this.reports.guestBook(eventId, query);
+  }
+
+  @RequirePermission('operations:read')
+  @Get('answers/questions')
+  @ApiOperation({ summary: 'Paged question summaries with complete SQL option counts and negotiated language' })
+  questionPage(@Param('eventId') eventId: string, @Query() query: ReportQueryDto) {
+    return this.reports.questions(eventId, query);
+  }
+
+  @RequirePermission('operations:read')
+  @Get('answers/questions/:questionId/responses')
+  @ApiOperation({ summary: 'Bounded answers to one event-owned question, with no capability or contact fields' })
+  answerPage(@Param('eventId') eventId: string, @Param('questionId') questionId: string, @Query() query: ReportQueryDto) {
+    return this.reports.responses(eventId, questionId, query);
   }
 }

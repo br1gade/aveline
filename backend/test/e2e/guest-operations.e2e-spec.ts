@@ -251,6 +251,21 @@ describe('Guest operations (e2e)', () => {
       expect(JSON.stringify(await prisma.guestImport.findMany())).not.toContain('petrosyan.gmail');
     });
 
+    it.each([
+      'name,seats\nAni,misplaced@example.test',
+      'name,seats\nAni,+37499123456',
+      'name,household,seats\nAni,Family,1\nmisplaced@example.test,Family,1',
+    ])('keeps arbitrary CSV values out of durable diagnostics for %p', async (csv) => {
+      const { eventId, authorization } = await coordinator();
+      const { body } = await importCsv(eventId, authorization, csv).expect(201);
+      expect(body.rowsFailed).toBe(1);
+      const history = await http().get(`/api/v1/events/${eventId}/guests/imports`).set('Authorization', authorization).expect(200);
+      expect(JSON.stringify(history.body)).not.toMatch(/misplaced@example|37499123456/);
+      const stored = await prisma.guestImport.findMany({ where: { eventId }, select: { errors: true } });
+      expect(JSON.stringify(stored)).not.toMatch(/misplaced@example|37499123456/);
+      expect(stored[0].errors).toEqual([expect.objectContaining({ row: expect.any(Number), reason: expect.any(String) })]);
+    });
+
     // B77: a double upload or a retry ran twice at once and duplicated every
     // household and guest — each duplicate then invited.
     it('runs one import of an event at a time, so a double upload adds nobody twice', async () => {

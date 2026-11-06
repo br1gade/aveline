@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AccountService } from './account.service';
 import { AuthController } from './auth.controller';
+import { MeController } from './me.controller';
 import { InvitesController } from './invites.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
@@ -24,7 +25,7 @@ import { allowsDevelopmentShortcuts } from '../../common/environment';
       },
     }),
   ],
-  controllers: [AuthController, InvitesController],
+  controllers: [AuthController, InvitesController, MeController],
   providers: [AuthService, AccountService, AuthGuard],
   exports: [AuthService, AccountService, AuthGuard, JwtModule],
 })

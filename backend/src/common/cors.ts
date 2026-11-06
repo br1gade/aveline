@@ -13,7 +13,7 @@ export function corsOptionsFor(canUseShortcuts: boolean, env: NodeJS.ProcessEnv)
   return {
     origin: canUseShortcuts ? true : (origins ?? false),
     credentials: true,
-    exposedHeaders: ['x-request-id'],
+    exposedHeaders: ['x-request-id', 'Content-Disposition'],
     maxAge: 600,
   };
 }

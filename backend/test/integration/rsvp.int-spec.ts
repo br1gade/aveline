@@ -52,6 +52,18 @@ describe('RsvpService (integration)', () => {
   beforeEach(() => resetTestDatabase());
   afterAll(() => disconnectTestDatabase());
 
+  it('allows an incomplete decline but never reuses its blank answer to satisfy a later acceptance', async () => {
+    const { slug, primaryGuestToken } = await seedEvent(prisma);
+    const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug } });
+    const question = await prisma.rsvpQuestion.create({ data: { invitationId: invitation.id, type: 'TEXT', required: true, prompt: { en: 'Your meal' } } });
+    await service.submit(slug, primaryGuestToken, { status: RsvpStatus.DECLINED, answers: [{ questionId: question.id, value: '' }] });
+    await expect(service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING })).rejects.toThrow('required');
+    await expect(service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING, answers: [{ questionId: question.id, value: '  ' }] })).rejects.toThrow('required');
+    const stored = await prisma.rsvp.findFirstOrThrow({ where: { guest: { token: primaryGuestToken } } });
+    expect(stored.status).toBe(RsvpStatus.DECLINED);
+    await expect(service.submit(slug, primaryGuestToken, { status: RsvpStatus.ATTENDING, answers: [{ questionId: question.id, value: 'Vegetarian' }] })).resolves.toMatchObject({ status: RsvpStatus.ATTENDING });
+  });
+
   it('records a response and stamps the time it arrived', async () => {
     const { slug, primaryGuestToken } = await seedEvent(prisma);
 

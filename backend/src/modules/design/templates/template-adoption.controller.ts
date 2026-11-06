@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Header, Param, Post, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiAcceptedResponse, ApiCreatedResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsString, Matches, MaxLength } from 'class-validator';
 import { CurrentActor, EventScope, RequestActor, RequirePermission } from '../../../infra/auth/actor';
 import { TemplateAdoptionService } from './template-adoption.service';
@@ -14,6 +14,8 @@ export class TemplateAdoptionController {
   constructor(private readonly adoption: TemplateAdoptionService) {}
   @RequirePermission('invitation:design') @EventScope('invitationSlug')
   @Post('template-upgrade-preview') @Header('Cache-Control', 'private, no-store')
+  @ApiCreatedResponse({ description: 'Preview ready' })
+  @ApiAcceptedResponse({ description: 'Private artwork preparation queued; poll the preview' })
   @ApiOperation({ summary: 'Preview an exact immutable version against a fenced event design before explicit confirmation' })
   async preview(@CurrentActor() actor: RequestActor, @Param('slug') slug: string, @Body() dto: TemplateUpgradePreviewDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.adoption.preview(actor.userId, slug, dto);

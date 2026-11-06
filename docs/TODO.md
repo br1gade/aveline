@@ -68,7 +68,7 @@ FR-45; FR-4, FR-18, FR-24 and FR-44's path parameters and nullable `variant` (ev
 typed, every path parameter declared); FR-29 and FR-34 by a policy test that
 fails if a role may write guests or send without reading contacts.
 
-- [ ] Still open on the backend, by the client's priority: FR-1 response
+- [ ] Client request implementation is tracked in [CLIENT_BACKEND_REQUESTS.md](CLIENT_BACKEND_REQUESTS.md), including the expanded FR-1–126 register. The first contract/identity/safety batch has focused verification; the full gate and remaining requests are open. Original handoff list: FR-1 response
   schemas (blocking typed responses), FR-6 effective permissions, FR-5 `GET /me`,
   FR-2 per-operation security, FR-11 deployment topology (with T2), FR-26/28/32/33
   stable codes for English-only refusals, FR-23, FR-20, FR-30, FR-37, FR-39,

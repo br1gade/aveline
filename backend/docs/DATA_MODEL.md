@@ -134,6 +134,7 @@ with a different organization. This adds no event-transfer behavior.
 | Model | Purpose |
 |---|---|
 | `DataSubjectRequest` | An export, erasure or rectification request, with its one-month clock |
+| `PrivacyRequestSubmission` | Separate unverified public text, timestamped per submission; staff-only bounded reads |
 
 Guests carry `consentAt` / `consentSource` and `anonymizedAt`; `User` and
 `Organization` carry `deletedAt`.
@@ -294,6 +295,14 @@ that distinction is what has to be defensible.
 `DataSubjectRequest` exists because the obligation has a clock — one month
 under Article 12 — and because being able to show when a request arrived and
 what was done is the point. An ad-hoc deletion leaves no evidence it happened.
+
+`PrivacyRequestSubmission` keeps each public submission separate from the
+case's staff notes. It is always presented as unverified public input, never
+as evidence of the requester's identity. New submissions cannot change a
+case's verification state or deadline. Existing case notes may contain mixed,
+unattributed legacy text; the migration leaves them untouched. Submissions
+follow the parent case's evidence-retention decision rather than an invented
+event-based expiry.
 
 ### Not built
 

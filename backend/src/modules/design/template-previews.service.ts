@@ -4,6 +4,8 @@ import { projectTemplateAssetPaths } from './templates/template-asset-paths';
 import { pinnedTemplate } from './templates/template-content';
 import { selectAvailableTemplate } from './templates/template-reader';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { DraftPreviewDto } from './dto/draft-preview.dto';
+import { assertPreviewAssets, previewBlocks } from './draft-preview';
 import { PrismaService } from '../../prisma/prisma.service';
 import { buildInvitationContent } from '../invitations/invitation-content';
 import { blockMediaSelect, invitationInclude } from '../invitations/invitations.service';
@@ -23,23 +25,25 @@ export class TemplatePreviewsService {
     return { ...buildInvitationContent(synthetic, locale), isPreview: true, previewSource: 'SYNTHETIC' as const, isAcceptingResponses: false };
   }
 
-  async forEvent(slug: string, query: { templateKey?: string; locale?: string }) {
-    const invitation = await this.prisma.invitation.findUnique({ where: { slug }, include: invitationInclude });
+  async forEvent(slug: string, query: { templateKey?: string; locale?: string }, edit?: DraftPreviewDto) {
+    const invitation = await this.prisma.invitation.findUnique({ where: { slug }, include: { ...invitationInclude, blocks: { orderBy: { sortOrder: 'asc' } } } });
     if (!invitation) throw new NotFoundException('No such invitation');
     const template = query.templateKey ? await this.requireTemplate(invitation.organizationId, query.templateKey) : { ...pinnedTemplate(invitation), id: invitation.templateId, templateVersionId: invitation.templateVersionId };
     // Match switching: keep the current theme only when previewing the selected template.
     const theme = template.templateVersionId === invitation.templateVersionId ? invitation.theme : template.defaultTheme;
-    const blocks = invitation.blocks.filter((block) => canRender(template, block.type)).map((block) => ({
+    const blocks = previewBlocks(invitation.blocks, template, edit).filter((block) => block.enabled && canRender(template, block.type)).map((block) => ({
       ...block, variant: variantProblem(template, block.type, block.variant) ? null : block.variant,
     }));
     const assets = await this.prisma.mediaAsset.findMany({ where: {
-      eventId: invitation.eventId, id: { in: blocks.flatMap((block) => block.assetIds) }, kind: { in: ['PHOTO', 'COVER', 'LOGO', 'AUDIO'] },
+      eventId: invitation.eventId, id: { in: [...new Set([...blocks.flatMap((block) => block.assetIds), ...(edit?.assetIds ?? [])])] }, kind: { in: ['PHOTO', 'COVER', 'LOGO', 'AUDIO'] },
     }, select: blockMediaSelect });
+    assertPreviewAssets(edit, assets);
     const templateVersion = await this.prisma.designTemplateVersion.findUniqueOrThrow({ where: { id: template.templateVersionId } });
     const defaults = template.templateVersionId === invitation.templateVersionId ? (await readTemplateDefaultMedia(this.prisma, { invitationId: invitation.id, versionId: templateVersion.id })).media
       : artworkDefaultMedia(templateVersion.assetManifest as unknown as TemplateArtwork[], (assetId) => `/api/v1/events/${invitation.eventId}/design-templates/${template.key}/assets/${assetId}/file`);
     const payload = buildInvitationContent({ ...invitation, template, templateVersion, theme, blocks, defaultMedia: defaults, media: new Map(assets.map((asset) => [asset.id, asset])) }, query.locale);
-    return { ...projectTemplateAssetPaths(payload, `/api/v1/events/${invitation.eventId}/design-assets`), isPreview: true, previewSource: 'EVENT' as const, isAcceptingResponses: false };
+    return { ...projectTemplateAssetPaths(payload, `/api/v1/events/${invitation.eventId}/design-assets`), isPreview: true,
+      previewSource: edit ? 'EVENT_DRAFT' as const : 'EVENT' as const, baseDesignRevision: String(invitation.designRevision), isAcceptingResponses: false };
   }
 
   private async requireTemplate(organizationId: string, key: string) {

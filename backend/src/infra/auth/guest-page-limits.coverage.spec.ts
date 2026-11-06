@@ -62,11 +62,17 @@ describe('guest-page rate limits', () => {
       'events/:eventId/acknowledgements/:acknowledgementId/file',
       'events/:eventId/gallery/:mediaId/file',
       'invitations/:slug',
+      'invitations/:slug/design-assets/:assetId/file',
       'invitations/:slug/g/:guestToken',
+      'invitations/:slug/g/:guestToken/acknowledgements',
       'invitations/:slug/g/:guestToken/acknowledgements/:acknowledgementId/file',
+      'invitations/:slug/g/:guestToken/design-assets/:assetId/file',
+      'invitations/:slug/g/:guestToken/gallery',
       'invitations/:slug/g/:guestToken/gallery/:mediaId/file',
       'invitations/:slug/g/:guestToken/rsvp',
       'invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file',
+      'public/events',
+      'public/events/:slug',
     ]);
     for (const route of widened) {
       expect(route).toMatchObject({ method: RequestMethod.GET, short: GUEST_PAGE_LIMITS.short.limit, medium: GUEST_PAGE_LIMITS.medium.limit });

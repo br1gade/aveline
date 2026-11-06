@@ -70,12 +70,21 @@ describe('parseGuestCsv', () => {
   });
 
   describe('bad rows', () => {
+    it.each([
+      ['name,seats\n,2', 'NAME_REQUIRED', 'firstName'],
+      ['name,seats\nArmen,0', 'INVALID_SEATS', 'seats'],
+      ['name,email\nArmen,invalid', 'INVALID_EMAIL', 'email'],
+      ['name,phone\nArmen,letters', 'INVALID_PHONE', 'phone'],
+      [`name\n${'x'.repeat(81)}`, 'FIELD_TOO_LONG', 'firstName'],
+    ])('returns a stable reason and field for %p', (csv, reason, field) => {
+      expect(parseGuestCsv(csv).errors).toEqual([expect.objectContaining({ row: 2, reason, field })]);
+    });
     it('keeps the good rows and reports the bad ones by spreadsheet row number', () => {
       const { guests, errors } = parseGuestCsv('name,seats\nArmen,2\n,3\nMariam,1\n');
 
       expect(guests.map((g) => g.firstName)).toEqual(['Armen', 'Mariam']);
       // Header is row 1, so the empty name is row 3 — what the host sees.
-      expect(errors).toEqual([{ row: 3, message: 'No name in this row' }]);
+      expect(errors).toEqual([{ row: 3, message: 'No name in this row', reason: 'NAME_REQUIRED', field: 'firstName' }]);
     });
 
     it.each(['abc', '0', '-1', '999', '2.5'])('rejects a seat count of %p', (seats) => {
@@ -159,13 +168,26 @@ describe('parseGuestCsv', () => {
       });
     });
 
-    it('reports a file with no name column once, listing the headings it found', () => {
+    it('reports a file with no name column without retaining its arbitrary headings', () => {
       const { guests, errors } = parseGuestCsv('Guest name|Seats\nArmen|2\nMariam|1\n');
 
       expect(guests).toHaveLength(0);
       expect(errors).toEqual([
-        { row: 0, message: 'No first-name column found. Headings read: guest name|seats' },
+        { row: 0, message: 'No first-name column found', reason: 'NAME_COLUMN_MISSING' },
       ]);
+    });
+
+    it('never puts a headerless contact row into persistent import diagnostics', () => {
+      const result = parseGuestCsv('Ani,ani@example.test,+37491000000\nMariam,mariam@example.test,+37492000000\n');
+      expect(result.errors).toEqual([{ row: 0, message: 'No first-name column found', reason: 'NAME_COLUMN_MISSING' }]);
+      expect(JSON.stringify(result)).not.toContain('ani@example.test');
+      expect(JSON.stringify(result)).not.toContain('+37491000000');
+    });
+
+    it('does not retain contact data quoted by CSV parser exceptions', () => {
+      const result = parseGuestCsv('name,email\nAni ani@example.test"x,contact@example.test\n');
+      expect(result.errors).toEqual([{ row: 0, message: 'Could not read the CSV file', reason: 'CSV_UNREADABLE' }]);
+      expect(JSON.stringify(result)).not.toContain('@example.test');
     });
   });
 

@@ -61,15 +61,17 @@ export class OrganizationsService {
     return { ...page, items: page.items.map(({ organizationId, role, createdAt, organization }) => ({ organizationId, ...organization, role, joinedAt: createdAt })) };
   }
 
-  async members(organizationId: string, query: MembershipPageQuery) {
-    const rows = await this.prisma.organizationMembership.findMany({
+  async members(organizationId: string, query: MembershipPageQuery, actorUserId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+    const rows = await tx.organizationMembership.findMany({
       where: { organizationId, ...organizationCursorWhere(parseOrganizationCursor(query.cursor)) },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: query.limit + 1,
-      select: { id: true, userId: true, role: true, createdAt: true, user: { select: { name: true } } },
+      select: { id: true, userId: true, role: true, createdAt: true, user: { select: { name: true, isActive: true } } },
     });
     const page = pageOf(rows, query.limit);
-    const organization = await this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { accessRevision: true } });
-    return { ...page, ...organization, items: page.items.map(({ userId, role, createdAt, user }) => ({ userId, name: user.name, role, joinedAt: createdAt })) };
+    const organization = await tx.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { accessRevision: true } });
+    return { ...page, ...organization, items: page.items.map(({ userId, role, createdAt, user }) => ({ userId, name: user.name, isActive: user.isActive, isCurrentUser: userId === actorUserId, role, joinedAt: createdAt })) };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 
   changeMember(organizationId: string, actor: RequestActor, input: { userId: string; role: OrganizationRole; expectedRevision: number }) {
@@ -113,6 +115,8 @@ export class OrganizationsService {
       include: {
         subscription: { include: { plan: { select: { key: true, name: true, tier: true } } } },
         _count: { select: { events: true, memberships: true } },
+        accessReviews: { where: { reason: 'LAST_OWNER_CLOSURE' }, take: 1,
+          select: { id: true, status: true, revision: true, openedAt: true, resolvedAt: true } },
       },
     });
     if (!organization) throw new NotFoundException('No such organization');
@@ -126,6 +130,7 @@ export class OrganizationsService {
       plan: organization.subscription?.plan ?? null,
       subscriptionStatus: organization.subscription?.status ?? null,
       accessRevision: organization.accessRevision,
+      closureReview: organization.accessReviews[0] ?? null,
       createdAt: organization.createdAt,
     };
   }

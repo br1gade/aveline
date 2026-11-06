@@ -17,6 +17,14 @@ describe('optionLabels', () => {
 describe('formatAnswer', () => {
   const labels = ['Meat', 'Fish'];
 
+  it.each([['fr-CA', 'Oui', 'Non'], ['ru-RU', 'Да', 'Нет'], ['hy-AM', 'Այո', 'Ոչ'], ['EN-gb', 'Yes', 'No']])('localizes boolean values for regional locale %s', (locale, yes, no) => {
+    expect(formatAnswer(yesNo, true, [], locale)).toBe(yes);
+    expect(formatAnswer(yesNo, false, [], locale)).toBe(no);
+    expect(tallyAnswers(yesNo, [{ status: RsvpStatus.ATTENDING, value: true }], [], locale)).toEqual([
+      { option: yes, attending: 1, total: 1 }, { option: no, attending: 0, total: 0 },
+    ]);
+  });
+
   it.each([
     [meal, 1, labels, 'Fish'],
     [extras, [0, 1], ['Shuttle', 'Hotel'], 'Shuttle; Hotel'],

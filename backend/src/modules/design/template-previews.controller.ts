@@ -1,8 +1,9 @@
-import { Controller, Get, Header, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiPropertyOptional, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { EventScope, RequirePermission } from '../../infra/auth/actor';
 import { TemplatePreviewsService } from './template-previews.service';
+import { DraftPreviewDto } from './dto/draft-preview.dto';
 
 class PreviewLocaleQuery {
   @ApiPropertyOptional()
@@ -40,5 +41,15 @@ export class TemplatePreviewsController {
   @ApiOperation({ summary: 'Preview event content with a template without publishing or changing it' })
   forEvent(@Param('slug') slug: string, @Query() query: TemplatePreviewQuery) {
     return this.previews.forEvent(slug, query);
+  }
+
+  @RequirePermission('invitation:design')
+  @EventScope('invitationSlug')
+  @Post('invitations/:slug/template-preview')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Preview one unsaved block edit through the invitation serializer, without writing' })
+  draft(@Param('slug') slug: string, @Query() query: TemplatePreviewQuery, @Body() dto: DraftPreviewDto) {
+    return this.previews.forEvent(slug, query, dto);
   }
 }

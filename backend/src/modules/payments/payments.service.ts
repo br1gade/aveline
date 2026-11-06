@@ -77,7 +77,7 @@ export class PaymentsService {
     const existing = await this.prisma.payment.findUnique({
       where: { idempotencyKey: dto.idempotencyKey },
     });
-    if (existing) return this.describe(existing);
+    if (existing) return this.describe(await this.awaitRegistration(dto.idempotencyKey));
 
     const gateway = this.gateways.get(dto.provider);
     const orderNumber = `AVL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();

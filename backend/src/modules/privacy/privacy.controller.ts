@@ -13,6 +13,7 @@ import {
   UpdateDataSubjectRequestDto,
 } from './dto/privacy.dto';
 import { PrivacyService } from './privacy.service';
+import { PaginationQuery } from '../../common/dto/pagination.dto';
 
 class ListRequestsQuery {
   @IsOptional()
@@ -44,6 +45,13 @@ export class PrivacyController {
   @ApiOperation({ summary: 'Open requests, soonest due first' })
   list(@Query() query: ListRequestsQuery) {
     return this.privacy.list(query.status);
+  }
+
+  @RequirePermission('privacy:manage')
+  @Get(':requestId/submissions')
+  @ApiOperation({ summary: 'Paged, unverified public submissions; never identity evidence or staff notes' })
+  submissions(@Param('requestId') requestId: string, @Query() query: PaginationQuery) {
+    return this.privacy.submissions(requestId, query);
   }
 
   @RequirePermission('privacy:manage')

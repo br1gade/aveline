@@ -134,7 +134,7 @@ function seatNewGuests(rows: ParsedGuest[], start: { seats: number; named: numbe
     const offered = start.stated === undefined ? Math.max(seats, needed) : Math.max(seats, start.stated);
     const problem = capacityProblem(offered, needed);
     if (problem) {
-      failures.push({ row: row.row, message: `Could not save ${row.firstName}: ${problem}` });
+      failures.push({ row: row.row, reason: 'HOUSEHOLD_FULL', field: 'seats', message: `Could not save ${row.firstName}: ${problem}` });
       continue;
     }
     seats = offered;

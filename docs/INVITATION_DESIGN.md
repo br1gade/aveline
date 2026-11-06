@@ -218,6 +218,12 @@ or analytics are written and no RSVP can be collected through a preview route.
 The frontend uses its actual invitation renderer and disables submission;
 visual/browser acceptance remains pending.
 
+The design-authorized POST template-preview route also accepts one unsaved
+block edit. The existing serializer applies it in memory, validates template
+constraints and same-event assets, and returns `EVENT_DRAFT` with the base design
+revision. It stores no blocks, audit mutation, receipt or job. See API.md for
+the request fields; the result never accepts guest responses.
+
 ### Page lifetime and freshness
 
 First publication captures 90 days after event end/start for the free fallback,
@@ -291,3 +297,13 @@ Not yet accepted: deployed frontend capability/visual evidence and production
 private-storage/worker isolation/load evidence. The backend materialization path is
 implemented and exercised with synthetic trusted capabilities; production slots
 remain closed until the actual reviewed renderer release exists.
+
+
+### Required answer values
+
+A required text or multi-choice question is satisfied only by nonblank text or a
+nonempty choice list for a guest who is coming. `false` and choice index `0` are
+real answers. Previously stored blanks do not satisfy a later acceptance, and
+an explicit blank edit replaces the earlier value when checking requirements.
+Declining/undecided guests and hosts recording incomplete answers retain their
+existing exceptions; value type and question ownership checks still apply.

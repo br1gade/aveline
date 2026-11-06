@@ -19,6 +19,7 @@ export class ContributionsController {
   @Public()
   @Header('Cache-Control', 'private, no-store')
   @Get('acknowledgements')
+  @Throttle(GUEST_PAGE_LIMITS)
   @ApiOperation({ summary: 'Current statements and this household’s acknowledgement history' })
   listAcknowledgements(@Param('slug') slug: string, @Param('guestToken') token: string, @Query() page: ContributionPageDto) {
     return this.acknowledgements.forGuest(slug, token, page);
@@ -67,6 +68,7 @@ export class ContributionsController {
   @Public()
   @Header('Cache-Control', 'private, no-store')
   @Get('gallery')
+  @Throttle(GUEST_PAGE_LIMITS)
   @ApiOperation({ summary: 'Approved gallery photos plus your own pending uploads; private paginated view' })
   gallery(@Param('slug') slug: string, @Param('guestToken') token: string, @Query() page: ContributionPageDto) {
     return this.media.listGuest(slug, token, page);

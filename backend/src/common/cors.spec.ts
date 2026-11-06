@@ -14,6 +14,6 @@ describe('corsOptionsFor', () => {
   // FR-10: a client on another origin can quote the request id in an error
   // report, and does not preflight every write.
   it('exposes the request id and caches a preflight', () => {
-    expect(corsOptionsFor(false, {})).toMatchObject({ credentials: true, exposedHeaders: ['x-request-id'], maxAge: 600 });
+    expect(corsOptionsFor(false, {})).toMatchObject({ credentials: true, exposedHeaders: ['x-request-id', 'Content-Disposition'], maxAge: 600 });
   });
 });

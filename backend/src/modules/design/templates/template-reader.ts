@@ -42,6 +42,7 @@ export async function listEventTemplates(tx: Prisma.TransactionClient, eventId: 
     blockVariants: template.activeVersion.blockVariants, defaultTheme: template.activeVersion.defaultTheme,
     versionId: template.activeVersion.id, versionNumber: template.activeVersion.versionNumber,
     rendererKey: template.activeVersion.rendererKey, capabilityVersion: template.activeVersion.capabilityVersion,
+    provenance: template.activeVersion.provenance, requiresAdoptionPreview: template.activeVersion.provenance !== 'LEGACY_BASELINE',
     contentHash: template.activeVersion.contentHash, scope: template.organizationId ? 'ORGANIZATION' : 'SHARED',
   }] : []);
 }

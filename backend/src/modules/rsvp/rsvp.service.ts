@@ -11,7 +11,7 @@ import { LockedHousehold, lockHousehold } from '../guests/household-lock';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpConfirmerService } from '../invitations/sending/rsvp-confirmer.service';
 import { RsvpFields, Tx, recordAnswer, saveAnswers, withoutUndefined } from './answer-writes';
-import { AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
+import { AnswerableQuestion, answeredQuestionIds, answersProblem, unansweredRequired } from './answers';
 import { MemberAnswerDto, SubmitRsvpDto } from './dto/submit-rsvp.dto';
 import { membersProblem, newPartyMembers } from './household-answers';
 import { builtInAnswerProblem } from './rsvp-fields';
@@ -209,9 +209,9 @@ export class RsvpService {
     if (!questions.some((question) => question.required && question.type !== 'SIGNATURE')) return;
     const earlier = await tx.rsvpAnswer.findMany({
       where: { rsvp: { guestId } },
-      select: { questionId: true },
+      select: { questionId: true, value: true },
     });
-    const answered = new Set([...earlier, ...(dto.answers ?? [])].map((answer) => answer.questionId));
+    const answered = answeredQuestionIds(earlier, dto.answers ?? []);
 
     const missing = unansweredRequired(questions.filter((question) => question.type !== 'SIGNATURE'), answered, dto.status!);
     if (missing) throw new BadRequestException(`answers: ${missing.id} is required for a guest who is coming`);
@@ -229,14 +229,11 @@ export class RsvpService {
 
     const earlier = await tx.rsvpAnswer.findMany({
       where: { rsvp: { guestId: { in: members.map((member) => member.guestId) } } },
-      select: { questionId: true, rsvp: { select: { guestId: true } } },
+      select: { questionId: true, value: true, rsvp: { select: { guestId: true } } },
     });
 
     for (const member of members) {
-      const answered = new Set([
-        ...earlier.filter((answer) => answer.rsvp.guestId === member.guestId).map((answer) => answer.questionId),
-        ...(member.answers ?? []).map((answer) => answer.questionId),
-      ]);
+      const answered = answeredQuestionIds(earlier.filter((answer) => answer.rsvp.guestId === member.guestId), member.answers ?? []);
       const missing = unansweredRequired(questions.filter((question) => question.type !== 'SIGNATURE'), answered, member.status!);
       if (missing) {
         throw new BadRequestException(`members: ${member.guestId} must answer ${missing.id}, as they are coming`);

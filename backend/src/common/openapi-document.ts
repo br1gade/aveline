@@ -1,5 +1,6 @@
 import { ApiQuery } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
+import type { OpenApiRoutePolicy } from './openapi-route-policy';
 
 type OperationObject = NonNullable<OpenAPIObject['paths'][string]['get']>;
 type Parameter = NonNullable<OperationObject['parameters']>[number];
@@ -15,14 +16,29 @@ type ParameterObject = Extract<Parameter, { in: string }>;
  * - **Headers declared twice** in different case (`@ApiHeader` beside
  *   `@Headers`) are one header; the described declaration is kept.
  */
-export function completeOpenApiDocument(document: OpenAPIObject): OpenAPIObject {
+export function completeOpenApiDocument(document: OpenAPIObject, policies?: Map<string, OpenApiRoutePolicy>): OpenAPIObject {
   for (const [path, operations] of Object.entries(document.paths)) {
     for (const operation of Object.values(operations) as OperationObject[]) {
       if (typeof operation !== 'object' || !('responses' in operation)) continue;
       operation.parameters = withPathParameters(path, uniqueHeaders(operation.parameters ?? []));
+      operation.responses.default ??= { description: 'Structured application error; status and machine code identify the refusal',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/HttpErrorDto' } } } };
+      if (policies) completeRoutePolicy(operation, policies);
     }
   }
   return document;
+}
+
+function completeRoutePolicy(operation: OperationObject, policies: Map<string, OpenApiRoutePolicy>): void {
+  const policy = policies.get(operation.operationId ?? '');
+  if (!policy) throw new Error(`No runtime policy for ${operation.operationId}`);
+  operation.security = policy.isPublic ? [] : [{ bearer: [] }];
+  const hasSelector = operation.parameters?.some((parameter) => 'in' in parameter && parameter.in === 'header' && parameter.name.toLowerCase() === 'x-aveline-organization-id');
+  if (policy.isOrganizationSelectable && !hasSelector) operation.parameters?.push({
+    name: 'X-Aveline-Organization-Id', in: 'header', required: false,
+    description: 'Explicit organization selection. Resource-scoped requests must match their own organization.',
+    schema: { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' },
+  });
 }
 
 function withPathParameters(path: string, parameters: Parameter[]): Parameter[] {

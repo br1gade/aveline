@@ -10,6 +10,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, VerificationPurpose } from '@prisma/client';
@@ -55,6 +56,19 @@ export class AccountService {
     // preference to read at reset time, so it uses the platform default.
     this.defaultLocale = config.get<string>('DEFAULT_LOCALE') ?? 'hy';
     this.isDevelopmentLinkAllowed = allowsDevelopmentShortcuts(config.get<string>('NODE_ENV'));
+  }
+
+  async currentIdentity(userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, isActive: true },
+      select: { id: true, email: true, name: true, platformRole: true, createdAt: true,
+        verificationTokens: { where: { purpose: 'EMAIL_VERIFICATION', usedAt: { not: null } },
+          orderBy: { usedAt: 'desc' }, take: 1, select: { usedAt: true } } },
+    });
+    if (!user) throw new UnauthorizedException('Account is not active');
+    const { verificationTokens, ...identity } = user;
+    const emailVerifiedAt = verificationTokens[0]?.usedAt ?? null;
+    return { ...identity, emailVerifiedAt, isEmailVerified: emailVerifiedAt !== null };
   }
 
   /**

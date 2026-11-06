@@ -22,6 +22,8 @@ export interface ParsedGuest {
 export interface RowError {
   row: number;
   message: string;
+  reason?: string;
+  field?: string;
   value?: string;
   /** Set when `value` is contact data: shown to the importer, never stored. */
   isContact?: boolean;
@@ -81,7 +83,7 @@ export const MAX_GUEST_ROWS = 2000;
 
 export function parseGuestCsv(content: string, maxRows = MAX_GUEST_ROWS): ParsedGuestList {
   const rows = readRows(content, maxRows);
-  if ('error' in rows) return { guests: [], errors: [{ row: 0, message: rows.error }] };
+  if ('error' in rows) return { guests: [], errors: [{ row: 0, message: rows.error, reason: rows.reason }] };
 
   const guests: ParsedGuest[] = [];
   const errors: RowError[] = [];
@@ -110,22 +112,22 @@ function parseRow(record: Record<string, string>, row: number): ParsedGuest | Ro
 
 /** The first reason this row cannot become a guest, or null if it can. */
 function rejectionFor(field: FieldReader): Omit<RowError, 'row'> | null {
-  if (!field('firstName')) return { message: 'No name in this row' };
+  if (!field('firstName')) return { message: 'No name in this row', reason: 'NAME_REQUIRED', field: 'firstName' };
 
   const seats = field('seats');
   if (seats && !isValidSeatCount(seats)) {
-    return { message: `Seats must be a whole number between 1 and ${MAX_SEATS}`, value: seats };
+    return { message: `Seats must be a whole number between 1 and ${MAX_SEATS}`, reason: 'INVALID_SEATS', field: 'seats', value: seats };
   }
 
   const email = field('email');
   if (email && !isUsableEmailAddress(email)) {
-    return { message: 'That does not look like an email address', value: email, isContact: true };
+    return { message: 'That does not look like an email address', reason: 'INVALID_EMAIL', field: 'email', value: email, isContact: true };
   }
 
   // The rules a host's own edit applies (guest-rules.ts), which the import
   // skipped: a phone with letters or a line break in it, a megabyte name.
   const phone = readPhone(field('phone') || undefined);
-  if (phone.kind === 'invalid') return { message: 'That does not look like a phone number', value: field('phone'), isContact: true };
+  if (phone.kind === 'invalid') return { message: 'That does not look like a phone number', reason: 'INVALID_PHONE', field: 'phone', value: field('phone'), isContact: true };
 
   return lengthProblem(field);
 }
@@ -140,7 +142,7 @@ const FIELD_LIMITS: Partial<Record<keyof typeof COLUMNS, number>> = {
 
 function lengthProblem(field: FieldReader): Omit<RowError, 'row'> | null {
   for (const [key, limit] of Object.entries(FIELD_LIMITS) as [keyof typeof COLUMNS, number][]) {
-    if (field(key).length > limit) return { message: `${key} must be at most ${limit} characters` };
+    if (field(key).length > limit) return { message: `${key} must be at most ${limit} characters`, reason: 'FIELD_TOO_LONG', field: key };
   }
   return null;
 }
@@ -185,7 +187,7 @@ export class TooManyRowsError extends Error {
 function readRows(
   content: string,
   maxRows: number,
-): { records: Record<string, string>[] } | { error: string } {
+): { records: Record<string, string>[] } | { error: string; reason: string } {
   let headings: string[] = [];
   let records: Record<string, string>[];
   try {
@@ -198,16 +200,17 @@ function readRows(
       bom: true,
       to: maxRows + 1,
     });
-  } catch (error) {
-    return { error: `Could not read the file: ${error instanceof Error ? error.message : 'unknown'}` };
+  } catch {
+    // Parser diagnostics can quote guest rows and are retained after erasure.
+    return { error: 'Could not read the CSV file', reason: 'CSV_UNREADABLE' };
   }
 
   if (records.length > maxRows) throw new TooManyRowsError(maxRows);
-  if (records.length === 0) return { error: 'The file has a header but no rows' };
+  if (records.length === 0) return { error: 'The file has a header but no rows', reason: 'NO_ROWS' };
   // Reported once for the file: otherwise every row says "No name in this
   // row", which hides that the columns were never recognised.
   if (!headings.some((heading) => COLUMNS.firstName.includes(heading))) {
-    return { error: `No first-name column found. Headings read: ${headings.join(', ')}` };
+    return { error: 'No first-name column found', reason: 'NAME_COLUMN_MISSING' };
   }
   return { records };
 }

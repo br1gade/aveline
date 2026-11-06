@@ -1,5 +1,5 @@
 import { RsvpStatus } from '@prisma/client';
-import { AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
+import { AnswerableQuestion, answeredQuestionIds, answersProblem, unansweredRequired } from './answers';
 import { PartyMemberDto } from './dto/submit-rsvp.dto';
 import { builtInAnswerProblem } from './rsvp-fields';
 
@@ -31,7 +31,7 @@ export function partyRequiredProblem(
   respondentStatus: RsvpStatus,
 ): string | null {
   for (const member of party) {
-    const answered = new Set((member.answers ?? []).map((answer) => answer.questionId));
+    const answered = answeredQuestionIds([], member.answers ?? []);
     const missing = unansweredRequired(questions, answered, partyStatus(member, respondentStatus));
     if (missing) return `party: ${member.firstName} must answer ${missing.id}, as they are coming`;
   }

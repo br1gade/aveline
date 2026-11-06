@@ -99,7 +99,7 @@ export class DraftReaderService {
       firstPublishedAt: draft.firstPublishedAt, lifetimeDays: draft.lifetimeDays, lifetimeSource: draft.lifetimeSource,
       lifetimePlanKey: draft.lifetimePlanKey, expiresAt: draft.expiresAt, isExpired: hasInvitationExpired(draft),
       event: { ...draft.event, venues: undefined },
-      template: { key: draft.template.key, name: draft.template.name, allowedFonts: draft.template.allowedFonts, palettes: draft.template.palettes, supportedBlocks: draft.template.supportedBlocks, versionId: draft.templateVersion.id, versionNumber: draft.templateVersion.versionNumber },
+      template: { key: draft.template.key, name: draft.template.name, allowedFonts: draft.template.allowedFonts, palettes: draft.template.palettes, supportedBlocks: draft.template.supportedBlocks, blockVariants: draft.template.blockVariants, versionId: draft.templateVersion.id, versionNumber: draft.templateVersion.versionNumber },
       designRevision: String(draft.designRevision),
       theme: draft.theme,
       rsvpFields: Object.fromEntries(BUILT_IN_FIELDS.map((field) => [field, fieldOf(draft.rsvpFields, field)])),

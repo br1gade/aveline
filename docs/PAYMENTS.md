@@ -136,7 +136,11 @@ uses the unique constraint on `idempotencyKey` to decide who owns the right to
 call the bank. A prior read cannot do this: two concurrent callers both read
 nothing. Whoever's insert wins registers; the losers wait briefly for the
 winner's result and return it, rather than registering a second order or
-failing a retry that should have succeeded.
+failing a retry that should have succeeded. A retry that finds the already-created
+row joins that same bounded registration wait, including when its initial read
+finds `CREATED`; it never starts a second registration. If the bank outcome is
+still unknown after the wait, the current state is returned for reconciliation,
+without inventing a redirect or a new charge.
 
 **A refund is claimed in the database before any money moves.** The obvious
 reading — call the bank, then record it — is wrong. Two concurrent refunds

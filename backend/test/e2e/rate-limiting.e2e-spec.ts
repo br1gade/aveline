@@ -28,12 +28,13 @@ describe('Rate limiting behind a proxy (e2e)', () => {
   /** The short window is 10 per second, so 12 is comfortably over it. */
   const BURST = 12;
 
-  /** Public routes other than the guest's own page keep the tight limit. */
+  /** Credential mutations keep the tight limit; guest reads have a larger allowance. */
+  const refreshFrom = (forwardedFor: string) => http().post('/api/v1/auth/refresh')
+    .set('X-Forwarded-For', forwardedFor).send({ refreshToken: 'unknown-refresh-token'.repeat(3) });
+
   const burstFrom = async (forwardedFor: string) => {
     const responses = await Promise.all(
-      Array.from({ length: BURST }, () =>
-        http().get('/api/v1/public/events/no-such-slug').set('X-Forwarded-For', forwardedFor),
-      ),
+      Array.from({ length: BURST }, () => refreshFrom(forwardedFor)),
     );
     return responses.filter((response) => response.status === 429).length;
   };
@@ -83,19 +84,19 @@ describe('Rate limiting behind a proxy (e2e)', () => {
     // A different client, immediately afterwards, with its own allowance.
     const second = await Promise.all(
       Array.from({ length: 3 }, () =>
-        http().get('/api/v1/public/events/no-such-slug').set('X-Forwarded-For', '203.0.113.21'),
+        refreshFrom('203.0.113.21'),
       ),
     );
 
-    expect(second.map((response) => response.status)).toEqual([404, 404, 404]);
+    expect(second.map((response) => response.status)).toEqual([401, 401, 401]);
   });
 
   // B81: guests on the venue's Wi-Fi share one address, and opening their
   // invitation to find their table counted against one allowance — 429s.
-  it('lets a whole room of guests on one address open their invitations', async () => {
+  it.each(['/invitations/no-such-slug/g/some-token', '/public/events/no-such-slug'])('allows a room of guests on one address to read %s', async (path) => {
     const responses = await Promise.all(
       Array.from({ length: 40 }, () =>
-        http().get('/api/v1/invitations/no-such-slug/g/some-token').set('X-Forwarded-For', '203.0.113.30'),
+        http().get(`/api/v1${path}`).set('X-Forwarded-For', '203.0.113.30'),
       ),
     );
 

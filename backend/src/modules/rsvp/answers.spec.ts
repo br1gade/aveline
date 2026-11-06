@@ -1,5 +1,5 @@
 import { QuestionType, RsvpStatus } from '@prisma/client';
-import { AnswerableQuestion, answersProblem, unansweredRequired } from './answers';
+import { AnswerableQuestion, answeredQuestionIds, answersProblem, unansweredRequired } from './answers';
 
 const question = (type: QuestionType, extra: Partial<AnswerableQuestion> = {}): AnswerableQuestion => ({
   id: type.toLowerCase(),
@@ -18,6 +18,27 @@ const signature = question(QuestionType.SIGNATURE);
 const all = [meal, extras, note, story, yesNo, signature];
 
 describe('answersProblem', () => {
+  it.each([
+    [note, ''], [story, '  \n '], [extras, []],
+  ])('requires a nonempty %o answer only for a guest who is coming', (entry, value) => {
+    const required = { ...entry, required: true };
+    const answers = [{ questionId: entry.id, value }];
+    expect(answersProblem([required], answers)).toBeNull();
+    const answered = answeredQuestionIds([], answers);
+    expect(unansweredRequired([required], answered, RsvpStatus.ATTENDING)).toBe(required);
+    expect(unansweredRequired([required], answered, RsvpStatus.DECLINED)).toBeUndefined();
+    expect(unansweredRequired([required], answered, RsvpStatus.UNDECIDED)).toBeUndefined();
+  });
+
+  it.each([[yesNo, false], [meal, 0]])('keeps false and the first option as real required answers', (entry, value) => {
+    expect(answersProblem([{ ...entry, required: true }], [{ questionId: entry.id, value }])).toBeNull();
+    expect(answeredQuestionIds([], [{ questionId: entry.id, value }])).toContain(entry.id);
+  });
+
+  it('does not let earlier blanks or a cleared previous answer satisfy a requirement', () => {
+    expect(answeredQuestionIds([{ questionId: 'blank', value: ' ' }, { questionId: 'cleared', value: 'before' }],
+      [{ questionId: 'cleared', value: '' }])).toEqual(new Set());
+  });
   it.each([
     [meal, 0],
     [meal, 1],

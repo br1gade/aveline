@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { Body, Controller, Get, Header, Headers, HttpCode, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { EnquiriesService } from './enquiries.service';
 import { SalesIntakeGuard } from './sales-intake.guard';
@@ -15,6 +15,8 @@ export class EnquiriesController {
 
   @ApiHeader({ name: 'Idempotency-Key', required: true, description: '8–128 printable ASCII characters' })
 @Post() @Header('Cache-Control', 'private, no-store')
+  @ApiCreatedResponse({ description: 'New enquiry' })
+  @ApiOkResponse({ description: 'Replay of the same committed enquiry' })
   async create(@CurrentActor() actor: RequestActor, @Headers('idempotency-key') key: string, @Body() dto: CreateEnquiryDto, @Res({ passthrough: true }) response: Response) {
     const { wasReplayed, ...result } = await this.enquiries.create(actor.userId, key, dto);
     response.status(wasReplayed ? 200 : 201);

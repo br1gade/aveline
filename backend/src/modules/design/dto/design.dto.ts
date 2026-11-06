@@ -19,6 +19,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { Trimmed } from '../../../common/trimmed';
 
@@ -31,7 +32,7 @@ export class UpdateBlockDto {
     additionalProperties: true,
     description: 'Translated content keyed by locale',
   })
-  @IsOptional()
+  @ValidateIf((_dto: unknown, value: unknown) => value !== undefined)
   @IsObject()
   content?: Record<string, unknown>;
 
@@ -40,7 +41,7 @@ export class UpdateBlockDto {
     additionalProperties: true,
     description: 'Block-specific, non-translated settings',
   })
-  @IsOptional()
+  @ValidateIf((_dto: unknown, value: unknown) => value !== undefined)
   @IsObject()
   settings?: Record<string, unknown>;
 
@@ -95,10 +96,15 @@ export class ChooseTemplateDto {
   @IsString()
   @MaxLength(64)
   templateKey!: string;
+  @ApiPropertyOptional({ type: String, description: 'Exact immutable target version' })
   @IsOptional() @IsString() @MaxLength(128) templateVersionId?: string;
+  @ApiPropertyOptional({ type: String, description: 'Ready adoption preview to confirm' })
   @IsOptional() @IsString() @MaxLength(128) previewId?: string;
+  @ApiPropertyOptional({ type: String, description: 'Current immutable version expected by the preview' })
   @IsOptional() @IsString() @MaxLength(128) expectedTemplateVersionId?: string;
+  @ApiPropertyOptional({ type: String, pattern: '^[1-9][0-9]{0,18}$', description: 'Current design revision, as a decimal string' })
   @IsOptional() @IsString() @Matches(/^[1-9][0-9]{0,18}$/) expectedDesignRevision?: string;
+  @ApiPropertyOptional({ type: String, format: 'uuid', description: 'Stable key for an explicit adoption attempt' })
   @IsOptional() @IsUUID() idempotencyKey?: string;
 
 }

@@ -28,6 +28,7 @@ describe('isAuditable', () => {
       '/api/v1/webhooks/telegram',
       '/api/v1/payments/reconcile',
       '/api/v1/ticket-orders/release-expired',
+      '/api/v1/invitations/:slug/template-preview',
     ])('excludes %s', (route) => {
       expect(isAuditable(request('POST', route))).toBe(false);
     });
@@ -39,6 +40,7 @@ describe('isAuditable', () => {
       '/api/v1/organization/invites',
       '/api/v1/privacy/requests/:id/fulfil',
       '/api/v1/promo-codes',
+      '/api/v1/invitations/:slug/template-upgrade-preview',
     ])('still records %s', (route) => {
       expect(isAuditable(request('POST', route))).toBe(true);
     });

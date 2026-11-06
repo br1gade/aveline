@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { RsvpStatus } from '@prisma/client';
 import { negotiateLocale, resolveTranslation } from '../../common/locale';
 import { PrismaService } from '../../prisma/prisma.service';
 import { formatAnswer, optionLabels, tallyAnswers } from '../rsvp/answer-display';
+import { LEGACY_REPORT_QUESTION_LIMIT, LEGACY_REPORT_ROW_LIMIT } from './dto/report-query.dto';
 
 /**
  * What guests answered to the host's own questions — "meat or fish?", "do you
@@ -28,7 +29,8 @@ export class AnswersSheetService {
         invitation: {
           select: {
             questions: {
-              orderBy: { sortOrder: 'asc' },
+              orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+              take: LEGACY_REPORT_QUESTION_LIMIT + 1,
               select: { id: true, type: true, required: true, prompt: true, options: true },
             },
           },
@@ -36,6 +38,9 @@ export class AnswersSheetService {
       },
     });
     if (!event) throw new NotFoundException(`No event ${eventId}`);
+    if ((event.invitation?.questions.length ?? 0) > LEGACY_REPORT_QUESTION_LIMIT) {
+      throw new BadRequestException('Report exceeds 100 questions; use the paged answers at answers/questions');
+    }
 
     const locale = negotiateLocale(requestedLocale, event.locales, event.defaultLocale);
     const responsesByQuestion = await this.responsesByQuestion(eventId);
@@ -52,10 +57,10 @@ export class AnswersSheetService {
           prompt: resolveTranslation<string>(question.prompt, locale, event.defaultLocale),
           options: labels,
           answered: responses.length,
-          tally: tallyAnswers(question, responses, labels),
+          tally: tallyAnswers(question, responses, labels, locale),
           responses: responses.map((response) => ({
             ...response,
-            display: formatAnswer(question, response.value, labels),
+            display: formatAnswer(question, response.value, labels, locale),
           })),
         };
       }),
@@ -64,8 +69,9 @@ export class AnswersSheetService {
 
   private async responsesByQuestion(eventId: string) {
     const answers = await this.prisma.rsvpAnswer.findMany({
-      where: { rsvp: { guest: { eventId } } },
-      orderBy: [{ rsvp: { guest: { household: { name: 'asc' } } } }, { rsvp: { guest: { firstName: 'asc' } } }],
+      where: { rsvp: { guest: { eventId, anonymizedAt: null } } },
+      take: LEGACY_REPORT_ROW_LIMIT + 1,
+      orderBy: [{ rsvp: { guest: { household: { name: 'asc' } } } }, { rsvp: { guest: { firstName: 'asc' } } }, { id: 'asc' }],
       select: {
         questionId: true,
         value: true,
@@ -77,6 +83,9 @@ export class AnswersSheetService {
         },
       },
     });
+    if (answers.length > LEGACY_REPORT_ROW_LIMIT) {
+      throw new BadRequestException('Report exceeds 5000 answers; use the paged answers at answers/questions');
+    }
 
     const byQuestion = new Map<string, ResponseRow[]>();
     for (const answer of answers) {
@@ -88,7 +97,9 @@ export class AnswersSheetService {
         status,
         value: answer.value as unknown,
       };
-      byQuestion.set(answer.questionId, [...(byQuestion.get(answer.questionId) ?? []), row]);
+      const responses = byQuestion.get(answer.questionId) ?? [];
+      responses.push(row);
+      byQuestion.set(answer.questionId, responses);
     }
     return byQuestion;
   }

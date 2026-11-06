@@ -521,7 +521,7 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     expect(reimport).toMatchObject({ rowsImported: 2, rowsFailed: 2 });
     // Her row by email (row 2) and a row carrying only her phone (row 5) are both refused; Davit and Aram are not.
     const refusal = 'This person asked for their data to be erased and cannot be added again';
-    expect(reimport.errors).toEqual([{ row: 2, message: refusal }, { row: 5, message: refusal }]);
+    expect(reimport.errors).toEqual([{ row: 2, reason: 'SUBJECT_ERASED', message: refusal }, { row: 5, reason: 'SUBJECT_ERASED', message: refusal }]);
     expect(await prisma.guest.count({ where: { eventId: gala.eventId, email: { equals: ANI, mode: 'insensitive' } } })).toBe(0);
   };
 

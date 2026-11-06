@@ -8,7 +8,7 @@ export class CreateTableDto {
   @MaxLength(60)
   name!: string;
 
-  @ApiProperty({ minimum: 1, maximum: 100 })
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 100 })
   @IsInt()
   @Min(1)
   @Max(100)
@@ -41,7 +41,7 @@ export class UpdateTableDto {
   @MaxLength(60)
   name?: string;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, description: 'Never below the guests already seated' })
+  @ApiPropertyOptional({ type: 'integer', minimum: 1, maximum: 100, description: 'Never below the guests already seated' })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -89,13 +89,13 @@ export class CreateTablesDto {
   @MaxLength(40)
   namePrefix!: string;
 
-  @ApiProperty({ minimum: 1, maximum: 200 })
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 200 })
   @IsInt()
   @Min(1)
   @Max(200)
   count!: number;
 
-  @ApiProperty({ minimum: 1, maximum: 100 })
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 100 })
   @IsInt()
   @Min(1)
   @Max(100)
@@ -122,7 +122,7 @@ export class AssignSeatDto {
   @IsString()
   tableId!: string;
 
-  @ApiPropertyOptional({ description: 'Place at the table, for printed cards' })
+  @ApiPropertyOptional({ type: 'integer', minimum: 1, maximum: 100, description: 'Place at the table, for printed cards' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

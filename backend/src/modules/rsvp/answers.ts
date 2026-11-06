@@ -39,7 +39,7 @@ export function answersProblem(questions: AnswerableQuestion[], answers: Answer[
     if (seen.has(answer.questionId)) return `answers: ${answer.questionId} is answered twice`;
     seen.add(answer.questionId);
 
-    const problem = valueProblem(question, answer.value);
+    const problem = typedValueProblem(question, answer.value);
     if (problem) return `answers: ${answer.questionId} ${problem}`;
   }
   return null;
@@ -61,7 +61,13 @@ export function unansweredRequired(
   return questions.find((question) => question.required && !answeredIds.has(question.id));
 }
 
-function valueProblem(question: AnswerableQuestion, value: unknown): string | null {
+/** Submitted values replace earlier ones, including an explicit blank. */
+export function answeredQuestionIds(earlier: readonly Answer[], submitted: readonly Answer[]): Set<string> {
+  const values = new Map([...earlier, ...submitted].map((answer) => [answer.questionId, answer.value]));
+  return new Set([...values].filter(([, value]) => !isEmptyAnswer(value)).map(([id]) => id));
+}
+
+function typedValueProblem(question: AnswerableQuestion, value: unknown): string | null {
   switch (question.type) {
     case QuestionType.TEXT:
     case QuestionType.LONG_TEXT:
@@ -77,6 +83,12 @@ function valueProblem(question: AnswerableQuestion, value: unknown): string | nu
     default:
       return 'cannot be answered here yet';
   }
+}
+
+function isEmptyAnswer(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim().length === 0;
+  return Array.isArray(value) && value.length === 0;
 }
 
 function textProblem(value: unknown, limit: number): string | null {

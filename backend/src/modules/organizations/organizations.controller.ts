@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ALL_PERMISSIONS } from '../access/access-policy';
 import {
   CurrentActor,
   OrganizationScope,
   RequestActor,
   RequirePermission,
+  actorCan,
 } from '../../infra/auth/actor';
 import { CreateOrganizationDto, RenameOrganizationDto, MembershipPageQuery, ChangeOrganizationMemberDto, OrganizationRevisionDto, TransferOrganizationOwnerDto } from './dto/organization.dto';
 import { OrganizationsService } from './organizations.service';
@@ -12,15 +14,24 @@ import { OrganizationsService } from './organizations.service';
 @ApiTags('organizations')
 @Controller('organizations')
 export class OrganizationsController {
+  @RequirePermission('event:read')
+  @OrganizationScope()
+  @Get('current/access')
+  @ApiOperation({ summary: 'Effective organization capabilities, including permission to create an event' })
+  access(@CurrentActor() actor: RequestActor) {
+    return { organizationId: actor.organizationId, canCreateEvents: actorCan(actor, 'event:write'),
+      permissions: ALL_PERMISSIONS.filter((permission) => actorCan(actor, permission)) };
+  }
   constructor(private readonly organizations: OrganizationsService) {}
 
   // Any signed-in account may create its own tenant: this is the step between
   // registering and being able to do anything, so it requires no permission —
   // there is no organization to hold one in yet.
   @Post()
+  @ApiHeader({ name: 'idempotency-key', required: false, description: 'Stable key for safe organization-creation retries' })
   @ApiOperation({
     summary: 'Create your organization',
-    description: 'One per account. The caller becomes its OWNER.',
+    description: 'The caller becomes its OWNER; accounts may own multiple organizations.',
   })
   create(@CurrentActor() actor: RequestActor, @Body() dto: CreateOrganizationDto, @Headers('idempotency-key') key?: string) {
     return this.organizations.create(actor.userId, dto, key);
@@ -47,7 +58,7 @@ export class OrganizationsController {
   @Get('current/members')
   @ApiOperation({ summary: 'List organization members without contacts' })
   members(@CurrentActor() actor: RequestActor, @Query() query: MembershipPageQuery) {
-    return this.organizations.members(actor.organizationId!, query);
+    return this.organizations.members(actor.organizationId!, query, actor.userId);
   }
 
   @OrganizationScope()

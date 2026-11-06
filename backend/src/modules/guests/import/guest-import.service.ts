@@ -3,6 +3,7 @@ import { isUniqueViolation } from '../../../common/prisma-errors';
 import { ImportStatus, MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
 import { addressFingerprint } from '../../communications/address-form';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { storedImportDiagnostic, storedImportDiagnostics } from './import-diagnostics';
 import {
   ParsedGuest,
   RowError,
@@ -63,9 +64,8 @@ export class GuestImportService {
         imported += outcome.imported;
         failures.push(...outcome.failures);
       } catch (error) {
-        // The full error goes to our logs; the history gets only what is safe to show.
-        this.logger.warn(`import ${record.id} batch from row ${batch[0][0].row}: ${error instanceof Error ? error.message : String(error)}`);
-        failures.push(...batch.flat().map((guest) => ({ row: guest.row, message: `Could not save ${guest.firstName}: ${describeImportError(error)}` })));
+        this.logger.warn(`import ${record.id} batch from row ${batch[0][0].row}: NOT_SAVED`);
+        failures.push(...batch.flat().map((guest) => ({ row: guest.row, reason: 'NOT_SAVED', message: `Could not save ${guest.firstName}: ${describeImportError(error)}` })));
       }
     }
 
@@ -96,6 +96,7 @@ export class GuestImportService {
       guests: guests.filter((guest) => !isErased(guest)),
       refused: guests.filter(isErased).map((guest) => ({
         row: guest.row,
+        reason: 'SUBJECT_ERASED',
         message: 'This person asked for their data to be erased and cannot be added again',
       })),
     };
@@ -124,12 +125,13 @@ export class GuestImportService {
     }
   }
 
-  listImports(eventId: string) {
-    return this.prisma.guestImport.findMany({
+  async listImports(eventId: string) {
+    const imports = await this.prisma.guestImport.findMany({
       where: { eventId },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
+    return imports.map((record) => ({ ...record, errors: storedImportDiagnostics(record.errors) }));
   }
 
   private async finish(importId: string, imported: number, failures: RowError[]) {
@@ -143,7 +145,7 @@ export class GuestImportService {
         rowsFailed: failures.length,
         // The history is read with guest:read alone and outlives erasure, so a
         // mistyped address is quoted to the importer below and never kept.
-        errors: failures.map(withoutContact) as unknown as Prisma.InputJsonValue,
+        errors: failures.map(storedImportDiagnostic) as unknown as Prisma.InputJsonValue,
         finishedAt: new Date(),
       },
     });
@@ -157,10 +159,6 @@ export class GuestImportService {
       errors: failures.map(({ isContact: _isContact, ...error }) => error),
     };
   }
-}
-
-function withoutContact({ isContact, value, ...error }: RowError): RowError {
-  return isContact ? error : { ...error, ...(value === undefined ? {} : { value }) };
 }
 
 /** Nothing failed, nothing worked, or somewhere in between. */
@@ -181,7 +179,7 @@ function withPublishedLocales(guests: ParsedGuest[], locales: string[]): ParsedG
 
 function readGuestList(content: Buffer) {
   const decoded = decodeGuestCsv(content);
-  if ('error' in decoded) return { guests: [], errors: [{ row: 0, message: decoded.error }] };
+  if ('error' in decoded) return { guests: [], errors: [{ row: 0, message: decoded.error, reason: 'FILE_UNREADABLE' }] };
   try {
     return parseGuestCsv(decoded.text);
   } catch (error) {

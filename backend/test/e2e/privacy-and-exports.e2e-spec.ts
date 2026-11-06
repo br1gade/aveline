@@ -106,7 +106,7 @@ describe('Privacy and exports (e2e)', () => {
     });
 
     // Twenty copies of one request is twenty clocks to answer.
-    it('keeps one open request rather than duplicating it, and adds the new notes to it', async () => {
+    it('keeps one open request and stores public notes separately as unverified submissions', async () => {
       await http()
         .post('/api/v1/privacy/requests')
         .send({ kind: DataSubjectRequestKind.ERASURE, subjectEmail: 'ani@test.local', notes: 'First.' })
@@ -118,7 +118,9 @@ describe('Privacy and exports (e2e)', () => {
 
       const requests = await prisma.dataSubjectRequest.findMany();
       expect(requests).toHaveLength(1);
-      expect(requests[0].notes).toContain('Also the photos.');
+      expect(requests[0].notes).toBeNull();
+      const submissions = await prisma.privacyRequestSubmission.findMany({ where: { requestId: requests[0].id } });
+      expect(submissions.map((row) => row.notes).sort()).toEqual(['Also the photos.', 'First.']);
     });
 
     // B90: the answer carried the open request's reference, status and

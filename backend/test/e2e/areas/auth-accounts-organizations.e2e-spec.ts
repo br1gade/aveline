@@ -125,15 +125,15 @@ describe('Organization tenancy and membership (e2e coverage)', () => {
     const page = (authorization: string, query: string) =>
       http().get(`/api/v1/organizations/current/members?${query}`).set('Authorization', authorization);
 
-    it('returns each member’s id, name, role and joinedAt only, with the access revision', async () => {
+    it('returns member identity, active/current-user flags and revision without contacts', async () => {
       const { owner, members: [member] } = await tenant();
       const byUserId = (a: { userId: string }, b: { userId: string }) => a.userId.localeCompare(b.userId);
 
       const { body } = await page(owner.authorization, 'limit=10').expect(200);
 
       expect([...(body.items as { userId: string }[])].sort(byUserId)).toEqual([
-        { userId: owner.userId, name: 'Test User', role: 'OWNER', joinedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
-        { userId: member.userId, name: 'Test User', role: 'MEMBER', joinedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
+        { userId: owner.userId, name: 'Test User', role: 'OWNER', isActive: true, isCurrentUser: true, joinedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
+        { userId: member.userId, name: 'Test User', role: 'MEMBER', isActive: true, isCurrentUser: false, joinedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
       ].sort(byUserId));
       expect(body.accessRevision).toBe(0);
       expect(body.nextCursor).toBeNull();

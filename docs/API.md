@@ -166,6 +166,12 @@ its default, and the response says which you actually got:
 **Render `locale`, not what you asked for.** A region tag resolves to its
 language (`en-GB` → `en`).
 
+The generated schema declares `security: []` on public routes and bearer
+authentication on session routes. `X-Aveline-Organization-Id` is optional only
+on routes whose runtime guard accepts organization selection. CORS exposes
+`Content-Disposition` as well as `x-request-id`, so downloads retain the server
+filename across approved origins.
+
 ### Rate limits
 
 10 requests/second and 100/minute. A signed-in caller is counted per account,
@@ -176,7 +182,8 @@ a whole room opens them at once on one Wi-Fi, and a server renderer reads them
 for every guest from one address: `GET /invitations/:slug`,
 `GET /invitations/:slug/g/:guestToken`, the guest's own
 `GET /invitations/:slug/g/:guestToken/rsvp`, and the acknowledgement, signature and
-gallery file reads. Every write keeps the default.
+gallery file reads, both gallery/acknowledgement lists, invitation design-artwork files,
+and the public event listing/detail. Every write keeps the default.
 
 ### Dates
 
@@ -325,6 +332,32 @@ authenticated by **possession of an unguessable URL**, not by a session.
 
 Treat these tokens as secrets in your UI: do not log them, do not put them in
 analytics, do not include them in a shared screenshot.
+
+### Browser route contract
+
+These are client pages, not API endpoints. Account and invitation emails,
+ticket delivery and default bank returns use `PUBLIC_APP_URL` (development:
+`http://localhost:5173`; required in production). The development environment
+template declares it explicitly. Keep these paths stable across a release:
+
+| Browser path | Used by |
+|---|---|
+| `/invitations/:slug` | Generic invitation |
+| `/invitations/:slug/g/:guestToken` | Household invitation, confirmations, reminders and ticket acknowledgements |
+| `/sign-in` | Existing-account registration notice |
+| `/reset-password?token=…` | Password-reset email; the existing-account notice also links to `/reset-password` without a token |
+| `/verify-email?token=…` | Address-verification email |
+| `/accept-invite?token=…` | Organization team invitation |
+| `/accept-event-invite?token=…` | Event team invitation |
+| `/tickets/:accessToken` | Ticket-delivery email; reads the API's `/ticket-orders/:accessToken` |
+| `/tickets/return` | Default ticket-payment return |
+| `/billing/return` | Default subscription-payment return |
+| `/events/:slug` | Public event `metadata.canonicalPath` |
+| `/briefs/:briefToken` | Client-built vendor brief link; reads the API's `/briefs/:token` |
+
+Register static payment-return paths before dynamic ticket-token paths.
+Returns must confirm payment with the backend; the browser redirect is not
+proof of capture. Tokens in both path and query parameters are credentials.
 
 ---
 
@@ -514,7 +547,9 @@ when the host has not set the guest's side; a side the host set stands.
   (from `household.members`), `status` (`ATTENDING`, `DECLINED` or
   `UNDECIDED` — not `PENDING`), and optionally their own `dietary`,
   `dietaryNotes` and `answers` to the host's questions — so each person
-  chooses their own meal. A required question binds every member marked
+  chooses their own meal. For attending guests, required text must contain non-whitespace
+  and a required multi-choice must choose at least one option; `false` and
+  option index `0` remain valid answers. A required question binds every member marked
   `ATTENDING`, as it does the respondent. Someone left out keeps their
   answer. Naming yourself, someone outside the household, or an invalid
   member answer is a `400` starting `members:`.
@@ -1106,7 +1141,7 @@ Needs `operations:read`. One entry per question on the invitation, in order:
 
 - `tally` counts each option twice: among guests coming (`attending`, what a
   caterer orders) and among everyone who answered (`total`). `BOOLEAN`
-  questions tally as `Yes` / `No`. Free-text questions have `tally: null`;
+  questions tally as the negotiated language's yes/no words. Free-text questions have `tally: null`;
   read their `responses`.
 - `display` is the answer in words; `value` is what was stored (a position,
   for choices).
@@ -1114,6 +1149,31 @@ Needs `operations:read`. One entry per question on the invitation, in order:
   event's default; `locale` says which you got.
 
 The same answers appear in the guest-list export, one column per question.
+
+For bounded screens, use:
+
+```http
+GET /api/v1/events/:eventId/answers/questions?locale=hy&limit=50&offset=0
+GET /api/v1/events/:eventId/answers/questions/:questionId/responses?locale=hy&limit=50&offset=0
+GET /api/v1/events/:eventId/guest-book/entries?limit=50&offset=0
+```
+
+All require `operations:read`. Each returns `{ items, total, limit, offset,
+hasMore }`; `limit` defaults to 20 and cannot exceed 100. Question and answer
+pages also return the negotiated `locale`; an answer page adds `questionId`.
+Question items match the summary above without `responses`; tallies and
+`answered` count the whole question, regardless of page size. Answer items
+match the responses above and add their `id`. A question outside the event
+is 404. Rows and totals come from one database snapshot. Erased people are
+excluded, and no contact fields or guest capability tokens are returned.
+
+Guest-book items are `{ id, guestId, from, message, at }`, newest dated first,
+with undated (`at: null`) entries last and a stable ID tie-breaker. The legacy
+`GET /events/:eventId/guest-book` keeps its bare array of `{ from, message, at }`
+with the same date ordering. **Compatibility limit:** legacy answers refuse
+more than 100 questions or 5,000 answers, and the legacy guest book refuses
+more than 5,000 entries with 400 and guidance to use these paged routes.
+Neither route silently truncates a report.
 
 ```http
 GET /api/v1/events
@@ -1308,7 +1368,23 @@ you do not need to make the host rename anything. Recognised:
 decides. A file in another encoding, such as Windows-1251, or with no
 first-name column is refused whole with one error at `row: 0`, which stands
 for the file itself: `"The file is not UTF-8 text. …"` or
-`"No first-name column found. Headings read: …"`.
+`"No first-name column found"`. File diagnostics never quote uploaded rows or
+headings: a headerless file can put contact data there. New file errors include a
+stable `reason` (`NAME_COLUMN_MISSING`, `NO_ROWS`, `CSV_UNREADABLE` or `FILE_UNREADABLE`); older
+import history may have no code.
+
+Row errors add `reason`: `NAME_REQUIRED`, `INVALID_SEATS`, `INVALID_EMAIL`,
+`INVALID_PHONE`, `FIELD_TOO_LONG`, `SUBJECT_ERASED`, `HOUSEHOLD_FULL` or
+`NOT_SAVED`. Field-specific errors also name `field` (`firstName`, `lastName`,
+`seats`, `email`, `phone`, `household` or `locale`). Codes and field names are
+safe to persist in import history; raw rejected contacts are returned only
+to the importer. Every raw `value` is removed from stored diagnostics, even
+when contact data was misplaced into another column. Stored/read messages
+are rebuilt from known codes without uploaded names or database exceptions;
+legacy errors without a known code get a generic message and keep their row
+number. This also protects reads of older history; it does not rewrite that
+history in the database. Clients translate by
+code and keep unknown historical errors readable without sentence matching.
 
 `side` accepts `a`, `side a`, `b`, `side b`, `both` or `shared`, in any
 case; anything else is recorded as unknown. `seats` must be a whole number
@@ -1323,8 +1399,8 @@ imported without one.
   "rowsImported": 412,
   "rowsFailed": 3,
   "errors": [
-    { "row": 7, "message": "No name in this row" },
-    { "row": 19, "message": "Seats must be a whole number between 1 and 20" }
+    { "row": 7, "reason": "NAME_REQUIRED", "field": "firstName", "message": "No name in this row" },
+    { "row": 19, "reason": "INVALID_SEATS", "field": "seats", "message": "Seats must be a whole number between 1 and 20" }
   ]
 }
 ```
@@ -2350,6 +2426,7 @@ deadline; `reference` is gone. Staff find a request in the list.
 
 ```http
 GET   /api/v1/privacy/requests?status=RECEIVED
+GET   /api/v1/privacy/requests/:requestId/submissions?limit=20&offset=0
 PATCH /api/v1/privacy/requests/:requestId   { "status": "IN_PROGRESS", "notes": "..." }
 POST  /api/v1/privacy/requests/:requestId/fulfil
 ```
@@ -2359,6 +2436,22 @@ holds. **No customer account can call these**, an organization owner included
 — a request is matched across every customer, so acting on one reaches other
 tenants' data. Do not build a host-facing screen for them. The list is a
 deadline queue, soonest `dueAt` first.
+
+Each public submission is a separate stored record, including submissions
+without notes. The submissions route returns a standard bounded page
+(`limit` 1–100, default 20) of `{ id, notes, createdAt,
+source: "UNVERIFIED_PUBLIC" }`, oldest first with an ID tie-breaker. Public
+text never changes staff notes, verification state or an existing deadline,
+and is never identity evidence. Each submitted note is limited to 2,000
+characters; there is no cumulative note limit that silently discards later
+submissions. Concurrent submissions for the same normalized address and kind
+share one open case. Database failure fails the request rather than claiming
+it was recorded. The public answer reveals no case or submission ID.
+
+**Notes provenance change:** new public text is no longer concatenated into
+`DataSubjectRequest.notes`. Existing notes remain untouched and can contain
+legacy, unattributed public text; staff must treat that text as unverified.
+The PATCH `notes` field remains staff-maintained and cannot edit submissions.
 
 Status moves forward only: `RECEIVED` → `VERIFYING` → `IN_PROGRESS` →
 `COMPLETED`, or `REJECTED` from any open state. An `EXPORT` or `ERASURE` is
@@ -2653,9 +2746,10 @@ resets the layout to the template's default.
 ```http
 GET /api/v1/events/:eventId/design-templates/:templateKey/preview?locale=fr
 GET /api/v1/invitations/:slug/template-preview?templateKey=classic&locale=fr
+POST /api/v1/invitations/:slug/template-preview?templateKey=classic&locale=fr
 ```
 
-Both require `invitation:read` for the event and return `Cache-Control: private,
+GETs require `invitation:read` for the event and return `Cache-Control: private,
 no-store`. Render these with the same frontend invitation renderer used for a
 live page. The response has the live page's content shape plus `isPreview: true`
 and `previewSource: "SYNTHETIC" | "EVENT"`; `guest` is null and
@@ -2676,6 +2770,17 @@ Preview reads never change the template, blocks, theme, publication or RSVP
 state, never use the public page cache, and do not record invitation views.
 Unknown/inactive templates return 404. Actual visual rendering and all-language
 browser acceptance remain frontend work.
+
+The POST requires `invitation:design` and accepts one draft block edit:
+`{ type, variant?, content?, settings?, assetIds?, enabled? }`, using the
+same fields and validation as a saved block update. `type` must already be
+on the invitation. It returns HTTP 200 with `previewSource: "EVENT_DRAFT"`
+and `baseDesignRevision`; all edits exist only in memory. It uses the same
+serializer and language fallback as the GET and live page. Assets must belong
+to this event and match the block's media kind. Top-level `content` and
+`settings` must be objects when supplied; `variant: null` resets the layout.
+The result remains private/no-store and inert. It creates no audit mutation,
+view, job, receipt or persisted draft.
 
 ### Publishing the invitation
 
@@ -3676,10 +3781,17 @@ IN_PROGRESS. Retrying fulfilment resumes the recorded checkpoint safely.
 `GET /events/:eventId/design-templates` retains its array shape and legacy fields,
 scoped to active shared and same-organization private versions. Entries add
 `versionId`, `versionNumber`, `rendererKey`, `capabilityVersion`, `contentHash` and
-`scope`. Existing event-only DESIGNER permissions remain valid. Current selected
+`scope`, `provenance` and `requiresAdoptionPreview`. Authored versions require
+explicit adoption preview; `LEGACY_BASELINE` versions do not. Existing
+event-only DESIGNER permissions remain valid. Current selected
 retired versions remain readable through the design/current-preview routes.
 `GET /invitations/:slug/design` adds `designRevision` as a decimal string and its
-template contains the exact immutable `versionId`/`versionNumber`. Public legacy
+template contains the exact immutable `versionId`/`versionNumber` and pinned
+`blockVariants`, so the editor does not need a second catalogue read for layouts.
+`ChooseTemplateDto` declares all five optional adoption-confirmation fields in
+OpenAPI; seating capacities/counts/positions are integers, ticket-order `status`
+is an optional enum query, and organization-creation `Idempotency-Key` is optional.
+Public legacy
 invitation fields/values remain unchanged; no template catalogue edit upgrades an
 event or changes its captured lifetime, attendance or acknowledgement history.
 
@@ -3906,3 +4018,37 @@ including any reviewed contact/owner change committed before execution starts.
 Once erasure is applied, binding changes are refused and retries resume the
 frozen applied scope. EXPORT holds the request scope stable through projection
 and completion, so a concurrent binding cannot relabel another person's result.
+
+
+### Client identity and capability discovery (5 November 2026)
+
+`GET /me` needs a bearer session and returns only the caller's `{id,email,name,
+platformRole,createdAt,emailVerifiedAt,isEmailVerified}`. Verification is derived
+from successfully consumed `EMAIL_VERIFICATION` evidence, never from a login or
+from a password reset. No password/session/verification token is returned.
+
+`GET /events/:id/access` requires `event:read` on that event and returns
+`{eventId,organizationId,permissions}` from the current runtime policy.
+`GET /organizations/current/access` requires organization `event:read`, accepts
+the explicit organization selector, and returns
+`{organizationId,canCreateEvents,permissions}`. Capabilities describe current
+standing; every write still rechecks authorization and resource state.
+
+Organization member rows include `isActive` and `isCurrentUser`, without email
+or account credentials. The rows and `accessRevision` share a repeatable-read
+snapshot so a later write cannot accidentally use a revision newer than its
+rows. `GET /organizations/current` includes `closureReview` (null, or
+`{id,status,revision,openedAt,resolvedAt}` for the latest closure request).
+Requesting closure requires `member:manage` at the route and an active OWNER
+membership in the service; a manager/member cannot request closure.
+
+
+OpenAPI success schemas are generated from controller return types at export time,
+including the API's date/bigint serialization, collection shapes, nullability,
+streamed MIME types and the job-recovery interceptor's wire fields. Public routes
+explicitly declare no bearer security; authenticated routes declare bearer auth.
+The exporter compiles every success schema before updating the artifact; each
+operation also declares the shared `HttpErrorDto` error response. Private
+capability routes still require their path credentials even though their bearer
+`security` is empty. Schemas describe authorization-filtered fields as optional;
+capability discovery never replaces the guard's checks.

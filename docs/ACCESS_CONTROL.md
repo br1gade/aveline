@@ -381,3 +381,13 @@ A reviewed closed organization denies authenticated event-resource requests even
 for ADMIN/SUPPORT, preventing new staff mutations through independent platform
 permissions. Public invitation/guest capability behavior retains its existing
 contract. Closure preserves the underlying event/financial history.
+
+
+### Client identity and capabilities
+
+The session-only `GET /me` exposes only the authenticated account's identity and
+explicit email-verification evidence, never credentials. Event and organization
+`/access` reads derive effective permissions from the same current policy as the
+guard; they do not authorize subsequent writes. Closure review requests require
+`member:manage` plus the service's active organization OWNER check. Member lists
+include account activity and the caller marker, without contact details.

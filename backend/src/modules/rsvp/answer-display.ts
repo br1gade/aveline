@@ -19,7 +19,9 @@ export interface Response {
   value: unknown;
 }
 
-const YES_NO = ['Yes', 'No'] as const;
+const YES_NO: Record<string, readonly [string, string]> = { en: ['Yes', 'No'], hy: ['Այո', 'Ոչ'], ru: ['Да', 'Нет'], fr: ['Oui', 'Non'] };
+
+export function booleanLabels(locale: string): readonly [string, string] { return YES_NO[locale.toLowerCase().split('-')[0]] ?? YES_NO.en; }
 
 /** The option list in one language, falling back to the event's default. */
 export function optionLabels(options: unknown, locale: string, defaultLocale: string): string[] {
@@ -28,8 +30,8 @@ export function optionLabels(options: unknown, locale: string, defaultLocale: st
 }
 
 /** One answer as words. */
-export function formatAnswer(question: DisplayableQuestion, value: unknown, labels: string[]): string {
-  if (question.type === QuestionType.BOOLEAN) return value === true ? YES_NO[0] : YES_NO[1];
+export function formatAnswer(question: DisplayableQuestion, value: unknown, labels: string[], locale = 'en'): string {
+  if (question.type === QuestionType.BOOLEAN) return booleanLabels(locale)[value === true ? 0 : 1];
   if (question.type === QuestionType.SINGLE_CHOICE) return labelAt(labels, value);
   if (question.type === QuestionType.MULTI_CHOICE && Array.isArray(value)) {
     return value.map((position) => labelAt(labels, position)).join('; ');
@@ -42,8 +44,8 @@ export function formatAnswer(question: DisplayableQuestion, value: unknown, labe
  * answered. A caterer orders for the first; a host curious about the second.
  * Null for free text, which has nothing to count.
  */
-export function tallyAnswers(question: DisplayableQuestion, responses: Response[], labels: string[]) {
-  const choices = choicesOf(question, labels);
+export function tallyAnswers(question: DisplayableQuestion, responses: Response[], labels: string[], locale = 'en') {
+  const choices = choicesOf(question, labels, locale);
   if (!choices) return null;
 
   return choices.map(({ label, matches }) => ({
@@ -53,12 +55,12 @@ export function tallyAnswers(question: DisplayableQuestion, responses: Response[
   }));
 }
 
-function choicesOf(question: DisplayableQuestion, labels: string[]) {
+function choicesOf(question: DisplayableQuestion, labels: string[], locale: string) {
   switch (question.type) {
     case QuestionType.BOOLEAN:
       return [
-        { label: YES_NO[0], matches: (value: unknown) => value === true },
-        { label: YES_NO[1], matches: (value: unknown) => value === false },
+        { label: booleanLabels(locale)[0], matches: (value: unknown) => value === true },
+        { label: booleanLabels(locale)[1], matches: (value: unknown) => value === false },
       ];
     case QuestionType.SINGLE_CHOICE:
       return labels.map((label, position) => ({ label, matches: (value: unknown) => value === position }));

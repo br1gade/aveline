@@ -21,6 +21,8 @@ import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { addressFingerprint } from '../communications/address-form';
 import { eraseSubject, sameAddress } from './erasure';
 import { statusChangeProblem } from './request-status';
+import { recordPublicSubmission } from './public-submissions';
+import { PaginationQuery, resolvePaging, toPage } from '../../common/dto/pagination.dto';
 import {
   CreateDataSubjectRequestDto,
   UpdateDataSubjectRequestDto,
@@ -32,16 +34,7 @@ const RESPONSE_WINDOW_DAYS = 30;
 /** How much warning is useful: a week is enough to verify an identity and act. */
 const WARNING_WINDOW_DAYS = 7;
 
-const OPEN_STATUSES: DataSubjectRequestStatus[] = [
-  DataSubjectRequestStatus.RECEIVED,
-  DataSubjectRequestStatus.VERIFYING,
-  DataSubjectRequestStatus.IN_PROGRESS,
-];
-
 const ERASURE_TIMEOUT_MS = 60_000;
-
-/** Repeat submissions add their notes, up to this much in all. */
-const NOTES_LIMIT = 20_000;
 
 function completedBy(userId: string) {
   return { status: DataSubjectRequestStatus.COMPLETED, completedAt: new Date(), handledByUserId: userId };
@@ -74,23 +67,11 @@ export class PrivacyService {
    * though. Returning the open request's reference, status and deadline told
    * whoever typed the address that someone else had already asked, when, and
    * how far staff had got; so every submission gets the same fresh receipt,
-   * and anything new in its notes is added to the open request.
+   * and every submission is stored separately as unverified public input.
    */
   async submit(dto: CreateDataSubjectRequestDto) {
-    const subjectEmail = dto.subjectEmail.trim().toLowerCase();
     const dueAt = new Date(Date.now() + RESPONSE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-
-    const open = await this.prisma.dataSubjectRequest.findFirst({
-      where: { subjectEmail, kind: dto.kind, status: { in: OPEN_STATUSES } },
-      select: { id: true, notes: true },
-    });
-
-    const request = open
-      ? await this.addNotes(open, dto.notes)
-      : await this.prisma.dataSubjectRequest.create({
-          data: { kind: dto.kind, subjectEmail, notes: dto.notes ?? null, dueAt },
-          select: { id: true },
-        });
+    const request = await recordPublicSubmission(this.prisma, dto, dueAt);
 
     this.logger.log(`data-subject request ${request.id} (${dto.kind}) recorded`);
 
@@ -104,13 +85,18 @@ export class PrivacyService {
     };
   }
 
-  private async addNotes(open: { id: string; notes: string | null }, notes: string | undefined) {
-    if (!notes || (open.notes?.length ?? 0) + notes.length > NOTES_LIMIT) return open;
-    return this.prisma.dataSubjectRequest.update({
-      where: { id: open.id },
-      data: { notes: open.notes ? `${open.notes}\n\n${notes}` : notes },
-      select: { id: true },
-    });
+  async submissions(requestId: string, query: PaginationQuery) {
+    await this.require(requestId);
+    const paging = resolvePaging(query);
+    return this.prisma.$transaction(async (tx) => {
+      const where = { requestId };
+      const [rows, total] = await Promise.all([
+        tx.privacyRequestSubmission.findMany({ where, ...paging, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          select: { id: true, notes: true, createdAt: true } }),
+        tx.privacyRequestSubmission.count({ where }),
+      ]);
+      return toPage(rows.map((row) => ({ ...row, source: 'UNVERIFIED_PUBLIC' as const })), total, paging);
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 
   async list(status?: DataSubjectRequestStatus) {

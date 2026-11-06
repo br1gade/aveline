@@ -1,4 +1,6 @@
 import { Controller, Get, Header, Param, Res } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentActor, EventScope, Public, RequestActor, RequirePermission } from '../../infra/auth/actor';
@@ -8,11 +10,13 @@ import { DesignAssetFilesService } from './design-asset-files.service';
 export class DesignAssetFilesController {
   constructor(private readonly files: DesignAssetFilesService) {}
   @Public() @Get('invitations/:slug/design-assets/:assetId/file') @Header('Cache-Control', 'private, no-store')
+  @Throttle(GUEST_PAGE_LIMITS)
   @ApiOperation({ summary: 'Read a published public/unlisted invitation private design asset without redirect' })
   async generic(@Param() params: { slug: string; assetId: string }, @Res() response: Response) {
     sendDesignAsset(response, await this.files.readGuest(params));
   }
   @Public() @Get('invitations/:slug/g/:guestToken/design-assets/:assetId/file') @Header('Cache-Control', 'private, no-store')
+  @Throttle(GUEST_PAGE_LIMITS)
   @ApiOperation({ summary: 'Read private design artwork through the live guest capability and pin' })
   async personal(@Param() params: { slug: string; guestToken: string; assetId: string }, @Res() response: Response) {
     sendDesignAsset(response, await this.files.readGuest({ slug: params.slug, assetId: params.assetId, token: params.guestToken }));

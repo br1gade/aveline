@@ -66,9 +66,9 @@ const SIGN_IN_ONLY = [
   'POST /devices', // the caller's own device
   'DELETE /devices/:token', // only a device of the caller's own; any other is 404
   'GET /me/organizations', // the caller's own memberships
+  'GET /me', // the caller's own identity, never another account's
   'POST /organizations', // anyone may open an organization of their own
   'POST /organizations/current/leave', // self-leave is open to every member
-  'POST /organizations/current/closure-reviews', // organization-scoped; the service requires ownership
   'GET /events', // organization-scoped event list, filtered to event:read
   'GET /admin/organization-access-reviews', // the service requires a platform ADMIN
   'POST /admin/organization-access-reviews/:reviewId/resolve', // the service requires a platform ADMIN

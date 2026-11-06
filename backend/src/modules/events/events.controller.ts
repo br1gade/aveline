@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ALL_PERMISSIONS } from '../access/access-policy';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { UpdateEventSettingsDto } from './dto/event-settings.dto';
@@ -22,6 +23,7 @@ import {
   OrganizationScope,
   RequestActor,
   RequirePermission,
+  actorCan,
 } from '../../infra/auth/actor';
 
 /**
@@ -42,6 +44,14 @@ function readPage(limit?: string, offset?: string): { limit?: number; offset: nu
 @ApiTags('events')
 @Controller('events')
 export class EventsController {
+  @RequirePermission('event:read')
+  @EventScope('id')
+  @Get(':id/access')
+  @ApiOperation({ summary: 'Effective permissions on this event for the signed-in account' })
+  access(@CurrentActor() actor: RequestActor) {
+    return { eventId: actor.eventId, organizationId: actor.organizationId,
+      permissions: ALL_PERMISSIONS.filter((permission) => actorCan(actor, permission)) };
+  }
   constructor(private readonly events: EventsService) {}
 
   // No permission check of its own: everyone signed in may ask, and the

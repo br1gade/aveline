@@ -54,6 +54,24 @@ describe('Data-subject requests (e2e coverage)', () => {
   };
 
   describe('submitting a request', () => {
+    it('pages public text only for privacy staff and labels every entry as unverified', async () => {
+      await submit(DataSubjectRequestKind.EXPORT, SUBJECT, 'First public claim');
+      await submit(DataSubjectRequestKind.EXPORT, SUBJECT, 'Another public claim');
+      const request = await prisma.dataSubjectRequest.findFirstOrThrow();
+      const path = `/api/v1/privacy/requests/${request.id}/submissions`;
+      await http().get(path).expect(401);
+      const { authorization: customer } = await authenticateAs(app, prisma);
+      await http().get(path).set('Authorization', customer).expect(403);
+      const officer = await privacyOfficer();
+      const first = await http().get(path).query({ limit: 1 }).set('Authorization', officer).expect(200);
+      const next = await http().get(path).query({ limit: 1, offset: 1 }).set('Authorization', officer).expect(200);
+      expect(first.body).toMatchObject({ total: 2, hasMore: true, items: [{ id: expect.any(String),
+        notes: 'First public claim', source: 'UNVERIFIED_PUBLIC', createdAt: expect.any(String) }] });
+      expect(next.body).toMatchObject({ total: 2, hasMore: false, items: [expect.objectContaining({ notes: 'Another public claim', source: 'UNVERIFIED_PUBLIC' })] });
+      await http().get(path).query({ limit: 101 }).set('Authorization', officer).expect(400);
+      await http().get('/api/v1/privacy/requests/missing/submissions').set('Authorization', officer).expect(404);
+    });
+
     it.each([DataSubjectRequestStatus.COMPLETED, DataSubjectRequestStatus.REJECTED])(
       'opens a new request with its own clock once the earlier one is %s',
       async (closed) => {
@@ -67,10 +85,11 @@ describe('Data-subject requests (e2e coverage)', () => {
 
         expect(await prisma.dataSubjectRequest.count()).toBe(2);
         const fresh = await prisma.dataSubjectRequest.findFirstOrThrow({ where: { id: { not: earlier.id } } });
-        expect(fresh).toMatchObject({ status: DataSubjectRequestStatus.RECEIVED, notes: 'second' });
+        expect(fresh).toMatchObject({ status: DataSubjectRequestStatus.RECEIVED, notes: null });
         expect(fresh.dueAt.getTime()).toBeGreaterThanOrEqual(before + RESPONSE_WINDOW_MS);
         expect(fresh.dueAt.getTime()).toBeLessThanOrEqual(after + RESPONSE_WINDOW_MS);
-        expect((await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: earlier.id } })).notes).toBe('first');
+        expect(await prisma.privacyRequestSubmission.findMany({ where: { requestId: earlier.id }, select: { notes: true } })).toEqual([{ notes: 'first' }]);
+        expect(await prisma.privacyRequestSubmission.findMany({ where: { requestId: fresh.id }, select: { notes: true } })).toEqual([{ notes: 'second' }]);
       },
     );
 

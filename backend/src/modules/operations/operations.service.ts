@@ -1,9 +1,10 @@
 import { attendingAtVenue, venueHeadcount } from './venue-headcount';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { GuestAttribution, Prisma, RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalyticsService } from '../../infra/analytics/analytics.service';
 import { BuiltInField, optionLabel } from '../rsvp/rsvp-fields';
+import { LEGACY_REPORT_ROW_LIMIT } from './dto/report-query.dto';
 
 /**
  * Every surface here is a *derived view* over the guest graph (spec §6).
@@ -234,10 +235,14 @@ export class OperationsService {
     await this.assertEvent(eventId);
 
     const rsvps = await this.prisma.rsvp.findMany({
-      where: { guest: { eventId }, message: { not: null } },
-      include: { guest: true },
-      orderBy: { respondedAt: 'desc' },
+      where: { guest: { eventId, anonymizedAt: null }, message: { not: null } },
+      select: { message: true, respondedAt: true, guest: { select: { firstName: true, lastName: true } } },
+      take: LEGACY_REPORT_ROW_LIMIT + 1,
+      orderBy: [{ respondedAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
     });
+    if (rsvps.length > LEGACY_REPORT_ROW_LIMIT) {
+      throw new BadRequestException('Report exceeds 5000 messages; use the paged guest book at guest-book/entries');
+    }
 
     return rsvps.map((r) => ({
       from: [r.guest.firstName, r.guest.lastName].filter(Boolean).join(' '),

@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { seedEvent } from '../fixtures/event.fixture';
+import { authenticateAs } from '../fixtures/auth.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
 /**
@@ -50,6 +51,48 @@ describe('Authentication (e2e)', () => {
   });
 
   describe('registration and login', () => {
+    it.each(['DESIGNER', 'VIEWER'] as const)('returns effective event capabilities for a %s without duplicating the role policy', async (role) => {
+      const { eventId } = await seedEvent(prisma);
+      const caller = await authenticateAs(app, prisma, { eventId, role });
+      const result = await http().get(`/api/v1/events/${eventId}/access`).set('Authorization', caller.authorization).expect(200);
+      expect(result.body.eventId).toBe(eventId);
+      expect(result.body.permissions).toContain('event:read');
+      expect(result.body.permissions).not.toContain('guest:contact:read');
+      const { permissions } = result.body as { permissions: string[] };
+      expect(permissions.includes('invitation:design')).toBe(role === 'DESIGNER');
+      expect(permissions.includes('guest:read')).toBe(role === 'VIEWER');
+    });
+    it('identifies only the signed-in account and reports actual email verification evidence', async () => {
+      await http().get('/api/v1/me').expect(401);
+      const { body: session } = await signUp();
+      const identity = await http().get('/api/v1/me').set('Authorization', `Bearer ${session.accessToken as string}`).expect(200);
+      expect(identity.body).toMatchObject({ email: credentials.email, name: credentials.name, isEmailVerified: false, emailVerifiedAt: null });
+      expect(identity.body).not.toHaveProperty('passwordHash');
+      const verifiedAt = new Date('2026-11-05T09:00:00.000Z');
+      await prisma.verificationToken.createMany({ data: [
+        { userId: identity.body.id as string, purpose: 'PASSWORD_RESET', tokenHash: 'used-reset', usedAt: verifiedAt, expiresAt: new Date('2026-11-06T09:00:00.000Z') },
+        { userId: identity.body.id as string, purpose: 'EMAIL_VERIFICATION', tokenHash: 'unused-verification', usedAt: null, expiresAt: new Date('2026-11-06T09:00:00.000Z') },
+      ] });
+      const unverified = await http().get('/api/v1/me').set('Authorization', `Bearer ${session.accessToken as string}`).expect(200);
+      expect(unverified.body).toMatchObject({ isEmailVerified: false, emailVerifiedAt: null });
+      await prisma.verificationToken.create({ data: { userId: identity.body.id as string, purpose: 'EMAIL_VERIFICATION',
+        tokenHash: 'used-verification', usedAt: verifiedAt, expiresAt: new Date('2026-11-06T09:00:00.000Z') } });
+      const verified = await http().get('/api/v1/me').set('Authorization', `Bearer ${session.accessToken as string}`).expect(200);
+      expect(verified.body).toMatchObject({ isEmailVerified: true, emailVerifiedAt: verifiedAt.toISOString() });
+    });
+
+    it.each(['OWNER', 'VIEWER'] as const)('derives organization creation capability for a %s and refuses a foreign selector', async (role) => {
+      const caller = await authenticateAs(app, prisma);
+      const organization = await prisma.organization.create({ data: { name: 'Own' } });
+      const foreign = await prisma.organization.create({ data: { name: 'Foreign' } });
+      await prisma.organizationMembership.create({ data: { organizationId: organization.id, userId: caller.userId, role } });
+      const result = await http().get('/api/v1/organizations/current/access').set('Authorization', caller.authorization).expect(200);
+      expect(result.body).toMatchObject({ organizationId: organization.id, canCreateEvents: role === 'OWNER' });
+      const { permissions } = result.body as { permissions: string[] };
+      expect(permissions.includes('event:write')).toBe(role === 'OWNER');
+      await http().get('/api/v1/organizations/current/access').set('Authorization', caller.authorization)
+        .set('X-Aveline-Organization-Id', foreign.id).expect(403);
+    });
     // B90/D16: refusing an address that already had an account told anyone
     // which addresses do. The two answers are now the same.
     it('answers a new address and a taken one identically, and signs neither in', async () => {
