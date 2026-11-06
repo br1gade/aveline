@@ -18,6 +18,7 @@ import { CreateEvent } from './components/create-event';
 import { EditEvent } from './components/edit-event';
 import { EventOverview } from './components/event-overview';
 import { EventUnavailable } from './components/event-unavailable';
+import { QuestionsLeftOnNotice } from './components/questions-left-on';
 import type { EventOverviewData } from './load';
 import type { EventDetail } from './types';
 
@@ -62,7 +63,12 @@ const EVENT: EventDetail = {
 
 /** Where the page sent the host. */
 function EventPage() {
-  return <p>{`Event page ${useParams().eventId ?? ''}`}</p>;
+  return (
+    <>
+      <QuestionsLeftOnNotice />
+      <p>{`Event page ${useParams().eventId ?? ''}`}</p>
+    </>
+  );
 }
 
 function renderAt(path: string, pattern: string, Page: ComponentType) {
@@ -138,6 +144,37 @@ describe('CreateEvent', () => {
     expect(isLeavingAsked()).toBe(false);
     await user.type(title, 'Anna');
     await waitFor(() => expect(isLeavingAsked()).toBe(true));
+  });
+
+  it('starts drink and song request off on the new invitation (C-30, PD-179)', async () => {
+    answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    server.use(http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)));
+    const switched = answer('patch', `/invitations/anna-davit-3f8a1c20/rsvp-fields`, () =>
+      HttpResponse.json({}),
+    );
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(switched).toEqual([
+      { drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false } },
+    ]);
+    expect(screen.queryByText(/still asked on this invitation/)).not.toBeInTheDocument();
+  });
+
+  it('opens the event all the same when they couldn’t be switched off, and says so', async () => {
+    answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    server.use(http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)));
+    answer('patch', `/invitations/anna-davit-3f8a1c20/rsvp-fields`, refusal(500, 'down'));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('still asked on this invitation');
+    expect(screen.getByRole('link', { name: 'The invitation’s questions' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/design/questions',
+    );
   });
 
   it('sends the time typed in Yerevan as UTC, then opens the new event', async () => {

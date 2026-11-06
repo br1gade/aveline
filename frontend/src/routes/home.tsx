@@ -31,6 +31,9 @@ export default function Home() {
         <Link to={APP_PATHS.privacyRequest} className={LINK}>
           {t('home.privacy')}
         </Link>
+        <Link to={APP_PATHS.help} className={LINK}>
+          {t('support.link')}
+        </Link>
       </nav>
     </main>
   );

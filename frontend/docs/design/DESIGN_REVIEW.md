@@ -180,8 +180,8 @@ In the suggested order. **Nine are applied** (18 October); the rest are not star
 | 22 | P3 | Make the boards read the tokens; add any off-token colour that stays to `tokens.json` | Frontend | VR-27 | **Done** 18 Oct | n/a |
 | 23 | P3 | Fix the indent of a wrapped Copy address | Frontend | VR-30 | **Done** 18 Oct | n/a |
 
-Findings without a fix of their own are covered by a decision: VR-02 (PQ-9, PD-20), VR-10 (PQ-1,
-PQ-2; PD-15 closed on 23 October, when `rsvpFields` arrived), VR-22 (DQ-2, PD-4), VR-24 (DQ-11, PD-8) and VR-35 (BQ-10, PD-26).
+Findings without a fix of their own are covered by a decision: VR-02 (PQ-9, answered by C-36; PD-20), VR-10 (PQ-1,
+PQ-2, answered by C-28 and C-29; PD-15 closed on 23 October, when `rsvpFields` arrived), VR-22 (DQ-2, PD-4), VR-24 (DQ-11, PD-8) and VR-35 (BQ-10, PD-26).
 
 ## 6. Reply states
 

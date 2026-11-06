@@ -164,5 +164,13 @@
     "expired": "Le délai de cette invitation est écoulé, elle ne peut donc pas être envoyée. La page a été rechargée.",
     "archived": "Cet événement est archivé : son invitation ne peut être ni publiée ni rouverte. Rétablissez-le d’abord depuis la page de l’événement.",
     "artworkPreparing": "Les illustrations du modèle sont encore en préparation : l’invitation ne peut pas encore être publiée. Attendez quelques minutes, puis publiez à nouveau."
+  },
+  "tell": {
+    "title": "Prévenir les invités d’un changement",
+    "body": "Changer la date, l’heure ou un lieu le propose de lui-même. Pour tout autre changement que les invités doivent connaître, comme le déroulé, prévenez-les ici.",
+    "open": "Prévenir les invités d’un changement",
+    "heading": "Prévenez vos invités d’un changement",
+    "lead": "Chaque foyer qui a reçu l’invitation reçoit un message disant que ses détails ont changé, avec son propre lien, qui montre toujours la dernière version. Rien n’est envoyé avant que vous appuyiez sur le bouton.",
+    "back": "Retour à l’invitation"
   }
 }

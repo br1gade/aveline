@@ -9,6 +9,8 @@ export { ArrivalStatus, EventList } from './components/event-list';
 export { EventOverview } from './components/event-overview';
 export { EventUnavailable } from './components/event-unavailable';
 export { NotifyGuests, type NotifyBack, type NotifyOffer } from './components/notify-guests';
+export { QuestionsLeftOnNotice } from './components/questions-left-on';
+export { startQuestionsOff } from './new-invitation';
 export { loadEventOverview } from './load';
 export {
   bookingPath,

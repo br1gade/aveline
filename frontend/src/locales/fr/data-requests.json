@@ -36,7 +36,7 @@
   },
   "confirm": {
     "title": "S’agit-il bien de {{address}} ?",
-    "body": "Une fois confirmé, cette demande peut être exécutée. Le formulaire est public et n’importe qui peut saisir n’importe quelle adresse : agir sur une demande non vérifiée est en soi une violation."
+    "body": "Une fois confirmé, cette demande peut être exécutée. Ne confirmez qu’une fois que la personne a répondu, depuis cette adresse même, à un e-mail que vous y avez envoyé. Le formulaire est public, donc n’importe qui peut saisir n’importe quelle adresse : agir sur une demande non vérifiée est en soi une violation."
   },
   "reject": {
     "title": "Rejeter la demande de {{address}} ?",

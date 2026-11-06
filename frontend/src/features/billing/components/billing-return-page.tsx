@@ -7,6 +7,7 @@ import { browserSession } from '@/api/session';
 import { bankAddress, leaveForBank } from '@/lib/links';
 import { APP_PATHS } from '@/route-paths';
 import { Notice, type NoticeTone } from '@/ui';
+import { SupportContacts } from '@/ui/support-contacts';
 import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
@@ -92,13 +93,21 @@ function Confirmed({ invoice, provider }: { invoice: Invoice; provider: PaymentP
   );
 }
 
-/** The bank disagreeing with our record is never met with a new payment (docs/API.md §6). */
+/**
+ * The bank disagreeing with our record is never met with a new payment, and says whom to contact
+ * (docs/API.md §6; design C-54).
+ */
 function Refused({ refusal }: { refusal: BillingRefusal }) {
   const { t } = useTranslation('billing');
   return (
     <>
       <BillingProblem refusal={refusal} />
-      {refusal.kind === 'disagreement' ? <p className="m-0">{t('return.dontPayAgain')}</p> : null}
+      {refusal.kind === 'disagreement' ? (
+        <>
+          <p className="m-0">{t('return.dontPayAgain')}</p>
+          <SupportContacts linkClassName="text-primary underline underline-offset-4" />
+        </>
+      ) : null}
       {refusal.kind === 'noAnswer' || refusal.kind === 'rateLimited' ? (
         <CheckAgain labelKey="return.tryAgain" />
       ) : null}

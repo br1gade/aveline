@@ -147,5 +147,8 @@
   "preview": {
     "header": "La couverture de l’invitation, en aperçu",
     "main": "L’invitation, en aperçu"
+  },
+  "calendar": {
+    "add": "Ajouter au calendrier"
   }
 }

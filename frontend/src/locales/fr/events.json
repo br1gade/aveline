@@ -247,5 +247,9 @@
       "noAnswer": "Aucune réponse n’est arrivée. Rechargez la page pour voir si c’est passé.",
       "other": "C’est refusé."
     }
+  },
+  "questionsLeftOn": {
+    "body": "La boisson et la chanson demandée sont encore posées sur cette invitation : elles n’ont pas pu être désactivées à l’instant. Désactivez-les dans les questions de l’invitation si vous n’en voulez pas.",
+    "link": "Les questions de l’invitation"
   }
 }

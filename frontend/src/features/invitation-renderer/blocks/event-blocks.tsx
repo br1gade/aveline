@@ -4,6 +4,7 @@ import { safeExternalUrl } from '@/lib/links';
 import { timeLeftUntil } from '@/lib/time';
 import { cx, Eyebrow, SectionHeading, TextLink } from '@/ui';
 
+import { AddToCalendar } from '../components/add-to-calendar';
 import { Countdown, useMinuteClock } from '../components/countdown';
 import { Section, variantOf } from '../components/section';
 import { Swatches } from '../components/swatches';
@@ -64,6 +65,7 @@ export function VenueBlock({ block }: BlockProps) {
           />
         ))}
       </div>
+      <AddToCalendar venues={list} />
     </Section>
   );
 }

@@ -21,7 +21,6 @@ export function PricingPage({ plans }: { plans: readonly Plan[] }) {
           {t('pricing.title')}
         </h1>
         <p className="m-0">{t('pricing.lead')}</p>
-        <p className="m-0 text-sm">{t('plans.notEnforced')}</p>
       </div>
       <PlanCards
         plans={plans}
@@ -39,6 +38,12 @@ export function PricingPage({ plans }: { plans: readonly Plan[] }) {
         className="text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3"
       >
         {common('home.privacy')}
+      </Link>
+      <Link
+        to={APP_PATHS.help}
+        className="text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3"
+      >
+        {common('support.link')}
       </Link>
     </PublicFrame>
   );

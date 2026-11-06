@@ -97,14 +97,16 @@ interface NotifyGuestsProps {
   back: NotifyBack;
   /** In place of the household count, for a notice that gives none (a change of how to answer). */
   lead?: string | undefined;
+  /** In place of "Your changes are saved", when the host asks with no change just saved. */
+  title?: string | undefined;
 }
 
 /**
  * "Let your guests know", offered after an edit whose notice suggests it, and sent only when the
  * host presses it (docs/API.md §6, decided 8 October 2026). Once sent, the button is gone. The event
- * edit and the venue screens host it, each with its own way back.
+ * edit, the venue screens and the invitation's page host it, each with its own way back.
  */
-export function NotifyGuests({ offer, back, lead }: NotifyGuestsProps) {
+export function NotifyGuests({ offer, back, lead, title }: NotifyGuestsProps) {
   const { t } = useTranslation('events');
   const refused = useRefusedText('notify');
   const heading = useRef<HTMLHeadingElement>(null);
@@ -133,7 +135,7 @@ export function NotifyGuests({ offer, back, lead }: NotifyGuestsProps) {
         tabIndex={-1}
         className="m-0 font-serif text-[28px] leading-[34px] font-normal outline-none"
       >
-        {t('notify.title')}
+        {title ?? t('notify.title')}
       </h1>
       <p className="m-0">{lead ?? t('notify.body', { count: offer.households })}</p>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}

@@ -154,5 +154,13 @@
     "expired": "This invitation’s time has run out, so it can’t be sent. The page has been reloaded.",
     "archived": "This event is archived, so its invitation can’t be published or reopened. Bring it back on the event’s page first.",
     "artworkPreparing": "The template’s artwork is still being prepared, so the invitation can’t be published yet. Wait a few minutes, then publish again."
+  },
+  "tell": {
+    "title": "Tell guests about a change",
+    "body": "Changing the date, the time or a venue offers this by itself. For anything else guests should hear about, such as the running order, tell them here.",
+    "open": "Tell guests about a change",
+    "heading": "Tell your guests about a change",
+    "lead": "Each household the invitation reached gets a message that its details changed, with their own link, which always shows the latest. Nothing is sent until you press the button.",
+    "back": "Back to the invitation"
   }
 }

@@ -27,7 +27,6 @@
   },
   "plans": {
     "title": "Formules",
-    "notEnforced": "Les événements, invités et langues indiqués sont ce que chaque formule doit inclure : Aveline ne les applique pas encore. La durée en ligne de l’invitation, elle, s’applique.",
     "none": "Aucune formule n’est proposée pour le moment.",
     "current": "Votre formule actuelle",
     "choose": "Choisir cette formule"
@@ -132,7 +131,7 @@
     "replaced": "Cette facture a été remplacée par un choix de formule plus récent et son paiement n’a pas abouti : rien n’a été débité.",
     "closed": "Cette facture ne peut plus être payée. Votre formule n’a pas changé.",
     "nothing": "Il n’y a pas de facture à confirmer.",
-    "dontPayAgain": "Merci de ne pas payer à nouveau. Conservez la référence ci-dessus : elle nous permet de retrouver ce paiement.",
+    "dontPayAgain": "Ne payez pas une seconde fois. Contactez-nous avec la référence ci-dessus, pour que nous retrouvions ce paiement :",
     "checkAgain": "Vérifier à nouveau",
     "tryAgain": "Réessayer",
     "payAgain": "Payer à nouveau",

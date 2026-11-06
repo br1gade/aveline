@@ -74,5 +74,8 @@
   "totals": {
     "discount": "Discount",
     "total": "Total"
+  },
+  "disagreement": {
+    "body": "The bank and our record of this payment disagree. Please don’t pay again: contact us with the reference below, and we’ll sort it out."
   }
 }

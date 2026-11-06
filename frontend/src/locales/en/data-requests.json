@@ -36,7 +36,7 @@
   },
   "confirm": {
     "title": "Is this really {{address}}?",
-    "body": "Once you say so, this request can be carried out. The form is public, so anyone can type any address: acting on an unverified request is itself a breach."
+    "body": "Once you say so, this request can be carried out. Confirm only once the person has replied, from this very address, to an email you sent it. The form is public, so anyone can type any address: acting on an unverified request is itself a breach."
   },
   "reject": {
     "title": "Reject the request from {{address}}?",

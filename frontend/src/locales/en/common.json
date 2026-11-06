@@ -36,5 +36,19 @@
     "title": "Leave without saving?",
     "body": "What you changed on this page isn’t saved.",
     "confirm": "Leave without saving"
+  },
+  "support": {
+    "title": "Help and contact",
+    "lead": "Questions about an invitation, a ticket, a payment or your account? Contact Aveline.",
+    "languages": "We answer in Armenian, Russian and English.",
+    "none": "Ways to reach us aren’t listed here yet.",
+    "link": "Help and contact",
+    "metaTitle": "Help · Aveline",
+    "kind": {
+      "email": "Email",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp",
+      "telegram": "Telegram"
+    }
   }
 }

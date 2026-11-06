@@ -109,7 +109,8 @@
     "seats": "{{seated}} of {{capacity}} seats taken",
     "freed_one": "{{count}} seat freed by a guest who declined",
     "freed_other": "{{count}} seats freed by guests who declined",
-    "empty": "Nobody seated here yet."
+    "empty": "Nobody seated here yet.",
+    "mayChange": "The hosts may still change this plan until they share it with their guests."
   },
   "contacts": {
     "none": "No email or phone given."

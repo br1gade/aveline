@@ -1,4 +1,5 @@
 import { isApiError, type ApiError } from '@/api/errors';
+import { PAYMENT_DISAGREEMENT } from '@/api/payment-disagreement';
 import { isOrganizationRefusal } from '@/api/session';
 
 /**
@@ -37,7 +38,7 @@ const SENTENCES: ReadonlyArray<readonly [RegExp, WordedKind]> = [
   [/^This period has already ended/, 'periodEnded'],
   [/^No such invoice/, 'noInvoice'],
   [/^This invoice has no payment to confirm/, 'noPayment'],
-  [/^Cannot move a payment from /, 'disagreement'],
+  [PAYMENT_DISAGREEMENT, 'disagreement'],
   [/^Refund no longer fits/, 'refunding'],
   [/^Cannot refund/, 'refunding'],
 ];

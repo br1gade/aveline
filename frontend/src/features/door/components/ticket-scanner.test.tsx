@@ -266,7 +266,7 @@ describe('what it reads', () => {
   });
 
   it('sends nothing for what isn’t a ticket, a guest’s own link above all, and says so', async () => {
-    decoder.read = () => ({ data: 'https://aveline.am/invitations/anna/g/abcdefghijkl' });
+    decoder.read = () => ({ data: 'https://example.am/invitations/anna/g/abcdefghijkl' });
     const { user } = renderScanner();
     await user.click(openButton());
     expect(await screen.findByText(/isn’t a ticket/)).toBeVisible();

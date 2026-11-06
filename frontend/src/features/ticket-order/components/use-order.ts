@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { createPublicApi, type ApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
+import { isPaymentDisagreement } from '@/api/payment-disagreement';
 import { readPublicEnv } from '@/config/env';
 import { fetchPublicEvent, type PublicEvent } from '@/features/public-event';
 import { pollUntil, waitFor } from '@/lib/poll';
@@ -20,6 +21,8 @@ export type OrderState =
   /** The order's link opens nothing (404). */
   | { kind: 'gone' }
   | { kind: 'failed'; requestId?: string | undefined }
+  /** The bank and our record disagree: contact support, and never pay again (docs/API.md §6). */
+  | { kind: 'disagreement'; requestId: string | undefined }
   | { kind: 'ready'; read: OrderRead };
 
 /** After the bank's return, confirm is asked again at 2, 5 and 10 seconds while the bank is silent. */
@@ -27,6 +30,9 @@ const RECHECKS = [2_000, 3_000, 5_000] as const;
 
 function failure(error: unknown): OrderState {
   if (isApiError(error) && error.status === 404) return { kind: 'gone' };
+  if (isApiError(error) && isPaymentDisagreement(error)) {
+    return { kind: 'disagreement', requestId: error.requestId };
+  }
   return { kind: 'failed', requestId: isApiError(error) ? error.requestId : undefined };
 }
 

@@ -111,7 +111,8 @@
     "freed_one": "{{count}} place libérée par un invité qui s’est désisté",
     "freed_many": "{{count}} places libérées par des invités qui se sont désistés",
     "freed_other": "{{count}} places libérées par des invités qui se sont désistés",
-    "empty": "Personne n’est encore placé ici."
+    "empty": "Personne n’est encore placé ici.",
+    "mayChange": "Les hôtes peuvent encore modifier ce plan jusqu’à ce qu’ils le partagent avec leurs invités."
   },
   "contacts": {
     "none": "Ni e-mail ni téléphone indiqué."

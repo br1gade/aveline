@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useRevalidator } from 'react-router';
 
 import { browserSession } from '@/api/session';
+import { startQuestionsOff } from '@/features/events';
 import { AppForm, SelectField, SubmitButton, useLeaveGuard, WordedRefusal } from '@/ui/app-form';
 
 import { createInvitation, listTemplates } from '../api';
@@ -57,9 +58,11 @@ export function AddInvitation({ eventId }: { eventId: string }) {
   const onSubmit = async ({ templateKey }: { templateKey: string }) => {
     setRefusal(null);
     try {
-      await createInvitation(browserSession().api, eventId, templateKey || undefined);
+      const { api } = browserSession();
+      await createInvitation(api, eventId, templateKey || undefined);
+      const leftOn = await startQuestionsOff(api, eventId);
       form.reset({ templateKey });
-      await navigate(designPath(eventId));
+      await navigate(designPath(eventId), { state: leftOn });
       await revalidate();
     } catch (error) {
       const found = addRefusalOf(error);

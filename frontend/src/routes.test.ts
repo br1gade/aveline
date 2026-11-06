@@ -12,6 +12,7 @@ describe('the pages and their ways in', () => {
     ['organization', 'routes/app/organization.tsx'],
     ['activity', 'routes/app/activity.tsx'],
     ['privacyRequest', 'routes/public/privacy-request.tsx'],
+    ['help', 'routes/public/help.tsx'],
     ['staff', 'routes/app/staff.tsx'],
     ['staffCustomers', 'routes/app/staff-customers.tsx'],
     ['staffNewEvent', 'routes/app/staff-new-event.tsx'],
@@ -28,6 +29,10 @@ describe('the pages and their ways in', () => {
     ['routes/home.tsx', 'APP_PATHS.privacyRequest'],
     ['features/account/components/sign-in.tsx', 'APP_PATHS.privacyRequest'],
     ['features/billing/components/pricing-page.tsx', 'APP_PATHS.privacyRequest'],
+    ['routes/home.tsx', 'APP_PATHS.help'],
+    ['features/account/components/sign-in.tsx', 'APP_PATHS.help'],
+    ['features/billing/components/pricing-page.tsx', 'APP_PATHS.help'],
+    ['routes/app/home.tsx', 'APP_PATHS.help'],
     ['features/events/components/event-overview.tsx', 'activityPath(event.id)'],
   ])('%s leads to it', (file, link) => {
     expect(source(file)).toContain(link);

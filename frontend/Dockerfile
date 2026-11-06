@@ -10,6 +10,12 @@ COPY . .
 ARG VITE_PUBLIC_ORIGIN
 ARG VITE_API_BASE_URL=""
 ARG VITE_MEDIA_BASE_URL=""
+# How customers reach Aveline, and its website (design C-54, C-35): each optional, set for production.
+ARG VITE_SUPPORT_EMAIL=""
+ARG VITE_SUPPORT_PHONE=""
+ARG VITE_SUPPORT_WHATSAPP=""
+ARG VITE_SUPPORT_TELEGRAM=""
+ARG VITE_SITE_URL=""
 RUN test -n "$VITE_PUBLIC_ORIGIN" && npm run build
 
 FROM node:24-slim AS dependencies

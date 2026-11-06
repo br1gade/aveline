@@ -1,13 +1,14 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createI18n, type Language } from '@/lib/i18n';
+import { saveFile } from '@/ui/save-file';
 
 import { InvitationNotFound } from './components/invitation-not-found';
-import { block, invitationFixture } from './fixtures';
+import { block, invitationFixture, VENUES } from './fixtures';
 import { InvitationPage, type InvitationPageProps } from './invitation-page';
 import { withPrivateArtwork } from './private-artwork';
 import { plantedToken } from '../../../test/tokens';
@@ -16,6 +17,8 @@ class StubObserver {
   observe() {}
   disconnect() {}
 }
+
+vi.mock('@/ui/save-file', () => ({ saveFile: vi.fn() }));
 
 function renderPage(props: InvitationPageProps, language: Language = 'en') {
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -327,6 +330,28 @@ describe('InvitationPage', () => {
     });
 
     expect(screen.getByRole('link', { name: 'Հայերեն' })).toHaveAttribute('href', '?locale=hy');
+  });
+});
+
+describe('add to calendar (C-32, PD-178)', () => {
+  it('saves one event from the venues, in UTC, holding no link to the invitation', async () => {
+    const invitation = invitationFixture({ blocks: [block('VENUE', { data: VENUES })] });
+    renderPage({ invitation });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to calendar' }));
+    const [blob, name] = vi.mocked(saveFile).mock.calls[0] ?? [];
+    expect(name).toBe('event.ics');
+    expect(blob?.type).toBe('text/calendar;charset=utf-8');
+    const file = (await blob?.text()) ?? '';
+    expect(file).toContain('SUMMARY:Anna & Davit\r\n');
+    expect(file).toContain('DTSTART:20270612T120000Z\r\n');
+    expect(file).toContain('DTSTAMP:20270430T120000Z\r\n');
+    expect(file).toContain(`LOCATION:${VENUES[0]?.name ?? ''}`);
+    expect(file).not.toMatch(/https?:|\/g\//);
+  });
+
+  it('offers none where no venue block is shown', () => {
+    renderPage({ invitation: invitationFixture({ blocks: [block('HERO')] }) });
+    expect(screen.queryByRole('button', { name: 'Add to calendar' })).toBeNull();
   });
 });
 

@@ -14,6 +14,7 @@ import { AppForm, ProblemAlert, SubmitButton, useLeaveGuard } from '@/ui/app-for
 import { createEvent } from '../api';
 import { languageOptions, NEW_EVENT_VALUES } from '../form-model';
 import { eventPath } from '../paths';
+import { startQuestionsOff } from '../new-invitation';
 import { createPayload } from '../payload';
 import { markRefusals, useRefusedText } from '../refusals';
 import { eventFormSchema, type EventFormInput, type EventFormValues } from '../schemas';
@@ -52,8 +53,10 @@ export function CreateEvent({
   const onSubmit = async (values: EventFormValues) => {
     setProblem(null);
     try {
-      const event = await create(browserSession().api, createPayload(values));
-      await navigate(eventPath(event.id), { replace: true });
+      const { api } = browserSession();
+      const event = await create(api, createPayload(values));
+      const leftOn = await startQuestionsOff(api, event.id);
+      await navigate(eventPath(event.id), { replace: true, state: leftOn });
     } catch (error) {
       setProblem(markRefusals(error, form.setError));
     }

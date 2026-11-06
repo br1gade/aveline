@@ -28,6 +28,7 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation('app');
+  const { t: common } = useTranslation('common');
   const { organization, events, isStaff } = loaderData;
   return (
     <section className="flex flex-col gap-5">
@@ -55,6 +56,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           ...(isStaff ? [{ to: APP_PATHS.staff, label: t('home.staff') }] : []),
           { to: APP_PATHS.organization, label: t('home.organizationSettings') },
           { to: APP_PATHS.billing, label: t('home.billing') },
+          { to: APP_PATHS.help, label: common('support.link') },
           { to: APP_PATHS.promoCodes, label: t('home.promoCodes') },
           { to: APP_PATHS.vendors, label: t('home.vendors') },
         ].map((link) => (

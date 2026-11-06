@@ -128,6 +128,8 @@ export const APP_PATHS = {
   pricing: '/pricing',
   /** Asking what is held about an address, for anyone. */
   privacyRequest: '/privacy-request',
+  /** How to reach Aveline, for anyone (design C-54). */
+  help: '/help',
   /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */
   publicEvents: '/events',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */

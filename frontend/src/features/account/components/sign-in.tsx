@@ -16,10 +16,23 @@ import { useFieldText } from '../use-field-text';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
 
+/** Ways on from signing in: a forgotten password, a new account, a data request, and help. */
+function SignInLinks() {
+  const { t } = useTranslation('account');
+  const { t: common } = useTranslation('common');
+  return (
+    <>
+      <AccountLink to={ROUTE_PATHS.resetPassword}>{t('links.forgotPassword')}</AccountLink>
+      <AccountLink to={APP_PATHS.register}>{t('links.register')}</AccountLink>
+      <AccountLink to={APP_PATHS.privacyRequest}>{common('home.privacy')}</AccountLink>
+      <AccountLink to={APP_PATHS.help}>{common('support.link')}</AccountLink>
+    </>
+  );
+}
+
 /** A wrong password and an unknown address are the same 401, and say the same thing (API.md §2). */
 export function SignIn() {
   const { t } = useTranslation('account');
-  const { t: common } = useTranslation('common');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fieldText = useFieldText();
@@ -42,16 +55,8 @@ export function SignIn() {
     }
   };
 
-  const footer = (
-    <>
-      <AccountLink to={ROUTE_PATHS.resetPassword}>{t('links.forgotPassword')}</AccountLink>
-      <AccountLink to={APP_PATHS.register}>{t('links.register')}</AccountLink>
-      <AccountLink to={APP_PATHS.privacyRequest}>{common('home.privacy')}</AccountLink>
-    </>
-  );
-
   return (
-    <AccountLayout title={t('signIn.title')} footer={footer}>
+    <AccountLayout title={t('signIn.title')} footer={<SignInLinks />}>
       {problem ? (
         <ProblemAlert
           problem={problem}

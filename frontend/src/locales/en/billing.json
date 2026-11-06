@@ -27,7 +27,6 @@
   },
   "plans": {
     "title": "Plans",
-    "notEnforced": "The events, guests and languages listed are what each plan is meant to include: Aveline doesn’t hold you to them yet. How long an invitation stays up does apply.",
     "none": "No plans are on offer just now.",
     "current": "Your current plan",
     "choose": "Choose this plan"
@@ -128,7 +127,7 @@
     "replaced": "This invoice was replaced by a newer choice of plan, and its payment didn’t go through: nothing was charged for it.",
     "closed": "This invoice can’t be paid any more. Your plan is as it was.",
     "nothing": "There’s no invoice to confirm.",
-    "dontPayAgain": "Please don’t pay again. Keep the reference above: it lets us find this payment.",
+    "dontPayAgain": "Please don’t pay again. Contact us with the reference above, so we can find this payment:",
     "checkAgain": "Check again",
     "tryAgain": "Try again",
     "payAgain": "Pay again",

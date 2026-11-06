@@ -96,7 +96,6 @@ export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
       <h2 id="billing-plans" className="m-0 text-lg font-medium">
         {t('plans.title')}
       </h2>
-      <p className="m-0 max-w-[40rem] text-sm">{t('plans.notEnforced')}</p>
       <PlanCards
         plans={plans}
         action={(plan) =>

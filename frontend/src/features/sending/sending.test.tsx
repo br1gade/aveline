@@ -372,6 +372,69 @@ describe('InvitationPage: replies', () => {
   });
 });
 
+describe('InvitationPage: telling guests about a change', () => {
+  const tell = () => screen.findByRole('button', { name: 'Tell guests about a change' });
+
+  it('sends only when asked, with the note, and comes back to the invitation', async () => {
+    serve({ status: 'PUBLISHED' });
+    const sent = answer(`/invitations/${SLUG}/notify-changes`, () =>
+      HttpResponse.json({ queued: 3, alreadyNotified: 0, recipients: [], unreachable: [] }),
+    );
+    const user = renderPage();
+    await user.click(await tell());
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Tell your guests about a change',
+    });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(sent).toEqual([]);
+    await user.type(
+      screen.getByRole('textbox', { name: 'A note for your guests (optional)' }),
+      'The dinner starts at 19:00.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Let your guests know' }));
+    expect(await screen.findByText('The update is on its way to 3 households.')).toBeVisible();
+    expect(sent).toEqual([{ note: 'The dinner starts at 19:00.' }]);
+    await user.click(screen.getByRole('button', { name: 'Back to the invitation' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Publish and send' }),
+    ).toBeVisible();
+  });
+
+  it('sends nothing on “Not now”', async () => {
+    serve({ status: 'PUBLISHED' });
+    const sent = answer(`/invitations/${SLUG}/notify-changes`, () => HttpResponse.json({}));
+    const user = renderPage();
+    await user.click(await tell());
+    await user.click(await screen.findByRole('button', { name: 'Not now' }));
+    expect(await tell()).toBeVisible();
+    expect(sent).toEqual([]);
+  });
+
+  it('is offered with replies stopped, as guests still open it', async () => {
+    serve({ status: 'CLOSED' });
+    renderPage();
+    expect(await tell()).toBeVisible();
+  });
+
+  it.each([
+    ['a draft, which nobody has yet', { status: 'DRAFT' as const }],
+    [
+      'an invitation whose time has run out',
+      {
+        status: 'PUBLISHED' as const,
+        lifetime: { expiresAt: '2027-09-10T20:00:00.000Z', isExpired: true },
+      },
+    ],
+  ])('isn’t offered for %s', async (_what, served) => {
+    serve(served);
+    renderPage();
+    await screen.findByRole('heading', { level: 1, name: 'Publish and send' });
+    await screen.findByText(/Link name/);
+    expect(screen.queryByRole('button', { name: 'Tell guests about a change' })).toBeNull();
+  });
+});
+
 describe('InvitationPage: an archived event', () => {
   it('says what it refuses, linking back to the event to bring it back', async () => {
     serve({ status: 'CLOSED' });

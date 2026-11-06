@@ -4,7 +4,17 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, useLocation } from 'react-router';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from 'vitest';
 
 import { createI18n } from '@/lib/i18n';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
@@ -283,12 +293,23 @@ describe("the bank's return (PD-82)", () => {
     expect(reads.get).toBe(1);
   });
 
-  it('offers no new payment when the bank and our record disagree', async () => {
+  it('offers no new payment when the bank and our record disagree, and says whom to contact', async () => {
+    vi.stubEnv('VITE_SUPPORT_TELEGRAM', 'aveline_help');
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
     holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
     serveConfirm(() => refusal(409, 'Cannot move a payment from EXPIRED to PAID'));
     server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
     renderAt('/tickets/return');
-    expect(await screen.findByRole('alert')).toHaveTextContent('Reference: r-409');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Reference: r-409');
+    expect(alert).toHaveTextContent('Please don’t pay again');
+    expect(within(alert).getByRole('link', { name: '@aveline_help' })).toHaveAttribute(
+      'href',
+      'https://t.me/aveline_help',
+    );
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Choose tickets again' })).not.toBeInTheDocument();
     expect(reads.get).toBe(0);
   });

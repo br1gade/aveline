@@ -461,7 +461,7 @@ Phone, 390 wide                          Desktop, 1440 wide
   `lang` of their own.
 - **Dates and times** use `Intl.DateTimeFormat` with `timeZone: event.timezone` (C-16):
   - Recommended English form: "Saturday, 12 June 2027 · 16:00", day-month-year on a 24-hour
-    clock (R-24, PQ-4).
+    clock (R-24, accepted as C-31).
   - Russian weekdays come out of `Intl` in lower case; they are capitalised at the start of a
     display line.
   - Armenian and Russian keep their own `Intl` forms ("2027 թ.", "2027 г.").
@@ -596,7 +596,7 @@ The rules here are specific to this page; the system-wide rules are in
 | Contact | Questions? · Call | Հարցե՞ր ունեք · Զանգահարել | Есть вопросы? · Позвонить |
 | Chat | Join the guest chat | Միանալ հյուրերի զրուցարանին | Присоединиться к чату гостей |
 | Reply bar | Reply | Պատասխանել | Ответить |
-| Organiser and phone (fictional) **⚠** the organiser conflicts with C-12 (VR-02, PD-20) | Aveline Events · +374 00 000 000 | the same | the same |
+| Organiser and phone (fictional) **⚠** the organiser conflicts with C-12, unless Aveline itself organizes the event (C-36; VR-02, PD-20) | Aveline Events · +374 00 000 000 | the same | the same |
 
 ## 14. The artboards
 
@@ -652,8 +652,8 @@ comment changes the design, update this file in the same change.
   (BQ-11). The button on the page is dropped (C-26).
 - **Designs the backend's new data waits for:** the guest's table (`guest.seating`) and map
   coordinates (§3).
-- **Product decisions:** the default dietary and drink choices offered to hosts, and which
-  built-in questions are on by default (PQ-1 to PQ-3).
+- **Product decisions:** none open. Dietary and drink stay free text, and side, dietary and message start
+  on (C-28 to C-30, 6 November 2026).
 - **Copy review:** all Armenian and Russian copy by a native reader (DQ-9).
 - **The review's fixes** ([DESIGN_REVIEW §5](DESIGN_REVIEW.md#5-fixes)): all nine
   frontend-owned ones were applied on 18 October. The fourteen owned by others are not.

@@ -75,5 +75,8 @@
   "totals": {
     "discount": "Remise",
     "total": "Total"
+  },
+  "disagreement": {
+    "body": "La banque et notre relevé de ce paiement ne concordent pas. Ne payez pas une seconde fois : contactez-nous avec la référence ci-dessous, et nous réglerons cela."
   }
 }

@@ -4,7 +4,17 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, useLoaderData } from 'react-router';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from 'vitest';
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n, type Language } from '@/lib/i18n';
@@ -547,6 +557,10 @@ describe('the bank’s return', () => {
   });
 
   it('offers no new payment when the bank disagrees, and gives the reference', async () => {
+    vi.stubEnv('VITE_SUPPORT_EMAIL', 'help@example.am');
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
     server.use(http.get(`${API}/invoices`, () => HttpResponse.json([invoice])));
     answerConfirm(() => refusal(409, 'Cannot move a payment from EXPIRED to CAPTURED', 'CONFLICT'));
     await openReturn();
@@ -554,6 +568,11 @@ describe('the bank’s return', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('req-1');
     expect(screen.getByText(/don’t pay again/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /again/i })).not.toBeInTheDocument();
+    // Whom to contact (design C-54).
+    expect(screen.getByRole('link', { name: 'help@example.am' })).toHaveAttribute(
+      'href',
+      'mailto:help@example.am',
+    );
   });
 
   it('tells a refund from a replacement, and promises nothing of a payment still open', async () => {

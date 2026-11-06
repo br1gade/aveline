@@ -35,7 +35,7 @@ describe('what the camera read', () => {
     ['a space', 'ABCDEFGH 1234567'],
     ['outside the alphabet', 'ABCDEFGH1234567='],
     ['a trailing line', 'ABCDEFGH12345678\n'],
-    ['a guest link', 'https://aveline.am/invitations/anna-davit/g/abcdefgh12345678'],
+    ['a guest link', 'https://example.am/invitations/anna-davit/g/abcdefgh12345678'],
     ['a site', 'https://example.com/'],
     ['a contact', 'BEGIN:VCARD'],
     ['Cyrillic', 'АВСDEFGH12345678'],

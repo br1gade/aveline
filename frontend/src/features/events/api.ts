@@ -121,3 +121,16 @@ export function notifyChanges(api: ApiClient, slug: string, note: string): Promi
     api.POST('/api/v1/invitations/{slug}/notify-changes', { params: { path: { slug } }, body }),
   );
 }
+
+/**
+ * Drink and song request start off on a new invitation (design C-30, PD-179), as the backend still
+ * starts every built-in question on (FR-134). The host can switch either on again.
+ */
+export async function switchOffOptionalQuestions(api: ApiClient, slug: string): Promise<void> {
+  await expectData<unknown>(
+    api.PATCH('/api/v1/invitations/{slug}/rsvp-fields', {
+      params: { path: { slug } },
+      body: { drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false } },
+    }),
+  );
+}

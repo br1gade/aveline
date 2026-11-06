@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { PublicFrame } from '@/features/public-event';
 import { Button, Notice } from '@/ui';
+import { SupportContacts } from '@/ui/support-contacts';
 
 import { OrderView } from './order-view';
 import { useOrder, useOrderEvent, type OrderState } from './use-order';
@@ -20,6 +21,16 @@ function Problem({
         {t('loading')}
       </p>
     );
+  if (state.kind === 'disagreement') {
+    // Never "try again" or "pay again": the same answer would come, and the money may be taken.
+    return (
+      <Notice tone="error" role="alert">
+        <p>{t('disagreement.body')}</p>
+        {state.requestId ? <p>{t('failed.reference', { requestId: state.requestId })}</p> : null}
+        <SupportContacts linkClassName="text-action underline decoration-1 underline-offset-3" />
+      </Notice>
+    );
+  }
   if (state.kind === 'failed') {
     return (
       <Notice

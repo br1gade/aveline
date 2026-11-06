@@ -142,5 +142,8 @@
   "preview": {
     "header": "The invitation’s cover, in preview",
     "main": "The invitation, in preview"
+  },
+  "calendar": {
+    "add": "Add to calendar"
   }
 }

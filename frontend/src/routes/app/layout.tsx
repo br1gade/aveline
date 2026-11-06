@@ -6,6 +6,7 @@ import {
   requireOrganizationChosen,
   requireSignedIn,
 } from '@/features/account';
+import { QuestionsLeftOnNotice } from '@/features/events';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
 import { APP_PATHS } from '@/route-paths';
 import { LeaveGuard } from '@/ui/app-form';
@@ -41,6 +42,7 @@ export default function AppLayout() {
   return (
     <LeaveGuard>
       <AppShell organization={organization ?? undefined}>
+        <QuestionsLeftOnNotice />
         <Outlet />
       </AppShell>
     </LeaveGuard>

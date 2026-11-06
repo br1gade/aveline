@@ -68,11 +68,19 @@ describe('adding an invitation to an event that has none', () => {
 
   it('adds one from the template chosen, then opens the designer', async () => {
     let body: unknown;
+    let switched: unknown;
     server.use(
       http.get(`${API}/events/e1/design-templates`, () => HttpResponse.json([template])),
       http.post(`${API}/events/e1/invitation`, async ({ request }) => {
         body = await request.json();
         return HttpResponse.json({ slug: 'a' }, { status: 201 });
+      }),
+      http.get(`${API}/events/e1`, () =>
+        HttpResponse.json({ ...event, invitation: { slug: 'a', status: 'DRAFT' } }),
+      ),
+      http.patch(`${API}/invitations/a/rsvp-fields`, async ({ request }) => {
+        switched = await request.json();
+        return HttpResponse.json({});
       }),
     );
     show();
@@ -80,6 +88,11 @@ describe('adding an invitation to an event that has none', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add an invitation' }));
     expect(await screen.findByRole('heading', { name: 'Designed' })).toBeInTheDocument();
     expect(body).toEqual({ templateKey: 'classic' });
+    // Drink and song request start off (C-30, PD-179).
+    expect(switched).toEqual({
+      drinkPreference: { isEnabled: false },
+      songRequest: { isEnabled: false },
+    });
   });
 
   it('reads the page again when the event turns out to have one already', async () => {

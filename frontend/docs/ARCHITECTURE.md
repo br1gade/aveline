@@ -38,7 +38,11 @@ artwork, the full-bleed cover, the invitation's motion, the music remembered, fo
 budgets, and our own production server. Since 5 November, the organization's own settings, an event's
 activity, the public data-request form, and who still has to agree on the agreements page; then the
 essentials for Aveline's own staff, opening customers' accounts, data-subject requests and access
-reviews, a ticket's QR code and the door's scanner, and a `Permissions-Policy` for the camera. Since 2 November it
+reviews, a ticket's QR code and the door's scanner, a `Permissions-Policy` for the camera, and telling
+guests about any change from the invitation's page. On 6 November, product answered every open question
+(design C-28 to C-54): a Help page with the support contacts, which the two payment errors show too, "Add to
+calendar" on the invitation, drink and song request starting off, and the footer mark's link to the site
+once it exists. Since 2 November it
 follows the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3 November
 ([BACKEND_REQUESTS](BACKEND_REQUESTS.md) §6); none of this has yet run against the real backend.
 
@@ -103,7 +107,7 @@ agreements and the seating, the exports, ticket sales (`/app/events/:eventId/tic
 and announcement), the orders and an event's activity, the organization's own settings
 (`/app/organization`, beside the chooser at `/app/organizations`), Aveline's own staff's tools
 (`/app/staff`, its customers, data requests and access reviews); the public price list and
-data-request form, `/pricing` and `/privacy-request`; checkout, `/events/:slug/checkout`, and the buyer's order once
+data-request form, `/pricing` and `/privacy-request`; the Help page, `/help`; checkout, `/events/:slug/checkout`, and the buyer's order once
 its token is out of the address, `/tickets`. The static `/app/events/new` ranks above
 `/app/events/:eventId`; `/venues/new` would rank above a `/venues/:venueId`, and `/guests/import`
 above a `/guests/:guestId`.
@@ -690,6 +694,17 @@ brief and a guest's page, and `camera=(self)` on the app, the door and the bank'
 scanner still read a fake camera's ticket under it. **No real administrator account, closure or
 handover has run.**
 
+**Product's answers (6 November 2026)** were walked on a mock in hy, ru, en and fr, at 360 px with touch
+and at 1280 px, beside billing, the price list, the staff's tools and telling guests about a change:
+1,961 checks passed, axe clean in 330 runs, and 2,761 targets measured were 44 px at the least. The walk
+found the contact links 22 px tall at 360 px, now 44. It opened `/help` with every contact set, saw the
+plan's return name them when the bank disagrees, saved "Add to calendar" and parsed the file, with no
+link or token in it, and created an event with drink and song switched off, and again with that refused,
+when the page said so. The tests were checked by breaking the calendar file and the contacts six ways;
+one survivor, a continuation line a byte too long, got a test. A production build on our own server
+showed the contacts and the site's link set at build, and no phone that wasn't. **The ticket order's
+disagreement has its test but no walk, and no real phone has opened the calendar file.**
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -879,12 +894,21 @@ handover has run.**
 | 5 Nov 2026 | **A call that names its own organization keeps it:** `withOrganization` in `api/fetch.ts` no longer overwrites an `X-Aveline-Organization-Id` the call set, and `getCurrentOrganization` and `listMembers` take an organization to name | Access reviews read a customer's organization by naming it, which only staff may. A staff member with an organization of their own would otherwise have been shown their own members to hand someone else's over to |
 | 5 Nov 2026 | **Access reviews are a feature of their own,** `features/access-reviews`, at `/app/staff/access-reviews`, ten a page with each card reading its organization's name (PD-175, FR-133) | A review carries no name, and fifty name reads would spend half of staff's 100 a minute (FR-7) |
 | 5 Nov 2026 | **`Permissions-Policy`** on every document: `camera=(self), microphone=(), geolocation=()`, and `camera=()` on the pages that show a capability, but for the bank's return | The door's scanner alone uses the camera. The policy holds for the document's whole life, client navigation included, so it closes only on pages that never go on into the app; the bank's return does |
+| 5 Nov 2026 | **Telling guests about any other change is on the invitation's page** (PD-177), reusing `NotifyGuests` with a title of its own | The backend suggests it after the event edit and the venues alone, and `docs/API.md` says to send it only when the host asks. One way in covers the running order and anything else guests see, without guessing which changes matter |
+| 6 Nov 2026 | **Support contacts are public settings,** `VITE_SUPPORT_EMAIL`, `_PHONE`, `_WHATSAPP` and `_TELEGRAM`, each optional and checked for its shape at build, read by `lib/support` and shown by `ui/support-contacts.tsx` (design C-54, PD-180, PD-181) | They don't exist yet, and changing one mustn't need a code change. One left empty isn't shown, so a deployment can start with an email alone |
+| 6 Nov 2026 | **A bank's disagreement is recognised in one place,** `api/payment-disagreement.ts`, for plans and tickets alike | The ticket order showed it as "couldn't be loaded"; both now say not to pay again and whom to contact. Kept out of `features/billing`, so the public ticket page doesn't load billing's code |
+| 6 Nov 2026 | **"Add to calendar" builds an RFC 5545 file in the browser,** in UTC, from the event and its venues, and writes no link (design C-32, PD-178) | No time zone table is needed in UTC, and no server sees the guest's page. A calendar syncs to others, so the personal link, a credential, stays out |
+| 6 Nov 2026 | **Drink and song request are switched off by the client after an invitation is created** (design C-30, PD-179), until the backend's default changes (FR-134) | Product's answer, without waiting for the backend. A failure is said on the page it opens on, never swallowed |
 
 ## 12. Not yet built
 
-- Before paid tickets: a bank disagreement (a confirm's `409`) shows "Your order couldn't be loaded"
-  with its reference and offers no new payment, but does not say to contact support, as the API
-  asks. No support channel exists yet.
+- Of the product's answers (design C-28 to C-54), what waits on the backend: drink and song request off
+  by default (FR-134; the client switches them off meanwhile, PD-179), moving to the free plan at the
+  end of the paid period (FR-135), the data-request form linked from the invitation email (FR-136),
+  paid plans shown as coming after the pilot (FR-109), and the brief's seating marked as a draft only
+  before it is published (FR-107). The support contacts and the site's address are settings nobody
+  has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not been opened on a real
+  phone.
 - Of several organizations: anything run with two real memberships, as the database's gate
   (`multiOrganizationWrites`) is off; this has only met a mock. Creating a second organization, which
   that gate refuses.
@@ -893,18 +917,18 @@ handover has run.**
   event; an edit of an event's override of a template's default artwork. Adoption has only met a mock:
   the backend's gate answers 503 today.
 - Of the organization: marking the caller's own row (FR-121); saying a closure review is open, and its
-  outcome (FR-122, PQ-27); telling erased members from active ones (FR-125); handling a review, which is
+  outcome (FR-122; staff tell the owner themselves meanwhile, C-52); telling erased members from active ones (FR-125); handling a review, which is
   Aveline's staff's. Only a mock has met it.
 - Of an event's activity: telling an empty trail from an unreadable one, words per action, and more than
   the newest hundred (FR-123).
-- Of the data-request form: reviewed words and a privacy notice to link to (PQ-25), a way for a guest with
-  no account to find it (PQ-26), and notes that can't be lost or added to by someone else (FR-126).
+- Of the data-request form: reviewed words and a privacy notice to link to (Arthur drafts, a lawyer checks:
+  C-50, a launch gate), a line in the invitation email's footer for a guest with no account (FR-136, C-51), and notes that can't be lost or added to by someone else (FR-126).
   Handling a request is Aveline's staff's.
 - Of Aveline's own staff's tools (C-24): authoring templates, which waits as enquiries do: the backend refuses
   drafts, edits and uploads while `TEMPLATE_AUTHORING_ENABLED` and `TEMPLATE_ASSETS_ENABLED` are off, and
   publishing until a renderer manifest is registered in its code. Enquiries, which wait until the backend enables them, and with them carrying out a request that has no address; paging
   past the newest 50 organizations and the 200 soonest-due requests (FR-127); recovering an export whose answer was lost
-  (FR-128). How a requester is verified is an open question (PQ-29). Telling a customer's own organization from
+  (FR-128). A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Telling a customer's own organization from
   one they're merely on (FR-130); a staff member who belongs to an organization sees no link to their tools
   (PD-165). Binding an enquiry, which a request with an address can also need, and which answers the backend's
   words as they came (PD-168). Access reviews' names, read one by one (FR-133). Only a mock has met these: no real
@@ -922,8 +946,8 @@ handover has run.**
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
   door, reminders and thanks, its team, its running order, recording answers, archiving and
   deleting, who must not be contacted, promo codes, vendors, billing with the bank's return, what guests' answers add up to, the organization's settings, an event's activity, a ticket's QR code and
-  the door's scanner, and Aveline's own staff's customers, data requests and access reviews: nothing is left
-  unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-69).
+  the door's scanner, Aveline's own staff's customers, data requests and access reviews, and the Help
+  page: nothing is left unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-71).
 - Of what guests' answers add up to: printing it, which exports do; views beyond their count by
   language, and telling no views from no count (FR-111); paging the answers and the guest book, and
   a yes-or-no answer in the event's language (FR-117).
@@ -937,19 +961,17 @@ handover has run.**
   running-order entry are in its own dialog, the invitation's sections' in the designer.
 - Of archiving and deleting: knowing beforehand whether money moved through an event, so whether
   deleting will be refused (FR-97).
-- Of who must not be contacted: the list for someone on an event only, outside the organization
-  (FR-98, PQ-17); a Telegram or push address, which a host never sees; choosing a reason; more than
+- Of who must not be contacted (the organization's alone, C-43): a Telegram or push address, which a host never sees; choosing a reason; more than
   the newest 500; matching a phone written differently; and an address already listed further down
   than the newest 500, which is posted again, harmlessly (FR-99).
 - Of promo codes: a currency other than AMD; removing a limit or an end once set, and changing the
   start; when a code was made; and knowing whether payments are off, so the pilot's line shows always
-  (FR-100, PQ-16).
+  (FR-100; every kind of code is offered meanwhile, C-42).
 - Of reminders and thanks: the exact lists before pressing (FR-84; the page estimates them), who was
   suppressed (FR-85), who was thanked once the page is left, and receipts for either message (FR-87);
   sending to chosen households (the API takes none).
 - Of the team: warning someone by name that they are changing or removing themselves, seeing an
-  invitation that expired, and letting a coordinator read the team (FR-88); a door-only role (PQ-15,
-  FR-90); saying a role in words in the invitation's email (FR-89).
+  invitation that expired, and letting a coordinator read the team (FR-88); saying a role in words in the invitation's email (FR-89).
 - Of the venue directory: coordinates and notes on the staff's form, clearing a city or capacity,
   bringing a retired hall back, and a page outside any event (FR-91); per-language halls (the API has
   none); starting a correction from a hall (the API takes no `profileId` there). The vendor screens
@@ -957,11 +979,12 @@ handover has run.**
 - Of vendors: correcting or removing a vendor once added, and a vendor's notes (FR-102); booking
   for someone on an event only, who can't read the organization's list (FR-103); adding or
   correcting a hall, which Aveline's staff do; clearing a fee or a currency other than AMD
-  (FR-106); withdrawing a brief link without making another (FR-108, PQ-20); the usual sections
+  (FR-106); the usual sections
   read from the backend rather than a pinned copy (FR-105); more than one organization (above).
-- Of the vendor's brief: the language it is in, translated titles and venues, the hosts' names for
-  the sides and the sections' purposes in the vendor's language (FR-104, PQ-19); the day-by-day
-  answers, guests' ids and who freed a seat, which the page leaves out (FR-107, PQ-18); keeping the
+- Of the vendor's brief: naming the language it is in, translated titles and venues, and the hosts'
+  names for the sides (FR-104; the vendor's own language isn't wanted, C-45); the day-by-day answers,
+  guests' ids and who freed a seat, which the page leaves out, and whether the seating is published, so
+  its line shows only before (FR-107, C-44); keeping the
   brief across a reload, deliberately; a page in Aveline's or the hosts' own design (DQ-42).
 - Of the public listing: a date or time on a card, and marking a card's language (FR-92); a list of
   categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, until FR-92.
@@ -987,8 +1010,6 @@ handover has run.**
   supplies; the other languages when creating an event (FR-101; correcting it has them); a custom slug
   (no endpoint exists). A link to a published invitation from the overview: a private event's generic
   link is a 404.
-- Of publishing and sending: telling guests about a change other than from the event edit, the
-  venue screens and a change of how guests answer.
 - Of guests' photos: a switch for the hosts (FR-46); the guest's own count and the gallery's
   closing date (FR-50); who shared a photo, for the hosts (FR-48); the storage used (FR-47);
   approving several in one request (FR-112); and a photo's own
@@ -1001,10 +1022,9 @@ handover has run.**
   finer than "something went wrong", which wait for the worker's codes (FR-59).
 - Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
-  the announcement is not published (FR-71); a
-  household on one order (PQ-12); naming the event on an order opened from its email in another
+  the announcement is not published (FR-71); naming the event on an order opened from its email in another
   tab (FR-62); "on sale from" before a type's sales open (FR-66).
-- Of the door: working offline (PQ-14); what the QR scanner still lacks, listed above (C-25); seating at check-in; a walk-in joining
+- Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; a walk-in joining
   a household already on the list, which needs one of its seats free; adding a walk-in again safely
   after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the
@@ -1021,6 +1041,8 @@ handover has run.**
   or TLS: the proxy's, which isn't chosen. A production build needs
   `VITE_PUBLIC_ORIGIN` set to its public https origin: brief links are built on it, and the booking
   page refuses to copy one on a local or `http` origin from a real `https` page (BACKEND_REQUESTS §4).
+  It also needs the support contacts, `VITE_SUPPORT_*`, a launch gate (C-54), and `VITE_SITE_URL` once
+  the site exists; each is a build argument in the `Dockerfile`.
 - CI (BA-3). Sentry and Storybook aren't wanted for now, to be looked at again before going live (C-27). The root push gate, `npm run ci:local`, needs Linux and Docker, so it
   has run on no frontend commit made on the Mac this is written on (BACKEND_REQUESTS §3, §4); those commits
   name it as not run.
