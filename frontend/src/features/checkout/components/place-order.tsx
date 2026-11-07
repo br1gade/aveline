@@ -22,6 +22,7 @@ interface PlaceOrderProps {
   basket: Basket;
   quote: PromoQuote | null;
   refusal: CheckoutRefusal | null;
+  needsSelection?: boolean;
 }
 
 /**
@@ -29,7 +30,7 @@ interface PlaceOrderProps {
  * own page (docs/PAYMENTS.md §1). The button waits for the page's JavaScript (PD-41) and while
  * the order is on its way.
  */
-export function PlaceOrder({ basket, quote, refusal }: PlaceOrderProps) {
+export function PlaceOrder({ basket, quote, refusal, needsSelection }: PlaceOrderProps) {
   const { t } = useTranslation('checkout');
   const { event, isBusy } = useCheckoutSetting();
   const isHydrated = useIsHydrated();
@@ -47,10 +48,11 @@ export function PlaceOrder({ basket, quote, refusal }: PlaceOrderProps) {
         </span>
       </p>
       {refusal ? <RefusalNotice refusal={refusal} /> : null}
+      {needsSelection ? <p className="m-0">{t('selection.required')}</p> : null}
       <Button
         type="submit"
         isBlock
-        disabled={!isHydrated || isBusy}
+        disabled={!isHydrated || isBusy || needsSelection}
         aria-busy={isBusy || undefined}
       >
         {isFree ? t('total.getTickets') : t('total.pay')}

@@ -95,6 +95,7 @@ export interface AnnouncementFormValues {
   /** Empty leaves it to the backend, which makes one from the headline. */
   slug: string;
   isIndexable: boolean;
+  buyerTicketLimit?: string | undefined;
   /** An upload's id, or '' for none. */
   heroAssetId: string;
   ogImageId: string;
@@ -117,6 +118,7 @@ export function announcementFormValues(
     categories: stored.categories.join(', '),
     slug: stored.slug,
     isIndexable: stored.isIndexable,
+    buyerTicketLimit: stored.buyerTicketLimit?.toString() ?? '',
     heroAssetId: stored.heroAssetId ?? '',
     ogImageId: stored.ogImageId ?? '',
   };

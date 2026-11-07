@@ -62,6 +62,7 @@ export function readListing(value: unknown): Listing {
       ? wire.categories.filter((entry) => typeof entry === 'string')
       : [],
     isIndexable: wire.isIndexable === true,
+    buyerTicketLimit: typeof wire.buyerTicketLimit === 'number' ? wire.buyerTicketLimit : null,
     heroAssetId: instant(wire.heroAssetId),
     ogImageId: instant(wire.ogImageId),
     publishedAt: instant(wire.publishedAt),

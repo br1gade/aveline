@@ -95,8 +95,8 @@ From the template; getting them wrong breaks users.
 - Conventional commits with the `frontend` scope; the body says why. Add **"For the backend
   team:"** when a change depends on or asks for backend work.
 - **Never commit or push unless the user asks.** Never `--no-verify`. Never force-push to `main`.
-- **The frontend stays off `main` for now** (setup proposal A6): never push to `main` or open a
-  pull request against it.
+- **Integrate the frontend through `dev`.** Run the frontend verification on the combined tree
+  and promote `dev` to `main` when the user approves the promotion.
 
 ## 9. Documentation
 

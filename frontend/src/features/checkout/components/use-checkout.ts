@@ -12,12 +12,13 @@ import { placeOrder } from '../api';
 import { checkoutKeyStore, intentDigest } from '../key-store';
 import { intentOf, orderBody } from '../payload';
 import { checkoutRefusal, type CheckoutRefusal } from '../refusals';
-import type { CheckoutValues, PaymentProvider } from '../types';
+import type { CheckoutValues, OrderBody, PaymentProvider } from '../types';
 import { useCheckoutApi } from './use-checkout-api';
 
 /** Refusals that mean the page's copy of the event is out of date: it is read again. */
 const READ_AGAIN: ReadonlySet<CheckoutRefusal['kind']> = new Set([
   'staleRevision',
+  'layoutChanged',
   'soldOut',
   'notOnSale',
   'salesClosed',
@@ -52,8 +53,16 @@ export function useCheckout({ event, basket, provider }: CheckoutInput) {
   async function submit(
     values: CheckoutValues,
     promoCode: string | null,
+    layout?: Required<Pick<OrderBody, 'layoutVersionId' | 'selections'>>,
   ): Promise<CheckoutRefusal | null> {
-    const context = { rules: event.checkout, basket, locale: event.locale, provider, promoCode };
+    const context = {
+      rules: event.checkout,
+      basket,
+      locale: event.locale,
+      provider,
+      promoCode,
+      layout,
+    };
     const body = orderBody(values, context);
     setIsSending(true);
     setRefusal(null);

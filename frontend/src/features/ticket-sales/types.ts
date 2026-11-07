@@ -26,6 +26,7 @@ export interface TicketType {
 
 /** The public page that sells the tickets; the API's "listing". */
 export interface Listing {
+  buyerTicketLimit?: number | null;
   slug: string;
   headline: Translations;
   summary: Translations;
@@ -57,6 +58,7 @@ export type UpdateTicketTypeBody = Partial<CreateTicketTypeBody> & { isActive?: 
 
 /** `PUT …/listing`: omitted fields are left alone; `null` clears a picture. */
 export interface ListingBody {
+  buyerTicketLimit?: number | null;
   headline?: Record<string, string>;
   summary?: Record<string, string>;
   body?: Record<string, string>;

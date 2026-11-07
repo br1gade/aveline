@@ -105,7 +105,10 @@
     "noAnswer": "Nous n’avons pas reçu de réponse. Appuyez à nouveau : votre commande ne sera pas passée deux fois.",
     "other": "La commande a été refusée, pour cette raison :",
     "reference": "Référence : {{requestId}}",
-    "promo": "{{reason}} Retirez le code, ou essayez-en un autre."
+    "promo": "{{reason}} Retirez le code, ou essayez-en un autre.",
+    "layoutChanged": "Le plan a changé. Choisissez à nouveau vos places ou zones.",
+    "selectionUnavailable": "Un choix est indisponible. Choisissez à nouveau vos places ou zones.",
+    "buyerLimit": "Cette commande dépasse la limite de billets par acheteur pour cet événement."
   },
   "errors": {
     "required": "Remplissez ce champ.",
@@ -115,5 +118,18 @@
     "chooseVenue": "Répondez pour au moins un lieu.",
     "buyerOnce": "Un seul billet peut être le vôtre.",
     "refused": "Vérifiez : ceci a été refusé."
+  },
+  "selection": {
+    "heading": "Choisir des places ou des zones",
+    "ticket": "Billet {{count}} · {{name}}",
+    "section": "Section ou zone",
+    "seat": "Place",
+    "choose": "Choisir",
+    "seatName": "Rang {{row}}, place {{seat}}",
+    "loading": "Chargement des disponibilités…",
+    "retry": "Actualiser les disponibilités",
+    "soldOut": "Aucune place disponible pour ce billet.",
+    "remaining": "Places disponibles : {{count}}",
+    "required": "Choisissez une place ou une zone pour chaque billet."
   }
 }

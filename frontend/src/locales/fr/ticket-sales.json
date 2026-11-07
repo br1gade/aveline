@@ -135,7 +135,9 @@
     },
     "indexable": "Laisser les moteurs de recherche la trouver",
     "indexableHelp": "Seulement pour un événement public ; un événement non répertorié n’est jamais indexé.",
-    "save": "Enregistrer l’annonce"
+    "save": "Enregistrer l’annonce",
+    "buyerTicketLimit": "Billets par acheteur",
+    "buyerTicketLimitHelp": "Facultatif. Laissez vide pour ne pas fixer de limite par événement."
   },
   "errors": {
     "required": "Remplissez ce champ.",
@@ -155,7 +157,47 @@
     "images": "Choisissez des images de cet événement.",
     "tooManyCategories": "Dix catégories au plus.",
     "categoryTooLong": "Chaque catégorie fait 40 caractères au plus.",
-    "refused": "Vérifiez : ceci a été refusé."
+    "refused": "Vérifiez : ceci a été refusé.",
+    "buyerTicketLimit": "Saisissez un nombre entier entre 1 et 100 000."
   },
-  "promoCodes": "Codes promo, pour tous les événements de votre organisation"
+  "promoCodes": "Codes promo, pour tous les événements de votre organisation",
+  "inventory": {
+    "title": "Places et zones en vente",
+    "manage": "Gérer les places",
+    "loading": "Chargement des places…",
+    "venue": "Lieu",
+    "chooseVenue": "Choisir un lieu",
+    "layout": "Version du plan",
+    "chooseLayout": "Choisir un plan",
+    "noLayouts": "Aucun plan. Demandez à un responsable du répertoire d’en publier un.",
+    "offers": "Tarifs proposés dans chaque section",
+    "publish": "Publier les places",
+    "published": "Places publiées",
+    "warning": "La publication fixe le lieu et le plan. Vérifiez d’abord les tarifs et les places bloquées.",
+    "editor": "Créer un plan du lieu",
+    "layoutKey": "Identifiant du plan",
+    "layoutName": "Nom du plan",
+    "sectionKey": "Identifiant de la section",
+    "sectionName": "Nom de la section",
+    "numbered": "Places numérotées",
+    "zone": "Zone non numérotée",
+    "capacity": "Capacité",
+    "row": "Nom du rang",
+    "seats": "Numéros de places séparés par des virgules",
+    "addRow": "Ajouter un rang",
+    "addSection": "Ajouter une section",
+    "remove": "Supprimer",
+    "publishLayout": "Publier le plan",
+    "version": "Version {{version}}",
+    "noVenues": "Aucun lieu du répertoire n’est associé à cet événement.",
+    "attach": "Associez un lieu du répertoire pour publier les places.",
+    "failed": "Impossible d’enregistrer ou de charger les places.",
+    "blocked": "Bloquer des places numérotées",
+    "noTypes": "Aucun tarif. Créez des types de billets avant de publier les places.",
+    "csv": "Importer un plan au format CSV",
+    "csvHelp": "Pour les grands plans, utilisez une ligne par place numérotée et une par zone non numérotée.",
+    "csvTemplate": "Télécharger un modèle CSV",
+    "csvFile": "Fichier CSV du plan",
+    "csvSize": "Choisissez un fichier CSV de 8 Mio maximum."
+  }
 }

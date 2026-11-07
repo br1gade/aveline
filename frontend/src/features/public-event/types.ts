@@ -63,7 +63,15 @@ export interface EventMetadata {
   robots: string;
 }
 
+export interface TicketSection {
+  key: string;
+  name: string;
+  mode: 'NUMBERED' | 'UNNUMBERED';
+  ticketTypeIds: string[];
+}
+
 export interface PublicEvent {
+  ticketInventory?: { layoutVersionId: string; sections: TicketSection[] } | null;
   slug: string;
   locale: string;
   availableLocales: string[];

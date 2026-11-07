@@ -55,7 +55,14 @@ export interface AttendeeBody {
 }
 
 /** `POST /public/events/:slug/orders`, without its key, which the attempt adds. */
+export interface TicketSelection {
+  sectionKey: string;
+  seatId?: string;
+}
+
 export interface OrderBody {
+  layoutVersionId?: string;
+  selections?: TicketSelection[];
   items: Array<{ ticketTypeId: string; quantity: number }>;
   buyerName: string;
   buyerEmail: string;

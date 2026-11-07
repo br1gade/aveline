@@ -134,6 +134,16 @@ export function announcementSchema() {
       categories: z.string(),
       slug: z.string(),
       isIndexable: z.boolean(),
+      buyerTicketLimit: z
+        .string()
+        .trim()
+        .refine(
+          (value) =>
+            value === '' ||
+            (/^[0-9]+$/.test(value) && Number(value) >= 1 && Number(value) <= 100000),
+          'buyerTicketLimit',
+        )
+        .optional(),
       heroAssetId: z.string(),
       ogImageId: z.string(),
     })

@@ -102,6 +102,7 @@ function listingFields(values: AnnouncementFormValues, languages: readonly strin
     categories: categoriesOf(values.categories),
     slug: values.slug.trim(),
     isIndexable: values.isIndexable,
+    buyerTicketLimit: values.buyerTicketLimit?.trim() ? Number(values.buyerTicketLimit) : null,
     heroAssetId: values.heroAssetId || null,
     ogImageId: values.ogImageId || null,
   };

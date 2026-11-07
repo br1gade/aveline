@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { PublicEvent } from '@/features/public-event';
 import { StatusChip } from '@/ui';
 
-import type { BuyerOrder, BuyerTicket } from '../types';
+import type { BuyerOrder, BuyerTicket, TicketAllocation } from '../types';
 import { TicketQr } from './ticket-qr';
 
 interface Holder {
@@ -11,6 +11,7 @@ interface Holder {
   name: string;
   ticketTypeId: string | null;
   ticket: BuyerTicket | undefined;
+  selection?: TicketAllocation | null | undefined;
 }
 
 /** Each person in the order's own order, with their ticket; a ticket without a person after them. */
@@ -19,6 +20,7 @@ function holders(order: BuyerOrder): Holder[] {
     key: person.id,
     name: [person.firstName, person.lastName].filter(Boolean).join(' '),
     ticketTypeId: person.ticketTypeId,
+    selection: person.selection,
     ticket: order.tickets.find((ticket) => ticket.attendeeId === person.id),
   }));
   const unnamed = order.tickets
@@ -49,6 +51,13 @@ function TicketState({ ticket }: { ticket: BuyerTicket }) {
   return <StatusChip status={state.mark}>{t(`ticket.${state.words}`)}</StatusChip>;
 }
 
+function Allocation({ selection }: { selection: TicketAllocation | null | undefined }) {
+  const { t } = useTranslation('ticket-order');
+  if (!selection) return null;
+  const { sectionName, row, seat } = selection;
+  return <p className="m-0">{seat ? t('ticket.seat', { sectionName, row, seat }) : sectionName}</p>;
+}
+
 /**
  * Who comes on each ticket, and the code to show at the door. A code is a credential like the
  * link: shown here only, never logged (root CLAUDE.md §3).
@@ -67,6 +76,7 @@ export function TicketList({ order, event }: { order: BuyerOrder; event: PublicE
           <li key={holder.key} className="border-line grid gap-2 border p-5">
             <p className="type-heading-3 text-heading m-0">{holder.name || t('ticket.noName')}</p>
             <p className="text-text-muted m-0 text-sm">{typeName(holder.ticketTypeId)}</p>
+            <Allocation selection={holder.selection} />
             {holder.ticket ? (
               <>
                 <p className="m-0 text-sm">{t('ticket.codeLabel')}</p>

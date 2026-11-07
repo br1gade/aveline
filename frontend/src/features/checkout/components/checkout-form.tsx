@@ -24,6 +24,7 @@ import { CheckoutContext } from './checkout-context';
 import { PlaceOrder } from './place-order';
 import { PromoCode } from './promo-code';
 import { useCheckout } from './use-checkout';
+import { orderSelections, ShowSelections, useShowSelections } from './show-selections';
 
 type Form = UseFormReturn<CheckoutValues>;
 
@@ -101,17 +102,9 @@ function People({ count }: { count: number }) {
   );
 }
 
-export interface CheckoutFormProps {
-  event: PublicEvent;
-  basket: Basket;
-  provider: PaymentProvider;
-}
-
-/** Checkout's one form (design PD-79): posted from JavaScript, never by the browser (PD-41). */
-export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
-  const rules = event.checkout;
+function useCheckoutForm(rules: CheckoutRules, basket: Basket) {
   const schema = useMemo(() => checkoutSchema(rules), [rules]);
-  const form = useForm<CheckoutValues>({
+  return useForm<CheckoutValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       buyerFirstName: '',
@@ -121,12 +114,41 @@ export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
       people: rosterFor(basket),
     },
   });
+}
+
+function useCheckoutSelections(event: PublicEvent, basket: Basket) {
+  const scope = [
+    event.slug,
+    event.ticketInventory?.layoutVersionId,
+    basketParam(basket, event.ticketTypes),
+  ].join(':');
+  const draft = useShowSelections(event, scope);
+  const typeIds = rosterFor(basket).map(({ ticketTypeId }) => ticketTypeId);
+  const selections = orderSelections(event, draft, typeIds);
+  return { draft, typeIds, selections };
+}
+
+export interface CheckoutFormProps {
+  event: PublicEvent;
+  basket: Basket;
+  provider: PaymentProvider;
+}
+
+/** Checkout's one form (design PD-79): posted from JavaScript, never by the browser (PD-41). */
+export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
+  const rules = event.checkout;
+  const form = useCheckoutForm(rules, basket);
   const [quote, setQuote] = useState<PromoQuote | null>(null);
   useLeaveGuard(form);
   const checkout = useCheckout({ event, basket, provider });
   const { refusal } = checkout;
+  const { draft, typeIds, selections } = useCheckoutSelections(event, basket);
   const place = async (values: CheckoutValues) => {
-    const refused = await checkout.submit(values, quote?.code ?? null);
+    if (!selections) return;
+    const layout = event.ticketInventory
+      ? { layoutVersionId: event.ticketInventory.layoutVersionId, selections }
+      : undefined;
+    const refused = await checkout.submit(values, quote?.code ?? null, layout);
     if (!refused) {
       // Placed, so nothing is lost: the browser's "Leave site?" mustn't stand before the bank.
       form.reset(values);
@@ -134,6 +156,7 @@ export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
     }
     markRefused(form, rules, refused);
     if (refused.kind === 'promo') setQuote(null);
+    if (refused.kind === 'layoutChanged' || refused.kind === 'selectionUnavailable') draft.clear();
   };
   useRevisionReset(form, rules.attendanceRevision);
   // A promo quote priced the basket as it was; the order is claimed again at the new total.
@@ -154,11 +177,17 @@ export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
           onSubmit={(submitted) => void form.handleSubmit(place)(submitted)}
         >
           <BasketSummary basket={basket} />
+          <ShowSelections event={event} draft={draft} typeIds={typeIds} />
           <BuyerFields />
           <People count={count} />
           <AgreementsAhead rules={rules} />
           <PromoCode basket={basket} quote={quote} onQuote={setQuote} />
-          <PlaceOrder basket={basket} quote={quote} refusal={refusal} />
+          <PlaceOrder
+            basket={basket}
+            quote={quote}
+            refusal={refusal}
+            needsSelection={!selections}
+          />
         </form>
       </FormProvider>
     </CheckoutContext.Provider>

@@ -70,7 +70,8 @@
     "used": "Entré",
     "cancelled": "Annulé",
     "qrFor": "Code QR du billet de {{holder}}",
-    "qrHint": "Augmentez la luminosité de votre écran au moment du scan à l’entrée."
+    "qrHint": "Augmentez la luminosité de votre écran au moment du scan à l’entrée.",
+    "seat": "{{sectionName}} · Rang {{row}}, place {{seat}}"
   },
   "totals": {
     "discount": "Remise",

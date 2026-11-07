@@ -1,5 +1,9 @@
 # Frontend setup proposal
 
+> A6 was superseded on 8 November 2026. Integrate frontend changes through
+> `dev`, then promote the verified `dev` tree to `main` when authorized. The
+> A6 and A6b sections below record the earlier setup proposal.
+
 > **Status: under review.** Decisions taken on 9 October 2026 are in the
 > [decision record](#decision-record), which wins wherever the body differs. Everything else is
 > still a proposal.

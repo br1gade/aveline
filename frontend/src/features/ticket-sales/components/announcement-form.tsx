@@ -152,6 +152,13 @@ function Settings({ form, data }: { form: Form; data: AnnouncementData }) {
         error={text(errors.slug?.message)}
         {...form.register('slug')}
       />
+      <TextInputField
+        inputMode="numeric"
+        label={t('announcementForm.buyerTicketLimit')}
+        help={t('announcementForm.buyerTicketLimitHelp')}
+        error={text(errors.buyerTicketLimit?.message)}
+        {...form.register('buyerTicketLimit')}
+      />
       <PictureChoice form={form} name="heroAssetId" pictures={data.pictures} data={data} />
       <PictureChoice form={form} name="ogImageId" pictures={data.pictures} data={data} />
       <Controller

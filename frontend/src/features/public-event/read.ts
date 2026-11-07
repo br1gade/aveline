@@ -15,6 +15,7 @@ import type {
   PublicListing,
   PublicTicketType,
   PublicVenue,
+  TicketSection,
 } from './types';
 
 /**
@@ -155,11 +156,29 @@ function readMetadata(value: unknown, slug: string): EventMetadata {
   };
 }
 
+function readInventory(value: unknown): Exclude<PublicEvent['ticketInventory'], undefined> {
+  const { layoutVersionId, sections } = record(value);
+  if (typeof layoutVersionId !== 'string') return null;
+  return {
+    layoutVersionId,
+    sections: list(sections).flatMap(({ key, name, mode, ticketTypeIds }): TicketSection[] =>
+      typeof key === 'string' &&
+      typeof name === 'string' &&
+      (mode === 'NUMBERED' || mode === 'UNNUMBERED')
+        ? [{ key, name, mode, ticketTypeIds: texts(ticketTypeIds) }]
+        : [],
+    ),
+  };
+}
+
 export function readPublicEvent(value: unknown): PublicEvent {
   const wire = record(value);
   const slug = typeof wire.slug === 'string' ? wire.slug : '';
+  const ticketInventory = readInventory(wire.ticketInventory);
+  const offered = new Set(ticketInventory?.sections.flatMap(({ ticketTypeIds }) => ticketTypeIds));
   return {
     slug,
+    ticketInventory,
     locale: typeof wire.locale === 'string' ? wire.locale : '',
     availableLocales: texts(wire.availableLocales),
     headline: text(wire.headline),
@@ -170,7 +189,9 @@ export function readPublicEvent(value: unknown): PublicEvent {
     endsAt: text(wire.endsAt),
     timezone: typeof wire.timezone === 'string' ? wire.timezone : 'UTC',
     venues: list(wire.venues).flatMap(readVenue),
-    ticketTypes: list(wire.ticketTypes).flatMap(readTicketType),
+    ticketTypes: list(wire.ticketTypes)
+      .flatMap(readTicketType)
+      .filter((type) => !ticketInventory || offered.has(type.id)),
     checkout: readCheckout(wire.checkout),
     metadata: readMetadata(wire.metadata, slug),
   };

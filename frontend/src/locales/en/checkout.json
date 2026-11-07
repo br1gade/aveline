@@ -104,7 +104,10 @@
     "noAnswer": "We didn’t get an answer. Press again: your order won’t be placed twice.",
     "other": "The order was refused, with this reason:",
     "reference": "Reference: {{requestId}}",
-    "promo": "{{reason}} Remove the code, or try another."
+    "promo": "{{reason}} Remove the code, or try another.",
+    "layoutChanged": "The layout changed. Choose your seats or zones again.",
+    "selectionUnavailable": "A selection is unavailable. Choose your seats or zones again.",
+    "buyerLimit": "This order exceeds the event’s ticket limit per buyer."
   },
   "errors": {
     "required": "Fill this in.",
@@ -114,5 +117,18 @@
     "chooseVenue": "Answer at least one place.",
     "buyerOnce": "Only one ticket can be yours.",
     "refused": "Check this: it was refused."
+  },
+  "selection": {
+    "heading": "Choose seats or zones",
+    "ticket": "Ticket {{count}} · {{name}}",
+    "section": "Section or zone",
+    "seat": "Seat",
+    "choose": "Choose",
+    "seatName": "Row {{row}}, seat {{seat}}",
+    "loading": "Loading availability…",
+    "retry": "Retry availability",
+    "soldOut": "No places are available for this ticket.",
+    "remaining": "Places available: {{count}}",
+    "required": "Choose a seat or zone for every ticket."
   }
 }

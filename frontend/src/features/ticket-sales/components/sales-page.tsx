@@ -8,6 +8,7 @@ import { StatusLine, usePageStatus } from '@/ui/app-form';
 import type { TicketSalesData } from '../load';
 import { AnnouncementPanel } from './announcement-panel';
 import { LINK } from './shared';
+import { ShowInventoryPanel } from './show-inventory';
 import { TicketTypesPanel } from './ticket-type-list';
 import { VisibilityPanel } from './visibility-panel';
 
@@ -34,6 +35,7 @@ export function TicketSalesPage({ data }: { data: TicketSalesData }) {
       <VisibilityPanel key={event.visibility ?? 'PRIVATE'} data={data} page={page} />
       <AnnouncementPanel data={data} page={page} />
       <TicketTypesPanel data={data} page={page} />
+      <ShowInventoryPanel data={data} />
       <Link to={APP_PATHS.promoCodes} className={LINK}>
         {t('promoCodes')}
       </Link>

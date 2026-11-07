@@ -69,7 +69,8 @@
     "used": "Admitted",
     "cancelled": "Cancelled",
     "qrFor": "QR code for {{holder}}’s ticket",
-    "qrHint": "Turn your screen’s brightness up when it is scanned at the door."
+    "qrHint": "Turn your screen’s brightness up when it is scanned at the door.",
+    "seat": "{{sectionName}} · Row {{row}}, seat {{seat}}"
   },
   "totals": {
     "discount": "Discount",

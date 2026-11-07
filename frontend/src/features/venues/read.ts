@@ -26,6 +26,7 @@ function roleOf(role: string): VenueRole {
 export function readVenues(venues: readonly VenueWire[]): Venue[] {
   return venues.map((venue) => ({
     id: venue.id,
+    ...(venue.profileId ? { profileId: venue.profileId } : {}),
     role: roleOf(venue.role),
     name: venue.name,
     address: venue.address,

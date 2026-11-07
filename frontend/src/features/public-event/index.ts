@@ -33,4 +33,5 @@ export type {
   PublicListing,
   PublicTicketType,
   PublicVenue,
+  TicketSection,
 } from './types';

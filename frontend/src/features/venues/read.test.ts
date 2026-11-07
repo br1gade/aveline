@@ -23,7 +23,7 @@ describe('venues as they arrive', () => {
     const venues = readVenues(wire);
     expect(venues.map((venue) => venue.id)).toEqual(['v2', 'v1']);
     expect(Object.keys(venues[1] ?? {}).sort()).toEqual(
-      ['address', 'arriveAt', 'id', 'mapUrl', 'name', 'role', 'translations'].sort(),
+      ['address', 'arriveAt', 'id', 'mapUrl', 'name', 'profileId', 'role', 'translations'].sort(),
     );
     expect(venues[1]?.translations).toEqual({ en: { name: 'Church' } });
     expect(venues[0]?.translations).toEqual({});

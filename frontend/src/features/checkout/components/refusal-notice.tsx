@@ -11,6 +11,9 @@ type Translate = ReturnType<typeof useTranslation<'checkout'>>['t'];
 
 const SIMPLE = [
   'staleRevision',
+  'layoutChanged',
+  'selectionUnavailable',
+  'buyerLimit',
   'changedIntent',
   'soldOut',
   'notOnSale',

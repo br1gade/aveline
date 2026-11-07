@@ -9,7 +9,14 @@ export type TicketStatus = 'VALID' | 'USED' | 'VOID' | 'REFUNDED';
 /** What the bank said, from confirm; an unknown status is read as not settled yet. */
 export type PaymentState = 'settled' | 'pending' | 'declined' | 'refunded';
 
+export interface TicketAllocation {
+  sectionName: string;
+  row: string | null;
+  seat: string | null;
+}
+
 export interface BuyerAttendee {
+  selection?: TicketAllocation | null;
   id: string;
   ticketTypeId: string;
   position: number;

@@ -15,6 +15,9 @@ export type PromoRefusal =
 
 export type CheckoutRefusal =
   | { kind: 'staleRevision' }
+  | { kind: 'layoutChanged' }
+  | { kind: 'selectionUnavailable' }
+  | { kind: 'buyerLimit' }
   | { kind: 'changedIntent' }
   | { kind: 'soldOut' }
   | { kind: 'notOnSale' }
@@ -128,10 +131,16 @@ function bySentence(sentence: string): CheckoutRefusal | null {
   return questionId ? { kind: 'requiredAnswer', questionId } : null;
 }
 
+const TICKET_CODES: Readonly<Record<string, CheckoutRefusal>> = {
+  TICKET_LAYOUT_CHANGED: { kind: 'layoutChanged' },
+  TICKET_SELECTION_UNAVAILABLE: { kind: 'selectionUnavailable' },
+  TICKET_BUYER_LIMIT_REACHED: { kind: 'buyerLimit' },
+};
+
 export function checkoutRefusal(error: unknown): CheckoutRefusal {
   if (!isApiError(error)) return { kind: 'noAnswer' };
   const sentence = error.messages[0] ?? '';
-  const refusal = byStatus(error) ?? bySentence(sentence);
+  const refusal = TICKET_CODES[error.code ?? ''] ?? byStatus(error) ?? bySentence(sentence);
   if (refusal) return refusal;
   const paths = error.status === 400 ? fieldsOf(error) : [];
   return paths.length > 0

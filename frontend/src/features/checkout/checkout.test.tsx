@@ -165,6 +165,45 @@ describe('checkout for an event answered once (PD-79)', () => {
     expect(document.body.innerHTML).not.toContain(TOKEN);
   });
 
+  it('sends a numbered seat and a zone in the same order, in attendee order', async () => {
+    const base = { layoutVersionId: 'layout-1', ticketTypeIds: ['general'], available: 1 };
+    current.event = {
+      ...EVENT,
+      ticketInventory: {
+        layoutVersionId: 'layout-1',
+        sections: [
+          { key: 'balcony', name: 'Balcony', mode: 'NUMBERED', ticketTypeIds: ['general'] },
+          { key: 'floor', name: 'Floor', mode: 'UNNUMBERED', ticketTypeIds: ['general'] },
+        ],
+      },
+    };
+    server.use(
+      http.get(`${ORIGIN}/api/v1/public/events/:slug/ticket-inventory/:key`, ({ params }) =>
+        HttpResponse.json({
+          ...base,
+          seats: params.key === 'balcony' ? [{ id: 'seat-12', row: 'B', label: '12' }] : [],
+        }),
+      ),
+    );
+    serveOrders(paid);
+    const { user } = renderCheckout();
+    expect(await submit()).toBeDisabled();
+    const choices = await screen.findAllByLabelText('Section or zone');
+    await user.selectOptions(choices[0] as HTMLElement, 'balcony');
+    await screen.findByRole('option', { name: 'Row B, seat 12' });
+    await user.selectOptions(await screen.findByLabelText('Seat'), 'seat-12');
+    await user.selectOptions(choices[1] as HTMLElement, 'floor');
+    await fillBuyer(user);
+    await user.click(within(await name(user, 1, 'Anna')).getByRole('radio', { name: 'Fish' }));
+    await user.click(within(await name(user, 2, 'Davit')).getByRole('radio', { name: 'Beef' }));
+    await user.click(await submit());
+    expect(await screen.findByText('The order page')).toBeInTheDocument();
+    expect(posted[0]).toMatchObject({
+      layoutVersionId: 'layout-1',
+      selections: [{ sectionKey: 'balcony', seatId: 'seat-12' }, { sectionKey: 'floor' }],
+    });
+  });
+
   it('checks the form before sending anything', async () => {
     serveOrders(paid);
     const { user } = renderCheckout('general.1');

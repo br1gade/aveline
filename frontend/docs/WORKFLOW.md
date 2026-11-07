@@ -83,3 +83,17 @@
 `npm run check:boundaries` lists every changed path, committed against the base branch or
 uncommitted, that is outside `frontend/`. The base is `origin/main` until `frontend/integration`
 exists. An empty list is the only passing result.
+
+### Rehearsing seat and zone ticketing
+
+Use a backend with the show inventory migration and regenerate the API types.
+On the event’s ticket sales page, open **Manage inventory** and choose a
+guest-facing venue linked to the directory. A directory editor can publish
+sections and rows manually or upload the CSV template. The organizer selects
+a layout, assigns ticket prices to sections, blocks any seats that should
+stay off sale, and publishes the show inventory. Set the optional buyer
+limit in the announcement form.
+
+Use a future event and free ticket types for a local browser rehearsal.
+Buy a numbered seat and a zone place in one basket. Check both allocations
+on the issued tickets and verify that a repeated scan at the door is refused.

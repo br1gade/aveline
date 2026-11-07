@@ -135,7 +135,9 @@
     },
     "indexable": "Let search engines find it",
     "indexableHelp": "Only for a public event; an unlisted one is never indexed.",
-    "save": "Save the announcement"
+    "save": "Save the announcement",
+    "buyerTicketLimit": "Tickets per buyer",
+    "buyerTicketLimitHelp": "Optional. Leave blank for no event-wide limit."
   },
   "errors": {
     "required": "Fill this in.",
@@ -155,7 +157,47 @@
     "images": "Choose pictures of this event.",
     "tooManyCategories": "At most ten categories.",
     "categoryTooLong": "Each category up to 40 characters.",
-    "refused": "Check this: it was refused."
+    "refused": "Check this: it was refused.",
+    "buyerTicketLimit": "Enter a whole number between 1 and 100,000."
   },
-  "promoCodes": "Promo codes, for all your organization’s events"
+  "promoCodes": "Promo codes, for all your organization’s events",
+  "inventory": {
+    "title": "Seat and zone inventory",
+    "manage": "Manage inventory",
+    "loading": "Loading inventory…",
+    "venue": "Venue",
+    "chooseVenue": "Choose a venue",
+    "layout": "Layout version",
+    "chooseLayout": "Choose a layout",
+    "noLayouts": "No layouts yet. Ask a directory editor to publish one.",
+    "offers": "Ticket prices offered in each section",
+    "publish": "Publish inventory",
+    "published": "Inventory published",
+    "warning": "Publishing fixes this venue and layout for the show. Check your prices and blocked seats first.",
+    "editor": "Create a venue layout",
+    "layoutKey": "Layout key",
+    "layoutName": "Layout name",
+    "sectionKey": "Section key",
+    "sectionName": "Section name",
+    "numbered": "Numbered seats",
+    "zone": "Unnumbered zone",
+    "capacity": "Capacity",
+    "row": "Row label",
+    "seats": "Seat labels, separated by commas",
+    "addRow": "Add row",
+    "addSection": "Add section",
+    "remove": "Remove",
+    "publishLayout": "Publish venue layout",
+    "version": "Version {{version}}",
+    "noVenues": "No directory venues are attached to this event.",
+    "attach": "Use a directory venue to publish ticket inventory.",
+    "failed": "The inventory could not be saved or loaded.",
+    "blocked": "Block numbered seats",
+    "noTypes": "No ticket types yet. Create ticket types before publishing inventory.",
+    "csv": "Import a venue layout CSV",
+    "csvHelp": "For large layouts, use one record per numbered seat and one per unnumbered zone.",
+    "csvTemplate": "Download a CSV template",
+    "csvFile": "Layout CSV",
+    "csvSize": "Choose a CSV file no larger than 8 MiB."
+  }
 }

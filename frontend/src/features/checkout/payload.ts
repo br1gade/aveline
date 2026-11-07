@@ -9,6 +9,7 @@ import type {
   OrderBody,
   PaymentProvider,
   PersonValues,
+  TicketSelection,
 } from './types';
 
 /** What the order depends on beyond the form: the event's rules, the basket and the page. */
@@ -20,6 +21,7 @@ export interface OrderContext {
   provider: PaymentProvider;
   /** A code the promo check accepted; `null` when none was applied. */
   promoCode: string | null;
+  layout?: { layoutVersionId: string; selections: TicketSelection[] } | undefined;
 }
 
 function filled(value: string): string | undefined {
@@ -94,6 +96,7 @@ export function attendeeBody(rules: CheckoutRules, person: PersonValues): Attend
 export function orderBody(values: CheckoutValues, context: OrderContext): OrderBody {
   const buyerName = `${values.buyerFirstName.trim()} ${values.buyerLastName.trim()}`.trim();
   return {
+    ...context.layout,
     items: context.basket.map(({ ticketTypeId, quantity }) => ({ ticketTypeId, quantity })),
     buyerName,
     buyerEmail: values.buyerEmail.trim(),

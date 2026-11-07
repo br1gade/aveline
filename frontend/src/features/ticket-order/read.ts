@@ -58,6 +58,14 @@ function readPayment(value: unknown): BuyerOrder['payment'] {
   };
 }
 
+function readSelection(value: unknown): Pick<BuyerAttendee, 'selection'> {
+  const wire = record(value);
+  const sectionName = text(wire.sectionName);
+  return sectionName
+    ? { selection: { sectionName, row: text(wire.row), seat: text(wire.seat) } }
+    : {};
+}
+
 function readAttendee(wire: Wire): BuyerAttendee[] {
   if (typeof wire.id !== 'string' || typeof wire.ticketTypeId !== 'string') return [];
   return [
@@ -67,6 +75,7 @@ function readAttendee(wire: Wire): BuyerAttendee[] {
       position: typeof wire.position === 'number' ? wire.position : 0,
       firstName: text(wire.firstName) ?? '',
       lastName: text(wire.lastName),
+      ...readSelection(wire.selection),
     },
   ];
 }

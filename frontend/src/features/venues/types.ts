@@ -17,6 +17,7 @@ export const VENUE_ROLES = [
 export type VenueRole = (typeof VENUE_ROLES)[number];
 
 export interface Venue {
+  profileId?: string | null;
   id: string;
   role: VenueRole;
   name: string;
@@ -30,6 +31,7 @@ export interface Venue {
 }
 
 export interface VenueWire {
+  profileId?: string | null;
   id: string;
   role: string;
   name: string;
