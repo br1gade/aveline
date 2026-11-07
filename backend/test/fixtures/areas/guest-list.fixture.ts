@@ -1,12 +1,12 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 
-/** Returns once another session in this database is blocked on a lock. Bounded so a broken race fails, not hangs. */
-export async function untilSomeoneWaitsOnALock(prisma: PrismaClient): Promise<void> {
+/** Waits for the requested number of blocked sessions in this database. Bounded so a broken race fails, not hangs. */
+export async function untilSomeoneWaitsOnALock(prisma: PrismaClient, minimumWaiting = 1): Promise<void> {
   for (let attempt = 0; attempt < 5_000; attempt += 1) {
     const [{ waiting }] = await prisma.$queryRaw<{ waiting: number }[]>(Prisma.sql`
       SELECT count(*)::int AS waiting FROM pg_stat_activity
       WHERE datname = current_database() AND wait_event_type = 'Lock'`);
-    if (waiting > 0) return;
+    if (waiting >= minimumWaiting) return;
   }
   throw new Error('no session ever waited on a lock');
 }

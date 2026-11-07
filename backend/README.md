@@ -364,6 +364,8 @@ and failure handling.
 |---|---|---|
 | `GET` | `/api/v1/vendors` | The partner directory, optionally by category |
 | `POST` | `/api/v1/vendors` | Add a vendor to the directory |
+| `PATCH` | `/api/v1/vendors/:vendorId` | Correct a vendor owned by the selected organization; requires organization `vendor:write` |
+| `DELETE` | `/api/v1/vendors/:vendorId` | Remove an organization vendor from future booking choices; current bookings are kept |
 | `GET` | `/api/v1/events/:eventId/vendor-options` | Page through bookable vendor choices and read the brief scope defaults with event `vendor:read` |
 | `GET` | `/api/v1/events/:eventId/vendors` | This event's vendors; fees only with `vendor:fee:read` |
 | `POST` | `/api/v1/events/:eventId/vendors` | Engage a vendor and mint their brief link |

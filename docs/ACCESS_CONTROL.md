@@ -151,6 +151,10 @@ owner.
 | `directory:manage` | Add, correct and retire halls in the shared venue directory |
 | `concierge:manage` | Open an organization and its events for a customer, and invite them as owner |
 
+Only organization-scoped `vendor:write` allows corrections, removal, or
+reading private notes for that organization's vendor entries. Event access
+alone can grant booking permissions without granting these directory rights.
+
 Automatic seating requires `seating:write` when queueing and again in the
 worker before application; current user/membership standing is locked during
 the final transaction. History/status/result reads require `seating:read`.

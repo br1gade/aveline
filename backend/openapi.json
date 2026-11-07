@@ -9250,6 +9250,7 @@
     },
     "/api/v1/vendors": {
       "get": {
+        "description": "Private notes are returned only for organization-owned entries to callers with organization vendor:write.",
         "operationId": "VendorsController_listVendors",
         "parameters": [
           {
@@ -9347,6 +9348,130 @@
           }
         },
         "summary": "Add a vendor",
+        "tags": [
+          "vendors"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/vendors/{vendorId}": {
+      "patch": {
+        "operationId": "VendorsController_updateVendor",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVendorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedVendorDto"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Correct a vendor owned by the selected organization",
+        "tags": [
+          "vendors"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "VendorsController_removeVendor",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorsController_removeVendorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove an organization vendor from future booking choices without cancelling current bookings",
         "tags": [
           "vendors"
         ],
@@ -17163,6 +17288,22 @@
       "CreateVendorDto": {
         "type": "object",
         "properties": {
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 200,
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 40
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          },
           "name": {
             "type": "string"
           },
@@ -17179,15 +17320,6 @@
               "PRINT",
               "OTHER"
             ]
-          },
-          "email": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "notes": {
-            "type": "string"
           }
         },
         "required": [
@@ -17207,6 +17339,77 @@
           "MUSIC",
           "PRINT",
           "OTHER"
+        ]
+      },
+      "UpdateVendorDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 200,
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 40
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 160
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VendorCategory"
+              }
+            ]
+          }
+        }
+      },
+      "ManagedVendorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VendorCategory"
+              }
+            ]
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "email",
+          "phone",
+          "notes"
         ]
       },
       "VendorOptionDto": {
@@ -38982,6 +39185,10 @@
         "items": {
           "type": "object",
           "properties": {
+            "notes": {
+              "type": "string",
+              "nullable": true
+            },
             "venueProfile": {
               "type": "object",
               "properties": {
@@ -39129,6 +39336,17 @@
           "phone",
           "category",
           "active"
+        ]
+      },
+      "VendorsController_removeVendorResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
         ]
       },
       "VendorsController_listBookingsResponse": {

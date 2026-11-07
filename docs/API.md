@@ -2118,6 +2118,8 @@ The order response carries `discountMinor` alongside `totalMinor`.
 ```http
 GET  /api/v1/vendors?category=CATERING
 POST /api/v1/vendors                 { "name": "...", "category": "CATERING", ... }
+PATCH  /api/v1/vendors/:vendorId      { "name": "Corrected name", "notes": "Handoff details" }
+DELETE /api/v1/vendors/:vendorId
 ```
 
 The vendors an organization chooses from: **its own**, which only it sees,
@@ -2127,6 +2129,19 @@ October 2026; the list used to be shared by every customer, contact details
 included). Aveline staff add to the curated list. Booking another
 organization's vendor is a `404`. `category` is one of `VENUE`, `CATERING`,
 `BAR`, `DECOR`, `PHOTOGRAPHY`, `VIDEOGRAPHY`, `MUSIC`, `PRINT`, `OTHER`.
+
+PATCH and DELETE require `vendor:write` in the selected organization. Its
+vendor editors also see `notes` on organization-owned entries in the directory.
+Notes are omitted for read-only roles and curated entries. PATCH returns the
+saved ID, name, category, email, phone and notes. Both writes trim the name and
+reject blank names. Omitted fields stay as they are; use `null` to clear email,
+phone or notes. A foreign or curated vendor is
+`404` on these writes.
+
+DELETE returns `{ "ok": true }` and is safe to repeat. It hides the vendor from
+the directory and picker. Existing bookings, fees and brief links remain in
+place. A removed vendor cannot be booked for the first time or re-engaged
+after cancellation by either booking write; those attempts return `404`.
 
 For the booking form, use
 `GET /api/v1/events/:eventId/vendor-options?category=CATERING&limit=20&offset=0`.

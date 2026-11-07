@@ -8,6 +8,7 @@ import { EventRole, OrganizationRole, PlatformRole, PrismaClient, RsvpStatus, Ve
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
 import { PrismaService } from '../../../src/prisma/prisma.service';
+import { holdTransaction, untilSomeoneWaitsOnALock } from '../../fixtures/areas/guest-list.fixture';
 import { authenticateAs } from '../../fixtures/auth.fixture';
 import { seedEvent } from '../../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
@@ -302,6 +303,106 @@ describe('Vendor bookings, briefs and access (coverage e2e)', () => {
 
       expect(body.message).toBe('This account may not vendor:write');
       expect(await prisma.vendor.count()).toBe(0);
+    });
+  });
+
+  describe('maintaining an organization vendor', () => {
+    const vendorUrl = (id: string) => `/api/v1/vendors/${id}`;
+
+    it('lets a manager correct a vendor and read its private notes; read-only roles cannot', async () => {
+      const manager = await memberOf(OrganizationRole.MANAGER);
+      const viewer = await memberOf(OrganizationRole.VIEWER, manager.organizationId);
+      const vendor = await prisma.vendor.create({
+        data: { organizationId: manager.organizationId, name: 'Old name', category: 'CATERING', email: 'old@test.local', phone: '+37491111111' },
+      });
+      const curated = await prisma.vendor.create({ data: { name: 'Curated', category: 'CATERING', notes: 'Private curated notes' } });
+
+      const { body: saved } = await http().patch(vendorUrl(vendor.id)).set('Authorization', manager.authorization)
+        .send({ name: 'Correct name', email: null, notes: 'Internal handoff' }).expect(200);
+      expect(saved).toMatchObject({ id: vendor.id, name: 'Correct name', email: null, notes: 'Internal handoff', phone: '+37491111111' });
+      const { body: directory } = await http().get('/api/v1/vendors').set('Authorization', manager.authorization)
+        .expect('Cache-Control', 'private, no-store').expect(200);
+      expect(directory).toContainEqual(expect.objectContaining({ id: vendor.id, notes: 'Internal handoff' }));
+      const curatedEntry = (directory as { id: string }[]).find(({ id }) => id === curated.id);
+      expect(curatedEntry).toBeDefined();
+      expect(curatedEntry).not.toHaveProperty('notes');
+      const { body: readonly } = await http().get('/api/v1/vendors').set('Authorization', viewer.authorization).expect(200);
+      const visible = (readonly as { id: string }[]).find(({ id }) => id === vendor.id);
+      expect(visible).toMatchObject({ name: 'Correct name' });
+      expect(visible).not.toHaveProperty('notes');
+      const { body: invalid } = await http().patch(vendorUrl(vendor.id)).set('Authorization', manager.authorization)
+        .send({ name: null }).expect(400);
+      expect(namesField(invalid, 'name')).toBe(true);
+    });
+
+    it('rejects blank names on both vendor writes', async () => {
+      const owner = await memberOf(OrganizationRole.OWNER);
+      const vendor = await prisma.vendor.create({ data: { organizationId: owner.organizationId, name: 'Local', category: 'CATERING' } });
+      await http().patch(vendorUrl(vendor.id)).set('Authorization', owner.authorization).send({ name: '  ' }).expect(400);
+      await http().post('/api/v1/vendors').set('Authorization', owner.authorization).send({ name: '  ', category: 'CATERING' }).expect(400);
+      expect(await prisma.vendor.count()).toBe(1);
+    });
+
+    it('rejects catalogue writes from event-only and read-only roles and hides foreign and curated entries', async () => {
+      const { eventId, authorization } = await coordinator();
+      const organizationId = await organizationOf(eventId);
+      const viewer = await memberOf(OrganizationRole.VIEWER, organizationId);
+      const owner = await memberOf(OrganizationRole.OWNER, organizationId);
+      const foreign = await memberOf(OrganizationRole.OWNER);
+      const local = await prisma.vendor.create({ data: { organizationId, name: 'Local', category: 'CATERING' } });
+      const curated = await curatedVendor();
+
+      await http().patch(vendorUrl(local.id)).set('Authorization', authorization).send({ name: 'Denied' }).expect(403);
+      await http().delete(vendorUrl(local.id)).set('Authorization', viewer.authorization).expect(403);
+      await http().patch(vendorUrl(local.id)).set('Authorization', foreign.authorization).send({ name: 'Denied' }).expect(404);
+      await http().delete(vendorUrl(curated.id)).set('Authorization', owner.authorization).expect(404);
+      expect(await prisma.vendor.findUniqueOrThrow({ where: { id: local.id } })).toMatchObject({ name: 'Local', active: true });
+    });
+
+    it('removes a vendor from choices and blocks re-engagement without cancelling their current booking', async () => {
+      const { eventId } = await seedEvent(prisma);
+      const owner = await memberOf(OrganizationRole.OWNER, await organizationOf(eventId));
+      const { authorization, organizationId } = owner;
+      const removed = await prisma.vendor.create({ data: { organizationId, name: 'Already removed', category: 'CATERING', active: false } });
+      await book(eventId, authorization, { vendorId: removed.id }).expect(404);
+      const vendor = await prisma.vendor.create({ data: { organizationId, name: 'Local', category: 'CATERING' } });
+      const { body: saved } = await book(eventId, authorization, { vendorId: vendor.id, feeMinor: '400' }).expect(201);
+
+      await http().delete(vendorUrl(vendor.id)).set('Authorization', authorization).expect(200);
+      await http().delete(vendorUrl(vendor.id)).set('Authorization', authorization).expect(200);
+      const { body: directory } = await http().get('/api/v1/vendors').set('Authorization', authorization).expect(200);
+      expect(directory).not.toContainEqual(expect.objectContaining({ id: vendor.id }));
+      const { body: listed } = await http().get(`/api/v1/events/${eventId}/vendors`).set('Authorization', authorization).expect(200);
+      expect(listed).toContainEqual(expect.objectContaining({ id: saved.id, status: 'ENQUIRED', feeMinor: '400' }));
+      await brief(saved.briefToken as string).expect(200);
+      const { body: retry } = await book(eventId, authorization, { vendorId: vendor.id }).expect(201);
+      expect(retry).toMatchObject({ id: saved.id, briefToken: saved.briefToken, feeMinor: '400' });
+      await patch(eventId, saved.id as string, authorization, { feeMinor: '500' }).expect(200);
+      await http().delete(`/api/v1/events/${eventId}/vendors/${saved.id as string}`).set('Authorization', authorization).expect(200);
+      await book(eventId, authorization, { vendorId: vendor.id }).expect(404);
+      await patch(eventId, saved.id as string, authorization, { status: 'ENQUIRED' }).expect(404);
+      expect(await prisma.vendorBooking.findUniqueOrThrow({ where: { id: saved.id as string } }))
+        .toMatchObject({ status: 'CANCELLED', feeMinor: 500n, briefToken: saved.briefToken });
+    });
+
+    it('serializes a concurrent removal before a first booking', async () => {
+      const { eventId } = await seedEvent(prisma);
+      const { authorization, organizationId } = await memberOf(OrganizationRole.OWNER, await organizationOf(eventId));
+      const vendor = await prisma.vendor.create({ data: { organizationId, name: 'Local', category: 'CATERING' } });
+      // Hold the vendor row so the removal request pauses after locking its organization.
+      const held = await holdTransaction(prisma, (tx) => tx.vendor.update({ where: { id: vendor.id }, data: { name: vendor.name } }));
+      const removal = http().delete(vendorUrl(vendor.id)).set('Authorization', authorization).expect(200).then();
+      let firstBooking: Promise<{ status: number }> | undefined;
+      try {
+        await untilSomeoneWaitsOnALock(prisma);
+        firstBooking = book(eventId, authorization, { vendorId: vendor.id }).then();
+        await untilSomeoneWaitsOnALock(prisma, 2);
+      } finally {
+        held.release();
+        await Promise.all([held.done, removal, firstBooking]);
+      }
+      expect((await firstBooking)?.status).toBe(404);
+      expect(await prisma.vendorBooking.count({ where: { vendorId: vendor.id } })).toBe(0);
     });
   });
 

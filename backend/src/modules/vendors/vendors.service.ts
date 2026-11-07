@@ -3,13 +3,16 @@ import { BookingStatus, VendorCategory, type Prisma, type VendorBooking } from '
 import { randomBytes } from 'node:crypto';
 import { resolvePaging, toPage } from '../../common/dto/pagination.dto';
 import { lockRow } from '../../common/row-lock';
-import { lockEventOrganization, requireCurrentEventPermission } from '../../infra/auth/access-locks';
+import { lockEventOrganization, lockOrganizationStanding, requireCurrentEventPermission, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
+import type { RequestActor } from '../../infra/auth/actor';
+import { accessDenied } from '../../infra/auth/organization-context';
 import { PrismaService } from '../../prisma/prisma.service';
-import { BookVendorDto, CreateVendorDto, UpdateBookingDto } from './dto/vendor.dto';
+import { BookVendorDto, CreateVendorDto, UpdateBookingDto, UpdateVendorDto } from './dto/vendor.dto';
 import type { VendorOptionsDto, VendorOptionsQuery } from './dto/vendor-options.dto';
 import { BRIEF_SECTIONS, BRIEF_SECTION_PURPOSE, SUGGESTED_SCOPES, sectionsFor } from './vendor-brief';
 
 const BOOKED_VENDOR = { select: { id: true, name: true, category: true } } as const;
+const MANAGED_VENDOR = { ...BOOKED_VENDOR.select, email: true, phone: true, notes: true } as const;
 
 @Injectable()
 export class VendorsService {
@@ -21,7 +24,7 @@ export class VendorsService {
    * every customer read and wrote, so host B saw the phone number host A
    * entered for their cousin the photographer.
    */
-  listVendors(organizationId: string | null, category?: VendorCategory) {
+  listVendors(organizationId: string | null, category?: VendorCategory, canReadNotes = false) {
     return this.prisma.vendor
       .findMany({
         where: { active: true, category, OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])] },
@@ -33,14 +36,15 @@ export class VendorsService {
           category: true,
           email: true,
           phone: true,
+          notes: canReadNotes && organizationId !== null,
           venueProfiles: { where: { isActive: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }], select: { id: true, name: true, city: true, capacity: true } },
         },
       })
       .then((vendors) =>
-        vendors.map(({ organizationId: owner, ...vendor }) => ({ ...vendor,
+        vendors.map(({ organizationId: owner, notes, ...vendor }) => ({ ...vendor,
           // Compatibility for clients expecting the former single-hall summary.
           venueProfile: vendor.venueProfiles[0] ? { city: vendor.venueProfiles[0].city, capacity: vendor.venueProfiles[0].capacity } : null,
-          isCurated: owner === null })),
+          isCurated: owner === null, ...(owner !== null && canReadNotes ? { notes } : {}) })),
       );
   }
 
@@ -77,6 +81,29 @@ export class VendorsService {
         phone: dto.phone ?? null,
         notes: dto.notes ?? null,
       },
+    });
+  }
+
+  updateVendor(actor: RequestActor, vendorId: string, dto: UpdateVendorDto) {
+    return this.changeDirectoryEntry(actor, vendorId, dto);
+  }
+
+  async removeVendor(actor: RequestActor, vendorId: string) {
+    await this.changeDirectoryEntry(actor, vendorId, { active: false });
+    return { ok: true as const };
+  }
+
+  private changeDirectoryEntry(actor: RequestActor, vendorId: string, data: UpdateVendorDto & { active?: false }) {
+    const { organizationId } = actor;
+    if (!organizationId) throw accessDenied();
+    return this.prisma.$transaction(async (tx) => {
+      // Booking writes share this organization lock, so removal and re-engagement cannot cross.
+      await lockOrganizationStanding(tx, { organizationId, mode: 'update' });
+      await requireCurrentOrganizationPermission(tx, { actor, organizationId, permission: 'vendor:write' });
+      const where = { id: vendorId, organizationId, active: data.active === false ? undefined : true };
+      const vendor = await tx.vendor.findFirst({ where, select: { id: true } });
+      if (!vendor) throw new NotFoundException('No such organization vendor');
+      return tx.vendor.update({ where, data, select: MANAGED_VENDOR });
     });
   }
 
@@ -117,13 +144,14 @@ export class VendorsService {
     return this.withBookingWrite(eventId, userId, async (tx) => {
       const vendor = await tx.vendor.findFirst({
         where: { id: dto.vendorId, OR: [{ organizationId: null }, { organization: { events: { some: { id: eventId } } } }] },
-        select: { category: true },
+        select: { category: true, active: true },
       });
       if (!vendor) throw new NotFoundException('No such vendor');
 
       const where = { eventId_vendorId: { eventId, vendorId: dto.vendorId } };
       const existing = await tx.vendorBooking.findUnique({ where, select: { status: true, feeMinor: true, feeCurrency: true } });
       const isReopening = existing?.status === BookingStatus.CANCELLED;
+      assertVendorBookable(vendor.active, existing?.status);
       const briefToken = newBriefToken();
       const briefScopes = sectionsFor(dto.briefScopes ?? SUGGESTED_SCOPES[vendor.category] ?? []);
       const fee = bookingFeeChanges(dto, existing);
@@ -147,6 +175,7 @@ export class VendorsService {
       const booking = await this.requireBooking(tx, eventId, bookingId);
       // The sent link explains cancellation, but a renewed engagement gets a fresh capability.
       const isReopening = booking.status === BookingStatus.CANCELLED && dto.status != null && dto.status !== BookingStatus.CANCELLED;
+      if (isReopening) await requireActiveVendor(tx, booking.vendorId);
       const updated = await tx.vendorBooking.update({
         where: { id: booking.id },
         data: {
@@ -205,6 +234,17 @@ export class VendorsService {
       await requireCurrentEventPermission(tx, { actor: { userId }, eventId, permission: 'vendor:write' });
       return write(tx);
     });
+  }
+}
+
+async function requireActiveVendor(tx: Prisma.TransactionClient, vendorId: string) {
+  const vendor = await tx.vendor.findUnique({ where: { id: vendorId, active: true }, select: { id: true } });
+  if (!vendor) throw new NotFoundException('No such bookable vendor');
+}
+
+function assertVendorBookable(active: boolean, existingStatus?: BookingStatus) {
+  if (!active && (existingStatus === undefined || existingStatus === BookingStatus.CANCELLED)) {
+    throw new NotFoundException('No such bookable vendor');
   }
 }
 

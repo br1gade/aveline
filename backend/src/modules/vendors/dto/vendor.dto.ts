@@ -17,10 +17,32 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { Trimmed } from '../../../common/trimmed';
 import { BRIEF_SECTIONS } from '../vendor-brief';
 
-export class CreateVendorDto {
+class VendorContactDto {
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 200, format: 'email' })
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(200)
+  email?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 40 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  phone?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000)
+  notes?: string | null;
+}
+
+export class CreateVendorDto extends VendorContactDto {
   @ApiProperty()
+  @Trimmed()
   @IsString()
   @MinLength(2)
   @MaxLength(160)
@@ -29,24 +51,41 @@ export class CreateVendorDto {
   @ApiProperty({ enum: VendorCategory })
   @IsEnum(VendorCategory)
   category!: VendorCategory;
+}
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsEmail()
-  @MaxLength(200)
-  email?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
+export class UpdateVendorDto extends VendorContactDto {
+  @ApiPropertyOptional({ minLength: 2, maxLength: 160 })
+  @Trimmed()
+  @ValidateIf((_dto: unknown, value: unknown) => value !== undefined)
   @IsString()
-  @MaxLength(40)
-  phone?: string;
+  @MinLength(2)
+  @MaxLength(160)
+  name?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(2_000)
-  notes?: string;
+  @ApiPropertyOptional({ enum: VendorCategory, enumName: 'VendorCategory' })
+  @ValidateIf((_dto: unknown, value: unknown) => value !== undefined)
+  @IsEnum(VendorCategory)
+  category?: VendorCategory;
+}
+
+export class ManagedVendorDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ enum: VendorCategory, enumName: 'VendorCategory' })
+  category!: VendorCategory;
+
+  @ApiProperty({ type: String, nullable: true })
+  email!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  phone!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  notes!: string | null;
 }
 
 class BookingFeeDto {

@@ -11,7 +11,7 @@ import {
   RequirePermission,
   actorCan,
 } from '../../infra/auth/actor';
-import { BookVendorDto, CreateVendorDto, UpdateBookingDto } from './dto/vendor.dto';
+import { BookVendorDto, CreateVendorDto, ManagedVendorDto, UpdateBookingDto, UpdateVendorDto } from './dto/vendor.dto';
 import { VendorOptionsDto, VendorOptionsQuery } from './dto/vendor-options.dto';
 import { VendorBriefsService } from './vendor-briefs.service';
 import { VendorsService } from './vendors.service';
@@ -33,11 +33,13 @@ export class VendorsController {
   @RequirePermission('vendor:read')
   @OrganizationScope({ mode: 'optional', permission: 'vendor:write' })
   @Get('vendors')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({
     summary: "This organization's vendors and Aveline's curated list, optionally by category",
+    description: 'Private notes are returned only for organization-owned entries to callers with organization vendor:write.',
   })
   listVendors(@CurrentActor() actor: RequestActor, @Query() query: ListVendorsQuery) {
-    return this.vendors.listVendors(actor.organizationId ?? null, query.category);
+    return this.vendors.listVendors(actor.organizationId ?? null, query.category, actorCan(actor, 'vendor:write'));
   }
 
   @RequirePermission('vendor:write')
@@ -49,6 +51,23 @@ export class VendorsController {
   })
   createVendor(@CurrentActor() actor: RequestActor, @Body() dto: CreateVendorDto) {
     return this.vendors.createVendor(ownerOfNewVendor(actor), dto);
+  }
+
+  @RequirePermission('vendor:write')
+  @OrganizationScope({ mode: 'required', permission: 'vendor:write' })
+  @Patch('vendors/:vendorId')
+  @ApiOperation({ summary: 'Correct a vendor owned by the selected organization' })
+  @ApiOkResponse({ type: ManagedVendorDto })
+  updateVendor(@CurrentActor() actor: RequestActor, @Param('vendorId') vendorId: string, @Body() dto: UpdateVendorDto) {
+    return this.vendors.updateVendor(actor, vendorId, dto);
+  }
+
+  @RequirePermission('vendor:write')
+  @OrganizationScope({ mode: 'required', permission: 'vendor:write' })
+  @Delete('vendors/:vendorId')
+  @ApiOperation({ summary: 'Remove an organization vendor from future booking choices without cancelling current bookings' })
+  removeVendor(@CurrentActor() actor: RequestActor, @Param('vendorId') vendorId: string) {
+    return this.vendors.removeVendor(actor, vendorId);
   }
 
   @RequirePermission('vendor:read')

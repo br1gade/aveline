@@ -131,7 +131,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-99 | Suppression writes and reads | S1 safety/correctness | Audit and implement |
 | FR-100 | Promo codes: a currency, a zone, clearing, the pilot | S4 ticketing/vendors/billing | Audit and implement |
 | FR-101 | translations on creating an event | S3 host/guest operations | Audit and implement |
-| FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Audit and implement |
+| FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Implemented; organization-owned edits, private notes and soft removal; pre-push CI pending |
 | FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Implemented; event-scoped vendor choices verified; pre-push CI pending |
 | FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Audit and implement |
 | FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Implemented; picker returns brief section purposes and defaults; pre-push CI pending |
@@ -224,15 +224,20 @@ defaults from the booking policy and omits commercial and contact fields.
 All 89 vendor HTTP cases and 33 focused policy and route checks passed,
 including offset validation and duplicate-booking fee changes.
 
-## Next implementation slice: vendor administration and billing transitions
+FR-102 lets organization vendor editors correct an owned entry, read its
+private notes and remove it from future booking choices. Removal preserves
+current engagements and their brief links. Both booking write paths reject
+re-engagement after cancellation; directory removal and booking writes share
+an organization lock. All 94 vendor HTTP cases passed, including a controlled
+PostgreSQL race between directory removal and a first booking. The full unit
+suite passed all 1,643 tests.
 
-Vendor administration shares the booking projection but is independent of
-household RSVP writes:
+## Next implementation slice: vendor brief locale and billing transitions
 
-Allow corrections and soft removal of organization-owned vendor entries;
-reject foreign/curated edits and new bookings of inactive vendors, while
-retaining existing bookings. Read the saved internal notes back only on
-authorized host surfaces.
+FR-104 can proceed independently of billing and household RSVP writes. Use
+the event's supported locales to resolve the brief's event title, venue and
+timeline text, section purposes, side labels and applicable answer choices.
+Preserve the existing snapshot and section permissions.
 
 Billing (FR-110) needs its own additive scheduled-change record/fields and
 transaction tests: preserve the paid plan and period through its end, expose
