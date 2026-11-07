@@ -9,7 +9,7 @@ required for integration with GitHub; these commands never publish or deploy.
 
 Requires Linux, Node 24+, Git, a local Docker Engine Unix socket and Compose
 2.30+. Docker Desktop/remote daemon orchestration is not implemented. Allow disk
-space for cached images and at least 6 GiB available memory for a sequential run.
+space for cached images and at least 7 GiB available memory for a sequential run.
 Daemon validation follows Docker's `DOCKER_CONTEXT` precedence over `DOCKER_HOST`.
 Initial image builds need internet access; cached dependencies/images are reused.
 
@@ -51,6 +51,10 @@ not a source-controlled server policy or a replacement for protected-branch chec
    Compose fresh deployment/redeployment, the pilot journey and encrypted restore.
 5. Run the full integration and HTTP suites, each against a different disposable
    PostgreSQL/Redis/Mongo/Mailpit project with no published dependency ports.
+   The local PostgreSQL service uses a 1 GiB temporary filesystem and a 128 MiB
+   WAL checkpoint target to avoid disk contention. PostgreSQL keeps `fsync`
+   and synchronous commits enabled. The deployment and restore rehearsals use
+   their own storage configuration.
 
 The quality/integration/HTTP runner uses pinned Node 26 and Ubuntu 24.04 base
 images, `npm ci` from the lockfile and explicit PostgreSQL 16 clients.

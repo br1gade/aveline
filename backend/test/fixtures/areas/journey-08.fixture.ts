@@ -32,8 +32,8 @@ export function guestPathIn(body: string): string {
   return `/invitations/${match[1]}/g/${match[2]}`;
 }
 
-/** The host's headcount as a vendor is meant to get it: everything but the named breakdown. */
-export function withoutHouseholdNames(headcount: Record<string, unknown>): Record<string, unknown> {
-  const { byHousehold: _named, ...counts } = headcount;
+/** Vendors get the operational counts without names or historical response data. */
+export function vendorHeadcount(headcount: Record<string, unknown>): Record<string, unknown> {
+  const { byHousehold: _named, trend: _history, ...counts } = headcount;
   return counts;
 }

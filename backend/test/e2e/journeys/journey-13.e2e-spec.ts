@@ -46,6 +46,11 @@ const API_POOL_SIZE = 1;
 /** Names the API's own Postgres sessions, so a stop ends those and not the test's. */
 const API_APPLICATION_NAME = 'journey-13-api';
 
+function dependencyAddress(value: string, defaultPort: number) {
+  const url = new URL(value);
+  return { host: url.hostname.replace(/^\[|\]$/g, ''), port: Number(url.port || defaultPort) };
+}
+
 /** Reads an exported CSV the way a spreadsheet would: BOM stripped, CRLF rows, quoted cells. */
 function parseCsv(text: string): Record<string, string>[] {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.length > 0);
@@ -92,9 +97,10 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
   let redis: Redis;
   let smtp: SmtpTransport;
   let root: string;
-  const postgresLink = new InterruptibleLink({ host: '127.0.0.1', port: Number(new URL(TEST_DATABASE_URL).port || 5432) });
-  const redisLink = new InterruptibleLink({ host: '127.0.0.1', port: Number(new URL(process.env.REDIS_URL ?? 'redis://localhost:6380').port) });
-  const smtpLink = new InterruptibleLink({ host: '127.0.0.1', port: Number(process.env.SMTP_PORT ?? 1025) });
+  // The links listen locally, but their upstreams may be separate Compose services.
+  const postgresLink = new InterruptibleLink(dependencyAddress(TEST_DATABASE_URL, 5432));
+  const redisLink = new InterruptibleLink(dependencyAddress(process.env.REDIS_URL ?? 'redis://localhost:6380', 6379));
+  const smtpLink = new InterruptibleLink({ host: process.env.SMTP_HOST ?? '127.0.0.1', port: Number(process.env.SMTP_PORT ?? 1025) });
 
   const http = () => request(app.getHttpServer() as Server);
   const api = (path: string) => `/api/v1${path}`;

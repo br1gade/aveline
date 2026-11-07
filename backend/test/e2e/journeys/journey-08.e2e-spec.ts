@@ -16,7 +16,7 @@ import { CommunicationsService } from '../../../src/modules/communications/commu
 import { SeatingRunner } from '../../../src/modules/seating/jobs/seating-runner';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { authenticateAs } from '../../fixtures/auth.fixture';
-import { guestPathIn, seedPlatformDefaults, withoutHouseholdNames } from '../../fixtures/areas/journey-08.fixture';
+import { guestPathIn, seedPlatformDefaults, vendorHeadcount } from '../../fixtures/areas/journey-08.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -25,7 +25,7 @@ const DAY_MS = 24 * HOUR_MS;
 type Brief = Record<string, unknown> & { granted: { section: string }[] };
 interface Booking { id: string; briefToken: string; briefScopes: string[]; status: string }
 interface Household { household: string; guests: string[] }
-interface BriefTable { venue: string | null; name: string; seated: number; guests: { name: string }[]; released: { name: string }[] }
+interface BriefTable { venue: string | null; name: string; seated: number; guests: { name: string }[] }
 
 /**
  * Journey 8: a vendor is booked, handed a link, and reads only what the
@@ -200,7 +200,8 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
       // The host sees the named breakdown; the vendor gets the same numbers without it.
       expect(headcount).toHaveProperty('byHousehold');
       expect(caterer.headcount).not.toHaveProperty('byHousehold');
-      expect(caterer.headcount).toEqual(withoutHouseholdNames(headcount));
+      expect(headcount).toHaveProperty('trend');
+      expect(caterer.headcount).toEqual(vendorHeadcount(headcount));
       expect(caterer.headcount).toMatchObject({ invited: 6, households: 4, attending: 4, declined: 1, pending: 1 });
       const bySide = new Map((caterer.headcount as { bySide: { side: string }[] }).bySide.map((side) => [side.side, side]));
       expect(bySide.get('SIDE_A')).toMatchObject({ invited: 4, attending: 3, declined: 0, pending: 1 });
@@ -236,17 +237,18 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
       return rotated.briefToken as string;
     };
 
-    /** Cancelling kills the sent link and refuses the current one; re-engaging gives a working link. */
+    /** Cancellation refuses the current link. Renewal retires it and issues a new one. */
     const cancelAndReengage = async (coordinator: string, eventId: string, photographer: Booking) => {
       await http().delete(api(`/events/${eventId}/vendors/${photographer.id}`)).set('Authorization', coordinator).expect(200);
-      await http().get(api(`/briefs/${photographer.briefToken}`)).expect(404);
+      await http().get(api(`/briefs/${photographer.briefToken}`)).expect(403);
       const { body: listed } = await http().get(api(`/events/${eventId}/vendors`)).set('Authorization', coordinator).expect(200);
       const cancelled = (listed as (Booking & { vendor: { id: string } })[]).find((booking) => booking.id === photographer.id)!;
       expect(cancelled.status).toBe('CANCELLED');
-      await http().get(api(`/briefs/${cancelled.briefToken}`)).expect(403);
+      expect(cancelled.briefToken).toBe(photographer.briefToken);
       const reengaged = await book(coordinator, eventId, { vendorId: cancelled.vendor.id, briefScopes: ['households', 'contacts'] });
       expect(reengaged).toMatchObject({ id: photographer.id, status: 'ENQUIRED' });
-      expect([photographer.briefToken, cancelled.briefToken]).not.toContain(reengaged.briefToken);
+      expect(reengaged.briefToken).not.toBe(photographer.briefToken);
+      await http().get(api(`/briefs/${photographer.briefToken}`)).expect(404);
       return reengaged;
     };
 
@@ -394,7 +396,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
       expect(caterer.catering).toMatchObject({ covers: 4, requirements: [{ key: 'vegetarian', count: 1 }] });
     };
 
-    /** A venue decline frees that room's seat and count only; the brief shows the gap and who left it. */
+    /** A decline frees that room's seat and the brief shows only the release count. */
     const expectVenueDeclineFollows = async (venues: Venues, links: Map<string, string>, briefs: { venue: string; caterer: string }) => {
       await http().post(api(`${links.get('mariam@journey8.test')!}/rsvp`))
         .send({ attendanceRevision: venues.revision, venueAttendance: [{ venueId: venues.hall, status: 'DECLINED' }] }).expect(201);
@@ -403,7 +405,8 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
       expect(venueCounts(venueBrief.headcount, venues.church)).toMatchObject({ attending: 2, declined: 3 });
       expect(seatedAt(venueBrief.seating, 'Ararat Hall')).toEqual(['Armen Petrosyan', 'Narek Petrosyan']);
       const hallTable = (venueBrief.seating as BriefTable[]).find((table) => table.venue === 'Ararat Hall')!;
-      expect(hallTable).toMatchObject({ seated: 2, released: [expect.objectContaining({ name: 'Mariam Sargsyan' })] });
+      expect(hallTable).toMatchObject({ seated: 2, releasedCount: 1, released: [null] });
+      expect(JSON.stringify(hallTable)).not.toMatch(/guestId|Mariam Sargsyan|releasedAt/);
       expect(seatedAt(venueBrief.seating, 'Saint Gayane')).toEqual(['Armen Petrosyan', 'Lusine Petrosyan']);
       expect((await brief(briefs.caterer)).catering).toMatchObject({ covers: 3 });
     };
@@ -420,6 +423,10 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
       const links = await publishAndSend(host, venues);
       await answerPerVenue(venues, links);
       await seatEachVenue(host, venues);
+      const draftBrief = await brief(briefs.venue);
+      expect(draftBrief.granted.map((entry) => entry.section)).toEqual(['headcount', 'timeline']);
+      expect(draftBrief).not.toHaveProperty('seating');
+      await http().post(api(`/events/${venues.eventId}/seating/publish`)).set('Authorization', host).expect(201);
       await expectVenueBrief(host, venues, briefs);
       await expectVenueDeclineFollows(venues, links, briefs);
     }, 120_000);
