@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { compare } from 'bcrypt';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/auth.dto';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
@@ -93,20 +94,23 @@ export class AuthService {
       throw new UnauthorizedException('Session is no longer valid');
     }
     if (session.revokedAt) {
-      await this.treatAsStolenIfStale(session.userId, session.revokedAt);
+      if (session.rotatedAt) await this.treatAsStolenIfStale(session.userId, session.rotatedAt);
       throw new UnauthorizedException('Session is no longer valid');
     }
 
     // The revocation is the claim: conditioned on the session still being
     // live, so of several refreshes racing with one token exactly one wins.
     // Read-then-revoke let each of them mint a session.
-    const claimed = await this.prisma.session.updateMany({
-      where: { id: session.id, revokedAt: null },
-      data: { revokedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const rotatedAt = new Date();
+      const claimed = await tx.session.updateMany({
+        where: { id: session.id, revokedAt: null },
+        data: { revokedAt: rotatedAt, rotatedAt },
+      });
+      if (claimed.count === 0) throw new UnauthorizedException('Session is no longer valid');
+      // A failed replacement must leave the original token usable for retry.
+      return this.issueTokens(session.user, context, tx);
     });
-    if (claimed.count === 0) throw new UnauthorizedException('Session is no longer valid');
-
-    return this.issueTokens(session.user, context);
   }
 
   /**
@@ -148,10 +152,11 @@ export class AuthService {
   private async issueTokens(
     user: { id: string; email: string; platformRole: string; sessionGeneration: number },
     context: SessionContext,
+    client: Pick<Prisma.TransactionClient, 'session'> = this.prisma,
   ) {
     const refreshToken = newRefreshToken();
 
-    await this.prisma.session.create({
+    await client.session.create({
       data: {
         generation: user.sessionGeneration,
         userId: user.id,

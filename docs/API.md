@@ -251,7 +251,18 @@ POST /api/v1/auth/refresh     { refreshToken }
 ```
 
 **The refresh token rotates.** The one you present is revoked and you receive a
-new pair. Consequences for the client:
+new pair.
+
+Revoking the old token and creating/signing its replacement form one database
+transaction. Replacement-write or signing failure rolls back the revocation so
+the original token can be retried; concurrent refreshes still have exactly one winner.
+Only a token with recorded successful rotation can trigger account-wide
+revocation when replayed after the one-minute retry grace. A single-device
+logout or a legacy revocation without rotation evidence is only rejected;
+other sessions keep working. Password-reset and sign-out-everywhere generation
+checks continue to invalidate older credentials immediately.
+
+Consequences for the client:
 
 - Store the new `refreshToken` every time. The old one is dead immediately.
 - **Never refresh twice concurrently.** Two parallel 401s each triggering a

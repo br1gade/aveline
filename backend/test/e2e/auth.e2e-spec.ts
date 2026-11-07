@@ -195,7 +195,7 @@ describe('Authentication (e2e)', () => {
         [1, 2, 3].map(async () => (await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken })).status),
       );
 
-      expect(statuses.filter((status) => status === 201)).toHaveLength(1);
+      expect(statuses.sort((left, right) => left - right)).toEqual([201, 401, 401]);
       expect(await prisma.session.count({ where: { userId: user.id, revokedAt: null } })).toBe(before);
     });
 
@@ -231,12 +231,23 @@ describe('Authentication (e2e)', () => {
       it('signs out every session when a refresh token is used again long after it was replaced', async () => {
         const { body: first } = await signUp();
         const { body: second } = await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(201);
-        await prisma.session.updateMany({ where: { revokedAt: { not: null } }, data: { revokedAt: new Date(Date.now() - 5 * 60_000) } });
+        const earlier = new Date('2000-01-01T00:00:00Z');
+        await prisma.session.updateMany({ where: { rotatedAt: { not: null } }, data: { revokedAt: earlier, rotatedAt: earlier } });
 
         await http().post('/api/v1/auth/refresh').send({ refreshToken: first.refreshToken }).expect(401);
 
         await me(`Bearer ${second.accessToken as string}`).expect(401);
         await http().post('/api/v1/auth/refresh').send({ refreshToken: second.refreshToken }).expect(401);
+      });
+
+      it('keeps other sessions working when a device retries its logged-out refresh token', async () => {
+        const { body: ended } = await signUp();
+        const { body: active } = await http().post('/api/v1/auth/login').send({ email: credentials.email, password: credentials.password }).expect(201);
+        await http().post('/api/v1/auth/logout').send({ refreshToken: ended.refreshToken }).expect(201);
+        await prisma.session.updateMany({ where: { revokedAt: { not: null } }, data: { revokedAt: new Date('2000-01-01T00:00:00Z') } });
+        await http().post('/api/v1/auth/refresh').send({ refreshToken: ended.refreshToken }).expect(401);
+        await me(`Bearer ${active.accessToken as string}`).expect(200);
+        await http().post('/api/v1/auth/refresh').send({ refreshToken: active.refreshToken }).expect(201);
       });
 
       // FR-22: a device that slept through "sign out everywhere" (or a

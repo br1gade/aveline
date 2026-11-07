@@ -234,12 +234,19 @@ SHA-256 of each token is stored, so a database leak does not hand over live
 sessions.
 
 **Refresh rotates.** Presenting a refresh token revokes it and issues a new
-pair, so a stolen token works at most once. **A replaced token used again**
+pair atomically: replacement-write or signing failure rolls back the old
+token's revocation. Concurrent refreshes have one winner. A stolen token works
+at most once. **A replaced token used again**
 more than a minute later is treated as theft: every session of the account
 ends. (Within the minute it is a client retry, and only refused.) A token
 ended by a password reset or "sign out everywhere" was not replaced: a device
 that wakes and presents one is only refused, and the sessions opened since
-keep working. A token presented after its own logout still counts as reuse.
+keep working. A token presented after single-device logout is only refused;
+it does not end other sessions (owner decision, 7 November 2026).
+Only a non-null server-recorded `Session.rotatedAt` is evidence of replacement.
+Legacy revocations have no such evidence and are only refused, never inferred
+to be theft. The marker commits with the replacement session; failed creation
+or token signing leaves neither a marker nor a revocation behind.
 
 **Sessions have a generation.** A password reset or "sign out everywhere"
 moves the account's generation on in the same transaction that revokes its

@@ -179,6 +179,12 @@ and only ever stored hashed where they grant account access (`Session`,
 **Counters are mutated by conditional `UPDATE`**, never read-then-write.
 `TicketType` and `PromoCode` both work this way.
 
+**Session rotation has durable evidence.** `Session.rotatedAt` is nullable;
+only the transaction that revokes the original and creates/signs its replacement
+sets it. Failed replacement rolls everything back. Legacy null values are
+unknown evidence, never proof of rotation; logout/reset revocation does not
+create this marker. Replay detection also checks the account generation.
+
 **Captured-at-purchase amounts.** `TicketOrderItem.unitPriceMinor`,
 `TicketOrder.discountMinor` and `Invoice.lines` all snapshot their value, so a
 later price or template change never rewrites history.

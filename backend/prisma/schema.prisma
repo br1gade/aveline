@@ -121,6 +121,9 @@ model Session {
 
   expiresAt  DateTime
   revokedAt  DateTime?
+  /// Set only in the transaction that creates and signs a replacement session.
+  /// NULL on legacy or otherwise-revoked tokens is not proof of rotation.
+  rotatedAt  DateTime?
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime  @default(now())
   /// The account's session generation when this was issued. A password reset

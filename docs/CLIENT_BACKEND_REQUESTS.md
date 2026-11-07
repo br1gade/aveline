@@ -16,6 +16,9 @@ S2 schemas must describe the final S3–S5 contract. Per-request backward-compat
 ## Product decisions recorded during implementation
 
 - 5 November: the owner selected **hide unpublished seating in vendor briefs** and **allow suspending brief access while retaining the booking**. The owner also selected **paid-to-free changes take effect after the paid period ends**. The restricted door role is still awaiting an answer.
+- 7 November: a token invalidated by **single-device logout is only rejected**;
+  other sessions remain active. Only recorded successful rotation can establish
+  replay requiring account-wide revocation after the retry grace.
 
 ## Verification
 
@@ -48,7 +51,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-19 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
 | FR-20 | Prefix class-validator messages with their field, as the service's own messages do (party.0.firstName: …) | S2 contract/identity | Audit and implement |
 | FR-21 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-22 | Answered at 34ac1e6 | S3 host/guest operations | Audit found single-logout replay still revokes other sessions; fix pending |
+| FR-22 | Answered at 34ac1e6 | S3 host/guest operations | Implemented; transaction, migration and HTTP verification recorded; pre-push CI pending |
 | FR-23 | Let an accepted invitation lead somewhere | S2 contract/identity | Audit and implement |
 | FR-24 | Answered in the schema at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
 | FR-25 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
@@ -175,11 +178,17 @@ changes that must be identified in the eventual commit.
 ## Next implementation slice: vendor briefs and billing transitions
 
 Historic completion audit confirmed 19 of the 20 previously delivered rows
-against current DTOs/schema and their existing regressions. **FR-22 stays open:**
-generation checks protect reset/sign-out-everywhere tokens, but a single-device
-logout has no explicit rotation distinction. Replaying that revoked token after
-the grace period still revokes unrelated live sessions. Add durable rotation
-evidence and a two-session, single-logout regression before closing this row.
+against current DTOs/schema and their existing regressions. FR-22 also exposed
+a policy mismatch: the client heading required rotation evidence, while the
+access contract explicitly treated single-device logout as reuse. The owner
+chose rejection without ending other sessions on 7 November. The follow-up
+adds nullable rotation evidence and atomic replacement/signing, including
+rollback tests for both failure points and conservative handling of legacy
+revocations. Four real-transaction regressions and all 37 authentication HTTP
+cases passed; the strengthened concurrency assertion also passed separately.
+Eleven schema critique cases passed, including migration drift, and OpenAPI
+remains unchanged at 207 paths. Build, lint and docs checks passed. The
+canonical pre-push container proof remains pending.
 
 Import diagnostic review resulted in stripping every raw diagnostic `value`,
 regardless of its column, rebuilding durable messages from known codes and
