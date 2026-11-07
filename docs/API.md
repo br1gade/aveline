@@ -321,12 +321,13 @@ decide whether to show a welcome or a sign-in.
 Re-inviting the same address replaces the previous invitation rather than
 adding a second, so only the most recent link works.
 
-### What a token does not carry
+### Where clients read identity and permissions
 
-Roles are **not** in the token. They are read from the database on every
-request, so removing someone from an event takes effect immediately rather
-than when their token expires. Do not decode the JWT to decide what UI to
-show — ask the API and handle 403.
+Access tokens currently include a platform role claim. The API reloads the
+current platform role and applicable memberships from the database on each
+request. Use `GET /me` for identity and the API's effective permissions to
+decide which actions to show. Handle `403` if access changes between reads
+and writes.
 
 ---
 
@@ -2524,9 +2525,10 @@ legacy, unattributed public text; staff must treat that text as unverified.
 The PATCH `notes` field remains staff-maintained and cannot edit submissions.
 
 Status moves forward only: `RECEIVED` → `VERIFYING` → `IN_PROGRESS` →
-`COMPLETED`, or `REJECTED` from any open state. An `EXPORT` or `ERASURE` is
-completed only by `fulfil`; `PATCH` to `COMPLETED` is refused for them, so an
-erasure cannot be reported that never happened.
+`COMPLETED`, or `REJECTED` from an open state before erasure is applied.
+An `EXPORT` or `ERASURE` can reach `COMPLETED` only through fulfilment.
+Once `erasureAppliedAt` is set, a PATCH to `REJECTED` returns `400` with an
+error on `status`, including while recovery is pending.
 
 `fulfil` is refused with `400` unless the request is `IN_PROGRESS`, which a
 human sets after establishing who the requester is. **Acting on an unverified

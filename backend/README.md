@@ -457,7 +457,7 @@ registration, not bank certification or credentials.
 | `POST` | `/api/v1/privacy/requests` | Ask what is held, or for erasure (**public**) |
 | `GET` | `/api/v1/privacy/requests` | Open requests, soonest due first |
 | `GET` | `/api/v1/privacy/requests/:requestId/submissions` | Paged, separately stored unverified public text; privacy:manage |
-| `PATCH` | `/api/v1/privacy/requests/:requestId` | Move one through verification |
+| `PATCH` | `/api/v1/privacy/requests/:requestId` | Move one through verification or edit staff notes. Applied erasures cannot be rejected. |
 | `POST` | `/api/v1/privacy/requests/:requestId/fulfil` | Carry out a verified request |
 | `GET` | `/api/v1/suppressions` | Addresses that will not be contacted |
 | `POST` | `/api/v1/suppressions` | Stop contacting an address |

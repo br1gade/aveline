@@ -109,25 +109,32 @@ export class PrivacyService {
   }
 
   async update(requestId: string, userId: string, dto: UpdateDataSubjectRequestDto) {
-    const request = await this.require(requestId);
-    if (dto.status) {
-      const problem = statusChangeProblem(request.kind, request.status, dto.status);
-      if (problem) throw new BadRequestException(problem);
-    }
+    return this.prisma.$transaction(async (tx) => {
+      // Read under the same row lock as fulfilment so staff see any committed erasure.
+      await lockPrivacyRequest(tx, requestId);
+      const request = await this.require(requestId, tx);
+      if (dto.status === DataSubjectRequestStatus.REJECTED && request.erasureAppliedAt) {
+        throw new BadRequestException('status: an applied erasure cannot be rejected');
+      }
+      if (dto.status) {
+        const problem = statusChangeProblem(request.kind, request.status, dto.status);
+        if (problem) throw new BadRequestException(problem);
+      }
 
-    return this.prisma.dataSubjectRequest.update({
-      where: { id: requestId },
-      data: {
-        status: dto.status ?? undefined,
-        notes: dto.notes ?? undefined,
-        handledByUserId: userId,
-        completedAt:
-          dto.status === DataSubjectRequestStatus.COMPLETED ||
-          dto.status === DataSubjectRequestStatus.REJECTED
-            ? new Date()
-            : undefined,
-      },
-    });
+      return tx.dataSubjectRequest.update({
+        where: { id: requestId },
+        data: {
+          status: dto.status ?? undefined,
+          notes: dto.notes ?? undefined,
+          handledByUserId: userId,
+          completedAt:
+            dto.status === DataSubjectRequestStatus.COMPLETED ||
+            dto.status === DataSubjectRequestStatus.REJECTED
+              ? new Date()
+              : undefined,
+        },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
 
   /**
@@ -167,7 +174,7 @@ export class PrivacyService {
 
   private fulfilExport(completion: { requestId: string; userId: string }) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id=${completion.requestId} FOR UPDATE`;
+      await lockPrivacyRequest(tx, completion.requestId);
       const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: completion.requestId } });
       if (request.status !== 'IN_PROGRESS' || request.kind !== 'EXPORT') throw new ConflictException('This export request changed or was already carried out');
       await lockExportPrivacy(tx);
@@ -294,7 +301,7 @@ export class PrivacyService {
 
   private async applyErasure(subject: EnquiryPrivacySubject, completion: { requestId: string; userId: string }) {
     const applied = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id=${completion.requestId} FOR UPDATE`;
+      await lockPrivacyRequest(tx, completion.requestId);
       const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: completion.requestId } });
       if (request.status !== 'IN_PROGRESS') throw new ConflictException('This request is being carried out by someone else, or already was');
       const verified = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveForErasure(tx, request.id) : { ...subject, email: request.subjectEmail };
@@ -382,13 +389,17 @@ export class PrivacyService {
     return { overdue: overdue.length, dueSoon: dueSoon.length };
   }
 
-  private async require(requestId: string) {
-    const request = await this.prisma.dataSubjectRequest.findUnique({
+  private async require(requestId: string, db: Pick<Prisma.TransactionClient, 'dataSubjectRequest'> = this.prisma) {
+    const request = await db.dataSubjectRequest.findUnique({
       where: { id: requestId },
     });
     if (!request) throw new NotFoundException('No such request');
     return request;
   }
+}
+
+async function lockPrivacyRequest(tx: Prisma.TransactionClient, requestId: string) {
+  await tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id = ${requestId} FOR UPDATE`;
 }
 
 export type DataSubjectRequestRow = Prisma.DataSubjectRequestGetPayload<object>;

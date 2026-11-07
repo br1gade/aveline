@@ -16,6 +16,7 @@ import { PrismaService } from '../../../src/prisma/prisma.service';
 import { authenticateAs } from '../../fixtures/auth.fixture';
 import { seedEvent } from '../../fixtures/event.fixture';
 import { DAY_MS } from '../../fixtures/areas/privacy.fixture';
+import { holdTransaction, untilSomeoneWaitsOnALock } from '../../fixtures/areas/guest-list.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
 const SUBJECT = 'primary@test.local';
@@ -112,6 +113,26 @@ describe('Data-subject requests (e2e coverage)', () => {
       prisma.dataSubjectRequest.create({
         data: { kind: DataSubjectRequestKind.ERASURE, status, subjectEmail, dueAt: new Date(Date.now() + inDays * DAY_MS) },
       });
+
+    it('refuses rejection when erasure commits while staff are editing the request', async () => {
+      const officer = await privacyOfficer();
+      const pending = await requestDue(DataSubjectRequestStatus.IN_PROGRESS, 1, SUBJECT);
+      const erasureAppliedAt = new Date();
+      const held = await holdTransaction(prisma, (tx) => tx.dataSubjectRequest.update({
+        where: { id: pending.id }, data: { erasureAppliedAt, erasureCheckpointId: pending.id },
+      }));
+      const response = http().patch(`/api/v1/privacy/requests/${pending.id}`).set('Authorization', officer)
+        .send({ status: 'REJECTED', notes: 'Should not be saved' }).then();
+      try {
+        await untilSomeoneWaitsOnALock(prisma);
+      } finally {
+        held.release();
+        await Promise.all([held.done, response]);
+      }
+      expect((await response).status).toBe(400);
+      expect(await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: pending.id } }))
+        .toMatchObject({ status: 'IN_PROGRESS', notes: null, completedAt: null, erasureAppliedAt });
+    });
 
     it('lists one status soonest due first', async () => {
       const officer = await privacyOfficer();

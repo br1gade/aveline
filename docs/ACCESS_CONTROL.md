@@ -266,9 +266,9 @@ issued in, and the guard refuses an older one at once — issued access tokens
 do not live out their minutes, and a session a concurrent login or refresh
 mints during the reset is born dead.
 
-Roles are **never** read from the token. `AuthGuard` loads membership from the
-database on every request, so removing someone from an event takes effect
-immediately rather than when their token expires.
+Access tokens currently carry a platform role claim. `AuthGuard` loads the
+current platform role and applicable memberships from the database on every
+request. Membership removal takes effect on the next request.
 
 Two supporting models complete the lifecycle: `VerificationToken` for password
 reset and email verification, and `OrganizationInvite` for adding a teammate —

@@ -30,62 +30,62 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 
 | Request | Client request / starting point | Slice | Status |
 |---|---|---|---|
-| FR-1 | Response schemas for every operation in openapi.json | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-2 | Declare security per operation: bearer, or public with security: [] | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-3 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-4 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-5 | Partly answered at 34ac1e6, without naming this: GET /me/organizations returns {items:[{organizationId,na | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-6 | Effective permissions per event, and whether the account may create events in its organization At 34ac1e6 | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-7 | Rate limits that fit the client | S1 safety/correctness | Implemented; backend verification recorded; pre-push CI pending |
-| FR-8 | Write the route contract (/invitations/:slug/g/:guestToken and the others the backend emails) into docs/A | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
+| FR-1 | Response schemas for every operation in openapi.json | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-2 | Declare security per operation: bearer, or public with security: [] | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-3 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-4 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-5 | Partly answered at 34ac1e6, without naming this: GET /me/organizations returns {items:[{organizationId,na | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-6 | Effective permissions per event, and whether the account may create events in its organization At 34ac1e6 | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-7 | Rate limits that fit the client | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-8 | Write the route contract (/invitations/:slug/g/:guestToken and the others the backend emails) into docs/A | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-9 | Mechanism only at 34ac1e6: authored templates must bundle their fonts and a remote one is refused (templa | S5 templates/renderer | Design/external or optional decision; document prerequisite |
-| FR-10 | Partly answered at 34ac1e6: x-request-id is exposed and preflights are cached for ten minutes (common/cor | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
+| FR-10 | Partly answered at 34ac1e6: x-request-id is exposed and preflights are cached for ten minutes (common/cor | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-11 | Agree the deployment topology: one origin through Caddy, a web service, CORS_ORIGINS, PUBLIC_APP_URL, pro | S6 optional/deployment | Design/external or optional decision; document prerequisite |
 | FR-12 | Optional: the refresh token as an httpOnly cookie | S6 optional/deployment | Design/external or optional decision; document prerequisite |
-| FR-13 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-13 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-14 | A seeded login for manual testing | S6 optional/deployment | Design/external or optional decision; document prerequisite |
 | FR-15 | Optional: a metadata object on the public invitation | S5 templates/renderer | Audit and implement |
 | FR-16 | Optional: the template's API rules as an importable file | S2 contract/identity | Audit and implement |
-| FR-17 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-18 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-19 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-17 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-18 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-19 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-20 | Prefix class-validator messages with their field, as the service's own messages do (party.0.firstName: …) | S2 contract/identity | Audit and implement |
-| FR-21 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-22 | Answered at 34ac1e6 | S3 host/guest operations | Implemented; transaction, migration and HTTP verification recorded; pre-push CI pending |
+| FR-21 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-22 | Answered at 34ac1e6 | S3 host/guest operations | Implemented; transaction, migration and HTTP verification recorded; merged in `75e22e8` |
 | FR-23 | Let an accepted invitation lead somewhere | S2 contract/identity | Audit and implement |
-| FR-24 | Answered in the schema at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-25 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-26 | Partly answered at 34ac1e6: row: 0 is documented and the examples now match the code | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-27 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-24 | Answered in the schema at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-25 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-26 | Partly answered at 34ac1e6: row: 0 is documented and the examples now match the code | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-27 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-28 | Machine-readable codes for refusals that name no field | S2 contract/identity | Audit and implement |
-| FR-29 | Answered another way at 34ac1e6: the answers are not gated, but a policy test fails if any role may write | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-29 | Answered another way at 34ac1e6: the answers are not gated, but a policy test fails if any role may write | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-30 | Move a guest into a household of their own | S3 host/guest operations | Audit and implement |
-| FR-31 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-31 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-32 | Stable codes for the publish blockers, in publishBlockers (GET /invitations/:slug/design) and in the publ | S2 contract/identity | Audit and implement |
 | FR-33 | Codes for a send's outcomes: each unreachable household's reason (no guests, erased, malformed address, n | S2 contract/identity | Audit and implement |
-| FR-34 | Answered another way at 34ac1e6: the answers are not gated, but a policy test fails if any role may send  | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-35 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
-| FR-36 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-34 | Answered another way at 34ac1e6: the answers are not gated, but a policy test fails if any role may send  | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-35 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
+| FR-36 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-37 | Return each person's agreements in GET …/g/:guestToken/rsvp: which statements each household member has a | S3 host/guest operations | Audit and implement |
-| FR-38 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-38 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-39 | Say how many households hold the invitation in the attendance change's notice, as the event's and the ven | S3 host/guest operations | Audit and implement |
-| FR-40 | Answered at 34ac1e6, through ?locale= | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-40 | Answered at 34ac1e6, through ?locale= | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-41 | A status read for one signature upload, and a rate allowance for polling it | S1 safety/correctness | Audit and implement |
 | FR-42 | Templates the renderer can draw | S5 templates/renderer | Design/external or optional decision; document prerequisite |
 | FR-43 | Declare each block's content and settings fields | S5 templates/renderer | Audit and implement |
-| FR-44 | Partly answered at 34ac1e6: the eventId path parameter and a nullable variant are in the schema | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-45 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-44 | Partly answered at 34ac1e6: the eventId path parameter and a nullable variant are in the schema | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-45 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-46 | A per-event switch for the guest gallery | S3 host/guest operations | Audit and implement |
 | FR-47 | Filters, counts and usage on GET /events/:eventId/gallery | S3 host/guest operations | Audit and implement |
 | FR-48 | Say who shared a photo, to the hosts, or say why not | S3 host/guest operations | Audit and implement |
 | FR-49 | Name the guests in GET /events/:eventId/acknowledgements | S3 host/guest operations | Audit and implement |
 | FR-50 | The guest's own photos and the gallery's closing date, on the personal link | S3 host/guest operations | Audit and implement |
-| FR-51 | Answered at 34ac1e6 by the schema work, though the backend did not know of this request | S3 host/guest operations | Audit confirmed code/schema and regression coverage; pre-push CI pending |
+| FR-51 | Answered at 34ac1e6 by the schema work, though the backend did not know of this request | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-52 | Say which seating arrangements guests see, in the venues' order | S3 host/guest operations | Audit and implement |
 | FR-53 | Seat a household in one request | S3 host/guest operations | Audit and implement |
 | FR-54 | Order tables by their number | S3 host/guest operations | Audit and implement |
 | FR-55 | Name the households a seating run could not seat | S3 host/guest operations | Audit and implement |
-| FR-56 | Partly answered at 34ac1e6: zone, venueId, posX and posY are typed | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
+| FR-56 | Partly answered at 34ac1e6: zone, venueId, posX and posY are typed | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-57 | Name the venue in each seatReleases record, as seating does (guests.service.ts, guestView) | S3 host/guest operations | Audit and implement |
 | FR-58 | Codes for the export refusals that share a status | S3 host/guest operations | Audit and implement |
 | FR-59 | Export failure codes that say what to do | S3 host/guest operations | Audit and implement |
@@ -99,12 +99,12 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-67 | Let PATCH …/ticket-types/:typeId clear a sales window | S4 ticketing/vendors/billing | Audit and implement |
 | FR-68 | Orders that a host can read whole | S3 host/guest operations | Audit and implement |
 | FR-69 | Codes for the announcement's publish blockers, as FR-32 asks of the invitation's: POST …/listing/publish  | S4 ticketing/vendors/billing | Audit and implement |
-| FR-70 | Partly answered at 34ac1e6: names, descriptions and picture ids are typed | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
+| FR-70 | Partly answered at 34ac1e6: names, descriptions and picture ids are typed | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-71 | Give hosts checkout's rules for one person (attendanceMode, attendanceRevision, guest-facing venues, rsvp | S3 host/guest operations | Audit and implement |
-| FR-72 | Declare Idempotency-Key optional on POST /organizations | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-73 | Give GET /public/events/:slug the guest-page allowance, or trust a forwarded client address from our rend | S3 host/guest operations | Implemented; backend verification recorded; pre-push CI pending |
-| FR-74 | Keep contact details out of a CSV's "No first-name column found" error | S1 safety/correctness | Implemented; backend verification recorded; pre-push CI pending |
-| FR-75 | Refuse a blank answer to a required question | S1 safety/correctness | Implemented; backend verification recorded; pre-push CI pending |
+| FR-72 | Declare Idempotency-Key optional on POST /organizations | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-73 | Give GET /public/events/:slug the guest-page allowance, or trust a forwarded client address from our rend | S3 host/guest operations | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-74 | Keep contact details out of a CSV's "No first-name column found" error | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-75 | Refuse a blank answer to a required question | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-76 | Codes and facts on the door's refusals | S3 host/guest operations | Audit and implement |
 | FR-77 | Check arrival and ticket state before the agreement gate | S1 safety/correctness | Audit and implement |
 | FR-78 | Who still must agree, per person, on a host's read | S3 host/guest operations | Audit and implement |
@@ -131,31 +131,31 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-99 | Suppression writes and reads | S1 safety/correctness | Audit and implement |
 | FR-100 | Promo codes: a currency, a zone, clearing, the pilot | S4 ticketing/vendors/billing | Audit and implement |
 | FR-101 | translations on creating an event | S3 host/guest operations | Audit and implement |
-| FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Implemented; organization-owned edits, private notes and soft removal; pre-push CI pending |
-| FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Implemented; event-scoped vendor choices verified; pre-push CI pending |
+| FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Implemented; organization-owned edits, private notes and soft removal; merged in `75e22e8` |
+| FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Implemented; event-scoped vendor choices verified; merged in `75e22e8` |
 | FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Audit and implement |
-| FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Implemented; picker returns brief section purposes and defaults; pre-push CI pending |
-| FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Implemented; 84 vendor/access HTTP cases passed; pre-push CI pending |
-| FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
-| FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
+| FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Implemented; picker returns brief section purposes and defaults; merged in `75e22e8` |
+| FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Implemented; 84 vendor/access HTTP cases passed; merged in `75e22e8` |
+| FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
+| FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Audit and implement |
 | FR-110 | Billing's data | S4 ticketing/vendors/billing | Decision recorded; implementation pending |
 | FR-111 | Tell "analytics is off" from "no views", and count songs per venue | S3 host/guest operations | Audit and implement |
 | FR-112 | Approve several photos in one request | S3 host/guest operations | Audit and implement |
 | FR-113 | The drawn plan's writes | S3 host/guest operations | Audit and implement |
-| FR-114 | Declare ChooseTemplateDto whole, and say which templates need a preview | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
+| FR-114 | Declare ChooseTemplateDto whole, and say which templates need a preview | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-115 | Give private artwork as an asset's id, not a path holding the guest's token | S5 templates/renderer | Audit and implement |
-| FR-116 | Declare X-Aveline-Organization-Id per route | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-117 | Describe and page the guest book and the answers sheet | S3 host/guest operations | Implemented; backend verification recorded; pre-push CI pending |
+| FR-116 | Declare X-Aveline-Organization-Id per route | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-117 | Describe and page the guest book and the answers sheet | S3 host/guest operations | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-118 | Read and record a household's answers in one request each | S3 host/guest operations | Audit and implement |
 | FR-119 | Take an idempotency key when adding a guest | S3 host/guest operations | Audit and implement |
-| FR-120 | Preview a section's unsaved content | S5 templates/renderer | Implemented; backend verification recorded; pre-push CI pending |
-| FR-121 | Say who the caller is on GET /organizations/current/members, or give GET /me (FR-5) | S2 contract/identity | Implemented; backend verification recorded; pre-push CI pending |
-| FR-122 | Say whether a closure review is open, on GET /organizations/current | S3 host/guest operations | Implemented; backend verification recorded; pre-push CI pending |
+| FR-120 | Preview a section's unsaved content | S5 templates/renderer | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-121 | Say who the caller is on GET /organizations/current/members, or give GET /me (FR-5) | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-122 | Say whether a closure review is open, on GET /organizations/current | S3 host/guest operations | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-123 | Tell an unreadable audit trail from an empty one, and describe each entry | S3 host/guest operations | Audit and implement |
-| FR-124 | Give asking to close a route permission and a plain refusal | S3 host/guest operations | Implemented; backend verification recorded; pre-push CI pending |
-| FR-125 | Say which members are active, and read a page's revision with its rows | S1 safety/correctness | Implemented; backend verification recorded; pre-push CI pending |
-| FR-126 | Keep each data request's notes apart, marked unverified, and drop none silently | S1 safety/correctness | Implemented; backend verification recorded; pre-push CI pending |
+| FR-124 | Give asking to close a route permission and a plain refusal | S3 host/guest operations | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-125 | Say which members are active, and read a page's revision with its rows | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
+| FR-126 | Keep each data request's notes apart, marked unverified, and drop none silently | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
 
 ## Evidence and remaining work
 
@@ -163,7 +163,7 @@ First batch evidence: payment/billing integration 28 cases passed; organization 
 
 Review findings corrected: passthrough JSON vs raw responses, streamed file MIME types, array interfaces, nullable unions/enums, interceptor recovery fields, and required answers evaluated only for attending guests (including prior stored blanks).
 
-Not yet completed: the remaining request rows and the final pre-push/container gate. No merge, deployment, real sending, charging or production activation is implied by this plan.
+The first backend batch passed full local and hosted CI and merged to `dev` and `main` at `75e22e8`. Remaining request rows and production launch prerequisites are still open.
 
 Follow-up batch: FR-117 adds bounded question/answer and guest-book pages, full
 SQL option tallies, translated boolean values (including regional locales),
@@ -252,3 +252,21 @@ catalogue edits. Selecting a free plan still voids an unpaid plan-change invoice
 a late capture must follow the existing full-refund path. Preserve captured
 invitation lifetime. Charge providers, fiscal configuration and unattended
 renewals remain subject to existing launch gates.
+
+## Follow-up from frontend commit `77ed2c9`
+
+The frontend was built against `34ac1e6`. The merged backend already covers
+FR-1, FR-2, FR-5, FR-6, FR-73 and FR-74. The next open pilot API requests in
+Arthur's message are FR-62 (buyer order context), FR-76 (door refusal codes
+and facts), and FR-79 (door roster and search). FR-11 is the deployment layout
+decision.
+
+The frontend register adds FR-127 through FR-136. FR-131 is addressed in this
+follow-up. An applied erasure stays in recovery and cannot be rejected.
+FR-135 is the period-end free-plan change already decided under FR-110.
+The other new rows remain open.
+
+Keep A6 while testing. Use a separate integration branch from the current
+backend and `frontend/publish-send` for the real API walkthrough and frontend
+CI. Decide the production origin layout before accepting checkout returns
+and email links in a deployed client.
