@@ -142,7 +142,7 @@ owner.
 | `invitation:publish` | Make it live, close it |
 | `operations:read` | Headcount, catering, bar, playlist, guest book |
 | `seating:read` / `seating:write` | Tables and assignments |
-| `vendor:read` / `vendor:write` | The organization's own vendors and this event's bookings; Aveline's curated list is read-only to customers |
+| `vendor:read` / `vendor:write` | Organization directory and event bookings; event-only collaborators can read the event's booking choices without directory access; the curated list is read-only to customers |
 | `vendor:fee:read` | What vendors are being paid — separated from `vendor:read` |
 | `member:manage` | Invite and remove members, change roles |
 | `billing:read` | Invoices, plan and promo codes |

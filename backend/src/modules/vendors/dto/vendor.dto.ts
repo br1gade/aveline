@@ -50,7 +50,7 @@ export class CreateVendorDto {
 }
 
 class BookingFeeDto {
-  @ApiPropertyOptional({ type: String, nullable: true, description: 'Whole minor units as a string; null clears the fee', example: '150000' })
+  @ApiPropertyOptional({ type: String, nullable: true, pattern: '^\\d{1,15}$', description: 'Whole minor units as a string; null clears the fee', example: '150000' })
   @IsOptional()
   @IsString()
   @Matches(/^\d{1,15}$/, { message: 'feeMinor must be a whole number of minor units, e.g. "150000"' })

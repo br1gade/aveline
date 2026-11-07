@@ -2128,6 +2128,24 @@ included). Aveline staff add to the curated list. Booking another
 organization's vendor is a `404`. `category` is one of `VENUE`, `CATERING`,
 `BAR`, `DECOR`, `PHOTOGRAPHY`, `VIDEOGRAPHY`, `MUSIC`, `PRINT`, `OTHER`.
 
+For the booking form, use
+`GET /api/v1/events/:eventId/vendor-options?category=CATERING&limit=20&offset=0`.
+It requires `vendor:read` on the event, including for collaborators who have
+no organization role. It lists active vendors from the event's organization
+and the curated list, ordered by category, name and ID. `category` is
+optional, `limit` is 1–100 (default 20), and `offset` is 0–10,000 (default 0).
+The response includes:
+
+- `items`: `{ id, name, category, isCurated }` for each choice, with
+  `total`, `limit`, `offset` and `hasMore` on the response.
+- `sections`: `{ section, purpose }` entries for all available brief sections.
+- `defaults`: `{ category, scopes }` entries for every category. These match
+  the scopes used when creating or renewing a booking without `briefScopes`.
+
+The picker does not include vendor contact details, private notes, fees or
+brief links. The organization directory still requires organization or
+platform access.
+
 ```http
 GET   /api/v1/events/:eventId/vendors
 POST  /api/v1/events/:eventId/vendors   { "vendorId": "...", "briefScopes": ["headcount"], "feeMinor": "150000" }

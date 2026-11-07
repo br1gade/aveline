@@ -9357,6 +9357,94 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/vendor-options": {
+      "get": {
+        "operationId": "VendorsController_listOptions",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/VendorCategory"
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorOptionsDto"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Bookable vendors and brief scope defaults for this event",
+        "tags": [
+          "vendors"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/vendors": {
       "get": {
         "description": "Fees only for callers holding vendor:fee:read; each brief link only for callers holding vendor:write.",
@@ -17107,12 +17195,152 @@
           "category"
         ]
       },
+      "VendorCategory": {
+        "type": "string",
+        "enum": [
+          "VENUE",
+          "CATERING",
+          "BAR",
+          "DECOR",
+          "PHOTOGRAPHY",
+          "VIDEOGRAPHY",
+          "MUSIC",
+          "PRINT",
+          "OTHER"
+        ]
+      },
+      "VendorOptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VendorCategory"
+              }
+            ]
+          },
+          "isCurated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "isCurated"
+        ]
+      },
+      "VendorBriefSection": {
+        "type": "string",
+        "enum": [
+          "headcount",
+          "catering",
+          "bar",
+          "playlist",
+          "timeline",
+          "seating",
+          "households",
+          "contacts"
+        ]
+      },
+      "BriefSectionDto": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VendorBriefSection"
+              }
+            ]
+          },
+          "purpose": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "section",
+          "purpose"
+        ]
+      },
+      "VendorCategoryDefaultsDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VendorCategory"
+              }
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VendorBriefSection"
+            }
+          }
+        },
+        "required": [
+          "category",
+          "scopes"
+        ]
+      },
+      "VendorOptionsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VendorOptionDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BriefSectionDto"
+            }
+          },
+          "defaults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VendorCategoryDefaultsDto"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "hasMore",
+          "sections",
+          "defaults"
+        ]
+      },
       "BookVendorDto": {
         "type": "object",
         "properties": {
           "feeMinor": {
             "type": "string",
             "nullable": true,
+            "pattern": "^\\d{1,15}$",
             "description": "Whole minor units as a string; null clears the fee",
             "example": "150000"
           },
@@ -17152,6 +17380,7 @@
           "feeMinor": {
             "type": "string",
             "nullable": true,
+            "pattern": "^\\d{1,15}$",
             "description": "Whole minor units as a string; null clears the fee",
             "example": "150000"
           },

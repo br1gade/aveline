@@ -132,9 +132,9 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-100 | Promo codes: a currency, a zone, clearing, the pilot | S4 ticketing/vendors/billing | Audit and implement |
 | FR-101 | translations on creating an event | S3 host/guest operations | Audit and implement |
 | FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Audit and implement |
-| FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Audit and implement |
+| FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Implemented; event-scoped vendor choices verified; pre-push CI pending |
 | FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Audit and implement |
-| FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Audit and implement |
+| FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Implemented; picker returns brief section purposes and defaults; pre-push CI pending |
 | FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Implemented; 84 vendor/access HTTP cases passed; pre-push CI pending |
 | FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
 | FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
@@ -217,18 +217,22 @@ FR-106 accepts ISO currency codes and an explicit null to clear a fee on either
 booking write. Changing a recorded fee's currency requires an explicit amount
 or clear. Both vendor HTTP files passed all 84 cases with this change.
 
+FR-103/105 add a typed, paginated picker scoped to the event's organization.
+Event-only coordinators can select and book eligible vendors without
+organization directory access. The picker returns the section purposes and
+defaults from the booking policy and omits commercial and contact fields.
+All 89 vendor HTTP cases and 33 focused policy and route checks passed,
+including offset validation and duplicate-booking fee changes.
+
 ## Next implementation slice: vendor administration and billing transitions
 
 Vendor administration shares the booking projection but is independent of
 household RSVP writes:
 
-1. Add event-scoped vendor choices using the event's organization, including
-   for event-only collaborators. Return the existing section vocabulary and
-   category defaults from their source constants. Bound the new list.
-2. Allow corrections and soft removal of organization-owned vendor entries;
-   reject foreign/curated edits and new bookings of inactive vendors, while
-   retaining existing bookings. Read the saved internal notes back only on
-   authorized host surfaces.
+Allow corrections and soft removal of organization-owned vendor entries;
+reject foreign/curated edits and new bookings of inactive vendors, while
+retaining existing bookings. Read the saved internal notes back only on
+authorized host surfaces.
 
 Billing (FR-110) needs its own additive scheduled-change record/fields and
 transaction tests: preserve the paid plan and period through its end, expose

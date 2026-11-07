@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { BookingStatus, VendorCategory, type Prisma, type VendorBooking } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
+import { resolvePaging, toPage } from '../../common/dto/pagination.dto';
 import { lockRow } from '../../common/row-lock';
 import { lockEventOrganization, requireCurrentEventPermission } from '../../infra/auth/access-locks';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BookVendorDto, CreateVendorDto, UpdateBookingDto } from './dto/vendor.dto';
-import { SUGGESTED_SCOPES, sectionsFor } from './vendor-brief';
+import type { VendorOptionsDto, VendorOptionsQuery } from './dto/vendor-options.dto';
+import { BRIEF_SECTIONS, BRIEF_SECTION_PURPOSE, SUGGESTED_SCOPES, sectionsFor } from './vendor-brief';
 
 const BOOKED_VENDOR = { select: { id: true, name: true, category: true } } as const;
 
@@ -40,6 +42,25 @@ export class VendorsService {
           venueProfile: vendor.venueProfiles[0] ? { city: vendor.venueProfiles[0].city, capacity: vendor.venueProfiles[0].capacity } : null,
           isCurated: owner === null })),
       );
+  }
+
+  async listOptions(organizationId: string, query: VendorOptionsQuery): Promise<VendorOptionsDto> {
+    const paging = resolvePaging(query);
+    const where = { active: true, category: query.category, OR: [{ organizationId }, { organizationId: null }] };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.vendor.findMany({
+        where, ...paging,
+        orderBy: [{ category: 'asc' }, { name: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, category: true, organizationId: true },
+      }),
+      this.prisma.vendor.count({ where }),
+    ], { isolationLevel: 'RepeatableRead' });
+    const items = rows.map(({ organizationId: owner, ...row }) => ({ ...row, isCurated: owner === null }));
+    return {
+      ...toPage(items, total, paging),
+      sections: BRIEF_SECTIONS.map((section) => ({ section, purpose: BRIEF_SECTION_PURPOSE[section] })),
+      defaults: Object.values(VendorCategory).map((category) => ({ category, scopes: sectionsFor(SUGGESTED_SCOPES[category]) })),
+    };
   }
 
   /**

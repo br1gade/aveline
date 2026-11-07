@@ -55,8 +55,8 @@ describe('Vendor bookings, briefs and access (coverage e2e)', () => {
 
   const coordinator = async () => {
     const { eventId } = await seedEvent(prisma);
-    const { authorization } = await authenticateAs(app, prisma, { eventId, role: EventRole.COORDINATOR });
-    return { eventId, authorization };
+    const { authorization, userId } = await authenticateAs(app, prisma, { eventId, role: EventRole.COORDINATOR });
+    return { eventId, authorization, userId };
   };
 
   const curatedVendor = (name = 'Tashir Catering', category: VendorCategory = VendorCategory.CATERING) =>
@@ -128,6 +128,59 @@ describe('Vendor bookings, briefs and access (coverage e2e)', () => {
       },
     });
   };
+
+  describe('event vendor options', () => {
+    it('lets an event-only coordinator find and book choices without opening the organization directory', async () => {
+      const { eventId, authorization, userId } = await coordinator();
+      const organizationId = await organizationOf(eventId);
+      const foreignId = await organizationOf((await seedEvent(prisma)).eventId);
+      const local = await prisma.vendor.create({ data: { organizationId, name: 'A caterer', category: 'CATERING', notes: 'Private notes' } });
+      const curated = await curatedVendor('B caterer');
+      await prisma.vendor.createMany({ data: [
+        { organizationId: foreignId, name: 'Foreign caterer', category: 'CATERING' },
+        { organizationId, name: 'Inactive caterer', category: 'CATERING', active: false },
+        { organizationId, name: 'Musician', category: 'MUSIC' },
+      ] });
+
+      await http().get('/api/v1/vendors').set('Authorization', authorization).expect(403);
+      const options = (offset: number) => http().get(`/api/v1/events/${eventId}/vendor-options`)
+        .query({ category: 'CATERING', limit: 1, offset }).set('Authorization', authorization);
+      const { body: first } = await options(0).expect(200);
+      expect(first).toMatchObject({ total: 2, limit: 1, offset: 0, hasMore: true });
+      expect(first.items).toEqual([{ id: local.id, name: local.name, category: 'CATERING', isCurated: false }]);
+      const { body: last } = await options(1).expect(200);
+      expect(last).toMatchObject({ total: 2, limit: 1, offset: 1, hasMore: false });
+      expect(last.items).toEqual([{ id: curated.id, name: curated.name, category: 'CATERING', isCurated: true }]);
+
+      await prisma.organizationMembership.create({ data: { userId, organizationId: foreignId, role: 'OWNER' } });
+      const { body: foreignDirectory } = await http().get('/api/v1/vendors').set('Authorization', authorization).expect(200);
+      expect(foreignDirectory).toContainEqual(expect.objectContaining({ name: 'Foreign caterer' }));
+      expect(foreignDirectory).not.toContainEqual(expect.objectContaining({ id: local.id }));
+      const { body: afterJoiningElsewhere } = await options(0).expect(200);
+      expect(afterJoiningElsewhere.items).toEqual(first.items);
+      const { body: bookedChoice } = await book(eventId, authorization, { vendorId: local.id }).expect(201);
+      const defaults = first.defaults as { category: VendorCategory; scopes: string[] }[];
+      expect(defaults.find(({ category }) => category === 'CATERING')?.scopes).toEqual(bookedChoice.briefScopes);
+      expect(first.sections).toContainEqual({ section: 'contacts', purpose: 'Guest emails and phone numbers' });
+    });
+
+    it('refuses unrelated accounts and validates page bounds', async () => {
+      const { eventId, authorization } = await coordinator();
+      const outsider = await memberOf(OrganizationRole.OWNER);
+      const url = `/api/v1/events/${eventId}/vendor-options`;
+
+      await http().get(url).set('Authorization', outsider.authorization).expect(403);
+      await http().get(url).set('Authorization', authorization).query({ limit: 101 }).expect(400);
+      await http().get(url).set('Authorization', authorization).query({ offset: 10000 }).expect(200);
+    });
+
+    it.each([-1, 0.5, 10001])('rejects an invalid offset of %p and names the field', async (offset) => {
+      const { eventId, authorization } = await coordinator();
+      const { body } = await http().get(`/api/v1/events/${eventId}/vendor-options`).query({ offset })
+        .set('Authorization', authorization).expect(400);
+      expect(namesField(body, 'offset')).toBe(true);
+    });
+  });
 
   describe('editing a booking', () => {
     // docs/API.md: "An unrecognised scope is a 400." PATCH has its own decorators.
@@ -202,13 +255,17 @@ describe('Vendor bookings, briefs and access (coverage e2e)', () => {
     it('keeps the link and the fee when the same vendor is booked again without one', async () => {
       const { eventId, authorization } = await coordinator();
       const vendor = await curatedVendor();
-      const { body: first } = await book(eventId, authorization, { vendorId: vendor.id, feeMinor: '150000' }).expect(201);
+      const { body: first } = await book(eventId, authorization, { vendorId: vendor.id, feeMinor: '150000', feeCurrency: 'USD' }).expect(201);
 
       const { body: second } = await book(eventId, authorization, { vendorId: vendor.id, briefScopes: ['bar'] }).expect(201);
 
-      expect(second).toMatchObject({ id: first.id, briefToken: first.briefToken, briefScopes: ['bar'], feeMinor: '150000' });
+      expect(second).toMatchObject({ id: first.id, briefToken: first.briefToken, briefScopes: ['bar'], feeMinor: '150000', feeCurrency: 'USD' });
       const { body: served } = await brief(first.briefToken as string).expect(200);
       expect(served.granted).toEqual([{ section: 'bar', purpose: expect.any(String) }]);
+      const { body: invalid } = await book(eventId, authorization, { vendorId: vendor.id, feeCurrency: 'EUR' }).expect(400);
+      expect(namesField(invalid, 'feeMinor')).toBe(true);
+      const { body: cleared } = await book(eventId, authorization, { vendorId: vendor.id, feeCurrency: 'EUR', feeMinor: null }).expect(201);
+      expect(cleared).toMatchObject({ id: first.id, briefToken: first.briefToken, feeMinor: null, feeCurrency: 'EUR' });
     });
 
     it('lets an organization book its own vendor on its own event', async () => {

@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Header, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, ForbiddenException, Get, Header, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VendorCategory } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
 import {
@@ -12,6 +12,7 @@ import {
   actorCan,
 } from '../../infra/auth/actor';
 import { BookVendorDto, CreateVendorDto, UpdateBookingDto } from './dto/vendor.dto';
+import { VendorOptionsDto, VendorOptionsQuery } from './dto/vendor-options.dto';
 import { VendorBriefsService } from './vendor-briefs.service';
 import { VendorsService } from './vendors.service';
 
@@ -48,6 +49,17 @@ export class VendorsController {
   })
   createVendor(@CurrentActor() actor: RequestActor, @Body() dto: CreateVendorDto) {
     return this.vendors.createVendor(ownerOfNewVendor(actor), dto);
+  }
+
+  @RequirePermission('vendor:read')
+  @EventScope('eventId')
+  @Get('events/:eventId/vendor-options')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Bookable vendors and brief scope defaults for this event' })
+  @ApiOkResponse({ type: VendorOptionsDto })
+  listOptions(@CurrentActor() actor: RequestActor, @Query() query: VendorOptionsQuery) {
+    if (!actor.organizationId) throw new NotFoundException('No such event');
+    return this.vendors.listOptions(actor.organizationId, query);
   }
 
   @RequirePermission('vendor:read')
