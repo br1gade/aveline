@@ -62,7 +62,7 @@ function withOrganization(request: Request, organizationId: string | undefined):
   if (
     !organizationId ||
     request.headers.has(ORGANIZATION_HEADER) ||
-    !takesOrganization(new URL(request.url).pathname)
+    !takesOrganization(new URL(request.url).pathname, request.method)
   ) {
     return request;
   }

@@ -18,6 +18,9 @@ const SCOPED_PATHS: readonly RegExp[] = [
   /^\/api\/v1\/organizations\/current(\/|$)/,
 ];
 
-export function takesOrganization(pathname: string): boolean {
+export function takesOrganization(pathname: string, method: string): boolean {
+  if ((method === 'PATCH' || method === 'DELETE') && /^\/api\/v1\/vendors\/[^/]+$/.test(pathname)) {
+    return true;
+  }
   return SCOPED_PATHS.some((path) => path.test(pathname));
 }

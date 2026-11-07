@@ -34,6 +34,7 @@ describe('which part of an event a write touched (PD-158)', () => {
     ['/events/:id/archive', 'archive'],
     ['/events/:eventId/team/invites/:email', 'team'],
     ['/events/:eventId/attendance-policy', 'attendance-policy'],
+    ['/events/:eventId/ticket-inventory', 'ticket-inventory'],
     ['/invitations/:slug/publish', 'invitation'],
     ['/invitations/:slug/blocks/:type', 'invitation'],
   ])('%s is %s', (route, area) => {

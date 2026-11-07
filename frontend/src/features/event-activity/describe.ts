@@ -21,6 +21,7 @@ const AREAS = [
   'settings',
   'tables',
   'team',
+  'ticket-inventory',
   'ticket-orders',
   'ticket-types',
   'tickets',

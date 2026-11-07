@@ -17,6 +17,7 @@ function controllers(folder: string): string[] {
 }
 
 interface Route {
+  method: string;
   path: string;
   isScoped: boolean;
 }
@@ -31,43 +32,46 @@ function routes(): Route[] {
     const prefix = /@Controller\('([^']*)'\)/.exec(source)?.[1] ?? '';
     return source.split(/^ {2}(?:async\s+)?[a-zA-Z]\w*\(/m).flatMap((decorators) => {
       const scope = /@OrganizationScope\(([^)]*)\)/.exec(decorators);
-      const route = /@(?:Get|Post|Patch|Put|Delete)\((?:'([^']*)')?\)/.exec(decorators);
-      if (!route || scope?.[1]?.includes('platform')) return [];
-      const path = [prefix, route[1]].filter(Boolean).join('/').replaceAll(/:\w+/g, 'x');
-      return [{ path: `/api/v1/${path}`, isScoped: Boolean(scope) }];
+      const route = /@(Get|Post|Patch|Put|Delete)\((?:'([^']*)')?\)/.exec(decorators);
+      if (!route?.[1] || scope?.[1]?.includes('platform')) return [];
+      const path = [prefix, route[2]].filter(Boolean).join('/').replaceAll(/:\w+/g, 'x');
+      return [
+        { method: route[1].toUpperCase(), path: `/api/v1/${path}`, isScoped: Boolean(scope) },
+      ];
     });
   });
 }
 
-const scopedRoutes = routes()
-  .filter(({ isScoped }) => isScoped)
-  .map(({ path }) => path);
-const otherRoutes = routes()
-  .filter(({ isScoped }) => !isScoped)
-  .map(({ path }) => path);
+const scopedRoutes = routes().filter(({ isScoped }) => isScoped);
+const otherRoutes = routes().filter(({ isScoped }) => !isScoped);
 
 describe('which calls say which organization', () => {
   it('finds the routes it is pinned to', () => {
-    expect(scopedRoutes).toEqual(
+    expect(scopedRoutes.map(({ path }) => path)).toEqual(
       expect.arrayContaining(['/api/v1/subscription', '/api/v1/promo-codes', '/api/v1/events']),
     );
-    expect(otherRoutes).toEqual(
+    expect(otherRoutes.map(({ path }) => path)).toEqual(
       expect.arrayContaining(['/api/v1/plans', '/api/v1/me/organizations']),
     );
   });
 
   it('reads each handler apart, not one per file', () => {
-    expect(scopedRoutes.filter((path) => path.startsWith('/api/v1/promo-codes'))).toHaveLength(4);
+    expect(scopedRoutes.filter(({ path }) => path.startsWith('/api/v1/promo-codes'))).toHaveLength(
+      4,
+    );
   });
 
-  it.each(scopedRoutes)('sends it to %s, which the backend scopes', (path) => {
-    expect(takesOrganization(path)).toBe(true);
-  });
+  it.each(scopedRoutes)(
+    'sends it to $method $path, which the backend scopes',
+    ({ path, method }) => {
+      expect(takesOrganization(path, method)).toBe(true);
+    },
+  );
 
-  it.each(otherRoutes.filter((path) => !scopedRoutes.includes(path)))(
-    'keeps it from %s, which the backend doesn’t scope',
-    (path) => {
-      expect(takesOrganization(path)).toBe(false);
+  it.each(otherRoutes)(
+    'keeps it from $method $path, which the backend doesn’t scope',
+    ({ path, method }) => {
+      expect(takesOrganization(path, method)).toBe(false);
     },
   );
 
@@ -84,6 +88,6 @@ describe('which calls say which organization', () => {
     '/api/v1/plans',
     '/api/v1/briefs/t',
   ])('keeps it from %s: an event names its own, and a mismatch is a 409', (path) => {
-    expect(takesOrganization(path)).toBe(false);
+    expect(takesOrganization(path, 'GET')).toBe(false);
   });
 });
