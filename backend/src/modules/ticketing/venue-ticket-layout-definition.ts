@@ -5,11 +5,11 @@ export type TicketLayoutSection =
   | { key: string; name: string; mode: TicketSectionMode.NUMBERED; rows: { label: string; seats: string[] }[] }
   | { key: string; name: string; mode: TicketSectionMode.UNNUMBERED; capacity: number };
 
-export function normalizeTicketLayout(sections: TicketLayoutSectionDto[]): TicketLayoutSection[] {
+export function normalizeTicketLayout(sections: TicketLayoutSectionDto[], maxSeats = MAX_LAYOUT_SEATS): TicketLayoutSection[] {
   assertUniqueLabels(sections.map((section) => section.key), 'sections', 'section keys');
   const normalized = sections.map(normalizeSection);
   const seatCount = normalized.reduce((sum, section) => sum + countSeats(section), 0);
-  if (seatCount > MAX_LAYOUT_SEATS) throw new BadRequestException(`sections: at most ${MAX_LAYOUT_SEATS} numbered seats per layout`);
+  if (seatCount > maxSeats) throw new BadRequestException(`sections: at most ${maxSeats} numbered seats per layout`);
   return normalized;
 }
 

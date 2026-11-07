@@ -73,6 +73,7 @@ describe('guest-page rate limits', () => {
       'invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file',
       'public/events',
       'public/events/:slug',
+      'public/events/:slug/ticket-inventory/:sectionKey',
     ]);
     for (const route of widened) {
       expect(route).toMatchObject({ method: RequestMethod.GET, short: GUEST_PAGE_LIMITS.short.limit, medium: GUEST_PAGE_LIMITS.medium.limit });

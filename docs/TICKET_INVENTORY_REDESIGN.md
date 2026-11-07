@@ -1,6 +1,6 @@
 # Ticket selection and inventory redesign
 
-Status: venue layout publishing and event selection are implemented in the follow-up. Checkout still sells quantities by ticket type. The allocation and buyer flows below specify the next implementation.
+Status: the backend supports per-show inventory and mixed seat and zone purchases. The separate frontend branch adds the organizer editor, CSV import and buyer picker.
 
 ## Buyer and organizer flows
 
@@ -28,15 +28,15 @@ An extended order request includes the layout version and one selection per atte
 ## Hold, settlement and release
 
 1. Validate the whole order, then create the order, claims, and attendee roster in one database transaction before contacting the bank. Free orders settle through the same allocation rules. Lock rows in a stable order and reject a basket as a whole if any selection is unavailable.
-2. Back numbered claims with a unique database constraint for active holds and sales on a seat. Use conditional updates on unnumbered section counters so concurrent orders and different price offers cannot exceed the shared capacity. A ticket type quota, where present, is an additional check in the same transaction.
+2. Keep a single nullable order claim on each numbered seat row and lock it when claiming. Use conditional updates on unnumbered section counters so concurrent orders and different price offers cannot exceed the shared capacity. A ticket type quota, where present, is an additional check in the same transaction.
 3. Settle once. A captured order turns its existing allocations into sales and issues one ticket per attendee. An abandoned checkout releases the same allocations with the existing expiry rules. A confirmed cancellation releases the seats or zone capacity when its tickets are voided. An uncertain refund keeps the allocation unavailable until the order outcome is resolved.
 4. If money arrives after a hold was released, attempt to reclaim the exact numbered seats or capacity in the original zones. Issue only if the complete allocation can still be honoured. Otherwise refund the full order through the existing late-payment path. Never substitute a different seat or zone automatically.
 
 ## Implementation and acceptance
 
-1. Publish reusable venue layout versions and select them for event venues. This is implemented for directory venues. The current editor payload is bounded to 5,000 numbered seats per layout. Large stadium maps need section uploads or an import workflow.
-2. Add the event inventory, offer and allocation schema and public section availability API. Prove that existing orders continue through payment, expiry and cancellation, and test ownership, stale versions, capacity and organizer edit restrictions.
-3. Connect allocation to checkout, settlement, expiry and cancellation. Exercise competing buyers on one seat and across two prices in a shared zone, mixed-basket rollback, repeated requests and callbacks, confirmed refunds, and late captures with and without the original inventory available.
-4. Build the organizer editor and buyer picker on the frontend integration branch. Verify the organizer-to-buyer-to-door journey against a seeded backend in all four supported languages, including keyboard and mobile seat selection. Keep paid operation behind the existing pilot and provider gates.
+1. Publish reusable venue layout versions and select them for event venues. This is implemented for directory venues. The manual editor supports up to 5,000 numbered seats. CSV import supports up to 75,000 seats across 100 sections.
+2. The event inventory, offer and allocation schema and public section availability API are implemented. A show publishes one inventory snapshot before it has any ticket orders. Ticket types with an offer can be deactivated.
+3. The allocation now follows checkout, settlement, expiry and cancellation. Test competing buyers for seats, prices sharing zone capacity, mixed-basket rollback, repeated requests and callbacks, and late captures with and without the original inventory available.
+4. The organizer editor and buyer picker are on a separate frontend branch. Verify the organizer-to-buyer-to-door journey against a seeded backend in all four supported languages, including keyboard and mobile seat selection. Paid operation follows the pilot and provider gates.
 
-This redesign starts with named attendees. Transferable or unnamed tickets, table-based ticket maps, imported venue charts and automatic suggestions for adjacent seats can be specified separately.
+This redesign starts with named attendees. Transferable or unnamed tickets, table-based ticket maps, graphical venue charts and automatic suggestions for adjacent seats can be specified separately.

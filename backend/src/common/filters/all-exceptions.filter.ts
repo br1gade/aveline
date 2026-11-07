@@ -50,6 +50,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       message,
       ...localizeHttpError(status, message, requestLanguage(request), exception instanceof DomainHttpException ? exception.code : undefined),
+      ...(exception instanceof DomainHttpException && exception.selection ? { selection: exception.selection } : {}),
       requestId: request.requestId,
       path: redactUrl(request.url),
       at: new Date().toISOString(),

@@ -183,7 +183,7 @@ for every guest from one address: `GET /invitations/:slug`,
 `GET /invitations/:slug/g/:guestToken`, the guest's own
 `GET /invitations/:slug/g/:guestToken/rsvp`, and the acknowledgement, signature and
 gallery file reads, both gallery/acknowledgement lists, invitation design-artwork files,
-and the public event listing/detail. Every write keeps the default.
+and the public event listing, detail and section availability. Every write keeps the default.
 
 ### Dates
 
@@ -961,6 +961,7 @@ only after reconciliation.
 
 ```http
 POST /api/v1/venue-profiles/:profileId/ticket-layouts
+POST /api/v1/venue-profiles/:profileId/ticket-layouts/import
 GET  /api/v1/events/:eventId/venues/:venueId/ticket-layouts
 GET  /api/v1/events/:eventId/venues/:venueId/ticket-layouts/:versionId
 GET  /api/v1/events/:eventId/venues/:venueId/ticket-layout
@@ -976,17 +977,70 @@ returns `409`. A venue may have up to 30 layout keys. A layout supports up to
 `UNNUMBERED` uses `capacity` instead. Section keys, rows in a section, and
 seats in a row must be unique.
 
+For a large layout, use the multipart import with fields `file` (UTF-8
+CSV), `key`, `name` and `expectedVersion`. The file limit is 8 MiB. The
+header and example records are:
+
+```csv
+section_key,section_name,mode,row,seat,capacity
+balcony,Balcony,NUMBERED,B,12,
+floor,Floor,UNNUMBERED,,,200
+```
+
+Use one record per numbered seat or unnumbered zone. Keep the section name
+and mode consistent for every record of a section. The import accepts 100
+sections, 75,000 numbered seats in total, and 1,000 numbered seats per
+section. Up to 100 rows per section and 100 seats per row are supported. A
+bad record or stale version rejects the entire upload.
+
 With `event:read`, the list returns latest summaries, a version can be
 previewed, and the selected layout is returned by the singular GET (or
 `null`). With `event:write`, PUT takes `{ versionId }` from the event venue's
 directory profile. A retired profile cannot supply new selections. An event
 keeps its selected version after the directory publishes a new one.
 
-Selection is organizer setup. Public checkout still sells existing ticket
-quantities. Seat and zone holds are specified in the
-[ticket inventory redesign](TICKET_INVENTORY_REDESIGN.md).
+### Show ticket inventory
+
+```http
+POST /api/v1/events/:eventId/ticket-inventory
+GET  /api/v1/events/:eventId/ticket-inventory
+GET  /api/v1/public/events/:slug/ticket-inventory/:sectionKey
+```
+
+With `event:write`, publish `{ venueId, layoutVersionId, offers, blockedSeats? }`.
+The layout version must belong to the active directory profile for a guest-facing venue on this event. Publishing selects the version and activates its stock in one transaction.
+Each offer is `{ sectionKey, ticketTypeId }` and uses an existing price on this
+event. Only sections with offers go on sale. Blocked seats are identified by
+`{ sectionKey, row, seat }` using labels from the venue layout. One show uses
+one published layout. Publishing is a one-time operation and is refused if
+the event already has orders from quantity checkout. With `event:read`, GET
+returns the published inventory configuration or `null`.
+
+The public event response has `ticketInventory: null` for quantity checkout.
+Otherwise it has `{ layoutVersionId, sections: [{ key, name, mode, ticketTypeIds }] }`.
+Read a section by its key for current availability. The section response has
+`{ layoutVersionId, key, name, mode, ticketTypeIds, available, seats }`. In a
+numbered section, `seats` contains selectable `{ id, row, label }` entries in
+layout order. In an unnumbered zone, `available` is the remaining shared
+capacity, and `seats` is empty. The section response lists currently
+available ticket types. Each price still has its own quantity and basket
+rules from the listing. These reads are a snapshot. Checkout reserves stock
+atomically. See the [ticket inventory design](TICKET_INVENTORY_REDESIGN.md).
 
 ### Buying tickets
+
+For a show with published inventory, include `layoutVersionId` and
+`selections` with exactly one entry per attendee in roster order. Use
+`{ sectionKey, seatId }` for a numbered seat and `{ sectionKey }` for a zone.
+The attendee's ticket type must be offered in the section. Checkout and
+buyer-order reads return the saved allocation as `attendees[].selection`
+with `sectionKey`, `sectionName`, `seatId`, `row` and `seat`. Zone orders
+have null seat fields. Quantity orders have a null selection.
+A stale layout returns `409 TICKET_LAYOUT_CHANGED`. A stock conflict returns
+`409 TICKET_SELECTION_UNAVAILABLE` with `selection.sectionKey` and, for a
+numbered seat, `selection.seatId`. No part of the basket is held on failure.
+After expiry a late capture can reclaim only its original selections.
+If a selection cannot be reclaimed, the order is refunded in full.
 
 An organizer can set `buyerTicketLimit` (1–100,000) on the event listing
 with `PUT /events/:eventId/listing`. Send `null` to clear it or omit it to

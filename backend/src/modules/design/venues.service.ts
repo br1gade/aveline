@@ -107,6 +107,7 @@ export class VenuesService {
         dto.longitude === undefined ? current.longitude : dto.longitude,
       );
 
+      if (dto.role === VenueRole.PREPARATION) await assertVenueHasNoShowInventory(tx, eventId, venueId);
       await assertVenueCapacity(tx, venueId, dto.capacity);
       return tx.venue.update({
         where: { id: venueId },
@@ -144,6 +145,7 @@ export class VenuesService {
         include: { _count: { select: { timeline: true, tables: true } } },
       });
       if (!venue) throw new NotFoundException('No such venue on this event');
+      await assertVenueHasNoShowInventory(tx, eventId, venueId);
       const releases = await tx.seatRelease.count({ where: { arrangement: { venueId } } });
       const responses = await tx.attendanceResponse.count({ where: { eventId, venueId } });
       if (responses > 0) throw new BadRequestException('venue: attendance history exists; retain this venue');
@@ -273,4 +275,10 @@ async function assertDirectoryOperator(tx: Prisma.TransactionClient, vendorId: s
   await tx.$queryRaw`SELECT id FROM vendors WHERE id = ${vendorId} FOR SHARE`;
   const vendor = await tx.vendor.findFirst({ where: { id: vendorId, organizationId: null, category: 'VENUE', active: true }, select: { id: true } });
   if (!vendor) throw new BadRequestException('vendorId: choose an active curated VENUE vendor');
+}
+
+
+async function assertVenueHasNoShowInventory(tx: Prisma.TransactionClient, eventId: string, venueId: string) {
+  const inventory = await tx.showTicketInventory.findUnique({ where: { eventId }, select: { venueId: true } });
+  if (inventory?.venueId === venueId) throw new BadRequestException('venue: ticket inventory is already published for this venue');
 }

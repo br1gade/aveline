@@ -1,9 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { Trimmed } from '../../../common/trimmed';
 
-const KEY = /^[a-z0-9][a-z0-9-]{0,39}$/;
+export const TICKET_LAYOUT_KEY = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const MAX_LAYOUT_SEATS = 5_000;
 export const MAX_VENUE_LAYOUTS = 30;
 
@@ -31,8 +31,8 @@ export class TicketLayoutRowDto {
 }
 
 export class TicketLayoutSectionDto {
-  @ApiProperty({ pattern: KEY.source })
-  @Matches(KEY)
+  @ApiProperty({ pattern: TICKET_LAYOUT_KEY.source })
+  @Matches(TICKET_LAYOUT_KEY)
   key!: string;
 
   @ApiProperty({ minLength: 1, maxLength: 100 })
@@ -63,9 +63,9 @@ export class TicketLayoutSectionDto {
   capacity?: number;
 }
 
-export class PublishVenueTicketLayoutDto {
-  @ApiProperty({ pattern: KEY.source })
-  @Matches(KEY)
+export class VenueTicketLayoutVersionDto {
+  @ApiProperty({ pattern: TICKET_LAYOUT_KEY.source })
+  @Matches(TICKET_LAYOUT_KEY)
   key!: string;
 
   @ApiProperty({ minLength: 1, maxLength: 100 })
@@ -76,11 +76,14 @@ export class PublishVenueTicketLayoutDto {
   name!: string;
 
   @ApiProperty({ minimum: 0, description: 'Use 0 for a new layout, otherwise the latest version read' })
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value)
   @IsInt()
   @Min(0)
   @Max(2_147_483_646)
   expectedVersion!: number;
+}
 
+export class PublishVenueTicketLayoutDto extends VenueTicketLayoutVersionDto {
   @ApiProperty({ type: [TicketLayoutSectionDto], minItems: 1, maxItems: 40 })
   @IsArray()
   @ArrayMinSize(1)

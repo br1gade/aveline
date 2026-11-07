@@ -1,3 +1,5 @@
+import { ShowTicketInventoryController } from './show-ticket-inventory.controller';
+import { ShowTicketInventoryService } from './show-ticket-inventory.service';
 import { VenueTicketLayoutsController } from './venue-ticket-layouts.controller';
 import { VenueTicketLayoutsService } from './venue-ticket-layouts.service';
 import { TicketAttendeesService } from './ticket-attendees.service';
@@ -16,9 +18,10 @@ import { TicketingService } from './ticketing.service';
 
 @Module({
   imports: [PaymentsModule, BillingModule],
-  controllers: [TicketingController, TicketSetupController, TicketAttendeesController, VenueTicketLayoutsController],
+  controllers: [TicketingController, TicketSetupController, TicketAttendeesController, VenueTicketLayoutsController, ShowTicketInventoryController],
   providers: [
     VenueTicketLayoutsService,
+    ShowTicketInventoryService,
     TicketAttendeesService,
     TicketInventoryService,
     TicketNotifierService,

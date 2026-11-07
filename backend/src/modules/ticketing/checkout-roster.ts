@@ -71,7 +71,8 @@ function answerColumns(person: OrderAttendeeDto) {
 export async function checkoutFingerprint(slug: string, dto: CreateOrderDto): Promise<string> {
   const canonical = { slug, items: dto.items, buyerName: dto.buyerName, buyerEmail: dto.buyerEmail.toLowerCase(), buyerPhone: dto.buyerPhone ?? null,
     locale: dto.locale ?? null, provider: dto.provider ?? null, returnUrl: dto.returnUrl ?? null, promoCode: dto.promoCode ?? null,
-    attendanceRevision: dto.attendanceRevision ?? null, attendees: dto.attendees };
+    attendanceRevision: dto.attendanceRevision ?? null, attendees: dto.attendees,
+    layoutVersionId: dto.layoutVersionId, selections: dto.selections };
   const hash = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(stableValue(canonical))));
   return Buffer.from(hash).toString('hex');
 }

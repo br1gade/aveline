@@ -21,6 +21,14 @@ export class JobRecoveryDto {
   action!: string;
 }
 
+export class TicketSelectionFeedbackDto {
+  @ApiProperty()
+  sectionKey!: string;
+
+  @ApiProperty({ required: false })
+  seatId?: string;
+}
+
 export class HttpErrorDto extends JobRecoveryDto {
   @ApiProperty()
   statusCode!: number;
@@ -30,6 +38,8 @@ export class HttpErrorDto extends JobRecoveryDto {
   details!: FieldFeedbackDto[];
   @ApiProperty({ required: false })
   requestId?: string;
+  @ApiProperty({ required: false, type: TicketSelectionFeedbackDto })
+  selection?: { sectionKey: string; seatId?: string };
   @ApiProperty()
   path!: string;
   @ApiProperty({ format: 'date-time' })

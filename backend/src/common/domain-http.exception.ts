@@ -1,6 +1,8 @@
 import { HttpException } from '@nestjs/common';
 
 export const DOMAIN_ERRORS = {
+  TICKET_LAYOUT_CHANGED: { status: 409, action: 'RELOAD' },
+  TICKET_SELECTION_UNAVAILABLE: { status: 409, action: 'EDIT' },
   TICKET_BUYER_LIMIT_REACHED: { status: 409, action: 'EDIT' },
   ENQUIRY_CHANGED: { status: 409, action: 'RELOAD' },
   CONSULTATION_CONFLICT: { status: 409, action: 'EDIT' },
@@ -38,7 +40,7 @@ export type DomainErrorCode = keyof typeof DOMAIN_ERRORS;
 
 /** Only application-owned codes cross the global feedback boundary. */
 export class DomainHttpException extends HttpException {
-  constructor(readonly code: DomainErrorCode, message: string | string[]) {
+  constructor(readonly code: DomainErrorCode, message: string | string[], readonly selection?: { sectionKey: string; seatId?: string }) {
     super({ message }, DOMAIN_ERRORS[code].status);
   }
 }

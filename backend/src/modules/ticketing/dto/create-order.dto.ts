@@ -1,3 +1,4 @@
+import { TicketSelectionDto } from './show-ticket-inventory.dto';
 import { OrderAttendeeDto } from './attendee.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OnAppOrigin } from '../../../common/app-url';
@@ -33,6 +34,22 @@ export class OrderLineDto {
 }
 
 export class CreateOrderDto {
+  @ApiPropertyOptional({ description: 'Required for a show with published inventory' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  layoutVersionId?: string;
+
+  @ApiPropertyOptional({ type: [TicketSelectionDto], description: 'One selection per attendee, in attendee order' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => TicketSelectionDto)
+  selections?: TicketSelectionDto[];
+
   @ApiProperty({ type: [OrderAttendeeDto], description: 'Exactly one named person per requested ticket' })
   @IsArray()
   @ArrayMinSize(1)

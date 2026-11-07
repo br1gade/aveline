@@ -95,9 +95,12 @@ with a different organization. This adds no event-transfer behavior.
 ### Ticketing
 | Model | Purpose |
 |---|---|
-| `TicketType` | A sellable tier; inventory lives here |
+| `TicketType` | A price tier with its own quota |
+| `VenueTicketLayoutVersion` | Immutable reusable layout with numbered sections and capacity zones |
+| `ShowTicketInventory` · `ShowTicketSection` · `ShowTicketOffer` | Event-owned stock and price eligibility. An unnumbered section has a counter shared across prices |
+| `ShowTicketSeat` | An exact numbered seat in one show. Its nullable order claim is retained for holds and sales |
 | `TicketOrder` · `TicketOrderItem` | One purchase |
-| `OrderAttendee` | One captured attendee per requested ticket, saved at reservation; original answers, explicit household grouping and reconciliation snapshot |
+| `OrderAttendee` | One captured attendee per requested ticket, saved at reservation; original answers, optional saved seat or zone, and reconciliation snapshot |
 | `Ticket` | One admitted person, uniquely linked to its attendee and guest within the event |
 | `PromoCode` | Discounts, percent or fixed |
 

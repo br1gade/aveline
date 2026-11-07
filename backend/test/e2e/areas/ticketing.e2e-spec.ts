@@ -163,6 +163,135 @@ describe('Ticketing contract (e2e coverage)', () => {
 
     });
 
+    const sellLayout = async (options: SaleOptions = {}) => {
+      const staff = await authenticateAs(app, prisma);
+      await prisma.user.update({ where: { id: staff.userId }, data: { platformRole: PlatformRole.ADMIN } });
+      const profile = await prisma.venueProfile.create({ data: { name: 'Theatre', address: 'Main street' } });
+      const { body: version } = await as(staff.authorization).post(`/venue-profiles/${profile.id}/ticket-layouts`, {
+        ...layout, sections: [layout.sections[0], { ...layout.sections[1], capacity: 1 }],
+      }).expect(201);
+      const show = await sale(options);
+      const { body: venue } = await show.host.post(`${show.base}/venues`, { profileId: profile.id, role: 'OTHER',
+        name: 'Theatre', address: 'Main street' }).expect(201);
+      const { body: alternative } = await show.host.post(`${show.base}/ticket-types`, {
+        name: { en: 'Alternative floor price' }, priceMinor: options.priceMinor ?? '10000', quantityTotal: 10,
+      }).expect(201);
+      await show.host.put(`${show.base}/venues/${venue.id}/ticket-layout`, { versionId: version.id }).expect(200);
+      await show.host.post(`${show.base}/ticket-inventory`, {
+        venueId: venue.id, layoutVersionId: version.id, offers: [
+          { sectionKey: 'balcony', ticketTypeId: show.typeId },
+          { sectionKey: 'floor', ticketTypeId: show.typeId },
+          { sectionKey: 'floor', ticketTypeId: alternative.id },
+        ],
+      }).expect(201);
+      const path = `/api/v1/public/events/${show.slug}/ticket-inventory`;
+      const { body: availability } = await http().get(`${path}/balcony`).expect(200);
+      expect(availability.seats).toHaveLength(2);
+      return { ...show, path, seats: availability.seats as { id: string }[], profileId: profile.id, layoutVersionId: version.id as string,
+        alternativeId: alternative.id as string };
+    };
+
+    it('sells each numbered seat only once under competing checkouts', async () => {
+      const show = await sellLayout({ priceMinor: '0' });
+      const seatId = show.seats[0].id;
+      const placeOrder = () => checkout(show.slug, show.typeId, {
+        layoutVersionId: show.layoutVersionId, selections: [{ sectionKey: 'balcony', seatId }],
+      });
+      const orders = await Promise.all([placeOrder(), placeOrder()]);
+      expect(orders.map((order) => order.status).sort()).toEqual([201, 409]);
+      expect(orders.find((order) => order.status === 409)?.body).toMatchObject({
+        code: 'TICKET_SELECTION_UNAVAILABLE', selection: { sectionKey: 'balcony', seatId },
+      });
+      const { body: order } = orders.find((response) => response.status === 201)!;
+      expect(order.attendees[0].selection).toMatchObject({ sectionKey: 'balcony', seatId, row: 'B', seat: '12' });
+      expect((await http().get(`${show.path}/balcony`).expect(200)).body.seats).toEqual([expect.objectContaining(show.seats[1])]);
+      await show.host.post(`${show.base}/tickets/${order.tickets[0].code}/admit`).expect(201);
+    });
+
+    it('keeps the same layout independent between shows', async () => {
+      const first = await sellLayout({ priceMinor: '0' });
+      const second = await sale({ priceMinor: '0' });
+      const { body: venue } = await second.host.post(`${second.base}/venues`, { profileId: first.profileId, role: 'OTHER',
+        name: 'Theatre', address: 'Main street' }).expect(201);
+      await second.host.post(`${second.base}/ticket-inventory`, {
+        venueId: venue.id, layoutVersionId: first.layoutVersionId, offers: [{ sectionKey: 'balcony', ticketTypeId: second.typeId }],
+        blockedSeats: [{ sectionKey: 'balcony', row: 'B', seat: '13' }],
+      }).expect(201);
+      await checkout(first.slug, first.typeId, {
+        layoutVersionId: first.layoutVersionId, selections: [{ sectionKey: 'balcony', seatId: first.seats[0].id }],
+      }).expect(201);
+      const { body } = await http().get(`/api/v1/public/events/${second.slug}/ticket-inventory/balcony`).expect(200);
+      expect(body.seats).toEqual([{ id: expect.any(String), row: 'B', label: '12' }]);
+      expect(body.seats[0].id).not.toBe(first.seats[0].id);
+      await checkout(second.slug, second.typeId, {
+        layoutVersionId: 'stale-layout', selections: [{ sectionKey: 'balcony', seatId: body.seats[0].id }],
+      }).expect(409);
+      await checkout(second.slug, second.typeId, {
+        layoutVersionId: first.layoutVersionId, selections: [{ sectionKey: 'balcony', seatId: body.seats[0].id }],
+      }).expect(201);
+    });
+
+    it('shares a zone across prices and rolls back a mixed basket when a seat is gone', async () => {
+      const show = await sellLayout({ priceMinor: '0' });
+      const seatId = show.seats[0].id;
+      const balcony = { sectionKey: 'balcony', seatId };
+      const floor = { sectionKey: 'floor' };
+      const placeOrder = (typeId: string, selections: object[]) => checkout(show.slug, typeId, {
+        layoutVersionId: show.layoutVersionId, quantity: selections.length, selections,
+      });
+      await checkout(show.slug, show.typeId).expect(409);
+      await placeOrder(show.typeId, [balcony]).expect(201);
+      await placeOrder(show.typeId, [floor, balcony]).expect(409);
+      expect((await http().get(`${show.path}/floor`).expect(200)).body.available).toBe(1);
+      const orders = await Promise.all([placeOrder(show.typeId, [floor]), placeOrder(show.alternativeId, [floor])]);
+      expect(orders.map((order) => order.status).sort()).toEqual([201, 409]);
+      const { body: order } = orders.find((response) => response.status === 201)!;
+      await show.host.post(`${show.base}/ticket-orders/${order.orderId}/cancel`).expect(201);
+      await placeOrder(show.typeId, [floor]).expect(201);
+    });
+
+    it('releases expired mixed selections and refunds a late capture when the exact seat is gone', async () => {
+      const show = await sellLayout();
+      const seatId = show.seats[0].id;
+      const selections = [{ sectionKey: 'balcony', seatId }, { sectionKey: 'floor' }];
+      const { body: original } = await checkout(show.slug, show.typeId, {
+        layoutVersionId: show.layoutVersionId, quantity: 2, selections,
+      }).expect(201);
+      await app.get(TicketFulfilmentService).expire(original.orderId as string);
+      await checkout(show.slug, show.typeId, { layoutVersionId: show.layoutVersionId, selections: [selections[0]] }).expect(201);
+      fakeBank().simulateSuccess(`fake_${original.payment.orderNumber as string}`);
+      const { body: late } = await http().post(`/api/v1/ticket-orders/${original.accessToken}/confirm`).expect(201);
+      expect(late).toMatchObject({ status: 'REFUNDED', tickets: [] });
+      expect((await http().get(`${show.path}/floor`).expect(200)).body.available).toBe(1);
+    });
+
+    it('imports and publishes a 75,000-seat stadium layout', async () => {
+      const staff = await authenticateAs(app, prisma);
+      await prisma.user.update({ where: { id: staff.userId }, data: { platformRole: PlatformRole.ADMIN } });
+      const profile = await prisma.venueProfile.create({ data: { name: 'Stadium', address: 'Main street' } });
+      const path = `/api/v1/venue-profiles/${profile.id}/ticket-layouts/import`;
+      const records = Array.from({ length: 75_000 }, (_, position) => {
+        const section = Math.floor(position / 1_000);
+        const row = Math.floor((position % 1_000) / 50);
+        return `section-${section},Section ${section},NUMBERED,${row + 1},${(position % 50) + 1},`;
+      });
+      const csv = ['section_key,section_name,mode,row,seat,capacity', ...records].join('\n');
+      const { body: layout } = await http().post(path).set('Authorization', staff.authorization)
+        .field('key', 'stadium').field('name', 'Stadium concert').field('expectedVersion', '0')
+        .attach('file', Buffer.from(csv), 'seats.csv').expect(201);
+      const show = await sale({ priceMinor: '0' });
+      const { body: venue } = await show.host.post(`${show.base}/venues`, { profileId: profile.id, role: 'OTHER',
+        name: 'Stadium', address: 'Main street' }).expect(201);
+      await show.host.post(`${show.base}/ticket-inventory`, {
+        venueId: venue.id, layoutVersionId: layout.id, offers: Array.from({ length: 75 }, (_, section) => ({
+          sectionKey: `section-${section}`, ticketTypeId: show.typeId,
+        })),
+      }).expect(201);
+      const { body: section } = await http().get(`/api/v1/public/events/${show.slug}/ticket-inventory/section-74`).expect(200);
+      expect(section.available).toBe(1000);
+      expect(section.seats).toHaveLength(1000);
+    });
+
     it('rejects duplicate seat labels and numbered sections with a zone capacity', async () => {
       const staff = await authenticateAs(app, prisma);
       await prisma.user.update({ where: { id: staff.userId }, data: { platformRole: PlatformRole.ADMIN } });

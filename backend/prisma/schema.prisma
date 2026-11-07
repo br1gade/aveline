@@ -257,6 +257,7 @@ model Event {
   listing             EventListing?
   ticketTypes         TicketType[]
   ticketOrders        TicketOrder[]
+  ticketInventory     ShowTicketInventory?
   tickets             Ticket[]
   messages            Message[]
   guestImports        GuestImport[]
@@ -392,6 +393,7 @@ model VenueTicketLayoutVersion {
 
   profile VenueProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
   venues  Venue[]
+  showInventory ShowTicketInventory[]
 
   @@unique([profileId, key, version])
   @@map("venue_ticket_layout_versions")
@@ -1207,10 +1209,72 @@ model TicketType {
   items   TicketOrderItem[]
   tickets Ticket[]
   attendees OrderAttendee[]
+  sectionOffers ShowTicketOffer[]
 
   @@unique([id, eventId])
   @@index([eventId, isActive])
   @@map("ticket_types")
+}
+
+model ShowTicketInventory {
+  eventId         String   @id
+  venueId         String
+  layoutVersionId String
+  publishedAt     DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  layoutVersion VenueTicketLayoutVersion @relation(fields: [layoutVersionId], references: [id], onDelete: Restrict)
+  sections ShowTicketSection[]
+
+  @@index([layoutVersionId])
+  @@map("show_ticket_inventory")
+}
+
+model ShowTicketSection {
+  id              String @id @default(cuid())
+  eventId         String
+  key             String
+  name            String
+  position        Int
+  capacity        Int?
+  quantityClaimed Int @default(0)
+
+  inventory ShowTicketInventory @relation(fields: [eventId], references: [eventId], onDelete: Cascade)
+  seats ShowTicketSeat[]
+  offers ShowTicketOffer[]
+
+  @@unique([eventId, key])
+  @@map("show_ticket_sections")
+}
+
+model ShowTicketOffer {
+  sectionId    String
+  ticketTypeId String
+
+  section ShowTicketSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: NoAction)
+
+  @@id([sectionId, ticketTypeId])
+  @@index([ticketTypeId])
+  @@map("show_ticket_offers")
+}
+
+model ShowTicketSeat {
+  id        String @id @default(cuid())
+  sectionId String
+  row       String
+  label     String
+  position  Int
+  isBlocked Boolean @default(false)
+  orderId   String?
+
+  section ShowTicketSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  order TicketOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([sectionId, row, label])
+  @@index([sectionId, position])
+  @@index([orderId])
+  @@map("show_ticket_seats")
 }
 
 model TicketOrder {
@@ -1251,6 +1315,7 @@ model TicketOrder {
   event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   promoCode PromoCode?        @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
   items     TicketOrderItem[]
+  claimedSeats ShowTicketSeat[]
   tickets   Ticket[]
   attendees OrderAttendee[]
 
@@ -1347,6 +1412,7 @@ model OrderAttendee {
   attendanceRevision Int
   status      RsvpStatus
   venueAttendance Json @default("[]")
+  ticketSelection Json?
   erasedAt    DateTime?
 
   order TicketOrder @relation(fields: [orderId, eventId], references: [id, eventId], onDelete: Cascade)

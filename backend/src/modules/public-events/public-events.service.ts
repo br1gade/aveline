@@ -64,7 +64,11 @@ export class PublicEventsService {
   async findBySlug(slug: string, requestedLocale?: string) {
     const listing = await this.prisma.eventListing.findUnique({
       where: { slug },
-      include: listingInclude,
+      include: { event: { include: { ...listingInclude.event.include, ticketInventory: { select: {
+        layoutVersionId: true,
+        sections: { orderBy: { position: 'asc' }, select: { key: true, name: true, capacity: true,
+          offers: { select: { ticketTypeId: true } } } },
+      } } } } },
     });
 
     if (!listing?.publishedAt || listing.publishedAt > new Date() || listing.event.visibility === EventVisibility.PRIVATE || listing.event.status !== 'PUBLISHED') {
@@ -79,6 +83,13 @@ export class PublicEventsService {
     return {
       slug: listing.slug,
       checkout: { ...await checkoutMetadata(this.prisma, event.id, locale), buyerTicketLimit: listing.buyerTicketLimit, venues: event.venues.map((venue) => ({ id: venue.id, name: venue.name })) },
+      ticketInventory: event.ticketInventory && {
+        layoutVersionId: event.ticketInventory.layoutVersionId,
+        sections: event.ticketInventory.sections.map(({ key, name, capacity, offers }) => ({
+          key, name, mode: capacity === null ? 'NUMBERED' : 'UNNUMBERED',
+          ticketTypeIds: offers.map(({ ticketTypeId }) => ticketTypeId),
+        })),
+      },
       locale,
       availableLocales: event.locales,
       headline: t(listing.headline),

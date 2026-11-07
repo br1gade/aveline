@@ -1,3 +1,4 @@
+import { claimShowSelections, prepareShowSelections, type ShowTicketSelection } from './show-ticket-allocation';
 import { assertBuyerLimit } from './buyer-ticket-limit';
 import { lockAdmission, recordAdmission } from '../guests/admission';
 import { claimCheckout, checkoutFingerprint, prepareRoster } from './checkout-roster';
@@ -36,7 +37,7 @@ const BUYER_ORDER_SELECT = {
   items: { select: { ticketTypeId: true, quantity: true, unitPriceMinor: true,
     ticketType: { select: { name: true } } } },
   attendees: { orderBy: { position: 'asc' }, select: { id: true, ticketTypeId: true, position: true,
-    firstName: true, lastName: true, attendanceRevision: true, status: true, venueAttendance: true } },
+    firstName: true, lastName: true, attendanceRevision: true, status: true, venueAttendance: true, ticketSelection: true } },
   tickets: { select: { id: true, attendeeId: true, holderName: true, code: true, status: true } },
 } satisfies Prisma.TicketOrderSelect;
 
@@ -418,6 +419,7 @@ export class TicketingService {
       await claimCheckout(tx, dto.idempotencyKey);
       const attendees = await prepareRoster(tx, event.id, dto);
       await assertBuyerLimit(tx, { eventId: event.id, email: dto.buyerEmail, quantity: attendees.length });
+      const selections = await prepareShowSelections(tx, event.id, dto);
       const subtotalMinor = subtotalFor(dto.items, types);
       await this.fulfilment.hold(dto.items, tx);
       const claim = dto.promoCode
@@ -458,7 +460,10 @@ export class TicketingService {
         },
         select: { id: true },
       });
-      await tx.orderAttendee.createMany({ data: attendees.map((person) => ({ ...person, orderId: order.id })) });
+      await claimShowSelections(tx, order.id, selections);
+      await tx.orderAttendee.createMany({ data: attendees.map((person, index) => ({
+        ...person, orderId: order.id, ticketSelection: selections[index] ? { ...selections[index] } : undefined,
+      })) });
       return tx.ticketOrder.findUniqueOrThrow({ where: { id: order.id }, include: { items: true, attendees: { orderBy: { position: 'asc' } } } });
     });
   }
@@ -473,7 +478,7 @@ export class TicketingService {
     reservesUntil: Date | null;
     items: { ticketTypeId: string; quantity: number; unitPriceMinor: bigint }[];
     tickets?: { id?: string; attendeeId?: string | null; holderName?: string | null; code: string; status: TicketStatus }[];
-    attendees?: { id: string; ticketTypeId: string; position: number; firstName: string; lastName: string | null; attendanceRevision: number; status: string; venueAttendance: unknown }[];
+    attendees?: { id: string; ticketTypeId: string; position: number; firstName: string; lastName: string | null; attendanceRevision: number; status: string; venueAttendance: unknown; ticketSelection?: unknown }[];
   }) {
     return {
       orderId: order.id,
@@ -485,7 +490,7 @@ export class TicketingService {
       reservesUntil: order.reservesUntil,
       items: order.items.map(orderItem),
       attendees: order.attendees?.map((person) => ({ id: person.id, ticketTypeId: person.ticketTypeId, position: person.position, firstName: person.firstName,
-        lastName: person.lastName, attendanceRevision: person.attendanceRevision, status: person.status, venueAttendance: person.venueAttendance })),
+        lastName: person.lastName, attendanceRevision: person.attendanceRevision, status: person.status, venueAttendance: person.venueAttendance, selection: publicSelection(person.ticketSelection) })),
       tickets: order.tickets?.map((ticket) => ({ id: ticket.id, attendeeId: ticket.attendeeId, holderName: ticket.holderName, code: ticket.code, status: ticket.status })),
     };
   }
@@ -540,4 +545,10 @@ function subtotalFor(
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function publicSelection(value: unknown) {
+  if (!value) return null;
+  const { sectionKey, sectionName, seatId, row, seat } = value as ShowTicketSelection;
+  return { sectionKey, sectionName, seatId, row, seat };
 }

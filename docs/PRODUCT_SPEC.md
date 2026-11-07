@@ -463,20 +463,20 @@ longer exists is the worst outcome available, so a checkout reserves first,
 pays second, and issues third. Abandoned baskets are swept and returned, or a
 popular event sells out to nobody.
 
-**Overselling is a correctness failure, not a tolerable race.** Every
-inventory change is a single conditional `UPDATE` whose predicate carries the
-invariant, with database `CHECK` constraints as a backstop. Tested with ten
-concurrent buyers racing for five seats: exactly five win.
+Checkout holds the whole order atomically. Quotas and zone capacity use
+conditional updates backed by database constraints. Each numbered seat has
+one active order claim. A basket fails if any requested seat or zone is full.
 
 A ticket code admits once. Two scanners at one door cannot both admit it.
 An organizer can cap the number of tickets held and sold to the same buyer
 email across all prices and orders for one event.
 
-Checkout currently sells ticket types by quantity. The approved redesign adds
-numbered seats and unnumbered zones within one event. Directory staff can
-publish reusable venue layout versions. Event hosts can select a version
-without changing checkout. See [Ticket selection and inventory redesign](TICKET_INVENTORY_REDESIGN.md)
-for the planned allocation contract.
+An event can sell numbered seats and unnumbered zones together. Directory
+staff publish reusable venue layouts, including stadium layouts from CSV.
+The organizer assigns ticket prices to sections and publishes independent
+stock for each show. Existing quantity checkout remains available for
+events without published inventory. See the [ticket selection and inventory
+design](TICKET_INVENTORY_REDESIGN.md).
 
 ### 13.4 Where the two shapes meet
 

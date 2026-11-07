@@ -45,7 +45,7 @@ render "Ceremony · 14:00 · Demo Cathedral" without duplicating anything.
 
 ---
 
-Venue profiles can also store immutable [ticket layout versions](TICKET_INVENTORY_REDESIGN.md).
+Venue profiles can also store immutable [ticket layout versions](TICKET_INVENTORY_REDESIGN.md). Each show can publish its own sellable seats and zone capacity from its selected version. A venue with published ticket inventory must remain guest-facing and attached to the event.
 An event venue can select a version from its profile. The layout describes
 the ticket map separately from the guest table plan below.
 

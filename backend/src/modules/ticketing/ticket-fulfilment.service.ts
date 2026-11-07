@@ -1,3 +1,4 @@
+import { claimShowSelections, readShowSelections, releaseShowSelections, ShowSelectionUnavailable } from './show-ticket-allocation';
 import { exceededBuyerLimit } from './buyer-ticket-limit';
 import { beginCancellation, withdrawTicketGuests } from './cancellation-state';
 import { issueAttendeeTickets } from './issue-attendees';
@@ -162,6 +163,8 @@ export class TicketFulfilmentService {
         await this.inventory.release(item.ticketTypeId, item.quantity, tx);
       }
 
+      await releaseShowSelections(tx, order.id);
+
       // An abandoned checkout must not burn a limited code — the next buyer
       // is entitled to it.
       await this.promoCodes.releaseClaim(order.promoCodeId, tx);
@@ -207,6 +210,7 @@ export class TicketFulfilmentService {
           // Thrown to roll the claim back: some seats are not all seats.
           if (!(await this.inventory.sellLate(item.ticketTypeId, item.quantity, tx))) throw new SoldOut();
         }
+        await claimShowSelections(tx, orderId, await readShowSelections(tx, orderId));
         // Expiring gave the redemption back; honouring the order takes it again.
         await this.promoCodes.retake(order.promoCodeId, tx);
         await issueAttendeeTickets(tx, order);
@@ -215,7 +219,7 @@ export class TicketFulfilmentService {
       if (outcome === 'ISSUED') await this.notifier.sendTickets(orderId);
       return outcome;
     } catch (error) {
-      if (error instanceof SoldOut) return 'SOLD_OUT';
+      if (error instanceof SoldOut || error instanceof ShowSelectionUnavailable) return 'SOLD_OUT';
       if (error instanceof BuyerLimitReached) return 'BUYER_LIMIT';
       throw error;
     }
@@ -291,6 +295,7 @@ export class TicketFulfilmentService {
         await this.inventory.returnSold(item.ticketTypeId, item.quantity, tx);
       }
 
+      await releaseShowSelections(tx, orderId);
       await this.promoCodes.releaseClaim(order.promoCodeId, tx);
       await withdrawTicketGuests(tx, order.eventId, orderId);
       return true;

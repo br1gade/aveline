@@ -5,7 +5,8 @@ import { lockCurrentUsers, lockEventOrganization, requireCurrentEventPermission 
 import { can } from '../access/access-policy';
 import { lockLiveEvent } from '../events/event-lock';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MAX_VENUE_LAYOUTS, PublishVenueTicketLayoutDto } from './dto/venue-ticket-layout.dto';
+import { MAX_VENUE_LAYOUTS, PublishVenueTicketLayoutDto, VenueTicketLayoutVersionDto } from './dto/venue-ticket-layout.dto';
+import { parseTicketLayoutCsv } from './venue-ticket-layout-csv';
 import { normalizeTicketLayout, type TicketLayoutSection } from './venue-ticket-layout-definition';
 
 interface EventVenue { eventId: string; venueId: string }
@@ -14,8 +15,15 @@ interface EventVenue { eventId: string; venueId: string }
 export class VenueTicketLayoutsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async publish(profileId: string, dto: PublishVenueTicketLayoutDto, userId: string) {
-    const sections = normalizeTicketLayout(dto.sections);
+  publish(profileId: string, dto: PublishVenueTicketLayoutDto, userId: string) {
+    return this.publishSections(profileId, dto, normalizeTicketLayout(dto.sections), userId);
+  }
+
+  async importCsv(profileId: string, dto: VenueTicketLayoutVersionDto, buffer: Buffer, userId: string) {
+    return this.publishSections(profileId, dto, await parseTicketLayoutCsv(buffer), userId);
+  }
+
+  private async publishSections(profileId: string, dto: VenueTicketLayoutVersionDto, sections: TicketLayoutSection[], userId: string) {
     return this.prisma.$transaction(async (tx) => {
       await lockRow(tx, 'venue_profiles', profileId);
       await requireDirectoryEditor(tx, userId);
@@ -62,6 +70,11 @@ export class VenueTicketLayoutsService {
       const venue = await requireVenue(tx, target);
       if (venue.role === VenueRole.PREPARATION) throw new BadRequestException('venueId: choose a guest-facing venue');
       if (venue.profileId) await lockRow(tx, 'venue_profiles', venue.profileId);
+      const active = await tx.showTicketInventory.findUnique({ where: { eventId: target.eventId },
+        select: { venueId: true, layoutVersionId: true } });
+      if (active?.venueId === venue.id && active.layoutVersionId !== versionId) {
+        throw new ConflictException('This venue’s ticket layout is already published for sale');
+      }
       const version = await requireVersion(tx, venue.profileId, versionId);
       await tx.venue.update({ where: { id: venue.id }, data: { ticketLayoutVersionId: version.id } });
       return describe(version);
