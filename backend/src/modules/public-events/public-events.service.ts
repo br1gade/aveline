@@ -78,7 +78,7 @@ export class PublicEventsService {
 
     return {
       slug: listing.slug,
-      checkout: { ...await checkoutMetadata(this.prisma, event.id, locale), venues: event.venues.map((venue) => ({ id: venue.id, name: venue.name })) },
+      checkout: { ...await checkoutMetadata(this.prisma, event.id, locale), buyerTicketLimit: listing.buyerTicketLimit, venues: event.venues.map((venue) => ({ id: venue.id, name: venue.name })) },
       locale,
       availableLocales: event.locales,
       headline: t(listing.headline),

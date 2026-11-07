@@ -170,12 +170,14 @@ export class TicketSetupService {
       ogTitle: dto.ogTitle as Prisma.InputJsonValue | undefined,
       ogDescription: dto.ogDescription as Prisma.InputJsonValue | undefined,
       isIndexable: dto.isIndexable,
+      buyerTicketLimit: dto.buyerTicketLimit,
       heroAssetId: dto.heroAssetId,
       ogImageId: dto.ogImageId,
     };
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        if (dto.buyerTicketLimit !== undefined) await lockLiveEvent(tx, eventId);
         await assertListingImages(tx, eventId, dto);
         return tx.eventListing.upsert({
           where: { eventId },

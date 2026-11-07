@@ -17167,6 +17167,13 @@
       "UpsertListingDto": {
         "type": "object",
         "properties": {
+          "buyerTicketLimit": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 100000,
+            "description": "Maximum tickets per buyer across this event. Null clears the limit."
+          },
           "heroAssetId": {
             "type": "string",
             "description": "Same-event PHOTO, COVER or LOGO; null clears the listing hero",
@@ -19539,6 +19546,7 @@
               "ORGANIZATION_ACCESS_DENIED",
               "OWNER_HANDOVER_REQUIRED",
               "IDEMPOTENCY_KEY_REUSED",
+              "TICKET_BUYER_LIMIT_REACHED",
               "REVISION_CHANGED",
               "SEATING_VENUE_CAPACITY",
               "SEATING_FAMILY_TABLE_FULL",
@@ -19644,6 +19652,7 @@
               "ORGANIZATION_ACCESS_DENIED",
               "OWNER_HANDOVER_REQUIRED",
               "IDEMPOTENCY_KEY_REUSED",
+              "TICKET_BUYER_LIMIT_REACHED",
               "REVISION_CHANGED",
               "SEATING_VENUE_CAPACITY",
               "SEATING_FAMILY_TABLE_FULL",
@@ -33846,6 +33855,10 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "buyerTicketLimit": {
+            "type": "number",
+            "nullable": true
           }
         },
         "required": [
@@ -33863,7 +33876,8 @@
           "ogDescription",
           "ogImageId",
           "isIndexable",
-          "publishedAt"
+          "publishedAt",
+          "buyerTicketLimit"
         ]
       },
       "TicketSetupController_upsertListingResponse": {
@@ -34212,6 +34226,10 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "buyerTicketLimit": {
+            "type": "number",
+            "nullable": true
           }
         },
         "required": [
@@ -34229,7 +34247,8 @@
           "ogDescription",
           "ogImageId",
           "isIndexable",
-          "publishedAt"
+          "publishedAt",
+          "buyerTicketLimit"
         ]
       },
       "TicketSetupController_publishListingResponse": {
@@ -34578,6 +34597,10 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "buyerTicketLimit": {
+            "type": "number",
+            "nullable": true
           }
         },
         "required": [
@@ -34595,7 +34618,8 @@
           "ogDescription",
           "ogImageId",
           "isIndexable",
-          "publishedAt"
+          "publishedAt",
+          "buyerTicketLimit"
         ]
       },
       "TicketSetupController_unpublishListingResponse": {
@@ -34944,6 +34968,10 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "buyerTicketLimit": {
+            "type": "number",
+            "nullable": true
           }
         },
         "required": [
@@ -34961,7 +34989,8 @@
           "ogDescription",
           "ogImageId",
           "isIndexable",
-          "publishedAt"
+          "publishedAt",
+          "buyerTicketLimit"
         ]
       },
       "TicketSetupController_listOrdersResponse": {
@@ -37688,6 +37717,10 @@
           "checkout": {
             "type": "object",
             "properties": {
+              "buyerTicketLimit": {
+                "type": "number",
+                "nullable": true
+              },
               "venues": {
                 "type": "array",
                 "items": {
@@ -37842,6 +37875,7 @@
               }
             },
             "required": [
+              "buyerTicketLimit",
               "venues",
               "attendanceMode",
               "attendanceRevision",

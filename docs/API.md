@@ -988,6 +988,21 @@ quantities. Seat and zone holds are specified in the
 
 ### Buying tickets
 
+An organizer can set `buyerTicketLimit` (1–100,000) on the event listing
+with `PUT /events/:eventId/listing`. Send `null` to clear it or omit it to
+keep the current value. The public event detail returns it in `checkout`.
+This limit applies across ticket types and orders for the same buyer email
+after trimming and ignoring case. Ticket-type limits still apply per order.
+Reserved and paid tickets count. Expiry or completed cancellation/refund
+releases the allowance. Reducing the limit leaves already reserved or paid
+orders valid.
+
+Checkout returns `409 TICKET_BUYER_LIMIT_REACHED` before taking inventory or
+starting payment when a new basket would exceed the allowance. A payment
+captured after the order expired is refunded in full if the buyer has since
+used their allowance. This is an email-based limit for guest checkout.
+
+
 ```http
 POST /api/v1/public/events/:slug/orders
 ```

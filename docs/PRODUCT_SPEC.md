@@ -469,6 +469,8 @@ invariant, with database `CHECK` constraints as a backstop. Tested with ten
 concurrent buyers racing for five seats: exactly five win.
 
 A ticket code admits once. Two scanners at one door cannot both admit it.
+An organizer can cap the number of tickets held and sold to the same buyer
+email across all prices and orders for one event.
 
 Checkout currently sells ticket types by quantity. The approved redesign adds
 numbered seats and unnumbered zones within one event. Directory staff can

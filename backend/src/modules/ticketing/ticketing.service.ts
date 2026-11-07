@@ -1,3 +1,4 @@
+import { assertBuyerLimit } from './buyer-ticket-limit';
 import { lockAdmission, recordAdmission } from '../guests/admission';
 import { claimCheckout, checkoutFingerprint, prepareRoster } from './checkout-roster';
 import { appPage } from '../../common/app-url';
@@ -212,15 +213,17 @@ export class TicketingService {
     if (order.status !== TicketOrderStatus.EXPIRED) return;
 
     const outcome = await this.fulfilment.issueLate(orderId);
-    if (outcome === 'SOLD_OUT') await this.refundLate(order);
+    if (outcome === 'SOLD_OUT' || outcome === 'BUYER_LIMIT') {
+      await this.refundLate(order, outcome === 'BUYER_LIMIT' ? 'buyer ticket limit reached' : 'sold out meanwhile');
+    }
   }
 
   /** Claim first, then the bank; a refused refund reopens the claim for the next sweep. */
-  private async refundLate(order: { id: string; paymentOrderNumber: string | null; totalMinor: bigint }): Promise<void> {
+  private async refundLate(order: { id: string; paymentOrderNumber: string | null; totalMinor: bigint }, reason: string): Promise<void> {
     if (!order.paymentOrderNumber || !(await this.fulfilment.claimLateRefund(order.id))) return;
 
     try {
-      await this.payments.refund(order.paymentOrderNumber, order.totalMinor, 'Paid after the hold lapsed; sold out meanwhile');
+      await this.payments.refund(order.paymentOrderNumber, order.totalMinor, `Paid after the hold lapsed; ${reason}`);
     } catch (error) {
       // Only a refusal is worth trying again. An unknown outcome stays claimed
       // for staff to confirm: retrying it could pay the buyer twice.
@@ -414,6 +417,7 @@ export class TicketingService {
     return this.prisma.$transaction(async (tx) => {
       await claimCheckout(tx, dto.idempotencyKey);
       const attendees = await prepareRoster(tx, event.id, dto);
+      await assertBuyerLimit(tx, { eventId: event.id, email: dto.buyerEmail, quantity: attendees.length });
       const subtotalMinor = subtotalFor(dto.items, types);
       await this.fulfilment.hold(dto.items, tx);
       const claim = dto.promoCode

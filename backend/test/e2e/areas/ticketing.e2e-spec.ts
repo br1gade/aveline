@@ -8,6 +8,7 @@ import { AppModule } from '../../../src/app.module';
 import { appPage } from '../../../src/common/app-url';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { PaymentGatewayRegistry } from '../../../src/modules/payments/payment-gateway.registry';
+import { TicketFulfilmentService } from '../../../src/modules/ticketing/ticket-fulfilment.service';
 import { FakeGateway } from '../../../src/modules/payments/providers/fake.gateway';
 import { authenticateAs } from '../../fixtures/auth.fixture';
 import { attendeeRoster } from '../../fixtures/tickets.fixture';
@@ -175,6 +176,51 @@ describe('Ticketing contract (e2e coverage)', () => {
         const { body } = await as(staff.authorization).post(publish, { ...layout, sections: [section] }).expect(400);
         expect(body.message).toMatch(/sections/);
       }
+    });
+  });
+
+  describe('buyer ticket limits', () => {
+    it('caps concurrent orders across ticket types and email casing and releases capacity on cancellation', async () => {
+      const shop = await sale({ priceMinor: '0' });
+      const { body: other } = await shop.host.post(`${shop.base}/ticket-types`, {
+        name: { en: 'Other section' }, priceMinor: '0', quantityTotal: 10,
+      }).expect(201);
+      await shop.host.put(`${shop.base}/listing`, { buyerTicketLimit: 0 }).expect(400);
+      await shop.host.put(`${shop.base}/listing`, { buyerTicketLimit: 2 }).expect(200);
+      expect((await http().get(`/api/v1/public/events/${shop.slug}`).expect(200)).body.checkout)
+        .toMatchObject({ buyerTicketLimit: 2 });
+
+      const [first, second] = await Promise.all([
+        checkout(shop.slug, shop.typeId, { quantity: 2, buyerEmail: 'Ani@test.local' }),
+        checkout(shop.slug, other.id as string, { quantity: 2, buyerEmail: 'ani@test.local' }),
+      ]);
+      expect([first.status, second.status].sort()).toEqual([201, 409]);
+      const accepted = first.status === 201 ? first : second;
+      const refused = first.status === 409 ? first : second;
+      expect(refused.body).toMatchObject({ code: 'TICKET_BUYER_LIMIT_REACHED' });
+      expect(await prisma.ticketOrder.count()).toBe(1);
+
+      await shop.host.post(`${shop.base}/ticket-orders/${accepted.body.orderId as string}/cancel`).expect(201);
+      await checkout(shop.slug, shop.typeId, { quantity: 2 }).expect(201);
+      await shop.host.put(`${shop.base}/listing`, { buyerTicketLimit: null }).expect(200);
+      await checkout(shop.slug, shop.typeId, { quantity: 2 }).expect(201);
+    });
+
+    it('counts pending holds and refunds a late capture when the buyer has since used their allowance', async () => {
+      const shop = await sale();
+      await shop.host.put(`${shop.base}/listing`, { buyerTicketLimit: 1 }).expect(200);
+      const { body: earlier } = await checkout(shop.slug, shop.typeId).expect(201);
+      await checkout(shop.slug, shop.typeId).expect(409);
+
+      await app.get(TicketFulfilmentService).expire(earlier.orderId as string);
+      const { body: current } = await checkout(shop.slug, shop.typeId).expect(201);
+      fakeBank().simulateSuccess(`fake_${earlier.payment.orderNumber as string}`);
+      const { body } = await http().post(`/api/v1/ticket-orders/${earlier.accessToken as string}/confirm`).expect(201);
+      expect(body.status).toBe('REFUNDED');
+      expect(await prisma.ticket.count({ where: { orderId: earlier.orderId as string } })).toBe(0);
+      expect(await prisma.ticketOrder.findUniqueOrThrow({ where: { id: current.orderId as string } }))
+        .toMatchObject({ status: 'RESERVED' });
+      expect(await inventory(shop.typeId)).toEqual({ sold: 0, held: 1 });
     });
   });
 

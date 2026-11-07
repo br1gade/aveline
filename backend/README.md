@@ -494,7 +494,7 @@ registration, not bank certification or credentials.
 |---|---|---|
 | `GET` | `/api/v1/public/events` | Browse published public events |
 | `GET` | `/api/v1/public/events/:slug` | One announcement, availability, preview metadata |
-| `POST` | `/api/v1/public/events/:slug/orders` | Reserve tickets and start payment (idempotent). New ticket holders remain separate. |
+| `POST` | `/api/v1/public/events/:slug/orders` | Reserve tickets and start payment (idempotent). Enforces the optional event buyer limit. |
 | `POST` | `/api/v1/venue-profiles/:profileId/ticket-layouts` | Publish an immutable layout version with `directory:manage` |
 | `GET` | `/api/v1/events/:eventId/venues/:venueId/ticket-layouts` | List latest venue layout versions with event `event:read` |
 | `GET` | `/api/v1/events/:eventId/venues/:venueId/ticket-layouts/:versionId` | Preview a venue layout version |

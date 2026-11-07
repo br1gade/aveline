@@ -1,6 +1,7 @@
 import { HttpException } from '@nestjs/common';
 
 export const DOMAIN_ERRORS = {
+  TICKET_BUYER_LIMIT_REACHED: { status: 409, action: 'EDIT' },
   ENQUIRY_CHANGED: { status: 409, action: 'RELOAD' },
   CONSULTATION_CONFLICT: { status: 409, action: 'EDIT' },
   IDEMPOTENCY_CONFLICT: { status: 409, action: 'RELOAD' },

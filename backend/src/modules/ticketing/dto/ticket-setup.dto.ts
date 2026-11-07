@@ -128,6 +128,14 @@ export class UpdateTicketTypeDto {
 }
 
 export class UpsertListingDto {
+  @ApiPropertyOptional({ type: 'integer', nullable: true, minimum: 1, maximum: 100000,
+    description: 'Maximum tickets per buyer across this event. Null clears the limit.' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100_000)
+  buyerTicketLimit?: number | null;
+
   @ApiPropertyOptional({
     type: String,
     description: 'Same-event PHOTO, COVER or LOGO; null clears the listing hero',

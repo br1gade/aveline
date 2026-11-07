@@ -1,3 +1,4 @@
+import { exceededBuyerLimit } from './buyer-ticket-limit';
 import { beginCancellation, withdrawTicketGuests } from './cancellation-state';
 import { issueAttendeeTickets } from './issue-attendees';
 import { lockAttendancePolicy } from '../rsvp/attendance/attendance-context';
@@ -185,7 +186,7 @@ export class TicketFulfilmentService {
    * if not). One transaction, claim first: the claim matches only an EXPIRED
    * order, so two settlements of one late payment issue one set.
    */
-  async issueLate(orderId: string): Promise<'ISSUED' | 'SOLD_OUT' | 'NOT_EXPIRED'> {
+  async issueLate(orderId: string): Promise<'ISSUED' | 'SOLD_OUT' | 'BUYER_LIMIT' | 'NOT_EXPIRED'> {
     const order = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, include: SETTLED_ORDER });
 
     try {
@@ -196,6 +197,11 @@ export class TicketFulfilmentService {
           data: { status: TicketOrderStatus.PAID },
         });
         if (claimed.count === 0) return 'NOT_EXPIRED' as const;
+        const buyer = await tx.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, select: { buyerEmail: true } });
+        const quantity = order.items.reduce((sum, item) => sum + item.quantity, 0);
+        if (await exceededBuyerLimit(tx, { eventId: order.eventId, email: buyer.buyerEmail, quantity, excludedOrderId: orderId }) !== null) {
+          throw new BuyerLimitReached();
+        }
 
         for (const item of [...order.items].sort((a, b) => a.ticketTypeId.localeCompare(b.ticketTypeId))) {
           // Thrown to roll the claim back: some seats are not all seats.
@@ -210,6 +216,7 @@ export class TicketFulfilmentService {
       return outcome;
     } catch (error) {
       if (error instanceof SoldOut) return 'SOLD_OUT';
+      if (error instanceof BuyerLimitReached) return 'BUYER_LIMIT';
       throw error;
     }
   }
@@ -298,6 +305,7 @@ export class TicketFulfilmentService {
 
 /** The seats a late payment was for have been sold to someone else. */
 class SoldOut extends Error {}
+class BuyerLimitReached extends Error {}
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
