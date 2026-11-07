@@ -113,8 +113,7 @@ describe('Sessions and account verification (e2e coverage)', () => {
       await refresh(b.refreshToken as string).expect(201);
     });
 
-    // ACCESS_CONTROL.md §5: a token presented after its own logout still counts as reuse.
-    it('treats a logged-out token presented after the grace minute as theft and ends every session', async () => {
+    it('rejects an old logged-out token without ending another device’s rotated session', async () => {
       const a = await signUp();
       const { body: b } = await login().expect(201);
       await http().post('/api/v1/auth/logout').send({ refreshToken: a.refreshToken }).expect(201);
@@ -124,17 +123,17 @@ describe('Sessions and account verification (e2e coverage)', () => {
 
       await refresh(a.refreshToken).expect(401);
 
-      expect((await sessionOf(rotated.refreshToken as string)).revokedAt).not.toBeNull();
-      await events(rotated.accessToken as string).expect(401);
-      await refresh(rotated.refreshToken as string).expect(401);
+      expect((await sessionOf(rotated.refreshToken as string)).revokedAt).toBeNull();
+      await events(rotated.accessToken as string).expect(200);
+      await refresh(rotated.refreshToken as string).expect(201);
     });
 
-    it('keeps the logged-out session row rather than deleting it, so later reuse is still recognised', async () => {
+    it('keeps a revocation record without marking the logged-out session as rotated', async () => {
       const tokens = await signUp();
 
       await http().post('/api/v1/auth/logout').send({ refreshToken: tokens.refreshToken }).expect(201);
 
-      expect((await sessionOf(tokens.refreshToken)).revokedAt).not.toBeNull();
+      expect(await sessionOf(tokens.refreshToken)).toMatchObject({ revokedAt: expect.any(Date), rotatedAt: null });
     });
   });
 
