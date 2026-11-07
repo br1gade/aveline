@@ -1,5 +1,5 @@
 import { EventScope } from '../../infra/auth/actor';
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CheckPromoCodeDto } from '../billing/dto/promo-code.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -41,6 +41,7 @@ export class TicketingController {
 
   @Public()
   @Get('ticket-orders/:accessToken')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: "A buyer's own order and issued tickets" })
   findOrder(@Param('accessToken') accessToken: string) {
     return this.ticketing.findByAccessToken(accessToken);
@@ -48,6 +49,7 @@ export class TicketingController {
 
   @Public()
   @Post('ticket-orders/:accessToken/confirm')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({
     summary: 'Settle an order after the buyer returns from the bank',
     description:

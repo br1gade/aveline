@@ -495,8 +495,8 @@ registration, not bank certification or credentials.
 | `GET` | `/api/v1/public/events` | Browse published public events |
 | `GET` | `/api/v1/public/events/:slug` | One announcement, availability, preview metadata |
 | `POST` | `/api/v1/public/events/:slug/orders` | Reserve tickets and start payment (idempotent) |
-| `GET` | `/api/v1/ticket-orders/:accessToken` | A buyer's own order and tickets |
-| `POST` | `/api/v1/ticket-orders/:accessToken/confirm` | Settle after the bank; issues tickets |
+| `GET` | `/api/v1/ticket-orders/:accessToken` | A buyer's own order, event context and tickets |
+| `POST` | `/api/v1/ticket-orders/:accessToken/confirm` | Settle after the bank and return buyer order context |
 | `POST` | `/api/v1/events/:eventId/tickets/:code/admit` | Admit at the door; a code admits once, and only at its own event |
 | `POST` | `/api/v1/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
 

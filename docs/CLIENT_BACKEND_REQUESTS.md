@@ -91,7 +91,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-59 | Export failure codes that say what to do | S3 host/guest operations | Audit and implement |
 | FR-60 | Say which export kinds carry contacts, or ignore includesContacts where none do | S3 host/guest operations | Audit and implement |
 | FR-61 | Say who made each export | S3 host/guest operations | Audit and implement |
-| FR-62 | Name the event, the ticket types and the buyer in GET /ticket-orders/:accessToken and its confirm | S4 ticketing/vendors/billing | Audit and implement |
+| FR-62 | Name the event, the ticket types and the buyer in GET /ticket-orders/:accessToken and its confirm | S4 ticketing/vendors/billing | Implemented locally on the frontend pilot follow-up branch |
 | FR-63 | Codes for checkout's refusals | S4 ticketing/vendors/billing | Audit and implement |
 | FR-64 | Say on the public event's checkout whether paid tickets can be bought, and with which banks | S4 ticketing/vendors/billing | Audit and implement |
 | FR-65 | Translate venue names in GET /public/events/:slug and in its checkout.venues, as FR-40 asks of the reply  | S4 ticketing/vendors/billing | Audit and implement |
@@ -186,7 +186,7 @@ revocations. Four real-transaction regressions and all 37 authentication HTTP
 cases passed; the strengthened concurrency assertion also passed separately.
 Eleven schema critique cases passed, including migration drift, and OpenAPI
 remains unchanged at 207 paths. Build, lint and docs checks passed. The
-canonical pre-push container proof remains pending.
+canonical pre-push container proof for the merged batch passed at `75e22e8`.
 
 Import diagnostic review resulted in stripping every raw diagnostic `value`,
 regardless of its column, rebuilding durable messages from known codes and
@@ -202,7 +202,7 @@ passed 1,643 unit tests and 928 integration tests. Its HTTP sweep passed 1,365
 of 1,367 cases, with only two outdated policy assertions failing: the member
 field whitelist and the old public-read rate limit. Both were corrected; all
 39 cases in the two affected HTTP files passed on rerun, including one added
-guest-read case. The canonical full pre-push CI proof is still pending. No test
+guest-read case. The canonical full pre-push CI later passed at `75e22e8`. No test
 was disabled and no runtime behavior changed to satisfy those assertions.
 
 FR-107/108 now keep booking authority and every brief section on one PostgreSQL
@@ -256,10 +256,11 @@ renewals remain subject to existing launch gates.
 ## Follow-up from frontend commit `77ed2c9`
 
 The frontend was built against `34ac1e6`. The merged backend already covers
-FR-1, FR-2, FR-5, FR-6, FR-73 and FR-74. The next open pilot API requests in
-Arthur's message are FR-62 (buyer order context), FR-76 (door refusal codes
-and facts), and FR-79 (door roster and search). FR-11 is the deployment layout
-decision.
+FR-1, FR-2, FR-5, FR-6, FR-73 and FR-74. This follow-up implements FR-62
+for the buyer link and its confirmation. Both include localized ticket type
+names and the buyer's display name. The next open pilot API requests in
+Arthur's message are FR-76 (door refusal codes and facts) and FR-79 (door roster
+and search). FR-11 is the deployment layout decision.
 
 The frontend register adds FR-127 through FR-136. FR-131 is addressed in this
 follow-up. An applied erasure stays in recovery and cannot be rejected.

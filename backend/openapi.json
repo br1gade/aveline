@@ -31797,6 +31797,70 @@
       "TicketingController_findOrderResponse": {
         "type": "object",
         "properties": {
+          "locale": {
+            "type": "string"
+          },
+          "buyerName": {
+            "type": "string"
+          },
+          "event": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string",
+                "nullable": true
+              },
+              "startsAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endsAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "timezone": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "slug",
+              "startsAt",
+              "endsAt",
+              "timezone"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "ticketTypeId": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "number"
+                },
+                "unitPriceMinor": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "ticketTypeId",
+                "quantity",
+                "unitPriceMinor"
+              ]
+            }
+          },
           "orderId": {
             "type": "string"
           },
@@ -31826,28 +31890,6 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "ticketTypeId": {
-                  "type": "string"
-                },
-                "quantity": {
-                  "type": "number"
-                },
-                "unitPriceMinor": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "ticketTypeId",
-                "quantity",
-                "unitPriceMinor"
-              ]
-            }
           },
           "attendees": {
             "type": "array",
@@ -31927,14 +31969,17 @@
           }
         },
         "required": [
+          "locale",
+          "buyerName",
+          "event",
+          "items",
           "orderId",
           "accessToken",
           "status",
           "totalMinor",
           "discountMinor",
           "currency",
-          "reservesUntil",
-          "items"
+          "reservesUntil"
         ]
       },
       "TicketingController_confirmOrderResponse": {
@@ -31942,6 +31987,70 @@
           {
             "type": "object",
             "properties": {
+              "locale": {
+                "type": "string"
+              },
+              "buyerName": {
+                "type": "string"
+              },
+              "event": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
+                  "timezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "slug",
+                  "startsAt",
+                  "endsAt",
+                  "timezone"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "ticketTypeId": {
+                      "type": "string"
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "unitPriceMinor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "ticketTypeId",
+                    "quantity",
+                    "unitPriceMinor"
+                  ]
+                }
+              },
               "orderId": {
                 "type": "string"
               },
@@ -31971,28 +32080,6 @@
                 "type": "string",
                 "format": "date-time",
                 "nullable": true
-              },
-              "items": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "ticketTypeId": {
-                      "type": "string"
-                    },
-                    "quantity": {
-                      "type": "number"
-                    },
-                    "unitPriceMinor": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "ticketTypeId",
-                    "quantity",
-                    "unitPriceMinor"
-                  ]
-                }
               },
               "attendees": {
                 "type": "array",
@@ -32072,14 +32159,17 @@
               }
             },
             "required": [
+              "locale",
+              "buyerName",
+              "event",
+              "items",
               "orderId",
               "accessToken",
               "status",
               "totalMinor",
               "discountMinor",
               "currency",
-              "reservesUntil",
-              "items"
+              "reservesUntil"
             ]
           },
           {
@@ -32137,6 +32227,70 @@
                   "failureReason"
                 ]
               },
+              "locale": {
+                "type": "string"
+              },
+              "buyerName": {
+                "type": "string"
+              },
+              "event": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
+                  "timezone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "slug",
+                  "startsAt",
+                  "endsAt",
+                  "timezone"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "ticketTypeId": {
+                      "type": "string"
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "unitPriceMinor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "ticketTypeId",
+                    "quantity",
+                    "unitPriceMinor"
+                  ]
+                }
+              },
               "orderId": {
                 "type": "string"
               },
@@ -32166,28 +32320,6 @@
                 "type": "string",
                 "format": "date-time",
                 "nullable": true
-              },
-              "items": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "ticketTypeId": {
-                      "type": "string"
-                    },
-                    "quantity": {
-                      "type": "number"
-                    },
-                    "unitPriceMinor": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "ticketTypeId",
-                    "quantity",
-                    "unitPriceMinor"
-                  ]
-                }
               },
               "attendees": {
                 "type": "array",
@@ -32268,14 +32400,17 @@
             },
             "required": [
               "payment",
+              "locale",
+              "buyerName",
+              "event",
+              "items",
               "orderId",
               "accessToken",
               "status",
               "totalMinor",
               "discountMinor",
               "currency",
-              "reservesUntil",
-              "items"
+              "reservesUntil"
             ]
           }
         ]

@@ -156,6 +156,36 @@ describe('Ticketing contract (e2e coverage)', () => {
       expect(await inventory(shop.typeId)).toEqual({ sold: 2, held: 0 });
     });
 
+    it('returns localized buyer order context on read and every successful confirmation', async () => {
+      const shop = await sale({ locales: ['en', 'ru'], defaultLocale: 'en' });
+      await prisma.event.update({ where: { id: shop.eventId }, data: { translations: { ru: { title: 'Джазовый вечер' } } } });
+      await prisma.ticketType.update({ where: { id: shop.typeId }, data: { name: { en: 'General', ru: 'Входной' } } });
+      const { body: order } = await checkout(shop.slug, shop.typeId, { locale: 'ru', buyerPhone: '+37491111111' }).expect(201);
+      const path = `/api/v1/ticket-orders/${order.accessToken as string}`;
+      const context = {
+        locale: 'ru', buyerName: 'Ani',
+        event: { title: 'Джазовый вечер', slug: shop.slug, startsAt: '2027-10-01T18:00:00.000Z',
+          endsAt: null, timezone: 'Asia/Yerevan' },
+        items: [expect.objectContaining({ ticketTypeId: shop.typeId, name: 'Входной' })],
+      };
+
+      const read = await http().get(path).expect(200);
+      const pending = await http().post(`${path}/confirm`).expect(201);
+      fakeBank().simulateSuccess(`fake_${order.payment.orderNumber as string}`);
+      const captured = await http().post(`${path}/confirm`).expect(201);
+      const repeated = await http().post(`${path}/confirm`).expect(201);
+
+      for (const response of [read, pending, captured, repeated]) {
+        expect(response.body).toMatchObject(context);
+        expect(response.headers['cache-control']).toBe('private, no-store');
+        expect(JSON.stringify(response.body)).not.toMatch(/buyerEmail|buyerPhone|ani@test.local|37491111111/);
+      }
+
+      await prisma.ticketType.update({ where: { id: shop.typeId }, data: { name: { en: 'General', ru: { invalid: true } } } });
+      const fallback = await http().get(path).expect(200);
+      expect(fallback.body).toMatchObject({ items: [expect.objectContaining({ name: 'General' })] });
+    });
+
     it('issues no second set when confirm is called again', async () => {
       const { order, providerRef } = await reserved(2);
       fakeBank().simulateSuccess(providerRef);

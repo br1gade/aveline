@@ -1,10 +1,13 @@
 import { lockAdmission, recordAdmission } from '../guests/admission';
 import { claimCheckout, checkoutFingerprint, prepareRoster } from './checkout-roster';
 import { appPage } from '../../common/app-url';
+import { translatedField } from '../../common/field-translations';
+import { resolveTranslation } from '../../common/locale';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   EventStatus,
   PaymentPurpose,
+  Prisma,
   TicketOrderStatus,
   TicketStatus,
 } from '@prisma/client';
@@ -23,6 +26,20 @@ const RESERVATION_WINDOW_MS = 15 * 60 * 1000;
 
 const PAYMENT_WAIT_MS = 50;
 const PAYMENT_WAIT_ATTEMPTS = 60;
+
+const BUYER_ORDER_SELECT = {
+  id: true, accessToken: true, status: true, totalMinor: true, discountMinor: true,
+  currency: true, reservesUntil: true, paymentOrderNumber: true, buyerName: true, locale: true,
+  event: { select: { title: true, translations: true, startsAt: true, endsAt: true, timezone: true,
+    defaultLocale: true, listing: { select: { slug: true } } } },
+  items: { select: { ticketTypeId: true, quantity: true, unitPriceMinor: true,
+    ticketType: { select: { name: true } } } },
+  attendees: { orderBy: { position: 'asc' }, select: { id: true, ticketTypeId: true, position: true,
+    firstName: true, lastName: true, attendanceRevision: true, status: true, venueAttendance: true } },
+  tickets: { select: { id: true, attendeeId: true, holderName: true, code: true, status: true } },
+} satisfies Prisma.TicketOrderSelect;
+
+type BuyerOrder = Prisma.TicketOrderGetPayload<{ select: typeof BUYER_ORDER_SELECT }>;
 
 /** A paid order whose payment has not been started yet — by another request, still running. */
 function isAwaitingPayment(order: { status: TicketOrderStatus; totalMinor: bigint; paymentOrderNumber: string | null }): boolean {
@@ -134,12 +151,11 @@ export class TicketingService {
    * ignorant of what it is paying for.
    */
   async confirmOrder(accessToken: string) {
-    const order = await this.prisma.ticketOrder.findUnique({
-      where: { accessToken },
-      include: { items: true, attendees: { orderBy: { position: 'asc' } } },
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    if (order.status === TicketOrderStatus.PAID) return this.markPaid(order.id);
+    const order = await this.requireBuyerOrder(accessToken);
+    if (order.status === TicketOrderStatus.PAID) {
+      await this.fulfilment.markPaid(order.id);
+      return this.findByAccessToken(accessToken);
+    }
 
     // An expired order is still worth asking about: its buyer may have paid
     // after the hold lapsed (B36).
@@ -151,7 +167,7 @@ export class TicketingService {
 
     const payment = await this.payments.confirm(order.paymentOrderNumber, 'CALLBACK');
     if (payment.status !== 'CAPTURED') {
-      return { ...this.describe(order), payment };
+      return { ...this.describeBuyerOrder(order), payment };
     }
 
     await this.settleCaptured(order.id);
@@ -278,12 +294,33 @@ export class TicketingService {
   }
 
   async findByAccessToken(accessToken: string) {
-    const order = await this.prisma.ticketOrder.findUnique({
-      where: { accessToken },
-      include: { items: true, attendees: { orderBy: { position: 'asc' } }, tickets: true },
-    });
+    return this.describeBuyerOrder(await this.requireBuyerOrder(accessToken));
+  }
+
+  private async requireBuyerOrder(accessToken: string) {
+    const order = await this.prisma.ticketOrder.findUnique({ where: { accessToken }, select: BUYER_ORDER_SELECT });
     if (!order) throw new NotFoundException('Order not found');
-    return this.describe(order);
+    return order;
+  }
+
+  private describeBuyerOrder(order: BuyerOrder) {
+    const { event, locale, buyerName } = order;
+    return {
+      ...this.describe(order),
+      locale,
+      buyerName,
+      event: {
+        title: translatedField(event.translations, locale, 'title') ?? event.title,
+        slug: event.listing?.slug ?? null,
+        startsAt: event.startsAt,
+        endsAt: event.endsAt,
+        timezone: event.timezone,
+      },
+      items: order.items.map((item) => ({
+        ...orderItem(item),
+        name: buyerTicketTypeName(item.ticketType.name, locale, event.defaultLocale),
+      })),
+    };
   }
 
   // ── internals ────────────────────────────────────────────────────────
@@ -442,16 +479,22 @@ export class TicketingService {
       discountMinor: (order.discountMinor ?? 0n).toString(),
       currency: order.currency,
       reservesUntil: order.reservesUntil,
-      items: order.items.map((item) => ({
-        ticketTypeId: item.ticketTypeId,
-        quantity: item.quantity,
-        unitPriceMinor: item.unitPriceMinor.toString(),
-      })),
+      items: order.items.map(orderItem),
       attendees: order.attendees?.map((person) => ({ id: person.id, ticketTypeId: person.ticketTypeId, position: person.position, firstName: person.firstName,
         lastName: person.lastName, attendanceRevision: person.attendanceRevision, status: person.status, venueAttendance: person.venueAttendance })),
       tickets: order.tickets?.map((ticket) => ({ id: ticket.id, attendeeId: ticket.attendeeId, holderName: ticket.holderName, code: ticket.code, status: ticket.status })),
     };
   }
+}
+
+function buyerTicketTypeName(value: Prisma.JsonValue, locale: string, defaultLocale: string): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const strings = Object.fromEntries(Object.entries(value).filter(([, name]) => typeof name === 'string' && name.trim()));
+  return resolveTranslation<string>(strings, locale, defaultLocale);
+}
+
+function orderItem(item: { ticketTypeId: string; quantity: number; unitPriceMinor: bigint }) {
+  return { ticketTypeId: item.ticketTypeId, quantity: item.quantity, unitPriceMinor: item.unitPriceMinor.toString() };
 }
 
 function assertOnSale(

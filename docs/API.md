@@ -1061,6 +1061,16 @@ GET  /api/v1/ticket-orders/:accessToken
 Confirm asks the bank server-to-server and issues tickets only if the money
 moved. Safe to call repeatedly.
 
+Both buyer routes return the stored `locale` and `buyerName`, and
+`event: { title, slug, startsAt, endsAt, timezone }`. The event title uses the
+order language when translated and otherwise uses the event title. Each
+item includes a ticket type `name` resolved in the order language with the
+event's default and available translations as fallbacks. The listing `slug`
+or ticket type `name` can be null when unavailable. The order link serves
+this context directly, including when the public listing is unpublished.
+These responses use `Cache-Control: private, no-store` and omit buyer contact
+details.
+
 `reservesUntil` is a real deadline: inventory is released after it and the
 order becomes `EXPIRED`. Show a countdown.
 
