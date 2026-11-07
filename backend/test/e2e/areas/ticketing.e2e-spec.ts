@@ -2,7 +2,7 @@ import type { Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { DiscountKind, EventRole, EventType, PaymentProvider, PrismaClient } from '@prisma/client';
+import { DiscountKind, EventRole, EventType, PaymentProvider, PlatformRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
 import { appPage } from '../../../src/common/app-url';
@@ -111,6 +111,72 @@ describe('Ticketing contract (e2e coverage)', () => {
 
   const browseSlugs = async (query: Record<string, string> = {}) =>
     ((await http().get('/api/v1/public/events').query(query).expect(200)).body as { items: { slug: string }[] }).items.map((item) => item.slug);
+
+  describe('venue ticket layout versions', () => {
+    const layout = {
+      key: 'concert', name: 'Concert', expectedVersion: 0, sections: [
+        { key: 'balcony', name: 'Balcony', mode: 'NUMBERED', rows: [{ label: 'B', seats: ['12', '13'] }] },
+        { key: 'floor', name: 'Standing floor', mode: 'UNNUMBERED', capacity: 250 },
+      ],
+    };
+
+    it('shares an immutable version across shows and lets a later show adopt an update', async () => {
+      const staff = await authenticateAs(app, prisma);
+      await prisma.user.update({ where: { id: staff.userId }, data: { platformRole: PlatformRole.ADMIN } });
+      const admin = as(staff.authorization);
+      const profile = await prisma.venueProfile.create({ data: { name: 'Theatre', address: 'Main street' } });
+      const publish = `/venue-profiles/${profile.id}/ticket-layouts`;
+      const first = await sale();
+      await first.host.post(publish, layout).expect(403);
+      const { body: v1 } = await admin.post(publish, layout).expect(201);
+      expect(v1).toMatchObject({ version: 1, sections: layout.sections });
+
+      const attach = async (show: Sale, versionId: string) => {
+        const { body: venue } = await show.host.post(`${show.base}/venues`, { profileId: profile.id, role: 'OTHER',
+          name: 'Theatre', address: 'Main street' }).expect(201);
+        const path = `${show.base}/venues/${venue.id as string}/ticket-layout`;
+        await show.host.put(path, { versionId }).expect(200);
+        return path;
+      };
+      const firstPath = await attach(first, v1.id as string);
+      const second = await sale();
+      const secondPath = await attach(second, v1.id as string);
+      const update = { ...layout, expectedVersion: 1, name: 'Concert updated' };
+      const updates = await Promise.all([admin.post(publish, update), admin.post(publish, update)]);
+      expect(updates.map((response) => response.status).sort()).toEqual([201, 409]);
+      const { id: v2Id } = updates.find((response) => response.status === 201)!.body as { id: string };
+      expect((await second.host.get(secondPath + 's').expect(200)).body)
+        .toEqual([{ id: v2Id, key: 'concert', name: 'Concert updated', version: 2 }]);
+      expect((await second.host.get(`${secondPath}s/${v2Id}`).expect(200)).body)
+        .toMatchObject({ id: v2Id, sections: layout.sections });
+      await second.host.put(secondPath, { versionId: v2Id }).expect(200);
+      expect((await first.host.get(firstPath).expect(200)).body).toMatchObject({ id: v1.id, name: 'Concert', version: 1 });
+      expect((await second.host.get(secondPath).expect(200)).body).toMatchObject({ id: v2Id, name: 'Concert updated', version: 2 });
+      await first.host.get(secondPath).expect(403);
+      const otherProfile = await prisma.venueProfile.create({ data: { name: 'Other theatre', address: 'Other street' } });
+      const { body: other } = await admin.post(`/venue-profiles/${otherProfile.id}/ticket-layouts`, layout).expect(201);
+      await second.host.put(secondPath, { versionId: other.id }).expect(404);
+      await prisma.venueProfile.update({ where: { id: profile.id }, data: { isActive: false } });
+      await second.host.put(secondPath, { versionId: v1.id }).expect(404);
+      expect((await second.host.get(secondPath).expect(200)).body).toMatchObject({ id: v2Id });
+
+    });
+
+    it('rejects duplicate seat labels and numbered sections with a zone capacity', async () => {
+      const staff = await authenticateAs(app, prisma);
+      await prisma.user.update({ where: { id: staff.userId }, data: { platformRole: PlatformRole.ADMIN } });
+      const profile = await prisma.venueProfile.create({ data: { name: 'Theatre', address: 'Main street' } });
+      const publish = `/venue-profiles/${profile.id}/ticket-layouts`;
+      const bad = [
+        { ...layout.sections[0], rows: [{ label: 'B', seats: ['12', '12'] }] },
+        { ...layout.sections[0], capacity: 250 },
+      ];
+      for (const section of bad) {
+        const { body } = await as(staff.authorization).post(publish, { ...layout, sections: [section] }).expect(400);
+        expect(body.message).toMatch(/sections/);
+      }
+    });
+  });
 
   describe('paying for tickets', () => {
     /** A RESERVED paid order and the bank reference the FAKE gateway knows it by. */

@@ -957,6 +957,35 @@ Legacy tickets remain valid without invented guest identities until hosts
 explicitly register/link them. Their guest-based operational counts are complete
 only after reconciliation.
 
+### Reusable venue ticket layouts
+
+```http
+POST /api/v1/venue-profiles/:profileId/ticket-layouts
+GET  /api/v1/events/:eventId/venues/:venueId/ticket-layouts
+GET  /api/v1/events/:eventId/venues/:venueId/ticket-layouts/:versionId
+GET  /api/v1/events/:eventId/venues/:venueId/ticket-layout
+PUT  /api/v1/events/:eventId/venues/:venueId/ticket-layout
+```
+
+Directory editors with `directory:manage` publish immutable versions.
+Send `{ key, name, expectedVersion, sections }`. Use a stable lower-case key
+and `expectedVersion: 0` to start a layout. Publishing against a stale version
+returns `409`. A venue may have up to 30 layout keys. A layout supports up to
+40 sections and 5,000 numbered seats. Each section has `key`, `name` and
+`mode`. `NUMBERED` uses `rows: [{ label, seats: ["12", "13"] }]`.
+`UNNUMBERED` uses `capacity` instead. Section keys, rows in a section, and
+seats in a row must be unique.
+
+With `event:read`, the list returns latest summaries, a version can be
+previewed, and the selected layout is returned by the singular GET (or
+`null`). With `event:write`, PUT takes `{ versionId }` from the event venue's
+directory profile. A retired profile cannot supply new selections. An event
+keeps its selected version after the directory publishes a new one.
+
+Selection is organizer setup. Public checkout still sells existing ticket
+quantities. Seat and zone holds are specified in the
+[ticket inventory redesign](TICKET_INVENTORY_REDESIGN.md).
+
 ### Buying tickets
 
 ```http
@@ -993,9 +1022,11 @@ email/phone never falls back to the buyer's contacts. An omitted buyer locale us
 locale falls back to the buyer locale, then the event default. Attendees accept
 `firstName`, `lastName`, `email`, `phone`, `locale`, `dietary`, `dietaryNotes`,
 `drinkPreference`, custom `answers`, and attendance inputs. The event's locale
-list and RSVP question rules apply. `householdKey`, when supplied, explicitly
-groups people within this order; otherwise each person gets a separate household.
-Matching names or email addresses never merge people.
+list and RSVP question rules apply. Each new ticket holder gets an individual
+guest record for seating and check-in. A new order with a non-null `householdKey` returns
+`400` on `attendees.householdKey`. An existing order with a checkout fingerprint
+can still be retried using its original payload. A shared buyer, name or email
+never merges attendees.
 
 Load the public event detail first. Its `checkout` object supplies
 `attendanceMode`, `attendanceRevision`, `venues: [{id, name}]`, `rsvpFields`

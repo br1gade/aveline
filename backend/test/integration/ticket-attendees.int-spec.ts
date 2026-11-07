@@ -72,19 +72,22 @@ describe('Named ticket attendees (integration)', () => {
       items: [{ ticketTypeId: event.ticketTypeId, quantity: 2 }], attendees: [{ ticketTypeId: event.ticketTypeId, firstName: 'Anna' }] })).rejects.toThrow('exactly match');
     await expect(ticketing.createOrder(event.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local', idempotencyKey: randomUUID(),
       items: [{ ticketTypeId: event.ticketTypeId, quantity: 1 }], attendees: [{ ticketTypeId: event.ticketTypeId, firstName: 'Anna', locale: 'zz' }] })).rejects.toThrow('locale');
+    await expect(ticketing.createOrder(event.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local', idempotencyKey: randomUUID(),
+      items: [{ ticketTypeId: event.ticketTypeId, quantity: 1 }],
+      attendees: [{ ticketTypeId: event.ticketTypeId, firstName: 'Anna', householdKey: 'group' }] })).rejects.toThrow('attendees.householdKey');
     expect(await prisma.ticketOrder.count()).toBe(0);
     expect(await prisma.orderAttendee.count()).toBe(0);
     expect((await prisma.ticketType.findUniqueOrThrow({ where: { id: event.ticketTypeId } })).quantityReserved).toBe(0);
   });
 
-  it('settles mixed types once under concurrent retries, grouping only explicitly named households', async () => {
+  it('settles mixed types once under concurrent retries and keeps matching names separate', async () => {
     const event = await ticketEvent(prisma);
     const vip = await prisma.ticketType.create({ data: { eventId: event.eventId, priceMinor: 0n, quantityTotal: 2 } });
     const { ticketing } = ticketServices(prisma);
     const dto = { buyerName: 'Buyer', buyerEmail: 'buyer@test.local', idempotencyKey: randomUUID(),
       items: [{ ticketTypeId: event.ticketTypeId, quantity: 2 }, { ticketTypeId: vip.id, quantity: 1 }],
-      attendees: [{ ticketTypeId: event.ticketTypeId, firstName: 'Anna', householdKey: 'family' },
-        { ticketTypeId: vip.id, firstName: 'Davit', householdKey: 'family' }, { ticketTypeId: event.ticketTypeId, firstName: 'Anna' }] };
+      attendees: [{ ticketTypeId: event.ticketTypeId, firstName: 'Anna' },
+        { ticketTypeId: vip.id, firstName: 'Davit' }, { ticketTypeId: event.ticketTypeId, firstName: 'Anna' }] };
     const orders = await Promise.all([ticketing.createOrder(event.slug, dto), ticketing.createOrder(event.slug, dto)]);
     expect(orders[0].orderId).toBe(orders[1].orderId);
     await Promise.all([ticketing.markPaid(orders[0].orderId), ticketing.markPaid(orders[0].orderId)]);
@@ -93,7 +96,7 @@ describe('Named ticket attendees (integration)', () => {
     expect(await prisma.ticket.count()).toBe(3);
     expect(await prisma.guest.count({ where: { eventId: event.eventId } })).toBe(4);
     const households = await prisma.household.findMany({ where: { eventId: event.eventId, id: { not: event.householdId } } });
-    expect(households.map((row) => row.seatsAllotted).sort()).toEqual([1, 2]);
+    expect(households.map((row) => row.seatsAllotted).sort()).toEqual([1, 1, 1]);
     await expect(ticketing.createOrder(event.slug, { ...dto, attendees: dto.attendees.map((person) => ({ ...person, firstName: 'Changed' })) })).rejects.toThrow('another checkout intent');
   });
 

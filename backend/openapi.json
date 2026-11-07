@@ -5947,6 +5947,342 @@
         ]
       }
     },
+    "/api/v1/venue-profiles/{profileId}/ticket-layouts": {
+      "post": {
+        "operationId": "VenueTicketLayoutsController_publish",
+        "parameters": [
+          {
+            "name": "profileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishVenueTicketLayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueTicketLayoutsController_publishResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Publish an immutable numbered and unnumbered venue layout version",
+        "tags": [
+          "ticketing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/venues/{venueId}/ticket-layouts": {
+      "get": {
+        "operationId": "VenueTicketLayoutsController_list",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueTicketLayoutsController_listResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List the latest layout versions for this event venue",
+        "tags": [
+          "ticketing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/venues/{venueId}/ticket-layouts/{versionId}": {
+      "get": {
+        "operationId": "VenueTicketLayoutsController_preview",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueTicketLayoutsController_previewResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview an immutable layout version for this event venue",
+        "tags": [
+          "ticketing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/venues/{venueId}/ticket-layout": {
+      "get": {
+        "operationId": "VenueTicketLayoutsController_current",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueTicketLayoutsController_currentResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Read the layout selected for this event venue",
+        "tags": [
+          "ticketing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "VenueTicketLayoutsController_select",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectVenueTicketLayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueTicketLayoutsController_selectResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Select a venue layout version without activating ticket inventory",
+        "tags": [
+          "ticketing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/promo-codes": {
       "get": {
         "operationId": "PromoCodesController_list",
@@ -16623,7 +16959,8 @@
           },
           "householdKey": {
             "type": "string",
-            "description": "Explicit household grouping within this order only; omit to keep people separate"
+            "deprecated": true,
+            "description": "Accepted only when replaying an existing legacy order; omit for new orders"
           },
           "drinkPreference": {
             "type": "string"
@@ -16926,6 +17263,113 @@
           "guestId",
           "expectedGuestId",
           "keepExistingAnswers"
+        ]
+      },
+      "TicketLayoutRowDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16
+          },
+          "seats": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "label",
+          "seats"
+        ]
+      },
+      "TicketLayoutSectionDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "NUMBERED",
+              "UNNUMBERED"
+            ]
+          },
+          "rows": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketLayoutRowDto"
+            }
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "mode"
+        ]
+      },
+      "PublishVenueTicketLayoutDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "expectedVersion": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Use 0 for a new layout, otherwise the latest version read"
+          },
+          "sections": {
+            "minItems": 1,
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketLayoutSectionDto"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "expectedVersion",
+          "sections"
+        ]
+      },
+      "SelectVenueTicketLayoutDto": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "versionId"
         ]
       },
       "CreatePromoCodeDto": {
@@ -20501,6 +20945,10 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "ticketLayoutVersionId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "role": {
                       "type": "string",
                       "enum": [
@@ -20545,6 +20993,7 @@
                     "name",
                     "eventId",
                     "profileId",
+                    "ticketLayoutVersionId",
                     "role",
                     "address",
                     "latitude",
@@ -21210,6 +21659,10 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "ticketLayoutVersionId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "role": {
                       "type": "string",
                       "enum": [
@@ -21254,6 +21707,7 @@
                     "name",
                     "eventId",
                     "profileId",
+                    "ticketLayoutVersionId",
                     "role",
                     "address",
                     "latitude",
@@ -21891,6 +22345,10 @@
                   "type": "string",
                   "nullable": true
                 },
+                "ticketLayoutVersionId": {
+                  "type": "string",
+                  "nullable": true
+                },
                 "role": {
                   "type": "string",
                   "enum": [
@@ -21935,6 +22393,7 @@
                 "name",
                 "eventId",
                 "profileId",
+                "ticketLayoutVersionId",
                 "role",
                 "address",
                 "latitude",
@@ -22569,6 +23028,10 @@
                   "type": "string",
                   "nullable": true
                 },
+                "ticketLayoutVersionId": {
+                  "type": "string",
+                  "nullable": true
+                },
                 "role": {
                   "type": "string",
                   "enum": [
@@ -22613,6 +23076,7 @@
                 "name",
                 "eventId",
                 "profileId",
+                "ticketLayoutVersionId",
                 "role",
                 "address",
                 "latitude",
@@ -23258,6 +23722,10 @@
                   "type": "string",
                   "nullable": true
                 },
+                "ticketLayoutVersionId": {
+                  "type": "string",
+                  "nullable": true
+                },
                 "role": {
                   "type": "string",
                   "enum": [
@@ -23302,6 +23770,7 @@
                 "name",
                 "eventId",
                 "profileId",
+                "ticketLayoutVersionId",
                 "role",
                 "address",
                 "latitude",
@@ -23965,6 +24434,10 @@
                   "type": "string",
                   "nullable": true
                 },
+                "ticketLayoutVersionId": {
+                  "type": "string",
+                  "nullable": true
+                },
                 "role": {
                   "type": "string",
                   "enum": [
@@ -24009,6 +24482,7 @@
                 "name",
                 "eventId",
                 "profileId",
+                "ticketLayoutVersionId",
                 "role",
                 "address",
                 "latitude",
@@ -34840,6 +35314,453 @@
           "guestId"
         ]
       },
+      "VenueTicketLayoutsController_publishResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "NUMBERED"
+                      ]
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "seats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "seats"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "rows"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "UNNUMBERED"
+                      ]
+                    },
+                    "capacity": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "capacity"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "profileId",
+          "key",
+          "name",
+          "version",
+          "sections"
+        ]
+      },
+      "VenueTicketLayoutsController_listResponse": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            },
+            "version": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "key",
+            "version"
+          ]
+        }
+      },
+      "VenueTicketLayoutsController_previewResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "NUMBERED"
+                      ]
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "seats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "seats"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "rows"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "UNNUMBERED"
+                      ]
+                    },
+                    "capacity": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "capacity"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "profileId",
+          "key",
+          "name",
+          "version",
+          "sections"
+        ]
+      },
+      "VenueTicketLayoutsController_currentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "NUMBERED"
+                      ]
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "seats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "seats"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "rows"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "UNNUMBERED"
+                      ]
+                    },
+                    "capacity": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "capacity"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "profileId",
+          "key",
+          "name",
+          "version",
+          "sections"
+        ],
+        "nullable": true
+      },
+      "VenueTicketLayoutsController_selectResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "NUMBERED"
+                      ]
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "seats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "seats"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "rows"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "UNNUMBERED"
+                      ]
+                    },
+                    "capacity": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "mode",
+                    "capacity"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "profileId",
+          "key",
+          "name",
+          "version",
+          "sections"
+        ]
+      },
       "PromoCodesController_listResponse": {
         "type": "array",
         "items": {
@@ -41652,6 +42573,10 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "ticketLayoutVersionId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "role": {
                       "type": "string",
                       "enum": [
@@ -41696,6 +42621,7 @@
                     "name",
                     "eventId",
                     "profileId",
+                    "ticketLayoutVersionId",
                     "role",
                     "address",
                     "latitude",
@@ -42361,6 +43287,10 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "ticketLayoutVersionId": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "role": {
                       "type": "string",
                       "enum": [
@@ -42405,6 +43335,7 @@
                     "name",
                     "eventId",
                     "profileId",
+                    "ticketLayoutVersionId",
                     "role",
                     "address",
                     "latitude",
@@ -54342,6 +55273,10 @@
             "type": "string",
             "nullable": true
           },
+          "ticketLayoutVersionId": {
+            "type": "string",
+            "nullable": true
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -54387,6 +55322,7 @@
           "name",
           "eventId",
           "profileId",
+          "ticketLayoutVersionId",
           "role",
           "address",
           "latitude",
@@ -54496,6 +55432,10 @@
             "type": "string",
             "nullable": true
           },
+          "ticketLayoutVersionId": {
+            "type": "string",
+            "nullable": true
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -54541,6 +55481,7 @@
           "name",
           "eventId",
           "profileId",
+          "ticketLayoutVersionId",
           "role",
           "address",
           "latitude",

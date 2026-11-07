@@ -45,6 +45,10 @@ render "Ceremony · 14:00 · Demo Cathedral" without duplicating anything.
 
 ---
 
+Venue profiles can also store immutable [ticket layout versions](TICKET_INVENTORY_REDESIGN.md).
+An event venue can select a version from its profile. The layout describes
+the ticket map separately from the guest table plan below.
+
 ## 2. Tables belong to a venue, not to the event
 
 `SeatingArrangement` identifies each separately seated venue. Every event also

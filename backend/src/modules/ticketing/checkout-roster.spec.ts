@@ -14,6 +14,10 @@ describe('Named checkout intent', () => {
   it('accepts exact per-type counts regardless of attendee ordering', () => {
     expect(rosterProblem(items, [person('vip'), person('general'), person('general')])).toBeNull();
   });
+  it('rejects household grouping for new ticket orders', () => {
+    const roster = [{ ...person('vip'), householdKey: 'group' }, person('general'), person('general')];
+    expect(rosterProblem(items, roster)).toMatch(/^attendees.householdKey:/);
+  });
   it('detects a repeated basket type', () => {
     expect(rosterProblem([items[0], items[0]], [person('general')])).toContain('once');
   });

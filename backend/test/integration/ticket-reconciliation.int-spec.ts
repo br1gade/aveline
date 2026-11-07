@@ -88,12 +88,18 @@ describe('Host ticket reconciliation (integration)', () => {
     const event = await ticketEvent(prisma);
     const target = await prisma.guest.findUniqueOrThrow({ where: { token: event.primaryGuestToken } });
     const { ticketing } = ticketServices(prisma);
-    await ticketing.createOrder(event.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local', idempotencyKey: randomUUID(),
-      items: [{ ticketTypeId: event.ticketTypeId, quantity: 2 }], attendees: attendeeRoster(event.ticketTypeId, 2).map((person) => ({ ...person, householdKey: 'family' })) });
-    const source = await prisma.guest.findFirstOrThrow({ where: { eventId: event.eventId, isPrimary: true, id: { not: target.id } }, include: { ticket: true } });
+    const order = await ticketing.createOrder(event.slug, { buyerName: 'Buyer', buyerEmail: 'buyer@test.local', idempotencyKey: randomUUID(),
+      items: [{ ticketTypeId: event.ticketTypeId, quantity: 2 }], attendees: attendeeRoster(event.ticketTypeId, 2) });
+    const [source, other] = await prisma.ticket.findMany({ where: { orderId: order.orderId }, include: { guest: true } });
+    const legacyHouseholdId = source.guest!.householdId;
+    // Model a household already stored by the legacy grouping contract.
+    await prisma.$transaction([
+      prisma.guest.update({ where: { id: other.guestId! }, data: { householdId: legacyHouseholdId, isPrimary: false } }),
+      prisma.household.update({ where: { id: legacyHouseholdId }, data: { seatsAllotted: 2 } }),
+    ]);
     const service = new TicketAttendeesService(prisma as unknown as PrismaService);
-    await service.linkGuest(event.eventId, source.ticket!.id, { guestId: target.id, expectedGuestId: source.id, keepExistingAnswers: true });
-    expect(await prisma.household.findUnique({ where: { id: source.householdId }, include: { guests: true } })).toMatchObject({ seatsAllotted: 1, guests: [{ isPrimary: true }] });
+    await service.linkGuest(event.eventId, source.id, { guestId: target.id, expectedGuestId: source.guestId!, keepExistingAnswers: true });
+    expect(await prisma.household.findUnique({ where: { id: legacyHouseholdId }, include: { guests: true } })).toMatchObject({ seatsAllotted: 1, guests: [{ isPrimary: true }] });
   });
 
 });

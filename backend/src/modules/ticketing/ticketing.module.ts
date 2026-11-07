@@ -1,3 +1,5 @@
+import { VenueTicketLayoutsController } from './venue-ticket-layouts.controller';
+import { VenueTicketLayoutsService } from './venue-ticket-layouts.service';
 import { TicketAttendeesService } from './ticket-attendees.service';
 import { TicketAttendeesController } from './ticket-attendees.controller';
 import { Module } from '@nestjs/common';
@@ -14,8 +16,9 @@ import { TicketingService } from './ticketing.service';
 
 @Module({
   imports: [PaymentsModule, BillingModule],
-  controllers: [TicketingController, TicketSetupController, TicketAttendeesController],
+  controllers: [TicketingController, TicketSetupController, TicketAttendeesController, VenueTicketLayoutsController],
   providers: [
+    VenueTicketLayoutsService,
     TicketAttendeesService,
     TicketInventoryService,
     TicketNotifierService,

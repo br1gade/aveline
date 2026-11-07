@@ -470,12 +470,19 @@ concurrent buyers racing for five seats: exactly five win.
 
 A ticket code admits once. Two scanners at one door cannot both admit it.
 
+Checkout currently sells ticket types by quantity. The approved redesign adds
+numbered seats and unnumbered zones within one event. Directory staff can
+publish reusable venue layout versions. Event hosts can select a version
+without changing checkout. See [Ticket selection and inventory redesign](TICKET_INVENTORY_REDESIGN.md)
+for the planned allocation contract.
+
 ### 13.4 Where the two shapes meet
 
 Checkout collects each attendee's names/details and stores the roster with the
 reserved order. Settlement creates a linked `Guest` per ticket exactly once;
-failed/expired checkouts create no attending guests. Household grouping is
-explicit, never inferred from a shared buyer, email or name. Per-venue checkout
+failed/expired checkouts create no attending guests. Each new ticket holder
+stays separate, including people in the same order. A shared buyer or seating
+preference grants no representative authority. Per-venue checkout
 collects each person's own choices; a policy change before settlement requires
 reconfirmation rather than guessed answers.
 

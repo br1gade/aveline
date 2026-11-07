@@ -494,7 +494,12 @@ registration, not bank certification or credentials.
 |---|---|---|
 | `GET` | `/api/v1/public/events` | Browse published public events |
 | `GET` | `/api/v1/public/events/:slug` | One announcement, availability, preview metadata |
-| `POST` | `/api/v1/public/events/:slug/orders` | Reserve tickets and start payment (idempotent) |
+| `POST` | `/api/v1/public/events/:slug/orders` | Reserve tickets and start payment (idempotent). New ticket holders remain separate. |
+| `POST` | `/api/v1/venue-profiles/:profileId/ticket-layouts` | Publish an immutable layout version with `directory:manage` |
+| `GET` | `/api/v1/events/:eventId/venues/:venueId/ticket-layouts` | List latest venue layout versions with event `event:read` |
+| `GET` | `/api/v1/events/:eventId/venues/:venueId/ticket-layouts/:versionId` | Preview a venue layout version |
+| `GET` | `/api/v1/events/:eventId/venues/:venueId/ticket-layout` | Read the selected layout |
+| `PUT` | `/api/v1/events/:eventId/venues/:venueId/ticket-layout` | Select a layout version with event `event:write` |
 | `GET` | `/api/v1/ticket-orders/:accessToken` | A buyer's own order, event context and tickets |
 | `POST` | `/api/v1/ticket-orders/:accessToken/confirm` | Settle after the bank and return buyer order context |
 | `POST` | `/api/v1/events/:eventId/tickets/:code/admit` | Admit at the door; a code admits once, and only at its own event |

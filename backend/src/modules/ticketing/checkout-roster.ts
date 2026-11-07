@@ -11,6 +11,7 @@ import { readPhone, toColumn } from '../guests/guest-rules';
 
 export function rosterProblem(items: OrderLineDto[], attendees?: OrderAttendeeDto[]): string | null {
   if (!attendees?.length || attendees.length > 1000) return 'attendees: supply one named person per ticket, at most 1000';
+  if (attendees.some((person) => person.householdKey != null)) return 'attendees.householdKey: ticket holders must remain separate';
   if (new Set(items.map((item) => item.ticketTypeId)).size !== items.length) return 'items: list each ticket type once';
   const counts = new Map<string, number>();
   for (const person of attendees) counts.set(person.ticketTypeId, (counts.get(person.ticketTypeId) ?? 0) + 1);

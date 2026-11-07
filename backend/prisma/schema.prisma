@@ -325,6 +325,7 @@ model Venue {
   /// Set when this venue came from the reusable directory rather than being
   /// typed ad hoc. Keeps a one-off address possible without a directory entry.
   profileId    String?
+  ticketLayoutVersionId String?
   role         VenueRole
   name         String
   address      String
@@ -341,6 +342,7 @@ model Venue {
 
   event              Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   profile            VenueProfile?       @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  ticketLayoutVersion VenueTicketLayoutVersion? @relation(fields: [ticketLayoutVersionId], references: [id], onDelete: Restrict)
   timeline           TimelineEntry[]
   tables             Table[]
   attendanceResponses AttendanceResponse[]
@@ -348,6 +350,7 @@ model Venue {
 
   @@unique([id, eventId])
   @@index([eventId])
+  @@index([ticketLayoutVersionId])
   @@map("venues")
 }
 
@@ -370,10 +373,28 @@ model VenueProfile {
 
   vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   venues Venue[]
+  ticketLayouts VenueTicketLayoutVersion[]
 
   @@index([city])
   @@index([vendorId])
   @@map("venue_profiles")
+}
+
+/// Immutable geometry published in the venue directory. Event inventory is separate.
+model VenueTicketLayoutVersion {
+  id        String   @id @default(cuid())
+  profileId String
+  key       String
+  version   Int
+  name      String
+  sections  Json
+  createdAt DateTime @default(now())
+
+  profile VenueProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  venues  Venue[]
+
+  @@unique([profileId, key, version])
+  @@map("venue_ticket_layout_versions")
 }
 
 enum VenueRole {

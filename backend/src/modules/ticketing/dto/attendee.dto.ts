@@ -31,7 +31,7 @@ export class OrderAttendeeDto extends PartyMemberDto {
   @MaxLength(10)
   locale?: string;
 
-  @ApiPropertyOptional({ description: 'Explicit household grouping within this order only; omit to keep people separate' })
+  @ApiPropertyOptional({ deprecated: true, description: 'Accepted only when replaying an existing legacy order; omit for new orders' })
   @IsOptional()
   @IsString()
   @Trimmed()
