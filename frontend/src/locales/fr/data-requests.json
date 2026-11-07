@@ -1,0 +1,106 @@
+{
+  "title": "Demandes sur les données",
+  "back": "Retour aux outils",
+  "lead": "Des personnes demandent ce qui est conservé à leur sujet, ou sa correction ou son effacement. Les échéances les plus proches d’abord. Les dates sont à l’heure d’Erevan.",
+  "limit": "Chaque statut en affiche 200 au maximum, les échéances les plus proches d’abord.",
+  "none": "Rien n’est en attente.",
+  "noAddress": "Issue d’une prise de contact : pas d’adresse",
+  "overdue": "En retard",
+  "dates": "Reçue le {{received}}, à traiter avant le {{due}}",
+  "stepFor": "{{step}} : {{who}}",
+  "tabsLabel": "Quelles demandes",
+  "tab": {
+    "open": "Ouvertes",
+    "completed": "Terminées",
+    "rejected": "Rejetées"
+  },
+  "kind": {
+    "EXPORT": "Une copie de ses données",
+    "ERASURE": "L’effacement de ses données",
+    "RECTIFICATION": "La correction de ses données"
+  },
+  "state": {
+    "RECEIVED": "Reçue",
+    "VERIFYING": "Vérification de l’identité",
+    "IN_PROGRESS": "Identité confirmée",
+    "COMPLETED": "Terminée",
+    "REJECTED": "Rejetée"
+  },
+  "step": {
+    "verify": "Commencer la vérification",
+    "confirm": "Identité confirmée",
+    "reject": "Rejeter",
+    "close": "Clore comme fait",
+    "export": "Exporter",
+    "erase": "Effacer"
+  },
+  "confirm": {
+    "title": "S’agit-il bien de {{address}} ?",
+    "body": "Une fois confirmé, cette demande peut être exécutée. Ne confirmez qu’une fois que la personne a répondu, depuis cette adresse même, à un e-mail que vous y avez envoyé. Le formulaire est public, donc n’importe qui peut saisir n’importe quelle adresse : agir sur une demande non vérifiée est en soi une violation."
+  },
+  "reject": {
+    "title": "Rejeter la demande de {{address}} ?",
+    "body": "Une demande rejetée ne peut pas être rouverte."
+  },
+  "close": {
+    "title": "Clore la correction pour {{address}} ?",
+    "body": "Faites-le une fois l’enregistrement corrigé. Cela ne peut pas être rouvert."
+  },
+  "export": {
+    "title": "Exporter les données de {{address}} ?",
+    "body": "Cela ne peut se faire qu’une seule fois : la copie n’est pas conservée et la demande se clôt. Elle est enregistrée aussitôt sur votre appareil. Gardez la page ouverte jusqu’à ce que vous ayez le fichier.",
+    "saved": "Le fichier a été enregistré sur votre appareil. Il n’est conservé nulle part ailleurs, et cette copie disparaît quand vous quittez la page.",
+    "saveAgain": "Enregistrer à nouveau le fichier",
+    "saveFile": "Enregistrer le fichier privé {{position}} sur {{total}}",
+    "fileFailed": "Ce fichier n’a pas pu être enregistré. Veuillez réessayer."
+  },
+  "erase": {
+    "title": "Effacer les données de {{address}} ?",
+    "body": "Rien ne peut l’annuler. Ses noms, coordonnées, réponses et messages disparaissent, et un compte à cette adresse est fermé. Sa venue, sa place et les montants payés restent.",
+    "typeLabel": "Saisissez l’adresse pour confirmer",
+    "reportTitle": "Ce que l’effacement a fait",
+    "count": {
+      "guestsAnonymised": "Invités anonymisés : {{count, number}}",
+      "householdsRenamed": "Foyers renommés : {{count, number}}",
+      "ticketOrdersAnonymised": "Commandes de billets anonymisées : {{count, number}}",
+      "ticketAttendeesAnonymised": "Titulaires de billets anonymisés : {{count, number}}",
+      "messagesRedacted": "Messages effacés : {{count, number}}",
+      "suppressionsHashed": "Interdictions de contact conservées sous forme de hachage : {{count, number}}",
+      "invitesWithdrawn": "Invitations retirées : {{count, number}}",
+      "accountsClosed": "Comptes fermés : {{count, number}}",
+      "acknowledgementsErased": "Accords effacés : {{count, number}}",
+      "privateMediaQueuedForDeletion": "Fichiers privés en attente de suppression : {{count, number}}",
+      "enquiriesCleared": "Prises de contact effacées : {{count, number}}",
+      "enquiryNotesRedacted": "Notes de prises de contact effacées : {{count, number}}"
+    },
+    "recoveryPending": "L’effacement a été appliqué, mais une étape reste en attente : la demande reste donc ouverte. Appuyez à nouveau sur « Effacer » dans un moment pour la terminer.",
+    "appliedWaiting": "Cet effacement est déjà appliqué, mais une étape reste en attente. Appuyez sur « Effacer » pour le terminer."
+  },
+  "notes": {
+    "label": "Notes",
+    "save": "Enregistrer les notes",
+    "tooLong": "2 000 caractères au maximum.",
+    "saveFirst": "Enregistrez d’abord vos notes, ou effacez-les : cette étape les laisserait de côté.",
+    "tooLongToEdit": "Ces notes sont trop longues pour être modifiées ici, car celles du demandeur peuvent l’être. Complétez-les pour l’instant dans vos propres dossiers."
+  },
+  "status": {
+    "verify": "La vérification a commencé.",
+    "confirm": "Identité confirmée : la demande peut maintenant être exécutée.",
+    "reject": "La demande est rejetée.",
+    "close": "La correction est close.",
+    "export": "L’export est terminé.",
+    "erase": "L’effacement a été lancé. Ce qu’il a fait figure ci-dessous.",
+    "notes": "Les notes sont enregistrées."
+  },
+  "refusal": {
+    "forbidden": "Cette page est réservée aux administrateurs d’Aveline, car une demande concerne tous les clients.",
+    "moved": "Cette demande a évolué depuis la lecture de la page, peut-être du fait de quelqu’un d’autre. La page a été relue.",
+    "rateLimited": "Trop de requêtes pour le moment. Patientez un instant et réessayez.",
+    "noAnswer": "Nous n’avons pas reçu de réponse : l’action a peut-être eu lieu. Relisez la page avant de réessayer.",
+    "other": "Cela n’a pas été accepté :"
+  },
+  "noAddressHelp": "Cette demande vient d’une prise de contact : elle ne peut pas encore être exécutée sur cette page. Il lui faut la fiche de la prise de contact.",
+  "limitClosed": "Cette liste en affiche 200 au maximum, les échéances les plus proches d’abord : les plus récentes peuvent manquer.",
+  "noneClosed": "Aucune ici.",
+  "noAddressWho": "l’auteur de cette prise de contact"
+}

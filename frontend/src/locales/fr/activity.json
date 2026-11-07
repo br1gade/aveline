@@ -1,0 +1,43 @@
+{
+  "back": "Retour à l’événement",
+  "title": "Activité",
+  "lead": "Qui a modifié quelque chose sur cet événement, et quand. Cela indique qu’un changement a eu lieu, jamais son contenu, et les simples lectures n’y figurent pas.",
+  "limit": "Les 100 dernières actions sont affichées.",
+  "empty": "Rien n’est enregistré pour l’instant, ou l’historique ne peut pas être lu pour le moment.",
+  "refused": "L’activité est réservée à qui gère l’équipe de cet événement, car elle nomme les personnes qui ont agi. Le reste de l’événement vous reste ouvert.",
+  "someone": "Une personne qui n’est plus nommée",
+  "at": "{{day}}, {{time}}",
+  "what": "{{area}} : {{change}}",
+  "change": {
+    "POST": "un ajout ou une action",
+    "PATCH": "une modification",
+    "PUT": "une modification",
+    "DELETE": "une suppression",
+    "OTHER": "une modification"
+  },
+  "area": {
+    "event": "L’événement",
+    "archive": "L’archivage",
+    "unarchive": "Le retour d’archive",
+    "attendance-policy": "La façon de répondre des invités",
+    "export-snapshots": "Les exports",
+    "exports": "Les exports",
+    "gallery": "Les photos des invités",
+    "guests": "La liste des invités",
+    "households": "Les foyers",
+    "invitation": "L’invitation",
+    "listing": "La présentation publique",
+    "media": "Les images",
+    "seating": "Le placement",
+    "seats": "Les places",
+    "settings": "Les réglages de l’événement",
+    "tables": "Les tables",
+    "team": "L’équipe",
+    "ticket-orders": "Les commandes de billets",
+    "ticket-types": "Les types de billets",
+    "tickets": "Les billets",
+    "timeline": "Le déroulé",
+    "vendors": "Les prestataires",
+    "venues": "Les lieux"
+  }
+}

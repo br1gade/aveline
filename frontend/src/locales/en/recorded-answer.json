@@ -1,0 +1,74 @@
+{
+  "back": "Back to the guest list",
+  "title": "Record an answer",
+  "lead": "For an answer the guest gave by phone or in person. Fill in what you know: questions the guest’s page requires can wait, and anything left as it was stays as it was. The guest isn’t told unless you tick the box below.",
+  "guestRefused": "Your role can’t see the guest list, so it can’t record an answer. The event’s owner or a coordinator can.",
+  "erased": "This guest’s details were erased at their request, so no answer can be recorded for them.",
+  "askingUnknown": "The invitation’s questions couldn’t be read, so only whether they’re coming can be recorded now. Reload the page to try again.",
+  "save": "Save the answer",
+  "saving": "Saving…",
+  "cancel": "Cancel",
+  "reply": {
+    "ATTENDING": "Coming",
+    "DECLINED": "Not coming",
+    "UNDECIDED": "Not sure yet"
+  },
+  "attendance": {
+    "eventWide": "Are they coming?",
+    "perVenue": "Are they coming, at each place?",
+    "perVenueHelp": "A place left unanswered keeps what it had."
+  },
+  "fields": {
+    "dietary": "Dietary needs",
+    "dietaryNotes": "Notes on dietary needs",
+    "drinkPreference": "Drink",
+    "songRequest": "A song they’d like",
+    "message": "Their message to the hosts"
+  },
+  "question": {
+    "yes": "Yes",
+    "no": "No",
+    "notAnswered": "Not answered",
+    "requiredHelp": "The guest’s page asks this of anyone coming; here it can wait. An answer once given can be changed, not removed.",
+    "signature": "Only the guest can agree, through their own link."
+  },
+  "notify": {
+    "label": "Tell the guest it was recorded",
+    "help": "Off by default: they gave the answer themselves, so a confirmation would surprise them."
+  },
+  "errors": {
+    "chooseAnswer": "Choose whether they’re coming.",
+    "chooseVenue": "Give an answer for one place at least.",
+    "tooLong": "This is too long.",
+    "refused": "This answer wasn’t accepted: the question may have changed. The page has been reloaded."
+  },
+  "refused": {
+    "erased": "This guest’s details were erased at their request. The page has been reloaded.",
+    "ticketVoid": "Their ticket is no longer valid, so they can’t be recorded as coming.",
+    "policyChanged": "How guests answer changed since this page was opened. It has been reloaded: give the answer again.",
+    "signature": "Agreeing to a statement needs the guest’s own link.",
+    "questionRefused": "One answer wasn’t accepted: the question may have changed. The page has been reloaded.",
+    "fieldRefused": "The invitation no longer asks one of these questions this way. The page has been reloaded.",
+    "venueRefused": "One of these places is no longer shown to guests. The page has been reloaded.",
+    "modeChanged": "How guests answer changed since this page was opened. It has been reloaded: give the answer again.",
+    "gone": "This guest is no longer on the list.",
+    "forbidden": "Your role on this event can’t record answers. Its owner or a coordinator can.",
+    "rateLimited": "Too many tries. Wait a minute, then try again.",
+    "noAnswer": "No answer came. Check the guest list to see whether it was recorded, then try again.",
+    "other": "The answer was refused."
+  },
+  "status": {
+    "recorded": "The answer for {{name}} is recorded."
+  },
+  "household": {
+    "title": "Record the household’s answers",
+    "lead": "Each person’s answer, as for one guest, saved together. Only those you change are sent: anyone left as they were stays as they were, answered or not.",
+    "save": "Save the answers",
+    "notify": "Tell each person recorded that it was",
+    "recorded": "The answers for {{name}} were recorded.",
+    "partly": "Recorded: {{recorded}}. Not recorded: {{notRecorded}}. Correct what is shown and save again; only the rest is sent.",
+    "nothing": "Nothing was changed, so nothing was sent.",
+    "erased": "{{name}}: their details were erased at their request, so no answer can be recorded for them.",
+    "gone": "This household is no longer on the guest list."
+  }
+}

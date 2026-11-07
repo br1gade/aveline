@@ -1,0 +1,134 @@
+{
+  "answer": {
+    "legend": "Your answer",
+    "ATTENDING": "Joyfully attending",
+    "DECLINED": "Regretfully declining",
+    "UNDECIDED": "Not sure yet",
+    "undecidedNote": "You can change your reply later, when you know."
+  },
+  "household": {
+    "title": "Who’s coming",
+    "seats": "Seats reserved: {{count}}",
+    "ATTENDING": "Attending",
+    "DECLINED": "Not attending",
+    "UNDECIDED": "Not sure",
+    "dietaryFor": "Dietary needs for {{name}}"
+  },
+  "party": {
+    "title": "Add a guest",
+    "add": "Add a guest",
+    "remove": "Remove",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "remaining": "Seats remaining: {{count}}",
+    "guest": "Guest {{number}}"
+  },
+  "side": {
+    "title": "Who invited you?",
+    "both": "Both"
+  },
+  "dietary": {
+    "title": "Dietary requirements",
+    "notes": "Anything else we should know?"
+  },
+  "drink": {
+    "title": "Drink preference"
+  },
+  "song": {
+    "title": "Your song",
+    "help": "Which song will get you dancing?"
+  },
+  "message": {
+    "title": "A message for the hosts"
+  },
+  "question": {
+    "required": "Required",
+    "optional": "Optional",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "counter": "{{count}} / {{limit}}",
+  "send": {
+    "button": "Send reply",
+    "sending": "Sending…",
+    "reassurance": "You can change your reply with this link while replies are open."
+  },
+  "summary": {
+    "label": "Your reply",
+    "attending_one": "Attending · {{count}} person",
+    "attending_other": "Attending · {{count}} people",
+    "DECLINED": "Not attending",
+    "UNDECIDED": "Not sure yet",
+    "sentOn": "Sent on {{date}}",
+    "change": "Change reply"
+  },
+  "sent": {
+    "heading": "Thank you",
+    "body": "Your reply has been received.",
+    "comingLabel": "Coming:"
+  },
+  "errors": {
+    "summaryTitle": "Please check your reply",
+    "chooseAnswer": "Choose an answer.",
+    "firstName": "Enter a first name.",
+    "tooLong": "This is too long.",
+    "required": "This question needs an answer.",
+    "invalidAnswer": "Check this answer.",
+    "members": "Check the answers for your household.",
+    "party": "Check the guests you are adding.",
+    "seats": "You have named more guests than your seats allow ({{count}}).",
+    "other": "Some answers could not be saved. Check them and try again.",
+    "rateLimited": "Too many attempts. Please wait a minute and try again.",
+    "failed": "We couldn’t send your reply. Check your connection and try again.",
+    "retry": "Try again",
+    "reference": "Reference: {{id}}",
+    "loadFailed": "We couldn’t load your reply. Please reload the page.",
+    "chooseVenue": "Choose an answer for this part.",
+    "changed": "The invitation changed while you were answering. Reload it to see the change: what you typed stays.",
+    "reload": "Reload",
+    "gone": "This invitation is no longer available, so your reply could not be sent.",
+    "agree": "Agree to the statement to reply for everyone coming.",
+    "signerName": "Enter your full name.",
+    "drawing": "Draw your signature and choose “Use this signature”, or type your name instead.",
+    "onBehalf": "Confirm that you agree on behalf of the others coming."
+  },
+  "venues": {
+    "lead": "Let the hosts know for each part of the celebration.",
+    "memberAt": "{{name}} · {{venue}}",
+    "line": "{{venue}}: {{answer}}",
+    "pending": "not answered yet",
+    "reconfirm": "The hosts have changed how guests reply, so earlier answers no longer count. Please answer again."
+  },
+  "signature": {
+    "legend": "Please read and agree",
+    "for": "For: {{names}}",
+    "already": "Already agreed: {{names}}",
+    "agree": "I agree",
+    "onBehalf": "I agree on behalf of {{names}}",
+    "method": "How would you like to sign?",
+    "TYPED": "Type my name",
+    "DRAWN": "Draw my signature",
+    "signerName": "Your full name",
+    "typedHelp": "Typing your name is your signature.",
+    "drawnHelp": "Your name is kept beside your signature.",
+    "saved": "Agreed: {{names}}",
+    "showDrawing": "Show the signature for {{names}}",
+    "hideDrawing": "Hide the signature for {{names}}",
+    "drawingAlt": "The signature drawn for {{names}}",
+    "drawingFailed": "The signature couldn’t be shown.",
+    "drawingRetry": "Try again"
+  },
+  "pad": {
+    "label": "Signature drawing area",
+    "help": "Draw with your finger, a pen or the mouse. If that is hard, type your name instead.",
+    "clear": "Clear",
+    "use": "Use this signature",
+    "empty": "Draw your signature first.",
+    "uploading": "Saving your signature…",
+    "checking": "Checking your signature…",
+    "ready": "Your signature is ready.",
+    "failed": "Your signature couldn’t be saved. Draw it again, or type your name instead.",
+    "again": "Draw again",
+    "typeInstead": "Type your name instead"
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "roles": {
+    "choose": "Choose…",
+    "CEREMONY": "Ceremony",
+    "RECEPTION": "Reception",
+    "AFTER_PARTY": "After-party",
+    "PREPARATION": "Getting ready",
+    "OTHER": "Other"
+  },
+  "fields": {
+    "role": "What happens there",
+    "roleHelp": "“Getting ready” is for you and your team: guests don’t see it on the invitation.",
+    "name": "Name",
+    "nameHelp": "As guests will see it, such as “Saint Hripsime Church”.",
+    "address": "Address",
+    "addressHelp": "Shown to guests. The invitation can be published once a venue has an address.",
+    "mapUrl": "Map link (optional)",
+    "mapUrlHelp": "A link to the place on a map, starting with https://. Guests see it as “Directions”.",
+    "arrival": "When guests should arrive (optional)",
+    "arrivalHelp": "In the event’s time zone, {{timeZone}}, wherever your guests are. Leave both empty for no set time.",
+    "arrivalDate": "Date",
+    "arrivalTime": "Time",
+    "errors": {
+      "required": "Fill this in.",
+      "choose": "Choose one.",
+      "tooLong": "This is too long.",
+      "mapUrl": "Use a web address starting with https:// or http://. Guests wouldn’t be shown anything else.",
+      "arrivalPair": "Fill in both the date and the time, or leave both empty.",
+      "dateInvalid": "Enter a real date.",
+      "timeSkipped": "The clocks go forward at this time, so it doesn’t exist on that day in this time zone. Choose another time.",
+      "refused": "This wasn’t accepted. Check it.",
+      "other": "Check this field.",
+      "capacity": "Use a whole number from 1 to 100,000, or leave it empty.",
+      "cantClear": "Once set, this can be changed but not emptied."
+    },
+    "otherLanguages": "In the event’s other languages",
+    "otherLanguagesHelp": "Guests reading one of these languages see its name and address. Left empty, they see the name and address above.",
+    "nameIn": "Name in {{language}}",
+    "addressIn": "Address in {{language}}",
+    "defaultOverride": "Guests reading {{language}}, the default language, see these words instead of the name and address above. Empty both to show those."
+  },
+  "form": {
+    "newTitle": "Add a venue",
+    "editTitle": "Edit {{name}}",
+    "lead": "Guests who open the invitation see a change at once.",
+    "newSubmit": "Add the venue",
+    "adding": "Adding…",
+    "editSubmit": "Save changes",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "goneTitle": "This venue is no longer on the event",
+    "goneBody": "Someone may have removed it."
+  },
+  "list": {
+    "back": "Back to the event",
+    "title": "Venues",
+    "lead": "Where your guests go. The invitation shows each venue with its address and directions, and can be published once one has an address.",
+    "add": "Add a venue",
+    "empty": "No venues yet.",
+    "arrival": "Guests arrive at {{time}}, {{date}} ({{timeZone}})",
+    "directions": "Directions",
+    "newTab": "(opens in a new tab)",
+    "mapUnusable": "The map link isn’t a web address, so guests aren’t shown it. Edit the venue to correct it.",
+    "hiddenRole": "{{role}}: not shown to guests",
+    "edit": "Edit",
+    "remove": "Remove",
+    "removed": "{{name}} was removed.",
+    "directory": "The venue directory, kept by Aveline staff"
+  },
+  "actionFor": "{{action}}: {{name}}",
+  "remove": {
+    "title": "Remove {{name}}?",
+    "body": "Guests will no longer see it on the invitation.",
+    "confirm": "Remove",
+    "removing": "Removing…",
+    "cancel": "Cancel"
+  },
+  "notify": {
+    "back": "Back to the venues"
+  },
+  "problems": {
+    "forbidden": "Your role on this event can’t change its venues. The event’s owner can change your role.",
+    "missing": "This venue is no longer on the event. The list has been reloaded.",
+    "eventMissing": "This event is no longer available.",
+    "conflict": "That can’t be done in the event’s current state. Reload the page to see it as it is now.",
+    "inUse": "This venue can’t be removed while the running order, a table or a released seat still points to it. Move or dismiss them first.",
+    "check": "Some details weren’t accepted. Check them and try again.",
+    "other": "This wasn’t accepted. Try again.",
+    "hasAnswers": "Guests have already answered for this venue, so it can’t be removed: their answers stay with it. You can still correct its details.",
+    "guestFacing": "Guests have answered, chosen or been seated for this venue, so it has to stay shown to guests. Keep what happens there as it was.",
+    "hallRetired": "That hall has left the directory, so its choice was dropped. The name and address you see are kept: press Add to use them as typed."
+  },
+  "directory": {
+    "back": "Back to the venues",
+    "title": "The venue directory",
+    "lead": "Halls every host can start a venue from. Aveline staff keep it: only they can add, correct or retire a hall, or say who runs it. Venues already copied from a hall keep their copy.",
+    "add": "Add a hall",
+    "empty": "The directory has no halls yet.",
+    "noCity": "No city set",
+    "capacity_one": "{{count, number}} guest",
+    "capacity_other": "{{count, number}} guests",
+    "runBy": "Run by {{name}}",
+    "noOperator": "No operator",
+    "edit": "Edit",
+    "editFor": "Edit {{name}}",
+    "retire": "Retire",
+    "retireFor": "Retire {{name}}",
+    "pick": {
+      "label": "Start from the directory (optional)",
+      "help": "Fills in the name and address, which you can still change.",
+      "none": "Don’t use the directory",
+      "copied": "Its coordinates and capacity are copied to this venue when you add it.",
+      "refused": "Your role can’t read the directory. Type the venue in below."
+    },
+    "form": {
+      "addTitle": "Add a hall",
+      "editTitle": "Correct {{name}}",
+      "body": "Every host sees this. Only Aveline staff can save it.",
+      "name": "Name",
+      "address": "Address",
+      "city": "City (optional)",
+      "capacity": "How many guests it holds (optional)",
+      "operator": "Who runs it (optional)",
+      "operatorHelp": "Aveline’s curated venue vendors. Each hall has one; a vendor can run several.",
+      "noOperators": "The list of vendors can’t be read with your role, so who runs this hall stays as it is.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "retireDialog": {
+      "title": "Retire {{name}}?",
+      "body": "Hosts stop seeing it. Venues already copied from it keep their copy. No read shows a retired hall again, so it can’t be brought back from this page.",
+      "confirm": "Retire"
+    },
+    "status": {
+      "added": "{{name}} is in the directory.",
+      "saved": "{{name}} is saved.",
+      "retired": "{{name}} is retired."
+    },
+    "refused": {
+      "staffOnly": "Only Aveline staff can change the directory. Your role can read it and start a venue from it.",
+      "gone": "That hall is no longer in the directory. The page has been reloaded.",
+      "operatorRefused": "That vendor can’t run a hall any more. The page has been reloaded: choose another.",
+      "rateLimited": "Too many tries. Wait a minute, then try again.",
+      "noAnswer": "No answer came. It may have been saved: check the list, then try again.",
+      "other": "This wasn’t accepted. The reason, in English:"
+    },
+    "readRefused": "Your role can’t read the directory."
+  }
+}

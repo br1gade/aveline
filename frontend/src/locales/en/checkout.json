@@ -1,0 +1,134 @@
+{
+  "back": "Back to the event",
+  "heading": "Your tickets",
+  "untitled": "An event",
+  "closed": "Ticket sales closed when the event started.",
+  "empty": "You haven’t chosen any tickets yet.",
+  "chooseTickets": "Choose tickets",
+  "basket": {
+    "heading": "Tickets",
+    "line_one": "{{count}} × {{name}}",
+    "line_other": "{{count}} × {{name}}",
+    "subtotal": "Subtotal",
+    "change": "Change tickets",
+    "free": "Free"
+  },
+  "buyer": {
+    "heading": "Your details",
+    "lead": "The order is in your name. We send it to your email address, with a link to your tickets.",
+    "emailHelp": "Your order and its link come to this address."
+  },
+  "fields": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "optional": "Optional"
+  },
+  "people": {
+    "heading": "Who is coming",
+    "lead": "Each ticket is for one person, named here. Their email and phone are their own: yours are never used for them.",
+    "ticket": "Ticket {{number}} of {{total}} · {{type}}",
+    "ticketType": "Ticket",
+    "forMe": "This ticket is for me",
+    "emailHelp": "Only for this person’s own messages from the hosts.",
+    "thisPerson": "This person"
+  },
+  "venue": {
+    "legend": "Where they are coming",
+    "lead": "Answer at least one place. Any left open can be answered later.",
+    "at": "{{name}} · {{venue}}",
+    "ATTENDING": "Coming",
+    "DECLINED": "Not coming",
+    "UNDECIDED": "Not sure yet"
+  },
+  "dietary": {
+    "legend": "Dietary needs",
+    "notes": "Anything else we should know"
+  },
+  "drink": {
+    "legend": "Drink"
+  },
+  "question": {
+    "required": "Required",
+    "optional": "Optional",
+    "untitled": "A question from the hosts",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "agreements": {
+    "heading": "Before the door",
+    "lead": "After the order, each person with an email address receives their own link to agree to:",
+    "untitled": "A statement from the hosts",
+    "noEmail": "Anyone without an email address gets the link from the hosts. Nobody can be let in without agreeing."
+  },
+  "promo": {
+    "heading": "Promo code",
+    "label": "Code",
+    "apply": "Apply",
+    "remove": "Remove the code",
+    "applied": "{{code}} is applied: {{amount}} off.",
+    "busy": "Too many tries in a short time. Wait a minute, then try again.",
+    "failed": "The code couldn’t be checked. Try again. Reference: {{requestId}}",
+    "reasons": {
+      "unknown": "We don’t recognise that code.",
+      "unavailable": "This code is no longer available.",
+      "otherEvent": "This code isn’t for this event.",
+      "notYet": "This code can’t be used yet.",
+      "expired": "This code has expired.",
+      "ranOut": "This code has been used up.",
+      "minimum": "This code needs an order of at least {{amount}}."
+    }
+  },
+  "total": {
+    "heading": "Total",
+    "label": "To pay",
+    "getTickets": "Get tickets",
+    "pay": "Continue to payment",
+    "freeNote": "Your tickets appear on the next page, and come to your email address.",
+    "paidNote": "You pay on your bank’s own secure page. Your tickets are held for you for 15 minutes."
+  },
+  "refusals": {
+    "staleRevision": "The hosts changed how guests answer while you were filling this in. Choose again where each person is coming; everything else you typed is kept.",
+    "changedIntent": "Your order changed since you last pressed. Press again to place it as it is now.",
+    "soldOut": "There are fewer tickets left than you chose. Your tickets above now show what is left: check them, then press again.",
+    "notOnSale": "One of your tickets is no longer on sale. Your tickets above show what is left: check them, then press again.",
+    "salesClosed": "Ticket sales have closed for this event, or for one of your tickets.",
+    "salesNotOpen": "Sales for one of your tickets haven’t opened yet.",
+    "orderLimits": "One of your tickets is sold only in other quantities. Change your tickets, then press again.",
+    "requiredAnswer": "A question the hosts require isn’t answered for everyone coming. It is marked above.",
+    "notFound": "This event is no longer on sale here.",
+    "paymentsOff": "Paid tickets can’t be bought yet: Aveline is running as a free pilot. Free tickets can still be had.",
+    "fields": "Some details were refused. They are marked above.",
+    "rateLimited": "Too many tries in a short time. Wait a minute, then press again.",
+    "noAnswer": "We didn’t get an answer. Press again: your order won’t be placed twice.",
+    "other": "The order was refused, with this reason:",
+    "reference": "Reference: {{requestId}}",
+    "promo": "{{reason}} Remove the code, or try another.",
+    "layoutChanged": "The layout changed. Choose your seats or zones again.",
+    "selectionUnavailable": "A selection is unavailable. Choose your seats or zones again.",
+    "buyerLimit": "This order exceeds the event’s ticket limit per buyer."
+  },
+  "errors": {
+    "required": "Fill this in.",
+    "tooLong": "This is too long.",
+    "email": "Enter an email address, like name@example.com.",
+    "phone": "Enter a phone number, like +374 10 123456.",
+    "chooseVenue": "Answer at least one place.",
+    "buyerOnce": "Only one ticket can be yours.",
+    "refused": "Check this: it was refused."
+  },
+  "selection": {
+    "heading": "Choose seats or zones",
+    "ticket": "Ticket {{count}} · {{name}}",
+    "section": "Section or zone",
+    "seat": "Seat",
+    "choose": "Choose",
+    "seatName": "Row {{row}}, seat {{seat}}",
+    "loading": "Loading availability…",
+    "retry": "Retry availability",
+    "soldOut": "No places are available for this ticket.",
+    "remaining": "Places available: {{count}}",
+    "required": "Choose a seat or zone for every ticket."
+  }
+}

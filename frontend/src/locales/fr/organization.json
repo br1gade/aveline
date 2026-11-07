@@ -1,0 +1,126 @@
+{
+  "title": "Votre organisation",
+  "back": "Retour à vos événements",
+  "refused": "Ce compte ne fait pas encore partie d’une organisation. Créez-en une depuis la page de vos événements.",
+  "datesNote": "Les dates sont à l’heure d’Erevan.",
+  "name": {
+    "title": "Nom",
+    "label": "Le nom de l’organisation",
+    "save": "Enregistrer le nom",
+    "saving": "Enregistrement…",
+    "error": "Utilisez de 2 à 160 caractères."
+  },
+  "members": {
+    "title": "Membres",
+    "lead": "Les personnes de l’organisation et ce qu’elles peuvent faire. Seul un propriétaire voit cette liste.",
+    "refused": "Seul un propriétaire peut voir les membres. Vos événements et la possibilité de quitter l’organisation restent à votre disposition.",
+    "joined": "{{role}} · depuis le {{date}}",
+    "change": "Changer le rôle",
+    "changeFor": "Changer le rôle : {{name}}",
+    "makeOwner": "Nommer propriétaire",
+    "makeOwnerFor": "Nommer propriétaire : {{name}}",
+    "remove": "Retirer",
+    "removeFor": "Retirer : {{name}}",
+    "more": "Afficher d’autres membres",
+    "loading": "Chargement…",
+    "moreFailed": "Les autres membres n’ont pas pu être chargés. Veuillez réessayer."
+  },
+  "role": {
+    "OWNER": {
+      "name": "Propriétaire",
+      "about": "Tout, y compris la facturation et les membres de l’organisation."
+    },
+    "MANAGER": {
+      "name": "Responsable",
+      "about": "Gère les événements, mais ni la facturation ni les membres."
+    },
+    "MEMBER": {
+      "name": "Membre",
+      "about": "Peut consulter les événements sans rien modifier, pour l’instant comme un observateur."
+    },
+    "VIEWER": {
+      "name": "Observateur",
+      "about": "Peut consulter les événements sans rien modifier."
+    },
+    "unknown": "Un autre rôle"
+  },
+  "changeRole": {
+    "title": "Changer le rôle de {{name}}",
+    "body": "Cela s’applique dès leur prochaine requête. S’il s’agit de votre propre rôle, vous pourriez perdre l’accès à cette page.",
+    "label": "Rôle",
+    "save": "Changer le rôle",
+    "cancel": "Annuler",
+    "saving": "Enregistrement…"
+  },
+  "remove": {
+    "title": "Retirer {{name}} de l’organisation ?",
+    "body": "Cette personne perd tous ses rôles dans l’organisation et ses événements, ainsi que ses invitations en attente et ses travaux inachevés. Les événements et leur historique restent. S’il s’agit de vous, vous perdez l’accès aussitôt.",
+    "confirm": "Retirer"
+  },
+  "owner": {
+    "title": "Nommer {{name}} propriétaire ?",
+    "body": "Cette personne pourra tout faire, y compris la facturation et le retrait de personnes. Vous restez également propriétaire.",
+    "confirm": "Nommer propriétaire"
+  },
+  "invites": {
+    "title": "Invitations",
+    "none": "Aucune invitation en attente.",
+    "refused": "Seul un propriétaire peut voir les invitations.",
+    "line": "{{role}} · jusqu’au {{date}}",
+    "withdraw": "Retirer",
+    "withdrawFor": "Retirer : {{email}}",
+    "withdrawTitle": "Retirer l’invitation envoyée à {{email}} ?",
+    "withdrawBody": "Le lien envoyé cesse de fonctionner. Seule une nouvelle invitation le rétablit.",
+    "expired": "{{role}} · expirée le {{date}}"
+  },
+  "invite": {
+    "title": "Inviter quelqu’un",
+    "lead": "Nous lui envoyons un lien par e-mail. Inviter à nouveau la même adresse remplace le lien précédent. Une personne déjà dans une autre organisation ne peut pas encore rejoindre celle-ci.",
+    "email": "Adresse e-mail",
+    "emailError": "Saisissez une adresse e-mail valide.",
+    "role": "Rôle",
+    "send": "Envoyer l’invitation",
+    "sending": "Envoi…"
+  },
+  "leave": {
+    "title": "Quitter",
+    "lead": "Vous perdez vos rôles dans cette organisation et ses événements. Si vous êtes son seul propriétaire, nommez d’abord quelqu’un d’autre.",
+    "open": "Quitter l’organisation",
+    "askTitle": "Quitter cette organisation ?",
+    "askBody": "Vous perdez l’accès aussitôt, et seule une nouvelle invitation le rétablit.",
+    "confirm": "Quitter"
+  },
+  "close": {
+    "title": "Fermer l’organisation",
+    "lead": "Un propriétaire peut demander au personnel d’Aveline de la fermer. Rien n’est supprimé avant leur décision, et les événements et l’historique des paiements sont conservés dans tous les cas.",
+    "open": "Demander la fermeture",
+    "askTitle": "Demander à Aveline de fermer cette organisation ?",
+    "askBody": "Chacun garde son accès jusqu’à la décision du personnel. Demander deux fois est sans effet, car cette page ne peut pas indiquer si c’est déjà fait.",
+    "confirm": "Demander la fermeture"
+  },
+  "status": {
+    "renamed": "Le nom est enregistré.",
+    "roleChanged": "{{name}} a désormais le rôle : {{role}}.",
+    "removed": "{{name}} ne fait plus partie de l’organisation.",
+    "madeOwner": "{{name}} est désormais aussi propriétaire.",
+    "invited": "Une invitation a été envoyée à {{email}}.",
+    "withdrawn": "L’invitation envoyée à {{email}} est retirée.",
+    "closeAsked": "Votre demande a été transmise au personnel d’Aveline. Rien ne change avant leur décision."
+  },
+  "refusal": {
+    "forbidden": "Seul un propriétaire peut faire cela.",
+    "onlyOwner": "Seul un propriétaire peut demander cela.",
+    "rateLimited": "Trop de requêtes pour le moment. Patientez un instant et réessayez.",
+    "noAnswer": "Nous n’avons pas reçu de réponse. Veuillez réessayer.",
+    "changed": "Quelqu’un a modifié les membres de l’organisation entre-temps. La page a été relue : veuillez réessayer.",
+    "handover": "Un propriétaire doit rester. Nommez d’abord quelqu’un d’autre propriétaire, ici ou sur les événements concernés.",
+    "memberGone": "Cette personne n’est plus un membre actif : cela n’est donc pas possible. La page a été relue.",
+    "alreadyMember": "Cette personne est déjà membre. La page a été relue.",
+    "noInvite": "Cette invitation n’est plus en attente. La page a été relue.",
+    "emailRefused": "Saisissez une adresse e-mail valide.",
+    "nameRefused": "Utilisez de 2 à 160 caractères.",
+    "chooseOrganization": "Choisissez l’organisation concernée, puis réessayez.",
+    "noOrganization": "Ce compte ne fait plus partie de cette organisation.",
+    "other": "Cela n’a pas été accepté :"
+  }
+}

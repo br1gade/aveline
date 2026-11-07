@@ -1,0 +1,83 @@
+{
+  "title": "Vos billets",
+  "opening": "Ouverture de votre commande…",
+  "loading": "Chargement de votre commande…",
+  "failed": {
+    "body": "Votre commande n’a pas pu être chargée.",
+    "retry": "Réessayer",
+    "reference": "Référence : {{requestId}}"
+  },
+  "none": {
+    "heading": "Ouvrez votre commande depuis son e-mail",
+    "body": "Cet onglet ne contient pas de commande. Ouvrez le lien de l’e-mail que nous vous avons envoyé après votre commande."
+  },
+  "gone": {
+    "heading": "Cette commande est introuvable",
+    "body": "Le lien est peut-être erroné. Ouvrez-le à nouveau depuis notre e-mail."
+  },
+  "outcome": {
+    "paid": {
+      "heading": "Vos billets",
+      "body": "Chaque personne montre son code à l’entrée. Nous avons envoyé le lien de cette page à votre adresse e-mail."
+    },
+    "awaitingBank": {
+      "heading": "En attente de votre banque",
+      "body": "Vos billets sont réservés pendant que la banque confirme le paiement. Rien n’est émis avant."
+    },
+    "declined": {
+      "heading": "Le paiement n’est pas passé",
+      "body": "Votre banque n’a pas accepté le paiement : aucun billet n’a été émis et rien n’a été débité."
+    },
+    "holdEnded": {
+      "heading": "Votre réservation a pris fin",
+      "body": "Les billets étaient réservés 15 minutes. Si votre banque a pris le paiement, vos billets arriveront quand même par e-mail d’ici quelques minutes ; s’ils ont été vendus entre-temps, l’argent est intégralement remboursé."
+    },
+    "cancelled": {
+      "heading": "Cette commande a été annulée",
+      "body": "Ses billets ne sont plus valables."
+    },
+    "refunded": {
+      "heading": "Cette commande a été remboursée",
+      "body": "Ses billets ne sont plus valables, et le paiement a été restitué."
+    }
+  },
+  "agreements": "Chaque personne ayant une adresse e-mail reçoit son propre lien pour accepter les déclarations des hôtes avant l’entrée.",
+  "declined": {
+    "again": "Choisir à nouveau des billets"
+  },
+  "waiting": {
+    "pay": "Aller à la page de paiement",
+    "check": "Vérifier auprès de la banque"
+  },
+  "hold": {
+    "left_one": "Réservés encore {{count}} minute",
+    "left_many": "Réservés encore {{count}} minutes",
+    "left_other": "Réservés encore {{count}} minutes",
+    "over": "La réservation a pris fin",
+    "announce": {
+      "five": "Plus que cinq minutes de réservation.",
+      "one": "Plus qu’une minute de réservation.",
+      "over": "Votre réservation a pris fin."
+    }
+  },
+  "ticket": {
+    "heading": "Billets",
+    "ticket": "Billet",
+    "noName": "Aucun nom donné",
+    "codeLabel": "Code à montrer à l’entrée",
+    "notIssued": "Non émis",
+    "valid": "Valable",
+    "used": "Entré",
+    "cancelled": "Annulé",
+    "qrFor": "Code QR du billet de {{holder}}",
+    "qrHint": "Augmentez la luminosité de votre écran au moment du scan à l’entrée.",
+    "seat": "{{sectionName}} · Rang {{row}}, place {{seat}}"
+  },
+  "totals": {
+    "discount": "Remise",
+    "total": "Total"
+  },
+  "disagreement": {
+    "body": "La banque et notre relevé de ce paiement ne concordent pas. Ne payez pas une seconde fois : contactez-nous avec la référence ci-dessous, et nous réglerons cela."
+  }
+}

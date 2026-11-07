@@ -1,0 +1,24 @@
+{
+  "metaTitle": "Demande sur vos données · Aveline",
+  "title": "Une demande sur vos données",
+  "lead": "Chacun peut demander ce qu’Aveline conserve au sujet de son adresse e-mail, ou demander que ces données soient corrigées ou effacées. Aucun compte n’est nécessaire.",
+  "kind": {
+    "legend": "Que souhaitez-vous ?",
+    "EXPORT": "Une copie de ce qui est conservé à mon sujet",
+    "ERASURE": "Effacer ce qui est conservé à mon sujet",
+    "RECTIFICATION": "Corriger ce qui est conservé à mon sujet"
+  },
+  "email": "Votre adresse e-mail",
+  "emailHelp": "Nous vérifierons qu’elle est bien la vôtre avant de répondre.",
+  "notes": "Autre chose à ajouter (facultatif)",
+  "notesHelp": "Pour une correction, indiquez ce qui doit changer. Jusqu’à 2 000 caractères.",
+  "submit": "Envoyer la demande",
+  "submitting": "Envoi…",
+  "sent": "Nous avons enregistré votre demande. Nous vérifierons votre identité et répondrons d’ici le {{date}}, heure d’Erevan.",
+  "sameAnswer": "Ce message est le même, que quelque chose soit conservé ou non au sujet de cette adresse.",
+  "errors": {
+    "email": "Saisissez une adresse e-mail valide.",
+    "notes": "2 000 caractères au maximum.",
+    "refused": "La demande n’a pas été acceptée. Vérifiez votre saisie et réessayez."
+  }
+}

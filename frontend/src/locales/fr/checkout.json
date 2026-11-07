@@ -1,0 +1,135 @@
+{
+  "back": "Retour à l’événement",
+  "heading": "Vos billets",
+  "untitled": "Un événement",
+  "closed": "La vente des billets s’est arrêtée au début de l’événement.",
+  "empty": "Vous n’avez pas encore choisi de billets.",
+  "chooseTickets": "Choisir des billets",
+  "basket": {
+    "heading": "Billets",
+    "line_one": "{{count}} × {{name}}",
+    "line_many": "{{count}} × {{name}}",
+    "line_other": "{{count}} × {{name}}",
+    "subtotal": "Sous-total",
+    "change": "Modifier les billets",
+    "free": "Gratuit"
+  },
+  "buyer": {
+    "heading": "Vos coordonnées",
+    "lead": "La commande est à votre nom. Nous l’envoyons à votre adresse e-mail, avec un lien vers vos billets.",
+    "emailHelp": "Votre commande et son lien arrivent à cette adresse."
+  },
+  "fields": {
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "optional": "Facultatif"
+  },
+  "people": {
+    "heading": "Qui vient",
+    "lead": "Chaque billet est pour une personne, nommée ici. Son e-mail et son téléphone sont les siens : les vôtres ne sont jamais utilisés pour elle.",
+    "ticket": "Billet {{number}} sur {{total}} · {{type}}",
+    "ticketType": "Billet",
+    "forMe": "Ce billet est pour moi",
+    "emailHelp": "Uniquement pour les messages des hôtes à cette personne.",
+    "thisPerson": "Cette personne"
+  },
+  "venue": {
+    "legend": "Où elle vient",
+    "lead": "Répondez pour au moins un lieu. Les autres pourront recevoir une réponse plus tard.",
+    "at": "{{name}} · {{venue}}",
+    "ATTENDING": "Vient",
+    "DECLINED": "Ne vient pas",
+    "UNDECIDED": "Pas encore sûr"
+  },
+  "dietary": {
+    "legend": "Régime alimentaire",
+    "notes": "Autre chose à savoir"
+  },
+  "drink": {
+    "legend": "Boisson"
+  },
+  "question": {
+    "required": "Obligatoire",
+    "optional": "Facultatif",
+    "untitled": "Une question des hôtes",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "agreements": {
+    "heading": "Avant l’entrée",
+    "lead": "Après la commande, chaque personne ayant une adresse e-mail reçoit son propre lien pour accepter :",
+    "untitled": "Une déclaration des hôtes",
+    "noEmail": "Les personnes sans adresse e-mail reçoivent le lien des hôtes. Personne n’entre sans avoir accepté."
+  },
+  "promo": {
+    "heading": "Code promo",
+    "label": "Code",
+    "apply": "Appliquer",
+    "remove": "Retirer le code",
+    "applied": "Le code {{code}} est appliqué : {{amount}} de remise.",
+    "busy": "Trop d’essais en peu de temps. Attendez une minute, puis réessayez.",
+    "failed": "Le code n’a pas pu être vérifié. Réessayez. Référence : {{requestId}}",
+    "reasons": {
+      "unknown": "Nous ne reconnaissons pas ce code.",
+      "unavailable": "Ce code n’est plus disponible.",
+      "otherEvent": "Ce code n’est pas valable pour cet événement.",
+      "notYet": "Ce code ne peut pas encore être utilisé.",
+      "expired": "Ce code a expiré.",
+      "ranOut": "Ce code est épuisé.",
+      "minimum": "Ce code demande une commande d’au moins {{amount}}."
+    }
+  },
+  "total": {
+    "heading": "Total",
+    "label": "À payer",
+    "getTickets": "Obtenir les billets",
+    "pay": "Passer au paiement",
+    "freeNote": "Vos billets s’affichent à la page suivante et arrivent à votre adresse e-mail.",
+    "paidNote": "Vous payez sur la page sécurisée de votre banque. Vos billets vous sont réservés pendant 15 minutes."
+  },
+  "refusals": {
+    "staleRevision": "Les hôtes ont changé la façon de répondre pendant que vous remplissiez ce formulaire. Choisissez à nouveau où vient chaque personne ; tout le reste est conservé.",
+    "changedIntent": "Votre commande a changé depuis votre dernier appui. Appuyez à nouveau pour la passer telle qu’elle est.",
+    "soldOut": "Il reste moins de billets que vous n’en avez choisi. Vos billets ci-dessus montrent ce qui reste : vérifiez-les, puis appuyez à nouveau.",
+    "notOnSale": "L’un de vos billets n’est plus en vente. Vos billets ci-dessus montrent ce qui reste : vérifiez-les, puis appuyez à nouveau.",
+    "salesClosed": "La vente est close pour cet événement, ou pour l’un de vos billets.",
+    "salesNotOpen": "La vente de l’un de vos billets n’a pas encore commencé.",
+    "orderLimits": "L’un de vos billets ne se vend qu’en d’autres quantités. Modifiez vos billets, puis appuyez à nouveau.",
+    "requiredAnswer": "Une question obligatoire des hôtes n’a pas de réponse pour chaque personne qui vient. Elle est signalée ci-dessus.",
+    "notFound": "Les billets de cet événement ne sont plus en vente ici.",
+    "paymentsOff": "Les billets payants ne sont pas encore en vente : Aveline fonctionne en pilote gratuit. Les billets gratuits restent disponibles.",
+    "fields": "Certaines informations ont été refusées. Elles sont signalées ci-dessus.",
+    "rateLimited": "Trop d’essais en peu de temps. Attendez une minute, puis appuyez à nouveau.",
+    "noAnswer": "Nous n’avons pas reçu de réponse. Appuyez à nouveau : votre commande ne sera pas passée deux fois.",
+    "other": "La commande a été refusée, pour cette raison :",
+    "reference": "Référence : {{requestId}}",
+    "promo": "{{reason}} Retirez le code, ou essayez-en un autre.",
+    "layoutChanged": "Le plan a changé. Choisissez à nouveau vos places ou zones.",
+    "selectionUnavailable": "Un choix est indisponible. Choisissez à nouveau vos places ou zones.",
+    "buyerLimit": "Cette commande dépasse la limite de billets par acheteur pour cet événement."
+  },
+  "errors": {
+    "required": "Remplissez ce champ.",
+    "tooLong": "C’est trop long.",
+    "email": "Saisissez une adresse e-mail, comme nom@example.com.",
+    "phone": "Saisissez un numéro de téléphone, comme +374 10 123456.",
+    "chooseVenue": "Répondez pour au moins un lieu.",
+    "buyerOnce": "Un seul billet peut être le vôtre.",
+    "refused": "Vérifiez : ceci a été refusé."
+  },
+  "selection": {
+    "heading": "Choisir des places ou des zones",
+    "ticket": "Billet {{count}} · {{name}}",
+    "section": "Section ou zone",
+    "seat": "Place",
+    "choose": "Choisir",
+    "seatName": "Rang {{row}}, place {{seat}}",
+    "loading": "Chargement des disponibilités…",
+    "retry": "Actualiser les disponibilités",
+    "soldOut": "Aucune place disponible pour ce billet.",
+    "remaining": "Places disponibles : {{count}}",
+    "required": "Choisissez une place ou une zone pour chaque billet."
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "untitled": "Un événement",
+  "facts": {
+    "when": "Quand",
+    "where": "Où"
+  },
+  "tickets": {
+    "heading": "Billets",
+    "closed": "La vente des billets s’est arrêtée au début de l’événement.",
+    "none": "Aucun billet n’est en vente pour cet événement.",
+    "soldOut": "Complet",
+    "fewLeft_one": "Plus que {{count}}",
+    "fewLeft_many": "Plus que {{count}}",
+    "fewLeft_other": "Plus que {{count}}",
+    "free": "Gratuit",
+    "unnamed": "Billet",
+    "quantity": "Combien : {{name}}",
+    "salesEnd": "En vente jusqu’au {{date}}, {{time}}",
+    "continue": "Continuer",
+    "continueWith_one": "Continuer avec {{count}} billet",
+    "continueWith_many": "Continuer avec {{count}} billets",
+    "continueWith_other": "Continuer avec {{count}} billets",
+    "chooseFirst": "Choisissez d’abord le nombre de billets."
+  },
+  "notFound": {
+    "title": "Cet événement n’est pas disponible",
+    "body": "Sa page a peut-être été retirée, ou l’adresse est erronée. Si quelqu’un vous l’a envoyée, demandez-lui un nouveau lien.",
+    "sentence": "Cet événement n’est pas disponible."
+  },
+  "listing": {
+    "metaTitle": "Événements publics · Aveline",
+    "title": "Événements publics",
+    "lead": "Des événements ouverts à tous, les plus proches d’abord. La page de chaque événement donne sa date et son heure.",
+    "from": "À partir de {{price}}",
+    "free": "Billets gratuits",
+    "empty": "Aucun événement public n’est listé pour l’instant.",
+    "emptyCategory": "Rien n’est listé sous « {{category}} ».",
+    "showing": "Catégorie affichée : « {{category}} ».",
+    "showAll": "Afficher tous les événements",
+    "pastTheEnd": "Il n’y a plus d’événements ici.",
+    "toStart": "Revenir aux premiers événements",
+    "paging": "Plus d’événements",
+    "earlier": "Événements plus proches",
+    "later": "Événements suivants"
+  }
+}

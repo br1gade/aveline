@@ -1,0 +1,118 @@
+{
+  "back": "Your events",
+  "title": "Promo codes",
+  "lead": "Codes buyers type at checkout for a discount on tickets, for every event or one. They belong to your organization, and only its owner can see or change them. A code can be stopped, never deleted: orders keep the discount they were given.",
+  "pilot": "While payments are off for the free pilot, checkout takes a code only when it makes the order free, such as 100% off. Any other code is kept for when payments start: checkout refuses it until then.",
+  "eventsUnread": "Your events couldn’t be read, so a new code can only apply to every event for now. Reload the page to try again.",
+  "list": {
+    "title": "Your codes",
+    "empty": "No codes yet."
+  },
+  "code": {
+    "percent": "{{value}}% off",
+    "amount": "{{amount}} off",
+    "everyEvent": "For every event",
+    "forEvent": "For {{title}}",
+    "someEvent": "one event",
+    "used_one": "Used {{count}} time of {{limit}} · {{left}} left",
+    "used_other": "Used {{count}} times of {{limit}} · {{left}} left",
+    "usedNoLimit_one": "Used {{count}} time · no limit",
+    "usedNoLimit_other": "Used {{count}} times · no limit",
+    "minOrder": "On orders of {{amount}} or more",
+    "from": "From {{when}}",
+    "until": "Until {{when}} ({{timeZone}})",
+    "edit": "Change the limit or end",
+    "editFor": "Change the limit or end: {{code}}",
+    "stop": "Stop",
+    "stopFor": "Stop {{code}}",
+    "useAgain": "Use again",
+    "useAgainFor": "Use again: {{code}}"
+  },
+  "state": {
+    "active": "Can be used now",
+    "stopped": "Stopped",
+    "notYet": "Not usable yet",
+    "expired": "Expired",
+    "usedUp": "Used up"
+  },
+  "create": {
+    "title": "Make a code",
+    "code": "The code",
+    "codeHelp": "3 to 32 letters, numbers and hyphens. Capitals don’t matter: it is kept in capitals.",
+    "kind": "What it gives",
+    "kinds": {
+      "PERCENT": "A percentage off",
+      "FIXED": "An amount off, in AMD"
+    },
+    "percent": "Percentage off, 1 to 100",
+    "amount": "Amount off, in AMD",
+    "event": "For which event",
+    "everyEvent": "Every event",
+    "limit": "How many times it can be used (optional)",
+    "limitHelp": "Left empty, there is no limit. Once set, a limit can be changed but not removed.",
+    "minOrder": "Smallest order it applies to, in AMD (optional)",
+    "minOrderHelp": "Can’t be changed later.",
+    "from": "Usable from (optional)",
+    "until": "Usable until (optional)",
+    "zoneHelp": "In {{timeZone}}. The start can’t be changed later; the end can, but not removed.",
+    "date": "Date",
+    "time": "Time",
+    "submit": "Make the code",
+    "creating": "Making it…"
+  },
+  "limits": {
+    "title": "Change {{code}}",
+    "body": "Only the limit and the end can change: what it gives, its event, its minimum and its start can’t.",
+    "used_one": "Used {{count}} time so far: the limit can’t be lower.",
+    "used_other": "Used {{count}} times so far: the limit can’t be lower.",
+    "untilDate": "Usable until: date",
+    "untilTime": "Usable until: time",
+    "save": "Save"
+  },
+  "stop": {
+    "title": "Stop {{code}}?",
+    "body": "Checkout refuses it from now on. Orders already made keep their discount, and you can use it again later.",
+    "confirm": "Stop"
+  },
+  "dialog": {
+    "cancel": "Cancel",
+    "saving": "Saving…"
+  },
+  "errors": {
+    "required": "Fill this in.",
+    "codeShort": "Use at least 3 characters.",
+    "codeChars": "Use letters, numbers and hyphens only.",
+    "tooLong": "This is too long.",
+    "percent": "Enter a whole number from 1 to 100.",
+    "amount": "Enter a whole amount in AMD, above zero.",
+    "limit": "Enter a whole number from 1 to 1,000,000.",
+    "pair": "Give both the date and the time, or neither.",
+    "dateInvalid": "Enter a real date.",
+    "timeSkipped": "The clocks skip that time in this time zone that day. Choose another.",
+    "untilBefore": "The end must come after the start.",
+    "belowUsed": "It has been used more times than that already.",
+    "cantClear": "Once set, this can be changed but not removed.",
+    "refused": "This wasn’t accepted."
+  },
+  "refused": {
+    "codeTaken": "You already have a code called that.",
+    "codeRefused": "That code wasn’t accepted.",
+    "belowUsed": "It has been used more times than that already.",
+    "valueRefused": "That discount wasn’t accepted.",
+    "untilRefused": "The end must come after the start.",
+    "eventGone": "That event is no longer yours. The page has been reloaded.",
+    "gone": "That code is no longer there. The page has been reloaded.",
+    "forbidden": "Only the organization’s owner can see or change promo codes: discounts are revenue.",
+    "noOrganization": "Promo codes belong to an organization, and your account is on an event only. The organization’s owner can make them.",
+    "rateLimited": "Too many tries. Wait a minute, then try again.",
+    "noAnswer": "No answer came. Check the list, then try again.",
+    "other": "This was refused.",
+    "chooseOrganization": "Your account is in more than one organization, and this page can’t choose between them yet."
+  },
+  "status": {
+    "created": "{{code}} is made.",
+    "saved": "{{code}} is saved.",
+    "stopped": "{{code}} is stopped.",
+    "usedAgain": "{{code}} can be used again."
+  }
+}

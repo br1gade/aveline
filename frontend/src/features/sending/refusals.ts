@@ -1,0 +1,63 @@
+import { useTranslation } from 'react-i18next';
+
+import { isApiError } from '@/api/errors';
+import { problemFrom, type Problem } from '@/api/problems';
+import { ARCHIVED_SENTENCE } from '@/features/events';
+
+export type LifecycleAction = 'publish' | 'close' | 'reopen' | 'send';
+
+/**
+ * A refused action: what to say, the backend's own sentences when they explain it, and whether the
+ * page is now out of date. The invitation's refusals that name no field are English sentences
+ * without a code (FR-28, FR-32), so the status and the action decide the words.
+ */
+export interface Refusal {
+  problem: Problem;
+  /** A 400's sentences, shown in English under our words. */
+  messages: readonly string[];
+  /** The invitation changed underneath: reload the page behind the message. */
+  isStale: boolean;
+  /** Private artwork still being made: nothing is out of date, and waiting is the way on. */
+  isArtworkPreparing?: boolean;
+}
+
+export function refusalOf(error: unknown): Refusal {
+  const problem = problemFrom(error);
+  const status = problem.code === 'refused' ? problem.status : 0;
+  if (isApiError(error) && error.code === 'TEMPLATE_ASSET_NOT_READY') {
+    return { problem, messages: [], isStale: false, isArtworkPreparing: true };
+  }
+  const messages = isApiError(error) && status === 400 ? error.messages : [];
+  return { problem, messages, isStale: status === 400 || status === 404 || status === 409 };
+}
+
+type ProblemKey =
+  'forbidden' | 'state' | 'missing' | 'conflict' | 'sendRefused' | 'expired' | 'other';
+
+/** A send refused because the invitation's time ran out (`invitation-sender.service.ts`). */
+const EXPIRED = /^This invitation has expired/;
+
+/**
+ * Publishing, closing, reopening and sending all need `invitation:publish` (there is no
+ * permissions endpoint, FR-6). A 400 on publishing that is not the readiness check, or on closing
+ * or reopening, is a state that changed meanwhile ("already published", an archived event). On
+ * sending it is a draft or closed invitation, no guests yet, or a guest not on the event.
+ */
+const WORDS: Readonly<Record<LifecycleAction, Partial<Record<number, ProblemKey>>>> = {
+  publish: { 400: 'state', 403: 'forbidden', 404: 'missing', 409: 'conflict' },
+  close: { 400: 'state', 403: 'forbidden', 404: 'missing', 409: 'conflict' },
+  reopen: { 400: 'state', 403: 'forbidden', 404: 'missing', 409: 'conflict' },
+  send: { 400: 'sendRefused', 403: 'forbidden', 404: 'missing', 409: 'conflict' },
+};
+
+export function useRefusedText(
+  action: LifecycleAction,
+): (status: number, messages?: readonly string[], isArtworkPreparing?: boolean) => string {
+  const { t } = useTranslation('sending');
+  return (status, messages = [], isArtworkPreparing = false) => {
+    if (isArtworkPreparing) return t('problems.artworkPreparing');
+    const isExpired = status === 400 && messages.some((message) => EXPIRED.test(message));
+    if (status === 400 && messages.includes(ARCHIVED_SENTENCE)) return t('problems.archived');
+    return t(`problems.${isExpired ? 'expired' : (WORDS[action][status] ?? 'other')}`);
+  };
+}

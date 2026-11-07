@@ -1,0 +1,43 @@
+{
+  "back": "Back to the event",
+  "title": "Activity",
+  "lead": "Who changed something on this event, and when. It says that something changed, never what it changed to, and it doesn’t include reading.",
+  "limit": "The newest 100 are shown.",
+  "empty": "Nothing is recorded yet, or the record can’t be read just now.",
+  "refused": "Activity is only for someone who manages this event’s team, because it names the people who did things. The rest of the event stays open to you.",
+  "someone": "Someone no longer named",
+  "at": "{{day}}, {{time}}",
+  "what": "{{area}}: {{change}}",
+  "change": {
+    "POST": "something added or done",
+    "PATCH": "something changed",
+    "PUT": "something changed",
+    "DELETE": "something removed",
+    "OTHER": "something changed"
+  },
+  "area": {
+    "event": "The event",
+    "archive": "Archiving",
+    "unarchive": "Bringing back from the archive",
+    "attendance-policy": "How guests answer",
+    "export-snapshots": "Exports",
+    "exports": "Exports",
+    "gallery": "Guests’ photos",
+    "guests": "The guest list",
+    "households": "Households",
+    "invitation": "The invitation",
+    "listing": "The public listing",
+    "media": "Pictures",
+    "seating": "Seating",
+    "seats": "Seats",
+    "settings": "The event’s settings",
+    "tables": "Tables",
+    "team": "The team",
+    "ticket-orders": "Ticket orders",
+    "ticket-types": "Ticket types",
+    "tickets": "Tickets",
+    "timeline": "The running order",
+    "vendors": "Vendors",
+    "venues": "Venues"
+  }
+}

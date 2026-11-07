@@ -1,0 +1,75 @@
+import { createI18n, SOURCE_LANGUAGE, type Language } from '@/lib/i18n';
+
+/** Account and app pages are never indexed: they are a door, not content. */
+const NOINDEX = { name: 'robots', content: 'noindex' } as const;
+
+type AccountPage = 'signIn' | 'register' | 'resetPassword' | 'verifyEmail' | 'invite';
+type AppPage =
+  | 'home'
+  | 'welcome'
+  | 'organizations'
+  | 'organization'
+  | 'staff'
+  | 'staffCustomers'
+  | 'staffDataRequests'
+  | 'staffAccessReviews'
+  | 'newEvent'
+  | 'event'
+  | 'editEvent'
+  | 'guests'
+  | 'sheets'
+  | 'answersSheet'
+  | 'guestBook'
+  | 'importGuests'
+  | 'venues'
+  | 'newVenue'
+  | 'editVenue'
+  | 'venueDirectory'
+  | 'invitation'
+  | 'attendance'
+  | 'design'
+  | 'designLook'
+  | 'designSection'
+  | 'designQuestions'
+  | 'newDesignQuestion'
+  | 'editDesignQuestion'
+  | 'designMedia'
+  | 'designPreview'
+  | 'designDraftPreview'
+  | 'designAdoption'
+  | 'photos'
+  | 'agreements'
+  | 'seating'
+  | 'exports'
+  | 'ticketSales'
+  | 'newTicketType'
+  | 'editTicketType'
+  | 'announcement'
+  | 'orders'
+  | 'door'
+  | 'followUps'
+  | 'team'
+  | 'activity'
+  | 'archivedEvents'
+  | 'recordAnswer'
+  | 'recordHousehold'
+  | 'runningOrder'
+  | 'suppressions'
+  | 'promoCodes'
+  | 'billing'
+  | 'billingReturn'
+  | 'vendors'
+  | 'eventVendors'
+  | 'newBooking'
+  | 'booking';
+
+export function accountMeta(page: AccountPage, language: Language = SOURCE_LANGUAGE) {
+  const t = createI18n(language).getFixedT(language, 'account');
+  return [{ title: t(`meta.${page}`) }, NOINDEX];
+}
+
+/** `subject`, once loaded, names the page instead: an event's title, say. */
+export function appMeta(page: AppPage, language: Language = SOURCE_LANGUAGE, subject?: string) {
+  const t = createI18n(language).getFixedT(language, 'app');
+  return [{ title: subject ? t('meta.named', { title: subject }) : t(`meta.${page}`) }, NOINDEX];
+}

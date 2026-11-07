@@ -1,0 +1,58 @@
+{
+  "home": {
+    "title": "Aveline staff",
+    "lead": "Tools for Aveline’s own team. Each says if it is not for your role.",
+    "customers": "Customers",
+    "dataRequests": "Data requests",
+    "accessReviews": "Access reviews"
+  },
+  "title": "Customers",
+  "back": "Back to staff tools",
+  "list": {
+    "title": "Find a customer",
+    "searchLabel": "Organization’s name, or part of it",
+    "search": "Search",
+    "limit": "The newest 50 are shown.",
+    "none": "No organizations found.",
+    "owners": "Owners: {{addresses}}",
+    "invited": "Invited, yet to accept: {{addresses}}",
+    "events_one": "{{count, number}} event",
+    "events_other": "{{count, number}} events",
+    "setUp": "Set up an event",
+    "setUpFor": "Set up an event: {{name}}"
+  },
+  "open": {
+    "title": "Open an account",
+    "lead": "This opens the customer’s organization and emails them an invitation to own it. You don’t become a member, and they choose their own password.",
+    "name": "Organization’s name",
+    "nameError": "Use 2 to 160 characters.",
+    "kind": "Who it is for",
+    "email": "Owner’s email address",
+    "emailError": "Type a valid email address.",
+    "submit": "Open the account",
+    "opening": "Opening…",
+    "invited": "{{name}} is open, and they’ve been emailed an invitation.",
+    "existing": "This address is already on {{name}}, as a member or invited, so nothing new was opened and no email went out. Check it’s the customer’s own before setting up an event in it.",
+    "several": "This address is on several organizations. Choose the customer’s own.",
+    "use": "Use {{name}}",
+    "severalNone": "This address is on more than one organization, and they can’t be listed here, as they may be invitations still waiting. Ask the customer which they mean, or to accept first."
+  },
+  "kind": {
+    "HOST": "A couple or a family",
+    "PLANNER": "A planner or an agency",
+    "CORPORATE": "A company"
+  },
+  "newEvent": {
+    "lead": "The event goes in {{name}}, the customer’s organization. You run it from your staff role."
+  },
+  "refusal": {
+    "needsChoice": "Choose which organization this is for.",
+    "forbidden": "This page is for Aveline’s staff. Your events stay open to you from your home page.",
+    "rateLimited": "Too many requests just now. Please wait a moment and try again.",
+    "emailRefused": "Type a valid email address.",
+    "nameRefused": "Use 2 to 160 characters.",
+    "gone": "That organization is no longer theirs, or no longer there. Search for it again.",
+    "noAnswer": "We didn’t get an answer. Please try again.",
+    "other": "That wasn’t accepted:"
+  }
+}

@@ -1,0 +1,156 @@
+import {
+  ANSWERS,
+  type Answer,
+  type AttendanceRecord,
+  type AttendanceRecordWire,
+  type Contact,
+  type Guest,
+  type GuestWire,
+  type Release,
+  type Seat,
+  type VenueAnswer,
+  type Household,
+  type HouseholdWire,
+  type ImportRecord,
+  type ImportRecordWire,
+  type ImportResult,
+  type ImportResultWire,
+  type RowError,
+  type RowErrorWire,
+} from './types';
+
+/**
+ * Where guest data arrives. Every object is built by naming its fields, never by spreading the
+ * response, so a guest's `token` (their personal link, a credential) and any field added later stop
+ * here: they are never rendered, stored, logged or put in an address.
+ */
+
+/** `in`, not a null check: a missing key is "not yours to see"; `null` is "none stored". */
+function contactOf(guest: GuestWire): Contact {
+  if (!('email' in guest)) return { isShown: false };
+  return { isShown: true, email: guest.email ?? null, phone: guest.phone ?? null };
+}
+
+function answerOf(value: string): Answer {
+  return ANSWERS.find((answer) => answer === value) ?? 'PENDING';
+}
+
+/** Every seat by venue; from a backend before `eb77cd4`, the one table it names. */
+function seatsOf(guest: GuestWire): Seat[] {
+  if (!guest.seating) {
+    if (!guest.table) return [];
+    const legacy = { arrangementId: null, tableId: null, venue: null, table: guest.table };
+    return [{ ...legacy, isReservation: false }];
+  }
+  return guest.seating.map((seat) => ({
+    arrangementId: seat.arrangementId ?? null,
+    tableId: seat.tableId ?? null,
+    venue: seat.venue,
+    table: seat.table,
+    isReservation: seat.isReservation,
+  }));
+}
+
+function releasesOf(guest: GuestWire): Release[] {
+  return (guest.seatReleases ?? []).map((release) => ({
+    arrangementId: release.arrangementId,
+    venueId: release.venueId,
+    table: release.table,
+    releasedAt: release.releasedAt,
+  }));
+}
+
+function venueAnswersOf(guest: GuestWire): VenueAnswer[] {
+  const { attendance } = guest;
+  if (attendance?.mode !== 'PER_VENUE') return [];
+  return attendance.venues.map(({ venueId, venue, status }) => ({
+    venueId,
+    venue,
+    answer: answerOf(status),
+  }));
+}
+
+function readGuest(guest: GuestWire): Guest {
+  return {
+    id: guest.id,
+    firstName: guest.firstName,
+    lastName: guest.lastName,
+    name: guest.name,
+    locale: guest.locale,
+    side: guest.attribution,
+    isPrimary: guest.isPrimary,
+    isAddedByGuest: guest.addedByGuest,
+    isErased: guest.isAnonymized,
+    answer: guest.rsvpStatus,
+    table: guest.table,
+    seats: seatsOf(guest),
+    releases: releasesOf(guest),
+    venueAnswers: venueAnswersOf(guest),
+    isAskedAgain: guest.attendance?.needsReconfirmation ?? false,
+    isCheckedIn: guest.isCheckedIn,
+    arrivedAt: guest.arrivedAt ?? null,
+    contact: contactOf(guest),
+  };
+}
+
+/** The list as it came: households by name, the primary first within each. Never re-sorted. */
+export function readHouseholds(households: readonly HouseholdWire[]): Household[] {
+  return households.map((household) => ({
+    id: household.id,
+    name: household.name,
+    seatsAllotted: household.seatsAllotted,
+    seatsNamed: household.seatsNamed,
+    guests: household.guests.map(readGuest),
+  }));
+}
+
+function readRowError(error: RowErrorWire): RowError {
+  return { row: error.row, message: error.message, value: error.value ?? null };
+}
+
+export function readImportResult(result: ImportResultWire): ImportResult {
+  return {
+    status: result.status,
+    rowsImported: result.rowsImported,
+    rowsFailed: result.rowsFailed,
+    errors: result.errors.map(readRowError),
+  };
+}
+
+const HEADINGS_READ = /^(No first-name column found\.) Headings read: .*$/s;
+
+/**
+ * A file with no header row is refused with its first row quoted as its "headings": a guest's name,
+ * email and phone. The history keeps that and read-only roles open it (FR-74), so it shows the
+ * sentence alone. A temporary stand-in, deleted when FR-74 is answered.
+ */
+function withoutHeadings(error: RowError): RowError {
+  return { ...error, message: error.message.replace(HEADINGS_READ, '$1') };
+}
+
+/** Newest first. A running import has no errors yet. */
+export function readImportHistory(records: readonly ImportRecordWire[]): ImportRecord[] {
+  return records.map((record) => ({
+    id: record.id,
+    filename: record.filename,
+    status: record.status,
+    rowsImported: record.rowsImported,
+    rowsFailed: record.rowsFailed,
+    errors: (record.errors ?? []).map(readRowError).map(withoutHeadings),
+    createdAt: record.createdAt,
+  }));
+}
+
+/** A guest's answers across the ways guests were asked, in the order the API gives: newest first. */
+export function readAttendanceHistory(
+  records: readonly AttendanceRecordWire[],
+): AttendanceRecord[] {
+  return records.map((record) => ({
+    revision: record.revision,
+    mode: record.policy?.mode ?? '',
+    isCurrent: record.policy?.isActive ?? false,
+    venue: record.venue?.name ?? null,
+    answer: answerOf(record.status),
+    respondedAt: record.respondedAt,
+  }));
+}

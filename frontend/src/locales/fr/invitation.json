@@ -1,0 +1,154 @@
+{
+  "occasion": {
+    "WEDDING": "Mariage",
+    "ENGAGEMENT": "Fiançailles",
+    "BAPTISM": "Baptême",
+    "BIRTHDAY": "Anniversaire",
+    "ANNIVERSARY": "Anniversaire de mariage",
+    "CORPORATE": "Événement d’entreprise",
+    "OTHER": "Célébration"
+  },
+  "timeZone": {
+    "yerevan": "heure d’Erevan",
+    "moscow": "heure de Moscou"
+  },
+  "personal": {
+    "label": "Votre invitation",
+    "greeting": "{{name}},",
+    "welcome": "Nous serions honorés de célébrer ce jour avec vous.",
+    "seats": "Places réservées : {{count}}",
+    "seatsToName_one": "{{count}} place à attribuer",
+    "seatsToName_many": "{{count}} places à attribuer",
+    "seatsToName_other": "{{count}} places à attribuer",
+    "repliedOn": "Envoyée le {{date}}",
+    "reply": "Répondre",
+    "changeReply": "Modifier la réponse",
+    "name": {
+      "open": "Corriger mon nom",
+      "help": "Seul votre propre nom change ici. Vos hôtes verront la correction.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "optional": "facultatif",
+      "lastNameHelp": "Laissez vide pour le retirer.",
+      "save": "Enregistrer le nom",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler",
+      "saved": "Votre nom est enregistré.",
+      "errors": {
+        "required": "Saisissez votre prénom.",
+        "tooLong": "{{limit}} caractères au maximum.",
+        "invalid": "Ce nom contient un caractère qui ne peut pas être enregistré.",
+        "refused": "Ce nom n’a pas pu être enregistré. Vérifiez-le et réessayez."
+      },
+      "gone": "Ce lien n’ouvre plus votre invitation ; votre nom ne peut donc pas être modifié ici.",
+      "rateLimited": "Trop de tentatives. Veuillez attendre une minute et réessayer.",
+      "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez.",
+      "failed": "Votre nom n’a pas pu être enregistré. Veuillez réessayer dans un instant.",
+      "reference": "Référence : {{id}}"
+    },
+    "table": {
+      "title": "Votre table",
+      "none": "Vous n’avez pas encore de place.",
+      "at": "{{venue}} : {{table}}",
+      "held": "{{seat}}, réservée pour vous jusqu’à votre réponse",
+      "member": "{{name}} : {{seats}}"
+    }
+  },
+  "status": {
+    "ATTENDING": "Vous serez des nôtres",
+    "DECLINED": "Vous ne serez pas des nôtres",
+    "UNDECIDED": "Pas encore décidé",
+    "withCount": "{{status}} · {{count}}"
+  },
+  "story": {
+    "label": "Notre histoire"
+  },
+  "countdown": {
+    "label": "Avant la célébration",
+    "days_one": "jour",
+    "days_many": "jours",
+    "days_other": "jours",
+    "hours_one": "heure",
+    "hours_many": "heures",
+    "hours_other": "heures",
+    "minutes_one": "minute",
+    "minutes_many": "minutes",
+    "minutes_other": "minutes",
+    "daysToGo_one": "Plus que {{count}} jour",
+    "daysToGo_many": "Plus que {{count}} jours",
+    "daysToGo_other": "Plus que {{count}} jours"
+  },
+  "music": {
+    "label": "Musique",
+    "on": "Musique : activée",
+    "off": "Musique : désactivée",
+    "pause": "Mettre la musique en pause"
+  },
+  "venue": {
+    "label": "Lieux",
+    "heading": "Où nous retrouver",
+    "role": {
+      "CEREMONY": "Cérémonie",
+      "RECEPTION": "Réception",
+      "AFTER_PARTY": "Soirée",
+      "PREPARATION": "Préparatifs",
+      "OTHER": "Autre"
+    },
+    "arriveBy": "Arrivée avant {{time}}",
+    "directions": "Itinéraire",
+    "copyAddress": "Copier l’adresse",
+    "copied": "Adresse copiée"
+  },
+  "map": {
+    "label": "Itinéraire",
+    "heading": "Comment s’y rendre",
+    "open": "Ouvrir dans Plans"
+  },
+  "timeline": {
+    "label": "Programme",
+    "heading": "La journée"
+  },
+  "dressCode": {
+    "label": "Tenue",
+    "swatches": "Couleurs suggérées"
+  },
+  "notes": {
+    "label": "Informations",
+    "heading": "Quelques demandes"
+  },
+  "gallery": {
+    "label": "Galerie",
+    "heading": "Moments"
+  },
+  "reply": {
+    "label": "Merci de répondre",
+    "heading": "Serez-vous des nôtres ?",
+    "closed": "Les réponses sont closes. Les informations restent disponibles ici.",
+    "generic": "Pour répondre, ouvrez le lien personnel que vous avez reçu.",
+    "skip": "Aller à la réponse",
+    "preview": "Les invités répondent ici, depuis leur lien personnel. Un aperçu ne recueille aucune réponse."
+  },
+  "chat": {
+    "label": "Discussion des invités",
+    "join": "Rejoindre la discussion des invités"
+  },
+  "contact": {
+    "label": "Des questions ?",
+    "call": "Appeler"
+  },
+  "notFound": {
+    "title": "Cette invitation n’est pas disponible",
+    "body": "Vérifiez le lien que vous avez reçu, ou demandez à la personne qui vous a invité.",
+    "sentence": "Cette invitation n’est pas disponible. Vérifiez le lien que vous avez reçu, ou demandez à la personne qui vous a invité."
+  },
+  "footer": {
+    "logo": "Aveline Events"
+  },
+  "preview": {
+    "header": "La couverture de l’invitation, en aperçu",
+    "main": "L’invitation, en aperçu"
+  },
+  "calendar": {
+    "add": "Ajouter au calendrier"
+  }
+}

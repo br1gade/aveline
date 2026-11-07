@@ -1,0 +1,231 @@
+/**
+ * What the guest calls return (docs/API.md §6: "Reading the guest list", "Editing the guest list",
+ * "Importing a guest list"). Interim until FR-1: the schema declares no response types, so these
+ * are written from the guide and the backend's services, and only the fields the screens read are
+ * typed.
+ *
+ * The `…Wire` types say what arrives and are read by `read.ts` alone. It builds the client's own
+ * objects field by field, so a guest's `token`, a credential to their invitation, goes no further.
+ */
+
+export const ANSWERS = ['ATTENDING', 'DECLINED', 'UNDECIDED', 'PENDING'] as const;
+/** `PENDING` is a guest who has not answered yet. */
+export type Answer = (typeof ANSWERS)[number];
+
+export const SIDES = ['UNKNOWN', 'SIDE_A', 'SIDE_B', 'SHARED'] as const;
+/** Whose guest they are; `UNKNOWN` until someone says. */
+export type Side = (typeof SIDES)[number];
+
+/**
+ * Email and phone arrive only for callers holding `guest:contact:read`. Missing means "not yours to
+ * see", which is not the same as empty: a guest shown without them may well have both.
+ */
+export type Contact =
+  { isShown: false } | { isShown: true; email: string | null; phone: string | null };
+
+export interface Guest {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  /** First and last name, as the backend joins them. */
+  name: string;
+  locale: string | null;
+  side: Side;
+  /** The household member the invitation is sent to. */
+  isPrimary: boolean;
+  /** Named by their household on its reply, not by the host. */
+  isAddedByGuest: boolean;
+  /** Erased at their request: still on the list, never edited again (docs/API.md §6). */
+  isErased: boolean;
+  answer: Answer;
+  /** The table's name once seated at one table only; `null` with none or with several. */
+  table: string | null;
+  /** Every seat, each at its venue's plan (design PD-54). */
+  seats: Seat[];
+  /** Seats a decline freed, one per plan, until the host seats them again or dismisses it (PD-72). */
+  releases: Release[];
+  /** In PER_VENUE, the answer at each venue guests see; empty for one answer for the event. */
+  venueAnswers: VenueAnswer[];
+  /** The host changed how guests answer and this guest has not answered again yet. */
+  isAskedAgain: boolean;
+  /** Checked in at the door, which is the record that they came: they cannot be removed. */
+  isCheckedIn: boolean;
+  /** When they arrived; `null` while they have not. */
+  arrivedAt: string | null;
+  contact: Contact;
+}
+
+export interface Seat {
+  /** The seating plan it belongs to; `null` from a backend before `eb77cd4`. */
+  arrangementId: string | null;
+  tableId: string | null;
+  /** The venue's name; `null` for a plan that names none. */
+  venue: string | null;
+  table: string;
+  /** Held for them while they have not said they are coming there. */
+  isReservation: boolean;
+}
+
+/** A seat their decline freed (docs/API.md §6, `seatReleases`). */
+export interface Release {
+  arrangementId: string;
+  venueId: string | null;
+  /** `null` once the table itself was removed. */
+  table: string | null;
+  /** ISO 8601 UTC; shown in the event's zone. */
+  releasedAt: string;
+}
+
+export interface VenueAnswer {
+  venueId: string;
+  venue: string;
+  answer: Answer;
+}
+
+export interface Household {
+  id: string;
+  name: string;
+  seatsAllotted: number;
+  seatsNamed: number;
+  /** The one who receives the invitation first, then in the order they were added. */
+  guests: Guest[];
+}
+
+export type ImportStatus = 'PROCESSING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
+
+/**
+ * A row the import refused. `row` is the spreadsheet's own number, the header being row 1; row 0
+ * is the file itself (it could not be read, or has no rows).
+ */
+export interface RowError {
+  row: number;
+  /** In English, whatever the page's language (FR-26). */
+  message: string;
+  /** The cell that was refused. A contact value is quoted only in the import's own response. */
+  value: string | null;
+}
+
+export interface ImportResult {
+  status: ImportStatus;
+  rowsImported: number;
+  rowsFailed: number;
+  errors: RowError[];
+}
+
+export interface ImportRecord extends ImportResult {
+  id: string;
+  filename: string;
+  /** ISO 8601 UTC; shown in the event's zone. */
+  createdAt: string;
+}
+
+export interface GuestWire {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  /** The guest's personal link segment. Never read. */
+  token?: string;
+  locale: string | null;
+  attribution: Side;
+  isPrimary: boolean;
+  addedByGuest: boolean;
+  isAnonymized: boolean;
+  rsvpStatus: Answer;
+  table: string | null;
+  /** Since `eb77cd4`: how they answer, and their seats per venue. */
+  attendance?: AttendanceWire;
+  seating?: SeatWire[];
+  seatReleases?: ReleaseWire[];
+  isCheckedIn: boolean;
+  arrivedAt?: string | null;
+}
+
+export interface AttendanceWire {
+  mode: string;
+  needsReconfirmation: boolean;
+  venues: Array<{ venueId: string; venue: string; status: string }>;
+}
+
+export interface SeatWire {
+  arrangementId?: string;
+  tableId?: string;
+  venue: string | null;
+  table: string;
+  isReservation: boolean;
+}
+
+export interface ReleaseWire {
+  arrangementId: string;
+  venueId: string | null;
+  table: string | null;
+  releasedAt: string;
+}
+
+export interface HouseholdWire {
+  id: string;
+  name: string;
+  seatsAllotted: number;
+  seatsNamed: number;
+  guests: GuestWire[];
+}
+
+export interface RowErrorWire {
+  row: number;
+  message: string;
+  value?: string;
+}
+
+export interface ImportResultWire {
+  importId: string;
+  status: ImportStatus;
+  rowsImported: number;
+  rowsFailed: number;
+  errors: RowErrorWire[];
+}
+
+/** The stored record, which the backend returns whole (BACKEND_REQUESTS §3). */
+export interface ImportRecordWire {
+  id: string;
+  filename: string;
+  status: ImportStatus;
+  rowsImported: number;
+  rowsFailed: number;
+  errors: RowErrorWire[] | null;
+  createdAt: string;
+}
+
+export interface RemovedWire {
+  removed: string;
+  isHouseholdRemoved: boolean;
+}
+
+/**
+ * One answer as it was recorded under one way of answering (docs/API.md §4, "Attendance modes";
+ * `GET …/guests/:guestId/attendance-history`), newest way first.
+ */
+export interface AttendanceRecord {
+  /** The attendance policy's revision it was given under. */
+  revision: number;
+  /** `EVENT_WIDE` or `PER_VENUE`; anything else is shown as it came. */
+  mode: string;
+  /** Under the way guests answer now, rather than one since changed. */
+  isCurrent: boolean;
+  /** The venue's name in PER_VENUE; `null` for an answer for the whole event. */
+  venue: string | null;
+  answer: Answer;
+  /** `null` when it is not known, as for an imported answer (never guessed). */
+  respondedAt: string | null;
+}
+
+export interface AttendanceRecordWire {
+  revision: number;
+  status: string;
+  respondedAt: string | null;
+  updatedAt: string;
+  venueId: string | null;
+  venue: { name: string } | null;
+  policy: { mode: string; isActive: boolean } | null;
+}

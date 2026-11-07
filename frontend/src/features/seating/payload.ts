@@ -1,0 +1,55 @@
+import type { components } from '@/api/schema';
+
+import type { BulkTablesValues, TableFormValues } from './schemas';
+
+type Schemas = components['schemas'];
+
+/** A table's change as the API takes it: `null` clears the zone, the venue and the place. */
+export type TableUpdate = Pick<
+  Schemas['UpdateTableDto'],
+  'name' | 'capacity' | 'zone' | 'venueId' | 'posX' | 'posY' | 'shape'
+>;
+
+/**
+ * Only what changed, and nothing when nothing did; an emptied zone is cleared with `null`. Moving to
+ * another venue also takes the table off the plan: a place in one room means nothing in the next
+ * (design PD-133). The backend moves its plan to the venue's by itself.
+ */
+export function tableUpdatePayload(initial: TableFormValues, values: TableFormValues): TableUpdate {
+  const body: TableUpdate = {};
+  if (values.name !== initial.name) body.name = values.name;
+  if (values.capacity !== initial.capacity) body.capacity = values.capacity;
+  if (values.zone !== initial.zone) body.zone = values.zone === '' ? null : values.zone;
+  if (values.venueId !== initial.venueId) {
+    body.venueId = values.venueId || null;
+    body.posX = null;
+    body.posY = null;
+  }
+  return body;
+}
+
+/** A new table in the plan's venue; the plan without a venue sends none, and an empty zone none. */
+export function newTablePayload(
+  values: TableFormValues,
+  venueId: string | null,
+): Schemas['CreateTableDto'] {
+  return {
+    name: values.name,
+    capacity: values.capacity,
+    ...(values.zone ? { zone: values.zone } : {}),
+    ...(venueId ? { venueId } : {}),
+  };
+}
+
+export function bulkTablesPayload(
+  values: BulkTablesValues,
+  venueId: string | null,
+): Schemas['CreateTablesDto'] {
+  return {
+    namePrefix: values.namePrefix,
+    count: values.count,
+    capacity: values.capacity,
+    ...(values.zone ? { zone: values.zone } : {}),
+    ...(venueId ? { venueId } : {}),
+  };
+}

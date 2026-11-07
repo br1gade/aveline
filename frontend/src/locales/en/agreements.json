@@ -1,0 +1,49 @@
+{
+  "back": "Back to the event",
+  "title": "Agreements",
+  "intro": "What guests agreed to on their invitations, and who agreed for whom. Only the current wording of a statement counts at the door.",
+  "refused": "Agreements are not available to your role: they need access to guests’ contact details.",
+  "none": "This invitation asks guests to agree to nothing.",
+  "partial_one": "The newest {{count, number}} agreement is shown.",
+  "partial_other": "The newest {{count, number}} agreements are shown.",
+  "older": "Show older agreements",
+  "loadingOlder": "Loading…",
+  "olderFailed": "Older agreements couldn’t be loaded. Please try again.",
+  "statement": {
+    "unlisted": "A statement no longer on the invitation",
+    "nobody": "Nobody has agreed yet.",
+    "noCurrent": "Nobody has agreed to the current wording yet. Earlier agreements are kept below."
+  },
+  "wording": {
+    "current": "Current wording",
+    "earlier": "Earlier wording",
+    "count_one": "{{count, number}} agreement",
+    "count_other": "{{count, number}} agreements",
+    "shown": "As guests read it"
+  },
+  "row": {
+    "unknownGuest": "Name not available",
+    "self": "Agreed for themselves",
+    "onBehalf": "Agreed by {{name}} on their behalf",
+    "typed": "Typed name: {{name}}",
+    "drawn": "Drawn signature, signed as {{name}}",
+    "at": "On {{when}}",
+    "showDrawing": "Show the signature",
+    "hideDrawing": "Hide the signature",
+    "drawingAlt": "Signature of {{name}}",
+    "drawingFailed": "The signature couldn’t be loaded.",
+    "retry": "Try again"
+  },
+  "olderRestarted": "The agreements changed meanwhile, so the list starts again from the newest.",
+  "stillToAgree": {
+    "title": "Who still has to agree",
+    "lead": "Guests who are coming and haven’t agreed to the current wording of a required statement. This is a guide: the door decides on the day.",
+    "show": "See who still has to agree",
+    "reading": "Reading…",
+    "none": "Everyone coming has agreed.",
+    "partial": "There were too many agreements to read them all, so someone listed may already have agreed.",
+    "failed": "This couldn’t be read. Please try again.",
+    "tryAgain": "Try again",
+    "untitled": "A statement without words in this language"
+  }
+}

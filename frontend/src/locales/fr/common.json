@@ -1,0 +1,54 @@
+{
+  "appName": "Aveline",
+  "home": {
+    "title": "Aveline",
+    "body": "Des invitations pour les jours qui comptent. Ouvrez le lien personnel que vous avez reçu pour voir votre invitation.",
+    "browse": "Parcourir les événements publics",
+    "pricing": "Voir les tarifs",
+    "privacy": "Une demande sur vos données"
+  },
+  "notFound": {
+    "title": "Cette page n’est pas disponible",
+    "body": "Vérifiez le lien que vous avez reçu."
+  },
+  "error": {
+    "title": "Une erreur s’est produite",
+    "body": "Veuillez réessayer dans un instant.",
+    "reference": "Référence : {{requestId}}"
+  },
+  "language": {
+    "label": "Langue",
+    "hy": "Հայերեն",
+    "ru": "Русский",
+    "en": "English",
+    "fr": "Français"
+  },
+  "problems": {
+    "rate-limited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+    "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez.",
+    "server": "Une erreur s’est produite de notre côté. Veuillez réessayer dans un instant."
+  },
+  "dialog": {
+    "cancel": "Annuler",
+    "working": "En cours…"
+  },
+  "leave": {
+    "title": "Partir sans enregistrer ?",
+    "body": "Vos modifications sur cette page ne sont pas enregistrées.",
+    "confirm": "Partir sans enregistrer"
+  },
+  "support": {
+    "title": "Aide et contact",
+    "lead": "Une question sur une invitation, un billet, un paiement ou votre compte ? Contactez Aveline.",
+    "languages": "Nous répondons en arménien, en russe et en anglais.",
+    "none": "Les moyens de nous joindre ne sont pas encore indiqués ici.",
+    "link": "Aide et contact",
+    "metaTitle": "Aide · Aveline",
+    "kind": {
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "whatsapp": "WhatsApp",
+      "telegram": "Telegram"
+    }
+  }
+}

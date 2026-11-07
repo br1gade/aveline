@@ -1,0 +1,70 @@
+{
+  "back": "Retour à l’événement",
+  "title": "Ce que donnent les réponses des invités",
+  "lead": "Pour le lieu, le bar et les musiciens. Sont comptés les invités qui viennent, d’après leurs réponses.",
+  "refused": "Ces chiffres ne sont pas disponibles pour votre rôle sur cet événement.",
+  "venue": {
+    "label": "Quel lieu",
+    "all": "Tout l’événement",
+    "whole": "Tous ceux qui viennent à l’événement",
+    "at": "À {{venue}}",
+    "everywhere": "Pour tout l’événement : ce n’est pas compté par lieu."
+  },
+  "catering": {
+    "title": "Traiteur",
+    "covers_one": "{{count}} couvert",
+    "covers_other": "{{count}} couverts",
+    "noRequirements": "Aucun invité qui vient n’a indiqué de besoin particulier.",
+    "notes": "Remarques des invités",
+    "covers_many": "{{count}} couverts"
+  },
+  "bar": {
+    "title": "Bar",
+    "none": "Aucun invité qui vient n’a indiqué de boisson.",
+    "answers_one": "{{count}} invité a indiqué une boisson",
+    "answers_other": "{{count}} invités ont indiqué une boisson",
+    "count": "{{guests}} · {{share}} %",
+    "answers_many": "{{count}} invités ont indiqué une boisson"
+  },
+  "playlist": {
+    "title": "Playlist",
+    "none": "Aucun invité qui vient n’a demandé de chanson.",
+    "requests_one": "{{count}} demande",
+    "requests_other": "{{count}} demandes",
+    "requests_many": "{{count}} demandes"
+  },
+  "engagement": {
+    "title": "Vues de l’invitation",
+    "none": "Aucune vue enregistrée. Si des invités l’ont ouverte, le comptage ne fonctionne peut-être pas ici.",
+    "total_one": "{{count}} vue",
+    "total_other": "{{count}} vues",
+    "total_many": "{{count}} vues"
+  },
+  "more": "Plus de réponses des invités",
+  "answers": {
+    "back": "Retour aux récapitulatifs",
+    "title": "Réponses à vos questions",
+    "lead": "Ce que les invités ont répondu aux questions de votre invitation. Un choix est compté parmi les invités qui viennent, ce que vous commandez, et parmi tous ceux qui ont répondu.",
+    "language": "Langue des questions",
+    "untitled": "Une question sans texte",
+    "answered_one": "{{count}} réponse",
+    "answered_other": "{{count}} réponses",
+    "answered_many": "{{count}} réponses",
+    "tally": "{{attending}} qui viennent · {{total}} en tout",
+    "who": "Qui a répondu quoi",
+    "none": "Votre invitation ne pose pas de questions qui lui soient propres.",
+    "otherLanguage": "Les questions ne sont pas publiées dans cette langue ; elles sont affichées en {{language}}.",
+    "status": {
+      "ATTENDING": "Vient",
+      "DECLINED": "Ne vient pas",
+      "UNDECIDED": "Pas encore sûr",
+      "PENDING": "Sans réponse"
+    }
+  },
+  "guestBook": {
+    "title": "Livre d’or",
+    "lead": "Les messages laissés par les invités avec leur réponse, les plus récents d’abord.",
+    "none": "Personne n’a encore laissé de message.",
+    "at": "{{day}}, {{time}}"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "title": "Data requests",
+  "back": "Back to staff tools",
+  "lead": "People asking what is held about them, or for it to be corrected or erased. Soonest due first. Dates are in Yerevan time.",
+  "limit": "Each status shows at most 200, soonest due first.",
+  "none": "Nothing is waiting.",
+  "noAddress": "From an enquiry: no address",
+  "overdue": "Overdue",
+  "dates": "Received {{received}}, due {{due}}",
+  "stepFor": "{{step}}: {{who}}",
+  "tabsLabel": "Which requests",
+  "tab": {
+    "open": "Open",
+    "completed": "Completed",
+    "rejected": "Rejected"
+  },
+  "kind": {
+    "EXPORT": "A copy of their data",
+    "ERASURE": "Erasing their data",
+    "RECTIFICATION": "Correcting their data"
+  },
+  "state": {
+    "RECEIVED": "Received",
+    "VERIFYING": "Checking who they are",
+    "IN_PROGRESS": "Identity confirmed",
+    "COMPLETED": "Completed",
+    "REJECTED": "Rejected"
+  },
+  "step": {
+    "verify": "Start verifying",
+    "confirm": "Identity confirmed",
+    "reject": "Reject",
+    "close": "Close as done",
+    "export": "Export",
+    "erase": "Erase"
+  },
+  "confirm": {
+    "title": "Is this really {{address}}?",
+    "body": "Once you say so, this request can be carried out. Confirm only once the person has replied, from this very address, to an email you sent it. The form is public, so anyone can type any address: acting on an unverified request is itself a breach."
+  },
+  "reject": {
+    "title": "Reject the request from {{address}}?",
+    "body": "A request can’t be reopened once it is rejected."
+  },
+  "close": {
+    "title": "Close the correction for {{address}}?",
+    "body": "Do this once the record has been corrected. It can’t be reopened."
+  },
+  "export": {
+    "title": "Export the data of {{address}}?",
+    "body": "This can be done only once: the copy isn’t kept, and the request closes. It is saved to your device at once. Keep the page open until you have the file.",
+    "saved": "The file was saved to your device. It isn’t kept anywhere else, and this copy goes when you leave the page.",
+    "saveAgain": "Save the file again",
+    "saveFile": "Save private file {{position}} of {{total}}",
+    "fileFailed": "That file couldn’t be saved. Please try again."
+  },
+  "erase": {
+    "title": "Erase the data of {{address}}?",
+    "body": "Nothing can undo this. Their names, contacts, answers and messages go, and an account with that address is closed. Whether they came, their seat and paid amounts stay.",
+    "typeLabel": "Type the address to confirm",
+    "reportTitle": "What the erasure did",
+    "count": {
+      "guestsAnonymised": "Guests made anonymous: {{count, number}}",
+      "householdsRenamed": "Households renamed: {{count, number}}",
+      "ticketOrdersAnonymised": "Ticket orders made anonymous: {{count, number}}",
+      "ticketAttendeesAnonymised": "Ticket holders made anonymous: {{count, number}}",
+      "messagesRedacted": "Messages cleared: {{count, number}}",
+      "suppressionsHashed": "Do-not-contact records kept as a hash: {{count, number}}",
+      "invitesWithdrawn": "Invitations withdrawn: {{count, number}}",
+      "accountsClosed": "Accounts closed: {{count, number}}",
+      "acknowledgementsErased": "Agreements erased: {{count, number}}",
+      "privateMediaQueuedForDeletion": "Private files queued for deletion: {{count, number}}",
+      "enquiriesCleared": "Enquiries cleared: {{count, number}}",
+      "enquiryNotesRedacted": "Enquiry notes cleared: {{count, number}}"
+    },
+    "recoveryPending": "The erasure was applied, but one step is still waiting, so the request stays open. Press Erase again in a while to finish it.",
+    "appliedWaiting": "This erasure is already applied, with one step still waiting. Press Erase to finish it."
+  },
+  "notes": {
+    "label": "Notes",
+    "save": "Save notes",
+    "tooLong": "Keep notes to 2,000 characters.",
+    "saveFirst": "Save your notes first, or clear them: this step would leave them behind.",
+    "tooLongToEdit": "These notes are too long to edit here, as a requester’s own can be. Add to them in your own records for now."
+  },
+  "status": {
+    "verify": "Verifying has started.",
+    "confirm": "Identity confirmed: it can now be carried out.",
+    "reject": "The request is rejected.",
+    "close": "The correction is closed.",
+    "export": "The export is done.",
+    "erase": "The erasure ran. What it did is below.",
+    "notes": "The notes are saved."
+  },
+  "refusal": {
+    "forbidden": "This page is for Aveline’s administrators, as a request reaches across every customer.",
+    "moved": "This request has moved on since the page was read, perhaps by someone else. It has been read again.",
+    "rateLimited": "Too many requests just now. Please wait a moment and try again.",
+    "noAnswer": "We didn’t get an answer, so it may have happened. Read the page again before trying again.",
+    "other": "That wasn’t accepted:"
+  },
+  "noAddressHelp": "This came from an enquiry, so it can’t be carried out on this page yet. It needs the enquiry’s record.",
+  "limitClosed": "This shows at most 200, soonest due first, so the newest may be missing.",
+  "noneClosed": "None here.",
+  "noAddressWho": "this enquiry’s requester"
+}

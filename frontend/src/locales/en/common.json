@@ -1,0 +1,54 @@
+{
+  "appName": "Aveline",
+  "home": {
+    "title": "Aveline",
+    "body": "Invitations for the days that matter. Open the personal link you received to see your invitation.",
+    "browse": "Browse public events",
+    "pricing": "See the prices",
+    "privacy": "Ask about your data"
+  },
+  "notFound": {
+    "title": "This page isn’t available",
+    "body": "Check the link you received."
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "Please try again in a moment.",
+    "reference": "Reference: {{requestId}}"
+  },
+  "language": {
+    "label": "Language",
+    "hy": "Հայերեն",
+    "ru": "Русский",
+    "en": "English",
+    "fr": "Français"
+  },
+  "problems": {
+    "rate-limited": "Too many attempts. Wait a minute, then try again.",
+    "unreachable": "We couldn’t reach Aveline. Check your connection and try again.",
+    "server": "Something went wrong on our side. Please try again in a moment."
+  },
+  "dialog": {
+    "cancel": "Cancel",
+    "working": "Working…"
+  },
+  "leave": {
+    "title": "Leave without saving?",
+    "body": "What you changed on this page isn’t saved.",
+    "confirm": "Leave without saving"
+  },
+  "support": {
+    "title": "Help and contact",
+    "lead": "Questions about an invitation, a ticket, a payment or your account? Contact Aveline.",
+    "languages": "We answer in Armenian, Russian and English.",
+    "none": "Ways to reach us aren’t listed here yet.",
+    "link": "Help and contact",
+    "metaTitle": "Help · Aveline",
+    "kind": {
+      "email": "Email",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp",
+      "telegram": "Telegram"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "back": "Your events",
+  "title": "Who must not be contacted",
+  "lead": "Aveline sends nothing to these addresses, from any of your organization’s events. Some come from guests: an unsubscribe, a bounce, a complaint, or erasing their data. Only the organization’s owner or a manager can see or change this list.",
+  "list": {
+    "title": "On the list",
+    "empty": "Nobody is on the list.",
+    "truncated": "Only the newest 500 are shown: there may be more."
+  },
+  "entry": {
+    "line": "{{channel}} · {{reason}} · added {{added}}",
+    "erasedAddress": "An address no longer kept",
+    "lift": "Allow again",
+    "liftFor": "Allow again: {{address}}",
+    "global": "Applies across Aveline after a bounce or a complaint, so it can’t be lifted here.",
+    "erased": "This person asked for their data to be erased, so they can’t be contacted again."
+  },
+  "channel": {
+    "EMAIL": "Email",
+    "SMS": "Phone, by text message",
+    "WHATSAPP": "Phone, by WhatsApp",
+    "TELEGRAM": "Telegram",
+    "PUSH": "App notification",
+    "OTHER": "Another channel"
+  },
+  "reason": {
+    "UNSUBSCRIBED": "unsubscribed",
+    "HARD_BOUNCE": "the address bounced",
+    "COMPLAINT": "complained",
+    "MANUAL": "added by you",
+    "ERASED": "data erased",
+    "OTHER": "another reason"
+  },
+  "add": {
+    "title": "Add someone",
+    "channel": "Don’t contact them by",
+    "address": "Their address",
+    "emailHelp": "Capitals don’t matter.",
+    "phoneHelp": "Type the number exactly as it is on the guest list, spaces included: a number written differently isn’t recognised.",
+    "submit": "Add to the list",
+    "adding": "Adding…",
+    "already": "{{address}} is already on the list for this, so nothing was changed.",
+    "errors": {
+      "required": "Enter the address.",
+      "email": "That doesn’t look like an email address.",
+      "phone": "That doesn’t look like a phone number.",
+      "tooLong": "That address is too long.",
+      "refused": "That address wasn’t accepted."
+    }
+  },
+  "lift": {
+    "title": "Allow messages to {{address}} again?",
+    "body": "Your events’ messages can reach this address again, reminders included.",
+    "confirm": "Allow again"
+  },
+  "refused": {
+    "noOrganization": "This list belongs to an organization, and your account is on an event only. The organization’s owner can see and change it.",
+    "forbidden": "Only the organization’s owner or a manager can see or change this list.",
+    "global": "This address is held across Aveline after a bounce or a complaint, and can’t be lifted here. The list has been reloaded.",
+    "erased": "This person asked for their data to be erased; they can’t be contacted again. The list has been reloaded.",
+    "gone": "That entry is no longer on the list. The list has been reloaded.",
+    "addressRefused": "That address wasn’t accepted.",
+    "rateLimited": "Too many tries. Wait a minute, then try again.",
+    "noAnswer": "No answer came. Check the list, then try again.",
+    "other": "This was refused.",
+    "chooseOrganization": "Your account is in more than one organization, and this page can’t choose between them yet."
+  },
+  "status": {
+    "added": "{{address}} is on the list.",
+    "lifted": "{{address}} can be contacted again."
+  }
+}

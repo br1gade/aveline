@@ -1,0 +1,836 @@
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import { useState, type ComponentType } from 'react';
+import { renderToString } from 'react-dom/server';
+import { I18nextProvider } from 'react-i18next';
+import { createRoutesStub, MemoryRouter, useParams } from 'react-router';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { ApiError } from '@/api/errors';
+import { createBrowserSession, type BrowserSession } from '@/api/session';
+import { createI18n } from '@/lib/i18n';
+import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
+
+import { AttendanceSettings } from './components/attendance-mode';
+import { CreateEvent } from './components/create-event';
+import { EditEvent } from './components/edit-event';
+import { EventOverview } from './components/event-overview';
+import { EventUnavailable } from './components/event-unavailable';
+import { QuestionsLeftOnNotice } from './components/questions-left-on';
+import type { EventOverviewData } from './load';
+import type { EventDetail } from './types';
+
+const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
+vi.mock('@/api/session', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  browserSession: () => {
+    if (!current.session) throw new Error('No session in this test');
+    return current.session;
+  },
+}));
+
+const ORIGIN = 'http://api.test';
+const API = `${ORIGIN}/api/v1`;
+const server = setupServer();
+
+beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
+beforeEach(() => {
+  current.session = createBrowserSession({
+    baseUrl: ORIGIN,
+    channel: { announceLogout: () => undefined, onLogout: () => () => undefined },
+    schedule: () => () => undefined,
+  });
+});
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+const EVENT: EventDetail = {
+  id: 'e1',
+  title: 'The wedding of Anna and Davit',
+  type: 'WEDDING',
+  hostsLabel: 'Anna & Davit',
+  startsAt: '2027-06-12T11:00:00.000Z',
+  endsAt: null,
+  timezone: 'America/Los_Angeles',
+  locales: ['en', 'hy'],
+  defaultLocale: 'hy',
+  sideALabel: null,
+  sideBLabel: null,
+  invitation: { slug: 'anna-davit-3f8a1c20', status: 'DRAFT' },
+};
+
+/** Where the page sent the host. */
+function EventPage() {
+  return (
+    <>
+      <QuestionsLeftOnNotice />
+      <p>{`Event page ${useParams().eventId ?? ''}`}</p>
+    </>
+  );
+}
+
+function renderAt(path: string, pattern: string, Page: ComponentType) {
+  const Stub = createRoutesStub(
+    guardedRoutes([
+      { path: pattern, Component: Page },
+      { path: '/app/events/:eventId', Component: EventPage },
+    ]),
+  );
+  render(
+    <I18nextProvider i18n={createI18n('en')}>
+      <Stub initialEntries={[path]} />
+    </I18nextProvider>,
+  );
+  return userEvent.setup();
+}
+
+/** Records each request's JSON body, and answers with `response`. */
+function answer(method: 'post' | 'patch', path: string, response: () => Response) {
+  const received: unknown[] = [];
+  server.use(
+    http[method](`${API}${path}`, async ({ request }) => {
+      received.push(await request.json());
+      return response();
+    }),
+  );
+  return received;
+}
+
+const refusal =
+  (status: number, message: string | string[] = 'refused') =>
+  () =>
+    HttpResponse.json({ statusCode: status, message, requestId: 'req-1' }, { status });
+
+/** Date and time inputs take their value whole, as a browser's picker gives it. */
+async function typeWhen(date: string, time: string) {
+  fireEvent.change(await screen.findByLabelText('Date'), { target: { value: date } });
+  fireEvent.change(screen.getByLabelText('Time'), { target: { value: time } });
+}
+
+async function fillNewEvent(user: ReturnType<typeof userEvent.setup>) {
+  await user.selectOptions(await screen.findByLabelText('Kind of event'), 'WEDDING');
+  await user.type(screen.getByLabelText('Title'), 'The wedding of Anna and Davit');
+  await typeWhen('2027-06-12', '15:00');
+}
+
+const submitCreate = (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(screen.getByRole('button', { name: 'Create the event' }));
+
+describe('CreateEvent', () => {
+  const at = () => renderAt('/app/events/new', '/app/events/new', CreateEvent);
+
+  it('starts in Yerevan, in Armenian, with no kind of event chosen', async () => {
+    at();
+    expect(await screen.findByLabelText('Kind of event')).toHaveValue('');
+    expect(screen.getByLabelText('Time zone')).toHaveValue('Asia/Yerevan');
+    expect(screen.getByRole('checkbox', { name: 'Հայերեն' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Հայերեն' })).toBeChecked();
+  });
+
+  it('checks the fields before sending anything', async () => {
+    const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    const user = at();
+    await submitCreate(user);
+    expect(await screen.findByText('Choose one.')).toBeInTheDocument();
+    expect(screen.getAllByText('Fill this in.')).toHaveLength(3);
+    expect(received).toEqual([]);
+  });
+
+  it('asks before the page is left with what was typed, not before', async () => {
+    const user = at();
+    const title = await screen.findByLabelText('Title');
+    expect(isLeavingAsked()).toBe(false);
+    await user.type(title, 'Anna');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+  });
+
+  it('starts drink and song request off on the new invitation (C-30, PD-179)', async () => {
+    answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    server.use(http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)));
+    const switched = answer('patch', `/invitations/anna-davit-3f8a1c20/rsvp-fields`, () =>
+      HttpResponse.json({}),
+    );
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(switched).toEqual([
+      { drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false } },
+    ]);
+    expect(screen.queryByText(/still asked on this invitation/)).not.toBeInTheDocument();
+  });
+
+  it('opens the event all the same when they couldn’t be switched off, and says so', async () => {
+    answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    server.use(http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)));
+    answer('patch', `/invitations/anna-davit-3f8a1c20/rsvp-fields`, refusal(500, 'down'));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('still asked on this invitation');
+    expect(screen.getByRole('link', { name: 'The invitation’s questions' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/design/questions',
+    );
+  });
+
+  it('sends the time typed in Yerevan as UTC, then opens the new event', async () => {
+    const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    const user = at();
+    await fillNewEvent(user);
+    await user.click(screen.getByRole('checkbox', { name: 'English' }));
+    await submitCreate(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(received).toEqual([
+      {
+        type: 'WEDDING',
+        title: 'The wedding of Anna and Davit',
+        startsAt: '2027-06-12T11:00:00.000Z',
+        timezone: 'Asia/Yerevan',
+        locales: ['hy', 'en'],
+        defaultLocale: 'hy',
+      },
+    ]);
+  });
+
+  it('sends an end and the sides with the event, and says the other languages come after', async () => {
+    const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    const user = at();
+    await fillNewEvent(user);
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2027-06-12' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '23:30' } });
+    await user.type(screen.getByLabelText('First side'), 'Anna’s family');
+    // Only Armenian is ticked: there are no other languages to mention yet.
+    expect(screen.queryByText(/after creating the event/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'English' }));
+    expect(screen.getByText(/after creating the event, under “Edit details”/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Title in /)).not.toBeInTheDocument();
+    await submitCreate(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(received).toEqual([
+      expect.objectContaining({ endsAt: '2027-06-12T19:30:00.000Z', sideALabel: 'Anna’s family' }),
+    ]);
+    expect(received[0]).not.toHaveProperty('sideBLabel');
+  });
+
+  it('puts the backend’s refusal of the end on the end’s date', async () => {
+    answer('post', '/events', refusal(400, ['endsAt: must be after startsAt']));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    await waitFor(() =>
+      expect(screen.getByLabelText('End date')).toHaveAccessibleDescription(
+        expect.stringContaining('The end must come after the start.'),
+      ),
+    );
+  });
+
+  it('refuses a time the clocks skip, without sending', async () => {
+    const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
+    const user = at();
+    await fillNewEvent(user);
+    await typeWhen('2027-03-28', '01:30');
+    await user.selectOptions(screen.getByLabelText('Time zone'), 'Europe/London');
+    await submitCreate(user);
+    expect(await screen.findByText(/The clocks go forward at this time/)).toBeInTheDocument();
+    expect(received).toEqual([]);
+  });
+
+  it('moves the default language when its own is unticked', async () => {
+    const user = at();
+    await user.click(await screen.findByRole('checkbox', { name: 'English' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Հայերեն' }));
+    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
+    expect(screen.queryByRole('radio', { name: 'Հայերեն' })).not.toBeInTheDocument();
+  });
+
+  it('puts a refused time zone under its field', async () => {
+    answer(
+      'post',
+      '/events',
+      refusal(400, ['timezone: "Asia/Nowhere" is not an IANA time zone, such as Asia/Yerevan']),
+    );
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByText('Choose a time zone from the list.')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Some details weren’t accepted.');
+  });
+
+  it('explains a 403: the account cannot create events', async () => {
+    answer('post', '/events', refusal(403));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent('This account can’t create events');
+  });
+
+  it('explains a 409: the event’s state changed underneath', async () => {
+    answer('post', '/events', refusal(409));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'That can’t be done in the event’s current state.',
+    );
+  });
+
+  it('asks the host to wait when rate-limited', async () => {
+    answer('post', '/events', refusal(429));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Wait a minute');
+  });
+
+  it('shows the reference when the server fails', async () => {
+    answer('post', '/events', refusal(500));
+    const user = at();
+    await fillNewEvent(user);
+    await submitCreate(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Reference: req-1');
+  });
+
+  it('posts, with its submit disabled, before the page is hydrated (PD-41)', () => {
+    const html = renderToString(
+      <I18nextProvider i18n={createI18n('en')}>
+        <MemoryRouter>
+          <CreateEvent />
+        </MemoryRouter>
+      </I18nextProvider>,
+    );
+    expect(html).toContain('method="post"');
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*disabled=""/);
+  });
+});
+
+function overview(data: Partial<EventOverviewData> = {}) {
+  const page = () => (
+    <EventOverview
+      data={{
+        event: EVENT,
+        headcount: {
+          kind: 'ready',
+          headcount: {
+            invited: 412,
+            households: 160,
+            attending: 230,
+            declined: 41,
+            undecided: 12,
+            pending: 129,
+            responseRate: 69,
+          },
+        },
+        ...data,
+      }}
+    />
+  );
+  renderAt('/app/events/e1/overview', '/app/events/:eventId/overview', page);
+}
+
+describe('EventOverview', () => {
+  it('dates the event in its own zone, and names the zone', async () => {
+    overview();
+    expect(
+      await screen.findByText('Saturday, 12 June 2027, 04:00 (America/Los Angeles)'),
+    ).toBeInTheDocument();
+  });
+
+  it('lists the languages with the default marked, and the invitation', async () => {
+    overview();
+    expect(await screen.findByText('English, Հայերեն (default)')).toBeInTheDocument();
+    expect(screen.getByText('Draft: guests can’t open it yet')).toBeInTheDocument();
+    expect(screen.getByText('anna-davit-3f8a1c20')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Edit details' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/edit',
+    );
+  });
+
+  it('links to the guest list', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Guest list' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/guests',
+    );
+  });
+
+  it('links to the venues, to designing the invitation, and to publishing and sending it', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Venues' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/venues',
+    );
+    expect(screen.getByRole('link', { name: 'Design the invitation' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/design',
+    );
+    expect(screen.getByRole('link', { name: 'The team' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/team',
+    );
+    expect(screen.getByRole('link', { name: 'Reminders and thanks' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/follow-ups',
+    );
+    expect(screen.getByRole('link', { name: 'Publish and send' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/invitation',
+    );
+  });
+
+  it('links to the seating, with or without an invitation (PD-67)', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Seating' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/seating',
+    );
+  });
+
+  it('links to guests’ photos and their agreements (PD-65, PD-66)', async () => {
+    overview();
+    expect(await screen.findByRole('link', { name: 'Guests’ photos' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/photos',
+    );
+    expect(screen.getByRole('link', { name: 'Agreements' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/agreements',
+    );
+  });
+
+  it('shows the headcount', async () => {
+    overview();
+    const numbers = await screen.findByRole('region', { name: 'Guests' });
+    expect(numbers).toHaveTextContent('On the list412');
+    expect(numbers).toHaveTextContent('Coming230');
+    expect(numbers).toHaveTextContent('Answered69%');
+  });
+
+  it('says when there are no guests yet', async () => {
+    overview({
+      headcount: {
+        kind: 'ready',
+        headcount: {
+          invited: 0,
+          households: 0,
+          attending: 0,
+          declined: 0,
+          undecided: 0,
+          pending: 0,
+          responseRate: 0,
+        },
+      },
+    });
+    expect(await screen.findByText('No guests on the list yet.')).toBeInTheDocument();
+  });
+
+  it('says when this role cannot see the numbers, and still shows the event', async () => {
+    overview({ headcount: { kind: 'refused' } });
+    expect(
+      await screen.findByText('The guest numbers aren’t available to your role on this event.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: EVENT.title })).toBeInTheDocument();
+  });
+
+  it('says when the numbers failed to load, with the reference', async () => {
+    overview({ headcount: { kind: 'failed', requestId: 'req-7' } });
+    expect(await screen.findByText('Reference: req-7')).toBeInTheDocument();
+  });
+
+  it('says when the event has no invitation yet', async () => {
+    overview({ event: { ...EVENT, invitation: null } });
+    expect(await screen.findByText('No invitation yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Publish and send' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Design the invitation' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Guests’ photos' })).not.toBeInTheDocument();
+  });
+});
+
+describe('How guests answer, on the overview', () => {
+  const perVenue: EventDetail = { ...EVENT, attendanceMode: 'PER_VENUE', attendanceRevision: 2 };
+  const counts = { invited: 412, households: 160, declined: 41, undecided: 12, responseRate: 69 };
+
+  it('says how guests answer, with the way to change it', async () => {
+    overview({ event: { ...EVENT, attendanceMode: 'EVENT_WIDE', attendanceRevision: 1 } });
+    expect(await screen.findByText('One answer for the whole event.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Change' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/attendance',
+    );
+  });
+
+  it('gives each venue’s numbers when guests answer per venue, and none otherwise', async () => {
+    const venues = [
+      {
+        venueId: 'v1',
+        venue: 'Church',
+        invited: 412,
+        attending: 200,
+        declined: 50,
+        undecided: 12,
+        pending: 150,
+      },
+      {
+        venueId: 'v2',
+        venue: 'Hall',
+        invited: 412,
+        attending: 230,
+        declined: 41,
+        undecided: 12,
+        pending: 129,
+      },
+    ];
+    const headcount = { ...counts, attending: 230, pending: 129, venues };
+    overview({ event: perVenue, headcount: { kind: 'ready', headcount } });
+    const table = await screen.findByRole('table', { name: 'By venue' });
+    expect(within(table).getByRole('rowheader', { name: 'Church' })).toBeInTheDocument();
+    expect(within(table).getAllByRole('row')).toHaveLength(3);
+    // On a narrow screen the table scrolls sideways: its box is reachable and named for keyboards.
+    const scroller = screen.getByRole('region', { name: 'By venue' });
+    expect(scroller).toContainElement(table);
+    expect(scroller).toHaveAttribute('tabindex', '0');
+    cleanup();
+    overview({ event: EVENT, headcount: { kind: 'ready', headcount } });
+    await screen.findByText('Not answered');
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+describe('AttendanceSettings', () => {
+  const event: EventDetail = { ...EVENT, attendanceMode: 'EVENT_WIDE', attendanceRevision: 1 };
+  const preview = {
+    mode: 'PER_VENUE',
+    expectedRevision: 1,
+    previewToken: 'f'.repeat(32),
+    affected: { guests: 120, responses: 40, seatedGuests: 12, seats: 12 },
+    request: {},
+    seatsRetainedAsReservations: true,
+  };
+  const at = () =>
+    renderAt('/app/events/e1/attendance', '/app/events/:eventId/attendance', () => (
+      <AttendanceSettings event={event} />
+    ));
+
+  async function previewed(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole('button', { name: 'See what would change' }));
+    await screen.findByText(/The 40 answers given so far go back/);
+  }
+
+  it('previews what is set back, asks, changes, then offers to tell guests', async () => {
+    answer('post', '/events/e1/attendance-policy/preview', () =>
+      HttpResponse.json(preview, { status: 201 }),
+    );
+    const changed = answer('post', '/events/e1/attendance-policy', () =>
+      HttpResponse.json(
+        {
+          mode: 'PER_VENUE',
+          revision: 2,
+          notice: {
+            requiresReconfirmation: true,
+            notificationPath: '/api/v1/invitations/anna-davit-3f8a1c20/notify-changes',
+          },
+        },
+        { status: 201 },
+      ),
+    );
+    const user = at();
+    expect(await screen.findByText('One answer for the whole event.')).toBeInTheDocument();
+    await previewed(user);
+    expect(screen.getByText(/12 seated guests keep their seats/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ask per venue' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(changed).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Change' }));
+
+    expect(await screen.findByText(/Guests are now asked to answer again/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Let your guests know' })).toBeInTheDocument();
+    expect(changed).toEqual([
+      {
+        mode: 'PER_VENUE',
+        expectedRevision: 1,
+        previewToken: 'f'.repeat(32),
+        transitionId: expect.stringMatching(/^[0-9a-f-]{36}$/) as unknown,
+      },
+    ]);
+  });
+
+  it('starts again, saying why, when something changed since the preview', async () => {
+    answer('post', '/events/e1/attendance-policy/preview', () =>
+      HttpResponse.json(preview, { status: 201 }),
+    );
+    answer(
+      'post',
+      '/events/e1/attendance-policy',
+      refusal(409, 'previewToken: attendance or seating changed; preview again'),
+    );
+    const user = at();
+    await previewed(user);
+    await user.click(screen.getByRole('button', { name: 'Ask per venue' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Change' }),
+    );
+    expect(await screen.findByText(/Something changed since that preview/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'See what would change' })).toBeInTheDocument();
+  });
+
+  it('says a venue guests see is needed first, with the way to add one', async () => {
+    answer(
+      'post',
+      '/events/e1/attendance-policy/preview',
+      refusal(400, 'mode: per-venue attendance needs a guest-facing venue'),
+    );
+    const user = at();
+    await user.click(await screen.findByRole('button', { name: 'See what would change' }));
+    expect(await screen.findByRole('link', { name: 'Add a venue' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/venues',
+    );
+  });
+
+  it('explains a 403', async () => {
+    answer('post', '/events/e1/attendance-policy/preview', refusal(403));
+    const user = at();
+    await user.click(await screen.findByRole('button', { name: 'See what would change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your role on this event can’t change how guests answer.',
+    );
+  });
+});
+
+describe('EventUnavailable', () => {
+  function show(error: unknown) {
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <MemoryRouter>
+          <EventUnavailable error={error} />
+        </MemoryRouter>
+      </I18nextProvider>,
+    );
+  }
+
+  it.each([403, 404])('reads the same for %i: missing and not yours look alike', (status) => {
+    show(new ApiError({ status, messages: [], requestId: 'req-2' }));
+    expect(screen.getByRole('heading', { name: 'This event isn’t available' })).toBeInTheDocument();
+    expect(screen.queryByText(/Reference/)).not.toBeInTheDocument();
+  });
+
+  it('asks to wait a moment when there were too many requests', () => {
+    show(new ApiError({ status: 429, messages: [], requestId: 'req-4' }));
+    expect(
+      screen.getByText('Too many requests just now. Wait a minute, then reload the page.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Reference/)).not.toBeInTheDocument();
+  });
+
+  it('shows the reference for any other failure', () => {
+    show(new ApiError({ status: 500, messages: [], requestId: 'req-3' }));
+    expect(screen.getByText('Reference: req-3')).toBeInTheDocument();
+  });
+});
+
+describe('EditEvent', () => {
+  const at = () =>
+    renderAt('/app/events/e1/edit', '/app/events/:eventId/edit', () => <EditEvent event={EVENT} />);
+  const save = (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getByRole('button', { name: 'Save changes' }));
+  const saved = (notice: object) => () =>
+    HttpResponse.json({
+      ...EVENT,
+      notice: { isSuggested: false, changed: [], householdsInvited: 0, ...notice },
+    });
+
+  it('shows the start in the event’s own zone', async () => {
+    at();
+    expect(await screen.findByLabelText('Date')).toHaveValue('2027-06-12');
+    expect(screen.getByLabelText('Time')).toHaveValue('04:00');
+    expect(screen.getByLabelText('Time zone')).toHaveValue('America/Los_Angeles');
+  });
+
+  it('asks before the page is left with a change, not before', async () => {
+    const user = at();
+    const title = await screen.findByLabelText('Title');
+    expect(isLeavingAsked()).toBe(false);
+    await user.type(title, ' again');
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+  });
+
+  it('sends only what changed, then returns to the event', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    const user = at();
+    const title = await screen.findByLabelText('Title');
+    await user.clear(title);
+    await user.type(title, 'Anna and Davit');
+    await save(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(received).toEqual([{ title: 'Anna and Davit' }]);
+  });
+
+  it('sends nothing when nothing changed', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    const user = at();
+    await save(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(received).toEqual([]);
+  });
+
+  it('offers to let guests know, and sends only when asked', async () => {
+    const patched = answer(
+      'patch',
+      '/events/e1',
+      saved({ isSuggested: true, changed: ['startsAt'], householdsInvited: 3 }),
+    );
+    const notified = answer('post', '/invitations/anna-davit-3f8a1c20/notify-changes', () =>
+      HttpResponse.json({ queued: 3, alreadyNotified: 0, recipients: [], unreachable: [] }),
+    );
+    const user = at();
+    await typeWhen('2027-07-03', '04:00');
+    await save(user);
+    expect(await screen.findByRole('heading', { name: 'Your changes are saved' })).toHaveFocus();
+    expect(screen.getByText(/3 households already have the invitation/)).toBeInTheDocument();
+    expect(patched).toEqual([{ startsAt: '2027-07-03T11:00:00.000Z' }]);
+    expect(notified).toEqual([]);
+
+    await user.type(
+      screen.getByLabelText(/A note for your guests/),
+      'We have moved to the garden.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Let your guests know' }));
+    expect(
+      await screen.findByText('The update is on its way to 3 households.'),
+    ).toBeInTheDocument();
+    expect(notified).toEqual([{ note: 'We have moved to the garden.' }]);
+    expect(screen.queryByRole('button', { name: 'Let your guests know' })).not.toBeInTheDocument();
+  });
+
+  it('sends nothing to guests when the host chooses "Not now"', async () => {
+    answer('patch', '/events/e1', saved({ isSuggested: true, householdsInvited: 1 }));
+    const notified = answer('post', '/invitations/anna-davit-3f8a1c20/notify-changes', () =>
+      HttpResponse.json({ queued: 1, alreadyNotified: 0, recipients: [], unreachable: [] }),
+    );
+    const user = at();
+    await user.selectOptions(await screen.findByLabelText('Time zone'), 'Europe/London');
+    await save(user);
+    expect(await screen.findByText(/1 household already has the invitation/)).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'Not now' }));
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(notified).toEqual([]);
+  });
+
+  it('explains a 403: this role cannot change the details', async () => {
+    answer('patch', '/events/e1', refusal(403));
+    const user = at();
+    await user.type(await screen.findByLabelText('Hosts'), '!');
+    await save(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your role on this event can’t change its details.',
+    );
+  });
+
+  it('sends no note when the host writes none', async () => {
+    answer('patch', '/events/e1', saved({ isSuggested: true, householdsInvited: 2 }));
+    const notified = answer('post', '/invitations/anna-davit-3f8a1c20/notify-changes', () =>
+      HttpResponse.json({ queued: 2, alreadyNotified: 0, recipients: [], unreachable: [] }),
+    );
+    const user = at();
+    await user.selectOptions(await screen.findByLabelText('Time zone'), 'Europe/London');
+    await save(user);
+    await user.click(await screen.findByRole('button', { name: 'Let your guests know' }));
+    expect(
+      await screen.findByText('The update is on its way to 2 households.'),
+    ).toBeInTheDocument();
+    expect(notified).toEqual([{}]);
+  });
+
+  it('says when nobody holds the invitation yet, and keeps the offer to try again', async () => {
+    answer('patch', '/events/e1', saved({ isSuggested: true, householdsInvited: 2 }));
+    answer(
+      'post',
+      '/invitations/anna-davit-3f8a1c20/notify-changes',
+      refusal(400, 'This invitation has not been published, so nobody has it yet'),
+    );
+    const user = at();
+    await user.selectOptions(await screen.findByLabelText('Time zone'), 'Europe/London');
+    await save(user);
+    await user.click(await screen.findByRole('button', { name: 'Let your guests know' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This invitation isn’t published yet, so no guest has it.',
+    );
+    expect(screen.getByRole('button', { name: 'Let your guests know' })).toBeInTheDocument();
+  });
+
+  it('compares with the event as the form first showed it, even after the page reloads', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    // A reload of the page's data (a language switch, say) brings a title someone else changed.
+    function Reloading() {
+      const [event, setEvent] = useState(EVENT);
+      return (
+        <>
+          <button type="button" onClick={() => setEvent({ ...EVENT, title: 'Renamed elsewhere' })}>
+            Reload
+          </button>
+          <EditEvent key={event.id} event={event} />
+        </>
+      );
+    }
+    const user = renderAt('/app/events/e1/edit', '/app/events/:eventId/edit', Reloading);
+    await user.click(await screen.findByRole('button', { name: 'Reload' }));
+    await user.type(screen.getByLabelText('Hosts'), '!');
+    await save(user);
+    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
+    expect(received).toEqual([{ hostsLabel: 'Anna & Davit!' }]);
+  });
+
+  it('offers each other ticked language’s title and hosts, and sends one changed whole', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    const user = at();
+    await user.click(await screen.findByRole('checkbox', { name: 'Русский' }));
+    const title = await screen.findByLabelText('Title in Русский');
+    expect(title).toHaveAttribute('lang', 'ru');
+    await user.type(title, 'Свадьба');
+    await save(user);
+    await waitFor(() => expect(received).toHaveLength(1));
+    expect(received[0]).toMatchObject({ translations: { ru: { title: 'Свадьба' } } });
+  });
+
+  it('marks a language’s word that is too long on its own field, and nothing on the section', async () => {
+    const user = at();
+    await user.click(await screen.findByRole('checkbox', { name: 'Русский' }));
+    const title = await screen.findByLabelText('Title in Русский');
+    fireEvent.change(title, { target: { value: 'A'.repeat(201) } });
+    await save(user);
+    await waitFor(() =>
+      expect(title).toHaveAccessibleDescription(expect.stringContaining('This is too long.')),
+    );
+    expect(screen.queryByText('Check this field.')).not.toBeInTheDocument();
+  });
+
+  it('sends an end typed in the event’s zone, and a new side', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    const user = at();
+    await user.type(await screen.findByLabelText('First side'), 'Anna’s family');
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2027-06-12' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '23:00' } });
+    await save(user);
+    await waitFor(() => expect(received).toHaveLength(1));
+    expect(received[0]).toEqual({
+      endsAt: '2027-06-13T06:00:00.000Z',
+      sideALabel: 'Anna’s family',
+    });
+  });
+
+  it('puts the backend’s refusal of the end on the end’s date', async () => {
+    answer('patch', '/events/e1', refusal(400, ['endsAt: must be after startsAt']));
+    const user = at();
+    await typeWhen('2027-08-01', '04:00');
+    await save(user);
+    await waitFor(() =>
+      expect(screen.getByLabelText('End date')).toHaveAccessibleDescription(
+        expect.stringContaining('The end must come after the start.'),
+      ),
+    );
+  });
+});

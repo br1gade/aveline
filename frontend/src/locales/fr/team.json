@@ -1,0 +1,98 @@
+{
+  "back": "Retour à l’événement",
+  "title": "L’équipe",
+  "lead": "Qui travaille sur cet événement. La personne invitée accède à cet événement et à rien d’autre dans votre organisation.",
+  "listRefused": "Seuls le propriétaire de l’événement ou celui de l’organisation peuvent voir l’équipe. Pour ajouter quelqu’un, demandez-leur.",
+  "role": {
+    "unknown": "Un rôle que cette page ne connaît pas",
+    "COORDINATOR": {
+      "name": "Coordinateur",
+      "about": "Gère l’événement : l’entrée, les invités et leurs coordonnées, les places, l’envoi des messages, le design et les détails. Ne gère pas l’équipe."
+    },
+    "DESIGNER": {
+      "name": "Designer",
+      "about": "Conçoit l’invitation et rien d’autre. Ne voit pas la liste des invités."
+    },
+    "VIEWER": {
+      "name": "Lecteur",
+      "about": "Lit l’événement, les invités sans leurs coordonnées, et les chiffres. Ne change rien."
+    },
+    "OWNER": {
+      "name": "Propriétaire",
+      "about": "Tout ce que peut faire un coordinateur, et gère cette équipe. Peut supprimer l’événement."
+    }
+  },
+  "members": {
+    "title": "Dans l’équipe",
+    "none": "Personne n’est encore dans cette équipe.",
+    "line": "{{role}} · depuis le {{since}}",
+    "change": "Changer le rôle",
+    "changeFor": "Changer le rôle : {{name}}",
+    "remove": "Retirer",
+    "removeFor": "Retirer {{name}}"
+  },
+  "invites": {
+    "title": "Invitations encore ouvertes",
+    "none": "Aucune invitation ouverte. Une invitation expirée n’est pas listée.",
+    "line": "{{role}} · lien valable jusqu’au {{until}}",
+    "sendAgain": "Renvoyer",
+    "sendAgainFor": "Renvoyer : {{email}}",
+    "sending": "Envoi…",
+    "withdraw": "Retirer",
+    "withdrawFor": "Retirer l’invitation : {{email}}"
+  },
+  "invite": {
+    "title": "Inviter quelqu’un",
+    "lead": "La personne reçoit un e-mail avec un lien. Inviter de nouveau la même adresse remplace le lien précédent.",
+    "email": "Son adresse e-mail",
+    "role": "Son rôle",
+    "doorHelp": "Le personnel d’entrée est invité comme coordinateur, le seul rôle en dehors du propriétaire qui peut enregistrer les arrivées. Ce rôle donne aussi accès aux coordonnées des invités et à l’envoi de messages : aucun rôle plus restreint n’existe encore.",
+    "send": "Envoyer l’invitation",
+    "sending": "Envoi…",
+    "errors": {
+      "required": "Saisissez son adresse e-mail.",
+      "email": "Cela ne ressemble pas à une adresse e-mail.",
+      "tooLong": "Cette adresse est trop longue."
+    }
+  },
+  "change": {
+    "title": "Changer le rôle de {{name}}",
+    "body": "Cela s’applique à sa prochaine requête. Si vous quittez vous-même le rôle de propriétaire, vous ne pourrez plus gérer cette équipe.",
+    "current": "actuel",
+    "save": "Changer le rôle"
+  },
+  "remove": {
+    "title": "Retirer {{name}} de l’équipe ?",
+    "body": "Son accès à cet événement est coupé aussitôt. Ce qui a déjà été fait reste. S’il s’agit de vous, vous perdez aussi l’accès.",
+    "confirm": "Retirer"
+  },
+  "withdraw": {
+    "title": "Retirer l’invitation à {{email}} ?",
+    "body": "Le lien envoyé cesse de fonctionner. Vous pourrez inviter cette personne de nouveau plus tard.",
+    "confirm": "Retirer"
+  },
+  "dialog": {
+    "cancel": "Annuler",
+    "saving": "Enregistrement…"
+  },
+  "status": {
+    "invited": "L’invitation est en route vers {{email}}.",
+    "sentAgain": "Un nouveau lien est en route vers {{email}}. Le précédent ne fonctionne plus.",
+    "withdrawn": "L’invitation à {{email}} est retirée.",
+    "roleChanged": "{{name}} a maintenant le rôle : {{role}}.",
+    "removed": "{{name}} ne fait plus partie de l’équipe."
+  },
+  "refused": {
+    "alreadyOnTeam": "Cette personne fait déjà partie de l’équipe. La page a été rechargée.",
+    "needsOwner": "Un événement a besoin d’un propriétaire. Désignez d’abord quelqu’un d’autre.",
+    "activeOwnerOnly": "Seule une personne dont le compte est actif peut devenir propriétaire.",
+    "notOnTeam": "Cette personne ne fait plus partie de l’équipe. La page a été rechargée.",
+    "noPendingInvite": "Cette invitation n’est plus ouverte. La page a été rechargée.",
+    "gone": "Cet événement ou cette personne n’est plus disponible. La page a été rechargée.",
+    "forbidden": "Seuls le propriétaire de l’événement ou celui de l’organisation peuvent gérer l’équipe. Demandez-leur de le faire.",
+    "rateLimited": "Trop d’essais. Attendez une minute, puis réessayez.",
+    "emailRefused": "Cette adresse n’a pas été acceptée.",
+    "noAnswer": "Aucune réponse. L’action a peut-être abouti : vérifiez la liste, puis réessayez. Une invitation renvoyée remplace le lien précédent.",
+    "other": "Cela n’a pas été accepté. La raison, en anglais :"
+  }
+}

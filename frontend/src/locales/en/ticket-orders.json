@@ -1,0 +1,135 @@
+{
+  "back": "Back to the event",
+  "title": "Orders",
+  "lead": "Ticket orders, newest first. Open one to see who comes on each ticket, to cancel it, or to link a ticket to a guest on your list.",
+  "toSales": "Ticket sales",
+  "refused": "Your role on this event can’t see orders.",
+  "failed": "The orders couldn’t be loaded.",
+  "empty": "No orders yet.",
+  "emptyTab": "No orders here.",
+  "emailsHidden": "Buyers’ email addresses aren’t shown to your role.",
+  "capped": "Only the newest {{count}} are shown.",
+  "free": "Free",
+  "ticket": "Ticket",
+  "reference": "Reference: {{requestId}}",
+  "refusedWith": "It was refused:",
+  "keep": "Keep the order",
+  "close": "Close",
+  "actionFor": "{{action}}: {{name}}",
+  "tabs": {
+    "label": "Orders by status",
+    "all": "All",
+    "PAID": "Paid",
+    "RESERVED": "Waiting for payment",
+    "CANCELLED": "Cancelled",
+    "REFUNDED": "Refunded",
+    "EXPIRED": "Expired"
+  },
+  "orderStatus": {
+    "PAID": "Paid",
+    "RESERVED": "Waiting for payment",
+    "CANCELLED": "Cancelled",
+    "REFUNDED": "Refunded",
+    "EXPIRED": "Expired"
+  },
+  "row": {
+    "tickets_one": "{{count}} ticket",
+    "tickets_other": "{{count}} tickets",
+    "discount": "Discount: {{amount}}",
+    "placed": "Placed {{date}}, {{time}}",
+    "open": "Open the order",
+    "close": "Close the order"
+  },
+  "detail": {
+    "refused": "Your role on this event can’t see who is on an order.",
+    "failed": "This order couldn’t be loaded.",
+    "gone": "This order is no longer on the event.",
+    "cancelling": "Being cancelled: waiting for the bank. Nobody on it can be let in meanwhile.",
+    "hidden": "Contacts and ticket codes aren’t shown to your role.",
+    "noGuest": "no guest yet",
+    "guestUnknown": "the guest list can’t be read",
+    "guestNotListed": "a guest no longer on the list",
+    "linked": "On the guest list: {{guest}}",
+    "code": "code {{code}}",
+    "admittedAt": "Admitted {{date}}, {{time}}",
+    "unnamed": "Bought by {{holder}}, nobody named",
+    "venue": "Venue"
+  },
+  "ticketStatus": {
+    "VALID": "Valid",
+    "USED": "Admitted",
+    "VOID": "Void",
+    "REFUNDED": "Refunded"
+  },
+  "attendance": {
+    "ATTENDING": "Coming",
+    "DECLINED": "Not coming",
+    "UNDECIDED": "Not sure yet",
+    "PENDING": "Not answered"
+  },
+  "cancel": {
+    "openFree": "Cancel the order",
+    "openPaid": "Cancel and refund",
+    "titleFree": "Cancel {{name}}’s order?",
+    "titlePaid": "Cancel and refund {{name}}’s order?",
+    "lead": "Whole orders only. This:",
+    "void_one": "voids its {{count}} ticket",
+    "void_other": "voids its {{count}} tickets",
+    "refund": "returns {{amount}} to the buyer’s card",
+    "guests": "takes the people on it off the event’s answers and frees their seats",
+    "email": "emails the buyer",
+    "whole": "If anyone can still come, they buy again.",
+    "confirmFree": "Cancel the order",
+    "confirmPaid": "Cancel and refund",
+    "cancelled": "{{name}}’s order is cancelled.",
+    "refunded": "{{name}}’s order is cancelled and {{amount}} refunded.",
+    "refusals": {
+      "admitted": "Someone on this order was already let in, so it can’t be cancelled: settle it with the buyer.",
+      "notPaid": "This order isn’t paid, so there is nothing to cancel.",
+      "forbidden": "Only someone who manages the organization’s money can cancel orders.",
+      "gone": "This order is no longer on the event.",
+      "bankUnknown": "The bank didn’t answer about the refund. The order stays frozen until Aveline confirms it with the bank: don’t refund it another way.",
+      "rateLimited": "Too many tries in a short time. Wait a minute, then try again.",
+      "noAnswer": "No answer came back. Press again: it never refunds twice."
+    }
+  },
+  "link": {
+    "open": "Link to a guest",
+    "title": "Link {{holder}}’s ticket to a guest on your list",
+    "lead": "The guest keeps their own answers; what was typed at checkout is kept aside. The ticket’s code doesn’t change.",
+    "guest": "Guest",
+    "choose": "Choose…",
+    "confirm": "Link",
+    "done": "{{holder}}’s ticket is linked to {{guest}}.",
+    "noGuests": "The guest list couldn’t be loaded.",
+    "noGuestsRole": "Your role can’t read the guest list."
+  },
+  "register": {
+    "open": "Register who holds it",
+    "title": "Register who holds this ticket",
+    "lead": "This ticket was sold before each ticket named its person. Name them here, as checkout asks; the code doesn’t change.",
+    "leadNamed": "Bought by {{holder}} before each ticket named its person. Name who holds it, as checkout asks; the code doesn’t change.",
+    "loading": "Reading what checkout asks…",
+    "unpublished": "Publish the announcement first: this reads the questions checkout asks from it.",
+    "failed": "What checkout asks couldn’t be read. Close and try again.",
+    "confirm": "Register",
+    "done": "{{name}} is registered on the ticket."
+  },
+  "reconcile": {
+    "refusals": {
+      "changed": "The ticket’s link changed meanwhile. The order was read again.",
+      "hasTicket": "That guest already holds a ticket.",
+      "erased": "An erased person can’t be linked.",
+      "invited": "This ticket already belongs to an invited guest, who can’t be replaced.",
+      "history": "The guest checkout made already has seats, an admission, an agreement or messages: settle those first.",
+      "staffReview": "This needs Aveline staff to review the admission records.",
+      "notActive": "Only an active ticket of a paid order can be reconciled.",
+      "hasAttendee": "This ticket already has a person: link a guest instead.",
+      "staleRevision": "The hosts changed how guests answer meanwhile. The questions were read again: answer again.",
+      "forbidden": "Your role can’t change the guest list.",
+      "gone": "This ticket is no longer on the event.",
+      "rateLimited": "Too many tries in a short time. Wait a minute, then try again.",
+      "noAnswer": "No answer came back. Press again."
+    }
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "guest": {
+    "label": "Galerie",
+    "heading": "Photos des invités",
+    "intro": "Partagez vos photos de la fête. Les autres invités les verront une fois approuvées par les hôtes.",
+    "limits": "Jusqu’à {{limit}} photos par invité, {{size}} Mo par photo : JPEG, PNG, WebP ou AVIF."
+  },
+  "share": {
+    "choose": "Choisir des photos",
+    "help": "Vous pouvez en choisir plusieurs à la fois, jusqu’à {{limit}}.",
+    "errors": {
+      "none": "Choisissez au moins une photo.",
+      "tooMany": "Choisissez {{limit}} photos au maximum.",
+      "allRefused": "Aucune des photos choisies ne peut être partagée."
+    },
+    "problems": {
+      "type": "Pas une photo JPEG, PNG, WebP ou AVIF",
+      "size": "Plus de 10 Mo",
+      "empty": "Le fichier est vide"
+    },
+    "ready": "Prête à être partagée",
+    "caption": "Légende",
+    "optional": "facultatif",
+    "captionHelp": "Affichée sous votre photo.",
+    "captionErrors": {
+      "tooLong": "{{limit}} caractères au maximum.",
+      "invalid": "La légende contient un caractère qui ne peut pas être enregistré.",
+      "refused": "Cette légende n’a pas pu être enregistrée. Vérifiez-la et réessayez."
+    },
+    "counter": "{{used}} / {{limit}}",
+    "oneCaption": "Une légende peut être ajoutée quand vous partagez une seule photo.",
+    "submit_one": "Partager {{count}} photo",
+    "submit_many": "Partager {{count}} photos",
+    "submit_other": "Partager {{count}} photos",
+    "stop": "Arrêter",
+    "sending": "Partage de {{current}} sur {{total}}…",
+    "done": "Partagées : {{shared}} sur {{total}}.",
+    "sendRest": "Envoyer le reste ({{rest}})",
+    "submitNone": "Partager des photos"
+  },
+  "outcomes": {
+    "shared": "Partagée : les hôtes la vérifient avant que les autres invités la voient",
+    "notSent": "Non envoyée",
+    "refused": {
+      "type": "Non partagée : pas une photo JPEG, PNG, WebP ou AVIF",
+      "size": "Non partagée : plus de 10 Mo",
+      "empty": "Non partagée : le fichier est vide",
+      "refused": "Non partagée : ce fichier a été refusé",
+      "caption": "Non partagée : vérifiez sa légende"
+    }
+  },
+  "stops": {
+    "limit": "Vous avez partagé {{limit}} photos, le maximum pour un invité. Retirez l’une des vôtres pour en partager une autre.",
+    "full": "La galerie est pleine pour le moment. Veuillez réessayer plus tard.",
+    "conflict": "Cette photo n’a pas pu être ajoutée pour l’instant. Veuillez réessayer.",
+    "closed": "Cette invitation ne s’ouvre plus. Aucune autre photo ne peut donc être partagée.",
+    "rate-limited": "Trop de photos à la fois. Attendez une minute, puis envoyez le reste.",
+    "busy": "Les photos ne peuvent pas être enregistrées pour l’instant. Veuillez réessayer dans quelques minutes.",
+    "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion, puis envoyez le reste.",
+    "failed": "Un problème est survenu de notre côté. Veuillez réessayer dans un instant.",
+    "stopped": "Arrêté. Les photos non envoyées restent choisies."
+  },
+  "reference": "Référence : {{id}}",
+  "picture": {
+    "failed": "Cette photo n’a pas pu être chargée.",
+    "retry": "Réessayer"
+  },
+  "viewer": {
+    "close": "Fermer"
+  },
+  "own": {
+    "heading": "Vos photos",
+    "none": "Vous n’avez encore partagé aucune photo.",
+    "alt": "Votre photo",
+    "states": {
+      "preparing": "En préparation",
+      "waiting": "En attente de l’approbation des hôtes",
+      "shown": "Visible par les autres invités",
+      "notApproved": "Non approuvée par les hôtes",
+      "failed": "Inutilisable"
+    },
+    "failures": {
+      "invalid": "Le fichier n’a pas pu être lu comme une photo. Retirez-le et essayez-en un autre.",
+      "ours": "Un problème est survenu de notre côté. Retirez-la et partagez-la de nouveau."
+    },
+    "sharedOn": "Partagée le {{date}}",
+    "remove": "Retirer",
+    "confirm": "Retirer cette photo ?",
+    "confirmShown": "Retirer cette photo ? Les autres invités ne la verront plus.",
+    "removeConfirm": "Retirer la photo",
+    "keep": "La garder",
+    "removeFailed": "La photo n’a pas pu être retirée. Veuillez réessayer.",
+    "removed": "Photo retirée.",
+    "gone": "Cette photo avait déjà été retirée."
+  },
+  "others": {
+    "heading": "Des autres invités",
+    "none": "Pas encore de photos des autres invités.",
+    "alt": "Une photo d’un invité",
+    "open": "Voir en grand : {{name}}"
+  },
+  "problems": {
+    "rate-limited": "Trop de demandes. Attendez une minute, puis réessayez.",
+    "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez."
+  },
+  "list": {
+    "loading": "Chargement des photos…",
+    "closed": "Cette invitation ne s’ouvre plus. Ses photos ne peuvent donc plus être vues ni partagées ici.",
+    "failed": "Les photos n’ont pas pu être chargées.",
+    "retry": "Réessayer",
+    "more": "Voir plus de photos",
+    "loadingMore": "Chargement…",
+    "moreFailed": "Les photos suivantes n’ont pas pu être chargées. Veuillez réessayer."
+  },
+  "host": {
+    "back": "Retour à l’événement",
+    "title": "Photos des invités",
+    "intro": "Les photos que les invités partagent depuis leur invitation personnelle. Les autres invités ne voient une photo qu’une fois que vous l’avez approuvée.",
+    "refused": "La modération des photos des invités n’est pas disponible pour votre rôle.",
+    "refusedAction": "Votre rôle ne permet pas de modérer les photos des invités.",
+    "failed": "Cette action n’a pas pu être effectuée. Veuillez réessayer.",
+    "count_one": "{{count, number}} photo sur les {{limit, number}} que l’événement peut contenir.",
+    "count_many": "{{count, number}} photos sur les {{limit, number}} que l’événement peut contenir.",
+    "count_other": "{{count, number}} photos sur les {{limit, number}} que l’événement peut contenir.",
+    "limits": "Chaque invité peut partager jusqu’à {{limit}} photos. L’événement contient jusqu’à 2 Go de photos ; l’espace utilisé n’est pas encore affiché.",
+    "partial": "Seules les photos les plus récentes sont listées ici.",
+    "tabs": "Photos par statut",
+    "tab": {
+      "review_one": "À vérifier ({{count, number}})",
+      "review_many": "À vérifier ({{count, number}})",
+      "review_other": "À vérifier ({{count, number}})",
+      "approved_one": "Visibles des invités ({{count, number}})",
+      "approved_many": "Visibles des invités ({{count, number}})",
+      "approved_other": "Visibles des invités ({{count, number}})",
+      "hidden_one": "Non approuvées ({{count, number}})",
+      "hidden_many": "Non approuvées ({{count, number}})",
+      "hidden_other": "Non approuvées ({{count, number}})",
+      "other_one": "En préparation ou en échec ({{count, number}})",
+      "other_many": "En préparation ou en échec ({{count, number}})",
+      "other_other": "En préparation ou en échec ({{count, number}})"
+    },
+    "empty": {
+      "review": "Aucune photo n’attend de vérification.",
+      "approved": "Aucune photo n’est encore visible des invités.",
+      "hidden": "Aucune photo n’a été refusée.",
+      "other": "Aucune photo n’est en préparation ni en échec."
+    },
+    "approve": "Approuver",
+    "reject": "Ne pas approuver",
+    "hide": "Masquer aux invités",
+    "remove": "Retirer",
+    "approved": "Approuvée. Les invités peuvent la voir maintenant.",
+    "rejected": "C’est fait. Les invités ne voient pas cette photo.",
+    "removed": "Photo retirée.",
+    "stale": "Cette photo a changé entre-temps. La liste est de nouveau à jour.",
+    "alt": "Une photo d’un invité",
+    "view": "Voir en grand : {{name}}",
+    "close": "Fermer",
+    "noCaption": "Sans légende",
+    "sharedAt": "Partagée le {{when}}",
+    "preparing": "En préparation",
+    "failures": {
+      "invalid": "Illisible en tant que photo",
+      "ours": "N’a pas pu être traitée"
+    },
+    "more": "Voir plus",
+    "removeTitle": "Retirer cette photo ?",
+    "removeBody": "Elle est retirée pour tout le monde, et l’invité qui l’a partagée ne peut pas la rétablir.",
+    "keep": "La garder",
+    "removing": "Retrait…",
+    "removeConfirm": "Retirer la photo",
+    "bulk": {
+      "choose": "Choisir : {{name}}",
+      "all": "Choisir les {{count}} de cet onglet",
+      "none": "Ne rien choisir",
+      "approve": "Approuver la sélection ({{count}})",
+      "progress": "Approbation : {{position}} sur {{count}}…",
+      "done_one": "{{count}} photo approuvée.",
+      "done_other": "{{count}} photos approuvées.",
+      "gone_one": "{{count}} avait changé entre-temps : la liste est à jour.",
+      "gone_other": "{{count}} avaient changé entre-temps : la liste est à jour.",
+      "rest_one": "{{count}} reste choisie : appuyez à nouveau quand vous pourrez.",
+      "rest_other": "{{count}} restent choisies : appuyez à nouveau quand vous pourrez.",
+      "done_many": "{{count}} photos approuvées.",
+      "gone_many": "{{count}} avaient changé entre-temps : la liste est à jour.",
+      "rest_many": "{{count}} restent choisies : appuyez à nouveau quand vous pourrez."
+    }
+  }
+}

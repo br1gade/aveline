@@ -1,0 +1,59 @@
+{
+  "title": "Access reviews",
+  "back": "Back to staff tools",
+  "lead": "Organizations whose last owner asked to close them, or that have no active owner left. Oldest first; dates are in Yerevan time. Nothing tells the owner the outcome, so tell them yourself.",
+  "none": "Nothing is waiting.",
+  "more": "Show more",
+  "reading": "Reading…",
+  "nameUnread": "Its name couldn’t be read, so its reference is shown.",
+  "opened": "Opened {{day}}",
+  "decisionFor": "{{decision}}: {{name}}",
+  "reason": {
+    "LAST_OWNER_CLOSURE": "Its last owner asked to close it.",
+    "INACTIVE_OWNER_RECOVERY": "Its owner’s account was closed, so it has no active owner."
+  },
+  "decision": {
+    "HANDOVER": "Hand over",
+    "CLOSE": "Close it",
+    "DECLINE": "Decline"
+  },
+  "ask": {
+    "HANDOVER": {
+      "title": "Hand {{name}} to another member?",
+      "body": "The member you choose becomes an owner. Nobody else’s access changes."
+    },
+    "CLOSE": {
+      "title": "Close {{name}}?",
+      "body": "Nothing reopens it. Its events and payment history stay, but its members, invitations and unfinished work go, and nobody can open its events."
+    },
+    "DECLINE": {
+      "title": "Decline the review of {{name}}?",
+      "body": "Nothing changes in the organization, and the review is closed."
+    }
+  },
+  "handover": {
+    "label": "Who becomes an owner",
+    "choose": "Choose a member",
+    "reading": "Reading its members…",
+    "unread": "Its members couldn’t be read. Close this and try again.",
+    "none": "It has no member who could own it. Close it or decline instead.",
+    "stopped": "Only the first 200 members are listed."
+  },
+  "close": {
+    "typeLabel": "Type the organization’s name to confirm",
+    "typeReference": "Type the organization’s reference, as shown above, to confirm"
+  },
+  "status": {
+    "HANDOVER": "{{name}} has a new owner.",
+    "CLOSE": "{{name}} is closed.",
+    "DECLINE": "The review of {{name}} is declined."
+  },
+  "refusal": {
+    "forbidden": "This page is for Aveline’s administrators.",
+    "moved": "This review has moved on since the page was read, perhaps by someone else. It has been read again.",
+    "successor": "That member can’t become an owner: they may have left, or their account was closed. Choose another.",
+    "rateLimited": "Too many requests just now. Please wait a moment and try again.",
+    "noAnswer": "We didn’t get an answer, so it may have happened. Read the page again before trying again.",
+    "other": "That wasn’t accepted:"
+  }
+}

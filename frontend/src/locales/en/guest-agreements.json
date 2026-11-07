@@ -1,0 +1,28 @@
+{
+  "label": "Before you arrive",
+  "heading": "Agree before the door",
+  "lead": "The hosts ask everyone coming to agree to these before they are let in. Agreeing here doesn’t change your reply.",
+  "required": "Needed before the door",
+  "optional": "Optional",
+  "submit": "Agree",
+  "done": "Agreed for: {{names}}.",
+  "all": "Everyone coming has agreed. Nothing more is needed before the door.",
+  "notice_one": "{{count}} agreement is needed before the door.",
+  "notice_other": "{{count}} agreements are needed before the door.",
+  "noticeLink": "Agree now",
+  "refusals": {
+    "reworded": "The hosts changed this wording meanwhile. Read it again, then agree.",
+    "gone": "This link no longer opens the invitation, so nothing was recorded.",
+    "refused": "Your agreement wasn’t recorded, for this reason:",
+    "rateLimited": "Too many tries in a short time. Wait a minute, then try again.",
+    "failed": "Your agreement wasn’t recorded. Try again.",
+    "reference": "Reference: {{requestId}}"
+  },
+  "errors": {
+    "agree": "Tick “I agree” first.",
+    "signerName": "Enter your full name.",
+    "tooLong": "This is too long.",
+    "drawing": "Draw your signature and choose “Use this signature”, or type your name instead.",
+    "onBehalf": "Confirm that you agree on behalf of the others listed."
+  }
+}

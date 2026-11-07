@@ -1,0 +1,74 @@
+{
+  "back": "Retour à la liste des invités",
+  "title": "Enregistrer une réponse",
+  "lead": "Pour une réponse donnée par téléphone ou en personne. Remplissez ce que vous savez : les questions que la page de l’invité exige peuvent attendre, et ce que vous laissez tel quel reste tel quel. L’invité n’est pas prévenu, sauf si vous cochez la case ci-dessous.",
+  "guestRefused": "Votre rôle ne permet pas de voir la liste des invités, ni donc d’enregistrer une réponse. Le propriétaire de l’événement ou un coordinateur le peut.",
+  "erased": "Les données de cet invité ont été effacées à sa demande : aucune réponse ne peut être enregistrée pour lui.",
+  "askingUnknown": "Les questions de l’invitation n’ont pas pu être lues : seule sa venue peut être enregistrée pour l’instant. Rechargez la page pour réessayer.",
+  "save": "Enregistrer la réponse",
+  "saving": "Enregistrement…",
+  "cancel": "Annuler",
+  "reply": {
+    "ATTENDING": "Vient",
+    "DECLINED": "Ne vient pas",
+    "UNDECIDED": "Pas encore sûr"
+  },
+  "attendance": {
+    "eventWide": "Vient-il ?",
+    "perVenue": "Vient-il, à chaque lieu ?",
+    "perVenueHelp": "Un lieu laissé sans réponse garde celle qu’il avait."
+  },
+  "fields": {
+    "dietary": "Besoins alimentaires",
+    "dietaryNotes": "Précisions sur les besoins alimentaires",
+    "drinkPreference": "Boisson",
+    "songRequest": "Une chanson souhaitée",
+    "message": "Son message aux hôtes"
+  },
+  "question": {
+    "yes": "Oui",
+    "no": "Non",
+    "notAnswered": "Sans réponse",
+    "requiredHelp": "La page de l’invité l’exige de ceux qui viennent ; ici, cela peut attendre. Une réponse donnée peut être changée, pas retirée.",
+    "signature": "Seul l’invité peut donner son accord, par son propre lien."
+  },
+  "notify": {
+    "label": "Prévenir l’invité que sa réponse est enregistrée",
+    "help": "Désactivé par défaut : l’invité a donné la réponse lui-même, une confirmation le surprendrait."
+  },
+  "errors": {
+    "chooseAnswer": "Indiquez s’il vient.",
+    "chooseVenue": "Donnez une réponse pour au moins un lieu.",
+    "tooLong": "C’est trop long.",
+    "refused": "Cette réponse n’a pas été acceptée : la question a peut-être changé. La page a été rechargée."
+  },
+  "refused": {
+    "erased": "Les données de cet invité ont été effacées à sa demande. La page a été rechargée.",
+    "ticketVoid": "Son billet n’est plus valable : il ne peut pas être enregistré comme venant.",
+    "policyChanged": "La façon de répondre a changé depuis l’ouverture de cette page. Elle a été rechargée : indiquez la réponse à nouveau.",
+    "signature": "Donner son accord demande le lien personnel de l’invité.",
+    "questionRefused": "Une réponse n’a pas été acceptée : la question a peut-être changé. La page a été rechargée.",
+    "fieldRefused": "L’invitation ne pose plus l’une de ces questions ainsi. La page a été rechargée.",
+    "venueRefused": "L’un de ces lieux n’est plus montré aux invités. La page a été rechargée.",
+    "modeChanged": "La façon de répondre a changé depuis l’ouverture de cette page. Elle a été rechargée : indiquez la réponse à nouveau.",
+    "gone": "Cet invité n’est plus sur la liste.",
+    "forbidden": "Votre rôle sur cet événement ne permet pas d’enregistrer des réponses. Son propriétaire ou un coordinateur le peut.",
+    "rateLimited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+    "noAnswer": "Aucune réponse n’est arrivée. Vérifiez dans la liste des invités si elle a été enregistrée, puis réessayez.",
+    "other": "La réponse a été refusée."
+  },
+  "status": {
+    "recorded": "La réponse de {{name}} est enregistrée."
+  },
+  "household": {
+    "title": "Enregistrer les réponses du foyer",
+    "lead": "La réponse de chaque personne, comme pour un invité, enregistrées ensemble. Seules celles que vous modifiez sont envoyées : les autres restent telles quelles, avec ou sans réponse.",
+    "save": "Enregistrer les réponses",
+    "notify": "Prévenir chaque personne enregistrée",
+    "recorded": "Les réponses de {{name}} ont été enregistrées.",
+    "partly": "Enregistrées : {{recorded}}. Non enregistrées : {{notRecorded}}. Corrigez ce qui est indiqué et enregistrez à nouveau ; seul le reste est envoyé.",
+    "nothing": "Rien n’a changé, donc rien n’a été envoyé.",
+    "erased": "{{name}} : ses données ont été effacées à sa demande, aucune réponse ne peut être enregistrée.",
+    "gone": "Ce foyer n’est plus sur la liste des invités."
+  }
+}

@@ -1,0 +1,137 @@
+{
+  "back": "Retour à l’événement",
+  "title": "Commandes",
+  "lead": "Les commandes de billets, les plus récentes d’abord. Ouvrez-en une pour voir qui vient avec chaque billet, l’annuler, ou relier un billet à un invité de votre liste.",
+  "toSales": "Vente de billets",
+  "refused": "Votre rôle sur cet événement ne permet pas de voir les commandes.",
+  "failed": "Les commandes n’ont pas pu être chargées.",
+  "empty": "Pas encore de commandes.",
+  "emptyTab": "Aucune commande ici.",
+  "emailsHidden": "Les adresses e-mail des acheteurs ne sont pas montrées à votre rôle.",
+  "capped": "Seules les {{count}} plus récentes sont affichées.",
+  "free": "Gratuit",
+  "ticket": "Billet",
+  "reference": "Référence : {{requestId}}",
+  "refusedWith": "Refusé :",
+  "keep": "Garder la commande",
+  "close": "Fermer",
+  "actionFor": "{{action}} : {{name}}",
+  "tabs": {
+    "label": "Commandes par statut",
+    "all": "Toutes",
+    "PAID": "Payées",
+    "RESERVED": "En attente de paiement",
+    "CANCELLED": "Annulées",
+    "REFUNDED": "Remboursées",
+    "EXPIRED": "Expirées"
+  },
+  "orderStatus": {
+    "PAID": "Payée",
+    "RESERVED": "En attente de paiement",
+    "CANCELLED": "Annulée",
+    "REFUNDED": "Remboursée",
+    "EXPIRED": "Expirée"
+  },
+  "row": {
+    "tickets_one": "{{count}} billet",
+    "tickets_many": "{{count}} billets",
+    "tickets_other": "{{count}} billets",
+    "discount": "Remise : {{amount}}",
+    "placed": "Passée le {{date}}, {{time}}",
+    "open": "Ouvrir la commande",
+    "close": "Fermer la commande"
+  },
+  "detail": {
+    "refused": "Votre rôle sur cet événement ne permet pas de voir qui figure sur une commande.",
+    "failed": "Cette commande n’a pas pu être chargée.",
+    "gone": "Cette commande n’est plus sur l’événement.",
+    "cancelling": "Annulation en cours : en attente de la banque. Personne de cette commande n’entre en attendant.",
+    "hidden": "Les coordonnées et les codes des billets ne sont pas montrés à votre rôle.",
+    "noGuest": "pas encore d’invité",
+    "guestUnknown": "la liste des invités est illisible",
+    "guestNotListed": "un invité qui n’est plus sur la liste",
+    "linked": "Sur la liste des invités : {{guest}}",
+    "code": "code {{code}}",
+    "admittedAt": "Entré le {{date}}, {{time}}",
+    "unnamed": "Acheté par {{holder}}, personne n’est nommé",
+    "venue": "Lieu"
+  },
+  "ticketStatus": {
+    "VALID": "Valable",
+    "USED": "Entré",
+    "VOID": "Annulé",
+    "REFUNDED": "Remboursé"
+  },
+  "attendance": {
+    "ATTENDING": "Vient",
+    "DECLINED": "Ne vient pas",
+    "UNDECIDED": "Pas encore sûr",
+    "PENDING": "Sans réponse"
+  },
+  "cancel": {
+    "openFree": "Annuler la commande",
+    "openPaid": "Annuler et rembourser",
+    "titleFree": "Annuler la commande de {{name}} ?",
+    "titlePaid": "Annuler et rembourser la commande de {{name}} ?",
+    "lead": "Seulement des commandes entières. Cela :",
+    "void_one": "annule son billet",
+    "void_many": "annule ses {{count}} billets",
+    "void_other": "annule ses {{count}} billets",
+    "refund": "rend {{amount}} sur la carte de l’acheteur",
+    "guests": "retire ses personnes des réponses à l’événement et libère leurs places",
+    "email": "envoie un e-mail à l’acheteur",
+    "whole": "Si quelqu’un peut encore venir, il rachète un billet.",
+    "confirmFree": "Annuler la commande",
+    "confirmPaid": "Annuler et rembourser",
+    "cancelled": "La commande de {{name}} est annulée.",
+    "refunded": "La commande de {{name}} est annulée et {{amount}} remboursés.",
+    "refusals": {
+      "admitted": "Quelqu’un de cette commande est déjà entré, elle ne peut donc pas être annulée : réglez-le avec l’acheteur.",
+      "notPaid": "Cette commande n’est pas payée, il n’y a donc rien à annuler.",
+      "forbidden": "Seule une personne qui gère l’argent de l’organisation peut annuler des commandes.",
+      "gone": "Cette commande n’est plus sur l’événement.",
+      "bankUnknown": "La banque n’a pas répondu sur le remboursement. La commande reste gelée jusqu’à ce qu’Aveline le confirme avec la banque : ne remboursez pas autrement.",
+      "rateLimited": "Trop d’essais en peu de temps. Attendez une minute, puis réessayez.",
+      "noAnswer": "Aucune réponse. Appuyez à nouveau : elle ne rembourse jamais deux fois."
+    }
+  },
+  "link": {
+    "open": "Relier à un invité",
+    "title": "Relier le billet de {{holder}} à un invité de votre liste",
+    "lead": "L’invité garde ses propres réponses ; ce qui a été saisi à la commande est mis de côté. Le code du billet ne change pas.",
+    "guest": "Invité",
+    "choose": "Choisir…",
+    "confirm": "Relier",
+    "done": "Le billet de {{holder}} est relié à {{guest}}.",
+    "noGuests": "La liste des invités n’a pas pu être chargée.",
+    "noGuestsRole": "Votre rôle ne permet pas de lire la liste des invités."
+  },
+  "register": {
+    "open": "Nommer son titulaire",
+    "title": "Nommer le titulaire de ce billet",
+    "lead": "Ce billet a été vendu avant que chaque billet nomme sa personne. Nommez-la ici, comme le demande la commande ; le code ne change pas.",
+    "leadNamed": "Acheté par {{holder}} avant que chaque billet nomme sa personne. Nommez son titulaire, comme le demande la commande ; le code ne change pas.",
+    "loading": "Lecture de ce que demande la commande…",
+    "unpublished": "Publiez d’abord l’annonce : les questions de la commande y sont lues.",
+    "failed": "Ce que demande la commande n’a pas pu être lu. Fermez et réessayez.",
+    "confirm": "Nommer",
+    "done": "{{name}} est nommé sur le billet."
+  },
+  "reconcile": {
+    "refusals": {
+      "changed": "Le lien du billet a changé entre-temps. La commande a été relue.",
+      "hasTicket": "Cet invité a déjà un billet.",
+      "erased": "Une personne effacée ne peut pas être reliée.",
+      "invited": "Ce billet appartient déjà à un invité, qui ne peut pas être remplacé.",
+      "history": "L’invité créé à la commande a déjà des places, une entrée, une acceptation ou des messages : réglez-les d’abord.",
+      "staffReview": "Cela demande une vérification des entrées par l’équipe d’Aveline.",
+      "notActive": "Seul un billet valable d’une commande payée peut être rapproché.",
+      "hasAttendee": "Ce billet a déjà une personne : reliez plutôt un invité.",
+      "staleRevision": "Les hôtes ont changé la façon de répondre entre-temps. Les questions ont été relues : répondez à nouveau.",
+      "forbidden": "Votre rôle ne permet pas de modifier la liste des invités.",
+      "gone": "Ce billet n’est plus sur l’événement.",
+      "rateLimited": "Trop d’essais en peu de temps. Attendez une minute, puis réessayez.",
+      "noAnswer": "Aucune réponse. Appuyez à nouveau."
+    }
+  }
+}

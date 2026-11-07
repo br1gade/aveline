@@ -1,0 +1,155 @@
+{
+  "actionFor": "{{action}}: {{name}}",
+  "back": "Back to the event",
+  "title": "Exports",
+  "intro": "An export is a copy of the event’s lists as they are when it is made. It downloads only here, while you are signed in, and is kept until the date shown beside it.",
+  "refused": "Exports are not available to your role on this event.",
+  "what": "{{kind}} ({{format}})",
+  "kinds": {
+    "GUEST_LIST": {
+      "name": "Guest list",
+      "about": "Every household and guest with their answers, and their email and phone if you include them."
+    },
+    "SEATING_CHART": {
+      "name": "Seating chart",
+      "about": "Each venue’s tables, their seats, and who sits at each."
+    },
+    "PLACE_CARDS": {
+      "name": "Place cards",
+      "about": "A card for each seated guest with their table. The PDF prints six to an A4 page, with cut guides."
+    },
+    "CATERING_SHEET": {
+      "name": "Catering sheet",
+      "about": "How many are coming to each venue, and every dietary note with the guest it belongs to."
+    },
+    "BAR_SHEET": {
+      "name": "Bar sheet",
+      "about": "The drinks guests chose, for each venue."
+    },
+    "PLAYLIST": {
+      "name": "Playlist",
+      "about": "The songs guests asked for."
+    },
+    "TICKET_MANIFEST": {
+      "name": "Ticket manifest",
+      "about": "Door codes and ticket holders, for checking people in."
+    }
+  },
+  "formats": {
+    "PDF": {
+      "short": "PDF",
+      "name": "PDF",
+      "about": "To print or share."
+    },
+    "XLSX": {
+      "short": "XLSX",
+      "name": "Spreadsheet (XLSX)",
+      "about": "To sort and filter, in Excel or Numbers."
+    },
+    "CSV": {
+      "short": "CSV",
+      "name": "CSV",
+      "about": "For other software."
+    }
+  },
+  "form": {
+    "title": "Make an export",
+    "kind": "What to export",
+    "format": "Format",
+    "language": "Language of the file",
+    "languageHelp": "Headings and labels are in this language. Names, answers and notes stay as they were written.",
+    "contacts": "Contact details",
+    "contactsHelp": "A file with email and phone numbers can be downloaded only while your role may see them.",
+    "withContacts": "Include email and phone numbers",
+    "withoutContacts": "Leave them out",
+    "manifest": "A ticket manifest always carries door codes and buyers’ email addresses, so it needs access to guests’ contact details.",
+    "submit": "Make the export",
+    "submitting": "Sending…"
+  },
+  "contacts": {
+    "with": "with contact details",
+    "without": "without contact details"
+  },
+  "list": {
+    "title": "Exports made",
+    "empty": "Nothing has been exported yet.",
+    "newest": "Only the newest {{limit}} are shown.",
+    "timedOut": "Still being made. It carries on without this page; check again in a moment.",
+    "check": "Check again",
+    "requested": "Requested {{when}}",
+    "taken": "Lists as of {{when}}",
+    "until": "Available until {{when}}",
+    "download": "Download",
+    "downloading": "Downloading…",
+    "again": "Make it again",
+    "sending": "Sending…"
+  },
+  "state": {
+    "waiting": "Waiting to start…",
+    "making": "Being made… (attempt {{attempt}} of {{total}})",
+    "retrying": "That attempt didn’t work; trying again (attempt {{attempt}} of {{total}})…",
+    "ready": "Ready to download",
+    "expired": "Expired {{when}}",
+    "expiredUndated": "No longer available",
+    "withdrawn": "Withdrawn {{when}}",
+    "failed": "Couldn’t be made"
+  },
+  "failure": {
+    "generation": "Something went wrong while the file was being made. Make it again; if it fails again, the event may be too large for one file.",
+    "stopped": "The work stopped three times before the file was finished.",
+    "erased": "A guest’s details were erased at their request, and this file held them."
+  },
+  "advice": {
+    "support": "If it fails again, contact Aveline support.",
+    "access": "Ask the event’s owner for access."
+  },
+  "legacy": {
+    "title": "Earlier exports",
+    "intro": "Before files were kept, an export was built at the moment it was downloaded. No copy of these was kept, so they can only be made again: choose the language and contact details in the form.",
+    "requested": "Requested {{when}}",
+    "needed": "Needs to be made again",
+    "again": "Make it again"
+  },
+  "status": {
+    "started": "Started: {{what}}. This page says when it is ready.",
+    "ready": "Ready to download: {{what}}.",
+    "failed": "Couldn’t be made: {{what}}.",
+    "downloaded": "Downloaded: {{name}}.",
+    "prefilled": "In the form: {{what}}. Choose the language and contact details, then make the export."
+  },
+  "problems": {
+    "create": {
+      "contacts": "Your role can’t see guests’ contact details, so this export can’t include them.",
+      "manifest": "A ticket manifest needs access to guests’ contact details, which your role doesn’t have.",
+      "forbidden": "Your role can’t make exports for this event.",
+      "queueFull": "This event already has 10 exports being made. Wait for one to finish, then try again.",
+      "keyReused": "That press was used for a different export. Press again to make this one.",
+      "eventMissing": "This event is no longer available.",
+      "check": "The export couldn’t be made as asked.",
+      "unreachable": "Nothing came back. Press again: it won’t make a second copy."
+    },
+    "download": {
+      "contacts": "Your role can no longer see guests’ contact details, so this file can’t be downloaded.",
+      "manifest": "A ticket manifest can be downloaded only with access to guests’ contact details, which your role no longer has.",
+      "forbidden": "Your role can no longer download exports for this event.",
+      "notReady": "This file is still being made. This page says when it is ready.",
+      "nowReady": "It is ready now. Try again to download it.",
+      "notMade": "This file can’t be downloaded: its row says why.",
+      "expired": "This file has expired. Make it again to get the lists as they are now.",
+      "withdrawn": "This file was withdrawn. Make it again to get the lists as they are now.",
+      "gone": "This file is no longer available. Make it again to get the lists as they are now.",
+      "storage": "The file store isn’t answering just now. Try again in a few minutes.",
+      "missing": "This export is no longer on this event.",
+      "wrongType": "What came back wasn’t the file asked for, so nothing was saved.",
+      "unreachable": "The file didn’t arrive. Check your connection and try again."
+    },
+    "rateLimited": "Too many requests at once. Wait a minute, then try again.",
+    "server": "Something went wrong on our side. Please try again in a moment.",
+    "other": "That didn’t work."
+  },
+  "offers": {
+    "redacted": "Make it without contact details",
+    "makeAgain": "Make it again",
+    "tryAgain": "Try again"
+  }
+}

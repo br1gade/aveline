@@ -1,0 +1,249 @@
+{
+  "types": {
+    "choose": "Choose…",
+    "WEDDING": "Wedding",
+    "ENGAGEMENT": "Engagement",
+    "BAPTISM": "Baptism",
+    "BIRTHDAY": "Birthday",
+    "ANNIVERSARY": "Anniversary",
+    "CORPORATE": "Corporate event",
+    "OTHER": "Other"
+  },
+  "fields": {
+    "type": "Kind of event",
+    "title": "Title",
+    "titleHelp": "For you and your team, such as “Anna and Davit’s wedding”.",
+    "hostsLabel": "Hosts",
+    "hostsHelpNew": "Shown on the invitation, such as “Anna & Davit”. Leave it empty to use the title.",
+    "hostsHelp": "Shown on the invitation.",
+    "date": "Date",
+    "time": "Time",
+    "timezone": "Time zone",
+    "timezoneHelp": "The date and time are in this zone, wherever your guests are.",
+    "languages": "Languages",
+    "languagesHelp": "The languages the invitation is written in.",
+    "defaultLanguage": "Default language",
+    "defaultLanguageHelp": "Shown to guests whose language the invitation doesn’t have.",
+    "errors": {
+      "required": "Fill this in.",
+      "choose": "Choose one.",
+      "tooLong": "This is too long.",
+      "titleShort": "Use at least 2 characters.",
+      "dateInvalid": "Enter a real date.",
+      "timeSkipped": "The clocks go forward at this time, so it doesn’t exist on that day in this time zone. Choose another time.",
+      "languages": "Tick at least one language.",
+      "defaultLanguage": "Choose one of the ticked languages.",
+      "timezone": "Choose a time zone from the list.",
+      "endsBefore": "The end must come after the start.",
+      "refused": "This wasn’t accepted. Check it.",
+      "other": "Check this field.",
+      "endPair": "Give both the end’s date and its time, or neither."
+    },
+    "end": "When it ends (optional)",
+    "endHelp": "In the event’s time zone. Guests see it on the invitation. Empty both to remove it.",
+    "endDate": "End date",
+    "endTime": "End time",
+    "sides": "The two sides (optional)",
+    "sidesHelp": "Your names for the two families or sides, which guests may say they are with. Guests see them as typed, in every language.",
+    "sideA": "First side",
+    "sideB": "Second side",
+    "otherLanguages": "In the event’s other languages",
+    "otherLanguagesHelp": "Guests reading one of these languages see its title and hosts. Left empty, they see the title and hosts above.",
+    "titleIn": "Title in {{language}}",
+    "hostsIn": "Hosts in {{language}}",
+    "defaultOverride": "Guests reading {{language}}, the default language, see these words instead of the title and hosts above. Empty both to show those.",
+    "languagesLater": "The title and hosts in the event’s other languages are added after creating the event, under “Edit details”."
+  },
+  "problems": {
+    "conflict": "That can’t be done in the event’s current state. Reload the page to see it as it is now.",
+    "createForbidden": "This account can’t create events: its role in the organization is read-only, or it isn’t in an organization yet. Ask the organization’s owner.",
+    "editForbidden": "Your role on this event can’t change its details.",
+    "notifyForbidden": "Your role on this event can’t message its guests.",
+    "notifyDraft": "This invitation isn’t published yet, so no guest has it."
+  },
+  "create": {
+    "title": "Create an event",
+    "lead": "You can change all of this later. The invitation starts as a draft that only you can see.",
+    "submit": "Create the event",
+    "submitting": "Creating…"
+  },
+  "overview": {
+    "back": "Your events",
+    "edit": "Edit details",
+    "guests": "Guest list",
+    "type": "Kind",
+    "hosts": "Hosts",
+    "when": "When",
+    "whenValue": "{{date}}, {{time}} ({{timeZone}})",
+    "languages": "Languages",
+    "defaultMark": "{{language}} (default)",
+    "invitation": "Invitation",
+    "slug": "Link name",
+    "noInvitation": "No invitation yet.",
+    "status": {
+      "DRAFT": "Draft: guests can’t open it yet",
+      "PUBLISHED": "Published",
+      "CLOSED": "Closed: replies are no longer taken"
+    },
+    "venues": "Venues",
+    "publishSend": "Publish and send",
+    "attendance": "How guests answer",
+    "attendanceChange": "Change",
+    "design": "Design the invitation",
+    "photos": "Guests’ photos",
+    "agreements": "Agreements",
+    "seating": "Seating",
+    "exports": "Exports",
+    "ticketSales": "Ticket sales",
+    "orders": "Orders",
+    "door": "The door",
+    "followUps": "Reminders and thanks",
+    "team": "The team",
+    "vendors": "Vendors",
+    "runningOrder": "Running order",
+    "sheets": "Catering, bar and music",
+    "activity": "Activity"
+  },
+  "headcount": {
+    "title": "Guests",
+    "invited": "On the list",
+    "households": "Households",
+    "attending": "Coming",
+    "declined": "Not coming",
+    "undecided": "Not sure yet",
+    "pending": "Not answered",
+    "responseRate": "Answered",
+    "empty": "No guests on the list yet.",
+    "refused": "The guest numbers aren’t available to your role on this event.",
+    "failed": "The guest numbers couldn’t be loaded. Reload the page to try again.",
+    "byVenue": "By venue",
+    "venue": "Venue"
+  },
+  "edit": {
+    "title": "Edit the details",
+    "lead": "Guests who open the invitation see a change at once.",
+    "submit": "Save changes",
+    "submitting": "Saving…",
+    "cancel": "Cancel"
+  },
+  "notify": {
+    "title": "Your changes are saved",
+    "body_one": "{{count}} household already has the invitation. Guests aren’t told about changes automatically.",
+    "body_other": "{{count}} households already have the invitation. Guests aren’t told about changes automatically.",
+    "note": "A note for your guests (optional)",
+    "noteHelp": "Added to the message, such as “We have moved to the garden.”",
+    "send": "Let your guests know",
+    "sending": "Sending…",
+    "later": "Not now",
+    "sent_one": "The update is on its way to {{count}} household.",
+    "sent_other": "The update is on its way to {{count}} households.",
+    "already_one": "{{count}} household was told in the last minute, so it isn’t told again.",
+    "already_other": "{{count}} households were told in the last minute, so they aren’t told again.",
+    "unreachable_one": "{{count}} household couldn’t be reached.",
+    "unreachable_other": "{{count}} households couldn’t be reached.",
+    "nobody": "There was nobody to tell.",
+    "back": "Back to the event"
+  },
+  "unavailable": {
+    "title": "This event isn’t available",
+    "body": "It may not exist, or your account isn’t on it.",
+    "failed": "The event couldn’t be loaded. Please try again in a moment.",
+    "rateLimited": "Too many requests just now. Wait a minute, then reload the page.",
+    "back": "Your events",
+    "chooseOrganization": "Choose an organization",
+    "organization": "This page belongs to an organization. Choose which one this tab works in, then try again."
+  },
+  "attendance": {
+    "back": "Back to the event",
+    "title": "How guests answer",
+    "now": {
+      "EVENT_WIDE": "One answer for the whole event.",
+      "PER_VENUE": "An answer for each venue guests see."
+    },
+    "explain": {
+      "PER_VENUE": "Asking per venue lets each guest say which parts they come to, such as the ceremony and the reception. Every venue guests see is asked about.",
+      "EVENT_WIDE": "Asking once means each guest only says whether they are coming, for the whole event."
+    },
+    "see": "See what would change",
+    "notice": {
+      "stale": "Something changed since that preview, so nothing was changed. Look at it again.",
+      "noVenue": "Guests can answer per venue once the event has a venue they can see.",
+      "sameMode": "Guests already answer this way. The page has been reloaded."
+    },
+    "toVenues": "Add a venue",
+    "preview": {
+      "title": "If you change this",
+      "answers_one": "The {{count, number}} answer given so far goes back to “not answered”, and every household is asked to answer again.",
+      "answers_other": "The {{count, number}} answers given so far go back to “not answered”, and every household is asked to answer again.",
+      "seats_one": "{{count, number}} seated guest keeps their seat, held for them until they answer again.",
+      "seats_other": "{{count, number}} seated guests keep their seats, held for them until they answer again."
+    },
+    "change": {
+      "PER_VENUE": "Ask per venue",
+      "EVENT_WIDE": "Ask once for the event"
+    },
+    "cancel": "Cancel",
+    "confirmTitle": {
+      "PER_VENUE": "Ask guests to answer for each venue?",
+      "EVENT_WIDE": "Ask guests to answer once for the event?"
+    },
+    "confirmBody": "Every answer goes back to “not answered”, and guests are asked again. Changing back later asks them again too.",
+    "confirm": "Change",
+    "notifyLead": "Guests are now asked to answer again. They aren’t told automatically.",
+    "done": {
+      "PER_VENUE": "Guests now answer for each venue.",
+      "EVENT_WIDE": "Guests now answer once for the whole event."
+    },
+    "problems": {
+      "forbidden": "Your role on this event can’t change how guests answer. The event’s owner can change your role.",
+      "other": "This wasn’t accepted. Try again."
+    }
+  },
+  "archived": {
+    "back": "Your events",
+    "title": "Archived events",
+    "lead": "Events put away: off your events list, their invitations closed. Open one to bring it back.",
+    "empty": "No event is archived."
+  },
+  "putAway": {
+    "title": "Put this event away",
+    "archiveLead": "Archiving takes it off your events list, stops replies and takes its announcement down. Guests who hold the invitation can still read it. Nothing is lost, and it can be brought back.",
+    "archivedLead": "This event is archived. Bringing it back puts it on your events list again; its invitation stays closed until you reopen it on the invitation’s page.",
+    "archive": "Archive this event…",
+    "archiveTitle": "Archive “{{title}}”?",
+    "archiveBody": "It leaves your events list. Its invitation stops taking replies but stays readable for guests who hold it, and its public announcement comes down. Nothing is deleted.",
+    "archiveConfirm": "Archive",
+    "archived": "The event is archived.",
+    "bringBack": "Bring it back",
+    "bringingBack": "Bringing it back…",
+    "broughtBack": "The event is back on your events list. Its invitation stays closed until you reopen it.",
+    "bringBackThere": "Bring it back on the event’s page.",
+    "deleteLead": "Deleting removes the event, its guest list, its invitation and its files for good. Only an event never published, and through which no money moved, can be deleted.",
+    "notDeletable": "This event was published, so guests may hold its invitation: it can be archived, not deleted.",
+    "delete": "Delete this event…",
+    "deleteTitle": "Delete “{{title}}” for good?",
+    "deleteBody": "The event, its guest list, its venues, its running order, its invitation and its uploaded files are deleted, and can’t be brought back. To keep them, archive it instead.",
+    "deleteUnderstood": "I understand that this event and everything in it is deleted for good.",
+    "deleteConfirm": "Delete for good",
+    "deleted": "“{{title}}” is deleted.",
+    "archivedNotice": {
+      "overview": "This event is archived: it’s off your events list, guests can read its invitation but not reply, and its announcement is down. Everything else here still works.",
+      "invitation": "This event is archived, so its invitation can’t be published or reopened until it’s brought back.",
+      "design": "This event is archived, so its invitation’s design can’t be changed until it’s brought back."
+    },
+    "refused": {
+      "published": "This event was published meanwhile, so it can only be archived. The page has been reloaded.",
+      "moneyMoved": "Money has moved through this event, so its records are kept: archive it instead.",
+      "notArchived": "This event is no longer archived. The page has been reloaded.",
+      "gone": "This event no longer exists. The page has been reloaded.",
+      "forbidden": "Only the event’s owner, or the organization’s, can archive or delete it.",
+      "rateLimited": "Too many tries. Wait a minute, then try again.",
+      "noAnswer": "No answer came. Reload the page to see whether it went through.",
+      "other": "This was refused."
+    }
+  },
+  "questionsLeftOn": {
+    "body": "Drink and song request are still asked on this invitation: they couldn’t be switched off just now. Switch them off in the invitation’s questions if you don’t want them.",
+    "link": "The invitation’s questions"
+  }
+}

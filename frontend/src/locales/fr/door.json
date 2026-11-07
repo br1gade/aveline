@@ -1,0 +1,135 @@
+{
+  "back": "Retour à l’événement",
+  "title": "L’entrée",
+  "notTheirs": "Votre rôle sur cet événement ne donne pas accès à l’entrée. Demandez au propriétaire de l’événement de vous ajouter comme coordinateur.",
+  "counts": {
+    "label": "Qui est arrivé",
+    "loading": "Lecture des compteurs…",
+    "failed": "Les compteurs n’ont pas pu être lus. Nouvel essai en cours.",
+    "refused": "Votre rôle ne permet pas de voir les compteurs.",
+    "asOf": "État à {{time}}. La dernière lecture a échoué, nouvel essai en cours.",
+    "arrived": "Arrivés",
+    "stillToCome": "Encore attendus",
+    "expected": "Attendus",
+    "unexpected": "Non attendus"
+  },
+  "method": {
+    "label": "Comment le trouver",
+    "byName": "Par nom",
+    "byCode": "Par code de billet"
+  },
+  "find": {
+    "label": "Trouver un invité",
+    "search": "Son nom",
+    "noMatch": "Personne de ce nom sur la liste.",
+    "toGuestList": "Aller à la liste des invités",
+    "capped": "Seuls les {{count}} premiers sont affichés. Saisissez davantage du nom."
+  },
+  "list": {
+    "loading": "Lecture de la liste des invités… Les codes de billet fonctionnent déjà.",
+    "refused": "Votre rôle ne permet pas de voir la liste des invités.",
+    "failed": "La liste des invités n’a pas pu être lue.",
+    "empty": "Aucun invité sur la liste pour l’instant. Les codes de billet fonctionnent.",
+    "asOf": "Voici la liste de {{time}} : la relecture a échoué.",
+    "readAgain": "Relire la liste",
+    "reading": "Lecture de la liste…"
+  },
+  "row": {
+    "checkIn": "Enregistrer l’arrivée",
+    "checkInFor": "Enregistrer l’arrivée de {{name}}",
+    "checkingIn": "Enregistrement…",
+    "undo": "Annuler",
+    "undoFor": "Annuler l’arrivée de {{name}}",
+    "undoing": "Annulation…",
+    "here": "Déjà là",
+    "hereSince": "Là depuis {{time}}",
+    "mustAgree": "Doit d’abord accepter : {{statements}}"
+  },
+  "answer": {
+    "ATTENDING": "Vient",
+    "DECLINED": "Ne vient pas",
+    "UNDECIDED": "Pas encore sûr",
+    "PENDING": "Sans réponse"
+  },
+  "seat": {
+    "table": "{{table}}",
+    "tableAt": "{{table}} ({{venue}})"
+  },
+  "code": {
+    "label": "Code du billet",
+    "help": "Majuscules et espaces n’ont pas d’importance.",
+    "admit": "Admettre",
+    "admitting": "Admission…",
+    "empty": "Saisissez le code du billet.",
+    "notLatin": "Ce ne sont pas des lettres latines. Passez le clavier en anglais et saisissez à nouveau le code."
+  },
+  "mustAgree": {
+    "title": "Doivent accepter avant l’entrée ({{count}})",
+    "lead": "Ils ne peuvent pas entrer avant d’avoir accepté, depuis le lien de leur invitation, sur leur propre téléphone. Personne ne peut accepter pour eux ici.",
+    "partial": "Cette liste peut être incomplète : certains ont peut-être déjà accepté. L’entrée vérifie chaque personne.",
+    "none": "Plus personne parmi les personnes qui viennent n’a à accepter.",
+    "unread": "Impossible de savoir qui doit encore accepter. L’entrée vérifie quand même chaque personne."
+  },
+  "recent": {
+    "title": "Arrivées récentes"
+  },
+  "result": {
+    "arrived": "Entrée à {{time}}.",
+    "notExpected": "Cette personne n’était pas attendue : elle a décliné ou n’a pas répondu. À signaler à l’hôte.",
+    "unlinked": "Billet admis à {{time}}. Aucun invité n’y est lié : il ne figure donc pas dans les compteurs et ne peut pas être annulé ici.",
+    "alreadyHere": "Déjà là, depuis {{time}}.",
+    "alreadyHereNoTime": "Déjà là.",
+    "earlierPress": "Sans doute votre appui précédent, dont la réponse n’est pas arrivée.",
+    "ticketUsed": "Ce billet a déjà été admis. Un code n’admet qu’une fois.",
+    "undone": "Retiré des arrivées. Cette personne peut être enregistrée à nouveau.",
+    "undo": "Annuler",
+    "tryAgain": "Réessayer",
+    "sendAgain": "Renvoyer son invitation",
+    "dismiss": "OK",
+    "addedNotHere": "Ajouté à la liste des invités, mais pas encore enregistré à l’arrivée."
+  },
+  "refused": {
+    "mustAgree": "Pas encore admis : cette personne doit d’abord accepter la déclaration des hôtes, depuis le lien de son invitation, sur son propre téléphone. Personne ne peut accepter pour elle ici.",
+    "registerFirst": "Pas encore admis : ce billet ne nomme personne et l’événement exige un accord. Demandez à l’hôte d’enregistrer son détenteur.",
+    "ticketVoid": "Ne laissez pas entrer : ce billet est annulé. Adressez cette personne à l’hôte.",
+    "ticketRefunded": "Ne laissez pas entrer : ce billet a été remboursé. Adressez cette personne à l’hôte.",
+    "orderClosed": "Ne laissez pas entrer : la commande de ce billet a été annulée ou remboursée, ou est en cours d’annulation. Adressez cette personne à l’hôte.",
+    "notRecognised": "Ce code n’est pas reconnu pour cet événement. Vérifiez-le caractère par caractère. S’il est juste, adressez cette personne à l’hôte.",
+    "linkChanged": "Le lien de ce billet avec un invité vient de changer. La liste est relue : appuyez à nouveau.",
+    "guestGone": "Cet invité n’est plus sur la liste. La liste est relue.",
+    "forbidden": "Votre rôle sur cet événement ne permet pas de faire entrer des personnes. Demandez au propriétaire de l’événement de vous ajouter comme coordinateur.",
+    "rateLimited": "Trop d’essais pour l’instant. Patientez un moment et appuyez à nouveau.",
+    "noAnswer": "Aucune réponse. L’arrivée a peut-être été comptée : appuyez à nouveau, sans risque.",
+    "other": "Refusé :",
+    "reference": "Référence : {{requestId}}"
+  },
+  "walkIn": {
+    "open": "Quelqu’un qui n’est pas sur la liste",
+    "help": "La personne est ajoutée à la liste des invités dans un foyer à elle, avec une place, puis enregistrée à l’arrivée. Toute personne qui l’accompagne s’ajoute de la même façon.",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "submit": "Ajouter et enregistrer l’arrivée",
+    "adding": "Ajout…",
+    "errors": {
+      "required": "Saisissez son prénom.",
+      "tooLong": "80 caractères au plus."
+    },
+    "mayBeAdded": "Aucune réponse n’est venue : la personne a peut-être été ajoutée quand même. Cherchez-la ci-dessus avant de l’ajouter à nouveau."
+  },
+  "scan": {
+    "open": "Scanner un billet",
+    "close": "Arrêter la caméra",
+    "opening": "Ouverture de la caméra…",
+    "viewfinder": "Ce que voit la caméra",
+    "hint": "Gardez le code du billet dans le cadre. Il est lu tout seul.",
+    "notTicket": "Ce code n’est pas un billet : rien n’a été envoyé.",
+    "problem": {
+      "refused": "L’accès à la caméra n’est pas autorisé. Autorisez-le dans les réglages du navigateur, ou saisissez le code ci-dessous.",
+      "none": "Cet appareil n’a pas de caméra utilisable. Saisissez le code ci-dessous.",
+      "busy": "La caméra n’a pas pu s’ouvrir ou s’est arrêtée, peut-être utilisée ailleurs. Réessayez, ou saisissez le code ci-dessous.",
+      "insecure": "La caméra ne s’ouvre que sur une page sécurisée. Saisissez le code ci-dessous.",
+      "noReader": "Le lecteur n’a pas pu être chargé. Rechargez la page une fois la connexion revenue, ou saisissez le code ci-dessous."
+    },
+    "sending": "Envoi…"
+  }
+}

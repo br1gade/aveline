@@ -1,0 +1,13 @@
+build/
+node_modules/
+.react-router/
+test-results/
+playwright-report/
+package-lock.json
+src/api/schema.ts
+src/styles/tokens.css
+docs/
+*.md
+# A byte-identical copy of the design system's file, and CSS generated from it
+src/styles/tokens.json
+src/styles/theme.css

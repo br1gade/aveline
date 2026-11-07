@@ -1,0 +1,144 @@
+{
+  "back": "Your events",
+  "title": "Plan and invoices",
+  "pilot": {
+    "title": "Paid plans aren’t available during the free pilot.",
+    "body": "Nothing was charged and no invoice was made. Your current plan stays as it is, and free plans, your events, invitations, guest lists and free tickets keep working."
+  },
+  "current": {
+    "title": "Your plan",
+    "none": "Your organization hasn’t chosen a plan. You can choose one below.",
+    "cancel": "Cancel at the end of the period",
+    "resume": "Keep the plan"
+  },
+  "standing": {
+    "active": "Active until {{date}}.",
+    "ending": "Ends on {{date}}. You keep it until then, and can still keep it.",
+    "lapsed": "The period ended on {{date}}. Nothing renews by itself: choose a plan to start again.",
+    "trial": "On trial until {{date}}.",
+    "pastDue": "A payment is overdue. The period runs until {{date}}.",
+    "ended": "This plan has ended. Choose a plan to start again.",
+    "unknown": "The period runs until {{date}}."
+  },
+  "cancel": {
+    "title": "Cancel at the end of the period?",
+    "body": "You keep the plan until {{date}}, and can change your mind until then.",
+    "confirm": "Cancel at the end of the period"
+  },
+  "plans": {
+    "title": "Plans",
+    "none": "No plans are on offer just now.",
+    "current": "Your current plan",
+    "choose": "Choose this plan"
+  },
+  "price": {
+    "free": "Free",
+    "MONTHLY": "{{amount}} a month",
+    "YEARLY": "{{amount}} a year",
+    "PER_EVENT": "{{amount}} per event"
+  },
+  "limits": {
+    "events_one": "{{count}} event in a period",
+    "events_other": "{{count}} events in a period",
+    "eventsAny": "Any number of events",
+    "guests_one": "{{count}} guest an event",
+    "guests_other": "{{count}} guests an event",
+    "guestsAny": "Any number of guests",
+    "languages_one": "{{count}} language",
+    "languages_other": "{{count}} languages",
+    "lifetime_one": "The invitation stays up {{count}} day after the event",
+    "lifetime_other": "The invitation stays up {{count}} days after the event",
+    "lifetimeAny": "The invitation stays up with no end date"
+  },
+  "choose": {
+    "paid": {
+      "title": "Choose {{name}}?",
+      "body": "{{price}}. You’ll go to the bank’s page to pay. Your plan starts once the payment is confirmed. An invoice still waiting for another plan is withdrawn.",
+      "confirm": "Go to the bank"
+    },
+    "paidChange": {
+      "title": "Change to {{name}}?",
+      "body": "{{price}}. You’ll go to the bank’s page to pay. Your plan stays as it is until it’s paid, and then the new plan starts at once. An invoice still waiting for another plan is withdrawn.",
+      "confirm": "Go to the bank"
+    },
+    "free": {
+      "title": "Choose {{name}}?",
+      "body": "It’s free and starts now. An invoice still waiting to be paid is withdrawn.",
+      "confirm": "Choose this plan"
+    },
+    "freeOverPaid": {
+      "title": "Change to {{name}}?",
+      "body": "It’s free and starts now. The rest of the period you paid for ends at once, with no refund. An invoice still waiting to be paid is withdrawn.",
+      "confirm": "End my paid period and change"
+    },
+    "pay": {
+      "title": "Pay invoice {{name}}?",
+      "body": "{{price}}. You’ll go to the bank’s page to pay. Nothing changes until it’s paid.",
+      "confirm": "Go to the bank"
+    }
+  },
+  "status": {
+    "activated": "{{name}} is your plan now.",
+    "leaving": "Going to the bank’s page…",
+    "cancelled": "The plan ends on {{date}}.",
+    "resumed": "The plan carries on."
+  },
+  "invoices": {
+    "title": "Invoices",
+    "zone": "Dates are in Yerevan time. Open an invoice to see what it’s for.",
+    "none": "No invoices yet.",
+    "issued": "Issued {{date}}",
+    "due": "due {{date}}",
+    "paid": "paid {{date}}",
+    "notTax": "This isn’t a tax document: no tax is worked out yet.",
+    "pay": "Pay this invoice"
+  },
+  "invoiceStatus": {
+    "ISSUED": "Waiting for payment",
+    "PAID": "Paid",
+    "VOID": "Withdrawn",
+    "DRAFT": "Not issued",
+    "UNCOLLECTIBLE": "Not collectable",
+    "OTHER": "Status not known"
+  },
+  "refused": {
+    "pilot": "Paid plans aren’t available during the free pilot.",
+    "forbidden": "Only your organization’s owner can see and change its plan and invoices.",
+    "noOrganization": "Plans and invoices belong to an organization, and your account isn’t in one.",
+    "chooseOrganization": "Choose which organization this tab works in, then try again.",
+    "planGone": "This plan is no longer on offer. Nothing has changed.",
+    "noBank": "Paying by card isn’t set up here yet. Nothing has changed.",
+    "noSubscription": "Your organization has no plan to change. Reload the page.",
+    "periodEnded": "This period has already ended. Choose a plan to start again.",
+    "noInvoice": "We couldn’t find this invoice in your organization.",
+    "noPayment": "This invoice has no payment to check yet.",
+    "disagreement": "The bank and our record of this payment disagree.",
+    "rateLimited": "Too many requests just now. Wait a minute, then try again.",
+    "noAnswer": "We didn’t get an answer. Check your connection and try again.",
+    "other": "This couldn’t be done.",
+    "refunding": "This payment is already being refunded. You don’t need to do anything."
+  },
+  "chooseOrganization": "Choose an organization",
+  "return": {
+    "title": "Back from the bank",
+    "paid": "Your payment is confirmed, and your plan is active.",
+    "awaitingBank": "The bank hasn’t confirmed this payment yet. Your plan hasn’t changed so far. Please wait a few minutes before paying again.",
+    "notPaid": "This payment didn’t go through, and no money moved. Your plan is as it was.",
+    "replaced": "This invoice was replaced by a newer choice of plan, and its payment didn’t go through: nothing was charged for it.",
+    "closed": "This invoice can’t be paid any more. Your plan is as it was.",
+    "nothing": "There’s no invoice to confirm.",
+    "dontPayAgain": "Please don’t pay again. Contact us with the reference above, so we can find this payment:",
+    "checkAgain": "Check again",
+    "tryAgain": "Try again",
+    "payAgain": "Pay again",
+    "toBilling": "To your plan and invoices",
+    "replacedOpen": "This invoice was replaced by a newer choice of plan. If you paid it at the bank, that money comes back to you by itself. You don’t need to do anything.",
+    "refunded": "This invoice was withdrawn, and what was paid for it goes back to you."
+  },
+  "pricing": {
+    "title": "Prices",
+    "lead": "What each Aveline plan costs and what it includes.",
+    "start": "Create an account",
+    "metaTitle": "Prices · Aveline"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "title": "Revues d’accès",
+  "back": "Retour aux outils de l’équipe",
+  "lead": "Les organisations dont le dernier propriétaire a demandé la fermeture, ou qui n’ont plus de propriétaire actif. Les plus anciennes d’abord ; les dates sont à l’heure d’Erevan. Rien n’informe le propriétaire de la décision : prévenez-le vous-même.",
+  "none": "Rien n’est en attente.",
+  "more": "Afficher plus",
+  "reading": "Lecture…",
+  "nameUnread": "Son nom n’a pas pu être lu, sa référence est donc affichée.",
+  "opened": "Ouverte le {{day}}",
+  "decisionFor": "{{decision}} : {{name}}",
+  "reason": {
+    "LAST_OWNER_CLOSURE": "Son dernier propriétaire a demandé sa fermeture.",
+    "INACTIVE_OWNER_RECOVERY": "Le compte de son propriétaire a été fermé : elle n’a plus de propriétaire actif."
+  },
+  "decision": {
+    "HANDOVER": "Transmettre",
+    "CLOSE": "La fermer",
+    "DECLINE": "Refuser"
+  },
+  "ask": {
+    "HANDOVER": {
+      "title": "Transmettre {{name}} à un autre membre ?",
+      "body": "Le membre choisi devient propriétaire. L’accès des autres ne change pas."
+    },
+    "CLOSE": {
+      "title": "Fermer {{name}} ?",
+      "body": "Rien ne la rouvre. Ses événements et son historique de paiements restent, mais ses membres, ses invitations et les travaux en cours disparaissent, et personne ne peut plus ouvrir ses événements."
+    },
+    "DECLINE": {
+      "title": "Refuser la revue de {{name}} ?",
+      "body": "Rien ne change dans l’organisation, et la revue est close."
+    }
+  },
+  "handover": {
+    "label": "Qui devient propriétaire",
+    "choose": "Choisir un membre",
+    "reading": "Lecture de ses membres…",
+    "unread": "Ses membres n’ont pas pu être lus. Fermez cette fenêtre et réessayez.",
+    "none": "Aucun membre ne peut en devenir propriétaire. Fermez-la ou refusez plutôt.",
+    "stopped": "Seuls les 200 premiers membres sont listés."
+  },
+  "close": {
+    "typeLabel": "Saisissez le nom de l’organisation pour confirmer",
+    "typeReference": "Saisissez la référence de l’organisation, telle qu’affichée plus haut, pour confirmer"
+  },
+  "status": {
+    "HANDOVER": "{{name}} a un nouveau propriétaire.",
+    "CLOSE": "{{name}} est fermée.",
+    "DECLINE": "La revue de {{name}} est refusée."
+  },
+  "refusal": {
+    "forbidden": "Cette page est réservée aux administrateurs d’Aveline.",
+    "moved": "Cette revue a changé depuis la lecture de la page, peut-être du fait de quelqu’un d’autre. La page a été relue.",
+    "successor": "Ce membre ne peut pas devenir propriétaire : il est peut-être parti, ou son compte a été fermé. Choisissez-en un autre.",
+    "rateLimited": "Trop de demandes pour l’instant. Patientez un moment et réessayez.",
+    "noAnswer": "Aucune réponse n’est arrivée : l’action a peut-être eu lieu. Relisez la page avant de réessayer.",
+    "other": "Cela n’a pas été accepté :"
+  }
+}

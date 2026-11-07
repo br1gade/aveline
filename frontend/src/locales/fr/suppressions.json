@@ -1,0 +1,72 @@
+{
+  "back": "Vos événements",
+  "title": "Personnes à ne pas contacter",
+  "lead": "Aveline n’envoie rien à ces adresses, depuis aucun des événements de votre organisation. Certaines viennent des invités : une désinscription, un rejet, une plainte ou l’effacement de leurs données. Seul le propriétaire de l’organisation ou un responsable peut voir ou modifier cette liste.",
+  "list": {
+    "title": "Sur la liste",
+    "empty": "Personne n’est sur la liste.",
+    "truncated": "Seules les 500 plus récentes sont affichées : il peut y en avoir d’autres."
+  },
+  "entry": {
+    "line": "{{channel}} · {{reason}} · ajoutée le {{added}}",
+    "erasedAddress": "Une adresse qui n’est plus conservée",
+    "lift": "Autoriser à nouveau",
+    "liftFor": "Autoriser à nouveau : {{address}}",
+    "global": "S’applique dans tout Aveline après un rejet ou une plainte : ne peut pas être levée ici.",
+    "erased": "Cette personne a demandé l’effacement de ses données : elle ne peut plus être contactée."
+  },
+  "channel": {
+    "EMAIL": "E-mail",
+    "SMS": "Téléphone, par SMS",
+    "WHATSAPP": "Téléphone, par WhatsApp",
+    "TELEGRAM": "Telegram",
+    "PUSH": "Notification de l’application",
+    "OTHER": "Un autre canal"
+  },
+  "reason": {
+    "UNSUBSCRIBED": "désinscription",
+    "HARD_BOUNCE": "adresse rejetée",
+    "COMPLAINT": "plainte",
+    "MANUAL": "ajoutée par vous",
+    "ERASED": "données effacées",
+    "OTHER": "une autre raison"
+  },
+  "add": {
+    "title": "Ajouter quelqu’un",
+    "channel": "Ne pas le contacter par",
+    "address": "Son adresse",
+    "emailHelp": "Les majuscules ne comptent pas.",
+    "phoneHelp": "Saisissez le numéro exactement comme sur la liste des invités, espaces compris : un numéro écrit autrement n’est pas reconnu.",
+    "submit": "Ajouter à la liste",
+    "adding": "Ajout…",
+    "already": "{{address}} est déjà sur la liste pour ce canal : rien n’a changé.",
+    "errors": {
+      "required": "Saisissez l’adresse.",
+      "email": "Cela ne ressemble pas à une adresse e-mail.",
+      "phone": "Cela ne ressemble pas à un numéro de téléphone.",
+      "tooLong": "Cette adresse est trop longue.",
+      "refused": "Cette adresse n’a pas été acceptée."
+    }
+  },
+  "lift": {
+    "title": "Autoriser à nouveau les messages vers {{address}} ?",
+    "body": "Les messages de vos événements, relances comprises, peuvent à nouveau atteindre cette adresse.",
+    "confirm": "Autoriser à nouveau"
+  },
+  "refused": {
+    "noOrganization": "Cette liste appartient à une organisation, et votre compte n’est que sur un événement. Le propriétaire de l’organisation peut la voir et la modifier.",
+    "forbidden": "Seul le propriétaire de l’organisation ou un responsable peut voir ou modifier cette liste.",
+    "global": "Cette adresse est bloquée dans tout Aveline après un rejet ou une plainte, et ne peut pas être levée ici. La liste a été rechargée.",
+    "erased": "Cette personne a demandé l’effacement de ses données ; elle ne peut plus être contactée. La liste a été rechargée.",
+    "gone": "Cette entrée n’est plus sur la liste. La liste a été rechargée.",
+    "addressRefused": "Cette adresse n’a pas été acceptée.",
+    "rateLimited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+    "noAnswer": "Aucune réponse n’est arrivée. Vérifiez la liste, puis réessayez.",
+    "other": "C’est refusé.",
+    "chooseOrganization": "Votre compte appartient à plusieurs organisations, et cette page ne sait pas encore choisir entre elles."
+  },
+  "status": {
+    "added": "{{address}} est sur la liste.",
+    "lifted": "{{address}} peut à nouveau être contacté."
+  }
+}

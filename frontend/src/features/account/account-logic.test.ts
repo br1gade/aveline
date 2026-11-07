@@ -1,0 +1,175 @@
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+
+import { createBrowserSession, type TokenStore } from '@/api/session';
+
+import { registerAndSignIn } from './flows';
+import { firstStopFor } from './landing';
+import { safeNext } from './safe-next';
+import { organizationSchema, registerSchema, resetRequestSchema, signInSchema } from './schemas';
+import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
+
+describe('safeNext', () => {
+  it.each([
+    ['/app', '/app'],
+    ['/app/welcome', '/app/welcome'],
+    ['/app?lang=hy', '/app?lang=hy'],
+    [null, '/app'],
+    ['', '/app'],
+    ['//evil.example/app', '/app'],
+    ['https://evil.example/app', '/app'],
+    ['/apple', '/app'],
+    ['/sign-in', '/app'],
+    ['/app\\..\\evil', '/app'],
+    ['/billing/return', '/billing/return'],
+    ['/billing/return?orderId=1', '/app'],
+    ['/billing/returned', '/app'],
+  ])('%s → %s', (next, expected) => {
+    expect(safeNext(next)).toBe(expected);
+  });
+});
+
+describe('firstStopFor', () => {
+  const organization = { organizationId: 'o1', name: 'Petrosyan Wedding' };
+
+  it('sends a new account, with no organization and no event, to create one', () => {
+    expect(firstStopFor(null, 0, false)).toBe('/app/welcome');
+  });
+
+  it('sends staff, who belong to no organization by design, to their tools instead', () => {
+    expect(firstStopFor(null, 0, true)).toBe('/app/staff');
+  });
+
+  it('lets staff who do have something in', () => {
+    expect(firstStopFor(null, 1, true)).toBeNull();
+    expect(firstStopFor(organization, 0, true)).toBeNull();
+  });
+
+  it('lets someone brought onto one event in without an organization', () => {
+    expect(firstStopFor(null, 1, false)).toBeNull();
+  });
+
+  it('lets an organization with no events yet in', () => {
+    expect(firstStopFor(organization, 0, false)).toBeNull();
+  });
+});
+
+describe('the schemas keep the backend’s limits', () => {
+  it('asks for a 10-character password, and keeps it exactly as typed', () => {
+    const short = signInSchema.safeParse({ email: 'ani@example.am', password: 'nine-char' });
+    expect(short.error?.issues.map((issue) => issue.message)).toEqual(['passwordShort']);
+    const spaced = signInSchema.parse({ email: ' ani@example.am ', password: ' ten chars ' });
+    expect(spaced).toEqual({ email: 'ani@example.am', password: ' ten chars ' });
+  });
+
+  it('says which rule a field broke', () => {
+    const result = registerSchema.safeParse({ name: 'A', email: 'not-an-address', password: '' });
+    expect(result.error?.issues.map((issue) => [issue.path[0], issue.message])).toEqual([
+      ['name', 'nameShort'],
+      ['email', 'email'],
+      ['password', 'required'],
+    ]);
+  });
+
+  it('takes only the organization kinds the backend has', () => {
+    expect(
+      organizationSchema.safeParse({ name: 'Petrosyan Wedding', kind: 'AGENCY' }).success,
+    ).toBe(false);
+  });
+});
+
+const ORIGIN = 'http://api.test';
+const server = setupServer();
+beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+function memoryStore(): TokenStore {
+  let access: string | undefined;
+  let refresh: string | undefined;
+  return {
+    getAccessToken: () => access,
+    getRefreshToken: () => refresh,
+    save(pair) {
+      access = pair.accessToken;
+      refresh = pair.refreshToken;
+    },
+    clear() {
+      access = undefined;
+      refresh = undefined;
+    },
+  };
+}
+
+describe('registerAndSignIn', () => {
+  const values = { name: 'Ani Grigoryan', email: 'ani@example.am', password: 'correct horse' };
+
+  function answerLogin(response: () => Response) {
+    server.use(
+      http.post(`${ORIGIN}/api/v1/auth/register`, () =>
+        HttpResponse.json({ accepted: true }, { status: 202 }),
+      ),
+      http.post(`${ORIGIN}/api/v1/auth/login`, response),
+    );
+    const store = memoryStore();
+    const session = createBrowserSession({
+      baseUrl: ORIGIN,
+      store,
+      schedule: () => () => undefined,
+    });
+    return { session, store };
+  }
+
+  it('signs a new account in with the same credentials', async () => {
+    const { session, store } = answerLogin(() =>
+      HttpResponse.json({
+        accessToken: 'a1',
+        refreshToken: 'r1',
+        tokenType: 'Bearer',
+        expiresIn: 900,
+      }),
+    );
+    expect(await registerAndSignIn(session, values)).toBe('signed-in');
+    expect(store.getAccessToken()).toBe('a1');
+  });
+
+  it('says "check your email" when the address already had an account', async () => {
+    const { session, store } = answerLogin(() =>
+      HttpResponse.json({ statusCode: 401, message: 'Invalid email or password' }, { status: 401 }),
+    );
+    expect(await registerAndSignIn(session, values)).toBe('check-email');
+    expect(store.getAccessToken()).toBeUndefined();
+  });
+
+  it('passes on anything else', async () => {
+    const { session } = answerLogin(() => HttpResponse.json({ statusCode: 429 }, { status: 429 }));
+    await expect(registerAndSignIn(session, values)).rejects.toMatchObject({ status: 429 });
+  });
+});
+
+describe('an address, wherever an account gives one', () => {
+  const forms: Array<[string, (email: string) => { success: boolean }]> = [
+    ['signing in', (email) => signInSchema.safeParse({ email, password: 'correct horse' })],
+    [
+      'registering',
+      (email) =>
+        registerSchema.safeParse({
+          name: 'Ani Grigoryan',
+          email,
+          password: 'correct horse battery',
+        }),
+    ],
+    ['asking to reset', (email) => resetRequestSchema.safeParse({ email })],
+  ];
+
+  describe.each(forms)('%s', (_, parse) => {
+    it.each(ADDRESSES_THE_BACKEND_TAKES)('leaves %s to the backend', (email) => {
+      expect(parse(email).success).toBe(true);
+    });
+
+    it.each(ADDRESSES_NOBODY_TAKES)('refuses %s', (email) => {
+      expect(parse(email).success).toBe(false);
+    });
+  });
+});

@@ -1,0 +1,129 @@
+{
+  "back": "Back to the event",
+  "title": "Reminders and thanks",
+  "noInvitation": "This event has no invitation, so there is nothing to send.",
+  "expected": {
+    "lead": "“Expected” is worked out from the guest list and the delivery report. The server decides who really gets it, and the outcome says what it did.",
+    "refused": "Your role can’t read the guest list or the delivery report, so this page can’t say who these would reach.",
+    "seeWho": "See who"
+  },
+  "confirm": {
+    "cancel": "Not now",
+    "sending": "Sending…"
+  },
+  "chase": {
+    "title": "Chase who hasn’t answered",
+    "lead": "Reminds the households that have the invitation and haven’t answered. Someone who said “not sure yet” has answered, and isn’t chased. A household gets at most one reminder a day. Aveline also reminds by itself before the event, unless that’s switched off below.",
+    "expected": {
+      "due_one": "Expected to get a reminder: {{count, number}} household.",
+      "due_other": "Expected to get a reminder: {{count, number}} households.",
+      "tooRecent_one": "Invited too recently: {{count, number}} household. A household waits 3 days after its invitation, or 1 day when the event is under a week away.",
+      "tooRecent_other": "Invited too recently: {{count, number}} households. A household waits 3 days after its invitation, or 1 day when the event is under a week away.",
+      "remindedToday_one": "Reminded in the last day: {{count, number}} household.",
+      "remindedToday_other": "Reminded in the last day: {{count, number}} households.",
+      "notReached_one": "The invitation hasn’t reached {{count, number}} household: send it to them instead.",
+      "notReached_other": "The invitation hasn’t reached {{count, number}} households: send it to them instead.",
+      "cannotReach_one": "Can’t be reached: {{count, number}} household. Correct an address first.",
+      "cannotReach_other": "Can’t be reached: {{count, number}} households. Correct an address first.",
+      "answered_one": "Nobody left to chase: {{count, number}} household.",
+      "answered_other": "Nobody left to chase: {{count, number}} households."
+    },
+    "send": "Send reminders",
+    "offer": {
+      "draft": "Reminders can be sent once the invitation is published.",
+      "closed": "Replies are stopped, so reminders aren’t sent. Take replies again on the invitation’s page first.",
+      "expired": "This invitation’s time has run out, so reminders aren’t sent.",
+      "started": "The event has started, so reminders aren’t sent any more."
+    },
+    "confirm": {
+      "title_one": "Remind {{count, number}} household?",
+      "title_other": "Remind {{count, number}} households?",
+      "titleUnknown": "Send reminders?",
+      "body": "Messages can’t be recalled. The server decides who is due, so the number can differ. Pressing again today sends nobody a second one."
+    },
+    "outcome": {
+      "queued_one": "On its way to {{count, number}} household.",
+      "queued_other": "On its way to {{count, number}} households.",
+      "alreadyReminded_one": "Reminded or tried in the last day, so not sent: {{count, number}} household.",
+      "alreadyReminded_other": "Reminded or tried in the last day, so not sent: {{count, number}} households.",
+      "recentlyInvited_one": "Invited too recently, so not sent yet: {{count, number}} household.",
+      "recentlyInvited_other": "Invited too recently, so not sent yet: {{count, number}} households.",
+      "sendFirst_one": "The invitation hasn’t reached {{count, number}} household",
+      "sendFirst_other": "The invitation hasn’t reached {{count, number}} households",
+      "sendFirstHelp": "A reminder would be the wrong message. Send them the invitation instead.",
+      "sendFromList": "Send from the guest list",
+      "nobody": "Nobody was due a reminder."
+    }
+  },
+  "thank": {
+    "title": "Thank the guests",
+    "lead": "Goes after the event, once ever per household. This page can’t tell beforehand who has already been thanked; a household that has been isn’t thanked again.",
+    "expected": {
+      "ARRIVED_one": "Someone checked in, so it goes to the households where someone arrived. Expected: {{count, number}} household.",
+      "ARRIVED_other": "Someone checked in, so it goes to the households where someone arrived. Expected: {{count, number}} households.",
+      "ACCEPTED_one": "Nobody checked in, so it goes to the households where someone said they would come. Expected: {{count, number}} household.",
+      "ACCEPTED_other": "Nobody checked in, so it goes to the households where someone said they would come. Expected: {{count, number}} households.",
+      "cannotReach_one": "Can’t be reached: {{count, number}} household. Correct an address first.",
+      "cannotReach_other": "Can’t be reached: {{count, number}} households. Correct an address first."
+    },
+    "send": "Send the thank-you",
+    "offer": {
+      "draft": "A thank-you can be sent once the invitation is published and the event has started.",
+      "expired": "This invitation’s time has run out, so the link in a thank-you would open nothing. It isn’t offered.",
+      "notYet": "A thank-you can be sent once the event has started."
+    },
+    "confirm": {
+      "title_one": "Thank {{count, number}} household?",
+      "title_other": "Thank {{count, number}} households?",
+      "titleUnknown": "Send the thank-you?",
+      "basis": {
+        "ARRIVED": "It goes to the households where someone checked in.",
+        "ACCEPTED": "Nobody checked in, so it goes to everyone who said they would come, whether or not they came."
+      },
+      "body": "Each household is thanked once, ever. Messages can’t be recalled. The server decides who gets it, so the number can differ."
+    },
+    "outcome": {
+      "basis": {
+        "ARRIVED": "It went by who checked in.",
+        "ACCEPTED": "Nobody had checked in, so it went by who said they would come."
+      },
+      "queued_one": "On its way to {{count, number}} household.",
+      "queued_other": "On its way to {{count, number}} households.",
+      "alreadyThanked_one": "Already thanked or tried, so not sent again: {{count, number}} household.",
+      "alreadyThanked_other": "Already thanked or tried, so not sent again: {{count, number}} households.",
+      "nobody": "There was nobody to thank."
+    }
+  },
+  "outcome": {
+    "title": "What happened",
+    "cannotReach_one": "Can’t be reached: {{count, number}} household",
+    "cannotReach_other": "Can’t be reached: {{count, number}} households",
+    "cannotReachHelp": "There is no usable address for them. Add or correct one on the guest list.",
+    "fixOnList": "Show them on the guest list",
+    "suppressed": "Someone who asked not to be contacted, or whose address bounced, isn’t written to. They aren’t named here, and after another press they count as already tried."
+  },
+  "refused": {
+    "notPublished": "This invitation isn’t open for replies, so nothing was sent. The page has been reloaded.",
+    "expired": "This invitation’s time has run out, so nothing was sent. The page has been reloaded.",
+    "started": "The event has already started, so no reminder was sent. The page has been reloaded.",
+    "notYet": "The event hasn’t happened yet, so no thank-you was sent. The page has been reloaded.",
+    "gone": "This invitation is no longer available. The page has been reloaded.",
+    "forbidden": "Your role on this event can’t send these. An owner or a coordinator can, and the event’s owner can change your role.",
+    "rateLimited": "Too many tries. Wait a minute and press again: nobody gets it twice.",
+    "noAnswer": "No answer came. It may have gone out: pressing again is safe, and nobody gets it twice.",
+    "other": "This wasn’t accepted. The reason, in English:"
+  },
+  "automatic": {
+    "title": "Automatic reminders",
+    "label": "Remind by itself 21, 7 and 2 days before the event",
+    "help": "To households that have the invitation and haven’t answered, only while it is published, and only the one due at the time, so nobody gets several at once. Hosts who chase by phone may want them off.",
+    "nowOn": "Now: on.",
+    "nowOff": "Now: off. Nobody is reminded unless you press below.",
+    "save": "Save",
+    "saving": "Saving…",
+    "savedOn": "Automatic reminders are on for this event.",
+    "savedOff": "Automatic reminders are off for this event.",
+    "forbidden": "Your role on this event can’t change this. Its owner or a coordinator can.",
+    "refused": "The change was refused. Reload the page, then try again."
+  }
+}

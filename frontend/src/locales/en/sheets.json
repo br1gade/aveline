@@ -1,0 +1,65 @@
+{
+  "back": "Back to the event",
+  "title": "What guests’ answers add up to",
+  "lead": "For the venue, the bar and the musician. It counts guests who are coming, as they answered.",
+  "refused": "These numbers aren’t available to your role on this event.",
+  "venue": {
+    "label": "Which venue",
+    "all": "Whole event",
+    "whole": "Everyone coming to the event",
+    "at": "At {{venue}}",
+    "everywhere": "For the whole event: this isn’t counted per venue."
+  },
+  "catering": {
+    "title": "Catering",
+    "covers_one": "{{count}} cover",
+    "covers_other": "{{count}} covers",
+    "noRequirements": "Nobody coming has named a requirement.",
+    "notes": "Guests’ notes"
+  },
+  "bar": {
+    "title": "Bar",
+    "none": "Nobody coming has named a drink.",
+    "answers_one": "{{count}} guest named a drink",
+    "answers_other": "{{count}} guests named a drink",
+    "count": "{{guests}} · {{share}}%"
+  },
+  "playlist": {
+    "title": "Playlist",
+    "none": "Nobody coming has asked for a song.",
+    "requests_one": "{{count}} request",
+    "requests_other": "{{count}} requests"
+  },
+  "engagement": {
+    "title": "Invitation views",
+    "none": "No views recorded. If guests have opened it, the count may not be running here.",
+    "total_one": "{{count}} view",
+    "total_other": "{{count}} views"
+  },
+  "more": "More from guests’ answers",
+  "answers": {
+    "back": "Back to the sheets",
+    "title": "Answers to your questions",
+    "lead": "What guests answered to the questions your invitation asks. A choice is counted among guests coming, what you order for, and among everyone who answered.",
+    "language": "Language of the questions",
+    "untitled": "A question without words",
+    "answered_one": "{{count}} answered",
+    "answered_other": "{{count}} answered",
+    "tally": "{{attending}} coming · {{total}} in all",
+    "who": "Who answered what",
+    "none": "Your invitation asks no questions of its own.",
+    "otherLanguage": "The questions aren’t published in that language, so they are shown in {{language}}.",
+    "status": {
+      "ATTENDING": "Coming",
+      "DECLINED": "Not coming",
+      "UNDECIDED": "Not sure yet",
+      "PENDING": "Not answered"
+    }
+  },
+  "guestBook": {
+    "title": "Guest book",
+    "lead": "The messages guests left with their answers, newest first.",
+    "none": "Nobody has left a message yet.",
+    "at": "{{day}}, {{time}}"
+  }
+}
