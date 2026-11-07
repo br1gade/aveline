@@ -24,6 +24,8 @@ export async function readPublishedVendorSeating(tx: Prisma.TransactionClient, e
     seated: _count.seats,
     available: table.capacity - _count.seats,
     releasedCount: _count.seatReleases,
+    // Older clients use released.length. Keep the length without loading release records.
+    released: Array.from({ length: _count.seatReleases }, () => null),
     guests: seats.map(({ guest, position }) => ({
       name: [guest.firstName, guest.lastName].filter(Boolean).join(' '), position,
     })),

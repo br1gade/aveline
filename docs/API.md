@@ -2247,8 +2247,9 @@ seating is unpublished, even if the booking grants it. The capability check,
 publication flag and all section reads share one database snapshot. An in-flight
 read can complete from the prior authorized snapshot, without seeing data added
 after access was paused or withdrawn. Published tables have `guests` with
-`{ name, position }` and `releasedCount`; the former `released` array and guest
-IDs are no longer returned. Erased identities are absent from `guests`, but an
+`{ name, position }` and `releasedCount`. The legacy `released` array contains
+one `null` per release so older clients can read its length. Release details
+and guest IDs are omitted. Erased identities are absent from `guests`, but an
 assigned seat remains occupied in `seated` and `available`. `headcount` omits the response trend as well as
 household names. `contacts` remains the only section with contact fields.
 

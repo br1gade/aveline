@@ -212,6 +212,9 @@ and withholds identities and history that the vendor does not need. The full
 vendor/access HTTP files passed all 82 cases after these changes; two controlled
 PostgreSQL interleavings reproduced and then verified the snapshot fixes. The
 11 schema critique cases, lint, build, docs and regenerated OpenAPI also passed.
+The current frontend reads the legacy `released` array's length. Published
+seating now returns one null entry per release alongside `releasedCount`,
+without returning any release records.
 
 FR-106 accepts ISO currency codes and an explicit null to clear a fee on either
 booking write. Changing a recorded fee's currency requires an explicit amount

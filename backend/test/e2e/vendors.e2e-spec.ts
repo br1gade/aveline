@@ -267,9 +267,9 @@ describe('Vendor briefs (e2e)', () => {
       expect(hidden.body.granted).toEqual([]);
       await prisma.event.update({ where: { id: eventId }, data: { seatingPublishedAt: new Date('2026-11-01T12:00:00Z') } });
       const published = await read().expect('Cache-Control', 'private, no-store');
-      expect(published.body.seating).toEqual([expect.objectContaining({ name: table.name, capacity: 4, releasedCount: 1,
+      expect(published.body.seating).toEqual([expect.objectContaining({ name: table.name, capacity: 4, releasedCount: 1, released: [null],
         guests: [{ name: [guest.firstName, guest.lastName].filter(Boolean).join(' '), position: 1 }] })]);
-      expect(JSON.stringify(published.body.seating)).not.toMatch(/guestId|Declined private name|"released"/);
+      expect(JSON.stringify(published.body.seating)).not.toMatch(/guestId|Declined private name|releasedAt/);
       await prisma.guest.update({ where: { id: guest.id }, data: { anonymizedAt: new Date('2026-11-02T12:00:00Z') } });
       const erased = await read();
       expect(erased.body.seating[0]).toMatchObject({ seated: 1, available: 3, guests: [] });

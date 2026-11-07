@@ -494,8 +494,7 @@ describe('Vendor bookings, briefs and access (coverage e2e)', () => {
       const { body } = await book(eventId, authorization, { vendorId: vendor.id, briefScopes: ['seating'] }).expect(201);
 
       const { body: served } = await brief(body.briefToken as string).expect(200);
-      expect(served.seating).toEqual([expect.objectContaining({ id: table.id, name: 'Table One', capacity: 8, guests: [], releasedCount: 0 })]);
-      expect(served.seating[0]).not.toHaveProperty('released');
+      expect(served.seating).toEqual([expect.objectContaining({ id: table.id, name: 'Table One', capacity: 8, guests: [], releasedCount: 0, released: [] })]);
     });
 
     it('gives the running order in the event’s own language', async () => {
