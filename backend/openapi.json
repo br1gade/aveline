@@ -17110,6 +17110,17 @@
       "BookVendorDto": {
         "type": "object",
         "properties": {
+          "feeMinor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Whole minor units as a string; null clears the fee",
+            "example": "150000"
+          },
+          "feeCurrency": {
+            "type": "string",
+            "pattern": "^[A-Za-z]{3}$",
+            "description": "ISO 4217 currency code, stored uppercase; a new booking defaults to AMD"
+          },
           "vendorId": {
             "type": "string"
           },
@@ -17129,11 +17140,6 @@
                 "contacts"
               ]
             }
-          },
-          "feeMinor": {
-            "type": "string",
-            "description": "Agreed fee in minor units, as a string — whole drams for AMD",
-            "example": "150000"
           }
         },
         "required": [
@@ -17143,6 +17149,17 @@
       "UpdateBookingDto": {
         "type": "object",
         "properties": {
+          "feeMinor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Whole minor units as a string; null clears the fee",
+            "example": "150000"
+          },
+          "feeCurrency": {
+            "type": "string",
+            "pattern": "^[A-Za-z]{3}$",
+            "description": "ISO 4217 currency code, stored uppercase; a new booking defaults to AMD"
+          },
           "isBriefEnabled": {
             "type": "boolean",
             "description": "Pause or resume the current brief without changing the booking or token"
@@ -17172,11 +17189,6 @@
                 "contacts"
               ]
             }
-          },
-          "feeMinor": {
-            "type": "string",
-            "description": "Agreed fee in minor units, as a string",
-            "example": "150000"
           }
         }
       },

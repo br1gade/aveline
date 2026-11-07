@@ -2155,14 +2155,20 @@ When supplied, `briefScopes` must be an array; `[]` grants no sections and
 `null` is refused.
 
 `feeMinor` is money like every other amount here: integer minor units as a
-string — `"150000"` is 150,000 dram — in `feeCurrency`. **Breaking, 9 October
-2026:** it was `feeAmount`, a two-place decimal string.
+string — `"150000"` is 150,000 dram — in `feeCurrency`. A new booking defaults
+to AMD. If supplied, `feeCurrency` must be an ISO 4217 currency code (excluding
+`XXX` and `XTS`); the API normalizes it to uppercase and rejects `null`.
+On an existing booking, omitting either field leaves it as is. Use
+`"feeMinor": null` to clear the amount; `"0"` records a zero fee. Changing
+the currency of a recorded fee requires an explicit new amount or `null`.
+These fields record the agreed fee; the API does not convert or charge it.
+**Breaking, 9 October 2026:** it was `feeAmount`, a two-place decimal string.
 
 Booking a vendor whose engagement was cancelled engages them again: the
 booking goes back to `ENQUIRED` with a new, working `briefToken`.
 
-**`feeMinor` is absent from the response unless you hold `vendor:fee:read`.**
-It is not `null` — the field is not there at all. A `VIEWER` sees the vendor
+**`feeMinor` and `feeCurrency` are absent unless you hold `vendor:fee:read`.**
+For authorized readers, `feeMinor` is `null` when no amount is recorded. A `VIEWER` sees the vendor
 and not the commercial terms. **`briefToken` is likewise absent from
 `GET /events/:eventId/vendors` unless you hold `vendor:write`**: the link is a
 credential, and one with the `contacts` scope reads guests' phone numbers.

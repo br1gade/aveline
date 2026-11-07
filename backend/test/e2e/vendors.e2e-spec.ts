@@ -109,6 +109,35 @@ describe('Vendor briefs (e2e)', () => {
       expect(JSON.stringify(body.message)).toContain('feeMinor');
     });
 
+    it('validates fee currency and only re-denominates an existing fee with an explicit amount', async () => {
+      const { eventId, authorization } = await coordinator();
+      const vendor = await caterer();
+      const { body: booking } = await book(eventId, authorization, { vendorId: vendor.id, feeMinor: '1500', feeCurrency: 'usd' }).expect(201);
+      expect(booking).toMatchObject({ feeMinor: '1500', feeCurrency: 'USD' });
+      const patch = (body: Record<string, unknown>) => http().patch(`/api/v1/events/${eventId}/vendors/${booking.id as string}`)
+        .set('Authorization', authorization).send(body);
+      const invalid = await patch({ feeCurrency: 'ZZZ' }).expect(400);
+      expect(JSON.stringify(invalid.body.message)).toContain('feeCurrency');
+      await patch({ feeCurrency: null }).expect(400);
+      const incomplete = await patch({ feeCurrency: 'EUR' }).expect(400);
+      expect(JSON.stringify(incomplete.body.message)).toContain('feeMinor');
+      expect(await prisma.vendorBooking.findUniqueOrThrow({ where: { id: booking.id as string } })).toMatchObject({ feeMinor: 1500n, feeCurrency: 'USD' });
+      const changed = await patch({ feeMinor: '0', feeCurrency: 'EUR' }).expect(200);
+      expect(changed.body).toMatchObject({ feeMinor: '0', feeCurrency: 'EUR' });
+      const brief = await http().get(`/api/v1/briefs/${booking.briefToken as string}`).expect(200);
+      expect(brief.body).not.toHaveProperty('feeMinor');
+      expect(brief.body).not.toHaveProperty('feeCurrency');
+    });
+
+    it('clears a recorded fee with explicit null and keeps its currency', async () => {
+      const { eventId, authorization } = await coordinator();
+      const vendor = await caterer();
+      const { body: booking } = await book(eventId, authorization, { vendorId: vendor.id, feeMinor: '1500' }).expect(201);
+      const cleared = await http().patch(`/api/v1/events/${eventId}/vendors/${booking.id as string}`)
+        .set('Authorization', authorization).send({ feeMinor: null }).expect(200);
+      expect(cleared.body).toMatchObject({ feeMinor: null, feeCurrency: 'AMD' });
+    });
+
     // B48: re-booking returned the cancelled booking and its dead link.
     it('engages a cancelled vendor again, with a link that works', async () => {
       const { eventId, authorization } = await coordinator();

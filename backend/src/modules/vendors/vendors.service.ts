@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { BookingStatus, VendorCategory, type Prisma, type VendorBooking } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { lockRow } from '../../common/row-lock';
@@ -101,19 +101,19 @@ export class VendorsService {
       if (!vendor) throw new NotFoundException('No such vendor');
 
       const where = { eventId_vendorId: { eventId, vendorId: dto.vendorId } };
-      const existing = await tx.vendorBooking.findUnique({ where, select: { status: true } });
+      const existing = await tx.vendorBooking.findUnique({ where, select: { status: true, feeMinor: true, feeCurrency: true } });
       const isReopening = existing?.status === BookingStatus.CANCELLED;
       const briefToken = newBriefToken();
       const briefScopes = sectionsFor(dto.briefScopes ?? SUGGESTED_SCOPES[vendor.category] ?? []);
-      const feeMinor = dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor);
+      const fee = bookingFeeChanges(dto, existing);
       const booking = await tx.vendorBooking.upsert({
         where,
-        create: { eventId, vendorId: dto.vendorId, briefScopes, briefToken, feeMinor },
+        create: { eventId, vendorId: dto.vendorId, briefScopes, briefToken, ...fee },
         update: {
           ...(isReopening ? { status: BookingStatus.ENQUIRED, briefToken, isBriefEnabled: true } : {}),
           // Repeating an existing booking cannot widen scope or resume a pause.
           briefScopes: isReopening || dto.briefScopes !== undefined ? briefScopes : undefined,
-          feeMinor,
+          ...fee,
         },
         include: { vendor: BOOKED_VENDOR },
       });
@@ -133,7 +133,7 @@ export class VendorsService {
           status: dto.status ?? undefined,
           isBriefEnabled: dto.isBriefEnabled,
           briefScopes: dto.briefScopes ? sectionsFor(dto.briefScopes) : undefined,
-          feeMinor: dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor),
+          ...bookingFeeChanges(dto, booking),
         },
         include: { vendor: BOOKED_VENDOR },
       });
@@ -191,8 +191,18 @@ function bookingSummary(booking: Pick<VendorBooking, 'id' | 'status' | 'briefSco
   return { id: booking.id, status: booking.status, briefScopes: sectionsFor(booking.briefScopes), isBriefEnabled: booking.isBriefEnabled };
 }
 
-function bookingFee(booking: Pick<VendorBooking, 'feeMinor' | 'feeCurrency'>) {
+type BookingFee = Pick<VendorBooking, 'feeMinor' | 'feeCurrency'>;
+
+function bookingFee(booking: BookingFee) {
   return { feeMinor: booking.feeMinor?.toString() ?? null, feeCurrency: booking.feeCurrency };
+}
+
+function bookingFeeChanges(dto: Pick<BookVendorDto, 'feeMinor' | 'feeCurrency'>, current: BookingFee | null) {
+  const { feeCurrency, feeMinor } = dto;
+  if (current?.feeMinor != null && feeCurrency !== undefined && feeCurrency !== current.feeCurrency.toUpperCase() && feeMinor === undefined) {
+    throw new BadRequestException('feeMinor: include the amount when changing feeCurrency on a recorded fee');
+  }
+  return { feeCurrency, feeMinor: feeMinor == null ? feeMinor : BigInt(feeMinor) };
 }
 
 /** 32 bytes: a brief link is a capability, so it must not be guessable. */

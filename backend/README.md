@@ -366,7 +366,7 @@ and failure handling.
 | `POST` | `/api/v1/vendors` | Add a vendor to the directory |
 | `GET` | `/api/v1/events/:eventId/vendors` | This event's vendors; fees only with `vendor:fee:read` |
 | `POST` | `/api/v1/events/:eventId/vendors` | Engage a vendor and mint their brief link |
-| `PATCH` | `/api/v1/events/:eventId/vendors/:bookingId` | Change status, scopes, fee or pause/resume brief access |
+| `PATCH` | `/api/v1/events/:eventId/vendors/:bookingId` | Change status, scopes, fee or pause/resume brief access; `feeMinor: null` clears the amount |
 | `POST` | `/api/v1/events/:eventId/vendors/:bookingId/rotate-brief` | Replace the brief link |
 | `DELETE` | `/api/v1/events/:eventId/vendors/:bookingId` | Cancel an engagement |
 

@@ -135,7 +135,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Audit and implement |
 | FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Audit and implement |
 | FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Audit and implement |
-| FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Audit and implement |
+| FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Implemented; 84 vendor/access HTTP cases passed; pre-push CI pending |
 | FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
 | FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
 | FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Audit and implement |
@@ -213,6 +213,10 @@ vendor/access HTTP files passed all 82 cases after these changes; two controlled
 PostgreSQL interleavings reproduced and then verified the snapshot fixes. The
 11 schema critique cases, lint, build, docs and regenerated OpenAPI also passed.
 
+FR-106 accepts ISO currency codes and an explicit null to clear a fee on either
+booking write. Changing a recorded fee's currency requires an explicit amount
+or clear. Both vendor HTTP files passed all 84 cases with this change.
+
 ## Next implementation slice: vendor administration and billing transitions
 
 Vendor administration shares the booking projection but is independent of
@@ -224,8 +228,7 @@ household RSVP writes:
 2. Allow corrections and soft removal of organization-owned vendor entries;
    reject foreign/curated edits and new bookings of inactive vendors, while
    retaining existing bookings. Read the saved internal notes back only on
-   authorized host surfaces. Distinguish omitted fee, cleared fee and invalid
-   fee, and validate the supplied currency at the DTO boundary.
+   authorized host surfaces.
 
 Billing (FR-110) needs its own additive scheduled-change record/fields and
 transaction tests: preserve the paid plan and period through its end, expose
