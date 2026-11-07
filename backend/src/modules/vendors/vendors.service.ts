@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { BookingStatus, VendorCategory } from '@prisma/client';
+import { BookingStatus, VendorCategory, type Prisma, type VendorBooking } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
+import { lockRow } from '../../common/row-lock';
+import { lockEventOrganization, requireCurrentEventPermission } from '../../infra/auth/access-locks';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BookVendorDto, CreateVendorDto, UpdateBookingDto } from './dto/vendor.dto';
 import { SUGGESTED_SCOPES, sectionsFor } from './vendor-brief';
+
+const BOOKED_VENDOR = { select: { id: true, name: true, category: true } } as const;
 
 @Injectable()
 export class VendorsService {
@@ -73,14 +77,10 @@ export class VendorsService {
     });
 
     return bookings.map((booking) => ({
-      id: booking.id,
+      ...bookingSummary(booking),
       vendor: booking.vendor,
-      status: booking.status,
-      briefScopes: sectionsFor(booking.briefScopes),
       ...(canShareBriefs ? { briefToken: booking.briefToken } : {}),
-      ...(maySeeFees
-        ? { feeMinor: booking.feeMinor?.toString() ?? null, feeCurrency: booking.feeCurrency }
-        : {}),
+      ...(maySeeFees ? bookingFee(booking) : {}),
       createdAt: booking.createdAt,
     }));
   }
@@ -92,123 +92,107 @@ export class VendorsService {
    * host who does not think about scopes should end up with a caterer who
    * cannot read the playlist, not one who can read the guest list.
    */
-  async book(eventId: string, dto: BookVendorDto) {
-    // Aveline's list, or this event's own organization's: never another's.
-    const vendor = await this.prisma.vendor.findFirst({
-      where: {
-        id: dto.vendorId,
-        OR: [{ organizationId: null }, { organization: { events: { some: { id: eventId } } } }],
-      },
-    });
-    if (!vendor) throw new NotFoundException('No such vendor');
+  book(eventId: string, dto: BookVendorDto, userId: string) {
+    return this.withBookingWrite(eventId, userId, async (tx) => {
+      const vendor = await tx.vendor.findFirst({
+        where: { id: dto.vendorId, OR: [{ organizationId: null }, { organization: { events: { some: { id: eventId } } } }] },
+        select: { category: true },
+      });
+      if (!vendor) throw new NotFoundException('No such vendor');
 
-    const briefScopes = dto.briefScopes ?? SUGGESTED_SCOPES[vendor.category] ?? [];
-    const existing = await this.prisma.vendorBooking.findUnique({
-      where: { eventId_vendorId: { eventId, vendorId: dto.vendorId } },
-      select: { status: true },
+      const where = { eventId_vendorId: { eventId, vendorId: dto.vendorId } };
+      const existing = await tx.vendorBooking.findUnique({ where, select: { status: true } });
+      const isReopening = existing?.status === BookingStatus.CANCELLED;
+      const briefToken = newBriefToken();
+      const briefScopes = sectionsFor(dto.briefScopes ?? SUGGESTED_SCOPES[vendor.category] ?? []);
+      const feeMinor = dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor);
+      const booking = await tx.vendorBooking.upsert({
+        where,
+        create: { eventId, vendorId: dto.vendorId, briefScopes, briefToken, feeMinor },
+        update: {
+          ...(isReopening ? { status: BookingStatus.ENQUIRED, briefToken, isBriefEnabled: true } : {}),
+          // Repeating an existing booking cannot widen scope or resume a pause.
+          briefScopes: isReopening || dto.briefScopes !== undefined ? briefScopes : undefined,
+          feeMinor,
+        },
+        include: { vendor: BOOKED_VENDOR },
+      });
+      return { ...bookingSummary(booking), vendor: booking.vendor, briefToken: booking.briefToken, ...bookingFee(booking) };
     });
-    // Booking a vendor whose engagement was cancelled engages them again, with
-    // a live link. It returned the cancelled booking and its dead link.
-    const reinstated = existing?.status === BookingStatus.CANCELLED
-      ? { status: BookingStatus.ENQUIRED, briefToken: newBriefToken() }
-      : {};
-
-    const booking = await this.prisma.vendorBooking.upsert({
-      where: { eventId_vendorId: { eventId, vendorId: dto.vendorId } },
-      create: {
-        eventId,
-        vendorId: dto.vendorId,
-        briefScopes: sectionsFor(briefScopes),
-        briefToken: newBriefToken(),
-        feeMinor: dto.feeMinor === undefined ? null : BigInt(dto.feeMinor),
-      },
-      // Re-booking the same vendor is editing the existing engagement, not a
-      // second one — the unique constraint says so, and so does the host's
-      // intent when they click the same vendor twice.
-      update: {
-        ...reinstated,
-        briefScopes: sectionsFor(briefScopes),
-        feeMinor: dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor),
-      },
-      include: { vendor: { select: { id: true, name: true, category: true } } },
-    });
-
-    return {
-      id: booking.id,
-      vendor: booking.vendor,
-      status: booking.status,
-      briefScopes: sectionsFor(booking.briefScopes),
-      briefToken: booking.briefToken,
-      feeMinor: booking.feeMinor?.toString() ?? null,
-      feeCurrency: booking.feeCurrency,
-    };
   }
 
-  async updateBooking(eventId: string, bookingId: string, dto: UpdateBookingDto) {
-    const booking = await this.requireBooking(eventId, bookingId);
-    // Into or out of CANCELLED, the link changes — as DELETE does. Cancelling
-    // by edit kept the old link, and editing it back revived a link that may
-    // have been forwarded.
-    const isCancelling = dto.status !== undefined && dto.status !== booking.status &&
-      (dto.status === BookingStatus.CANCELLED || booking.status === BookingStatus.CANCELLED);
-
-    const updated = await this.prisma.vendorBooking.update({
-      where: { id: bookingId },
-      data: {
-        ...(isCancelling ? { briefToken: newBriefToken() } : {}),
-        status: dto.status ?? undefined,
-        briefScopes: dto.briefScopes ? sectionsFor(dto.briefScopes) : undefined,
-        feeMinor: dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor),
-      },
-      include: { vendor: { select: { id: true, name: true, category: true } } },
+  updateBooking(eventId: string, bookingId: string, dto: UpdateBookingDto, userId: string) {
+    return this.withBookingWrite(eventId, userId, async (tx) => {
+      const booking = await this.requireBooking(tx, eventId, bookingId);
+      // The sent link explains cancellation, but a renewed engagement gets a fresh capability.
+      const isReopening = booking.status === BookingStatus.CANCELLED && dto.status != null && dto.status !== BookingStatus.CANCELLED;
+      const updated = await tx.vendorBooking.update({
+        where: { id: booking.id },
+        data: {
+          briefToken: isReopening ? newBriefToken() : undefined,
+          status: dto.status ?? undefined,
+          isBriefEnabled: dto.isBriefEnabled,
+          briefScopes: dto.briefScopes ? sectionsFor(dto.briefScopes) : undefined,
+          feeMinor: dto.feeMinor === undefined ? undefined : BigInt(dto.feeMinor),
+        },
+        include: { vendor: BOOKED_VENDOR },
+      });
+      return { ...bookingSummary(updated), vendor: updated.vendor, ...bookingFee(updated) };
     });
-
-    return {
-      id: updated.id,
-      vendor: updated.vendor,
-      status: updated.status,
-      briefScopes: sectionsFor(updated.briefScopes),
-      feeMinor: updated.feeMinor?.toString() ?? null,
-      feeCurrency: updated.feeCurrency,
-    };
   }
 
   /**
    * Replaces the brief link.
    *
    * The reason this exists: a brief token is a capability, so a link forwarded
-   * to the wrong supplier cannot be un-sent. Rotation is the only revocation a
-   * capability URL has.
+   * to the wrong supplier cannot be un-sent. Rotation retires that credential
+   * permanently, without lifting a pause or cancellation.
    */
-  async rotateBriefToken(eventId: string, bookingId: string) {
-    await this.requireBooking(eventId, bookingId);
-
-    const rotated = await this.prisma.vendorBooking.update({
-      where: { id: bookingId },
-      data: { briefToken: newBriefToken() },
-      select: { id: true, briefToken: true },
+  rotateBriefToken(eventId: string, bookingId: string, userId: string) {
+    return this.withBookingWrite(eventId, userId, async (tx) => {
+      const booking = await this.requireBooking(tx, eventId, bookingId);
+      return tx.vendorBooking.update({
+        where: { id: booking.id },
+        data: { briefToken: newBriefToken() },
+        select: { id: true, briefToken: true, isBriefEnabled: true },
+      });
     });
-    return rotated;
   }
 
   /** Ends an engagement. The booking stays, so the fee history survives. */
-  async cancelBooking(eventId: string, bookingId: string) {
-    await this.requireBooking(eventId, bookingId);
-
-    await this.prisma.vendorBooking.update({
-      where: { id: bookingId },
-      data: { status: BookingStatus.CANCELLED, briefToken: newBriefToken() },
+  cancelBooking(eventId: string, bookingId: string, userId: string) {
+    return this.withBookingWrite(eventId, userId, async (tx) => {
+      const booking = await this.requireBooking(tx, eventId, bookingId);
+      await tx.vendorBooking.update({ where: { id: booking.id }, data: { status: BookingStatus.CANCELLED } });
+      return { ok: true as const };
     });
-    return { ok: true as const };
   }
 
-  private async requireBooking(eventId: string, bookingId: string) {
-    const booking = await this.prisma.vendorBooking.findFirst({
+  private async requireBooking(tx: Prisma.TransactionClient, eventId: string, bookingId: string) {
+    const booking = await tx.vendorBooking.findFirst({
       where: { id: bookingId, eventId },
     });
     if (!booking) throw new NotFoundException('No such vendor booking on this event');
     return booking;
   }
+
+  private withBookingWrite<T>(eventId: string, userId: string, write: (tx: Prisma.TransactionClient) => Promise<T>) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockEventOrganization(tx, eventId);
+      // Serialize booking/token transitions with event standing changes, including a first booking.
+      await lockRow(tx, 'events', eventId);
+      await requireCurrentEventPermission(tx, { actor: { userId }, eventId, permission: 'vendor:write' });
+      return write(tx);
+    });
+  }
+}
+
+function bookingSummary(booking: Pick<VendorBooking, 'id' | 'status' | 'briefScopes' | 'isBriefEnabled'>) {
+  return { id: booking.id, status: booking.status, briefScopes: sectionsFor(booking.briefScopes), isBriefEnabled: booking.isBriefEnabled };
+}
+
+function bookingFee(booking: Pick<VendorBooking, 'feeMinor' | 'feeCurrency'>) {
+  return { feeMinor: booking.feeMinor?.toString() ?? null, feeCurrency: booking.feeCurrency };
 }
 
 /** 32 bytes: a brief link is a capability, so it must not be guessable. */

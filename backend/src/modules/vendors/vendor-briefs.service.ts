@@ -1,10 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { BookingStatus, RsvpStatus } from '@prisma/client';
+import { BookingStatus, Prisma, RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolveTranslation } from '../../common/locale';
 import { OperationsService } from '../operations/operations.service';
-import { SeatingService } from '../seating/seating.service';
 import { BRIEF_SECTION_PURPOSE, BriefSection, sectionsFor } from './vendor-brief';
+import { readPublishedVendorSeating } from './vendor-seating';
 
 /**
  * The vendor-facing brief.
@@ -20,17 +20,26 @@ export class VendorBriefsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly operations: OperationsService,
-    private readonly seating: SeatingService,
   ) {}
 
-  async findByToken(briefToken: string) {
-    const booking = await this.prisma.vendorBooking.findUnique({
+  findByToken(briefToken: string) {
+    // The credential and every disclosed value must have coexisted in an authorized snapshot.
+    return this.prisma.$transaction((tx) => this.readBrief(tx, briefToken), {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
+  }
+
+  private async readBrief(tx: Prisma.TransactionClient, briefToken: string) {
+    const booking = await tx.vendorBooking.findUnique({
       where: { briefToken },
-      include: {
+      select: {
+        eventId: true,
+        status: true,
+        briefScopes: true,
+        isBriefEnabled: true,
         vendor: { select: { name: true, category: true } },
         event: {
           select: {
-            id: true,
             title: true,
             startsAt: true,
             endsAt: true,
@@ -49,9 +58,10 @@ export class VendorBriefsService {
     if (booking.status === BookingStatus.CANCELLED) {
       throw new ForbiddenException('This engagement has been cancelled');
     }
+    if (!booking.isBriefEnabled) throw new ForbiddenException('This brief is paused by the host');
 
     const sections = sectionsFor(booking.briefScopes);
-    const content = await this.buildSections(booking.eventId, sections, booking.event.defaultLocale);
+    const content = await this.buildSections(tx, booking.eventId, sections, booking.event.defaultLocale);
 
     return {
       vendor: booking.vendor,
@@ -65,7 +75,7 @@ export class VendorBriefsService {
       },
       // Stating the scope in the response is deliberate: a vendor who can see
       // what they were and were not given does not ask for the rest by email.
-      granted: sections.map((section) => ({
+      granted: sections.filter((section) => content[section] !== undefined).map((section) => ({
         section,
         purpose: BRIEF_SECTION_PURPOSE[section],
       })),
@@ -78,32 +88,32 @@ export class VendorBriefsService {
    * which only the `households` scope gives. A caterer, whose default scopes
    * include headcount, was reading the guest list through it.
    */
-  private async headcount(eventId: string) {
-    const { byHousehold: _named, ...counts } = await this.operations.headcount(eventId);
+  private async headcount(eventId: string, operations: OperationsService) {
+    const { byHousehold: _named, trend: _history, ...counts } = await operations.headcount(eventId);
     return counts;
   }
 
-  private async buildSections(eventId: string, sections: BriefSection[], locale: string) {
-    const builders: Record<BriefSection, () => Promise<unknown>> = {
-      headcount: () => this.headcount(eventId),
-      catering: () => this.operations.cateringSheet(eventId),
-      bar: () => this.operations.barSheet(eventId),
-      playlist: () => this.operations.playlist(eventId),
-      timeline: () => this.timeline(eventId, locale),
-      seating: () => this.seating.listTables(eventId),
-      households: () => this.households(eventId),
-      contacts: () => this.contacts(eventId),
-    };
+  private async buildSections(tx: Prisma.TransactionClient, eventId: string, sections: BriefSection[], locale: string) {
+    const operations = this.operations.inTransaction(tx, locale);
+    const builders = {
+      headcount: () => this.headcount(eventId, operations),
+      catering: () => operations.cateringSheet(eventId),
+      bar: () => operations.barSheet(eventId),
+      playlist: () => operations.playlist(eventId),
+      timeline: () => this.timeline(tx, eventId, locale),
+      seating: () => readPublishedVendorSeating(tx, eventId),
+      households: () => this.households(tx, eventId),
+      contacts: () => this.contacts(tx, eventId),
+    } satisfies Record<BriefSection, () => Promise<unknown>>;
 
-    // Independent reads, so the brief costs the slowest section rather than
-    // their sum.
     const built = await Promise.all(sections.map((section) => builders[section]()));
-    return Object.fromEntries(sections.map((section, index) => [section, built[index]]));
+    type Sections = Partial<{ [Key in BriefSection]: Awaited<ReturnType<(typeof builders)[Key]>> }>;
+    return Object.fromEntries(sections.map((section, index) => [section, built[index]])) as Sections;
   }
 
   /** Labels are translated; a vendor gets the event's own language. */
-  private async timeline(eventId: string, locale: string) {
-    const entries = await this.prisma.timelineEntry.findMany({
+  private async timeline(tx: Prisma.TransactionClient, eventId: string, locale: string) {
+    const entries = await tx.timelineEntry.findMany({
       where: { eventId },
       orderBy: [{ occursAt: 'asc' }, { sortOrder: 'asc' }],
       select: { label: true, occursAt: true, venue: { select: { name: true } } },
@@ -123,8 +133,8 @@ export class VendorBriefsService {
    * into one frame. They do not need anyone's phone number, which is why
    * contacts is a separate section nobody is granted by default.
    */
-  private async households(eventId: string) {
-    const households = await this.prisma.household.findMany({
+  private async households(tx: Prisma.TransactionClient, eventId: string) {
+    const households = await tx.household.findMany({
       where: { eventId, guests: { some: { rsvp: { status: RsvpStatus.ATTENDING } } } },
       select: {
         name: true,
@@ -145,8 +155,8 @@ export class VendorBriefsService {
     }));
   }
 
-  private async contacts(eventId: string) {
-    const guests = await this.prisma.guest.findMany({
+  private async contacts(tx: Prisma.TransactionClient, eventId: string) {
+    const guests = await tx.guest.findMany({
       where: { eventId, rsvp: { status: RsvpStatus.ATTENDING } },
       select: { firstName: true, lastName: true, email: true, phone: true },
       orderBy: { firstName: 'asc' },

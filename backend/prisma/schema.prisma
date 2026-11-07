@@ -962,6 +962,8 @@ model VendorBooking {
   vendorId    String
   status      BookingStatus @default(ENQUIRED)
   briefScopes String[]      @default([])
+  /// Hosts can pause the capability without changing the engagement.
+  isBriefEnabled Boolean    @default(true)
   /// Scoped access token for the vendor-facing brief
   briefToken  String        @unique
   /// The agreed fee in minor units — whole drams for AMD — like every amount

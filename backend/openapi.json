@@ -9548,7 +9548,7 @@
             }
           }
         },
-        "summary": "Change a booking’s status, scopes or fee",
+        "summary": "Change a booking’s status, scopes, fee or brief access",
         "tags": [
           "vendors"
         ],
@@ -9559,7 +9559,7 @@
         ]
       },
       "delete": {
-        "description": "Kept as a record, with the brief link rotated so it stops working.",
+        "description": "Kept as a record. Its current brief link is forbidden until the engagement is renewed with a different token.",
         "operationId": "VendorsController_cancelBooking",
         "parameters": [
           {
@@ -9626,7 +9626,7 @@
     },
     "/api/v1/events/{eventId}/vendors/{bookingId}/rotate-brief": {
       "post": {
-        "description": "The only revocation a capability URL has. The old link stops working.",
+        "description": "The old link is retired. A paused or cancelled brief stays unavailable.",
         "operationId": "VendorsController_rotate",
         "parameters": [
           {
@@ -9693,7 +9693,7 @@
     },
     "/api/v1/briefs/{briefToken}": {
       "get": {
-        "description": "Contains only the sections the booking lists, and says which those are.",
+        "description": "Contains only available granted sections. Paused or cancelled links are forbidden.",
         "operationId": "VendorsController_findBrief",
         "parameters": [
           {
@@ -17115,7 +17115,7 @@
           },
           "briefScopes": {
             "type": "array",
-            "description": "Exactly what this vendor may read. Omitted uses the category default.",
+            "description": "Omission uses category defaults for a new or renewed engagement and preserves the grants on an existing active booking.",
             "items": {
               "type": "string",
               "enum": [
@@ -17143,6 +17143,10 @@
       "UpdateBookingDto": {
         "type": "object",
         "properties": {
+          "isBriefEnabled": {
+            "type": "boolean",
+            "description": "Pause or resume the current brief without changing the booking or token"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -38905,9 +38909,6 @@
             "briefToken": {
               "type": "string"
             },
-            "id": {
-              "type": "string"
-            },
             "vendor": {
               "type": "object",
               "properties": {
@@ -38948,6 +38949,9 @@
                 "category"
               ]
             },
+            "id": {
+              "type": "string"
+            },
             "status": {
               "type": "string",
               "enum": [
@@ -38973,21 +38977,29 @@
                   "contacts"
                 ]
               }
+            },
+            "isBriefEnabled": {
+              "type": "boolean"
             }
           },
           "required": [
             "createdAt",
-            "id",
             "vendor",
+            "id",
             "status",
-            "briefScopes"
+            "briefScopes",
+            "isBriefEnabled"
           ]
         }
       },
       "VendorsController_bookResponse": {
         "type": "object",
         "properties": {
-          "id": {
+          "feeMinor": {
+            "type": "string",
+            "nullable": true
+          },
+          "feeCurrency": {
             "type": "string"
           },
           "vendor": {
@@ -39020,6 +39032,12 @@
               "category"
             ]
           },
+          "briefToken": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -39046,31 +39064,29 @@
               ]
             }
           },
-          "briefToken": {
-            "type": "string"
-          },
-          "feeMinor": {
-            "type": "string",
-            "nullable": true
-          },
-          "feeCurrency": {
-            "type": "string"
+          "isBriefEnabled": {
+            "type": "boolean"
           }
         },
         "required": [
-          "id",
+          "feeMinor",
+          "feeCurrency",
           "vendor",
+          "briefToken",
+          "id",
           "status",
           "briefScopes",
-          "briefToken",
-          "feeMinor",
-          "feeCurrency"
+          "isBriefEnabled"
         ]
       },
       "VendorsController_updateBookingResponse": {
         "type": "object",
         "properties": {
-          "id": {
+          "feeMinor": {
+            "type": "string",
+            "nullable": true
+          },
+          "feeCurrency": {
             "type": "string"
           },
           "vendor": {
@@ -39103,6 +39119,9 @@
               "category"
             ]
           },
+          "id": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -39129,21 +39148,18 @@
               ]
             }
           },
-          "feeMinor": {
-            "type": "string",
-            "nullable": true
-          },
-          "feeCurrency": {
-            "type": "string"
+          "isBriefEnabled": {
+            "type": "boolean"
           }
         },
         "required": [
-          "id",
+          "feeMinor",
+          "feeCurrency",
           "vendor",
+          "id",
           "status",
           "briefScopes",
-          "feeMinor",
-          "feeCurrency"
+          "isBriefEnabled"
         ]
       },
       "VendorsController_cancelBookingResponse": {
@@ -39163,18 +39179,421 @@
           "id": {
             "type": "string"
           },
+          "isBriefEnabled": {
+            "type": "boolean"
+          },
           "briefToken": {
             "type": "string"
           }
         },
         "required": [
           "id",
+          "isBriefEnabled",
           "briefToken"
         ]
       },
       "VendorsController_findBriefResponse": {
         "type": "object",
         "properties": {
+          "timeline": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "occursAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "venue": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "label",
+                "occursAt",
+                "venue"
+              ]
+            }
+          },
+          "households": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "household": {
+                  "type": "string"
+                },
+                "guests": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "household",
+                "guests"
+              ]
+            }
+          },
+          "seating": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "venue": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "seated": {
+                  "type": "number"
+                },
+                "available": {
+                  "type": "number"
+                },
+                "releasedCount": {
+                  "type": "number"
+                },
+                "guests": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "position": {
+                        "type": "number",
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "position"
+                    ]
+                  }
+                },
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "venueId": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "capacity": {
+                  "type": "number"
+                },
+                "arrangementId": {
+                  "type": "string"
+                },
+                "zone": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "posX": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "posY": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "shape": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "venue",
+                "seated",
+                "available",
+                "releasedCount",
+                "guests",
+                "id",
+                "name",
+                "venueId",
+                "capacity",
+                "arrangementId",
+                "zone",
+                "posX",
+                "posY",
+                "shape"
+              ]
+            }
+          },
+          "headcount": {
+            "type": "object",
+            "properties": {
+              "invited": {
+                "type": "number"
+              },
+              "households": {
+                "type": "number"
+              },
+              "attending": {
+                "type": "number"
+              },
+              "declined": {
+                "type": "number"
+              },
+              "undecided": {
+                "type": "number"
+              },
+              "pending": {
+                "type": "number"
+              },
+              "responseRate": {
+                "type": "number"
+              },
+              "bySide": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "side": {
+                      "type": "string",
+                      "enum": [
+                        "UNKNOWN",
+                        "SIDE_A",
+                        "SIDE_B",
+                        "SHARED"
+                      ]
+                    },
+                    "invited": {
+                      "type": "number"
+                    },
+                    "attending": {
+                      "type": "number"
+                    },
+                    "declined": {
+                      "type": "number"
+                    },
+                    "undecided": {
+                      "type": "number"
+                    },
+                    "pending": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "side",
+                    "invited",
+                    "attending",
+                    "declined",
+                    "undecided",
+                    "pending"
+                  ]
+                }
+              },
+              "venues": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "venueId": {
+                      "type": "string"
+                    },
+                    "venue": {
+                      "type": "string"
+                    },
+                    "invited": {
+                      "type": "number"
+                    },
+                    "attending": {
+                      "type": "number"
+                    },
+                    "declined": {
+                      "type": "number"
+                    },
+                    "undecided": {
+                      "type": "number"
+                    },
+                    "pending": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "venueId",
+                    "venue",
+                    "invited",
+                    "attending",
+                    "declined",
+                    "undecided",
+                    "pending"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "invited",
+              "households",
+              "attending",
+              "declined",
+              "undecided",
+              "pending",
+              "responseRate",
+              "bySide",
+              "venues"
+            ]
+          },
+          "catering": {
+            "type": "object",
+            "properties": {
+              "covers": {
+                "type": "number"
+              },
+              "requirements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "requirement": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "requirement",
+                    "key",
+                    "count"
+                  ]
+                }
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "guest": {
+                      "type": "string"
+                    },
+                    "household": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "guest",
+                    "household",
+                    "note"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "covers",
+              "requirements",
+              "notes"
+            ]
+          },
+          "bar": {
+            "type": "object",
+            "properties": {
+              "totalResponses": {
+                "type": "number"
+              },
+              "preferences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "drink": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "guests": {
+                      "type": "number"
+                    },
+                    "share": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "drink",
+                    "key",
+                    "guests",
+                    "share"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "totalResponses",
+              "preferences"
+            ]
+          },
+          "playlist": {
+            "type": "object",
+            "properties": {
+              "uniqueTracks": {
+                "type": "number"
+              },
+              "tracks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "track": {
+                      "type": "string"
+                    },
+                    "requests": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "track",
+                    "requests"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "uniqueTracks",
+              "tracks"
+            ]
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "phone": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "name",
+                "email",
+                "phone"
+              ]
+            }
+          },
           "vendor": {
             "type": "object",
             "properties": {

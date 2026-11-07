@@ -366,7 +366,7 @@ and failure handling.
 | `POST` | `/api/v1/vendors` | Add a vendor to the directory |
 | `GET` | `/api/v1/events/:eventId/vendors` | This event's vendors; fees only with `vendor:fee:read` |
 | `POST` | `/api/v1/events/:eventId/vendors` | Engage a vendor and mint their brief link |
-| `PATCH` | `/api/v1/events/:eventId/vendors/:bookingId` | Change status, scopes or fee |
+| `PATCH` | `/api/v1/events/:eventId/vendors/:bookingId` | Change status, scopes, fee or pause/resume brief access |
 | `POST` | `/api/v1/events/:eventId/vendors/:bookingId/rotate-brief` | Replace the brief link |
 | `DELETE` | `/api/v1/events/:eventId/vendors/:bookingId` | Cancel an engagement |
 
@@ -482,7 +482,7 @@ registration, not bank certification or credentials.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/briefs/:briefToken` | A vendor's brief — only the sections their booking lists |
+| `GET` | `/api/v1/briefs/:briefToken` | Private, uncached brief; published seating only, paused/cancelled links forbidden |
 | `POST` | `/api/v1/public/events/:slug/promo-check` | What a promo code is worth on a basket |
 
 ### Public — announcements and ticketing

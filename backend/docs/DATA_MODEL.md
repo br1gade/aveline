@@ -119,6 +119,11 @@ with a different organization. This adds no event-transfer behavior.
 | `ExportSnapshotSubject` | Normalized email fingerprints that locate old snapshots during subject erasure |
 | `ExportPrivacyFence` | Shared/exclusive capture/erasure fence; repeatable-read conflicts retry |
 
+`VendorBooking.isBriefEnabled` is independent of the engagement status and
+defaults to true for new and existing bookings. Pausing keeps the token and
+all commercial data. A cancelled booking still rejects its token; reopening
+issues a different one under the event's booking-write lock.
+
 ### Communications
 | Model | Purpose |
 |---|---|

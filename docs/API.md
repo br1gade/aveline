@@ -2140,17 +2140,19 @@ DELETE /api/v1/events/:eventId/vendors/:bookingId
 | Scope | What it shows |
 |---|---|
 | `headcount` | Confirmed headcount by side — the numbers only; household names come with `households` |
-| `catering` | Covers and dietary requirements |
+| `catering` | Covers and dietary requirements, including the guest/household name beside an individual note so it reaches the right person |
 | `bar` | Drink preferences as quantities |
 | `playlist` | Requested songs |
 | `timeline` | Running order and access times |
-| `seating` | Tables, capacities and who sits where |
+| `seating` | Published tables, capacities and assigned names/positions; no guest IDs, reservation flags or release identities |
 | `households` | Guests grouped by household, for formal photographs |
 | `contacts` | Guest emails and phone numbers |
 
-Omit `briefScopes` and the vendor's category decides: a caterer gets
+On a new or renewed booking, omit `briefScopes` and the vendor's category decides: a caterer gets
 `headcount`, `catering`, `timeline`. Defaulting narrows rather than widens, so
 forgetting the field is safe. An unrecognised scope is a `400`.
+When supplied, `briefScopes` must be an array; `[]` grants no sections and
+`null` is refused.
 
 `feeMinor` is money like every other amount here: integer minor units as a
 string — `"150000"` is 150,000 dram — in `feeCurrency`. **Breaking, 9 October
@@ -2166,13 +2168,20 @@ and not the commercial terms. **`briefToken` is likewise absent from
 credential, and one with the `contacts` scope reads guests' phone numbers.
 
 Re-posting the same `vendorId` edits the existing engagement; there is never a
-second booking for one vendor on one event.
+second booking for one vendor on one event. Omitted scopes on an existing active
+engagement preserve its grants and pause state.
+
+Bookings include `isBriefEnabled`. With `vendor:write`, PATCH the booking with
+`{ "isBriefEnabled": false }` to pause access, or `true` to resume it. This keeps
+the booking, fee, scopes and current token. Paused links return 403 with no brief
+payload. The value must be a boolean when supplied. Other booking edits and
+token rotation preserve the pause.
 
 ```http
 GET /api/v1/briefs/:briefToken
 ```
 
-Public, authenticated by the link alone — the same capability pattern as a
+Public, authenticated by the link alone and served `private, no-store` — the same capability pattern as a
 guest invitation. Send the vendor
 `https://your-app/briefs/<briefToken>`.
 
@@ -2194,15 +2203,25 @@ guest invitation. Send the vendor
 `granted` rather than probing for keys. `granted: []` is valid and means the
 vendor sees only the event and its venues.
 
+Seating is omitted from both the payload and `granted` while the event's
+seating is unpublished, even if the booking grants it. The capability check,
+publication flag and all section reads share one database snapshot. An in-flight
+read can complete from the prior authorized snapshot, without seeing data added
+after access was paused or withdrawn. Published tables have `guests` with
+`{ name, position }` and `releasedCount`; the former `released` array and guest
+IDs are no longer returned. Erased identities are absent from `guests`, but an
+assigned seat remains occupied in `seated` and `available`. `headcount` omits the response trend as well as
+household names. `contacts` remains the only section with contact fields.
+
 ```http
 POST /api/v1/events/:eventId/vendors/:bookingId/rotate-brief
 ```
 
-Issues a new token and **kills the old link immediately** — the only revocation
-a capability URL has, for when a brief is forwarded to the wrong supplier.
-Cancelling a booking rotates too, so a cancelled engagement's sent link stops
-working. An old link returns `404`; a cancelled booking's current link returns
-`403`.
+Issues a new token and permanently retires the old one. Rotation does not
+resume a pause or cancellation. A cancelled engagement keeps its current sent
+link so it returns `403` without any brief data. Renewing the engagement issues
+a new token and the old link then returns `404`. An unknown or rotated link
+returns `404`.
 
 ### Exports
 

@@ -3,6 +3,7 @@ import { BookingStatus, VendorCategory } from '@prisma/client';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsIn,
@@ -11,6 +12,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { BRIEF_SECTIONS } from '../vendor-brief';
 
@@ -52,9 +54,9 @@ export class BookVendorDto {
   @ApiPropertyOptional({
     isArray: true,
     enum: BRIEF_SECTIONS,
-    description: 'Exactly what this vendor may read. Omitted uses the category default.',
+    description: 'Omission uses category defaults for a new or renewed engagement and preserves the grants on an existing active booking.',
   })
-  @IsOptional()
+  @ValidateIf((_dto: unknown, value: unknown) => value !== undefined)
   @IsArray()
   @ArrayMaxSize(BRIEF_SECTIONS.length)
   @IsIn(BRIEF_SECTIONS, { each: true })
@@ -69,13 +71,18 @@ export class BookVendorDto {
 
 /** Omitted means "leave as is". */
 export class UpdateBookingDto {
+  @ApiPropertyOptional({ description: 'Pause or resume the current brief without changing the booking or token' })
+  @ValidateIf((_dto: unknown, value: unknown) => value !== undefined)
+  @IsBoolean()
+  isBriefEnabled?: boolean;
+
   @ApiPropertyOptional({ enum: BookingStatus })
   @IsOptional()
   @IsEnum(BookingStatus)
   status?: BookingStatus;
 
   @ApiPropertyOptional({ isArray: true, enum: BRIEF_SECTIONS })
-  @IsOptional()
+  @ValidateIf((_dto: unknown, value: unknown) => value !== undefined)
   @IsArray()
   @ArrayMaxSize(BRIEF_SECTIONS.length)
   @IsIn(BRIEF_SECTIONS, { each: true })

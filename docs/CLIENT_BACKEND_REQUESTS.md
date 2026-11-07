@@ -136,8 +136,8 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Audit and implement |
 | FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Audit and implement |
 | FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Audit and implement |
-| FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Decision recorded; implementation pending |
-| FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Decision recorded; implementation pending |
+| FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
+| FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; pre-push CI pending |
 | FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Audit and implement |
 | FR-110 | Billing's data | S4 ticketing/vendors/billing | Decision recorded; implementation pending |
 | FR-111 | Tell "analytics is off" from "no views", and count songs per venue | S3 host/guest operations | Audit and implement |
@@ -175,8 +175,6 @@ migration preserves historical unattributed notes rather than inventing their
 provenance. New public-note storage and legacy report caps are compatibility
 changes that must be identified in the eventual commit.
 
-## Next implementation slice: vendor briefs and billing transitions
-
 Historic completion audit confirmed 19 of the 20 previously delivered rows
 against current DTOs/schema and their existing regressions. FR-22 also exposed
 a policy mismatch: the client heading required rotation evidence, while the
@@ -207,23 +205,23 @@ field whitelist and the old public-read rate limit. Both were corrected; all
 guest-read case. The canonical full pre-push CI proof is still pending. No test
 was disabled and no runtime behavior changed to satisfy those assertions.
 
-Vendor work (FR-102–108) shares the booking/brief projection but is independent
-of household RSVP writes. Implement with reproductions in the existing vendor
-HTTP/access suites, then update API, access and seating documentation:
+FR-107/108 now keep booking authority and every brief section on one PostgreSQL
+snapshot. Pausing preserves the engagement and token; renewal retires the
+cancelled credential. Published seating keeps accurate occupancy after erasure
+and withholds identities and history that the vendor does not need. The full
+vendor/access HTTP files passed all 82 cases after these changes; two controlled
+PostgreSQL interleavings reproduced and then verified the snapshot fixes. The
+11 schema critique cases, lint, build, docs and regenerated OpenAPI also passed.
 
-1. Add an additive booking flag for paused brief access. Updating scopes,
-   fees or rotating a token must preserve a pause. Rebooking a cancelled
-   engagement creates a fresh capability; cancellation keeps the sent token
-   recognizable but forbidden, and leaving cancelled state rotates it.
-2. Query vendor seating only when the event's publication flag is present in
-   the same database read. Return current seating names/positions needed by
-   this scope, without guest IDs, released guests' names or contact details.
-   Remove headcount trends from the vendor projection and explicitly document
-   the dietary-note names required by catering's scope.
-3. Add event-scoped vendor choices using the event's organization, including
+## Next implementation slice: vendor administration and billing transitions
+
+Vendor administration shares the booking projection but is independent of
+household RSVP writes:
+
+1. Add event-scoped vendor choices using the event's organization, including
    for event-only collaborators. Return the existing section vocabulary and
    category defaults from their source constants. Bound the new list.
-4. Allow corrections and soft removal of organization-owned vendor entries;
+2. Allow corrections and soft removal of organization-owned vendor entries;
    reject foreign/curated edits and new bookings of inactive vendors, while
    retaining existing bookings. Read the saved internal notes back only on
    authorized host surfaces. Distinguish omitted fee, cleared fee and invalid

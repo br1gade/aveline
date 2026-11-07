@@ -54,8 +54,15 @@ back to the vendor category's usual set, which narrows rather than widens.
 No scope exposes what another vendor is being paid, and `contacts` — the only
 scope carrying phone numbers — is never granted by default.
 
-A brief link is a capability, so rotation is its only revocation:
-`POST /events/:eventId/vendors/:bookingId/rotate-brief` kills the old link.
+A caller with `vendor:write` can pause or resume the current brief without
+changing the booking or its token. Paused and cancelled links reveal no brief
+data; cancellation retains a forbidden token until renewal rotates it.
+Explicit rotation permanently retires the old token without resuming a pause.
+Event standing is rechecked under the booking-write transaction's locks.
+The capability, grants and all section data come from one read snapshot, so
+an accepted read cannot include values added after its access was withdrawn.
+Published seating shares current table/seat names and positions only; a
+seating grant cannot reveal an unpublished plan or release identities.
 
 ---
 

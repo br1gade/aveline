@@ -141,6 +141,13 @@ once. The legacy single `table` field is null if several assignments exist;
 clients use the new assignment arrays. Preparation and exclusively internal
 venues stay hidden, including their seating names.
 
+A vendor capability with the seating grant also requires publication. The
+publication check and nested table/seat reads share one database snapshot.
+The vendor projection contains table details and assigned names/positions,
+with a release count instead of released people or guest IDs. Erasure hides an
+assigned name without increasing availability. Unpublishing
+omits the entire vendor seating section on the next read.
+
 ---
 
 ## 4. Seating constraints come from the guest graph

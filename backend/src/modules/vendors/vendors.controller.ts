@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Header, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VendorCategory } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
@@ -72,20 +72,21 @@ export class VendorsController {
       'Scopes default to the category’s usual set, so forgetting them narrows ' +
       'what the vendor sees rather than widening it.',
   })
-  book(@Param('eventId') eventId: string, @Body() dto: BookVendorDto) {
-    return this.vendors.book(eventId, dto);
+  book(@Param('eventId') eventId: string, @Body() dto: BookVendorDto, @CurrentActor() actor: RequestActor) {
+    return this.vendors.book(eventId, dto, actor.userId);
   }
 
   @RequirePermission('vendor:write')
   @EventScope('eventId')
   @Patch('events/:eventId/vendors/:bookingId')
-  @ApiOperation({ summary: 'Change a booking’s status, scopes or fee' })
+  @ApiOperation({ summary: 'Change a booking’s status, scopes, fee or brief access' })
   updateBooking(
     @Param('eventId') eventId: string,
     @Param('bookingId') bookingId: string,
     @Body() dto: UpdateBookingDto,
+    @CurrentActor() actor: RequestActor,
   ) {
-    return this.vendors.updateBooking(eventId, bookingId, dto);
+    return this.vendors.updateBooking(eventId, bookingId, dto, actor.userId);
   }
 
   @RequirePermission('vendor:write')
@@ -93,10 +94,10 @@ export class VendorsController {
   @Post('events/:eventId/vendors/:bookingId/rotate-brief')
   @ApiOperation({
     summary: 'Replace the brief link',
-    description: 'The only revocation a capability URL has. The old link stops working.',
+    description: 'The old link is retired. A paused or cancelled brief stays unavailable.',
   })
-  rotate(@Param('eventId') eventId: string, @Param('bookingId') bookingId: string) {
-    return this.vendors.rotateBriefToken(eventId, bookingId);
+  rotate(@Param('eventId') eventId: string, @Param('bookingId') bookingId: string, @CurrentActor() actor: RequestActor) {
+    return this.vendors.rotateBriefToken(eventId, bookingId, actor.userId);
   }
 
   @RequirePermission('vendor:write')
@@ -104,19 +105,20 @@ export class VendorsController {
   @Delete('events/:eventId/vendors/:bookingId')
   @ApiOperation({
     summary: 'Cancel an engagement',
-    description: 'Kept as a record, with the brief link rotated so it stops working.',
+    description: 'Kept as a record. Its current brief link is forbidden until the engagement is renewed with a different token.',
   })
-  cancelBooking(@Param('eventId') eventId: string, @Param('bookingId') bookingId: string) {
-    return this.vendors.cancelBooking(eventId, bookingId);
+  cancelBooking(@Param('eventId') eventId: string, @Param('bookingId') bookingId: string, @CurrentActor() actor: RequestActor) {
+    return this.vendors.cancelBooking(eventId, bookingId, actor.userId);
   }
 
   // The vendor holds a link, not an account — the same capability pattern as a
   // guest invitation.
   @Public()
   @Get('briefs/:briefToken')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({
     summary: 'A vendor’s brief',
-    description: 'Contains only the sections the booking lists, and says which those are.',
+    description: 'Contains only available granted sections. Paused or cancelled links are forbidden.',
   })
   findBrief(@Param('briefToken') briefToken: string) {
     return this.briefs.findByToken(briefToken);

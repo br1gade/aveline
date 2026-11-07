@@ -328,17 +328,16 @@ describe('Vendor bookings, briefs and access (coverage e2e)', () => {
       expect(JSON.stringify(served[section])).toContain(attendingAnswer);
     });
 
-    it('gives the seating section as the host’s own table list shows it', async () => {
+    it('gives the published table through the narrower vendor projection', async () => {
       const { eventId, authorization } = await coordinator();
-      await http().post(`/api/v1/events/${eventId}/tables`).set('Authorization', authorization).send({ name: 'Table One', capacity: 8 }).expect(201);
+      const { body: table } = await http().post(`/api/v1/events/${eventId}/tables`).set('Authorization', authorization).send({ name: 'Table One', capacity: 8 }).expect(201);
+      await prisma.event.update({ where: { id: eventId }, data: { seatingPublishedAt: new Date('2026-11-01T12:00:00Z') } });
       const vendor = await curatedVendor();
       const { body } = await book(eventId, authorization, { vendorId: vendor.id, briefScopes: ['seating'] }).expect(201);
 
       const { body: served } = await brief(body.briefToken as string).expect(200);
-      const { body: hosts } = await http().get(`/api/v1/events/${eventId}/tables`).set('Authorization', authorization).expect(200);
-
-      expect(served.seating).toEqual(hosts);
-      expect(JSON.stringify(served.seating)).toContain('Table One');
+      expect(served.seating).toEqual([expect.objectContaining({ id: table.id, name: 'Table One', capacity: 8, guests: [], releasedCount: 0 })]);
+      expect(served.seating[0]).not.toHaveProperty('released');
     });
 
     it('gives the running order in the event’s own language', async () => {
@@ -372,6 +371,7 @@ describe('Vendor bookings, briefs and access (coverage e2e)', () => {
       });
       await http().post(`/api/v1/events/${b.eventId}/timeline`).set('Authorization', b.authorization).send({ label: { hy: 'Other Ceremony' }, occursAt: '2027-06-12T16:00:00Z' }).expect(201);
       await http().post(`/api/v1/events/${b.eventId}/tables`).set('Authorization', b.authorization).send({ name: 'Other Table', capacity: 8 }).expect(201);
+      await prisma.event.updateMany({ where: { id: { in: [a.eventId, b.eventId] } }, data: { seatingPublishedAt: new Date('2026-11-01T12:00:00Z') } });
       const vendor = await curatedVendor();
       const everything = ['headcount', 'catering', 'bar', 'playlist', 'timeline', 'seating', 'households', 'contacts'];
       const { body } = await book(a.eventId, a.authorization, { vendorId: vendor.id, briefScopes: everything }).expect(201);
