@@ -32,22 +32,31 @@ async function deploy(ctx) {
     await step('quiesced-preflight', () => compose(ctx, ['run', '--rm', '--no-deps', '--entrypoint', 'node', 'migrate', 'scripts/release-preflight.mjs'], 'quiesced candidate preflight'));
     await step('migrate', () => compose(ctx, ['run', '--rm', '--no-deps', 'migrate'], 'migrate candidate', 600000));
     await step('seed', () => compose(ctx, ['run', '--rm', '--no-deps', '--entrypoint', 'node', 'migrate', 'dist/seed-production.js'], 'seed reference data'));
-    await step('start-and-check', () => compose(ctx, ['up', '-d', '--no-deps', '--no-build', '--wait', '--wait-timeout', '180', ...WRITERS, 'caddy'], 'start release and verify health', 240000));
+    await step('start-and-check', () => compose(ctx, ['up', '-d', '--no-deps', '--no-build', '--wait', '--wait-timeout', '180', ...WRITERS, 'web'], 'start release and verify health', 240000));
+    await step('start-and-check-edge', () => compose(ctx, ['up', '-d', '--no-deps', '--force-recreate', 'caddy'], 'reload edge routes'));
     await verifyPublicReadiness(ctx);
-    Object.assign(ctx.profile.env, { API_IMAGE: ctx.images.api, BACKUP_IMAGE: ctx.images.backup });
+    Object.assign(ctx.profile.env, { API_IMAGE: ctx.images.api, BACKUP_IMAGE: ctx.images.backup, WEB_IMAGE: ctx.images.web });
     await saveEnvironment(ctx.profile);
-    await record(ctx.profile, 'release-state.json', { ...ctx.images, previous: previous ? { api: previous.api, backup: previous.backup, deployedAt: previous.deployedAt } : null, deployedAt: new Date().toISOString() });
+    await record(ctx.profile, 'release-state.json', { ...ctx.images, previous: previous ? { api: previous.api, backup: previous.backup, web: previous.web, deployedAt: previous.deployedAt } : null, deployedAt: new Date().toISOString() });
     await record(ctx.profile, 'deployment-attempt.json', { status: 'succeeded', images: ctx.images, completedAt: new Date().toISOString() });
   } catch (error) {
-    await record(ctx.profile, 'deployment-attempt.json', { status: 'failed', stage, reason: error.message, images: ctx.images, schemaMayHaveChanged: ['migrate', 'seed', 'start-and-check'].includes(stage) });
+    await record(ctx.profile, 'deployment-attempt.json', { status: 'failed', stage, reason: error.message, images: ctx.images, schemaMayHaveChanged: ['migrate', 'seed', 'start-and-check', 'start-and-check-edge'].includes(stage) });
     throw new Error(`Deployment stopped at ${stage}. Review deployment-attempt.json and protected logs. No database restore or old-image restart was attempted.`);
   }
 }
 async function prepareImages(ctx) {
   if (ctx.profile.settings.mode === 'local' && ctx.isPrebuilt) {
-    for (const image of [ctx.images.api, ctx.images.backup]) await docker(ctx, ['image', 'inspect', image], 'check prebuilt image');
-  } else if (ctx.profile.settings.mode === 'local') await compose(ctx, ['build', 'api', 'backup'], 'build local images', 1200000);
-  else await compose(ctx, ['pull', 'migrate', 'backup'], 'pull immutable images', 600000);
+    for (const image of [ctx.images.api, ctx.images.backup, ctx.images.web]) await docker(ctx, ['image', 'inspect', image], 'check prebuilt image');
+  } else if (ctx.profile.settings.mode === 'local') await compose(ctx, ['build', 'api', 'backup', 'web'], 'build local images', 1200000);
+  else {
+    await compose(ctx, ['pull', 'migrate', 'backup', 'web'], 'pull immutable images', 600000);
+    const origins = (await docker(ctx, ['image', 'inspect', '--format',
+      '{{index .Config.Labels "com.aveline.app-origin"}} {{index .Config.Labels "com.aveline.media-origin"}}',
+      ctx.images.web], 'verify built frontend origins')).trim();
+    if (origins !== `${ctx.profile.env.PUBLIC_APP_URL} ${ctx.profile.env.S3_PUBLIC_URL}`) {
+      throw new Error('Frontend image was built for different origins');
+    }
+  }
 }
 async function startDependencies(ctx) {
   await compose(ctx, ['up', '-d', '--wait', '--wait-timeout', '90', 'postgres'], 'start PostgreSQL');
@@ -63,8 +72,13 @@ export function captureBackup(ctx, release = 'unrecorded', resumeOnly = false) {
 async function verifyPublicReadiness(ctx) {
   const url = ctx.profile.settings.mode === 'local' ? `http://127.0.0.1:${ctx.profile.env.LOCAL_API_PORT}` : `https://${ctx.profile.env.API_DOMAIN}`;
   for (let attempt = 0; attempt < 30; attempt++) {
-    try { if ((await fetch(`${url}/api/v1/health/ready`, { signal: AbortSignal.timeout(5000) })).ok) return; } catch { /* TLS/bootstrap may still be completing. */ }
+    try {
+      const statuses = await Promise.all(['/api/v1/health/ready', '/healthz'].map((path) =>
+        fetch(`${url}${path}`, { signal: AbortSignal.timeout(5000), redirect: 'error' })));
+      for (const response of statuses) await response.body?.cancel();
+      if (statuses.every((response) => response.ok)) return;
+    } catch { /* TLS/bootstrap may still be completing. */ }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  throw new Error('Public API readiness did not succeed');
+  throw new Error('Public web and API readiness did not succeed');
 }

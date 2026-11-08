@@ -1,11 +1,13 @@
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { appPage } from '../../common/app-url';
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import {
   BillingInterval,
   InvoiceStatus,
   PaymentProvider,
   PaymentPurpose,
   PaymentStatus,
+  Plan,
   Prisma,
   SubscriptionStatus,
 } from '@prisma/client';
@@ -15,6 +17,7 @@ import { assertChargesEnabled } from '../payments/pilot-payments';
 import { invoiceNumberFor, periodAfter } from './billing-period';
 import { nextInvoiceSequence } from './invoice-number';
 import { SubscribeDto } from './dto/subscription.dto';
+import { applyScheduledFree, captureFreeTerms, CLEAR_SCHEDULED_FREE, freeTerms, lockBillingOrganization } from './scheduled-free';
 
 /** How long a customer has to pay an issued invoice before it is overdue. */
 const PAYMENT_TERMS_DAYS = 7;
@@ -69,10 +72,13 @@ export class SubscriptionsService implements OnModuleInit {
    * null }` is a shape a client can read without a special case.
    */
   async current(organizationId: string) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { organizationId },
-      include: { plan: true },
-    });
+    const load = (db: Prisma.TransactionClient) => db.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
+    const existing = await load(this.prisma);
+    const subscription = existing?.pendingFreeAt && existing.pendingFreeAt <= new Date()
+      ? await this.withBillingLock(organizationId, async (tx) => {
+        await applyScheduledFree(tx, organizationId, new Date());
+        return load(tx);
+      }) : existing;
 
     return { subscription: subscription === null ? null : describeSubscription(subscription) };
   }
@@ -80,9 +86,8 @@ export class SubscriptionsService implements OnModuleInit {
   /**
    * Starts or changes a subscription.
    *
-   * A free plan takes effect immediately. A paid one issues an invoice and
-   * returns a bank form URL; the subscription stays TRIALING until that
-   * payment is confirmed, so access is never granted on an unpaid intent.
+   * Free waits for a current paid period to end. A paid change issues an
+   * invoice and leaves the subscription and any scheduled change alone until capture.
    */
   async subscribe(organizationId: string, dto: SubscribeDto) {
     const plan = await this.prisma.plan.findFirst({
@@ -92,15 +97,7 @@ export class SubscriptionsService implements OnModuleInit {
     if (plan.priceMinor > 0n) assertChargesEnabled();
 
     if (plan.priceMinor === 0n) {
-      const period = periodAfter(plan.interval, new Date());
-      const subscription = await this.prisma.$transaction(async (tx) => {
-        // Choosing a free plan is choosing not to pay the open invoice.
-        await voidOpenInvoices(tx, organizationId);
-        return this.upsertSubscription(
-          { organizationId, planId: plan.id, period, status: SubscriptionStatus.ACTIVE },
-          tx,
-        );
-      });
+      const subscription = await this.selectFreePlan(organizationId, plan);
       return { subscription: describeSubscription(subscription), invoice: null, payment: null };
     }
 
@@ -113,10 +110,8 @@ export class SubscriptionsService implements OnModuleInit {
     // subscription is a charge for nothing. An existing subscription is left
     // exactly as it is — the invoice carries the plan, applied when paid — so
     // an abandoned change never touches what the customer already has (B39).
-    const { subscription, invoice } = await this.prisma.$transaction(async (tx) => {
-      // One plan change at a time per organization: two clicks used to read
-      // "no open invoice" together and issue two, both payable.
-      await tx.$queryRaw`SELECT id FROM organizations WHERE id = ${organizationId} FOR UPDATE`;
+    const { subscription, invoice } = await this.withBillingLock(organizationId, async (tx) => {
+      await applyScheduledFree(tx, organizationId, new Date());
       const open = await tx.invoice.findFirst({
         where: { organizationId, planId: plan.id, status: InvoiceStatus.ISSUED },
         include: { subscription: { include: { plan: true } } },
@@ -145,6 +140,64 @@ export class SubscriptionsService implements OnModuleInit {
       invoice: describeInvoice(linked),
       payment,
     };
+  }
+
+  private selectFreePlan(organizationId: string, plan: Plan) {
+    return this.withBillingLock(organizationId, async (tx) => {
+      const now = new Date();
+      await applyScheduledFree(tx, organizationId, now);
+      const current = await tx.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
+      if (current?.pendingFreePlanId === plan.id) return current;
+      await voidOpenInvoices(tx, organizationId);
+      if (!current || !hasPaidPeriod(current, now)) {
+        return this.upsertSubscription({
+          organizationId, planId: plan.id, period: periodAfter(plan.interval, now), status: SubscriptionStatus.ACTIVE,
+        }, tx);
+      }
+      return tx.subscription.update({
+        where: { id: current.id },
+        data: {
+          pendingFreeAt: current.currentPeriodEnd, pendingFreePlanId: plan.id, pendingFreeTerms: captureFreeTerms(plan),
+          cancelAtPeriodEnd: false, cancelledAt: null,
+        },
+        include: { plan: true },
+      });
+    });
+  }
+
+  async withdrawFreeChange(organizationId: string) {
+    return this.withBillingLock(organizationId, async (tx) => {
+      const subscription = await this.requireSubscription(organizationId, tx);
+      if (subscription.pendingFreeAt && subscription.pendingFreeAt <= new Date()) {
+        throw new ConflictException('The Free change has already reached its effective date');
+      }
+      const updated = await tx.subscription.update({
+        where: { id: subscription.id }, data: CLEAR_SCHEDULED_FREE, include: { plan: true },
+      });
+      return describeSubscription(updated);
+    });
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE, { waitForCompletion: true })
+  async applyDueFreeChanges(now = new Date()) {
+    const due = await this.prisma.subscription.findMany({
+      where: { pendingFreeAt: { lte: now } }, orderBy: { pendingFreeAt: 'asc' },
+      take: 100, select: { organizationId: true },
+    });
+    for (const { organizationId } of due) {
+      try {
+        await this.withBillingLock(organizationId, (tx) => applyScheduledFree(tx, organizationId, now));
+      } catch {
+        this.logger.warn(`Could not apply scheduled Free plan for organization ${organizationId}`);
+      }
+    }
+  }
+
+  private withBillingLock<T>(organizationId: string, work: (tx: Prisma.TransactionClient) => Promise<T>) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockBillingOrganization(tx, organizationId);
+      return work(tx);
+    });
   }
 
   /**
@@ -256,8 +309,9 @@ export class SubscriptionsService implements OnModuleInit {
    * replaced by a newer one before the money arrived, goes back in full.
    */
   private async settleCaptured(invoice: { id: string }) {
+    const settled = await this.markInvoicePaid(invoice.id);
+    if (settled.status !== InvoiceStatus.VOID) return settled;
     const current = await this.prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
-    if (current.status !== InvoiceStatus.VOID) return this.markInvoicePaid(current.id);
 
     const payment = await this.payments.refund(
       current.paymentOrderNumber!,
@@ -272,7 +326,8 @@ export class SubscriptionsService implements OnModuleInit {
    * starting now. Claim-first, so a retried callback cannot apply it twice.
    */
   async markInvoicePaid(invoiceId: string) {
-    const wasSettled = await this.prisma.$transaction(async (tx) => {
+    const { organizationId } = await this.prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { organizationId: true } });
+    const wasSettled = await this.withBillingLock(organizationId, async (tx) => {
       const claimed = await tx.invoice.updateMany({
         where: { id: invoiceId, status: InvoiceStatus.ISSUED },
         data: { status: InvoiceStatus.PAID, paidAt: new Date() },
@@ -333,14 +388,19 @@ export class SubscriptionsService implements OnModuleInit {
    */
   async endRefundedPlan(payment: { orderNumber: string; status: string }): Promise<void> {
     if (payment.status !== 'REFUNDED') return;
-    await this.prisma.$transaction(async (tx) => {
+    const owner = await this.prisma.invoice.findFirst({
+      where: { paymentOrderNumber: payment.orderNumber, status: InvoiceStatus.PAID },
+      select: { organizationId: true },
+    });
+    if (!owner) return;
+    await this.withBillingLock(owner.organizationId, async (tx) => {
       const invoice = await tx.invoice.findFirst({
-        where: { paymentOrderNumber: payment.orderNumber, status: InvoiceStatus.PAID },
-        select: { id: true, subscriptionId: true, paidAt: true },
+        where: { organizationId: owner.organizationId, paymentOrderNumber: payment.orderNumber, status: InvoiceStatus.PAID },
+        select: { id: true, subscriptionId: true, planId: true, paidAt: true, subscription: { select: { planId: true, activeFreeTerms: true } } },
       });
       if (!invoice) return;
       await tx.invoice.update({ where: { id: invoice.id }, data: { status: InvoiceStatus.VOID } });
-      if (!invoice.subscriptionId) return;
+      if (!invoice.subscriptionId || invoice.subscription?.activeFreeTerms || invoice.subscription?.planId !== invoice.planId) return;
 
       const newer = await tx.invoice.count({
         where: { subscriptionId: invoice.subscriptionId, status: InvoiceStatus.PAID, paidAt: { gt: invoice.paidAt ?? new Date(0) } },
@@ -363,29 +423,35 @@ export class SubscriptionsService implements OnModuleInit {
    * mean refunding a part-period we have no way to calculate.
    */
   async cancel(organizationId: string) {
-    const subscription = await this.requireSubscription(organizationId);
-
-    const updated = await this.prisma.subscription.update({
-      where: { id: subscription.id },
-      data: { cancelAtPeriodEnd: true, cancelledAt: new Date() },
-      include: { plan: true },
+    return this.withBillingLock(organizationId, async (tx) => {
+      const now = new Date();
+      await applyScheduledFree(tx, organizationId, now);
+      const subscription = await this.requireSubscription(organizationId, tx);
+      const updated = await tx.subscription.update({
+        where: { id: subscription.id },
+        data: { ...CLEAR_SCHEDULED_FREE, cancelAtPeriodEnd: true, cancelledAt: now },
+        include: { plan: true },
+      });
+      return describeSubscription(updated);
     });
-    return describeSubscription(updated);
   }
 
   /** Undoing a cancellation before the period ends costs nothing. */
   async resume(organizationId: string) {
-    const subscription = await this.requireSubscription(organizationId);
-    if (subscription.currentPeriodEnd < new Date()) {
-      throw new BadRequestException('This period has already ended; subscribe again');
-    }
-
-    const updated = await this.prisma.subscription.update({
-      where: { id: subscription.id },
-      data: { cancelAtPeriodEnd: false, cancelledAt: null },
-      include: { plan: true },
+    return this.withBillingLock(organizationId, async (tx) => {
+      const now = new Date();
+      await applyScheduledFree(tx, organizationId, now);
+      const subscription = await this.requireSubscription(organizationId, tx);
+      if (subscription.currentPeriodEnd <= now) {
+        throw new BadRequestException('This period has already ended; subscribe again');
+      }
+      const updated = await tx.subscription.update({
+        where: { id: subscription.id },
+        data: { cancelAtPeriodEnd: false, cancelledAt: null },
+        include: { plan: true },
+      });
+      return describeSubscription(updated);
     });
-    return describeSubscription(updated);
   }
 
   async listInvoices(organizationId: string) {
@@ -403,8 +469,8 @@ export class SubscriptionsService implements OnModuleInit {
     return describeInvoice(invoice);
   }
 
-  private async requireSubscription(organizationId: string) {
-    const subscription = await this.prisma.subscription.findUnique({ where: { organizationId } });
+  private async requireSubscription(organizationId: string, tx: Prisma.TransactionClient) {
+    const subscription = await tx.subscription.findUnique({ where: { organizationId } });
     if (!subscription) throw new NotFoundException('This organization has no subscription');
     return subscription;
   }
@@ -417,7 +483,7 @@ export class SubscriptionsService implements OnModuleInit {
       period: { start: Date; end: Date };
       status: SubscriptionStatus;
     },
-    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+    tx: Prisma.TransactionClient,
   ) {
     const { organizationId, planId, period, status } = input;
 
@@ -431,6 +497,8 @@ export class SubscriptionsService implements OnModuleInit {
         currentPeriodEnd: period.end,
       },
       update: {
+        ...CLEAR_SCHEDULED_FREE,
+        activeFreeTerms: Prisma.DbNull,
         planId,
         status,
         currentPeriodStart: period.start,
@@ -504,12 +572,20 @@ function planChange(plan: { id: string; interval: BillingInterval } | null): Pri
   if (!plan) return {};
   const period = periodAfter(plan.interval, new Date());
   return {
+    ...CLEAR_SCHEDULED_FREE,
+    activeFreeTerms: Prisma.DbNull,
     planId: plan.id,
     currentPeriodStart: period.start,
     currentPeriodEnd: period.end,
     cancelAtPeriodEnd: false,
     cancelledAt: null,
   };
+}
+
+function hasPaidPeriod(subscription: SubscriptionWithPlan, now: Date) {
+  return subscription.status === SubscriptionStatus.ACTIVE && !subscription.activeFreeTerms &&
+    subscription.plan.priceMinor > 0n && subscription.plan.interval !== BillingInterval.PER_EVENT &&
+    subscription.currentPeriodEnd > now;
 }
 
 interface SubscriptionWithPlan {
@@ -520,6 +596,9 @@ interface SubscriptionWithPlan {
   cancelAtPeriodEnd: boolean;
   cancelledAt: Date | null;
   trialEndsAt: Date | null;
+  pendingFreeAt: Date | null;
+  pendingFreeTerms: Prisma.JsonValue;
+  activeFreeTerms: Prisma.JsonValue;
   plan: {
     key: string;
     name: string;
@@ -536,22 +615,25 @@ interface SubscriptionWithPlan {
 }
 
 function describeSubscription(subscription: SubscriptionWithPlan) {
+  const plan = freeTerms(subscription.activeFreeTerms) ?? subscription.plan;
+  const scheduled = freeTerms(subscription.pendingFreeTerms);
   return {
+    pendingFree: scheduled && subscription.pendingFreeAt ? { planKey: scheduled.key, effectiveAt: subscription.pendingFreeAt } : null,
     status: subscription.status,
     plan: {
-      key: subscription.plan.key,
-      name: subscription.plan.name,
-      tier: subscription.plan.tier,
-      priceMinor: subscription.plan.priceMinor.toString(),
-      currency: subscription.plan.currency,
-      interval: subscription.plan.interval,
+      key: plan.key,
+      name: plan.name,
+      tier: plan.tier,
+      priceMinor: plan.priceMinor.toString(),
+      currency: plan.currency,
+      interval: plan.interval,
     },
     entitlements: {
-      maxEventsPerPeriod: subscription.plan.maxEventsPerPeriod,
-      maxGuestsPerEvent: subscription.plan.maxGuestsPerEvent,
-      maxLocales: subscription.plan.maxLocales,
-      invitationLifetimeDays: subscription.plan.invitationLifetimeDays,
-      features: subscription.plan.features,
+      maxEventsPerPeriod: plan.maxEventsPerPeriod,
+      maxGuestsPerEvent: plan.maxGuestsPerEvent,
+      maxLocales: plan.maxLocales,
+      invitationLifetimeDays: plan.invitationLifetimeDays,
+      features: plan.features,
     },
     currentPeriodStart: subscription.currentPeriodStart,
     currentPeriodEnd: subscription.currentPeriodEnd,

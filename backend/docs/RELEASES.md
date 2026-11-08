@@ -10,13 +10,13 @@ The host runbook is [DEPLOYMENT.md](DEPLOYMENT.md).
 | Workflow | Trigger | Result |
 |---|---|---|
 | `backend.yml` | Push/PR; reusable | Parallel quality/unit, integration and HTTP checks; container/edge/pilot/backup rehearsals |
-| `release.yml` | Manual on default branch | Repeats quality checks, builds/rehearses exact API/backup images, publishes GHCR digests and attestations, saves a nonsecret release manifest |
+| `release.yml` | Manual on default branch | Repeats quality checks, builds and rehearses the API, backup and origin-specific web images, publishes GHCR digests and attestations, saves a nonsecret release manifest |
 | `deploy.yml` | Manual on default branch | Promotes a successful release run to staging or production after manifest/provenance verification and verified SSH |
 
 Production uses digest references, never a floating tag. Publication is serialized;
 each deployment target is serialized without cancellation. Deployment validates
 the successful dispatch run, repository/default branch, source commit, manifest
-and both OCI attestations before transferring tracked source. The remote
+and all three OCI attestations before transferring tracked source. The remote
 controller handles maintenance, backups, compatibility checks and migration.
 Only success updates the host's `current` symlink. No automatic database rollback
 or old-image restart is attempted. API and all four workers share one image.
@@ -84,15 +84,19 @@ preservation independently of ordinary recovery sets.
 
 ## Release and promote
 
-1. Merge reviewed source to the default branch; run **Build and publish reviewed
-   release** from Actions. Approve the `release` environment when prompted.
-2. Wait for the complete successful run. Its manifest binds the source commit
-   and both digests to the run ID. No production credentials are required to build it.
-3. Run **Deploy an attested release** with that run ID, target `staging`, and its
-   exact Compose project name. Approve the environment, then inspect host health,
-   application smoke checks, worker queues, mail and backup evidence.
-4. Promote the **same** run ID to `production` during the agreed maintenance
-   window, using its exact project name and required reviewer approval.
+1. Merge reviewed source to the default branch. Dispatch **Build and publish
+   reviewed release** with the staging app and media HTTPS origins. Approve the
+   `release` environment when prompted.
+2. The successful run's manifest binds the source commit, origins and three
+   image digests to the run ID. The web build sets the app and media origins
+   and uses relative browser API requests. These build arguments are public.
+3. Run **Deploy an attested release** with that run ID, target `staging`, and
+   its exact Compose project name. Approve the environment, then verify health,
+   real-browser workflows, worker queues, mail and backup evidence.
+4. Build from the same reviewed source with the production app and media origins.
+   The client compiles its origins into the web image, so each origin pair has
+   a separate release run. Compare the source commit with the staging evidence
+   and deploy the production run during the agreed maintenance window.
 5. Verify public HTTPS, guest/account workflows, all worker healthchecks and
    off-host monitoring. Install the reviewed host timer/recovery units separately.
 
@@ -109,5 +113,5 @@ Official platform references: [Compose raw env files](https://docs.docker.com/re
 [artifact attestations](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
 
 Not yet completed: release/deploy Actions execution, actual reviewer/secret/registry setup,
-provisioning, external alerting and remote restore/production acceptance. No
-frontend container, multi-host orchestration or zero-downtime rollout is supplied.
+provisioning, external alerting and remote restore/production acceptance.
+Multi-host orchestration and zero-downtime rollout remain outside this stack.

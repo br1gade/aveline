@@ -45,8 +45,9 @@ The remaining frontend-facing gates are:
 
 | Item | Evidence still needed |
 |---|---|
-| **FR-11** Production web service and origin | Deploy the frontend with an agreed public origin and verify Caddy routing, `CORS_ORIGINS`, `PUBLIC_APP_URL`, and a payment return in a production-like stack |
-| **FR-76 / FR-79** Door screen | Adopt the structured refusal codes, add the lightweight searchable roster, and rehearse check-in on a phone against the real API |
+| **FR-11** Production web service and origin | Same-origin release configuration is implemented. Deploy an attested staging release and verify canonical HTTPS, SSR, mail links and a simulated payment return |
+| **FR-76 / FR-79** Door screen | Adopt the backend roster and refusal codes in the door UI and rehearse check-in on a phone against the real API |
+| **FR-115 / FR-128 / FR-135** Client adoption | Opt in to the artwork ID format, confirm export delivery from the staff UI, and exercise the scheduled Free controls against the real backend |
 | **Frontend CI and wider rehearsal** | Establish the GitHub frontend workflow and run the agreed host and guest journeys against the real backend |
 | **Public build settings and privacy copy** | Verify the public web origin, support links, token-safe server logs and approved privacy notice and form. Confirm the invitation email footer reaches the public form from a signed-out browser |
 

@@ -102,19 +102,24 @@ describe('Data-subject requests (integration coverage)', () => {
       expect(exported.guestRecords).toEqual([]);
     });
 
-    it('is carried out once when fulfilled twice at once, and marks the request completed', async () => {
+    it('serializes concurrent generations and confirms only the latest', async () => {
       await seedSubject(prisma, ADDRESS);
       const request = await verifiedRequest(prisma, DataSubjectRequestKind.EXPORT, ADDRESS);
 
-      const results = await Promise.allSettled([service.fulfil(request.id, 'one'), service.fulfil(request.id, 'two')]);
+      const results = await Promise.all([service.fulfil(request.id, 'one'), service.fulfil(request.id, 'two')]);
+      const generations = results.flatMap((result) => 'generationId' in result ? [result.generationId] : []);
+      expect(new Set(generations).size).toBe(2);
 
-      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-      const refused = results.find((result) => result.status === 'rejected');
-      expect(refused?.reason).toBeInstanceOf(ConflictException);
-      const row = await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: request.id } });
-      expect(row.status).toBe(DataSubjectRequestStatus.COMPLETED);
-      expect(row.completedAt).toBeInstanceOf(Date);
-      expect(['one', 'two']).toContain(row.handledByUserId);
+      const pending = await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: request.id } });
+      expect(pending.status).toBe(DataSubjectRequestStatus.IN_PROGRESS);
+      expect(generations).toContain(pending.exportGenerationId);
+      const stale = generations.find((id) => id !== pending.exportGenerationId)!;
+      await expect(service.confirmExportDelivery(request.id, 'staff-user', stale)).rejects.toThrow(ConflictException);
+      await expect(service.confirmExportDelivery(request.id, 'staff-user', pending.exportGenerationId!))
+        .resolves.toMatchObject({ status: 'COMPLETED', generationId: pending.exportGenerationId });
+      const closed = await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: request.id } });
+      expect(closed.completedAt).toBeInstanceOf(Date);
+      expect(closed.exportDeliveredByUserId).toBe('staff-user');
     });
 
     // A copy waiting to be collected is a second place it can leak from.

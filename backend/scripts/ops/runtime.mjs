@@ -10,7 +10,7 @@ export function context(profile, images, options = {}) {
   const env = { ...process.env };
   for (const key of Object.keys(profile.env)) delete env[key];
   Object.assign(env, { COMPOSE_PROJECT_NAME: profile.settings.project, AVELINE_ENV_FILE: join(profile.directory, '.env'),
-    AVELINE_GARAGE_CONFIG: join(profile.directory, 'garage.toml'), AVELINE_RUNTIME_ENV_FILE: join(profile.directory, '.runtime.env'), API_IMAGE: images.api, BACKUP_IMAGE: images.backup,
+    AVELINE_GARAGE_CONFIG: join(profile.directory, 'garage.toml'), AVELINE_RUNTIME_ENV_FILE: join(profile.directory, '.runtime.env'), API_IMAGE: images.api, BACKUP_IMAGE: images.backup, WEB_IMAGE: images.web ?? "",
     AVELINE_DEPLOYMENT_MODE: profile.settings.mode, BACKUP_STATE_DIR: join(profile.directory, 'backup-state') });
   const compose = ['compose', '--project-name', profile.settings.project, '--env-file', env.AVELINE_ENV_FILE, '-f', join(backend, 'docker-compose.prod.yml'), '-f', join(backend, 'docker-compose.ops.yml')];
   if (profile.settings.mode === 'local') compose.push('-f', join(backend, 'docker-compose.local.yml'));

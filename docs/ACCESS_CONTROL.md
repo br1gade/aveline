@@ -134,7 +134,7 @@ owner.
 | Permission | Covers |
 |---|---|
 | `event:read` / `event:write` / `event:delete` | The event itself; creating one needs `event:write` from the organization role |
-| `guest:read` | Guest list, names, RSVP status |
+| `guest:read` | Guest list, names, RSVP status, and the contact-free door roster |
 | `guest:contact:read` | Phone numbers and email addresses — separated because it is PII |
 | `guest:write` | Add, edit and remove guests |
 | `invitation:read` | View the invitation |

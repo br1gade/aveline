@@ -236,7 +236,7 @@ routes additionally declare `@RequirePermission(...)`, and routes not keyed by
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/invitations/:slug` | Invitation payload, revisioned cache per slug and locale |
-| `GET` | `/api/v1/invitations/:slug/g/:guestToken` | Personalized for one guest |
+| `GET` | `/api/v1/invitations/:slug/g/:guestToken` | Personalized for one guest, with optional `artwork=asset-id` |
 | `PATCH` | `/api/v1/invitations/:slug/g/:guestToken/name` | Correct only the link holder's first/last names |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Read current response |
 | `POST` | `/api/v1/invitations/:slug/g/:guestToken/rsvp` | Submit or update a response |
@@ -408,6 +408,7 @@ its records are references to regenerate, never historical snapshots.
 |---|---|---|
 | `POST` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Record an arrival; refusals include a code and scoped door details |
 | `DELETE` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Undo a mis-scan |
+| `GET` | `/api/v1/events/:eventId/door-roster` | Search a paginated door roster without contact details |
 | `GET` | `/api/v1/events/:eventId/arrivals` | Live arrivals against who was expected |
 | `GET` | `/api/v1/payments/:orderNumber` | Payment state |
 | `POST` | `/api/v1/payments/:orderNumber/confirm` | Server-to-server outcome check |
@@ -436,6 +437,7 @@ its records are references to regenerate, never historical snapshots.
 | `POST` | `/api/v1/subscription` | Start or change a plan |
 | `POST` | `/api/v1/subscription/cancel` | Cancel at the end of the paid period |
 | `POST` | `/api/v1/subscription/resume` | Undo a cancellation |
+| `DELETE` | `/api/v1/subscription/pending-free` | Withdraw the scheduled switch to Free before its effective date |
 | `GET` | `/api/v1/invoices` | Your invoices, newest first |
 | `GET` | `/api/v1/invoices/:number` | One invoice with its captured line items |
 | `POST` | `/api/v1/invoices/:number/confirm` | Settle after the bank |
@@ -459,6 +461,7 @@ registration, not bank certification or credentials.
 | `GET` | `/api/v1/privacy/requests/:requestId/submissions` | Paged, separately stored unverified public text; privacy:manage |
 | `PATCH` | `/api/v1/privacy/requests/:requestId` | Move one through verification or edit staff notes. Applied erasures cannot be rejected. |
 | `POST` | `/api/v1/privacy/requests/:requestId/fulfil` | Carry out a verified request |
+| `POST` | `/api/v1/privacy/requests/:requestId/confirm-delivery` | Confirm delivery of the latest privacy export |
 | `GET` | `/api/v1/suppressions` | Addresses that will not be contacted |
 | `POST` | `/api/v1/suppressions` | Stop contacting an address |
 | `DELETE` | `/api/v1/suppressions/:suppressionId` | Resume; global entries cannot be lifted |

@@ -213,6 +213,32 @@ describe('Privacy and exports (e2e)', () => {
       expect(body.guestRecords[0]).toMatchObject({ email: 'primary@test.local' });
     });
 
+    it('regenerates current export data until the latest generation is confirmed delivered', async () => {
+      const { authorization, reference } = await verifiedRequest(DataSubjectRequestKind.EXPORT, 'primary@test.local');
+      const path = `/api/v1/privacy/requests/${reference}`;
+      const generate = () => http().post(`${path}/fulfil`).set('Authorization', authorization);
+      const confirm = (generationId: string) =>
+        http().post(`${path}/confirm-delivery`).set('Authorization', authorization).send({ generationId });
+
+      const first = await generate().expect('Cache-Control', 'private, no-store').expect(201);
+      const firstGeneration = first.body.generationId as string;
+      expect(firstGeneration).toEqual(expect.any(String));
+      expect((await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: reference } })).status).toBe('IN_PROGRESS');
+      await prisma.guest.updateMany({ where: { email: 'primary@test.local' }, data: { firstName: 'Corrected' } });
+      const second = await generate().expect(201);
+      const secondGeneration = second.body.generationId as string;
+      expect(secondGeneration).not.toBe(firstGeneration);
+      expect(second.body.guestRecords[0].firstName).toBe('Corrected');
+      await confirm(firstGeneration).expect(409);
+      const delivered = await confirm(secondGeneration).expect(200);
+      await http().patch(path).set('Authorization', authorization).send({ status: 'COMPLETED' }).expect(200);
+      const retried = await confirm(secondGeneration).expect(200);
+      expect(retried.body).toEqual(delivered.body);
+      await generate().expect(400);
+      expect(await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: reference } }))
+        .toMatchObject({ status: 'COMPLETED', resultAssetId: null, exportGenerationId: secondGeneration });
+    });
+
     describe('erasure', () => {
       it('clears the identifying fields and revokes the invitation link', async () => {
         const { authorization, reference } = await verifiedRequest(

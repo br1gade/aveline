@@ -1,3 +1,4 @@
+import { assertProductionOrigins } from './plan.mjs';
 import { randomBytes, createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile, lstat } from 'node:fs/promises';
@@ -10,7 +11,7 @@ export function buildConfiguration(input) {
   if (!['local', 'production'].includes(mode) || !/^[a-z][a-z0-9-]{2,31}$/.test(project)) throw new Error('Use local/production and a lowercase project name (3–32 letters, digits, hyphens)');
   const settings = { version: 1, mode, project };
   const env = { ...template, NODE_ENV: 'production', PILOT_MODE: 'true', COMPOSE_PROJECT_NAME: project,
-    API_IMAGE: mode === 'local' ? 'aveline-api:local' : '', BACKUP_IMAGE: mode === 'local' ? 'aveline-backup:local' : '',
+    API_IMAGE: mode === 'local' ? 'aveline-api:local' : '', BACKUP_IMAGE: mode === 'local' ? 'aveline-backup:local' : '', WEB_IMAGE: mode === 'local' ? 'aveline-web:local' : '',
     POSTGRES_PASSWORD: token(), MONGO_PASSWORD: token(), JWT_SECRET: token(),
     S3_BUCKET: `${project}-media`, PRIVATE_S3_BUCKET: `${project}-private`,
     PRIVACY_JOURNAL_VOLUME: `${project}-privacy-journal`, SALES_PRIVACY_JOURNAL_DIR: '/app/privacy-journal',
@@ -29,19 +30,19 @@ export function buildConfiguration(input) {
 function configureEndpoints(env, input) {
   if (input.mode === 'local') {
     Object.assign(env, { LOCAL_API_PORT: String(input.apiPort ?? 8080), LOCAL_MEDIA_PORT: String(input.mediaPort ?? 8081), LOCAL_MAIL_PORT: String(input.mailPort ?? 8026),
-      API_DOMAIN: 'http://:8080', MEDIA_DOMAIN: 'http://:8081', PUBLIC_APP_URL: 'http://127.0.0.1:5173',
-      CORS_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173', ACME_EMAIL: 'ops@example.test',
+      API_DOMAIN: 'http://:8080', MEDIA_DOMAIN: 'http://:8081', PUBLIC_APP_URL: `http://127.0.0.1:${input.apiPort ?? 8080}`,
+      CORS_ORIGINS: `http://127.0.0.1:${input.apiPort ?? 8080}`, ACME_EMAIL: 'ops@example.test',
       S3_PUBLIC_URL: `http://127.0.0.1:${input.mediaPort ?? 8081}`, SMTP_HOST: 'mailpit', SMTP_PORT: '1025', SMTP_USER: '', SMTP_PASSWORD: '', MAIL_FROM: 'pilot@example.test' });
     for (const key of ['LOCAL_API_PORT', 'LOCAL_MEDIA_PORT', 'LOCAL_MAIL_PORT']) if (!/^\d+$/.test(env[key]) || Number(env[key]) < 1024 || Number(env[key]) > 65535) throw new Error('Local ports must be 1024–65535');
     if (new Set([env.LOCAL_API_PORT, env.LOCAL_MEDIA_PORT, env.LOCAL_MAIL_PORT]).size !== 3) throw new Error('Local ports must be distinct');
     return;
   }
-  for (const key of ['apiDomain', 'mediaDomain', 'smtpHost']) if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(input[key] ?? '')) throw new Error(`Invalid ${key}`);
-  if (input.apiDomain === input.mediaDomain) throw new Error('API and media domains must differ');
+  for (const key of ['mediaDomain', 'smtpHost']) if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(input[key] ?? '')) throw new Error(`Invalid ${key}`);
+  assertProductionOrigins(input.appUrl, `https://${input.mediaDomain}`);
   const app = new URL(input.appUrl);
-  if (app.protocol !== 'https:' || app.username || app.password || app.search || app.hash || app.pathname !== '/') throw new Error('Production appUrl must be an HTTPS origin');
+  if (input.apiDomain !== undefined && input.apiDomain !== app.hostname) throw new Error('API must use the public app hostname');
   for (const key of ['acmeEmail', 'mailFrom']) if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input[key] ?? '')) throw new Error(`Invalid ${key}`);
-  Object.assign(env, { API_DOMAIN: input.apiDomain, MEDIA_DOMAIN: input.mediaDomain, PUBLIC_APP_URL: app.origin, CORS_ORIGINS: app.origin,
+  Object.assign(env, { API_DOMAIN: app.hostname, MEDIA_DOMAIN: input.mediaDomain, PUBLIC_APP_URL: app.origin, CORS_ORIGINS: app.origin,
     ACME_EMAIL: input.acmeEmail, S3_PUBLIC_URL: `https://${input.mediaDomain}`, SMTP_HOST: input.smtpHost,
     SMTP_PORT: String(input.smtpPort ?? 587), SMTP_USER: input.smtpUser ?? '', SMTP_PASSWORD: input.smtpPassword ?? '', MAIL_FROM: input.mailFrom });
 }

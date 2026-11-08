@@ -1,5 +1,5 @@
 import { readTemplateDefaultMedia } from '../design/templates/template-materialization';
-import { projectTemplateAssetPaths } from '../design/templates/template-asset-paths';
+import { projectTemplateAssetPaths, templateAssetReference } from '../design/templates/template-asset-paths';
 import { pinnedTemplate } from '../design/templates/template-content';
 import { GuestProjectionReader, LoadedGuest } from './guest-projection';
 import { GuestPageMeta } from './guest-page-version';
@@ -52,6 +52,10 @@ type BlockMedia = Prisma.MediaAssetGetPayload<{ select: typeof blockMediaSelect 
 
 
 
+export enum InvitationArtworkFormat {
+  ASSET_ID = 'asset-id',
+}
+
 @Injectable()
 export class InvitationsService {
   private readonly cacheTtlSeconds: number;
@@ -72,11 +76,19 @@ export class InvitationsService {
   }
 
   async getCachedInvitation(slug: string, locale?: string) {
-    return this.servePage(slug, undefined, locale);
+    return projectTemplateAssetPaths(await this.servePage(slug, undefined, locale), designAssetPrefix(slug));
   }
 
-  async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string) {
-    return this.servePage(slug, guestToken, requestedLocale);
+  async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string, artwork?: InvitationArtworkFormat) {
+    const payload = await this.servePage(slug, guestToken, requestedLocale);
+    if (artwork !== InvitationArtworkFormat.ASSET_ID) return projectTemplateAssetPaths(payload, designAssetPrefix(slug, guestToken));
+    return {
+      ...payload,
+      coverUrl: templateAssetReference(payload.coverUrl),
+      blocks: payload.blocks.map((block) => ({
+        ...block, media: block.media.map((asset) => ({ ...asset, url: templateAssetReference(asset.url) })),
+      })),
+    };
   }
 
   private async servePage(slug: string, token?: string, requestedLocale?: string) {
@@ -88,8 +100,7 @@ export class InvitationsService {
       const current = await this.pageMeta(slug, token);
       if (!isSamePage(meta, current)) continue;
       void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: meta.guestId ?? undefined });
-      const projected = projectTemplateAssetPaths(payload, designAssetPrefix(slug, token));
-      return { ...projected, guest: guest ? { ...guest, telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${token!}` : null } : null };
+      return { ...payload, guest: guest ? { ...guest, telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${token!}` : null } : null };
     }
     throw new ConflictException('Invitation changed while loading; please retry');
   }

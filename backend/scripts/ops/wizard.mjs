@@ -19,7 +19,7 @@ export async function askQuestions(seed = {}, onlyKey) {
     const mode = seed.mode ?? await ask('Environment (local/production)', 'local');
     const result = { mode, project: seed.project ?? await ask('Compose project', `aveline-${mode}`) };
     if (mode === 'production') {
-      for (const [key, prompt, fallback] of [['apiDomain', 'API hostname'], ['mediaDomain', 'Public media hostname'], ['appUrl', 'Frontend HTTPS origin'],
+      for (const [key, prompt, fallback] of [['appUrl', 'Website and API HTTPS origin'], ['mediaDomain', 'Media hostname'],
         ['acmeEmail', 'Certificate contact email'], ['smtpHost', 'SMTP hostname'], ['smtpPort', 'SMTP port', '587'], ['smtpUser', 'SMTP username'], ['mailFrom', 'Sender email']]) result[key] = await ask(prompt, fallback);
       result.smtpPassword = await ask('SMTP password (hidden; blank if not needed)', '', true);
     }

@@ -36,6 +36,7 @@ export class EnquiryPrivacyService implements OnModuleInit {
       await tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id=${requestId} FOR UPDATE`;
       const request = await tx.dataSubjectRequest.findUniqueOrThrow({ where: { id: requestId } });
       if (request.status !== 'IN_PROGRESS' || request.erasureAppliedAt) throw new BadRequestException('Request must be verified IN_PROGRESS before binding enquiry subjects');
+      if (request.exportGenerationId) throw new BadRequestException('Bind enquiry subjects before generating an export');
       await this.assertAdmin(tx, userId);
       await this.assertContacts(tx, input.contactIds);
       if (input.append && !request.enquirySubjectsVerifiedAt) throw new BadRequestException('append requires an existing verified subject binding');

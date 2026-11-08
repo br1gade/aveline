@@ -1,4 +1,4 @@
-import { PaymentProvider, PlanTier, PrismaClient, SubscriptionStatus } from '@prisma/client';
+import { BillingInterval, PaymentProvider, PlanTier, PrismaClient, SubscriptionStatus } from '@prisma/client';
 import { nextInvoiceSequence } from '../../src/modules/billing/invoice-number';
 import { SubscriptionsService } from '../../src/modules/billing/subscriptions.service';
 import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
@@ -41,14 +41,14 @@ describe('billing (integration)', () => {
 
   afterAll(() => disconnectTestDatabase());
 
-  const plan = (overrides: { key: string; priceMinor: bigint }) =>
+  const plan = (overrides: { key: string; priceMinor: bigint; interval?: BillingInterval }) =>
     prisma.plan.create({
       data: {
         key: overrides.key,
         name: `Plan ${overrides.key}`,
         tier: PlanTier.MANAGED,
         priceMinor: overrides.priceMinor,
-        interval: 'MONTHLY',
+        interval: overrides.interval ?? 'MONTHLY',
       },
     });
 
@@ -239,6 +239,51 @@ describe('billing (integration)', () => {
     beforeEach(async () => {
       await plan({ key: 'basic', priceMinor: 10_000n });
       await plan({ key: 'pro', priceMinor: 50_000n });
+    });
+
+    it('keeps paid access until the scheduled Free boundary and activates the selected Free terms once', async () => {
+      await plan({ key: 'free', priceMinor: 0n, interval: BillingInterval.PER_EVENT });
+      await activeOn('basic');
+      const paid = (await subscriptions.current(organizationId)).subscription!;
+      const result = await subscriptions.subscribe(organizationId, { planKey: 'free' });
+      expect(result.subscription).toMatchObject({ plan: { key: 'basic' },
+        pendingFree: { planKey: 'free', effectiveAt: paid.currentPeriodEnd } });
+      const { invoice } = await subscribeTo('pro');
+      expect((await subscriptions.current(organizationId)).subscription?.pendingFree?.planKey).toBe('free');
+      await prisma.plan.update({ where: { key: 'free' }, data: { name: 'Renamed', priceMinor: 100n } });
+      await subscriptions.applyDueFreeChanges(paid.currentPeriodEnd);
+      await subscriptions.applyDueFreeChanges(paid.currentPeriodEnd);
+      const free = (await subscriptions.current(organizationId)).subscription!;
+      expect(free).toMatchObject({ plan: { key: 'free', priceMinor: '0' },
+        currentPeriodStart: paid.currentPeriodEnd, pendingFree: null });
+      payAtTheBank(invoice!);
+      await subscriptions.confirmPayment(organizationId, invoice!.number);
+      expect((await subscriptions.current(organizationId)).subscription?.plan.key).toBe('pro');
+    });
+
+    it('supersedes the pending Free switch only on captured payment before the boundary', async () => {
+      await plan({ key: 'free', priceMinor: 0n });
+      await activeOn('basic');
+      const { subscription } = await subscriptions.subscribe(organizationId, { planKey: 'free' });
+      const { invoice } = await subscribeTo('pro');
+      await subscriptions.subscribe(organizationId, { planKey: 'free' });
+      expect((await subscriptions.findInvoice(organizationId, invoice!.number)).status).toBe('ISSUED');
+      payAtTheBank(invoice!);
+      await subscriptions.confirmPayment(organizationId, invoice!.number);
+      await subscriptions.applyDueFreeChanges(subscription!.currentPeriodEnd);
+      expect((await subscriptions.current(organizationId)).subscription)
+        .toMatchObject({ plan: { key: 'pro' }, pendingFree: null });
+    });
+
+    it('withdraws a Free switch before the boundary without extending the paid period', async () => {
+      await plan({ key: 'free', priceMinor: 0n });
+      await activeOn('basic');
+      const paid = (await subscriptions.current(organizationId)).subscription!;
+      await subscriptions.subscribe(organizationId, { planKey: 'free' });
+      const withdrawn = await subscriptions.withdrawFreeChange(organizationId);
+      expect(withdrawn).toMatchObject({ plan: { key: 'basic' }, pendingFree: null, currentPeriodEnd: paid.currentPeriodEnd });
+      await subscriptions.applyDueFreeChanges(paid.currentPeriodEnd);
+      expect((await subscriptions.current(organizationId)).subscription?.plan.key).toBe('basic');
     });
 
     // B76: a double click issued two open invoices, both payable.

@@ -5,9 +5,9 @@ import { DataSubjectRequestKind, DataSubjectRequestStatus } from '@prisma/client
  *
  * Forward only. A completed request reopened would restart a legal clock that
  * was already answered; an erasure marked completed by hand would report an
- * erasure that never happened — so exports and erasures are completed only by
- * carrying them out. A rectification is the exception: it is applied by
- * editing the record, so closing it by hand is the only way to finish it.
+ * erasure that never happened. Erasures complete on fulfilment and exports on
+ * confirmed delivery. A rectification is applied by editing the record, so
+ * closing it by hand is the only way to finish it.
  */
 const { RECEIVED, VERIFYING, IN_PROGRESS, COMPLETED, REJECTED } = DataSubjectRequestStatus;
 
@@ -29,7 +29,9 @@ export function statusChangeProblem(
     return `status: a request that is ${from} cannot become ${to}`;
   }
   if (to === COMPLETED && kind !== DataSubjectRequestKind.RECTIFICATION) {
-    return `status: an ${kind} is completed by carrying it out — POST /privacy/requests/:id/fulfil`;
+    return kind === DataSubjectRequestKind.EXPORT
+      ? 'status: an EXPORT is completed by confirming delivery after fulfil'
+      : 'status: an ERASURE is completed by carrying it out — POST /privacy/requests/:id/fulfil';
   }
   return null;
 }

@@ -13,7 +13,7 @@ export async function checkDocker(ctx, execute = output) {
     const args = kind === 'ps' ? ['ps', '-a', '--format', format] : [kind, 'ls', '--format', format];
     if ((await execute('docker', args)).split('\n').some((name) => name.startsWith(`${ctx.scope}-`))) throw new Error('Disposable namespace already exists');
   }
-  for (const image of [ctx.image, ctx.env.CI_API_IMAGE, ctx.env.CI_BACKUP_IMAGE]) if (await execute('docker', ['image', 'ls', '-q', image])) throw new Error('Disposable image tag already exists');
+  for (const image of [ctx.image, ctx.env.CI_API_IMAGE, ctx.env.CI_BACKUP_IMAGE, ctx.env.CI_WEB_IMAGE]) if (await execute('docker', ['image', 'ls', '-q', image])) throw new Error('Disposable image tag already exists');
   ctx.wasScopeAccepted = true;
 }
 export function composeArgs(ctx, layer, args) {
@@ -39,7 +39,7 @@ export async function cleanup(ctx, execute = output) {
     const owned = (await attempt(args)).split('\n').filter((name) => name.startsWith(`${ctx.scope}-`));
     for (const name of owned) await attempt(kind === 'container' ? ['rm', '-f', '-v', name] : [kind, 'rm', name]);
   }
-  for (const image of [ctx.image, ctx.env.CI_API_IMAGE, ctx.env.CI_BACKUP_IMAGE]) {
+  for (const image of [ctx.image, ctx.env.CI_API_IMAGE, ctx.env.CI_BACKUP_IMAGE, ctx.env.CI_WEB_IMAGE]) {
     if (await attempt(['image', 'ls', '-q', image])) await attempt(['image', 'rm', image]);
   }
   if (errors.length) throw new Error('Local CI cleanup was incomplete; inspect the run namespace recorded in summary.json');

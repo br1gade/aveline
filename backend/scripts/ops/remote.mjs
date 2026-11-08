@@ -24,7 +24,7 @@ async function deploy() {
     const release = `${settings.root}/releases/${manifest.commit}-${Date.now()}`;
     await execute('ssh', [...flags, settings.host, `umask 077; mkdir -p '${settings.root}/releases'; mkdir '${release}'`]);
     await execute('scp', [...flags, process.env.RELEASE_ARCHIVE, `${settings.host}:${release}/source.tar.gz`]);
-    const script = `set -eu\ncd '${release}'\ntar --no-same-owner --no-same-permissions -xzf source.tar.gz\ncd backend\nnode scripts/ops.mjs apply --directory '${settings.profile}' --image '${manifest.api}' --backup-image '${manifest.backup}' --confirm '${settings.project}'\nln -s '${release}' '${settings.root}/.current-${manifest.commit}'\nmv -Tf '${settings.root}/.current-${manifest.commit}' '${settings.root}/current'\n`;
+    const script = `set -eu\ncd '${release}'\ntar --no-same-owner --no-same-permissions -xzf source.tar.gz\ncd backend\nnode scripts/ops.mjs apply --directory '${settings.profile}' --image '${manifest.api}' --backup-image '${manifest.backup}' --web-image '${manifest.web}' --confirm '${settings.project}'\nln -s '${release}' '${settings.root}/.current-${manifest.commit}'\nmv -Tf '${settings.root}/.current-${manifest.commit}' '${settings.root}/current'\n`;
     await new Promise((resolve, reject) => {
       const child = spawn('ssh', [...flags, settings.host, 'sh -s'], { stdio: ['pipe', 'inherit', 'inherit'] });
       child.on('error', reject); child.on('exit', (code) => code === 0 ? resolve() : reject(new Error('Remote deployment failed'))); child.stdin.end(script);

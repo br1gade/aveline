@@ -1,11 +1,11 @@
 import { OptionalQuery } from '../../common/openapi-document';
-import { Body, Controller, Get, Header, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Header, ParseEnumPipe, Param, Patch, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ArrangementService } from './arrangement.service';
 import { ArrangeBlocksDto } from './dto/arrange-blocks.dto';
-import { InvitationsService } from './invitations.service';
+import { InvitationArtworkFormat, InvitationsService } from './invitations.service';
 import { EventScope, Public, RequirePermission } from '../../infra/auth/actor';
 
 @ApiTags('invitations')
@@ -43,6 +43,7 @@ export class InvitationsController {
   @Public()
   @Throttle(GUEST_PAGE_LIMITS)
   @Get(':slug/g/:guestToken')
+  @ApiQuery({ name: 'artwork', enum: InvitationArtworkFormat, required: false })
   @OptionalQuery('locale', 'Preferred language; the response names the one it used')
   @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Invitation personalized for one guest' })
@@ -51,7 +52,8 @@ export class InvitationsController {
     @Param('slug') slug: string,
     @Param('guestToken') guestToken: string,
     @Query('locale') locale?: string,
+    @Query('artwork', new ParseEnumPipe(InvitationArtworkFormat, { optional: true })) artwork?: InvitationArtworkFormat,
   ) {
-    return this.invitations.getPublicInvitation(slug, guestToken, locale);
+    return this.invitations.getPublicInvitation(slug, guestToken, locale, artwork);
   }
 }

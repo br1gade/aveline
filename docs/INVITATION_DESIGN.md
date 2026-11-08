@@ -308,3 +308,12 @@ real answers. Previously stored blanks do not satisfy a later acceptance, and
 an explicit blank edit replaces the earlier value when checking requirements.
 Declining/undecided guests and hosts recording incomplete answers retain their
 existing exceptions; value type and question ownership checks still apply.
+
+
+## Private artwork in personal pages
+
+The private asset reference format is available on the personal page payload.
+It keeps the artwork ID separate from the guest credential. The reader
+resolves the ID through authorized, current-version file access. Public media
+keeps its ordinary URL, and private artwork stays out of social metadata.
+See [the API contract](API.md) for the opt-in and rollout details.

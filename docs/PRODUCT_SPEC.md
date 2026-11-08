@@ -301,6 +301,12 @@ Tiers gate **capability**, never artificial scarcity. Revisions, languages and s
 
 Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and other entitlements are published but not enforced until real events show what to charge and which limits matter. Invitation lifetime is enforced independently; paid billing remains inactive.
 
+An organizer switching from a paid subscription to Free keeps the paid period.
+The organization owner can withdraw the change before it takes effect.
+A replacement paid checkout supersedes the scheduled change only once payment
+is confirmed. Automatic renewal requires separate consent. Invitation lifetime
+captured at first publication remains in force.
+
 ---
 
 ## 9. Revenue model

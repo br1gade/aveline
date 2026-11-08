@@ -1,6 +1,15 @@
 name: Build and publish reviewed release
 on:
   workflow_dispatch:
+    inputs:
+      app_origin:
+        description: Canonical HTTPS website and API origin for this release
+        required: true
+        type: string
+      media_origin:
+        description: Separate HTTPS media origin for this release
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -15,6 +24,9 @@ jobs:
   publish:
     needs: checks
     environment: release
+    env:
+      APP_ORIGIN: ${{ inputs.app_origin }}
+      MEDIA_ORIGIN: ${{ inputs.media_origin }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -39,9 +51,13 @@ jobs:
           SOURCE_REVISION: ${{ github.sha }}
           SOURCE_REPOSITORY: ${{ github.repository }}
         run: |
+          node scripts/ops/release-manifest.mjs check-origins
           docker build --label "org.opencontainers.image.revision=$SOURCE_REVISION" --label "org.opencontainers.image.source=https://github.com/$SOURCE_REPOSITORY" --tag aveline-api:ci .
           docker build --file Dockerfile.backup --label "org.opencontainers.image.revision=$SOURCE_REVISION" --tag aveline-backup:pilot-readiness .
-          OPS_REHEARSAL_IMAGE=aveline-api:ci OPS_REHEARSAL_BACKUP_IMAGE=aveline-backup:pilot-readiness npm run ops:rehearsal
+          docker build --build-arg "VITE_PUBLIC_ORIGIN=$APP_ORIGIN" --build-arg "VITE_MEDIA_BASE_URL=$MEDIA_ORIGIN" --build-arg VITE_API_BASE_URL= \
+            --label "com.aveline.app-origin=$APP_ORIGIN" --label "com.aveline.media-origin=$MEDIA_ORIGIN" \
+            --label "org.opencontainers.image.revision=$SOURCE_REVISION" --tag aveline-web:pilot-readiness ../frontend
+          OPS_REHEARSAL_IMAGE=aveline-api:ci OPS_REHEARSAL_BACKUP_IMAGE=aveline-backup:pilot-readiness OPS_REHEARSAL_WEB_IMAGE=aveline-web:pilot-readiness npm run ops:rehearsal
           PILOT_REHEARSAL_IMAGE=aveline-api:ci npm run pilot:rehearsal
           PILOT_REHEARSAL_IMAGE=aveline-api:ci npm run backup:rehearsal
       - name: Push the tested images and record immutable digests
@@ -56,13 +72,18 @@ jobs:
           repository="ghcr.io/${GH_REPOSITORY,,}"
           docker tag aveline-api:ci "$repository/api:$SOURCE_REVISION"
           docker tag aveline-backup:pilot-readiness "$repository/backup:$SOURCE_REVISION"
+          web_tag="$repository/web:$SOURCE_REVISION-$GITHUB_RUN_ID"
+          docker tag aveline-web:pilot-readiness "$web_tag"
+          docker push "$web_tag"
           docker push "$repository/api:$SOURCE_REVISION"
           docker push "$repository/backup:$SOURCE_REVISION"
           api=$(docker inspect --format '{{index .RepoDigests 0}}' "$repository/api:$SOURCE_REVISION")
           backup=$(docker inspect --format '{{index .RepoDigests 0}}' "$repository/backup:$SOURCE_REVISION")
           printf 'api=%s\nbackup=%s\napi_name=%s/api\nbackup_name=%s/backup\n' "$api" "$backup" "$repository" "$repository" >> "$GITHUB_OUTPUT"
           printf 'api_digest=%s\nbackup_digest=%s\n' "${api##*@}" "${backup##*@}" >> "$GITHUB_OUTPUT"
-          API_REF="$api" BACKUP_REF="$backup" node scripts/ops/release-manifest.mjs create release-manifest.json
+          web=$(docker inspect --format '{{index .RepoDigests 0}}' "$web_tag")
+          printf 'web_name=%s/web\nweb_digest=%s\n' "$repository" "${web##*@}" >> "$GITHUB_OUTPUT"
+          API_REF="$api" BACKUP_REF="$backup" WEB_REF="$web" node scripts/ops/release-manifest.mjs create release-manifest.json
       - uses: actions/attest@v4
         with:
           subject-name: ${{ steps.images.outputs.api_name }}
@@ -72,6 +93,11 @@ jobs:
         with:
           subject-name: ${{ steps.images.outputs.backup_name }}
           subject-digest: ${{ steps.images.outputs.backup_digest }}
+          push-to-registry: true
+      - uses: actions/attest@v4
+        with:
+          subject-name: ${{ steps.images.outputs.web_name }}
+          subject-digest: ${{ steps.images.outputs.web_digest }}
           push-to-registry: true
       - uses: actions/upload-artifact@v7
         with:

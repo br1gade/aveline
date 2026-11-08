@@ -6,12 +6,14 @@ import { tmpdir } from 'node:os';
 import { buildConfiguration, encodeEnvironment, decodeEnvironment, writeProfile, readProfile, saveEnvironment } from './ops/config.mjs';
 import { releasePlan, validateManifest } from './ops/plan.mjs';
 const digest = 'sha256:' + 'a'.repeat(64);
-const images = { api: `ghcr.io/example/aveline/api@${digest}`, backup: `ghcr.io/example/aveline/backup@${digest}` };
-const production = { mode: 'production', project: 'aveline-production', apiDomain: 'api.example.test', mediaDomain: 'media.example.test', appUrl: 'https://example.test', acmeEmail: 'ops@example.test', smtpHost: 'smtp.example.test', mailFrom: 'hello@example.test' };
+const images = { api: `ghcr.io/example/aveline/api@${digest}`, backup: `ghcr.io/example/aveline/backup@${digest}`, web: `ghcr.io/example/aveline/web@${digest}` };
+const production = { mode: 'production', project: 'aveline-production', mediaDomain: 'media.example.test', appUrl: 'https://example.test', acmeEmail: 'ops@example.test', smtpHost: 'smtp.example.test', mailFrom: 'hello@example.test' };
 
 test('wizard generates separate secrets and closed commercial/feature gates', () => {
   const config = buildConfiguration(production);
   assert.equal(config.env.PILOT_MODE, 'true');
+  assert.equal(config.env.API_DOMAIN, 'example.test');
+  assert.equal(config.env.CORS_ORIGINS, config.env.PUBLIC_APP_URL);
   for (const key of ['SALES_INTAKE_ENABLED', 'TEMPLATE_PUBLISH_ENABLED', 'TEMPLATE_ASSETS_ENABLED']) assert.equal(config.env[key], 'false');
   assert.notEqual(config.env.JWT_SECRET, config.env.POSTGRES_PASSWORD);
   assert.ok(config.env.JWT_SECRET.length >= 48);
@@ -51,6 +53,8 @@ test('profile files are private and initialization never overwrites existing cre
 test('production release requires immutable images and plans backup before writer shutdown/migration', () => {
   const profile = buildConfiguration(production);
   assert.throws(() => releasePlan(profile, { ...images, api: 'example/api:latest' }), /digest/);
+  assert.throws(() => releasePlan(profile, { ...images, web: 'example/web:latest' }), /digest/);
+  assert.throws(() => releasePlan({ ...profile, env: { ...profile.env, CORS_ORIGINS: 'https://other.test' } }, images), /origins do not match/);
   const plan = releasePlan(profile, images);
   assert.ok(plan.indexOf('backup-if-populated') < plan.indexOf('stop-writers'));
   assert.ok(plan.indexOf('stop-writers') < plan.indexOf('migrate'));
@@ -101,10 +105,12 @@ test('unsafe hostnames/projects and production HTTP origins are rejected', () =>
   assert.throws(() => buildConfiguration({ ...production, appUrl: 'http://example.test' }));
 });
 
-test('deployment manifests bind both digests to the trusted repository, run and source commit', () => {
-  const manifest = { version: 1, repository: 'example/aveline', commit: 'b'.repeat(40), runId: '123', ...images };
+test('deployment manifests bind all digests to the trusted repository, run and source commit', () => {
+  const manifest = { version: 2, appOrigin: production.appUrl, mediaOrigin: `https://${production.mediaDomain}`, repository: 'example/aveline', commit: 'b'.repeat(40), runId: '123', ...images };
   assert.deepEqual(validateManifest(manifest, { repository: manifest.repository, commit: manifest.commit, runId: '123' }), manifest);
   assert.throws(() => validateManifest({ ...manifest, api: `ghcr.io/attacker/api@${digest}` }, manifest), /repository/);
+  assert.throws(() => validateManifest({ ...manifest, web: `ghcr.io/attacker/web@${digest}` }, manifest), /repository/);
+  assert.throws(() => validateManifest({ ...manifest, mediaOrigin: manifest.appOrigin }, manifest), /must differ/);
   assert.throws(() => validateManifest({ ...manifest, commit: 'c'.repeat(40) }, manifest), /source/);
 });
 

@@ -1913,6 +1913,25 @@ reworked. `GET /events/:eventId` carries `seatingPublishedAt` for the toggle.
 Tables, seats and publishing require `seating:write`; reading requires
 `seating:read`.
 
+### Door roster
+
+```text
+GET /api/v1/events/:eventId/door-roster
+```
+
+Requires `guest:read` on the event. Optional `search` matches whitespace-separated
+words against first name, last name and household name without case sensitivity.
+`limit` defaults to 20 and accepts 1–100. Pass the returned `nextCursor` as
+`cursor` with the same search. A null cursor means the roster is exhausted.
+Rows are ordered by guest ID so check-in or name changes cannot move the cursor.
+
+The response is `{ items, nextCursor }`. Each item contains `guestId`, `name`,
+`householdName`, `attendance` (the guest's aggregate RSVP status, defaulting to
+`PENDING`), `arrivedAt` (UTC or null), `hasTicket`, and `seating` (venue, table
+and position, visible with `seating:read`). Ticket holders without a linked guest
+remain available through ticket admission. The roster is private and no-store.
+Check-in writes and arrival totals retain their existing permissions.
+
 ### Check-in on the day
 
 ```http
@@ -2113,9 +2132,19 @@ Requires `billing:read`.
 POST /api/v1/subscription   { "planKey": "managed-monthly", "provider": "AMERIABANK", "returnUrl"?: "https://aveline.am/billing/return" }
 ```
 
-A free plan (`priceMinor: "0"`) activates immediately and returns
-`invoice: null`. A paid one needs `provider`, issues an invoice, and returns a
-bank URL:
+A free plan (`priceMinor: "0"`) returns `invoice: null`. For an active
+monthly or yearly paid period, the current subscription remains
+active and returns `pendingFree: { planKey, effectiveAt }` with the period
+end in UTC. With no current paid subscription period, Free activates
+immediately. Per-event purchases have no subscription renewal boundary and
+retain their captured invitation lifetime. `GET /subscription` returns the
+pending change or `pendingFree: null`. A different paid checkout leaves it
+scheduled until capture. A confirmed, still-valid payment may start the new
+paid plan after Free has taken effect. Scheduling a new Free change voids
+earlier unpaid plan-change invoices. Repeating the same pending selection keeps
+a later checkout intact. A late capture on a voided invoice is refunded.
+
+A paid plan needs `provider`, issues an invoice, and returns a bank URL.
 
 ```json
 {
@@ -2166,7 +2195,13 @@ returns is settled within minutes.
 ```http
 POST /api/v1/subscription/cancel
 POST /api/v1/subscription/resume
+DELETE /api/v1/subscription/pending-free
 ```
+
+Withdrawal returns the current subscription and requires `billing:write`.
+It keeps the paid period and does not opt in to auto-renewal. A pending change
+whose effective date has been reached can no longer be withdrawn. An explicit
+cancellation replaces a pending Free change.
 
 Cancelling sets `cancelAtPeriodEnd: true` and leaves the status `ACTIVE`:
 someone who paid for the month keeps the month. Show them
@@ -2643,6 +2678,7 @@ GET   /api/v1/privacy/requests?status=RECEIVED
 GET   /api/v1/privacy/requests/:requestId/submissions?limit=20&offset=0
 PATCH /api/v1/privacy/requests/:requestId   { "status": "IN_PROGRESS", "notes": "..." }
 POST  /api/v1/privacy/requests/:requestId/fulfil
+POST  /api/v1/privacy/requests/:requestId/confirm-delivery    { "generationId": "<uuid>" }
 ```
 
 Aveline staff only: they need `privacy:manage`, which only a platform `ADMIN`
@@ -2669,7 +2705,8 @@ The PATCH `notes` field remains staff-maintained and cannot edit submissions.
 
 Status moves forward only: `RECEIVED` → `VERIFYING` → `IN_PROGRESS` →
 `COMPLETED`, or `REJECTED` from an open state before erasure is applied.
-An `EXPORT` or `ERASURE` can reach `COMPLETED` only through fulfilment.
+An `ERASURE` completes through fulfilment. An `EXPORT` completes through
+delivery confirmation.
 Once `erasureAppliedAt` is set, a PATCH to `REJECTED` returns `400` with an
 error on `status`, including while recovery is pending.
 
@@ -2677,6 +2714,16 @@ error on `status`, including while recovery is pending.
 human sets after establishing who the requester is. **Acting on an unverified
 request is itself a breach**: the form is public, so without that gate anyone
 could erase a stranger's data by typing their address.
+
+An export fulfilment keeps the request `IN_PROGRESS` and returns a new
+`generationId` with the current data. If the download is lost, repeat fulfilment.
+The case list reports the latest `exportGenerationId` and `exportGeneratedAt`.
+After verified delivery, send that generation ID to `confirm-delivery`. A
+superseded or absent generation returns `409`. Retrying the same completed
+confirmation returns the original receipt. Completed requests remain closed.
+The two responses are private and no-store. Enquiry subject bindings are frozen
+once the first generation succeeds. If verified scope needs to change, review
+the case and start a new verified export request.
 
 An `EXPORT` returns the data as JSON in the response — account, guest records,
 ticket orders, subject-specific ticket attendee records (including archived
@@ -4166,6 +4213,13 @@ publish until required default artwork is BOUND. Publication/retirement never
 rewrites existing invitations. Removing an event override reveals its immutable
 version default; disabling its block hides both. No source storage URLs/redirects
 are issued. Guest-specific file paths are projected only after shared-cache reads.
+During rollout, a personalized page fetched with `?artwork=asset-id` returns
+`{ kind: "private-design-asset", assetId }` in `coverUrl` and in private
+block media `url` fields. Public media
+URLs retain their existing shape. Resolve the reference through the guest
+file endpoint using the current invitation context. Keep the reference and
+credential out of public metadata. Requests without this parameter retain
+the existing format until the compatible client is deployed.
 
 New AUTHORED payloads add `templateVersion:{id,rendererKey,capabilityVersion,
 capabilityDigest,contentHash}` and `resolvedTheme:{headingFont,bodyFont,

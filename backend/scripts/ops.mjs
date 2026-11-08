@@ -7,7 +7,7 @@ import { context, compose, readState, withDeploymentLock } from './ops/runtime.m
 import { applyRelease, captureBackup } from './ops/deploy.mjs';
 import { askQuestions } from './ops/wizard.mjs';
 import { writeHostJobs } from './ops/jobs.mjs';
-const options = Object.fromEntries(['directory', 'mode', 'project', 'answers', 'image', 'backup-image', 'confirm', 'key', 'sequence', 'release-root', 'operator-user', 'source-env', 'garage-config'].map((key) => [key, { type: 'string' }]));
+const options = Object.fromEntries(['directory', 'mode', 'project', 'answers', 'image', 'backup-image', 'web-image', 'confirm', 'key', 'sequence', 'release-root', 'operator-user', 'source-env', 'garage-config'].map((key) => [key, { type: 'string' }]));
 Object.assign(options, { prebuilt: { type: 'boolean' }, stdin: { type: 'boolean' }, 'resume-only': { type: 'boolean' }, 'new-install': { type: 'boolean' }, 'latest-verified': { type: 'boolean' } });
 async function main() {
   const command = process.argv[2] ?? 'help';
@@ -15,21 +15,22 @@ async function main() {
   const directory = resolve(values.directory ?? `.deployment/${values.mode ?? 'local'}`);
   if (command === 'import') return importProfile(directory, values);
   if (command === 'init') return initialize(directory, values);
-  if (command === 'help') return console.log('Aveline ops: init | import | configure --key KEY [--stdin] | sync | check | plan | apply --confirm PROJECT | status | stop-writers | backup [--resume-only] | backup-init | backup-check | journal-init --new-install | journal-recover --latest-verified --sequence N | rollback-plan | jobs --release-root PATH --operator-user USER. Use --directory PROFILE. Maintenance commands require --confirm PROJECT; apply/plan accept --image DIGEST --backup-image DIGEST. See docs/DEPLOYMENT.md and docs/RELEASES.md.');
+  if (command === 'help') return console.log('Aveline ops: init | import | configure --key KEY [--stdin] | sync | check | plan | apply --confirm PROJECT | status | stop-writers | backup [--resume-only] | backup-init | backup-check | journal-init --new-install | journal-recover --latest-verified --sequence N | rollback-plan | jobs --release-root PATH --operator-user USER. Use --directory PROFILE. Maintenance commands require --confirm PROJECT; apply/plan accept --image DIGEST --backup-image DIGEST --web-image DIGEST. See docs/DEPLOYMENT.md and docs/RELEASES.md.');
   const profile = await readProfile(directory, { canRepairRuntime: command === 'sync' });
   if (command === 'jobs') return console.log(`Generated unit templates in ${await writeHostJobs(profile, values['release-root'], values['operator-user'])}; review and install them explicitly. No timers were enabled.`);
   if (command === 'sync') return withDeploymentLock({ profile }, () => saveEnvironment(profile));
   if (command === 'configure') return withDeploymentLock({ profile }, () => configure(profile, values));
   const state = await readState(profile);
-  const images = { api: values.image ?? state?.api ?? profile.env.API_IMAGE, backup: values['backup-image'] ?? state?.backup ?? profile.env.BACKUP_IMAGE };
+  const images = { api: values.image ?? state?.api ?? profile.env.API_IMAGE, backup: values['backup-image'] ?? state?.backup ?? profile.env.BACKUP_IMAGE, web: values['web-image'] ?? state?.web ?? profile.env.WEB_IMAGE };
   const ctx = context(profile, images);
-  if (['backup', 'backup-init', 'backup-check', 'journal-init', 'journal-recover'].includes(command)) releasePlan(profile, images);
+  if (['backup', 'backup-init', 'backup-check', 'journal-init', 'journal-recover'].includes(command)) releasePlan(profile, images, { isMaintenance: true });
   if (command === 'plan') return console.log(JSON.stringify({ project: profile.settings.project, images, stages: releasePlan(profile, images) }, null, 2));
   if (command === 'apply') return applyRelease(profile, images, values.confirm, { isPrebuilt: values.prebuilt });
   if (command === 'check') { await compose(ctx, ['config', '--quiet'], 'validate configuration'); return console.log('Compose configuration is valid. Feature and payment gates were not changed.'); }
   if (command === 'status') return console.log(await compose(ctx, ['ps', '--format', '{{.Service}} {{.State}} {{.Health}}'], 'read status'));
   if (command === 'rollback-plan') {
     if (!state?.previous) throw new Error('No previous release is recorded');
+    if (!state.previous.web) throw new Error('The previous release predates the web image. Use its archived source and its matching operations CLI.');
     return console.log(JSON.stringify({ images: state.previous, requiresMaintenance: true, steps: releasePlan(profile, state.previous), databaseDowngrade: false, readerPreflightRequired: true }, null, 2));
   }
   if (values.confirm !== profile.settings.project) throw new Error('Use --confirm with the exact project name');

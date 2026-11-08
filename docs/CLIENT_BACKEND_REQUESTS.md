@@ -40,7 +40,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-8 | Write the route contract (/invitations/:slug/g/:guestToken and the others the backend emails) into docs/A | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-9 | Mechanism only at 34ac1e6: authored templates must bundle their fonts and a remote one is refused (templa | S5 templates/renderer | Design/external or optional decision; document prerequisite |
 | FR-10 | Partly answered at 34ac1e6: x-request-id is exposed and preflights are cached for ten minutes (common/cor | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
-| FR-11 | Agree the deployment topology: one origin through Caddy, a web service, CORS_ORIGINS, PUBLIC_APP_URL, pro | S6 optional/deployment | Design/external or optional decision; document prerequisite |
+| FR-11 | Agree the deployment topology: one origin through Caddy, a web service, CORS_ORIGINS, PUBLIC_APP_URL, pro | S6 optional/deployment | Same-origin Compose and release wiring implemented. Staging acceptance open. |
 | FR-12 | Optional: the refresh token as an httpOnly cookie | S6 optional/deployment | Design/external or optional decision; document prerequisite |
 | FR-13 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
 | FR-14 | A seeded login for manual testing | S6 optional/deployment | Design/external or optional decision; document prerequisite |
@@ -108,7 +108,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-76 | Codes and facts on the door's refusals | S3 host/guest operations | Backend implemented in this follow-up; client adoption pending |
 | FR-77 | Check arrival and ticket state before the agreement gate | S1 safety/correctness | Audit and implement |
 | FR-78 | Who still must agree, per person, on a host's read | S3 host/guest operations | Audit and implement |
-| FR-79 | A light list for the door, and a search | S3 host/guest operations | Audit and implement |
+| FR-79 | A light list for the door, and a search | S3 host/guest operations | Roster API implemented. Client adoption and door rehearsal open. |
 | FR-80 | Let admit return the door screen, as check-in does, and name who arrived | S3 host/guest operations | Audit and implement |
 | FR-81 | Count an unlinked ticket's admission, and let it be undone | S3 host/guest operations | Audit and implement |
 | FR-82 | Codes a person can type | S3 host/guest operations | Audit and implement |
@@ -139,12 +139,12 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Audit and implement |
-| FR-110 | Billing's data | S4 ticketing/vendors/billing | Decision recorded; implementation pending |
+| FR-110 | Billing's data | S4 ticketing/vendors/billing | Scheduled Free transition implemented under FR-135. Client adoption open. |
 | FR-111 | Tell "analytics is off" from "no views", and count songs per venue | S3 host/guest operations | Audit and implement |
 | FR-112 | Approve several photos in one request | S3 host/guest operations | Audit and implement |
 | FR-113 | The drawn plan's writes | S3 host/guest operations | Audit and implement |
 | FR-114 | Declare ChooseTemplateDto whole, and say which templates need a preview | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
-| FR-115 | Give private artwork as an asset's id, not a path holding the guest's token | S5 templates/renderer | Audit and implement |
+| FR-115 | Give private artwork as an asset's id, not a path holding the guest's token | S5 templates/renderer | Asset references available on opt-in. Client rollout and default cutover open. |
 | FR-116 | Declare X-Aveline-Organization-Id per route | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-117 | Describe and page the guest book and the answers sheet | S3 host/guest operations | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-118 | Read and record a household's answers in one request each | S3 host/guest operations | Audit and implement |
@@ -242,16 +242,12 @@ the event's supported locales to resolve the brief's event title, venue and
 timeline text, section purposes, side labels and applicable answer choices.
 Preserve the existing snapshot and section permissions.
 
-Billing (FR-110) needs its own additive scheduled-change record/fields and
-transaction tests: preserve the paid plan and period through its end, expose
-the pending free-plan change, and apply it exactly once at the period boundary.
-All plan-change, payment-settlement, refund, cancellation and resume paths must
-share organization serialization so a stale settlement cannot overwrite a
-newer intent. The accepted target/version and effective date must survive
-catalogue edits. Selecting a free plan still voids an unpaid plan-change invoice;
-a late capture must follow the existing full-refund path. Preserve captured
-invitation lifetime. Charge providers, fiscal configuration and unattended
-renewals remain subject to existing launch gates.
+FR-110 and FR-135 share the scheduled Free implementation. The subscription
+returns the current plan and its pending change. The agreed target terms
+survive catalogue edits. Settlement and other billing changes serialize on
+the organization. See [API.md](API.md) for withdrawal, payment and refund
+behavior. Charge providers, fiscal configuration and unattended renewals
+remain subject to the launch gates.
 
 ## Follow-up from frontend commit `77ed2c9`
 
@@ -364,8 +360,10 @@ relationships in concierge lookup and reuse. The shared launch checklist
 now reflects the merged frontend and the remaining launch evidence.
 
 FR-62, frontend CI, and adoption of FR-76, FR-130 and FR-134 remain client
-handoff items. FR-11, FR-79, FR-115, FR-128, FR-135 and the wider rehearsal
-remain separate work.
+handoff items. The same-origin release wiring and the backend for FR-79,
+FR-115, FR-128 and FR-135 are implemented. The
+[larger requests implementation plan](CLIENT_LARGER_REQUESTS_PLAN.md)
+records the API handoff and remaining rollout and rehearsal work.
 
 Local verification covered lint, TypeScript, build, generated OpenAPI and
 the docs check. All 1,654 unit tests and 10 pilot tooling tests passed. All

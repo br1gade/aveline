@@ -1,3 +1,4 @@
+import type { DoorRosterDto } from '../../src/modules/guests/dto/door-roster.dto';
 import { randomUUID } from 'node:crypto';
 import { SeatingRunner } from '../../src/modules/seating/jobs/seating-runner';
 import type { Server } from 'node:http';
@@ -73,6 +74,29 @@ describe('Guest operations (e2e)', () => {
       .post(`/api/v1/events/${eventId}/guests/import`)
       .set('Authorization', authorization)
       .attach('file', Buffer.from(csv), { filename: 'guests.csv', contentType: 'text/csv' });
+
+  it('pages the door roster without disclosing contact or capability details', async () => {
+    const { eventId, authorization } = await coordinator();
+    await importCsv(eventId, authorization, CSV).expect(201);
+    const path = `/api/v1/events/${eventId}/door-roster`;
+    const firstResponse = await http().get(path).set('Authorization', authorization)
+      .query({ search: 'PETROSYAN', limit: 2 }).expect('Cache-Control', 'private, no-store').expect(200);
+    const first = firstResponse.body as DoorRosterDto;
+    expect(first.items).toHaveLength(2);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    expect(first.items[0]).toEqual({
+      guestId: expect.any(String), name: expect.stringContaining('Petrosyan'),
+      householdName: 'Petrosyan family', seating: [], attendance: 'PENDING',
+      arrivedAt: null, hasTicket: false,
+    });
+    const second = await http().get(path).set('Authorization', authorization)
+      .query({ search: 'PETROSYAN', limit: 2, cursor: first.nextCursor }).expect(200);
+    expect(second.body.items).toHaveLength(1);
+    expect(second.body.nextCursor).toBeNull();
+    expect(first.items.map((item) => item.guestId)).not.toContain(second.body.items[0].guestId);
+    const { eventId: otherId } = await seedEvent(prisma);
+    await http().get(`/api/v1/events/${otherId}/door-roster`).set('Authorization', authorization).expect(403);
+  });
 
   describe('importing a guest list', () => {
     it('creates guests grouped into households', async () => {

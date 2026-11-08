@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   CurrentActor,
@@ -39,12 +39,20 @@ export class SubscriptionsController {
   @ApiOperation({
     summary: 'Start or change a subscription',
     description:
-      'A free plan takes effect at once. A paid one issues an invoice and ' +
+      'Free takes effect after a current paid period. A paid plan issues an invoice and ' +
       'returns a bank form URL; access begins when that payment confirms. ' +
       'An unconfigured provider returns 404 before billing records change.',
   })
   subscribe(@CurrentActor() actor: RequestActor, @Body() dto: SubscribeDto) {
     return this.subscriptions.subscribe(actor.organizationId ?? '', dto);
+  }
+
+  @RequirePermission('billing:write')
+  @OrganizationScope()
+  @Delete('subscription/pending-free')
+  @ApiOperation({ summary: 'Withdraw a scheduled Free change before it takes effect' })
+  withdrawFreeChange(@CurrentActor() actor: RequestActor) {
+    return this.subscriptions.withdrawFreeChange(actor.organizationId ?? '');
   }
 
   @RequirePermission('billing:write')

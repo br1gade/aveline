@@ -15,7 +15,7 @@ async function runSnapshot(root, target, jobs) {
   await mkdir(evidence, { recursive: true, mode: 0o700 });
   const temporary = await mkdtemp(join(tmpdir(), 'aveline-local-ci-'));
   const ctx = { root, scope, evidence, source: join(temporary, 'source'), image: `aveline-ci:${scope}`, wasScopeAccepted: false };
-  ctx.env = { ...process.env, LOCAL_CI_IMAGE: ctx.image, AVELINE_LOCAL_CI_SCOPE: scope, CI_API_IMAGE: `aveline-api:${scope}`, CI_BACKUP_IMAGE: `aveline-backup:${scope}` };
+  ctx.env = { ...process.env, LOCAL_CI_IMAGE: ctx.image, AVELINE_LOCAL_CI_SCOPE: scope, CI_API_IMAGE: `aveline-api:${scope}`, CI_BACKUP_IMAGE: `aveline-backup:${scope}`, CI_WEB_IMAGE: `aveline-web:${scope}` };
   const summary = { version: 1, ...target, scope, startedAt: new Date().toISOString(), layers: [], status: 'running' };
   let failure;
   try { await executePipeline(ctx, summary, jobs); }

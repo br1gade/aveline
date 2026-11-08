@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DataSubjectRequestStatus } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
@@ -9,6 +9,7 @@ import {
   RequirePermission,
 } from '../../infra/auth/actor';
 import {
+  ConfirmExportDeliveryDto,
   CreateDataSubjectRequestDto,
   UpdateDataSubjectRequestDto,
 } from './dto/privacy.dto';
@@ -70,14 +71,28 @@ export class PrivacyController {
 
   @RequirePermission('privacy:manage')
   @Post(':requestId/fulfil')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({
     summary: 'Carry out a verified request',
     description:
-      'Exports assemble a JSON copy; erasures anonymise in place. Refused ' +
+      'Exports generate current data until delivery is confirmed; erasures anonymise in place. Refused ' +
       'unless the request is IN_PROGRESS, because acting on an unverified ' +
       'request is itself a breach.',
   })
   fulfil(@CurrentActor() actor: RequestActor, @Param('requestId') requestId: string) {
     return this.privacy.fulfil(requestId, actor.userId);
+  }
+
+  @RequirePermission('privacy:manage')
+  @Post(':requestId/confirm-delivery')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Confirm delivery of the latest verified privacy export' })
+  confirmDelivery(
+    @CurrentActor() actor: RequestActor,
+    @Param('requestId') requestId: string,
+    @Body() dto: ConfirmExportDeliveryDto,
+  ) {
+    return this.privacy.confirmExportDelivery(requestId, actor.userId, dto.generationId);
   }
 }

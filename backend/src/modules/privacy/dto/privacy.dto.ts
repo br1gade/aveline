@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DataSubjectRequestKind, DataSubjectRequestStatus } from '@prisma/client';
-import { IsEmail, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { NormalizedEmail } from '../../../common/normalized-email';
 
 export class CreateDataSubjectRequestDto {
@@ -32,4 +32,10 @@ export class UpdateDataSubjectRequestDto {
   @IsString()
   @MaxLength(2_000)
   notes?: string;
+}
+
+export class ConfirmExportDeliveryDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID('4')
+  generationId!: string;
 }

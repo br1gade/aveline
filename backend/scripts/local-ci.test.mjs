@@ -30,7 +30,7 @@ test('shared CI plans preserve all layers and forbid unknown jobs', () => {
   for (const script of ['lint', 'docs:check', 'openapi:check', 'build', 'test:unit', 'test:pilot', 'test:backup', 'test:ops', 'test:ci']) assert.ok(commands.includes(script));
   assert.ok(stepsFor('integration').some((step) => step.args.includes('test:int')));
   assert.ok(stepsFor('http').some((step) => step.args.includes('test:e2e')));
-  assert.deepEqual(stepsFor('containers').filter((step) => step.command === 'docker').length, 2);
+  assert.deepEqual(stepsFor('containers').filter((step) => step.command === 'docker').length, 3);
   assert.throws(() => stepsFor('release'), /Unknown/);
 });
 
@@ -56,7 +56,7 @@ test('local rehearsals retain their default names and accept only a private CI n
 
 test('cleanup never touches other projects or a namespace whose preflight did not succeed', async () => {
   const { cleanup } = await import('./local-ci/docker.mjs');
-  const calls = []; const ctx = { scope: 'av-ci-abcdef123456', wasScopeAccepted: false, image: 'ci:owned', env: { CI_API_IMAGE: 'api:owned', CI_BACKUP_IMAGE: 'backup:owned' } };
+  const calls = []; const ctx = { scope: 'av-ci-abcdef123456', wasScopeAccepted: false, image: 'ci:owned', env: { CI_API_IMAGE: 'api:owned', CI_BACKUP_IMAGE: 'backup:owned', CI_WEB_IMAGE: 'web:owned' } };
   const execute = async (_command, args) => { calls.push(args); if (args.includes('--format')) return `${ctx.scope}-owned\nproduction\nunrelated-${ctx.scope}-other`; return ''; };
   await cleanup(ctx, execute); assert.equal(calls.length, 0);
   ctx.wasScopeAccepted = true; await cleanup(ctx, execute);

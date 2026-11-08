@@ -194,11 +194,13 @@ describe('Host acknowledgements, gallery moderation and privacy files (e2e cover
       const { body } = await h.http().get(file(request.id, photo.id)).set('Authorization', authorization).expect(400);
       expect(body.message).toBe('Verify and start an export request before downloading subject files');
     });
-    it('keeps the download available after the export is fulfilled, at the path the export lists', async () => {
+    it('keeps the subject file available after confirmed export delivery', async () => {
       const { photo, authorization } = await subjectFiles(); const request = await exportRequest('person@test.local');
       const fulfilled = await h.http().post(`/api/v1/privacy/requests/${request.id}/fulfil`).set('Authorization', authorization).expect(201);
       expect(JSON.stringify(fulfilled.body)).toContain(file(request.id, photo.id));
       expect(JSON.stringify(fulfilled.body)).not.toMatch(/sourceKey|displayKey|thumbnailKey/);
+      await h.http().post(`/api/v1/privacy/requests/${request.id}/confirm-delivery`)
+        .set('Authorization', authorization).send({ generationId: fulfilled.body.generationId as string }).expect(200);
       expect((await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: request.id } })).status).toBe('COMPLETED');
       await h.http().get(file(request.id, photo.id)).set('Authorization', authorization).expect(200);
     });

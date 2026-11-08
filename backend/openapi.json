@@ -2622,6 +2622,93 @@
         ]
       }
     },
+    "/api/v1/events/{eventId}/door-roster": {
+      "get": {
+        "operationId": "GuestsController_roster",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoorRosterDto"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Search the contact-free event door roster",
+        "tags": [
+          "guests"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/events/{eventId}/arrivals": {
       "get": {
         "operationId": "GuestsController_arrivals",
@@ -3163,6 +3250,17 @@
             "in": "query",
             "description": "Preferred language; the response names the one it used",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "artwork",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "asset-id"
+              ],
               "type": "string"
             }
           }
@@ -6854,7 +6952,7 @@
         ]
       },
       "post": {
-        "description": "A free plan takes effect at once. A paid one issues an invoice and returns a bank form URL; access begins when that payment confirms. An unconfigured provider returns 404 before billing records change.",
+        "description": "Free takes effect after a current paid period. A paid plan issues an invoice and returns a bank form URL; access begins when that payment confirms. An unconfigured provider returns 404 before billing records change.",
         "operationId": "SubscriptionsController_subscribe",
         "parameters": [
           {
@@ -6903,6 +7001,56 @@
           }
         },
         "summary": "Start or change a subscription",
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/subscription/pending-free": {
+      "delete": {
+        "operationId": "SubscriptionsController_withdrawFreeChange",
+        "parameters": [
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionsController_withdrawFreeChangeResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Withdraw a scheduled Free change before it takes effect",
         "tags": [
           "billing"
         ],
@@ -14961,7 +15109,7 @@
     },
     "/api/v1/privacy/requests/{requestId}/fulfil": {
       "post": {
-        "description": "Exports assemble a JSON copy; erasures anonymise in place. Refused unless the request is IN_PROGRESS, because acting on an unverified request is itself a breach.",
+        "description": "Exports generate current data until delivery is confirmed; erasures anonymise in place. Refused unless the request is IN_PROGRESS, because acting on an unverified request is itself a breach.",
         "operationId": "PrivacyController_fulfil",
         "parameters": [
           {
@@ -14996,6 +15144,62 @@
           }
         },
         "summary": "Carry out a verified request",
+        "tags": [
+          "privacy"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/privacy/requests/{requestId}/confirm-delivery": {
+      "post": {
+        "operationId": "PrivacyController_confirmDelivery",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmExportDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyController_confirmDeliveryResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Confirm delivery of the latest verified privacy export",
         "tags": [
           "privacy"
         ],
@@ -16646,6 +16850,92 @@
             "nullable": true
           }
         }
+      },
+      "DoorSeatDto": {
+        "type": "object",
+        "properties": {
+          "venue": {
+            "type": "string",
+            "nullable": true
+          },
+          "table": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "venue",
+          "table",
+          "position"
+        ]
+      },
+      "DoorGuestDto": {
+        "type": "object",
+        "properties": {
+          "guestId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "householdName": {
+            "type": "string"
+          },
+          "seating": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DoorSeatDto"
+            }
+          },
+          "attendance": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ATTENDING",
+              "DECLINED",
+              "UNDECIDED"
+            ]
+          },
+          "arrivedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "hasTicket": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "guestId",
+          "name",
+          "householdName",
+          "seating",
+          "attendance",
+          "arrivedAt",
+          "hasTicket"
+        ]
+      },
+      "DoorRosterDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DoorGuestDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
       },
       "AddGuestDto": {
         "type": "object",
@@ -19615,6 +19905,18 @@
             "type": "string"
           }
         }
+      },
+      "ConfirmExportDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "generationId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "generationId"
+        ]
       },
       "SuppressDto": {
         "type": "object",
@@ -28732,6 +29034,280 @@
           {
             "type": "object",
             "properties": {
+              "coverUrl": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "private-design-asset"
+                            ]
+                          },
+                          "assetId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "assetId"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
+                  }
+                ]
+              },
+              "blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "private-design-asset"
+                                    ]
+                                  },
+                                  "assetId": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "assetId"
+                                ]
+                              }
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "SIGNATURE",
+                              "PHOTO",
+                              "COVER",
+                              "LOGO",
+                              "AUDIO",
+                              "DOCUMENT"
+                            ]
+                          },
+                          "altText": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "width": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "height": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "variants": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            },
+                                            {},
+                                            {
+                                              "type": "array",
+                                              "items": {}
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "string",
+                                          "nullable": true,
+                                          "enum": [
+                                            null
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {}
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  null
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "id",
+                          "kind",
+                          "altText",
+                          "width",
+                          "height",
+                          "variants"
+                        ]
+                      }
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HERO",
+                        "STORY",
+                        "COUNTDOWN",
+                        "MUSIC",
+                        "VENUE",
+                        "MAP",
+                        "TIMELINE",
+                        "DRESS_CODE",
+                        "NOTES",
+                        "GALLERY",
+                        "RSVP",
+                        "SIGNATURE",
+                        "CHAT",
+                        "CONTACT"
+                      ]
+                    },
+                    "sortOrder": {
+                      "type": "number"
+                    },
+                    "variant": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "settings": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {},
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {},
+                                      {
+                                        "type": "array",
+                                        "items": {}
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "enum": [
+                                      null
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "array",
+                              "items": {}
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            null
+                          ]
+                        }
+                      ]
+                    },
+                    "content": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "data": {}
+                  },
+                  "required": [
+                    "media",
+                    "type",
+                    "sortOrder",
+                    "variant",
+                    "settings",
+                    "content",
+                    "data"
+                  ]
+                }
+              },
               "guest": {
                 "type": "object",
                 "properties": {
@@ -29082,10 +29658,6 @@
                 "type": "string",
                 "nullable": true
               },
-              "coverUrl": {
-                "type": "string",
-                "nullable": true
-              },
               "locale": {
                 "type": "string"
               },
@@ -29155,222 +29727,6 @@
                   "timezone",
                   "sides"
                 ]
-              },
-              "blocks": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": [
-                        "HERO",
-                        "STORY",
-                        "COUNTDOWN",
-                        "MUSIC",
-                        "VENUE",
-                        "MAP",
-                        "TIMELINE",
-                        "DRESS_CODE",
-                        "NOTES",
-                        "GALLERY",
-                        "RSVP",
-                        "SIGNATURE",
-                        "CHAT",
-                        "CONTACT"
-                      ]
-                    },
-                    "sortOrder": {
-                      "type": "number"
-                    },
-                    "variant": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "settings": {
-                      "anyOf": [
-                        {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "number"
-                            },
-                            {
-                              "type": "boolean"
-                            },
-                            {
-                              "type": "object",
-                              "properties": {},
-                              "additionalProperties": {
-                                "anyOf": [
-                                  {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "number"
-                                      },
-                                      {
-                                        "type": "boolean"
-                                      },
-                                      {},
-                                      {
-                                        "type": "array",
-                                        "items": {}
-                                      }
-                                    ]
-                                  },
-                                  {
-                                    "type": "string",
-                                    "nullable": true,
-                                    "enum": [
-                                      null
-                                    ]
-                                  }
-                                ]
-                              }
-                            },
-                            {
-                              "type": "array",
-                              "items": {}
-                            }
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "nullable": true,
-                          "enum": [
-                            null
-                          ]
-                        }
-                      ]
-                    },
-                    "content": {
-                      "type": "object",
-                      "properties": {}
-                    },
-                    "media": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "url": {
-                            "type": "string"
-                          },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "SIGNATURE",
-                              "PHOTO",
-                              "COVER",
-                              "LOGO",
-                              "AUDIO",
-                              "DOCUMENT"
-                            ]
-                          },
-                          "altText": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "width": {
-                            "type": "number",
-                            "nullable": true
-                          },
-                          "height": {
-                            "type": "number",
-                            "nullable": true
-                          },
-                          "variants": {
-                            "anyOf": [
-                              {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "number"
-                                  },
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "string"
-                                            },
-                                            {
-                                              "type": "number"
-                                            },
-                                            {
-                                              "type": "boolean"
-                                            },
-                                            {},
-                                            {
-                                              "type": "array",
-                                              "items": {}
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "string",
-                                          "nullable": true,
-                                          "enum": [
-                                            null
-                                          ]
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  {
-                                    "type": "array",
-                                    "items": {}
-                                  }
-                                ]
-                              },
-                              {
-                                "type": "string",
-                                "nullable": true,
-                                "enum": [
-                                  null
-                                ]
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "url",
-                          "kind",
-                          "altText",
-                          "width",
-                          "height",
-                          "variants"
-                        ]
-                      }
-                    },
-                    "data": {}
-                  },
-                  "required": [
-                    "type",
-                    "sortOrder",
-                    "variant",
-                    "settings",
-                    "content",
-                    "media",
-                    "data"
-                  ]
-                }
               },
               "rsvpFields": {
                 "type": "object",
@@ -29473,13 +29829,13 @@
               }
             },
             "required": [
+              "coverUrl",
+              "blocks",
               "guest",
               "musicUrl",
-              "coverUrl",
               "locale",
               "availableLocales",
               "event",
-              "blocks",
               "rsvpFields",
               "rsvpQuestions",
               "slug",
@@ -29492,6 +29848,280 @@
           {
             "type": "object",
             "properties": {
+              "coverUrl": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "private-design-asset"
+                            ]
+                          },
+                          "assetId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "assetId"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
+                  }
+                ]
+              },
+              "blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "private-design-asset"
+                                    ]
+                                  },
+                                  "assetId": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "assetId"
+                                ]
+                              }
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "SIGNATURE",
+                              "PHOTO",
+                              "COVER",
+                              "LOGO",
+                              "AUDIO",
+                              "DOCUMENT"
+                            ]
+                          },
+                          "altText": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "width": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "height": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "variants": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            },
+                                            {},
+                                            {
+                                              "type": "array",
+                                              "items": {}
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "string",
+                                          "nullable": true,
+                                          "enum": [
+                                            null
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {}
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  null
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "id",
+                          "kind",
+                          "altText",
+                          "width",
+                          "height",
+                          "variants"
+                        ]
+                      }
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HERO",
+                        "STORY",
+                        "COUNTDOWN",
+                        "MUSIC",
+                        "VENUE",
+                        "MAP",
+                        "TIMELINE",
+                        "DRESS_CODE",
+                        "NOTES",
+                        "GALLERY",
+                        "RSVP",
+                        "SIGNATURE",
+                        "CHAT",
+                        "CONTACT"
+                      ]
+                    },
+                    "sortOrder": {
+                      "type": "number"
+                    },
+                    "variant": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "settings": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {},
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {},
+                                      {
+                                        "type": "array",
+                                        "items": {}
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "enum": [
+                                      null
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "array",
+                              "items": {}
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            null
+                          ]
+                        }
+                      ]
+                    },
+                    "content": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "data": {}
+                  },
+                  "required": [
+                    "media",
+                    "type",
+                    "sortOrder",
+                    "variant",
+                    "settings",
+                    "content",
+                    "data"
+                  ]
+                }
+              },
               "guest": {
                 "type": "object",
                 "properties": {
@@ -29842,10 +30472,6 @@
                 "type": "string",
                 "nullable": true
               },
-              "coverUrl": {
-                "type": "string",
-                "nullable": true
-              },
               "locale": {
                 "type": "string"
               },
@@ -29915,222 +30541,6 @@
                   "timezone",
                   "sides"
                 ]
-              },
-              "blocks": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": [
-                        "HERO",
-                        "STORY",
-                        "COUNTDOWN",
-                        "MUSIC",
-                        "VENUE",
-                        "MAP",
-                        "TIMELINE",
-                        "DRESS_CODE",
-                        "NOTES",
-                        "GALLERY",
-                        "RSVP",
-                        "SIGNATURE",
-                        "CHAT",
-                        "CONTACT"
-                      ]
-                    },
-                    "sortOrder": {
-                      "type": "number"
-                    },
-                    "variant": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "settings": {
-                      "anyOf": [
-                        {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "number"
-                            },
-                            {
-                              "type": "boolean"
-                            },
-                            {
-                              "type": "object",
-                              "properties": {},
-                              "additionalProperties": {
-                                "anyOf": [
-                                  {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "number"
-                                      },
-                                      {
-                                        "type": "boolean"
-                                      },
-                                      {},
-                                      {
-                                        "type": "array",
-                                        "items": {}
-                                      }
-                                    ]
-                                  },
-                                  {
-                                    "type": "string",
-                                    "nullable": true,
-                                    "enum": [
-                                      null
-                                    ]
-                                  }
-                                ]
-                              }
-                            },
-                            {
-                              "type": "array",
-                              "items": {}
-                            }
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "nullable": true,
-                          "enum": [
-                            null
-                          ]
-                        }
-                      ]
-                    },
-                    "content": {
-                      "type": "object",
-                      "properties": {}
-                    },
-                    "media": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "url": {
-                            "type": "string"
-                          },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "SIGNATURE",
-                              "PHOTO",
-                              "COVER",
-                              "LOGO",
-                              "AUDIO",
-                              "DOCUMENT"
-                            ]
-                          },
-                          "altText": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "width": {
-                            "type": "number",
-                            "nullable": true
-                          },
-                          "height": {
-                            "type": "number",
-                            "nullable": true
-                          },
-                          "variants": {
-                            "anyOf": [
-                              {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "number"
-                                  },
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "string"
-                                            },
-                                            {
-                                              "type": "number"
-                                            },
-                                            {
-                                              "type": "boolean"
-                                            },
-                                            {},
-                                            {
-                                              "type": "array",
-                                              "items": {}
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "string",
-                                          "nullable": true,
-                                          "enum": [
-                                            null
-                                          ]
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  {
-                                    "type": "array",
-                                    "items": {}
-                                  }
-                                ]
-                              },
-                              {
-                                "type": "string",
-                                "nullable": true,
-                                "enum": [
-                                  null
-                                ]
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "url",
-                          "kind",
-                          "altText",
-                          "width",
-                          "height",
-                          "variants"
-                        ]
-                      }
-                    },
-                    "data": {}
-                  },
-                  "required": [
-                    "type",
-                    "sortOrder",
-                    "variant",
-                    "settings",
-                    "content",
-                    "media",
-                    "data"
-                  ]
-                }
               },
               "rsvpFields": {
                 "type": "object",
@@ -30293,13 +30703,13 @@
               }
             },
             "required": [
+              "coverUrl",
+              "blocks",
               "guest",
               "musicUrl",
-              "coverUrl",
               "locale",
               "availableLocales",
               "event",
-              "blocks",
               "rsvpFields",
               "rsvpQuestions",
               "templateVersion",
@@ -37238,6 +37648,23 @@
           "subscription": {
             "type": "object",
             "properties": {
+              "pendingFree": {
+                "type": "object",
+                "properties": {
+                  "planKey": {
+                    "type": "string"
+                  },
+                  "effectiveAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "planKey",
+                  "effectiveAt"
+                ],
+                "nullable": true
+              },
               "status": {
                 "type": "string",
                 "enum": [
@@ -37340,6 +37767,7 @@
               }
             },
             "required": [
+              "pendingFree",
               "status",
               "plan",
               "entitlements",
@@ -37364,6 +37792,23 @@
               "subscription": {
                 "type": "object",
                 "properties": {
+                  "pendingFree": {
+                    "type": "object",
+                    "properties": {
+                      "planKey": {
+                        "type": "string"
+                      },
+                      "effectiveAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "planKey",
+                      "effectiveAt"
+                    ],
+                    "nullable": true
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -37466,6 +37911,7 @@
                   }
                 },
                 "required": [
+                  "pendingFree",
                   "status",
                   "plan",
                   "entitlements",
@@ -37503,6 +37949,23 @@
               "subscription": {
                 "type": "object",
                 "properties": {
+                  "pendingFree": {
+                    "type": "object",
+                    "properties": {
+                      "planKey": {
+                        "type": "string"
+                      },
+                      "effectiveAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "planKey",
+                      "effectiveAt"
+                    ],
+                    "nullable": true
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -37605,6 +38068,7 @@
                   }
                 },
                 "required": [
+                  "pendingFree",
                   "status",
                   "plan",
                   "entitlements",
@@ -37800,9 +38264,26 @@
           }
         ]
       },
-      "SubscriptionsController_cancelResponse": {
+      "SubscriptionsController_withdrawFreeChangeResponse": {
         "type": "object",
         "properties": {
+          "pendingFree": {
+            "type": "object",
+            "properties": {
+              "planKey": {
+                "type": "string"
+              },
+              "effectiveAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "planKey",
+              "effectiveAt"
+            ],
+            "nullable": true
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -37905,6 +38386,140 @@
           }
         },
         "required": [
+          "pendingFree",
+          "status",
+          "plan",
+          "entitlements",
+          "currentPeriodStart",
+          "currentPeriodEnd",
+          "cancelAtPeriodEnd",
+          "cancelledAt",
+          "trialEndsAt"
+        ]
+      },
+      "SubscriptionsController_cancelResponse": {
+        "type": "object",
+        "properties": {
+          "pendingFree": {
+            "type": "object",
+            "properties": {
+              "planKey": {
+                "type": "string"
+              },
+              "effectiveAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "planKey",
+              "effectiveAt"
+            ],
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CANCELLED",
+              "EXPIRED",
+              "TRIALING",
+              "ACTIVE",
+              "PAST_DUE"
+            ]
+          },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "tier": {
+                "type": "string"
+              },
+              "priceMinor": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "interval": {
+                "type": "string",
+                "enum": [
+                  "MONTHLY",
+                  "YEARLY",
+                  "PER_EVENT"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "name",
+              "tier",
+              "priceMinor",
+              "currency",
+              "interval"
+            ]
+          },
+          "entitlements": {
+            "type": "object",
+            "properties": {
+              "maxEventsPerPeriod": {
+                "type": "number",
+                "nullable": true
+              },
+              "maxGuestsPerEvent": {
+                "type": "number",
+                "nullable": true
+              },
+              "maxLocales": {
+                "type": "number"
+              },
+              "invitationLifetimeDays": {
+                "type": "number",
+                "nullable": true
+              },
+              "features": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "maxEventsPerPeriod",
+              "maxGuestsPerEvent",
+              "maxLocales",
+              "invitationLifetimeDays",
+              "features"
+            ]
+          },
+          "currentPeriodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentPeriodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean"
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "trialEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "pendingFree",
           "status",
           "plan",
           "entitlements",
@@ -37918,6 +38533,23 @@
       "SubscriptionsController_resumeResponse": {
         "type": "object",
         "properties": {
+          "pendingFree": {
+            "type": "object",
+            "properties": {
+              "planKey": {
+                "type": "string"
+              },
+              "effectiveAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "planKey",
+              "effectiveAt"
+            ],
+            "nullable": true
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -38020,6 +38652,7 @@
           }
         },
         "required": [
+          "pendingFree",
           "status",
           "plan",
           "entitlements",
@@ -57309,6 +57942,23 @@
             "handledByUserId": {
               "type": "string",
               "nullable": true
+            },
+            "exportGenerationId": {
+              "type": "string",
+              "nullable": true
+            },
+            "exportGeneratedAt": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "exportGeneratedByUserId": {
+              "type": "string",
+              "nullable": true
+            },
+            "exportDeliveredByUserId": {
+              "type": "string",
+              "nullable": true
             }
           },
           "required": [
@@ -57331,7 +57981,11 @@
             "requestedAt",
             "dueAt",
             "resultAssetId",
-            "handledByUserId"
+            "handledByUserId",
+            "exportGenerationId",
+            "exportGeneratedAt",
+            "exportGeneratedByUserId",
+            "exportDeliveredByUserId"
           ]
         }
       },
@@ -57545,6 +58199,23 @@
           "handledByUserId": {
             "type": "string",
             "nullable": true
+          },
+          "exportGenerationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportGeneratedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "exportGeneratedByUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportDeliveredByUserId": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -57567,7 +58238,11 @@
           "requestedAt",
           "dueAt",
           "resultAssetId",
-          "handledByUserId"
+          "handledByUserId",
+          "exportGenerationId",
+          "exportGeneratedAt",
+          "exportGeneratedByUserId",
+          "exportDeliveredByUserId"
         ]
       },
       "PrivacyController_fulfilResponse": {
@@ -57594,6 +58269,9 @@
           {
             "type": "object",
             "properties": {
+              "generationId": {
+                "type": "string"
+              },
               "enquiries": {
                 "type": "array",
                 "items": {
@@ -59200,6 +59878,7 @@
               }
             },
             "required": [
+              "generationId",
               "enquiries",
               "subjectEmail",
               "assembledAt",
@@ -59218,6 +59897,9 @@
           {
             "type": "object",
             "properties": {
+              "generationId": {
+                "type": "string"
+              },
               "enquiries": {
                 "type": "array",
                 "items": {
@@ -59748,6 +60430,7 @@
               }
             },
             "required": [
+              "generationId",
               "enquiries",
               "subjectEmail",
               "assembledAt",
@@ -59813,6 +60496,35 @@
               "kind"
             ]
           }
+        ]
+      },
+      "PrivacyController_confirmDeliveryResponse": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "COMPLETED"
+            ]
+          },
+          "generationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "reference",
+          "status",
+          "generationId",
+          "completedAt"
         ]
       },
       "SuppressionsController_listResponse": {
@@ -60091,6 +60803,23 @@
           "handledByUserId": {
             "type": "string",
             "nullable": true
+          },
+          "exportGenerationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportGeneratedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "exportGeneratedByUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportDeliveredByUserId": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -60113,7 +60842,11 @@
           "requestedAt",
           "dueAt",
           "resultAssetId",
-          "handledByUserId"
+          "handledByUserId",
+          "exportGenerationId",
+          "exportGeneratedAt",
+          "exportGeneratedByUserId",
+          "exportDeliveredByUserId"
         ]
       },
       "EnquiryPrivacyController_bindResponse": {
@@ -60289,6 +61022,23 @@
           "handledByUserId": {
             "type": "string",
             "nullable": true
+          },
+          "exportGenerationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportGeneratedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "exportGeneratedByUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportDeliveredByUserId": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -60312,7 +61062,11 @@
           "requestedAt",
           "dueAt",
           "resultAssetId",
-          "handledByUserId"
+          "handledByUserId",
+          "exportGenerationId",
+          "exportGeneratedAt",
+          "exportGeneratedByUserId",
+          "exportDeliveredByUserId"
         ]
       },
       "EnquiryPrivacyController_candidatesResponse": {

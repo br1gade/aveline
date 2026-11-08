@@ -6,6 +6,7 @@ const npm = (script, ...args) => ({ command: 'npm', args: ['run', script, ...(ar
 export function stepsFor(layer, env = process.env) {
   const api = env.CI_API_IMAGE ?? 'aveline-api:ci';
   const backup = env.CI_BACKUP_IMAGE ?? 'aveline-backup:pilot-readiness';
+  const web = env.CI_WEB_IMAGE ?? 'aveline-web:ci';
   const plans = {
     quality: ['lint', 'docs:check', 'openapi:check'].map((name) => npm(name)).concat([
       { command: 'npx', args: ['tsc', '--noEmit', '--incremental', 'false'] },
@@ -17,6 +18,9 @@ export function stepsFor(layer, env = process.env) {
       { command: process.execPath, args: ['scripts/test-edge.mjs'] },
       { command: 'docker', args: ['build', '--tag', api, '.'] },
       { command: 'docker', args: ['build', '--file', 'Dockerfile.backup', '--tag', backup, '.'] },
+      { command: 'docker', args: ['build', '--tag', web,
+        '--build-arg', 'VITE_PUBLIC_ORIGIN=https://aveline.test',
+        '--build-arg', 'VITE_MEDIA_BASE_URL=https://media.aveline.test', '../frontend'] },
       { command: process.execPath, args: ['scripts/ops-rehearsal.mjs'] },
       { command: process.execPath, args: ['scripts/pilot-rehearsal.mjs'] },
       { command: process.execPath, args: ['scripts/backup-rehearsal.mjs'] },
@@ -43,7 +47,8 @@ async function main() {
   const layer = process.argv[2];
   const api = process.env.CI_API_IMAGE ?? 'aveline-api:ci';
   const backup = process.env.CI_BACKUP_IMAGE ?? 'aveline-backup:pilot-readiness';
-  Object.assign(process.env, { OPS_REHEARSAL_IMAGE: api, OPS_REHEARSAL_BACKUP_IMAGE: backup, PILOT_REHEARSAL_IMAGE: api, BACKUP_REHEARSAL_IMAGE: backup });
+  const web = process.env.CI_WEB_IMAGE ?? 'aveline-web:ci';
+  Object.assign(process.env, { OPS_REHEARSAL_IMAGE: api, OPS_REHEARSAL_BACKUP_IMAGE: backup, OPS_REHEARSAL_WEB_IMAGE: web, PILOT_REHEARSAL_IMAGE: api, BACKUP_REHEARSAL_IMAGE: backup });
   try { await runSteps(stepsFor(layer)); }
   catch (error) {
     if (['integration', 'http'].includes(layer)) await executeStep({ command: process.execPath, args: ['scripts/ci-test-results.mjs', `/tmp/aveline-${layer}-results.json`] });

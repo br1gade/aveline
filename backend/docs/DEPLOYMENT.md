@@ -7,7 +7,7 @@ release/promotion setup and [GOING_LIVE](../../docs/GOING_LIVE.md) for activatio
 
 ## Stack and prerequisites
 
-`docker-compose.prod.yml` runs Caddy, API, PostgreSQL, Redis, MongoDB, Garage and
+`docker-compose.prod.yml` runs Caddy, the web renderer, API, PostgreSQL, Redis, MongoDB, Garage and
 four workers: `export-worker`, `seating-worker`, `private-media-worker` and
 `template-asset-worker`. All workers and migrations use the same API image.
 One-shot services perform migrations, seeding, privacy recovery and backups.
@@ -16,9 +16,11 @@ The app image runs as `node` under `tini`; only Caddy publishes production ports
 
 Use Linux, Docker Engine with **Compose 2.30+**, Node **24+** on the host, Bash,
 `flock` and sufficient disk/RAM for the configured container limits and backup
-sets. Containers use Node 26. The local overlay adds Mailpit and publishes only
-loopback API/media/mail UI ports; it never reuses the development Compose names.
-This packages the backend. A frontend application has not been built here.
+sets. API containers use Node 26 and the web image uses Node 24. The local
+overlay adds Mailpit and publishes only loopback app, media and mail UI ports.
+Caddy sends `/api` to the private API upstream and the website to the private
+web upstream. The renderer uses `API_INTERNAL_URL=http://api:3000`. The
+browser uses relative API URLs. Garage media keeps its separate origin.
 
 Postgres holds the domain. Redis/Mongo outages degrade optional capabilities;
 scheduled sweeps deliberately pause without Redis locks. Garage outages prevent
@@ -39,29 +41,30 @@ npm run ops -- status
 
 The wizard writes `.deployment/local/` with private directory/file permissions
 0700/0600. Initialization refuses to overwrite an existing profile. Local mode
-builds both images, provisions fresh storage, applies migrations, seeds reference
+builds the API, backup and web images, provisions fresh storage, applies migrations, seeds reference
 data and waits for API/worker/gateway health. It runs `NODE_ENV=production`, with
-SMTP captured by Mailpit. Defaults: API `http://127.0.0.1:8080/api/v1`, media
+SMTP captured by Mailpit. Defaults are the website at `http://127.0.0.1:8080`, API under `/api/v1`, media
 `:8081`, Mailpit `http://127.0.0.1:8026`. Swagger is disabled. No demo users,
 organizations or events are seeded; only the free plan is active.
 
 Interactive initialization asks for local/production mode. For automation use a
 private 0600 JSON answers file with `--answers /private/answers.json`. Local
 answers support `apiPort`, `mediaPort`, `mailPort`; production answers use
-`apiDomain`, `mediaDomain`, `appUrl`, `acmeEmail`, `smtpHost`, `mailFrom`, and
+`mediaDomain`, `appUrl`, `acmeEmail`, `smtpHost`, `mailFrom`, and
 optional `smtpPort`, `smtpUser`, `smtpPassword`, plus `mode` and `project`.
 Do not pass passwords on the command line or upload answers as CI artifacts.
 
-`npm run ops:rehearsal` expects prebuilt `aveline-api:ops-test` and
-`aveline-backup:ops-test` (override `OPS_REHEARSAL_IMAGE` and
-`OPS_REHEARSAL_BACKUP_IMAGE`). It uses a unique disposable project, real stores,
-migrations, all workers, literal-secret checks, redeployment and local capture.
+`npm run ops:rehearsal` expects prebuilt `aveline-api:ops-test`,
+`aveline-backup:ops-test` and `aveline-web:ops-test`. Override them with
+`OPS_REHEARSAL_IMAGE`, `OPS_REHEARSAL_BACKUP_IMAGE` and `OPS_REHEARSAL_WEB_IMAGE`.
+It uses a unique disposable project, real stores, migrations, all workers,
+same-origin HTTP and server rendering, redeployment and local backup capture.
 It deletes only its own containers/volumes and retains protected failure diagnostics.
 
 ## Production profile and first release
 
-Prepare DNS for both API and media hosts, ports 80/443, the frontend HTTPS
-origin, SMTP sending credentials and authenticated sending-domain DNS. On the
+Prepare DNS for the canonical app host and separate media host, ports 80/443,
+SMTP sending credentials and authenticated sending-domain DNS. On the
 host, initialize a private profile **outside the release checkout**:
 
 ```bash
@@ -78,6 +81,11 @@ Never initialize over a populated installation or rotate restored keys by rerunn
 --garage-config FILE --directory NEW_PROFILE` preserves existing credentials;
 its source env must use the generated canonical format (the example also supports
 plain unquoted values). Preserve the original project and volume identities.
+When moving an older profile to one origin, set `API_DOMAIN` to the hostname
+in `PUBLIC_APP_URL` and set `CORS_ORIGINS` to that exact HTTPS origin. Set
+`S3_PUBLIC_URL` to the HTTPS origin of `MEDIA_DOMAIN` and run `sync`. Check
+configured callback URLs and any callers of the former API hostname before
+changing DNS or retiring that hostname.
 
 The profile contains `settings.json`, canonical `.env`, literal `.runtime.env`
 and `garage.toml`. Keep all four protected. The ops overlay uses Compose raw
@@ -91,12 +99,12 @@ to regenerate its runtime mirror; mismatches block further deployment. Avoid
 Production apply requires immutable image references from a tested release:
 
 ```bash
-node backend/scripts/ops.mjs plan --directory /etc/aveline/production --image ghcr.io/OWNER/REPO/api@sha256:DIGEST --backup-image ghcr.io/OWNER/REPO/backup@sha256:DIGEST
-node backend/scripts/ops.mjs apply --directory /etc/aveline/production --image ghcr.io/OWNER/REPO/api@sha256:DIGEST --backup-image ghcr.io/OWNER/REPO/backup@sha256:DIGEST --confirm aveline-production
+node backend/scripts/ops.mjs plan --directory /etc/aveline/production --image ghcr.io/OWNER/REPO/api@sha256:DIGEST --backup-image ghcr.io/OWNER/REPO/backup@sha256:DIGEST --web-image ghcr.io/OWNER/REPO/web@sha256:DIGEST
+node backend/scripts/ops.mjs apply --directory /etc/aveline/production --image ghcr.io/OWNER/REPO/api@sha256:DIGEST --backup-image ghcr.io/OWNER/REPO/backup@sha256:DIGEST --web-image ghcr.io/OWNER/REPO/web@sha256:DIGEST --confirm aveline-production
 ```
 
-Substitute real lowercase repository/digests. The host must be able to pull both
-images. The controller creates only a new, project-labelled external privacy
+Substitute real lowercase repository/digests. The host must be able to pull all three
+images. The web image labels must match the configured app and media origins. The controller creates only a new, project-labelled external privacy
 volume; an existing volume must already have matching ownership/permissions.
 Garage bootstrapping sets up one explicitly unassigned node only, preserves an
 existing layout/key, enables website reads only on the public bucket and denies
@@ -105,7 +113,7 @@ website access on the distinct private bucket. Secrets are saved privately.
 Apply validates configuration, pulls images, checks the candidate reader floor,
 configuration and privacy journal, backs up a populated installation, stops all
 application writers, repeats preflight while quiesced, migrates/seeds and checks
-all processes plus the public readiness endpoint. A deployment lock serializes
+all processes plus the web and API readiness endpoints through Caddy. A deployment lock serializes
 configuration, backups and journal maintenance. No database reset is used.
 
 **This is a maintenance deployment.** Writer stoppage/migrations and coordinated
@@ -114,7 +122,9 @@ health checks leave a protected `deployment-attempt.json` and `last-error.json`.
 They never trigger database restore or an automatic restart of an older image.
 Review failure state privately, correct the cause and rerun the same candidate.
 `rollback-plan` shows previous digests; any rollback still needs candidate reader
-preflight and maintenance. It never downgrades the database. A stale lock is not
+preflight and maintenance. Roll back to a release that predates the web image
+through its archived source and matching operations CLI. The database schema
+stays at its current revision. A stale lock is not
 automatically removed: verify its recorded process before operator removal.
 
 ## Privacy journal and restore boundary

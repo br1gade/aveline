@@ -4,14 +4,18 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GuestsService } from './guests.service';
+import { DoorRosterService } from './door-roster.service';
+import { DoorRosterDto, DoorRosterQuery } from './dto/door-roster.dto';
 import { CheckInService } from './check-in.service';
 import { GuestImportService } from './import/guest-import.service';
 
@@ -27,6 +31,7 @@ export class GuestsController {
     private readonly guests: GuestsService,
     private readonly imports: GuestImportService,
     private readonly checkIns: CheckInService,
+    private readonly doorRoster: DoorRosterService,
   ) {}
 
   @RequirePermission('guest:read')
@@ -102,6 +107,15 @@ export class GuestsController {
   @ApiOperation({ summary: 'Undo a check-in after a mis-scan' })
   undoCheckIn(@Param('eventId') eventId: string, @Param('guestId') guestId: string) {
     return this.checkIns.undo(eventId, guestId);
+  }
+
+  @RequirePermission('guest:read')
+  @Get('door-roster')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Search the contact-free event door roster' })
+  @ApiOkResponse({ type: DoorRosterDto })
+  roster(@Param('eventId') eventId: string, @Query() query: DoorRosterQuery, @CurrentActor() actor: RequestActor) {
+    return this.doorRoster.list(eventId, query, actorCan(actor, 'seating:read'));
   }
 
   @RequirePermission('operations:read')

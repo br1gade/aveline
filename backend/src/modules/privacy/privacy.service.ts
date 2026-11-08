@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { lockExportPrivacy } from '../exports/export-privacy';
 import { lockIntake } from '../sales/enquiry-lock';
 import { EnquiryPrivacyService } from '../sales/enquiry-privacy.service';
@@ -38,6 +39,10 @@ const ERASURE_TIMEOUT_MS = 60_000;
 
 function completedBy(userId: string) {
   return { status: DataSubjectRequestStatus.COMPLETED, completedAt: new Date(), handledByUserId: userId };
+}
+
+function deliveryReceipt(request: { id: string; completedAt: Date | null; exportGenerationId: string | null }) {
+  return { reference: request.id, status: DataSubjectRequestStatus.COMPLETED, generationId: request.exportGenerationId, completedAt: request.completedAt };
 }
 
 @Injectable()
@@ -127,11 +132,9 @@ export class PrivacyService {
           status: dto.status ?? undefined,
           notes: dto.notes ?? undefined,
           handledByUserId: userId,
-          completedAt:
-            dto.status === DataSubjectRequestStatus.COMPLETED ||
-            dto.status === DataSubjectRequestStatus.REJECTED
-              ? new Date()
-              : undefined,
+          completedAt: dto.status !== request.status &&
+            (dto.status === DataSubjectRequestStatus.COMPLETED || dto.status === DataSubjectRequestStatus.REJECTED)
+            ? new Date() : undefined,
         },
       });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
@@ -181,9 +184,28 @@ export class PrivacyService {
       await lockIntake(tx);
       const subject = this.enquiryPrivacy ? await this.enquiryPrivacy.resolveSubject(request.id, tx) : { email: request.subjectEmail, verifiedContactIds: [] };
       const result = await this.assembleExport(subject, request.id, tx);
-      await tx.dataSubjectRequest.updateMany({ where: { id: request.id, status: 'IN_PROGRESS' }, data: completedBy(completion.userId) });
-      return result;
+      const generationId = randomUUID();
+      await tx.dataSubjectRequest.update({ where: { id: request.id }, data: {
+        exportGenerationId: generationId, exportGeneratedAt: new Date(), exportGeneratedByUserId: completion.userId,
+      } });
+      return { ...result, generationId };
     }, { timeout: ERASURE_TIMEOUT_MS });
+  }
+
+  async confirmExportDelivery(requestId: string, userId: string, generationId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockPrivacyRequest(tx, requestId);
+      const request = await this.require(requestId, tx);
+      if (request.kind !== 'EXPORT' || request.exportGenerationId !== generationId) {
+        throw new ConflictException('Only the latest export generation can be confirmed');
+      }
+      if (request.status === 'COMPLETED') return deliveryReceipt(request);
+      if (request.status !== 'IN_PROGRESS') throw new ConflictException('This export request is closed');
+
+      return deliveryReceipt(await tx.dataSubjectRequest.update({ where: { id: requestId }, data: {
+        ...completedBy(userId), exportDeliveredByUserId: userId,
+      } }));
+    });
   }
 
   /**

@@ -47,22 +47,24 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RELEASE_RUN_ID" > /tmp/release-run.json
           gh run download "$RELEASE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-manifest --dir /tmp/release
           node backend/scripts/ops/release-manifest.mjs verify /tmp/release/release-manifest.json /tmp/release-run.json
-      - name: Verify both OCI attestations
+      - name: Verify all three OCI attestations
         env:
           GH_TOKEN: ${{ github.token }}
           API_REF: ${{ steps.release.outputs.api }}
           BACKUP_REF: ${{ steps.release.outputs.backup }}
+          WEB_REF: ${{ steps.release.outputs.web }}
           SOURCE_COMMIT: ${{ steps.release.outputs.commit }}
           SOURCE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           gh attestation verify "oci://$API_REF" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$SOURCE_COMMIT" --source-ref "refs/heads/$SOURCE_BRANCH" --deny-self-hosted-runners
           gh attestation verify "oci://$BACKUP_REF" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$SOURCE_COMMIT" --source-ref "refs/heads/$SOURCE_BRANCH" --deny-self-hosted-runners
+          gh attestation verify "oci://$WEB_REF" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$SOURCE_COMMIT" --source-ref "refs/heads/$SOURCE_BRANCH" --deny-self-hosted-runners
       - uses: actions/checkout@v7
         with:
           ref: ${{ steps.release.outputs.commit }}
           persist-credentials: false
       - name: Package tracked source without host credentials
-        run: git archive --format=tar.gz --output=/tmp/aveline-release.tar.gz HEAD backend docs CLAUDE.md AGENTS.md
+        run: git archive --format=tar.gz --output=/tmp/aveline-release.tar.gz HEAD backend frontend docs CLAUDE.md AGENTS.md
       - name: Deploy through verified SSH and the host controller
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}

@@ -16,6 +16,10 @@ const caddyImage = 'caddy:2-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d
 const logs = [];
 const server = createServer((request, response) => {
   response.setHeader('content-type', 'application/json');
+  if (request.url === '/design-preview') {
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  }
   response.end(JSON.stringify({ url: request.url, host: request.headers.host, token: request.headers['x-pilot-token'] }));
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -35,7 +39,7 @@ function call(path, host, headers = {}) {
     const outgoing = request({ hostname: '127.0.0.1', servername: host.split(':')[0], ca: certificate, port, path, headers: { Host: host, ...headers } }, (response) => {
       const chunks = [];
       response.on('data', (chunk) => chunks.push(chunk));
-      response.on('end', () => resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString() }));
+      response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks).toString() }));
     });
     outgoing.on('error', reject);
     outgoing.end();
@@ -48,6 +52,7 @@ try {
   const source = await readFile(new URL('Caddyfile', root), 'utf8');
   const config = source.replace('\n{\n', '\n{\n\tadmin off\n\tlocal_certs\n\tauto_https disable_redirects\n')
     .replace('api:3000', `127.0.0.1:${upstream}`)
+    .replace('web:3000', `127.0.0.1:${upstream}`)
     .replace('garage:3902', `127.0.0.1:${upstream}`);
   await writeFile(join(directory, 'Caddyfile'), config);
   child = spawn('docker', ['run', '--rm', '--name', name, '--network', 'host',
@@ -61,7 +66,7 @@ try {
   for (let attempt = 0; attempt < 100 && !isReady; attempt++) {
     try {
       certificate ??= (await execute('docker', ['exec', name, 'cat', '/data/caddy/pki/authorities/local/root.crt'])).stdout;
-      const response = await call('/health', `api.localhost:${port}`);
+      const response = await call('/api/v1/health', `api.localhost:${port}`);
       isReady = response.status === 200 && response.body.includes('/health');
     } catch {}
     if (!isReady) await new Promise((resolve) => setTimeout(resolve, 100));
@@ -72,6 +77,12 @@ try {
     Referer: `https://aveline.test/g/${canary}`, Authorization: `Bearer ${canary}`,
   });
   assert.equal(response.status, 200);
+  assert.match(response.headers['content-security-policy'], /default-src 'none'/);
+  const web = await call('/design-preview', `api.localhost:${port}`);
+  assert.equal(web.status, 200);
+  assert.equal(web.headers['content-security-policy'], undefined);
+  assert.equal(web.headers['referrer-policy'], 'no-referrer');
+  assert.equal(web.headers['x-frame-options'], 'SAMEORIGIN');
   assert.deepEqual(JSON.parse(response.body), { url: path, host: `api.localhost:${port}`, token: canary });
   const image = await call('/photo.png', `media.localhost:${port}`);
   assert.equal(image.status, 200);

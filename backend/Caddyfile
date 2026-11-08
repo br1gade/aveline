@@ -37,20 +37,25 @@
 {$API_DOMAIN} {
 	encode zstd gzip
 
-	# The app reads X-Forwarded-For to rate-limit per client; Caddy sets it,
-	# and TRUST_PROXY_HOPS=1 is what makes the app believe exactly this hop.
-	reverse_proxy api:3000
+	@api path /api /api/*
+	handle @api {
+		# The API trusts exactly this proxy for client IP rate limiting.
+		header {
+			Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+			X-Frame-Options "DENY"
+			Referrer-Policy "strict-origin-when-cross-origin"
+		}
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
 
 	header {
 		# HSTS. Only safe once the domain is definitely served over TLS —
 		# a browser that has seen this will refuse plain HTTP for a year.
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		# The API serves JSON, not pages, so nothing needs to be framed or
-		# to load scripts.
-		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 		-Server
 	}
 

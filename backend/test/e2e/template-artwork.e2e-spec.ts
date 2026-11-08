@@ -62,6 +62,14 @@ describe('private template artwork HTTP flow', () => {
     await http().post(`/api/v1/invitations/${seeded.slug}/template`).set('Authorization', auth.authorization).send({ templateKey: 'http-artwork', templateVersionId: published.body.versionId,
       previewId: pending.body.previewId, expectedTemplateVersionId: invitation.templateVersionId, expectedDesignRevision: String(invitation.designRevision), idempotencyKey: randomUUID() }).expect(201);
     const page = await http().get(`/api/v1/invitations/${seeded.slug}/g/${seeded.primaryGuestToken}`).expect(200);
+    const referencePage = await http().get(`/api/v1/invitations/${seeded.slug}/g/${seeded.primaryGuestToken}`)
+      .query({ artwork: 'asset-id' }).expect(200);
+    const reference = { kind: 'private-design-asset', assetId: binding.id };
+    expect(referencePage.body.coverUrl).toEqual(reference);
+    expect(referencePage.body.blocks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'HERO', media: expect.arrayContaining([expect.objectContaining({ url: reference })]) }),
+    ]));
+    expect(JSON.stringify(referencePage.body)).not.toContain(`/g/${seeded.primaryGuestToken}/design-assets`);
     const personal = await http().get(page.body.coverUrl as string).expect(200);
     expect(personal.headers['content-type']).toMatch(/^image\/png/); expect(personal.headers['x-content-type-options']).toBe('nosniff');
     expect(personal.headers['cache-control']).toBe('private, no-store'); expect(personal.headers.location).toBeUndefined();

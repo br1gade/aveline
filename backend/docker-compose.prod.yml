@@ -44,6 +44,23 @@ services:
     depends_on:
       api:
         condition: service_started
+      web:
+        condition: service_healthy
+
+  web:
+    image: ${WEB_IMAGE:-aveline-web:latest}
+    build:
+      context: ../frontend
+      args:
+        VITE_PUBLIC_ORIGIN: ${PUBLIC_APP_URL:-http://127.0.0.1:8080}
+        VITE_MEDIA_BASE_URL: ${S3_PUBLIC_URL:-http://127.0.0.1:8081}
+        VITE_API_BASE_URL: ""
+    logging: *logging
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:3000
+    expose:
+      - '3000'
 
   # ── Migrations ────────────────────────────────────────────────────────
   # A separate one-shot container, not a step inside the API's start command.

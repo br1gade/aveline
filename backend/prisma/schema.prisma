@@ -649,7 +649,7 @@ model Guest {
   acknowledgementsSigned GuestAcknowledgement[] @relation("AcknowledgementSigner")
 
   @@unique([id, eventId])
-  @@index([eventId])
+  @@index([eventId, id])
   @@index([householdId])
   @@index([seatReleasedFromTableId])
   @@map("guests")
@@ -1725,6 +1725,10 @@ model DataSubjectRequest {
   /// Where an export landed, when the request was for one.
   resultAssetId   String?
   handledByUserId String?
+  exportGenerationId String? @db.Uuid
+  exportGeneratedAt DateTime?
+  exportGeneratedByUserId String?
+  exportDeliveredByUserId String?
   notes           String?
 
   @@index([status, dueAt])
@@ -2007,6 +2011,7 @@ model Plan {
   updatedAt DateTime @updatedAt
 
   subscriptions Subscription[]
+  scheduledFreeSubscriptions Subscription[] @relation("ScheduledFreePlan")
   invoices      Invoice[]
 
   @@map("plans")
@@ -2039,6 +2044,10 @@ model Subscription {
   cancelAtPeriodEnd  Boolean   @default(false)
   cancelledAt        DateTime?
   trialEndsAt        DateTime?
+  pendingFreeAt      DateTime?
+  pendingFreePlanId  String?
+  pendingFreeTerms   Json?
+  activeFreeTerms    Json?
 
   /// Token the bank returns for a stored card. Recurring charges on Armenian
   /// gateways are card bindings, not a stored PAN — we never hold card data.
@@ -2051,12 +2060,15 @@ model Subscription {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
+  pendingFreePlan Plan? @relation("ScheduledFreePlan", fields: [pendingFreePlanId], references: [id], onDelete: Restrict)
   invoices     Invoice[]
 
   /// One live subscription per organization.
   @@unique([organizationId])
   /// The renewal sweep scans subscriptions whose period has lapsed.
   @@index([status, currentPeriodEnd])
+  @@index([pendingFreeAt])
+  @@index([pendingFreePlanId])
   @@map("subscriptions")
 }
 

@@ -1,3 +1,4 @@
+import { DoorRosterService } from './door-roster.service';
 import { GuestNameController } from './guest-name.controller';
 import { GuestNameService } from './guest-name.service';
 import { Module } from '@nestjs/common';
@@ -10,7 +11,7 @@ import { GuestManagementService } from './guest-management.service';
 
 @Module({
   controllers: [GuestNameController, GuestsController, GuestManagementController],
-  providers: [GuestNameService, GuestsService, GuestImportService, CheckInService, GuestManagementService],
+  providers: [GuestNameService, GuestsService, GuestImportService, CheckInService, GuestManagementService, DoorRosterService],
   exports: [GuestsService, GuestImportService, CheckInService],
 })
 export class GuestsModule {}

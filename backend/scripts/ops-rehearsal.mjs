@@ -13,7 +13,7 @@ async function reservePort() { const server = createServer(); await new Promise(
 const root = await mkdtemp(join(tmpdir(), 'aveline-compose-'));
 const profilePath = join(root, 'profile');
 const project = localResourceName(`aveline-compose-${process.pid}-${randomBytes(3).toString('hex')}`, 'c');
-const images = { api: process.env.OPS_REHEARSAL_IMAGE ?? 'aveline-api:ops-test', backup: process.env.OPS_REHEARSAL_BACKUP_IMAGE ?? 'aveline-backup:ops-test' };
+const images = { api: process.env.OPS_REHEARSAL_IMAGE ?? 'aveline-api:ops-test', backup: process.env.OPS_REHEARSAL_BACKUP_IMAGE ?? 'aveline-backup:ops-test', web: process.env.OPS_REHEARSAL_WEB_IMAGE ?? 'aveline-web:ops-test' };
 let ctx; let wasScopeAccepted = false; let didSucceed = false;
 try {
   const config = buildConfiguration({ mode: 'local', project, apiPort: await reservePort(), mediaPort: await reservePort(), mailPort: await reservePort() });
@@ -26,15 +26,27 @@ try {
   wasScopeAccepted = true;
   await applyRelease(await readProfile(profilePath), images, project, { isPrebuilt: true });
   const profile = await readProfile(profilePath); ctx = context(profile, images);
-  const report = await fetch(`http://127.0.0.1:${profile.env.LOCAL_API_PORT}/api/v1/health/ready`);
+  const origin = profile.env.PUBLIC_APP_URL;
+  const report = await fetch(`${origin}/api/v1/health/ready`);
   assert.equal(report.status, 200);
+  assert.match(report.headers.get('content-security-policy'), /default-src 'none'/);
+  assert.equal((await fetch(`${origin}/healthz`)).status, 200);
+  const home = await fetch(`${origin}/pricing`);
+  assert.equal(home.status, 200);
+  assert.match(home.headers.get('content-type'), /^text\/html/);
+  assert.match(await home.text(), /Invitation/);
+  const privacy = await fetch(`${origin}/privacy-request`);
+  assert.equal(privacy.status, 200);
+  assert.equal(privacy.headers.get('referrer-policy'), 'no-referrer');
+  await privacy.body?.cancel();
   const id = (await compose(ctx, ['ps', '-q', 'api'], 'inspect API')).trim();
   const [container] = JSON.parse(await docker(ctx, ['inspect', id], 'inspect runtime configuration'));
   assert.ok(container.Config.Env.includes(`SMTP_PASSWORD=${config.env.SMTP_PASSWORD}`), 'dotenv must preserve literal special characters');
-  assert.equal((await fetch(`http://127.0.0.1:${profile.env.LOCAL_API_PORT}/docs`)).status, 404);
+  assert.equal((await fetch(`${origin}/api/docs`)).status, 404);
   await applyRelease(profile, images, project, { isPrebuilt: true });
   const state = JSON.parse(await readFile(join(profilePath, 'release-state.json'), 'utf8'));
   assert.equal(state.api, images.api); assert.equal(state.previous.api, images.api);
+  assert.equal(state.web, images.web); assert.equal(state.previous.web, images.web);
   const sets = await compose(ctx, ['run', '--rm', '--no-deps', 'backup', 'sh', '-c', 'find /backups -name postgres.dump'], 'inspect local recovery sets');
   assert.ok(sets.includes('postgres.dump'));
   await compose(ctx, ['down', '--volumes', '--remove-orphans'], 'check normal teardown preserves independent journal');

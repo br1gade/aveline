@@ -108,7 +108,7 @@ describe('verified privacy scope at execution', () => {
     expect((await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: request.id } })).status).toBe('COMPLETED');
   });
 
-  it('locks an export scope through projection and completion so a later rebind cannot relabel it', async () => {
+  it('freezes the verified export scope after generation so a later rebind cannot relabel it', async () => {
     const first = await createCase();
     const second = await createCase();
     const request = await createRequest({ userId: first.staff.id, contactId: first.result.enquiry.contact!.id, kind: 'EXPORT' });
@@ -128,7 +128,7 @@ describe('verified privacy scope at execution', () => {
       await captured;
       await expect(prisma.$transaction((tx) => tx.$queryRaw`SELECT id FROM data_subject_requests WHERE id=${request.id} FOR UPDATE NOWAIT`)).rejects.toMatchObject({ code: 'P2010', meta: { code: '55P03' } });
     } finally { release(); await fulfil; }
-    await expect(privacy.bindSubjects(first.staff.id, request.id, { contactIds: [second.result.enquiry.contact!.id], verificationNote: 'A different later scope' })).rejects.toThrow('before binding');
+    await expect(privacy.bindSubjects(first.staff.id, request.id, { contactIds: [second.result.enquiry.contact!.id], verificationNote: 'A different later scope' })).rejects.toThrow('before generating an export');
     expect(await prisma.dataSubjectRequestEnquirySubject.findMany({ where: { requestId: request.id } })).toEqual([{ requestId: request.id, contactId: first.result.enquiry.contact!.id }]);
   });
 });

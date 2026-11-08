@@ -90,7 +90,7 @@ describe('Phone-only privacy requests (e2e coverage)', () => {
     expect(body.details).toContainEqual({ field: 'contactIds', code: 'INVALID_STRING', userMessage: expect.any(String) });
   });
 
-  it('exports a verified phone-only subject’s enquiry with empty legacy sections, and completes', async () => {
+  it('exports a verified phone-only subject and completes after delivery confirmation', async () => {
     const authorization = await admin();
     const { contactId, requestId, body } = await phoneOnlyRequest(authorization, 'EXPORT');
     expect(body.subjectEmail).toBeNull();
@@ -106,6 +106,8 @@ describe('Phone-only privacy requests (e2e coverage)', () => {
     });
     expect(exported.enquiries).toHaveLength(1);
     expect(JSON.stringify(exported.enquiries)).toContain('+37499123456');
+    await http().post(`/api/v1/privacy/requests/${requestId}/confirm-delivery`).set('Authorization', authorization)
+      .send({ generationId: exported.generationId as string }).expect(200);
     const stored = await prisma.dataSubjectRequest.findUniqueOrThrow({ where: { id: requestId } });
     expect(stored.status).toBe('COMPLETED');
     expect(stored.completedAt).toBeInstanceOf(Date);
