@@ -151,8 +151,8 @@ describe('Concierge customer resolution — coverage (e2e)', () => {
       const chosenHome = await open(authorization, { name: 'Petrosyan Wedding', ownerEmail: 'anna@example.am', organizationId: home.id }).expect(201);
       const chosenStudio = await open(authorization, { name: 'Petrosyan Wedding', ownerEmail: 'anna@example.am', organizationId: studio.id }).expect(201);
 
-      expect(chosenHome.body).toMatchObject({ isExisting: true, invite: null, organization: { id: home.id } });
-      expect(chosenStudio.body).toMatchObject({ isExisting: true, invite: null, organization: { id: studio.id } });
+      expect(chosenHome.body).toMatchObject({ isExisting: true, relationship: 'OWNER', invite: null, organization: { id: home.id } });
+      expect(chosenStudio.body).toMatchObject({ isExisting: true, relationship: 'PENDING_OWNER_INVITE', invite: null, organization: { id: studio.id } });
       expect(await counts()).toEqual({ organizations: 2, invites: 1, messages: 0 });
     });
 
@@ -183,7 +183,7 @@ describe('Concierge customer resolution — coverage (e2e)', () => {
       await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS "organization_memberships_userId_key" ON organization_memberships("userId")`;
     });
 
-    it('pages the current memberships with only id, name, kind and createdAt', async () => {
+    it('pages ownerships with a public relationship label', async () => {
       const authorization = await staff();
       const [home, studio, office] = await annaIn(['Anna Home', 'Anna Studio', 'Anna Office']);
 
@@ -196,22 +196,35 @@ describe('Concierge customer resolution — coverage (e2e)', () => {
 
       expect((first.body.items as { id: string }[]).map((item) => item.id)).toEqual([home.id, studio.id]);
       for (const item of first.body.items as object[]) {
-        expect(Object.keys(item).sort()).toEqual(['createdAt', 'id', 'kind', 'name']);
+        expect(Object.keys(item).sort()).toEqual(['createdAt', 'id', 'kind', 'name', 'relationship']);
       }
       expect(first.body.nextCursor).toEqual(expect.any(String));
       expect(second.body).toEqual({
-        items: [{ id: office.id, name: 'Anna Office', kind: 'HOST', createdAt: office.createdAt.toISOString() }],
+        items: [{ id: office.id, name: 'Anna Office', kind: 'HOST', createdAt: office.createdAt.toISOString(), relationship: 'OWNER' }],
         nextCursor: null,
       });
     });
 
-    it('does not list an organization the customer is only invited to', async () => {
+    it('lists a live owner invitation as pending and refuses it once revoked', async () => {
       const authorization = await staff();
-      await open(authorization, { name: 'Petrosyan Wedding', ownerEmail: 'anna@example.am' }).expect(201);
+      const opened = await open(authorization, { name: 'Petrosyan Wedding', ownerEmail: 'anna@example.am' }).expect(201);
+      const organizationId = opened.body.organization.id as string;
+      const { body } = await resolve(authorization, { ownerEmail: 'ANNA@example.am' }).expect(201);
+      expect(body.items).toEqual([expect.objectContaining({ id: organizationId, relationship: 'PENDING_OWNER_INVITE' })]);
+      await prisma.organizationInvite.updateMany({ where: { organizationId }, data: { revokedAt: new Date() } });
+      await open(authorization, { name: 'Petrosyan Wedding', ownerEmail: 'anna@example.am', organizationId }).expect(403);
+      const after = await resolve(authorization, { ownerEmail: 'anna@example.am' }).expect(201);
+      expect(after.body).toEqual({ items: [], nextCursor: null });
+    });
 
-      const { body } = await resolve(authorization, { ownerEmail: 'anna@example.am' }).expect(201);
+    it('excludes a non-owner membership from lookup and explicit reuse', async () => {
+      const authorization = await staff();
+      const [home] = await annaIn(['Planner Office']);
+      await prisma.organizationMembership.updateMany({ where: { organizationId: home.id }, data: { role: 'VIEWER' } });
 
-      expect(body).toEqual({ items: [], nextCursor: null });
+      const result = await resolve(authorization, { ownerEmail: 'anna@example.am' }).expect(201);
+      expect(result.body).toEqual({ items: [], nextCursor: null });
+      await open(authorization, { name: 'Anna Home', ownerEmail: 'anna@example.am', organizationId: home.id }).expect(403);
     });
 
     it.each([

@@ -1,3 +1,4 @@
+import { AdmissionRefusal } from '../../common/admission-refusal';
 import { claimShowSelections, prepareShowSelections, type ShowTicketSelection } from './show-ticket-allocation';
 import { assertBuyerLimit } from './buyer-ticket-limit';
 import { lockAdmission, recordAdmission } from '../guests/admission';
@@ -288,7 +289,7 @@ export class TicketingService {
     // Not found, rather than forbidden, for another event's code: a door
     // scanner learns nothing about tickets that are not for its event.
     const ticket = await this.prisma.ticket.findFirst({ where: { code, eventId } });
-    if (!ticket) throw new NotFoundException('Ticket not recognised');
+    if (!ticket) throw new AdmissionRefusal('ADMISSION_TARGET_NOT_FOUND', 'Ticket not recognised');
 
     return this.prisma.$transaction(async (tx) => {
       const current = await lockAdmission(tx, eventId, ticket);

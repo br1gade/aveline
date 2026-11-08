@@ -365,7 +365,13 @@ template declares it explicitly. Keep these paths stable across a release:
 | `/tickets/return` | Default ticket-payment return |
 | `/billing/return` | Default subscription-payment return |
 | `/events/:slug` | Public event `metadata.canonicalPath` |
+| `/privacy-request` | Public privacy request form linked from invitation email footers |
 | `/briefs/:briefToken` | Client-built vendor brief link; reads the API's `/briefs/:token` |
+
+New invitation emails include a localized footer linking to
+`/privacy-request` on `PUBLIC_APP_URL`. This page is available to signed-out
+guests. Configure `PUBLIC_SITE_URL` separately to also include an Aveline
+website link.
 
 Register static payment-return paths before dynamic ticket-token paths.
 Returns must confirm payment with the backend; the browser redirect is not
@@ -428,6 +434,10 @@ in a group chat sets the event `UNLISTED`. The editor previews through
 ```
 
 **`guest` is `null` on the generic URL.** Only the personalised one fills it.
+
+New invitations start with drink preference and song request disabled.
+Organizers can enable either field. Older invitations with an unset field
+continue to use their existing default.
 
 **`rsvpFields` says how to build the RSVP form's built-in questions.** A
 question with `isEnabled: false` is not asked — leave it off the form; sending
@@ -1332,18 +1342,22 @@ the customer accepts at `/accept-invite`, choosing their own password, they
 own the organization and its events. The search lists organizations with
 their `owners`, `pendingOwnerInvites` and number of `events`.
 
-Concierge setup uses exact 0/1/many customer resolution, including an unexpired
-pending OWNER invitation for provisional onboarding. Several choices require
-selection with `409 ORGANIZATION_SELECTION_REQUIRED`. Optional `organizationId`
-selects an existing customer relationship, never grants one. The staff-only
-resolve-customer endpoint returns `{items:[{id,name,kind,createdAt}],nextCursor}`
-for current memberships, defaults/maxes at 50 and bounds cursor to 256 characters.
-New organization, OWNER invitation and credential Message commit atomically.
+Concierge setup matches an active `OWNER` membership or a live, unaccepted,
+unrevoked `OWNER` invitation for an open organization. Active ownership takes
+precedence when both qualify for the same organization. Membership in another
+role does not qualify. The staff-only lookup returns
+`{items:[{id,name,kind,createdAt,relationship}],nextCursor}`, where
+`relationship` is `OWNER` or `PENDING_OWNER_INVITE`. It defaults and caps at 50
+items and bounds the cursor to 256 characters.
 
-**A customer who already has an organization** gets the event built in it
-(decided 10 October 2026): the response is that organization with
-`invite: null` and `isExisting: true`, and the events staff create appear in
-their list with nothing to accept. Otherwise `isExisting` is `false`.
+Several matches require explicit selection with `409
+ORGANIZATION_SELECTION_REQUIRED`. Pass the selected `organizationId` on the
+opening call. The server rechecks the relationship and refuses a stale or
+unrelated selection with `403 ORGANIZATION_ACCESS_DENIED`. Reuse returns
+`isExisting: true`, `invite: null` and the same `relationship`. A pending
+invitation stays pending. With no match and no explicit selection, the new
+organization, owner invitation and email commit together. That response has
+`isExisting: false`.
 
 ### Archiving and deleting an event
 
@@ -1921,12 +1935,31 @@ legacy `table` is null when several assignments exist. `wasExpected` being
 has turned up anyway, which is worth showing the host rather than silently
 admitting.
 
-**A guest arrives once.** A second check-in returns `409`. Two people on the
-door cannot both record the same arrival, so treat the `409` as "already here"
-and show the first arrival time, not as an error. `DELETE` undoes a mis-scan
-and a guest can then be checked in again. For a ticket-linked guest, a used,
-void/refunded ticket or a cancelled/frozen order instead returns `400` with
-the ticket reason; a used ticket means the person was already admitted.
+A guest arrives once. Two people on the door cannot both record the same
+arrival. `DELETE` undoes a mis-scan and allows the guest to be checked in
+again.
+
+#### Door refusal codes
+
+Guest check-in and ticket admission return the usual localized error
+envelope. Use its stable `code` and optional `admission` object.
+
+| Status | Code | Fields in `admission` |
+|---|---|---|
+| 404 | `ADMISSION_TARGET_NOT_FOUND` | None. A guest or code from another event is treated as unknown. |
+| 409 | `ADMISSION_LINK_CHANGED` | None. Reload and scan again. |
+| 409 | `ADMISSION_ALREADY_CHECKED_IN` | Original `arrivedAt`, `guestId` and holder name when available. |
+| 400 | `TICKET_ALREADY_USED` | Original `usedAt` or the linked check-in’s `arrivedAt`, plus `holderName` and `guestId` when known. |
+| 400 | `TICKET_ORDER_UNAVAILABLE` | `orderStatus` and `isCancellationPending`. |
+| 400 | `TICKET_STATUS_UNAVAILABLE` | `ticketStatus`. |
+| 400 | `TICKET_ATTENDEE_REQUIRED` | `holderName` if recorded. Register the attendee before collecting acknowledgements. |
+| 400 | `ADMISSION_ACKNOWLEDGEMENTS_REQUIRED` | `guestId`, `holderName` when available, and `missingAcknowledgements: [{questionId,labels}]`. |
+
+Times are UTC. `labels` holds short translations keyed by language. Only
+the current missing statements for the scanned person are returned. Door
+details omit contacts and capability tokens. A used or unavailable ticket
+takes precedence over missing acknowledgements. The older message strings
+and HTTP statuses remain available during client migration.
 
 ```http
 GET /api/v1/events/:eventId/arrivals
@@ -3338,9 +3371,10 @@ PATCH /api/v1/invitations/:slug/rsvp-fields
   "songRequest": { "isEnabled": false } }
 ```
 
-Needs `invitation:design`. The built-in questions — `dietary`,
-`drinkPreference`, `songRequest`, `message`, `attribution` — are all asked, as
-free text, until configured. For each one sent:
+Needs `invitation:design`. The built-in questions are `dietary`,
+`drinkPreference`, `songRequest`, `message` and `attribution`. New invitations
+store drink and song requests as disabled. Other built-in fields and unset
+fields on older invitations use the existing enabled default. For each field sent:
 
 - `isEnabled: false` stops asking it. A host with no bar should not ask about
   drinks.

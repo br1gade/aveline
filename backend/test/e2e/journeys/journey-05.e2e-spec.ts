@@ -117,7 +117,8 @@ describe('Journey 05: RSVPs and seating become fixed worker-made exports, revoke
     const { eventId, slug } = await createEvent(authorization, 'Anna & Davit');
     await as(http().patch(api(`/invitations/${slug}/rsvp-fields`))).send({
       dietary: { options: [{ key: 'vegetarian', label: { en: 'Vegetarian', hy: 'Բուսակեր' } }] },
-      drinkPreference: { options: [{ key: 'wine', label: { en: 'Wine', hy: 'Գինի' } }] },
+      drinkPreference: { isEnabled: true, options: [{ key: 'wine', label: { en: 'Wine', hy: 'Գինի' } }] },
+      songRequest: { isEnabled: true },
     }).expect(200);
     const { body: mainCourse } = await as(http().post(api(`/invitations/${slug}/questions`))).send({
       type: 'SINGLE_CHOICE', required: true, prompt: { en: 'Main course', hy: 'Հիմնական ուտեստ' },

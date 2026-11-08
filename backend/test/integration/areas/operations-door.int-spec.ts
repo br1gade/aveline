@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { AnalyticsService } from '../../../src/infra/analytics/analytics.service';
@@ -93,7 +93,7 @@ describe('Operations and the door (coverage, integration)', () => {
       expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
       const refusals = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
       expect(refusals).toHaveLength(4);
-      for (const refusal of refusals) expect(refusal.reason).toBeInstanceOf(ConflictException);
+      for (const refusal of refusals) expect(refusal.reason).toMatchObject({ code: 'ADMISSION_ALREADY_CHECKED_IN' });
       expect(await prisma.checkIn.count({ where: { guestId: guest.id } })).toBe(1);
       expect(await service.arrivals(eventId)).toMatchObject({ arrived: 1 });
     });
@@ -121,7 +121,7 @@ describe('Operations and the door (coverage, integration)', () => {
       const refusals = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
       expect(refusals).toHaveLength(3);
       for (const refusal of refusals) {
-        expect(refusal.reason).toBeInstanceOf(BadRequestException);
+        expect(refusal.reason).toMatchObject({ code: 'TICKET_ALREADY_USED' });
         expect((refusal.reason as Error).message).toBe('Ticket already used');
       }
       expect((await prisma.ticket.findUniqueOrThrow({ where: { id: event.ticket.id } })).status).toBe('USED');
@@ -136,7 +136,11 @@ describe('Operations and the door (coverage, integration)', () => {
         ? event.ticketing.admit(event.eventId, event.ticket.code)
         : event.checkIn.checkIn(event.eventId, event.ticket.guestId!);
 
-      await expect(scan).rejects.toThrow(new BadRequestException('Ticket order is cancelled or cancellation is in progress'));
+      await expect(scan).rejects.toMatchObject({
+        code: 'TICKET_ORDER_UNAVAILABLE',
+        message: 'Ticket order is cancelled or cancellation is in progress',
+        admission: { orderStatus: 'PAID', isCancellationPending: true },
+      });
       expect((await prisma.ticket.findUniqueOrThrow({ where: { id: event.ticket.id } })).status).toBe('VALID');
       expect(await prisma.checkIn.count()).toBe(0);
     });
@@ -192,7 +196,7 @@ describe('Operations and the door (coverage, integration)', () => {
 
       const refusal = await linkWhileWaiting(event, () => event.checkIn.checkIn(event.eventId, event.listGuest.id));
 
-      expect(refusal).toBeInstanceOf(ConflictException);
+      expect(refusal).toMatchObject({ code: 'ADMISSION_LINK_CHANGED' });
       expect((refusal as Error).message).toMatch(/^Ticket was linked/);
       expect(await prisma.checkIn.count()).toBe(0);
       expect((await prisma.ticket.findUniqueOrThrow({ where: { id: event.ticket.id } })).status).toBe('VALID');

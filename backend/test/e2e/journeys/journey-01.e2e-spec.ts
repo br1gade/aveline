@@ -178,7 +178,8 @@ describe('Journey 01: create, design, publish, import, send, RSVP, remind, seat,
       .expect(200);
     await as(http().patch(api(`/invitations/${slug}/rsvp-fields`))).send({
       dietary: { options: [{ key: 'vegetarian', label: { en: 'Vegetarian', hy: 'Բուսակեր' } }] },
-      drinkPreference: { options: [{ key: 'wine', label: { en: 'Wine', hy: 'Գինի' } }] },
+      drinkPreference: { isEnabled: true, options: [{ key: 'wine', label: { en: 'Wine', hy: 'Գինի' } }] },
+      songRequest: { isEnabled: true },
     }).expect(200);
     const { body: mainCourse } = await as(http().post(api(`/invitations/${slug}/questions`))).send({
       type: 'SINGLE_CHOICE', required: true,

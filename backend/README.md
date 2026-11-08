@@ -215,7 +215,7 @@ test/
 | `POST` | `/api/v1/event-invites/accept` | Accept an invitation to one event; grants nothing in the organization |
 | `POST` | `/api/v1/concierge/organizations` | Open a customer's organization and invite them as owner (Aveline staff) |
 | `POST` | `/api/v1/concierge/organizations/:organizationId/events` | Create an event for that customer (Aveline staff) |
-| `POST` | `/api/v1/concierge/organizations/resolve-customer` | Bounded customer choices without contact or billing fields |
+| `POST` | `/api/v1/concierge/organizations/resolve-customer` | Paginated owner memberships and live owner invitations without invite tokens |
 | `GET` | `/api/v1/concierge/organizations` | Find a customer's organization by name (Aveline staff) |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `GET` | `/api/v1/events/:eventId/media` | The event's uploads, with the blocks that show each |
@@ -406,7 +406,7 @@ its records are references to regenerate, never historical snapshots.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Record an arrival; a guest arrives once |
+| `POST` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Record an arrival; refusals include a code and scoped door details |
 | `DELETE` | `/api/v1/events/:eventId/guests/:guestId/check-in` | Undo a mis-scan |
 | `GET` | `/api/v1/events/:eventId/arrivals` | Live arrivals against who was expected |
 | `GET` | `/api/v1/payments/:orderNumber` | Payment state |
@@ -506,7 +506,7 @@ registration, not bank certification or credentials.
 | `GET` | `/api/v1/public/events/:slug/ticket-inventory/:sectionKey` | Read selectable numbered seats or remaining zone capacity |
 | `GET` | `/api/v1/ticket-orders/:accessToken` | A buyer's own order, event context and tickets |
 | `POST` | `/api/v1/ticket-orders/:accessToken/confirm` | Settle after the bank and return buyer order context |
-| `POST` | `/api/v1/events/:eventId/tickets/:code/admit` | Admit at the door; a code admits once, and only at its own event |
+| `POST` | `/api/v1/events/:eventId/tickets/:code/admit` | Admit at the door; refusals include a code and scoped door details |
 | `POST` | `/api/v1/ticket-orders/release-expired` | Return inventory from abandoned checkouts |
 
 ### Signed integration feedback

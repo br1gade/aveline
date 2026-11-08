@@ -1,3 +1,4 @@
+import { AdmissionRefusal } from '../../../src/common/admission-refusal';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { MessageChannel, PrismaClient, RsvpStatus, SuppressionReason } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
@@ -222,8 +223,11 @@ describe('Guest list (integration)', () => {
       expect(await prisma.guest.count({ where: { id: guestId } })).toBe(isRemoved ? 0 : 1);
       expect(await prisma.checkIn.count({ where: { guestId } })).toBe(isRemoved ? 0 : 1);
       const refusal = isRemoved ? (arrival as PromiseRejectedResult).reason : (removal).reason;
-      expect(refusal).toBeInstanceOf(isRemoved ? NotFoundException : BadRequestException);
-      expect(String(refusal)).toMatch(isRemoved ? /not on this event/ : /checked in/);
+      expect(refusal).toBeInstanceOf(isRemoved ? AdmissionRefusal : BadRequestException);
+      expect(refusal).toMatchObject({
+        message: expect.stringMatching(isRemoved ? /not on this event/ : /checked in/),
+        ...(isRemoved ? { code: 'ADMISSION_TARGET_NOT_FOUND' } : {}),
+      });
     }
   });
 

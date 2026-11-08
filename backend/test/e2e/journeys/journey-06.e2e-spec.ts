@@ -188,7 +188,8 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
 
     await host.patch(`/invitations/${slug}/rsvp-fields`, {
       dietary: { options: [{ key: 'vegan', label: { en: 'Vegan' } }] },
-      drinkPreference: { options: [{ key: 'wine', label: { en: 'Wine' } }] },
+      drinkPreference: { isEnabled: true, options: [{ key: 'wine', label: { en: 'Wine' } }] },
+      songRequest: { isEnabled: true },
     }).expect(200);
     const { body: note } = await host.post(`/invitations/${slug}/questions`, { type: 'TEXT', prompt: { en: 'Anything we should know?' } }).expect(201);
     const { body: statement } = await host.post(`/invitations/${slug}/questions`, { type: 'SIGNATURE', prompt: { en: 'I accept the house rules' } }).expect(201);

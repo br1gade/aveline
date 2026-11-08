@@ -1,6 +1,14 @@
 import { HttpException } from '@nestjs/common';
 
 export const DOMAIN_ERRORS = {
+  ADMISSION_TARGET_NOT_FOUND: { status: 404, action: 'RELOAD' },
+  ADMISSION_LINK_CHANGED: { status: 409, action: 'RELOAD' },
+  ADMISSION_ALREADY_CHECKED_IN: { status: 409, action: 'RELOAD' },
+  ADMISSION_ACKNOWLEDGEMENTS_REQUIRED: { status: 400, action: 'EDIT' },
+  TICKET_ATTENDEE_REQUIRED: { status: 400, action: 'EDIT' },
+  TICKET_ALREADY_USED: { status: 400, action: 'RELOAD' },
+  TICKET_ORDER_UNAVAILABLE: { status: 400, action: 'CONTACT_HOST' },
+  TICKET_STATUS_UNAVAILABLE: { status: 400, action: 'CONTACT_HOST' },
   TICKET_LAYOUT_CHANGED: { status: 409, action: 'RELOAD' },
   TICKET_SELECTION_UNAVAILABLE: { status: 409, action: 'EDIT' },
   TICKET_BUYER_LIMIT_REACHED: { status: 409, action: 'EDIT' },

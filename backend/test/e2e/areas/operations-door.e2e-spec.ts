@@ -172,7 +172,11 @@ describe('Operations sheets and the door (coverage, e2e)', () => {
 
       const { body } = await http().post(url).set('Authorization', event.authorization).expect(409);
 
-      expect(body.message).toBe(`Guest was already checked in at ${first.body.arrivedAt as string}`);
+      expect(body).toMatchObject({
+        message: `Guest was already checked in at ${first.body.arrivedAt as string}`,
+        code: 'ADMISSION_ALREADY_CHECKED_IN',
+        admission: { guestId: event.primary.id, arrivedAt: first.body.arrivedAt, holderName: 'Primary Guest' },
+      });
       expect(await prisma.checkIn.count({ where: { guestId: event.primary.id } })).toBe(1);
     });
 

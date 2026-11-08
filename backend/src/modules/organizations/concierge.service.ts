@@ -1,9 +1,10 @@
 import { pageOf, parseOrganizationCursor } from './organization-pagination';
-import { lockOwnerAddress, lockCurrentUsers } from '../../infra/auth/access-locks';
-import { resolveCustomerOrganizations, selectionRequired, accessDenied } from '../../infra/auth/organization-context';
+import { lockOwnerAddress, lockCurrentUsers, lockOrganizationStanding } from '../../infra/auth/access-locks';
+import { validateOrganizationId, selectionRequired, accessDenied } from '../../infra/auth/organization-context';
 import { actorCan } from '../../infra/auth/actor';
+import { conciergeRelationshipQuery, describeConciergeMatch } from './concierge-relationship';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { OrganizationRole, OrgKind } from '@prisma/client';
+import { OrganizationRole, OrgKind, Prisma } from '@prisma/client';
 import { AccountService } from '../../infra/auth/account.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from '../events/dto/create-event.dto';
@@ -37,14 +38,10 @@ export class ConciergeService {
     const email = dto.ownerEmail.trim().toLowerCase();
     return this.prisma.$transaction(async (tx) => {
       await lockOwnerAddress(tx, email);
-      const resolved = await resolveCustomerOrganizations(tx, { ownerEmail: email, selectedOrganizationId: dto.organizationId });
-      if (resolved.kind === 'selection-required') throw selectionRequired();
-      if (resolved.kind === 'one') {
-        await lockCurrentUsers(tx, [staffUserId]);
-        const staff = await tx.user.findUnique({ where: { id: staffUserId }, select: { isActive: true, platformRole: true } });
-        if (!staff?.isActive || !actorCan({ userId: staffUserId, email: '', platformRole: staff.platformRole }, 'concierge:manage')) throw accessDenied();
-        const organization = await tx.organization.findUniqueOrThrow({ where: { id: resolved.organizationId }, select: { id: true, name: true, kind: true, createdAt: true } });
-        return { organization, invite: null, isExisting: true };
+      const existing = await this.findCustomerMatch(tx, email, dto.organizationId);
+      if (existing) {
+        const { relationship, ...organization } = await this.recheckCustomerMatch(tx, { email, organizationId: existing.id, staffUserId });
+        return { organization, invite: null, isExisting: true, relationship };
       }
       const organization = await tx.organization.create({ data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST }, select: { id: true, name: true, kind: true, createdAt: true } });
       const invite = await this.accounts.inviteMemberInTransaction(tx, { organizationId: organization.id, invitedByUserId: staffUserId, dto: { email, role: OrganizationRole.OWNER }, isConcierge: true });
@@ -52,13 +49,41 @@ export class ConciergeService {
     }, { timeout: 10_000, maxWait: 5000 });
   }
 
+  private async findCustomerMatch(tx: Prisma.TransactionClient, email: string, selectedId?: string) {
+    const query = conciergeRelationshipQuery(email);
+    if (selectedId !== undefined) {
+      const match = await tx.organization.findFirst({
+        ...query, where: { ...query.where, id: validateOrganizationId(selectedId) },
+      });
+      if (!match) throw accessDenied();
+      return match;
+    }
+    const matches = await tx.organization.findMany({ ...query, take: 2 });
+    if (matches.length > 1) throw selectionRequired();
+    return matches[0];
+  }
+
+  private async recheckCustomerMatch(tx: Prisma.TransactionClient, input: {
+    email: string; organizationId: string; staffUserId: string;
+  }) {
+    const { email, organizationId, staffUserId } = input;
+    await lockOrganizationStanding(tx, { organizationId });
+    const current = await this.findCustomerMatch(tx, email, organizationId);
+    await lockCurrentUsers(tx, [staffUserId, ...current.memberships.map(({ userId }) => userId)]);
+    const staff = await tx.user.findUnique({ where: { id: staffUserId }, select: { isActive: true, platformRole: true } });
+    if (!staff?.isActive || !actorCan({ userId: staffUserId, email: '', platformRole: staff.platformRole }, 'concierge:manage')) throw accessDenied();
+    return describeConciergeMatch(await this.findCustomerMatch(tx, email, organizationId));
+  }
+
   async resolveCustomer(dto: ResolveCustomerOrganizationsDto) {
     const cursor = parseOrganizationCursor(dto.cursor);
     const after = cursor ? { OR: [{ createdAt: { gt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { gt: cursor.id } }] } : {};
-    const rows = await this.prisma.organization.findMany({ where: { deletedAt: null,
-      memberships: { some: { user: { email: { equals: dto.ownerEmail, mode: 'insensitive' }, isActive: true } } }, ...after },
-      select: { id: true, name: true, kind: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: dto.limit + 1 });
-    return pageOf(rows, dto.limit);
+    const query = conciergeRelationshipQuery(dto.ownerEmail.trim().toLowerCase());
+    const rows = await this.prisma.organization.findMany({
+      ...query, where: { AND: [query.where, after] },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: dto.limit + 1,
+    });
+    return pageOf(rows.map(describeConciergeMatch), dto.limit);
   }
 
   async createEvent(organizationId: string, staffUserId: string, dto: CreateEventDto) {

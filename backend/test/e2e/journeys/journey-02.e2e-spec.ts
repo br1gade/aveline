@@ -158,7 +158,7 @@ describe('Journey 2: ticketed public event, from setup to refund (e2e)', () => {
       .expect(201);
     expect(promo).toMatchObject({ code: 'AUTUMN25', redemptions: 0, remaining: 5 });
 
-    return { host, eventId: event.id as string, base, venues, statementVersionId: statement.statementVersionId as string,
+    return { host, eventId: event.id as string, base, venues, invitationSlug: event.invitation.slug as string, questionId: statement.id as string, statementVersionId: statement.statementVersionId as string,
       typeId: type.id as string, slug: listing.slug as string, heroId: hero.id, shareId: share.id, promoId: promo.id as string };
   };
   type TicketedEvent = Awaited<ReturnType<typeof ticketedEvent>>;
@@ -271,16 +271,36 @@ describe('Journey 2: ticketed public event, from setup to refund (e2e)', () => {
     const davitCode = tickets.find((ticket) => ticket.holderName === 'Davit')!.code;
     const { body: refused } = await sale.host.post(`${sale.base}/tickets/${annaCode}/admit`).expect(400);
     expect(refused.message).toMatch(/^acknowledgements: .*must acknowledge/);
+    expect(refused).toMatchObject({ code: 'ADMISSION_ACKNOWLEDGEMENTS_REQUIRED',
+      admission: { holderName: 'Anna', missingAcknowledgements: [expect.objectContaining({ questionId: expect.any(String) })] } });
 
     const annaGuestId = await annaAcknowledges(sale, 'anna-ani@test.local');
 
     const { body: admitted } = await sale.host.post(`${sale.base}/tickets/${annaCode}/admit`).expect(201);
     expect(admitted).toMatchObject({ code: annaCode, holderName: 'Anna', guestId: annaGuestId });
     const { body: rescanned } = await sale.host.post(`${sale.base}/tickets/${annaCode}/admit`).expect(400);
-    expect(rescanned.message).toBe('Ticket already used');
-    // Anna's signature covers Anna only: Davit, who never signed, is still turned away.
+    expect(rescanned).toMatchObject({ message: 'Ticket already used', code: 'TICKET_ALREADY_USED',
+      admission: { holderName: 'Anna', guestId: annaGuestId, usedAt: admitted.admittedAt } });
+    await prisma.ticket.update({ where: { code: annaCode }, data: { usedAt: null, holderName: null } });
+    const { body: legacyScan } = await sale.host.post(`${sale.base}/tickets/${annaCode}/admit`).expect(400);
+    expect(legacyScan.admission).toEqual({ holderName: 'Anna', guestId: annaGuestId, arrivedAt: admitted.admittedAt });
+
+    const { body: newStatement } = await sale.host.post(`/invitations/${sale.invitationSlug}/questions`, {
+      type: 'SIGNATURE', required: true, prompt: { en: 'I accept the equipment rules' },
+    }).expect(201);
+    // Anna already entered. Davit still needs both statements, regardless of Anna's signature.
+    await sale.host.post(`${sale.base}/tickets/${annaCode}/admit`).expect(400).expect(({ body }) => {
+      expect(body.code).toBe('TICKET_ALREADY_USED');
+    });
     const { body: davitRefused } = await sale.host.post(`${sale.base}/tickets/${davitCode}/admit`).expect(400);
-    expect(davitRefused.message).toMatch(/^acknowledgements: .*must acknowledge/);
+    expect(davitRefused.admission).toEqual({
+      holderName: 'Davit',
+      guestId: expect.any(String),
+      missingAcknowledgements: [
+        { questionId: sale.questionId, labels: { en: 'I accept the venue rules' } },
+        { questionId: newStatement.id, labels: { en: 'I accept the equipment rules' } },
+      ],
+    });
     const statuses = Object.fromEntries((await buyerSees(order)).tickets.map((ticket) => [ticket.code, ticket.status]));
     expect(statuses).toEqual({ [annaCode]: 'USED', [davitCode]: 'VALID' });
 

@@ -116,7 +116,8 @@ every operational view is a query over them (see
 [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §6). Each except attendance can be switched
 off per invitation, and dietary and drink can offer fixed choices stored by
 key, so every language counts as one answer (`Invitation.rsvpFields`,
-`rsvp/rsvp-fields.ts`).
+`rsvp/rsvp-fields.ts`). New invitations start with drink preference and song
+request disabled. Hosts can enable either in the RSVP settings.
 
 **Host-authored questions** are `RsvpQuestion` rows with translated prompts and
 options:

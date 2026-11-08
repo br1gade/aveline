@@ -1,4 +1,12 @@
 export const FEEDBACK = {
+  ADMISSION_TARGET_NOT_FOUND: ['This guest or ticket could not be found.', 'Гость или билет не найден.', 'Cette personne ou ce billet est introuvable.', 'Հյուրը կամ տոմսը չի գտնվել։'],
+  ADMISSION_LINK_CHANGED: ['Reload the guest list and scan again.', 'Обновите список гостей и отсканируйте снова.', 'Actualisez la liste des invités et scannez à nouveau.', 'Թարմացրեք հյուրերի ցանկը և նորից սկանավորեք։'],
+  ADMISSION_ALREADY_CHECKED_IN: ['This guest has already checked in.', 'Этот гость уже зарегистрирован на входе.', 'Cette personne a déjà été enregistrée à l’entrée.', 'Այս հյուրի մուտքն արդեն գրանցվել է։'],
+  ADMISSION_ACKNOWLEDGEMENTS_REQUIRED: ['This guest still needs to acknowledge the required statements.', 'Гостю ещё нужно подтвердить обязательные условия.', 'Cette personne doit encore accepter les déclarations requises.', 'Այս հյուրը դեռ պետք է հաստատի պարտադիր հայտարարությունները։'],
+  TICKET_ATTENDEE_REQUIRED: ['Register the ticket holder before check-in.', 'Зарегистрируйте владельца билета перед входом.', 'Inscrivez le titulaire du billet avant son entrée.', 'Մուտքից առաջ գրանցեք տոմսատիրոջը։'],
+  TICKET_ALREADY_USED: ['This ticket has already been used.', 'Этот билет уже использован.', 'Ce billet a déjà été utilisé.', 'Այս տոմսն արդեն օգտագործվել է։'],
+  TICKET_ORDER_UNAVAILABLE: ['This order does not currently allow admission.', 'Этот заказ сейчас не даёт права на вход.', 'Cette commande ne permet pas l’entrée actuellement.', 'Այս պատվերով այժմ մուտք գործել հնարավոր չէ։'],
+  TICKET_STATUS_UNAVAILABLE: ['This ticket does not currently allow admission.', 'Этот билет сейчас не даёт права на вход.', 'Ce billet ne permet pas l’entrée actuellement.', 'Այս տոմսով այժմ մուտք գործել հնարավոր չէ։'],
   ENQUIRY_CHANGED: ['Reload the current enquiry before trying again.', 'Обновите обращение перед повтором.', 'Rechargez la demande avant de réessayer.', 'Կրկին փորձելուց առաջ թարմացրեք հարցումը։'],
   CONSULTATION_CONFLICT: ['Choose another consultation interval for this operator.', 'Выберите другое время консультации для этого оператора.', 'Choisissez un autre créneau pour cet opérateur.', 'Այս օպերատորի համար ընտրեք խորհրդատվության այլ ժամանակահատված։'],
   IDEMPOTENCY_CONFLICT: ['This key was used for a different enquiry command.', 'Этот ключ использован для другой команды обращения.', 'Cette clé a déjà servi à une autre opération.', 'Այս բանալին օգտագործվել է հարցման այլ գործողության համար։'],

@@ -11328,7 +11328,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConciergeController_openResponse"
+                  "$ref": "#/components/schemas/OpenForCustomerResponseDto"
                 }
               }
             }
@@ -11420,7 +11420,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConciergeController_resolveCustomerResponse"
+                  "$ref": "#/components/schemas/ConciergeCustomerPageDto"
                 }
               }
             }
@@ -18561,6 +18561,129 @@
           "ownerEmail"
         ]
       },
+      "ConciergeOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "PLANNER",
+              "CORPORATE"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "createdAt"
+        ]
+      },
+      "ConciergeOwnerInviteDto": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "MANAGER",
+              "MEMBER",
+              "VIEWER"
+            ]
+          },
+          "invitationId": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "messageStatus": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "SENDING",
+              "SENT",
+              "DELIVERED",
+              "FAILED",
+              "BOUNCED",
+              "SUPPRESSED",
+              "CANCELLED"
+            ],
+            "nullable": true
+          },
+          "devLink": {
+            "type": "string",
+            "description": "Development only"
+          }
+        },
+        "required": [
+          "sent",
+          "email",
+          "role",
+          "invitationId",
+          "messageId",
+          "messageStatus"
+        ]
+      },
+      "ConciergeRelationship": {
+        "type": "string",
+        "enum": [
+          "OWNER",
+          "PENDING_OWNER_INVITE"
+        ],
+        "description": "Present when an existing organization is reused"
+      },
+      "OpenForCustomerResponseDto": {
+        "type": "object",
+        "properties": {
+          "organization": {
+            "$ref": "#/components/schemas/ConciergeOrganizationDto"
+          },
+          "invite": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConciergeOwnerInviteDto"
+              }
+            ]
+          },
+          "isExisting": {
+            "type": "boolean"
+          },
+          "relationship": {
+            "description": "Present when an existing organization is reused",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConciergeRelationship"
+              }
+            ]
+          }
+        },
+        "required": [
+          "organization",
+          "invite",
+          "isExisting"
+        ]
+      },
       "ResolveCustomerOrganizationsDto": {
         "type": "object",
         "properties": {
@@ -18580,6 +18703,62 @@
         },
         "required": [
           "ownerEmail"
+        ]
+      },
+      "ConciergeCustomerMatchDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "PLANNER",
+              "CORPORATE"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "relationship": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConciergeRelationship"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "createdAt",
+          "relationship"
+        ]
+      },
+      "ConciergeCustomerPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConciergeCustomerMatchDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ]
       },
       "TemplateUpgradePreviewDto": {
@@ -19858,6 +20037,14 @@
           "code": {
             "type": "string",
             "enum": [
+              "ADMISSION_TARGET_NOT_FOUND",
+              "ADMISSION_LINK_CHANGED",
+              "ADMISSION_ALREADY_CHECKED_IN",
+              "ADMISSION_ACKNOWLEDGEMENTS_REQUIRED",
+              "TICKET_ATTENDEE_REQUIRED",
+              "TICKET_ALREADY_USED",
+              "TICKET_ORDER_UNAVAILABLE",
+              "TICKET_STATUS_UNAVAILABLE",
               "ENQUIRY_CHANGED",
               "CONSULTATION_CONFLICT",
               "IDEMPOTENCY_CONFLICT",
@@ -19974,12 +20161,85 @@
           "sectionKey"
         ]
       },
+      "MissingAdmissionAcknowledgementDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "questionId",
+          "labels"
+        ]
+      },
+      "AdmissionFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "guestId": {
+            "type": "string"
+          },
+          "holderName": {
+            "type": "string"
+          },
+          "arrivedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "usedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orderStatus": {
+            "type": "string",
+            "enum": [
+              "RESERVED",
+              "PAID",
+              "CANCELLED",
+              "EXPIRED",
+              "REFUNDED"
+            ]
+          },
+          "isCancellationPending": {
+            "type": "boolean"
+          },
+          "ticketStatus": {
+            "type": "string",
+            "enum": [
+              "VALID",
+              "USED",
+              "VOID",
+              "REFUNDED"
+            ]
+          },
+          "missingAcknowledgements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MissingAdmissionAcknowledgementDto"
+            }
+          }
+        }
+      },
       "HttpErrorDto": {
         "type": "object",
         "properties": {
           "code": {
             "type": "string",
             "enum": [
+              "ADMISSION_TARGET_NOT_FOUND",
+              "ADMISSION_LINK_CHANGED",
+              "ADMISSION_ALREADY_CHECKED_IN",
+              "ADMISSION_ACKNOWLEDGEMENTS_REQUIRED",
+              "TICKET_ATTENDEE_REQUIRED",
+              "TICKET_ALREADY_USED",
+              "TICKET_ORDER_UNAVAILABLE",
+              "TICKET_STATUS_UNAVAILABLE",
               "ENQUIRY_CHANGED",
               "CONSULTATION_CONFLICT",
               "IDEMPOTENCY_CONFLICT",
@@ -20106,6 +20366,9 @@
           },
           "selection": {
             "$ref": "#/components/schemas/TicketSelectionFeedbackDto"
+          },
+          "admission": {
+            "$ref": "#/components/schemas/AdmissionFeedbackDto"
           },
           "path": {
             "type": "string"
@@ -31018,12 +31281,6 @@
                     "format": "date-time",
                     "nullable": true
                   },
-                  "dietary": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
                   "drinkPreference": {
                     "type": "string",
                     "nullable": true
@@ -31031,6 +31288,12 @@
                   "songRequest": {
                     "type": "string",
                     "nullable": true
+                  },
+                  "dietary": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "dietaryNotes": {
                     "type": "string",
@@ -31050,9 +31313,9 @@
                   "updatedAt",
                   "guestId",
                   "respondedAt",
-                  "dietary",
                   "drinkPreference",
                   "songRequest",
+                  "dietary",
                   "dietaryNotes",
                   "signatureAssetId"
                 ]
@@ -42827,208 +43090,6 @@
           "nextCursor"
         ]
       },
-      "ConciergeController_openResponse": {
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "organization": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "createdAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "type": "string",
-                    "enum": [
-                      "CORPORATE",
-                      "HOST",
-                      "PLANNER"
-                    ]
-                  }
-                },
-                "required": [
-                  "id",
-                  "createdAt",
-                  "name",
-                  "kind"
-                ]
-              },
-              "invite": {
-                "type": "string",
-                "nullable": true,
-                "enum": [
-                  null
-                ]
-              },
-              "isExisting": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "organization",
-              "invite",
-              "isExisting"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "organization": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "createdAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "type": "string",
-                    "enum": [
-                      "CORPORATE",
-                      "HOST",
-                      "PLANNER"
-                    ]
-                  }
-                },
-                "required": [
-                  "id",
-                  "createdAt",
-                  "name",
-                  "kind"
-                ]
-              },
-              "invite": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "sent": {
-                        "type": "boolean"
-                      },
-                      "email": {
-                        "type": "string"
-                      },
-                      "role": {
-                        "type": "string",
-                        "enum": [
-                          "OWNER",
-                          "VIEWER",
-                          "MANAGER",
-                          "MEMBER"
-                        ]
-                      },
-                      "invitationId": {
-                        "type": "string"
-                      },
-                      "messageId": {
-                        "type": "string",
-                        "nullable": true
-                      },
-                      "messageStatus": {
-                        "type": "string",
-                        "enum": [
-                          "QUEUED",
-                          "SENDING",
-                          "SENT",
-                          "DELIVERED",
-                          "FAILED",
-                          "BOUNCED",
-                          "SUPPRESSED",
-                          "CANCELLED",
-                          null
-                        ],
-                        "nullable": true
-                      },
-                      "devLink": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "sent",
-                      "email",
-                      "role",
-                      "invitationId",
-                      "messageId",
-                      "messageStatus"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "devLink": {
-                        "type": "string"
-                      },
-                      "sent": {
-                        "type": "boolean"
-                      },
-                      "email": {
-                        "type": "string"
-                      },
-                      "role": {
-                        "type": "string",
-                        "enum": [
-                          "OWNER",
-                          "VIEWER",
-                          "MANAGER",
-                          "MEMBER"
-                        ]
-                      },
-                      "invitationId": {
-                        "type": "string"
-                      },
-                      "messageId": {
-                        "type": "string"
-                      },
-                      "messageStatus": {
-                        "type": "string",
-                        "enum": [
-                          "QUEUED",
-                          "SENDING",
-                          "SENT",
-                          "DELIVERED",
-                          "FAILED",
-                          "BOUNCED",
-                          "SUPPRESSED",
-                          "CANCELLED"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "sent",
-                      "email",
-                      "role",
-                      "invitationId",
-                      "messageId",
-                      "messageStatus"
-                    ]
-                  }
-                ]
-              },
-              "isExisting": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "organization",
-              "invite",
-              "isExisting"
-            ]
-          }
-        ]
-      },
       "ConciergeController_findResponse": {
         "type": "array",
         "items": {
@@ -43078,51 +43139,6 @@
             "kind"
           ]
         }
-      },
-      "ConciergeController_resolveCustomerResponse": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string"
-                },
-                "createdAt": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "enum": [
-                    "CORPORATE",
-                    "HOST",
-                    "PLANNER"
-                  ]
-                }
-              },
-              "required": [
-                "id",
-                "createdAt",
-                "name",
-                "kind"
-              ]
-            }
-          },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "items",
-          "nextCursor"
-        ]
       },
       "ConciergeController_createEventResponse": {
         "anyOf": [
@@ -58290,12 +58306,6 @@
                           "format": "date-time",
                           "nullable": true
                         },
-                        "dietary": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
                         "drinkPreference": {
                           "type": "string",
                           "nullable": true
@@ -58303,6 +58313,12 @@
                         "songRequest": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "dietary": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         },
                         "dietaryNotes": {
                           "type": "string",
@@ -58322,9 +58338,9 @@
                         "updatedAt",
                         "guestId",
                         "respondedAt",
-                        "dietary",
                         "drinkPreference",
                         "songRequest",
+                        "dietary",
                         "dietaryNotes",
                         "signatureAssetId"
                       ],
@@ -58762,6 +58778,10 @@
                     "attendanceRevision": {
                       "type": "number"
                     },
+                    "drinkPreference": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "email": {
                       "type": "string",
                       "nullable": true
@@ -58846,10 +58866,6 @@
                       "items": {
                         "type": "string"
                       }
-                    },
-                    "drinkPreference": {
-                      "type": "string",
-                      "nullable": true
                     },
                     "dietaryNotes": {
                       "type": "string",
@@ -59009,6 +59025,7 @@
                   "required": [
                     "status",
                     "attendanceRevision",
+                    "drinkPreference",
                     "email",
                     "phone",
                     "locale",
@@ -59016,7 +59033,6 @@
                     "firstName",
                     "lastName",
                     "dietary",
-                    "drinkPreference",
                     "dietaryNotes",
                     "order",
                     "householdKey",

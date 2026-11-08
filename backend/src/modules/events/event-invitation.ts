@@ -25,6 +25,7 @@ export async function createEventInvitation(tx: Prisma.TransactionClient, input:
       templateVersionId: template.templateVersionId,
       templateOwnerScopeKey: template.templateOwnerScopeKey,
       theme: template.defaultTheme === null ? Prisma.JsonNull : template.defaultTheme as Prisma.InputJsonValue,
+      rsvpFields: { drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false } },
       blocks: { create: defaultBlocksFor(template.supportedBlocks) },
     },
     select: { id: true, eventId: true, organizationId: true, templateVersionId: true, slug: true, status: true, template: { select: { key: true } } },

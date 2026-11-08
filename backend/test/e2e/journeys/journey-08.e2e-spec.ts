@@ -149,7 +149,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guests�
       const event = await createEvent(authorization);
       await as(http().patch(api(`/invitations/${event.slug}/rsvp-fields`))).send({
         dietary: { options: [{ key: 'vegetarian', label: { en: 'Vegetarian', hy: 'Բուսակեր' } }] },
-        drinkPreference: { options: [{ key: 'wine', label: { en: 'Wine', hy: 'Գինի' } }] },
+        drinkPreference: { isEnabled: true, options: [{ key: 'wine', label: { en: 'Wine', hy: 'Գինի' } }] },
       }).expect(200);
       const { body: hall } = await as(http().post(api(`/events/${event.eventId}/venues`)))
         .send({ role: 'RECEPTION', name: 'Ararat Hall', address: '1 Abovyan St, Yerevan', capacity: 120 }).expect(201);

@@ -1,4 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { TicketOrderStatus, TicketStatus } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FEEDBACK } from './feedback-copy';
 
 export class FieldFeedbackDto {
@@ -29,6 +30,40 @@ export class TicketSelectionFeedbackDto {
   seatId?: string;
 }
 
+export class MissingAdmissionAcknowledgementDto {
+  @ApiProperty()
+  questionId!: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'string' } })
+  labels!: Record<string, string>;
+}
+
+export class AdmissionFeedbackDto {
+  @ApiPropertyOptional()
+  guestId?: string;
+
+  @ApiPropertyOptional()
+  holderName?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'date-time' })
+  arrivedAt?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'date-time' })
+  usedAt?: string;
+
+  @ApiPropertyOptional({ enum: TicketOrderStatus })
+  orderStatus?: TicketOrderStatus;
+
+  @ApiPropertyOptional()
+  isCancellationPending?: boolean;
+
+  @ApiPropertyOptional({ enum: TicketStatus })
+  ticketStatus?: TicketStatus;
+
+  @ApiPropertyOptional({ type: [MissingAdmissionAcknowledgementDto] })
+  missingAcknowledgements?: MissingAdmissionAcknowledgementDto[];
+}
+
 export class HttpErrorDto extends JobRecoveryDto {
   @ApiProperty()
   statusCode!: number;
@@ -40,6 +75,8 @@ export class HttpErrorDto extends JobRecoveryDto {
   requestId?: string;
   @ApiProperty({ required: false, type: TicketSelectionFeedbackDto })
   selection?: { sectionKey: string; seatId?: string };
+  @ApiPropertyOptional({ type: AdmissionFeedbackDto })
+  admission?: AdmissionFeedbackDto;
   @ApiProperty()
   path!: string;
   @ApiProperty({ format: 'date-time' })

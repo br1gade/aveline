@@ -1,3 +1,4 @@
+import { invitationEmailFooter } from './invitation-email-footer';
 import { storedForms } from './address-form';
 import { normalizeAddress } from './address-form';
 import { isUniqueViolation } from '../../common/prisma-errors';
@@ -581,7 +582,7 @@ function messageData(
     toAddress: params.toAddress,
     locale: params.locale,
     subject: subject === null ? null : renderTemplate(subject, params.variables),
-    body: renderTemplate(body, params.variables),
+    body: renderTemplate(body, params.variables) + invitationEmailFooter(params),
     scheduledFor: params.scheduledFor ?? new Date(),
     priority: priorityFor(params.templateKey),
     dedupeKey: params.dedupeKey ?? null,

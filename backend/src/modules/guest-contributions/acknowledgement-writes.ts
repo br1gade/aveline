@@ -58,16 +58,25 @@ export async function saveSignatureAnswer(tx: Prisma.TransactionClient, rsvpId: 
 }
 
 export async function assertRequiredAcknowledgements(tx: Prisma.TransactionClient, eventId: string, guestIds: string[]) {
-  if (!guestIds.length) return;
+  const missing = await findMissingRequiredAcknowledgements(tx, eventId, guestIds, 1);
+  if (missing.length) throw new BadRequestException(requiredAcknowledgementMessage(missing));
+}
+
+export function requiredAcknowledgementMessage(missing: { guestId: string; questionId: string }[]) {
+  return `acknowledgements: ${missing[0].guestId} must acknowledge ${missing[0].questionId} in its current version`;
+}
+
+export async function findMissingRequiredAcknowledgements(tx: Prisma.TransactionClient, eventId: string, guestIds: string[], limit: number | null) {
+  if (!guestIds.length) return [];
   const signatures = await tx.$queryRaw<{ id: string }[]>`SELECT q.id FROM rsvp_questions q JOIN invitations i ON i.id = q."invitationId"
     WHERE i."eventId" = ${eventId} AND q.type = 'SIGNATURE' ORDER BY q.id FOR SHARE OF q`;
-  if (!signatures.length) return;
-  const missing = await tx.$queryRaw<{ questionId: string; guestId: string }[]>`
-    SELECT q.id AS "questionId", g.id AS "guestId" FROM guests g
+  if (!signatures.length) return [];
+  return tx.$queryRaw<{ questionId: string; guestId: string; prompt: Prisma.JsonValue }[]>`
+    SELECT q.id AS "questionId", g.id AS "guestId", q.prompt FROM guests g
     JOIN invitations i ON i."eventId" = g."eventId" JOIN rsvp_questions q ON q."invitationId" = i.id
     WHERE g.id IN (${Prisma.join(guestIds)}) AND g."eventId" = ${eventId} AND q.type = 'SIGNATURE' AND q.required
       AND NOT EXISTS (SELECT 1 FROM guest_acknowledgements a LEFT JOIN guest_media m ON m.id = a."mediaId"
         WHERE a."subjectGuestId" = g.id AND a."statementVersionId" = q."statementVersionId"
-          AND (a.method = 'TYPED' OR m."processingStatus" = 'READY')) LIMIT 1`;
-  if (missing.length) throw new BadRequestException(`acknowledgements: ${missing[0].guestId} must acknowledge ${missing[0].questionId} in its current version`);
+          AND (a.method = 'TYPED' OR m."processingStatus" = 'READY'))
+    ORDER BY g.id, q."sortOrder", q.id LIMIT ${limit}::int`;
 }

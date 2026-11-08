@@ -33,22 +33,22 @@ all eight local latency gates. Actual-host performance acceptance, required
 human review of export/recovery-message translations and external/frontend acceptance still
 block this pilot; see [local evidence](../backend/docs/PILOT_REHEARSAL.md).
 
-**The client is partial and unmerged.** It lives on `frontend/guest-invitation`
-and `frontend/publish-send`, not on `main` or `dev`. As of 29 October 2026 it
-covers accounts, events, venues, the guest list and import, the invitation
-designer, publishing, sending and the guest reply. Seating, the door
-(check-in), exports, tickets and checkout, billing, the event team,
-acknowledgements, the gallery and archiving have no screens yet. The client's
-own "not yet built" list is its `frontend/docs/ARCHITECTURE.md` §12.
+**The client is merged into `dev` and `main`.** The combined tree passed
+backend and frontend verification. A real local browser rehearsal covered
+publishing numbered seats and zones, purchasing tickets in the four supported
+languages, and door admission. The wider host and guest walkthrough and
+production-host acceptance remain release gates.
 
-Backend items the client team raised that still hold (IDs are in its
-`frontend/docs/BACKEND_REQUESTS.md`). FR-7, FR-27, and the schema, privacy and
-validation items answered on 31 October 2026 are listed in
-[TODO.md](TODO.md) T1:
+The pilot frontend items FR-73 and FR-74 are delivered. The door refusal
+contract (FR-76) is implemented in the backend and awaits frontend adoption.
+The remaining frontend-facing gates are:
 
-| Item | Why it blocks |
+| Item | Evidence still needed |
 |---|---|
-| **FR-11** No web service in `docker-compose.prod.yml`; Caddy serves only `API_DOMAIN` | The client has nowhere to run in production, and one-origin vs. separate-origin (CORS, `PUBLIC_APP_URL`, payment `returnUrl`) is not agreed |
+| **FR-11** Production web service and origin | Deploy the frontend with an agreed public origin and verify Caddy routing, `CORS_ORIGINS`, `PUBLIC_APP_URL`, and a payment return in a production-like stack |
+| **FR-76 / FR-79** Door screen | Adopt the structured refusal codes, add the lightweight searchable roster, and rehearse check-in on a phone against the real API |
+| **Frontend CI and wider rehearsal** | Establish the GitHub frontend workflow and run the agreed host and guest journeys against the real backend |
+| **Public build settings and privacy copy** | Verify the public web origin, support links, token-safe server logs and approved privacy notice and form. Confirm the invitation email footer reaches the public form from a signed-out browser |
 
 ### Money
 

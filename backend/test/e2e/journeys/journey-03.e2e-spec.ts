@@ -137,7 +137,7 @@ describe('Journey 3: attendance mode change, reconfirmation, seating and exports
     await host.post(`${base}/tables/bulk`, { venueId: hall, namePrefix: 'Table', count: 2, capacity: 4 }).expect(201);
     await host.patch(`/invitations/${slug}/rsvp-fields`, {
       dietary: { options: [{ key: 'vegetarian', label: { en: 'Vegetarian' } }] },
-      drinkPreference: { options: [{ key: 'wine', label: { en: 'Wine' } }, { key: 'cognac', label: { en: 'Cognac' } }] },
+      drinkPreference: { isEnabled: true, options: [{ key: 'wine', label: { en: 'Wine' } }, { key: 'cognac', label: { en: 'Cognac' } }] },
     }).expect(200);
     await http().post(api(`${base}/guests/import`)).set('Authorization', authorization)
       .attach('file', Buffer.from(GUEST_CSV), { filename: 'guests.csv', contentType: 'text/csv' })

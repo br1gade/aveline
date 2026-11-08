@@ -1,6 +1,6 @@
 # Client backend requests — implementation plan and delivery record
 
-Source: frontend request register at [`d8fe229`](https://github.com/br1gade/aveline/blob/d8fe229c2458f34855fd990055093179df9dd44c/frontend/docs/BACKEND_REQUESTS.md), captured 5 November 2026. Backend base: `34ac1e6`. This record covers FR-1–126, including previously answered requests; a request is complete only when implementation, contract and verification agree. The frontend source register remains its team's record.
+Source: frontend request register at [`d8fe229`](https://github.com/br1gade/aveline/blob/d8fe229c2458f34855fd990055093179df9dd44c/frontend/docs/BACKEND_REQUESTS.md), captured 5 November 2026. Backend base: `34ac1e6`. The disposition table covers FR-1–126, with later requests tracked in the follow-up below; a request is complete only when implementation, contract and verification agree. The frontend source register remains its team's record.
 
 ## Delivery order and dependencies
 
@@ -26,7 +26,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 
 ## Request disposition
 
-"Previously delivered" is an audit starting point, not a claim that every newer extension is resolved. Product questions are limited to unpublished vendor seating/access suspension, paid-to-free timing and a restricted door role; their independent defects can proceed while answers are pending.
+"Previously delivered" is an audit starting point, not a claim that every newer extension is resolved. The initial audit asked about unpublished vendor seating, brief access suspension, paid-to-free timing and a restricted door role. The bounded follow-up below records the separate door-response and concierge decisions.
 
 | Request | Client request / starting point | Slice | Status |
 |---|---|---|---|
@@ -91,7 +91,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-59 | Export failure codes that say what to do | S3 host/guest operations | Audit and implement |
 | FR-60 | Say which export kinds carry contacts, or ignore includesContacts where none do | S3 host/guest operations | Audit and implement |
 | FR-61 | Say who made each export | S3 host/guest operations | Audit and implement |
-| FR-62 | Name the event, the ticket types and the buyer in GET /ticket-orders/:accessToken and its confirm | S4 ticketing/vendors/billing | Implemented locally on the frontend pilot follow-up branch |
+| FR-62 | Name the event, the ticket types and the buyer in GET /ticket-orders/:accessToken and its confirm | S4 ticketing/vendors/billing | Backend merged in `c86782e`; frontend adoption pending |
 | FR-63 | Codes for checkout's refusals | S4 ticketing/vendors/billing | Audit and implement |
 | FR-64 | Say on the public event's checkout whether paid tickets can be bought, and with which banks | S4 ticketing/vendors/billing | Audit and implement |
 | FR-65 | Translate venue names in GET /public/events/:slug and in its checkout.venues, as FR-40 asks of the reply  | S4 ticketing/vendors/billing | Audit and implement |
@@ -105,7 +105,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-73 | Give GET /public/events/:slug the guest-page allowance, or trust a forwarded client address from our rend | S3 host/guest operations | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-74 | Keep contact details out of a CSV's "No first-name column found" error | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-75 | Refuse a blank answer to a required question | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
-| FR-76 | Codes and facts on the door's refusals | S3 host/guest operations | Audit and implement |
+| FR-76 | Codes and facts on the door's refusals | S3 host/guest operations | Backend implemented in this follow-up; client adoption pending |
 | FR-77 | Check arrival and ticket state before the agreement gate | S1 safety/correctness | Audit and implement |
 | FR-78 | Who still must agree, per person, on a host's read | S3 host/guest operations | Audit and implement |
 | FR-79 | A light list for the door, and a search | S3 host/guest operations | Audit and implement |
@@ -267,7 +267,109 @@ follow-up. An applied erasure stays in recovery and cannot be rejected.
 FR-135 is the period-end free-plan change already decided under FR-110.
 The other new rows remain open.
 
-Keep A6 while testing. Use a separate integration branch from the current
-backend and `frontend/publish-send` for the real API walkthrough and frontend
-CI. Decide the production origin layout before accepting checkout returns
-and email links in a deployed client.
+A6 was superseded. Frontend and backend ticketing merged through `dev` to
+`main` at `2fe4df0`. The real-backend ticketing rehearsal covered seat and
+zone purchase and admission. Wider real-backend acceptance, dedicated
+frontend CI and the production origin layout remain separate work.
+
+## Implementation plan for the small and bounded requests
+
+The plan covers FR-62 frontend adoption, FR-76, FR-130, FR-134, FR-136,
+frontend CI and the launch checklist. Start the two backend quick changes
+and the checklist independently. Freeze the two bounded API contracts early
+so the client team can plan fixtures. Frontend implementation belongs to
+the client team. The larger workstreams remain on the request register.
+
+### Decisions confirmed on 8 November 2026
+
+- **FR-76.** Door staff may see the holder's name, first admission time and
+  guest ID when available. For an acknowledgement refusal, return only the
+  missing acknowledgements for the ticket or guest being admitted. Omit
+  contact details. Keep the existing event access requirements.
+- **FR-130.** An active OWNER membership or a live OWNER invitation
+  qualifies as an existing customer organization. Return those as distinct
+  states. Memberships in other roles are insufficient.
+
+### Backend and shared documentation
+
+| Work | Estimate | Entry point and delivery |
+|---|---:|---|
+| FR-134 · New invitation defaults | ½–1 day | Persist explicit disabled settings for drink preference and song request in `createEventInvitation`. Both event creation with an invitation and adding an invitation to an existing event use this helper. Keep the read fallback for older invitations and preserve existing host edits. Verify both creation paths, a legacy invitation with unset fields and re-enabling either question. Update the invitation and API docs with the new defaults. |
+| FR-136 · Invitation email footer | ½–1 day | Add a localized footer at the common render/enqueue boundary for new `invitation.send` EMAIL messages. Build the public, token-free link with `appPage('/privacy-request')` so it follows `PUBLIC_APP_URL`. Apply the footer to built-in and organization copy through both single and batch enqueue paths. Cover Armenian, English, Russian and French footer text while preserving existing template fallback. Include an Aveline website link if a separate website is configured for email. Scope delivery to invitation emails and leave stored messages and other channels alone. Verify that the link opens for a signed-out guest. Add it to the browser route contract. |
+| FR-76 · Door refusal contract | 1–3 days | Extend the existing check-in and ticket-admission responses with typed domain codes and scoped facts. Keep endpoint permissions and the admission transaction. Publish examples and OpenAPI before client adoption. |
+| FR-130 · Concierge relationship lookup | 2–3 days | Apply one relationship eligibility rule to concierge lookup and opening a customer organization. Add an explicit relationship projection and revalidate it on the write path. Keep the separate sales-conversion policy explicit and cover that caller in regression tests. |
+| Launch checklist | ½ day | Correct the merged status in `docs/GOING_LIVE.md` and record the ticketing rehearsal's coverage. Mark FR-73 and FR-74 delivered. Leave FR-11, FR-76, FR-79, the wider rehearsal and unresolved launch requirements open. Record frontend CI and public build settings as pending until evidence exists. |
+
+#### FR-76 acceptance
+
+- Cover guest check-in and ticket admission for an unknown or other-event
+  target, duplicate arrival or scan, changed ticket link, unavailable order,
+  pending cancellation, unregistered attendee when an acknowledgement is
+  required, and missing current acknowledgements. Keep existing HTTP
+  statuses and compatible message text during client migration. The client
+  keys off the new codes.
+- Return the original `arrivedAt` or `usedAt` in UTC when recorded, and the
+  approved holder and guest fields when known. Represent the order status and
+  pending cancellation in typed data. Scope the acknowledgement query to the
+  person being admitted and return the missing question IDs and safe display
+  labels. Keep the existing RSVP and ticket-link acknowledgement contracts.
+- Use the existing attendance, order, guest and ticket locks. Exercise two
+  scanners racing, a concurrent relink or cancellation, and the case where
+  more than one rule blocks admission. Prefer an already used or unavailable
+  ticket response to a request for a new acknowledgement when both apply.
+  Assert that denied attempts create no admissions and return no contacts,
+  capability tokens or unrelated guest data.
+- Coordinate field naming with FR-79's future roster. FR-76 can ship and be
+  adopted using the current door screen while the roster is designed.
+
+#### FR-130 acceptance
+
+- Match normalized email to an active OWNER membership or a live,
+  unaccepted, unrevoked OWNER invitation for an open organization. Deduplicate
+  by organization, with active ownership taking precedence if both exist.
+  Add an explicit relationship such as `OWNER` or `PENDING_OWNER_INVITE` to
+  the lookup and existing-organization result. Return no invite token.
+- Keep cursor pagination and explicit selection when several organizations
+  qualify. Revalidate the selected relationship inside the opening transaction
+  under the existing owner-address lock. A pending invitation remains pending
+  on reuse. Avoid duplicate organizations and invitations when the request
+  repeats. A stale or unrelated selected organization is refused.
+- Cover case-insensitive email, non-owner membership, pending-only results,
+  expired and revoked invites, multiple matches across pages and a relationship
+  changed between lookup and write. The shared resolver also serves sales
+  conversion. Keep its current workflow unless a separate decision changes it.
+
+### Frontend handoff
+
+| Work | Estimate | When to start and what to verify |
+|---|---:|---|
+| FR-62 · Buyer order page | ½–1 day | Ready on `main`. Read `buyerName`, order `locale`, `event` and `items[].name` from both the buyer-order read and confirmation. An emailed link must show context in a fresh tab without a prior checkout slug or a public listing fetch. Cover null listing slug and type name, event timezone, held/paid/refunded states, seat and zone labels, and existing capability-token protections. |
+| Dedicated GitHub frontend CI | ½–1 day | Ready. Draft the shared workflow for review. Check out the combined tree and run `npm ci` and `npm run verify` in `frontend/` using its pinned Node line. Generate API types from the same commit. Trigger on frontend, workflow and backend contract changes, including the controllers that frontend contract tests read. Keep the existing local push gate. |
+| FR-134 · Remove the client workaround | After backend deployment | Remove the extra write that disables the two fields after creation, once the target backend persists those defaults. Confirm older invitations still display their stored settings and either question can be enabled. |
+| FR-76 · Door refusal UI | After verified API contract | Replace message matching for the new cases with codes and facts. Localize in all four languages. Show the original arrival time, only the approved identity fields, and the missing acknowledgements for that guest. Keep fallbacks until the supported backend versions expose the new contract. |
+| FR-130 · Concierge lookup UI | After verified API contract | Label owner and pending invite distinctly. Keep explicit organization selection when required, handle pagination, and refresh when an invite or membership is no longer valid. |
+
+FR-62 and frontend CI can proceed in parallel with the backend quick changes.
+FR-76 and FR-130 are independent once their response shapes are reviewed.
+For each API change, update the governing contract and regenerate OpenAPI with
+the implementation. Run focused regressions before the complete local gate.
+Test client adoption against the resulting backend in a disposable stack.
+
+### Backend delivery and client adoption
+
+FR-134 persists the new defaults only on invitation creation. FR-136 adds
+the localized footer at email render/enqueue time. FR-76 exposes the
+structured door refusal contract, and FR-130 projects the two qualifying
+relationships in concierge lookup and reuse. The shared launch checklist
+now reflects the merged frontend and the remaining launch evidence.
+
+FR-62, frontend CI, and adoption of FR-76, FR-130 and FR-134 remain client
+handoff items. FR-11, FR-79, FR-115, FR-128, FR-135 and the wider rehearsal
+remain separate work.
+
+Local verification covered lint, TypeScript, build, generated OpenAPI and
+the docs check. All 1,654 unit tests and 10 pilot tooling tests passed. All
+92 HTTP suites passed across three isolated stacks. The affected admission
+integration suites passed on rerun with the new error codes and race
+assertions. The current frontend's 324 focused contract tests and generated
+API type check passed. The signed-out privacy form returned HTTP 200 locally.

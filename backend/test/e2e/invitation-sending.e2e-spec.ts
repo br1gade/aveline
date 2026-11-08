@@ -167,6 +167,7 @@ describe('Invitation sending (e2e)', () => {
       await send(slug, authorization).expect(201);
 
       const message = await prisma.message.findFirstOrThrow({ where: { eventId } });
+      expect(message.body).toContain('/privacy-request');
       expect(message.subject).toContain('Anna & Davit');
     });
 

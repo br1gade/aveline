@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, OrganizationScope, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { CreateEventDto } from '../events/dto/create-event.dto';
 import { ConciergeService } from './concierge.service';
-import { FindOrganizationsQuery, OpenForCustomerDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
+import { ConciergeCustomerPageDto, FindOrganizationsQuery, OpenForCustomerDto, OpenForCustomerResponseDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
 
 /** Aveline staff setting events up for customers, then handing them over. */
 @ApiTags('concierge')
@@ -13,6 +13,7 @@ export class ConciergeController {
 
   @RequirePermission('concierge:manage')
   @Post()
+  @ApiCreatedResponse({ type: OpenForCustomerResponseDto })
   @ApiOperation({
     summary: "Open a customer's organization and invite them as its owner (Aveline staff)",
     description: 'Staff do not become members; the customer sets their own password on accepting.',
@@ -23,6 +24,7 @@ export class ConciergeController {
 
   @RequirePermission('concierge:manage')
   @Post('resolve-customer')
+  @ApiCreatedResponse({ type: ConciergeCustomerPageDto })
   @ApiOperation({ summary: 'Bounded customer organization choices for staff; no contacts or billing' })
   resolveCustomer(@Body() dto: ResolveCustomerOrganizationsDto) {
     return this.concierge.resolveCustomer(dto);

@@ -90,6 +90,10 @@ describe('Onboarding (e2e)', () => {
       expect(body).toMatchObject({ title: 'Anna & Davit', type: 'WEDDING', status: 'DRAFT' });
       expect(body.invitation.slug).toMatch(/^anna-davit-[0-9a-f]{8}$/);
       expect(body.invitation.status).toBe('DRAFT');
+      const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: body.invitation.slug as string } });
+      expect(invitation.rsvpFields).toMatchObject({
+        drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false },
+      });
     });
 
     /**
@@ -295,6 +299,10 @@ describe('Onboarding (e2e)', () => {
         .expect(201);
 
       expect(body.slug).toEqual(expect.any(String));
+      const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: body.slug as string } });
+      expect(invitation.rsvpFields).toMatchObject({
+        drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false },
+      });
     });
 
     it('refuses a second invitation, naming the one that exists', async () => {
