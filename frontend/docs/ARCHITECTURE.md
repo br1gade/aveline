@@ -73,7 +73,7 @@ backend.
 | Public: `/invitations/:slug`, `/invitations/:slug/g/:guestToken` | Server | A server `loader` against the public API; `meta` from the response |
 | Public event: `/events/:slug` | Server | A server `loader` against the public API; `meta` from the response's `metadata`, verbatim, its robots rule included |
 | Checkout: `/events/:slug/checkout?tickets=…&locale=…` | Server, the form included | The event from a server `loader`; the order posts from the browser. `private, no-store` |
-| Capability: `/tickets/:accessToken`, `/tickets`, `/tickets/return` | Server shell | The language negotiated (the order names none, FR-62); the order read and confirmed in the browser with the token the tab holds (§9). `noindex`; `no-referrer`; `no-store` |
+| Capability: `/tickets/:accessToken`, `/tickets`, `/tickets/return` | Server shell | The language negotiated for the frame, the order's own once it is read (design PD-189); the order read and confirmed in the browser with the token the tab holds (§9). `noindex`; `no-referrer`; `no-store` |
 | Capability: `/briefs/:briefToken`, `/briefs` | Server shell | The language negotiated (the brief names none, FR-104); the brief read in the browser with the token the page holds in memory (§9). `noindex`; `no-referrer`; `no-store` |
 | Account: `/sign-in`, `/register`, `/reset-password`, `/verify-email`, `/accept-invite`, `/accept-event-invite` | Server, the form included | A server `loader` for the language only; forms submit from the browser. Sign-in and register skip to the app when a session is stored (`clientLoader`) |
 | App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit`, `/app/events/:eventId/guests`, `/app/events/:eventId/guests/import`, `/app/events/:eventId/venues`, `/app/events/:eventId/venues/new`, `/app/events/:eventId/venues/:venueId/edit`, `/app/events/:eventId/invitation`, `/app/events/:eventId/attendance`, the designer's pages under `/app/events/:eventId/design`, `/app/events/:eventId/photos`, `/app/events/:eventId/agreements`, `/app/events/:eventId/seating`, `/app/events/:eventId/exports`, `/app/events/:eventId/tickets` (with `…/types/new`, `…/types/:typeId` and `…/announcement`), `/app/events/:eventId/orders?status=…&order=…`, `/app/events/:eventId/vendors` (with `…/new` and `…/:bookingId`), `/app/vendors?category=…` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame. A change of query alone (the guest list's search and filter, the seating page's plan) reloads nothing: the root, the layout and the guest list skip it, and the `/app` segment reloads only when `?lang=` changes (`src/lib/routing`) |
@@ -334,8 +334,7 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   server's HTML does not hold it.
 - **The buyer's order token** (since 31 October 2026, design PD-81) is the one token a tab keeps
   beyond memory: the bank's return to `/tickets/return` carries none, and docs/API.md §5 asks the
-  client to store it. `features/ticket-order/token-store.ts` holds it, with the event's slug when
-  the tab came from checkout, under one `sessionStorage` key (this tab only), in memory where
+  client to store it. `features/ticket-order/token-store.ts` holds it under one `sessionStorage` key (this tab only), in memory where
   storage is refused. The emailed `/tickets/:accessToken` renders a shell that never reads it;
   after hydration the tab holds it and the address becomes `/tickets`, which `entry.server.tsx`
   protects by its exact path, as the capability paths are. The token goes only to the API's
@@ -915,12 +914,13 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 9 Nov 2026 | **The inventory's refusals are worded by status** (`ticket-sales/inventory-refusals.ts`): a 403 by whose the action is, a 400 with the backend's sentence as it came | One sentence for all hid that venue layouts are Aveline's directory editors' (FR-6) |
 | 9 Nov 2026 | **The owner's decisions of 5 and 8 November are confirmed:** unpublished seating hidden from briefs, pausing a brief allowed, gallery uploads off for new invitations (design C-55 to C-57) | The backend had built the first two; C-44 and C-46 are superseded |
 | 9 Nov 2026 | **Guests' photo sharing follows the hosts' switch (FR-46)**: the share form shows only while it is on, and the setting is a sentence and a button on the photos page (design PD-187, PD-188) | New invitations start with sharing off (C-57), so guests were offered a form that could only be refused |
+| 9 Nov 2026 | **The buyer's order names itself (FR-62)**: the event, ticket types, buyer and language come from the order, and the public listing is no longer read (design PD-81, PD-189) | An emailed link in a fresh tab could name nothing. The line about agreements before the door went with it, as only the listing knows (FR-138) |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
 
 ## 12. Not yet built
 
 - Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
-  adopt (BACKEND_REQUESTS §1): for the pilot, the buyer's order in a fresh tab (FR-62), the door's coded refusals and paged roster
+  adopt (BACKEND_REQUESTS §1): for the pilot, the door's coded refusals and paged roster
   (FR-76, FR-79) with a rehearsal on a phone, export failures that say what to do (FR-59), and a
   build per origin (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
   owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
@@ -1049,8 +1049,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   client adopts it next).
 - Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
-  the announcement is not published (FR-71); naming the event on an order opened from its email in another
-  tab (FR-62); "on sale from" before a type's sales open (FR-66).
+  the announcement is not published (FR-71); "on sale from" before a type's sales open (FR-66); saying on the order whether the event has agreements before the door (FR-138), whether its listing is still public (FR-139), and leaving out an erased buyer's name (FR-140).
 - Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; a walk-in joining
   a household already on the list, which needs one of its seats free; adding a walk-in again safely
   after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket

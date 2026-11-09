@@ -98,6 +98,7 @@ function readItem(wire: Wire): BuyerOrder['items'] {
     ? [
         {
           ticketTypeId: wire.ticketTypeId,
+          name: text(wire.name),
           quantity: wire.quantity,
           unitPriceMinor: text(wire.unitPriceMinor) ?? '0',
         },
@@ -105,10 +106,24 @@ function readItem(wire: Wire): BuyerOrder['items'] {
     : [];
 }
 
+/** Without its title, start or zone there is no line to show, so there is no event. */
+function readEvent(value: unknown): BuyerOrder['event'] {
+  const wire = record(value);
+  const title = text(wire.title);
+  const startsAt = text(wire.startsAt);
+  const timezone = text(wire.timezone);
+  return title && startsAt && timezone
+    ? { title, slug: text(wire.slug), startsAt, timezone }
+    : null;
+}
+
 export function readBuyerOrder(value: unknown): BuyerOrder {
   const wire = record(value);
   const status = String(wire.status);
   return {
+    locale: text(wire.locale),
+    buyerName: text(wire.buyerName),
+    event: readEvent(wire.event),
     status: ORDER_STATUSES.has(status) ? (status as OrderStatus) : 'RESERVED',
     totalMinor: text(wire.totalMinor) ?? '0',
     discountMinor: text(wire.discountMinor) ?? '0',

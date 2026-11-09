@@ -5,6 +5,9 @@ import type { BuyerOrder, OrderStatus, PaymentState } from './types';
 
 function order(status: OrderStatus, payment?: PaymentState): BuyerOrder {
   return {
+    locale: null,
+    buyerName: null,
+    event: null,
     status,
     totalMinor: '30000',
     discountMinor: '0',

@@ -1,14 +1,12 @@
 /**
  * The buyer's order link is a credential (root CLAUDE.md §3), and the API asks the client to keep
  * it: the bank sends the buyer back to `/tickets/return`, which carries no token (docs/API.md §5).
- * It lives in this tab's `sessionStorage` only, under one key, with the event's slug when the tab
- * came from checkout (FR-62): never in an address after hydration, a link, a log or another tab.
+ * It lives in this tab's `sessionStorage` only, under one key: never in an address after hydration,
+ * a link, a log or another tab.
  * Where the browser refuses storage, it is kept in memory for this page's life.
  */
 export interface HeldOrder {
   accessToken: string;
-  /** The event's public slug, known only when this tab placed the order. */
-  slug?: string;
 }
 
 const STORAGE_KEY = 'aveline-ticket-order';
@@ -25,12 +23,8 @@ function storage(): Storage | null {
 
 function isHeldOrder(value: unknown): value is HeldOrder {
   if (typeof value !== 'object' || value === null) return false;
-  const { accessToken, slug } = value as Record<string, unknown>;
-  return (
-    typeof accessToken === 'string' &&
-    accessToken !== '' &&
-    (slug === undefined || typeof slug === 'string')
-  );
+  const { accessToken } = value as Record<string, unknown>;
+  return typeof accessToken === 'string' && accessToken !== '';
 }
 
 function readStored(): HeldOrder | null {
@@ -49,20 +43,11 @@ export function heldOrder(): HeldOrder | null {
   return readStored() ?? inMemory;
 }
 
-/**
- * Holds an order. The same order opened again from its emailed link keeps the event this tab
- * already knew; another order replaces everything.
- */
+/** Holds an order, in place of any other. */
 export function holdOrder(order: HeldOrder): void {
-  const current = heldOrder();
-  const slug =
-    order.slug ?? (current?.accessToken === order.accessToken ? current.slug : undefined);
-  const held: HeldOrder = slug
-    ? { accessToken: order.accessToken, slug }
-    : { accessToken: order.accessToken };
-  inMemory = held;
+  inMemory = order;
   try {
-    storage()?.setItem(STORAGE_KEY, JSON.stringify(held));
+    storage()?.setItem(STORAGE_KEY, JSON.stringify(order));
   } catch {
     // Storage refused (a private window, blocked site data): memory holds it for this page.
   }

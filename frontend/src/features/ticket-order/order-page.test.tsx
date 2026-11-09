@@ -16,7 +16,9 @@ import {
   vi,
 } from 'vitest';
 
+import { displayDate } from '@/features/invitation-renderer';
 import { createI18n } from '@/lib/i18n';
+import { formatMinor } from '@/lib/money';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 import TicketLink from '@/routes/public/ticket-link';
 
@@ -34,19 +36,8 @@ const API = `${ORIGIN}/api/v1`;
 /** Made at run time: no committed fixture holds a capability token. */
 const TOKEN = `tok-${crypto.randomUUID()}`;
 
-/** The public event this tab came from: only what the order page reads of it. */
-const EVENT_WIRE = {
-  slug: 'autumn-jazz-night',
-  locale: 'en',
-  headline: 'Autumn Jazz Night',
-  startsAt: '2027-10-02T15:00:00.000Z',
-  timezone: 'Asia/Yerevan',
-  ticketTypes: [{ id: 'general', name: 'General', priceMinor: '0', currency: 'AMD' }],
-  checkout: { acknowledgementsRequiredBeforeCheckIn: [] },
-};
-
 const server = setupServer();
-const reads = { get: 0, confirm: 0 };
+const reads = { get: 0, confirm: 0, listing: 0 };
 
 function refusal(status: number, message = 'No') {
   return HttpResponse.json(
@@ -75,7 +66,7 @@ function serveConfirm(...replies: Array<() => Response>) {
   );
 }
 
-function reserved(payment: Record<string, unknown>) {
+function reserved(payment: Record<string, unknown>, overrides: Record<string, unknown> = {}) {
   const reservesUntil = new Date(Date.now() + 10 * 60_000 - 1_000).toISOString();
   return () =>
     HttpResponse.json(
@@ -86,6 +77,7 @@ function reserved(payment: Record<string, unknown>) {
         tickets: [],
         accessToken: TOKEN,
         payment,
+        ...overrides,
       }),
     );
 }
@@ -96,6 +88,13 @@ beforeEach(() => {
   vi.stubEnv('VITE_PUBLIC_ORIGIN', 'https://aveline.test');
   reads.get = 0;
   reads.confirm = 0;
+  reads.listing = 0;
+  server.use(
+    http.get(`${API}/public/events/:slug`, () => {
+      reads.listing += 1;
+      return HttpResponse.json({});
+    }),
+  );
   forgetOrder();
   sessionStorage.clear();
 });
@@ -139,9 +138,8 @@ describe("the buyer's order (PD-81)", () => {
   });
 
   it('draws a QR code for a ticket that can still be used, naming its holder and never its code', async () => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    holdOrder({ accessToken: TOKEN });
     serveRead(() => HttpResponse.json({ ...orderWire(), accessToken: TOKEN }));
-    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
     renderAt('/tickets');
     const tickets = await screen.findByRole('region', { name: 'Tickets' });
     const items = within(tickets).getAllByRole('listitem');
@@ -159,7 +157,7 @@ describe("the buyer's order (PD-81)", () => {
   });
 
   it.each(['VOID', 'REFUNDED'])('draws none for a ticket that is %s', async (status) => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    holdOrder({ accessToken: TOKEN });
     const wire = orderWire() as { tickets: Array<Record<string, unknown>> };
     serveRead(() =>
       HttpResponse.json({
@@ -168,14 +166,13 @@ describe("the buyer's order (PD-81)", () => {
         tickets: wire.tickets.map((ticket) => ({ ...ticket, status })),
       }),
     );
-    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
     renderAt('/tickets');
     const tickets = await screen.findByRole('region', { name: 'Tickets' });
     expect(within(tickets).queryByRole('img')).not.toBeInTheDocument();
   });
 
   it('says where each ticket sits: a numbered seat, or a zone by its name (PD-186)', async () => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    holdOrder({ accessToken: TOKEN });
     const wire = orderWire() as { attendees: Array<Record<string, unknown>> };
     const [davit, anna] = wire.attendees;
     serveRead(() =>
@@ -188,17 +185,15 @@ describe("the buyer's order (PD-81)", () => {
         ],
       }),
     );
-    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
     renderAt('/tickets');
     const tickets = await screen.findByRole('region', { name: 'Tickets' });
     expect(within(tickets).getByText('Balcony · Row A, seat 3')).toBeVisible();
     expect(within(tickets).getByText('Floor')).toBeVisible();
   });
 
-  it('shows each person with their ticket, code and state, and the event this tab came from', async () => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+  it('shows each person with their ticket, code and state, and the event', async () => {
+    holdOrder({ accessToken: TOKEN });
     serveRead(() => HttpResponse.json({ ...orderWire(), accessToken: TOKEN }));
-    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
     renderAt('/tickets');
     expect(
       await screen.findByRole('heading', { name: 'Your tickets', level: 1 }),
@@ -246,6 +241,133 @@ describe("the buyer's order (PD-81)", () => {
   });
 });
 
+describe('what the order says for itself (FR-62)', () => {
+  const EVENT = orderWire().event as Record<string, unknown>;
+  const EVENT_LINE = /Autumn Jazz Night · Saturday, 2 October 2027, 19:00 · Yerevan time/;
+
+  function serveOrder(overrides: Record<string, unknown> = {}) {
+    serveRead(() => HttpResponse.json(orderWire({ accessToken: TOKEN, ...overrides })));
+  }
+
+  async function renderHeld() {
+    holdOrder({ accessToken: TOKEN });
+    renderAt('/tickets');
+    return screen.findByRole('heading', { level: 1 });
+  }
+
+  it('names the event, the ticket types and the buyer from an emailed link in a fresh tab, reading no listing', async () => {
+    serveOrder();
+    renderAt(`/tickets/${TOKEN}`);
+    expect(await screen.findByText(EVENT_LINE)).toBeVisible();
+    expect(screen.getByText('Ordered by Ani Grigoryan')).toBeVisible();
+    const tickets = screen.getByRole('region', { name: 'Tickets' });
+    expect(within(tickets).getAllByText('General')).toHaveLength(2);
+    expect(reads.listing).toBe(0);
+    expect(document.body.innerHTML).not.toContain(TOKEN);
+  });
+
+  it('says the same from the answer to confirm, on the bank’s return', async () => {
+    holdOrder({ accessToken: TOKEN });
+    serveConfirm(() => HttpResponse.json(orderWire({ accessToken: TOKEN })));
+    renderAt('/tickets/return');
+    expect(await screen.findByText(EVENT_LINE)).toBeVisible();
+    expect(screen.getByText('Ordered by Ani Grigoryan')).toBeVisible();
+    expect(reads.listing).toBe(0);
+  });
+
+  it.each(['RESERVED', 'CANCELLED', 'EXPIRED', 'REFUNDED'])(
+    'names the event on an order %s',
+    async (status) => {
+      serveOrder({ status, tickets: [] });
+      await renderHeld();
+      expect(screen.getByText(EVENT_LINE)).toBeVisible();
+    },
+  );
+
+  it('formats the time in the event’s own zone', async () => {
+    serveOrder({ event: { ...EVENT, timezone: 'America/New_York' } });
+    await renderHeld();
+    expect(screen.getByText(/Saturday, 2 October 2027, 11:00/)).toBeVisible();
+  });
+
+  it('shows the order in its own language, whatever the page negotiated', async () => {
+    serveOrder({ locale: 'hy', totalMinor: '15000' });
+    const { t } = createI18n('hy');
+    const heading = await renderHeld();
+    expect(heading).toHaveTextContent(t('ticket-order:outcome.paid.heading'));
+    expect(heading.closest('[lang]')).toHaveAttribute('lang', 'hy');
+    expect(screen.getByText(t('ticket-order:buyer', { name: 'Ani Grigoryan' }))).toBeVisible();
+    expect(document.body.textContent).toContain(formatMinor('15000', 'AMD', 'hy'));
+    expect(document.body.textContent).toContain(
+      displayDate('2027-10-02T15:00:00.000Z', { timeZone: 'Asia/Yerevan', locale: 'hy' }),
+    );
+  });
+
+  it('stays in the order’s language when a later check fails', async () => {
+    serveOrder({ locale: 'hy', status: 'RESERVED', tickets: [] });
+    serveConfirm(() => refusal(500));
+    const { t } = createI18n('hy');
+    holdOrder({ accessToken: TOKEN });
+    const { user } = renderAt('/tickets');
+    await user.click(await screen.findByRole('button', { name: t('ticket-order:waiting.check') }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(t('ticket-order:failed.body'));
+    expect(alert.closest('[lang]')).toHaveAttribute('lang', 'hy');
+  });
+
+  it('names each ticket by its own type', async () => {
+    const wire = orderWire() as { attendees: Array<Record<string, unknown>> };
+    const [davit, anna] = wire.attendees;
+    serveOrder({
+      items: [
+        { ticketTypeId: 'general', name: 'General', quantity: 1, unitPriceMinor: '0' },
+        { ticketTypeId: 'vip', name: 'VIP', quantity: 1, unitPriceMinor: '0' },
+      ],
+      attendees: [davit, { ...anna, ticketTypeId: 'vip' }],
+    });
+    await renderHeld();
+    const [first, second] = within(screen.getByRole('region', { name: 'Tickets' })).getAllByRole(
+      'listitem',
+    );
+    expect(within(first as HTMLElement).getByText('VIP')).toBeVisible();
+    expect(within(second as HTMLElement).getByText('General')).toBeVisible();
+  });
+
+  it('keeps the negotiated language for a locale it doesn’t have', async () => {
+    serveOrder({ locale: 'de' });
+    const heading = await renderHeld();
+    expect(heading).toHaveTextContent('Your tickets');
+    expect(heading.closest('[lang]')).toBeNull();
+  });
+
+  it('says “Ticket” when a ticket type has no name', async () => {
+    serveOrder({
+      items: [{ ticketTypeId: 'general', name: null, quantity: 2, unitPriceMinor: '0' }],
+    });
+    await renderHeld();
+    const tickets = screen.getByRole('region', { name: 'Tickets' });
+    expect(within(tickets).getAllByText('Ticket')).toHaveLength(2);
+  });
+
+  it('leaves out an event or a buyer it wasn’t given', async () => {
+    serveOrder({ event: undefined, buyerName: '' });
+    const heading = await renderHeld();
+    expect(heading).toHaveTextContent('Your tickets');
+    expect(screen.queryByText(/Autumn Jazz Night/)).toBeNull();
+    expect(screen.queryByText(/Ordered by/)).toBeNull();
+  });
+
+  it('offers no way back when the event has no public listing', async () => {
+    holdOrder({ accessToken: TOKEN });
+    serveConfirm(
+      reserved({ status: 'FAILED', redirectUrl: null }, { event: { ...EVENT, slug: null } }),
+    );
+    renderAt('/tickets/return');
+    await screen.findByRole('heading', { name: 'The payment didn’t go through' });
+    expect(screen.queryByRole('link', { name: 'Choose tickets again' })).toBeNull();
+  });
+});
+
 describe("the bank's return (PD-82)", () => {
   it('confirms first, asks again while the bank is silent, and shows the hold and the way to pay', async () => {
     holdOrder({ accessToken: TOKEN });
@@ -288,9 +410,8 @@ describe("the bank's return (PD-82)", () => {
   });
 
   it('says the payment did not go through, and offers to choose again from the event', async () => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    holdOrder({ accessToken: TOKEN });
     serveConfirm(reserved({ status: 'FAILED', redirectUrl: null }));
-    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
     renderAt('/tickets/return');
     expect(
       await screen.findByRole('heading', { name: 'The payment didn’t go through' }),
@@ -319,9 +440,8 @@ describe("the bank's return (PD-82)", () => {
     onTestFinished(() => {
       vi.unstubAllEnvs();
     });
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    holdOrder({ accessToken: TOKEN });
     serveConfirm(() => refusal(409, 'Cannot move a payment from EXPIRED to PAID'));
-    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
     renderAt('/tickets/return');
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Reference: r-409');

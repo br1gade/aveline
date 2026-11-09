@@ -5,22 +5,24 @@ import { generatePath, Link } from 'react-router';
 
 import { readPublicEnv } from '@/config/env';
 import { displayDate, displayTime } from '@/features/invitation-renderer';
-import { useZoneLabel, type PublicEvent } from '@/features/public-event';
+import { useZoneLabel } from '@/features/public-event';
 import { formatMinor } from '@/lib/money';
 import { ROUTE_PATHS } from '@/route-paths';
 import { Button, ButtonLink } from '@/ui';
 
 import { orderOutcome, type OrderOutcome } from '../outcome';
-import type { OrderRead } from '../types';
+import type { OrderEvent, OrderRead } from '../types';
 import { HoldCountdown } from './hold-countdown';
 import { TicketList } from './ticket-list';
 
-function EventLine({ event }: { event: PublicEvent }) {
-  const zone = { timeZone: event.timezone, locale: event.locale };
-  const zoneLabel = useZoneLabel(event.startsAt, event.timezone, event.locale);
+function EventLine({ event }: { event: OrderEvent }) {
+  const { i18n } = useTranslation();
+  const locale = i18n.language;
+  const zone = { timeZone: event.timezone, locale };
+  const zoneLabel = useZoneLabel(event.startsAt, event.timezone, locale);
   return (
     <p className="type-lead m-0">
-      {event.headline} · {displayDate(event.startsAt, zone)}, {displayTime(event.startsAt, zone)} ·{' '}
+      {event.title} · {displayDate(event.startsAt, zone)}, {displayTime(event.startsAt, zone)} ·{' '}
       {zoneLabel}
     </p>
   );
@@ -82,11 +84,6 @@ function Totals({ read, locale }: { read: OrderRead; locale: string }) {
   );
 }
 
-export interface OrderViewProps extends WaitingProps {
-  event: PublicEvent | null;
-  slug: string | undefined;
-}
-
 function nextStep(outcome: OrderOutcome, slug: string | undefined, label: string) {
   if (outcome !== 'declined' || !slug) return null;
   return (
@@ -100,12 +97,11 @@ function nextStep(outcome: OrderOutcome, slug: string | undefined, label: string
 }
 
 /** The order, as its outcome says (design PD-81, PD-82): heading, what it means, then the tickets. */
-export function OrderView({ read, event, slug, isChecking, onCheck }: OrderViewProps) {
+export function OrderView({ read, isChecking, onCheck }: WaitingProps) {
   const { t, i18n } = useTranslation('ticket-order');
+  const { event, buyerName, tickets } = read.order;
   const outcome = orderOutcome(read.order);
-  const hasTickets = read.order.tickets.length > 0;
-  const hasAgreements =
-    outcome === 'paid' && (event?.checkout.agreementsBeforeDoor.length ?? 0) > 0;
+  const hasTickets = tickets.length > 0;
   return (
     <>
       <header className="grid gap-3">
@@ -113,15 +109,15 @@ export function OrderView({ read, event, slug, isChecking, onCheck }: OrderViewP
           {t(`outcome.${outcome}.heading`)}
         </h1>
         {event ? <EventLine event={event} /> : null}
+        {buyerName ? <p className="m-0">{t('buyer', { name: buyerName })}</p> : null}
         <p className="m-0">{t(`outcome.${outcome}.body`)}</p>
-        {hasAgreements ? <p className="m-0">{t('agreements')}</p> : null}
-        {nextStep(outcome, slug, t('declined.again'))}
+        {nextStep(outcome, event?.slug ?? undefined, t('declined.again'))}
       </header>
       {outcome === 'awaitingBank' ? (
         <Waiting read={read} isChecking={isChecking} onCheck={onCheck} />
       ) : null}
-      {hasTickets ? <TicketList order={read.order} event={event} /> : null}
-      <Totals read={read} locale={event?.locale ?? i18n.language} />
+      {hasTickets ? <TicketList order={read.order} /> : null}
+      <Totals read={read} locale={i18n.language} />
     </>
   );
 }

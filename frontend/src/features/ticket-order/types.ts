@@ -1,6 +1,6 @@
 /**
  * The buyer's order (`GET /ticket-orders/:accessToken` and its confirm, docs/API.md §5), interim
- * until FR-1. It names no event, ticket type or buyer (FR-62).
+ * until FR-1.
  */
 export type OrderStatus = 'RESERVED' | 'PAID' | 'CANCELLED' | 'EXPIRED' | 'REFUNDED';
 
@@ -33,13 +33,32 @@ export interface BuyerTicket {
   status: TicketStatus;
 }
 
+/** The event as the order names it, translated into the order's language where it can be (FR-62). */
+export interface OrderEvent {
+  title: string;
+  /** The public listing's address, or `null`. Not proof the listing is still public (FR-139). */
+  slug: string | null;
+  startsAt: string;
+  timezone: string;
+}
+
 export interface BuyerOrder {
+  /** The language the order was placed in; the page shows the order in it. */
+  locale: string | null;
+  buyerName: string | null;
+  event: OrderEvent | null;
   status: OrderStatus;
   totalMinor: string;
   discountMinor: string;
   currency: string;
   reservesUntil: string | null;
-  items: Array<{ ticketTypeId: string; quantity: number; unitPriceMinor: string }>;
+  items: Array<{
+    ticketTypeId: string;
+    /** In the order's language where translated, else a fallback; `null` when unavailable. */
+    name: string | null;
+    quantity: number;
+    unitPriceMinor: string;
+  }>;
   attendees: BuyerAttendee[];
   tickets: BuyerTicket[];
   /** Only from confirm, while the order is not paid. */

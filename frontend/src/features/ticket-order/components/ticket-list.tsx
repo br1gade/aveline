@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 
-import type { PublicEvent } from '@/features/public-event';
 import { StatusChip } from '@/ui';
 
 import type { BuyerOrder, BuyerTicket, TicketAllocation } from '../types';
@@ -62,10 +61,10 @@ function Allocation({ selection }: { selection: TicketAllocation | null | undefi
  * Who comes on each ticket, and the code to show at the door. A code is a credential like the
  * link: shown here only, never logged (root CLAUDE.md §3).
  */
-export function TicketList({ order, event }: { order: BuyerOrder; event: PublicEvent | null }) {
+export function TicketList({ order }: { order: BuyerOrder }) {
   const { t } = useTranslation('ticket-order');
-  const typeName = (id: string | null) =>
-    event?.ticketTypes.find((type) => type.id === id)?.name ?? t('ticket.ticket');
+  const names = new Map(order.items.map((item) => [item.ticketTypeId, item.name]));
+  const typeName = (id: string | null) => (id ? names.get(id) : null) ?? t('ticket.ticket');
   return (
     <section aria-labelledby="tickets-heading" className="grid gap-4">
       <h2 id="tickets-heading" className="type-heading-2 text-heading m-0">

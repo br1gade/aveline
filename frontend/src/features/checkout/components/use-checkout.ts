@@ -72,7 +72,7 @@ export function useCheckout({ event, basket, provider }: CheckoutInput) {
         idempotencyKey: retry.next(await intentDigest(intentOf(body))),
       });
       retry.settle(null);
-      holdOrder({ accessToken: placed.accessToken, slug: event.slug });
+      holdOrder({ accessToken: placed.accessToken });
       const bank =
         placed.status === 'RESERVED'
           ? bankAddress(placed.redirectUrl, window.location.origin)

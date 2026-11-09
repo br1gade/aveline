@@ -41,7 +41,7 @@
       "body": "Ses billets ne sont plus valables, et le paiement a été restitué."
     }
   },
-  "agreements": "Chaque personne ayant une adresse e-mail reçoit son propre lien pour accepter les déclarations des hôtes avant l’entrée.",
+  "buyer": "Commande au nom de {{name}}",
   "declined": {
     "again": "Choisir à nouveau des billets"
   },

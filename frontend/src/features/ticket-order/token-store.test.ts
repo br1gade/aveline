@@ -13,21 +13,15 @@ afterEach(() => {
 });
 
 describe('the order this tab holds', () => {
-  it('keeps the token and the event in this tab only, under one key', () => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz' });
-    expect(heldOrder()).toEqual({ accessToken: TOKEN, slug: 'autumn-jazz' });
+  it('keeps the token in this tab only, under one key', () => {
+    holdOrder({ accessToken: TOKEN });
+    expect(heldOrder()).toEqual({ accessToken: TOKEN });
     expect(sessionStorage.length).toBe(1);
     expect(localStorage.length).toBe(0);
   });
 
-  it('keeps the event when the same order is held again from its link', () => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz' });
+  it('holds only the latest order', () => {
     holdOrder({ accessToken: TOKEN });
-    expect(heldOrder()).toEqual({ accessToken: TOKEN, slug: 'autumn-jazz' });
-  });
-
-  it('forgets the event when another order replaces it', () => {
-    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz' });
     holdOrder({ accessToken: OTHER });
     expect(heldOrder()).toEqual({ accessToken: OTHER });
   });

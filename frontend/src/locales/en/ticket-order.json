@@ -41,7 +41,7 @@
       "body": "Its tickets are no longer valid, and the payment was returned."
     }
   },
-  "agreements": "Each person with an email address receives their own link to agree to the hosts’ statements before the door.",
+  "buyer": "Ordered by {{name}}",
   "declined": {
     "again": "Choose tickets again"
   },

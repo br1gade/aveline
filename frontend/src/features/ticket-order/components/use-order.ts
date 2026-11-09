@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { createPublicApi, type ApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { isPaymentDisagreement } from '@/api/payment-disagreement';
 import { readPublicEnv } from '@/config/env';
-import { fetchPublicEvent, type PublicEvent } from '@/features/public-event';
 import { pollUntil, waitFor } from '@/lib/poll';
 import { useIsHydrated } from '@/ui';
 
@@ -43,25 +42,6 @@ function usePublicApi() {
     () => createPublicApi(readPublicEnv().VITE_API_BASE_URL, { getLanguage: () => language }),
     [language],
   );
-}
-
-/** The event's names and times, when this tab came from checkout (FR-62); `null` otherwise. */
-export function useOrderEvent(held: HeldOrder | null): PublicEvent | null {
-  const api = usePublicApi();
-  const { i18n } = useTranslation();
-  const [event, setEvent] = useState<PublicEvent | null>(null);
-  const slug = held?.slug;
-  useEffect(() => {
-    if (!slug) return;
-    let isCurrent = true;
-    fetchPublicEvent(api, { slug, locale: i18n.language })
-      .then((read) => isCurrent && setEvent(read))
-      .catch(() => undefined);
-    return () => {
-      isCurrent = false;
-    };
-  }, [api, slug, i18n.language]);
-  return event;
 }
 
 /**
@@ -123,22 +103,27 @@ export function useOrder({ confirmFirst }: { confirmFirst: boolean }) {
   const isHydrated = useIsHydrated();
   const held = useMemo(() => (isHydrated ? heldOrder() : null), [isHydrated]);
   const [fetched, setFetched] = useState<OrderState>({ kind: 'loading' });
+  const [locale, setLocale] = useState<string | null>(null);
+  const show = useCallback((next: OrderState) => {
+    setFetched(next);
+    if (next.kind === 'ready') setLocale(next.read.order.locale);
+  }, []);
   const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     if (!held) return;
     const stop = new AbortController();
-    void openOrder({ api, order: held, confirmFirst, signal: stop.signal }, setFetched);
+    void openOrder({ api, order: held, confirmFirst, signal: stop.signal }, show);
     return () => stop.abort();
-  }, [api, held, confirmFirst]);
+  }, [api, held, confirmFirst, show]);
 
   async function check() {
     if (!held) return;
     setIsChecking(true);
     try {
-      setFetched({ kind: 'ready', read: await confirmOrRead(api, held.accessToken) });
+      show({ kind: 'ready', read: await confirmOrRead(api, held.accessToken) });
     } catch (error) {
-      setFetched(failure(error));
+      show(failure(error));
     } finally {
       setIsChecking(false);
     }
@@ -146,7 +131,8 @@ export function useOrder({ confirmFirst }: { confirmFirst: boolean }) {
 
   return {
     state: shownState(isHydrated, held, fetched),
-    held,
+    /** The language of the order last read, which a later failure keeps. */
+    locale,
     isChecking,
     check: () => void check(),
   };

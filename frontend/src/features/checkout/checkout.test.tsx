@@ -161,7 +161,7 @@ describe('checkout for an event answered once (PD-79)', () => {
         ],
       },
     ]);
-    expect(heldOrder()).toEqual({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    expect(heldOrder()).toEqual({ accessToken: TOKEN });
     expect(document.body.innerHTML).not.toContain(TOKEN);
   });
 
@@ -521,7 +521,7 @@ describe('paying and promo codes (PD-82)', () => {
     expect(screen.getAllByText(/15,000/).length).toBeGreaterThan(0);
     await user.click(await screen.findByRole('button', { name: 'Continue to payment' }));
     await waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.test/pay?id=1'));
-    expect(heldOrder()).toEqual({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    expect(heldOrder()).toEqual({ accessToken: TOKEN });
     // The browser's "Leave site?" would stand between the buyer and the bank.
     await waitFor(() => expect(isUnloadAsked()).toBe(false));
   });

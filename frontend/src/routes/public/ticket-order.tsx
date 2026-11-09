@@ -14,7 +14,8 @@ import type { Route } from './+types/ticket-order';
 /**
  * The buyer's order, read in the browser with the token this tab holds (design PD-81). The server
  * renders only the frame: it never sees the token. entry.server.tsx keeps the page out of caches,
- * referrers and indexes. The order names no language (FR-62), so the page negotiates one (PD-40).
+ * referrers and indexes. The server can't read the order, so the frame negotiates a language
+ * (PD-40); the order then shows in its own (PD-189).
  */
 export function loader({ request }: Route.LoaderArgs) {
   return negotiatedLanguageData(request);

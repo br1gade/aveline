@@ -1,11 +1,13 @@
-import { useTranslation } from 'react-i18next';
+import { useMemo, type ReactNode } from 'react';
+import { I18nextProvider, useTranslation } from 'react-i18next';
 
 import { PublicFrame } from '@/features/public-event';
+import { createI18n, isLanguage } from '@/lib/i18n';
 import { Button, Notice } from '@/ui';
 import { SupportContacts } from '@/ui/support-contacts';
 
 import { OrderView } from './order-view';
-import { useOrder, useOrderEvent, type OrderState } from './use-order';
+import { useOrder, type OrderState } from './use-order';
 
 function Problem({
   state,
@@ -56,25 +58,36 @@ function Problem({
 }
 
 /**
+ * The order in the language it names (design PD-189), which needn't be the one this device
+ * negotiated. A language the app doesn't have keeps the negotiated one.
+ */
+function InOrderLanguage({ locale, children }: { locale: string | null; children: ReactNode }) {
+  const i18n = useMemo(() => (isLanguage(locale) ? createI18n(locale) : null), [locale]);
+  if (!i18n) return children;
+  return (
+    <I18nextProvider i18n={i18n}>
+      <div lang={i18n.language} className="contents">
+        {children}
+      </div>
+    </I18nextProvider>
+  );
+}
+
+/**
  * The buyer's order, opened from its emailed link or straight after checkout or the bank (design
  * PD-81). `confirmFirst` on the bank's return: the return itself proves nothing.
  */
 export function OrderPage({ confirmFirst = false }: { confirmFirst?: boolean }) {
-  const { state, held, isChecking, check } = useOrder({ confirmFirst });
-  const event = useOrderEvent(held);
+  const { state, locale, isChecking, check } = useOrder({ confirmFirst });
   return (
     <PublicFrame>
-      {state.kind === 'ready' ? (
-        <OrderView
-          read={state.read}
-          event={event}
-          slug={held?.slug}
-          isChecking={isChecking}
-          onCheck={check}
-        />
-      ) : (
-        <Problem state={state} onRetry={() => window.location.reload()} />
-      )}
+      <InOrderLanguage locale={locale}>
+        {state.kind === 'ready' ? (
+          <OrderView read={state.read} isChecking={isChecking} onCheck={check} />
+        ) : (
+          <Problem state={state} onRetry={() => window.location.reload()} />
+        )}
+      </InOrderLanguage>
     </PublicFrame>
   );
 }
