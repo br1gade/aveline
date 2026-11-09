@@ -342,6 +342,9 @@ CSV/PDF/XLSX rendering and storage IO happen afterwards in a separate process. A
 is committed before upload. Publication checks standing and ownership again.
 Erasure fences capture/publication and revokes affected jobs; the cleanup ledger
 survives cascading event deletion. See [EXPORT_WORKER.md](EXPORT_WORKER.md).
+Size limits and revoked access fail the current claim permanently. Private
+storage failures use bounded retries, and workers that lost ownership leave the
+current claim alone.
 
 Snapshots render standard headings, titles, metadata and status labels in
 English, Russian, French and Armenian. Legacy live CSV keeps its column contract.

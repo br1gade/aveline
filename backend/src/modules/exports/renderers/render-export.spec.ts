@@ -60,6 +60,6 @@ describe('Operational file rendering', () => {
   it('rejects oversized cell text instead of silently truncating a saved document', async () => {
     const payload = input('XLSX');
     payload.sheet.rows[0].Note = 'x'.repeat(32768);
-    await expect(renderExport(payload)).rejects.toThrow('cell');
+    await expect(renderExport(payload)).rejects.toMatchObject({ code: 'INPUT_LIMIT_EXCEEDED' });
   });
 });

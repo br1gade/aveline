@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { ExportSnapshot, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PrivateStorageService } from '../../infra/storage/private/private-storage';
 import { OperationsService } from '../operations/operations.service';
 import { lockExportAccess } from './export-access';
+import { ExportJobError } from './export-job-error';
 import { lockExportPrivacy, rememberExportSubjects } from './export-privacy';
 import { ExportQueue, EXPORT_LEASE_MS, ownedExport } from './export-queue';
 import { ExportSheets } from './export-sheets';
@@ -34,11 +35,11 @@ export class ExportRunner {
         locale: job.locale, includesContacts: job.includesContacts, sheet: { columns, rows: input.sheet.rows } });
       const key = randomUUID();
       if (!await this.reserveArtifact(job, key)) return;
-      await this.storage.put(key, file.buffer, file.mimeType);
+      await this.storage.put(key, file.buffer, file.mimeType).catch(() => { throw new ExportJobError('STORAGE_UNAVAILABLE'); });
       await this.publish(job, key);
-    } catch {
-      await this.queue.fail(job, 'GENERATION_FAILED');
-      this.logger.warn({ jobId: job.id, attempt: job.attempts, code: 'GENERATION_FAILED' });
+    } catch (error) {
+      const code = error instanceof ExportJobError ? error.code : 'GENERATION_FAILED';
+      if (code !== 'LEASE_LOST' && await this.queue.fail(job, code)) this.logger.warn({ jobId: job.id, attempt: job.attempts, code });
     } finally { if (heartbeat) clearInterval(heartbeat); }
   }
 
@@ -54,15 +55,18 @@ export class ExportRunner {
       const update = await tx.exportSnapshot.updateMany({ where: ownedExport(job), data: {
         snapshotAt: revision.at, timezone: event.timezone, attendanceRevision: event.attendanceRevision, dataRevision: revision.value,
       } });
-      if (!update.count) throw new Error('Export lease lost');
+      if (!update.count) throw new ExportJobError('LEASE_LOST');
       return { sheet, context: { ...event, snapshotAt: revision.at, dataRevision: revision.value } };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 20_000, maxWait: 5000 });
   }
 
   private async assertMayRun(tx: Prisma.TransactionClient, job: ExportSnapshot): Promise<void> {
-    if (!await tx.exportSnapshot.findFirst({ where: ownedExport(job), select: { id: true } })) throw new Error('Export lease lost');
-    const access = await lockExportAccess(tx, job.eventId, job.requestedByUserId);
-    if ((job.includesContacts || job.kind === 'TICKET_MANIFEST') && !access.canSeeContacts) throw new Error('Export permission changed');
+    if (!await tx.exportSnapshot.findFirst({ where: ownedExport(job), select: { id: true } })) throw new ExportJobError('LEASE_LOST');
+    const access = await lockExportAccess(tx, job.eventId, job.requestedByUserId).catch((error: unknown) => {
+      if (error instanceof HttpException && error.getStatus() === 403) throw new ExportJobError('ACCESS_REVOKED');
+      throw error;
+    });
+    if ((job.includesContacts || job.kind === 'TICKET_MANIFEST') && !access.canSeeContacts) throw new ExportJobError('ACCESS_REVOKED');
   }
 
   private reserveArtifact(job: ExportSnapshot, key: string): Promise<boolean> {
@@ -82,7 +86,7 @@ export class ExportRunner {
       const result = await tx.exportSnapshot.updateMany({ where: ownedExport(job), data: {
         status: 'COMPLETED', artifactKey: key, expiresAt, completedAt: new Date(), leaseOwner: null, leaseUntil: null,
       } });
-      if (!result.count) throw new Error('Export lease lost');
+      if (!result.count) throw new ExportJobError('LEASE_LOST');
       const artifact = await tx.exportArtifact.updateMany({ where: { key, isRetired: false }, data: { cleanupAfter: expiresAt } });
       if (!artifact.count) throw new Error('Export artifact was retired');
     });
@@ -116,8 +120,8 @@ async function assertCaptureBounds(tx: Prisma.TransactionClient, eventId: string
     tx.seat.count({ where: { guest: { eventId } } }), tx.ticketOrder.count({ where: { eventId } }),
     tx.orderAttendee.count({ where: { order: { eventId } } }), tx.table.count({ where: { eventId } }),
   ]);
-  if (await tx.venue.count({ where: { eventId } }) > 50) throw new Error('Event exceeds venue limit');
+  if (await tx.venue.count({ where: { eventId } }) > 50) throw new ExportJobError('INPUT_LIMIT_EXCEEDED');
   const questions = await tx.rsvpQuestion.count({ where: { invitation: { eventId } } });
   const answers = await tx.rsvpAnswer.count({ where: { rsvp: { guest: { eventId } } } });
-  if (counts.some((count) => count > 5000) || questions > 200 || answers > 100_000) throw new Error('Event exceeds worker input limit');
+  if (counts.some((count) => count > 5000) || questions > 200 || answers > 100_000) throw new ExportJobError('INPUT_LIMIT_EXCEEDED');
 }

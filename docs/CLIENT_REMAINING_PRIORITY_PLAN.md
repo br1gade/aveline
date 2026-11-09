@@ -26,9 +26,39 @@ At cutover, invitation tokens cease to work as Telegram payloads. Dispatch remov
 
 ## 2. Pilot host controls
 
-**FR-46 · Gallery upload setting.** Confirmed 8 November 2026. New invitations start with uploads off until the host enables them. Existing invitations retain their upload behavior. Write the default through the shared invitation creation path. Add a host setting under existing invitation permissions and return the effective setting to the personal page. Preserve existing photos and moderation when uploads are switched off. Serialize the toggle and upload admission, and recheck a staged upload before promotion when a disable races with it. Clean up any staged bytes that lose that race. Use the existing invitation revision mechanism so stale cached pages cannot advertise a changed setting indefinitely. Verify both creation paths, legacy invitations, enable and disable, wrong event or role, concurrent uploads, and private-media cleanup.
+Plan refreshed against `9827cf5`. Start FR-46 first if one engineer is available. FR-59 can run in parallel from the same baseline. Allow 2–4 backend engineering days for FR-46 and 1–2 for FR-59, excluding frontend work and staging acceptance. Integrate both contracts before generating the final OpenAPI handoff. FR-46 is a pilot gate. FR-59 is needed before the pilot's largest events.
 
-**FR-59 · Actionable export failure codes.** Distinguish input and output limits, access revoked, storage unavailable and unexpected generation failure at the point each occurs. Publish stable codes and recovery actions. A revoked lease remains a worker ownership outcome. Preserve existing retry, lease, revocation and artifact-cleanup behavior, and keep report content out of errors and logs. Old `GENERATION_FAILED` records retain their fallback behavior. Verify a permanent size failure, a retryable storage failure, contact permission removed before capture or publish, and a stale worker that loses its lease.
+### FR-46 · Gallery upload setting
+
+**Product decisions.** New invitations start with uploads off until the host enables them. Existing invitations keep uploads enabled at migration. Turning uploads off preserves approved photos for invited guests, lets guests remove their own uploads and leaves host moderation available.
+
+**Backend contract.** Use `PATCH /api/v1/events/:eventId/gallery/settings` with `{ "uploadsEnabled": boolean }`. The response returns the saved setting, and the host gallery GET includes it. For an event without an invitation, GET reports uploads off and PATCH returns `404`. The personal invitation response includes `galleryUploadsEnabled`. The setting requires `guest:write`, the existing gallery moderation permission, with current event access checked inside the write transaction. A valid personal link with uploads off receives HTTP `409` and stable code `GALLERY_UPLOADS_DISABLED` on a new upload. Invalid, expired or revoked links still receive their existing refusal.
+
+1. Add an invitation boolean with a migration that backfills existing rows to `true` before applying the `false` default and non-null constraint. Set the default explicitly in `createEventInvitation`, shared by both creation paths. Use the existing invitation change trigger and guest-page revision checks to refresh the personal response after a committed toggle.
+2. Take the same event row lock for a toggle and both stages of gallery upload admission. On disable, retire only that event's `STAGING` gallery rows in the same transaction. Use the existing cleanup tombstones so late private writes are still removed. A quick disable/re-enable must not resurrect those uploads. A photo already queued before the disable can finish processing and remains subject to moderation. Private storage I/O stays outside the transaction. Acknowledgement signature uploads follow their existing rules.
+3. Verify migrated rows, both invitation creation paths, permission revocation, cross-event and designer refusal, strict boolean validation and warm-cache updates. Pause an upload between reservation and promotion and verify disable, re-enable, stable refusal and cleanup. Verify existing approved photos remain readable and own-photo deletion and host moderation still work.
+
+### FR-59 · Actionable export failure codes
+
+Keep `failureReason` and `recovery` on existing snapshot reads. Classify failures where they occur and use the existing localized recovery response in Armenian, Russian, English and French.
+
+| Failure reason | Worker behavior | Recovery guidance |
+|---|---|---|
+| `INPUT_LIMIT_EXCEEDED` | End the attempt permanently when capture or the renderer's input bounds reject the data | Explain that the report is too large and route to support or an available smaller export |
+| `OUTPUT_LIMIT_EXCEEDED` | End the attempt permanently when output exceeds a file, page or layout bound | Try a smaller export or another supported format where appropriate |
+| `ACCESS_REVOKED` | Fail permanently and preserve existing revocation/cleanup when event or contact permission is lost at capture or publish | Request access. Offer a contact-free export only where the report permits it and the user still has export access |
+| `STORAGE_UNAVAILABLE` | Use existing bounded automatic retries when private artifact upload fails | Show `WAIT` while queued. Offer retry once a terminal failure is recorded |
+| `GENERATION_FAILED` | Keep bounded retries for unexpected failures and the existing fallback for historical rows | Preserve existing recovery behavior |
+
+Update capture and renderer limits to use typed failures without changing the limits. Distinguish a deterministic PDF page cap from the render-time guard. Handle lost leases as ownership outcomes without writing a failure or taking over another attempt's artifact. Preserve the current three-attempt budget, backoff, history, erasure revocation and artifact ledger. Keep report contents and provider errors out of API responses and logs. No database migration is needed for the existing string `failureReason`.
+
+Verify boundary-size cases, localized recovery, retries and exhaustion, access removed before capture and during a staged upload, stale workers, cleanup after a failed publish, and legacy `GENERATION_FAILED` reads. Run the existing CSV/PDF/XLSX coverage and confirm successful exports retain their current response and download behavior.
+
+### Integration and handoff
+
+The backend changes include focused regressions, the shared API and access contract, gallery/export runbooks and generated OpenAPI. Arthur owns the gallery toggle UI and disabled state. Carry `galleryUploadsEnabled` through the personal invitation reader and preserve photo reads and removal. Handle `GALLERY_UPLOADS_DISABLED` if the host turns uploads off while a guest has the page open. The export history should use `failureReason` and localized `recovery`, including removing the unchanged retry action for permanent size or access failures. Run the full local CI gate before promotion and rehearse both flows with Arthur against the same staging release before sign-off.
+
+Paid launch stays on its separate [acceptance track](TODO.md#pp1--paid-launch-readiness-and-invoice-tax-f35). Late-payment reconciliation can be designed separately around the original payment attempt, duplicate-charge prevention and verified bank status. Provider behavior and fiscal invoice implementation depend on the selected bank and approved accounting rules.
 
 ## 3. Localized invitation and brief data
 
@@ -61,7 +91,7 @@ Run focused regressions per slice, then the full backend gate and local CI on th
 FR-99 precedence and BQ-11 are implemented in the first backend slice. The
 Telegram rollout still needs a staging bot and provider rehearsal. FR-129's
 existing ticket code format is documented. FR-132's concierge eligibility
-filters are in place before pagination. Gallery controls, export codes, locale
-changes, public listing and payment metadata, staff pagination and access
-review context remain open. Frontend adoption follows the
-handoff for each slice.
+filters are in place before pagination. FR-46 and FR-59 are implemented in the
+backend and await client adoption and staging acceptance. Locale changes, public
+listing and payment metadata, staff pagination and access review context remain
+open. Frontend adoption follows the handoff for each slice.

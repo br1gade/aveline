@@ -12,6 +12,7 @@ export const DOMAIN_ERRORS = {
   TICKET_LAYOUT_CHANGED: { status: 409, action: 'RELOAD' },
   TICKET_SELECTION_UNAVAILABLE: { status: 409, action: 'EDIT' },
   TICKET_BUYER_LIMIT_REACHED: { status: 409, action: 'EDIT' },
+  GALLERY_UPLOADS_DISABLED: { status: 409, action: 'RELOAD' },
   ENQUIRY_CHANGED: { status: 409, action: 'RELOAD' },
   CONSULTATION_CONFLICT: { status: 409, action: 'EDIT' },
   IDEMPOTENCY_CONFLICT: { status: 409, action: 'RELOAD' },

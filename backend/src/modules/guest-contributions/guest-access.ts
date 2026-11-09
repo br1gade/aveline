@@ -5,7 +5,7 @@ import { isReadableByGuests } from '../invitations/publishing';
 export async function readGuestAccess(tx: Prisma.TransactionClient, slug: string, token: string) {
   const guest = await tx.guest.findFirst({ where: { token, anonymizedAt: null, event: { invitation: { slug } } },
     select: { id: true, eventId: true, householdId: true, firstName: true, lastName: true, locale: true,
-      event: { select: { locales: true, defaultLocale: true, invitation: { select: { id: true, status: true, expiresAt: true } } } } } });
+      event: { select: { locales: true, defaultLocale: true, invitation: { select: { id: true, status: true, expiresAt: true, galleryUploadsEnabled: true } } } } } });
   const invitation = guest?.event.invitation;
   if (!guest || !invitation || !isReadableByGuests(invitation.status)) throw new NotFoundException('Invitation link not recognised');
   if (invitation.expiresAt && invitation.expiresAt <= new Date()) throw new NotFoundException('Invitation link not recognised');

@@ -54,12 +54,6 @@ describe('Exports (integration coverage)', () => {
   const queueGuestList = (event: { eventId: string; userId: string }) =>
     service.create(event.eventId, event.userId, { kind: ExportKind.GUEST_LIST, locale: 'en', idempotencyKey: randomUUID() });
   const demoteToViewer = (userId: string) => prisma.eventMembership.updateMany({ where: { userId }, data: { role: 'VIEWER' } });
-  const runAllAttempts = async (jobId: string) => {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      await runner.runOne();
-      await prisma.exportSnapshot.update({ where: { id: jobId }, data: { nextAttemptAt: new Date(0) } });
-    }
-  };
 
   describe('venue seating columns', () => {
     /** Primary seated at two venues, Second at one table, Third attending and unseated. */
@@ -180,7 +174,7 @@ describe('Exports (integration coverage)', () => {
       expect(job.includesContacts).toBe(true);
       await demoteToViewer(event.userId);
       await runner.runOne();
-      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'QUEUED', failureReason: 'GENERATION_FAILED', downloadPath: null, snapshotAt: null });
+      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', attempts: 1, failureReason: 'ACCESS_REVOKED', downloadPath: null, snapshotAt: null });
       expect(await prisma.exportArtifact.count()).toBe(0);
     });
 
@@ -193,8 +187,11 @@ describe('Exports (integration coverage)', () => {
         await demoteToViewer(event.userId);
       });
       await runner.runOne();
-      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'QUEUED', failureReason: 'GENERATION_FAILED', downloadPath: null });
+      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', attempts: 1, failureReason: 'ACCESS_REVOKED', downloadPath: null });
       expect((await prisma.exportSnapshot.findUniqueOrThrow({ where: { id: job.id } })).artifactKey).toBeNull();
+      const artifact = await prisma.exportArtifact.findFirstOrThrow({ where: { snapshotId: job.id } });
+      await runner.cleanup();
+      await expect(storage.get(artifact.key)).rejects.toThrow();
     });
   });
 
@@ -215,8 +212,8 @@ describe('Exports (integration coverage)', () => {
       const event = await setup();
       await addVenues(event.eventId, 50);
       const job = await queueGuestList(event);
-      await runAllAttempts(job.id);
-      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', failureReason: 'GENERATION_FAILED', attempts: 3, downloadPath: null, snapshotAt: null });
+      await runner.runOne();
+      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', failureReason: 'INPUT_LIMIT_EXCEEDED', attempts: 1, downloadPath: null, snapshotAt: null });
       expect(await prisma.exportArtifact.count()).toBe(0);
     });
 
@@ -238,8 +235,8 @@ describe('Exports (integration coverage)', () => {
       const event = await setup();
       await addQuestions(event.eventId, 201);
       const job = await queueGuestList(event);
-      await runAllAttempts(job.id);
-      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', failureReason: 'GENERATION_FAILED', attempts: 3, snapshotAt: null });
+      await runner.runOne();
+      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', failureReason: 'INPUT_LIMIT_EXCEEDED', attempts: 1, snapshotAt: null });
       expect(await prisma.exportArtifact.count()).toBe(0);
     });
 
@@ -248,8 +245,8 @@ describe('Exports (integration coverage)', () => {
       await prisma.guest.createMany({ data: Array.from({ length: 5000 }, (_, index) => ({
         eventId: event.eventId, householdId: event.householdId, firstName: `Guest ${index}`, token: `bulk-${index}-${randomUUID().slice(0, 8)}` })) });
       const job = await queueGuestList(event);
-      await runAllAttempts(job.id);
-      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', failureReason: 'GENERATION_FAILED', attempts: 3, snapshotAt: null });
+      await runner.runOne();
+      expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', failureReason: 'INPUT_LIMIT_EXCEEDED', attempts: 1, snapshotAt: null });
       expect(await prisma.exportArtifact.count()).toBe(0);
     });
   });

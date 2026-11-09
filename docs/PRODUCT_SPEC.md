@@ -539,7 +539,9 @@ by the review. Existing pilot scope, lifetime and retention decisions still appl
 ### Guest contributions — pilot delivery (19 October 2026)
 
 The backend implements invited-guest gallery uploads with host approval,
-20 photos per guest, 1,000 and 2 GiB per event, 10 MiB per photo. Guests may
+20 photos per guest, 1,000 and 2 GiB per event, 10 MiB per photo. New invitations
+start with uploads off. Hosts can enable uploads or turn them off while approved
+photos stay visible to invited guests. Guests may
 remove their own approved photos. Originals remain private and processed copies
 lose metadata. Versioned acknowledgements support typed/drawn declarations and
 explicit household representation, with actual signer recorded separately.

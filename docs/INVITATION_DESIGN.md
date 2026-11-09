@@ -166,7 +166,9 @@ Two distinct uses:
 
 The invited-guest gallery also uses `GuestMedia`. Hosts must approve a processed
 photo before other guests can see it; the uploader sees pending/rejected states
-and may remove their own photo after approval. Limits are 20 photos/guest,
+and may remove their own photo after approval. New invitations start with uploads
+off. Turning uploads off preserves approved photo reads and existing moderation.
+Limits are 20 photos/guest,
 1,000/event, 2 GiB/event including derived files and 10 MiB/upload. The worker
 strips metadata, rejects animation and emits private variants. Host data remains
 when guest access expires. Privacy erasure revokes files immediately and queues

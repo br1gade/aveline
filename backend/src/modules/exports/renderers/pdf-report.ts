@@ -1,3 +1,4 @@
+import { ExportJobError } from '../export-job-error';
 import type { RenderInput } from './export-document';
 import { exportText, exportTitle } from './export-copy';
 import { wrapText } from './pdf-text';
@@ -18,7 +19,8 @@ export class PdfReport {
   private get bottom() { return this.document.page.height - 40; }
 
   addPage(): void {
-    if (this.pages >= 500 || Date.now() - this.started > 45_000) throw new Error('PDF page or render-time limit exceeded');
+    if (this.pages >= 500) throw new ExportJobError('OUTPUT_LIMIT_EXCEEDED');
+    if (Date.now() - this.started > 45_000) throw new ExportJobError('GENERATION_FAILED');
     this.document.addPage();
     this.pages += 1;
     this.document.font('Bold').fontSize(16).fillColor('#27342f');
@@ -55,7 +57,7 @@ export class PdfReport {
     const cells = columns.map((column, index) => wrapText(this.document, column, widths[index] - 12));
     const labels = label ? wrapText(this.document, label, this.width) : [];
     const needed = (Math.max(...cells.map((cell) => cell.length)) + labels.length) * LINE + 20;
-    if (needed > this.bottom - this.contentTop) throw new Error('PDF heading exceeds a page');
+    if (needed > this.bottom - this.contentTop) throw new ExportJobError('OUTPUT_LIMIT_EXCEEDED');
     if (this.y + needed + LINE > this.bottom) this.addPage();
     this.document.font('Bold').fontSize(9).fillColor('#27342f');
     for (const line of labels) { this.text(line, MARGIN, this.y); this.y += LINE; }

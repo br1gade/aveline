@@ -688,12 +688,13 @@ Guest routes require their personal capability; host reads/moderation are permis
 | `DELETE` | `/api/v1/invitations/:slug/g/:guestToken/signature-uploads/:mediaId` | Remove an unclaimed drawing |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/acknowledgements/:acknowledgementId/file` | Private acknowledgement image |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/gallery` | Approved photos and own pending statuses |
-| `POST` | `/api/v1/invitations/:slug/g/:guestToken/gallery` | Stage a photo for validation/moderation |
+| `POST` | `/api/v1/invitations/:slug/g/:guestToken/gallery` | Stage a photo for validation/moderation when uploads are enabled |
 | `GET` | `/api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId/file` | Authorized WebP variant |
 | `DELETE` | `/api/v1/invitations/:slug/g/:guestToken/gallery/:mediaId` | Owner removes a photo, even after approval |
 | `GET` | `/api/v1/events/:eventId/acknowledgements` | Private host acknowledgement history |
 | `GET` | `/api/v1/events/:eventId/acknowledgements/:acknowledgementId/file` | Authorized host drawing read |
-| `GET` | `/api/v1/events/:eventId/gallery` | Host moderation queue |
+| `GET` | `/api/v1/events/:eventId/gallery` | Host moderation queue and upload setting |
+| `PATCH` | `/api/v1/events/:eventId/gallery/settings` | Allow or stop new uploads, preserving approved photos |
 | `PATCH` | `/api/v1/events/:eventId/gallery/:mediaId` | Approve/reject a READY photo |
 | `GET` | `/api/v1/events/:eventId/gallery/:mediaId/file` | Host moderation image read |
 | `DELETE` | `/api/v1/events/:eventId/gallery/:mediaId` | Host removal and cleanup |

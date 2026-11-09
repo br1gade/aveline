@@ -1,6 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrivateStorageService } from '../../../src/infra/storage/private/private-storage';
+import { PrivateMediaRunner } from '../../../src/modules/guest-contributions/private-media-runner';
+import { PrismaService } from '../../../src/prisma/prisma.service';
 import { contributionsApp, contributionsHelpers, ContributionsHttp, drawing, drawn, PNG_SIGNATURE, typed } from '../../fixtures/areas/contributions.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
@@ -19,6 +21,47 @@ describe('Guest acknowledgements and gallery (e2e coverage)', () => {
   const backdate = (id: string, minutesAgo: number) =>
     prisma.guestAcknowledgement.update({ where: { id }, data: { createdAt: new Date(Date.now() - minutesAgo * 60_000) } });
   const recordIds = (body: unknown) => (body as { records: { id: string }[] }).records.map((record) => record.id);
+
+  it('turns off new uploads while keeping approved photos visible and removable', async () => {
+    const event = await h.setup();
+    const gallery = `/api/v1/events/${event.eventId}/gallery`;
+    const photo = await h.uploadPhoto(event.base);
+    const neighbour = await h.otherHousehold(event);
+    await h.runWorker();
+    await h.http().get(event.base).expect(200);
+    await h.http().patch(`${gallery}/settings`).set('Authorization', event.authorization).send({ uploadsEnabled: 'false' }).expect(400);
+    const { body } = await h.http().patch(`${gallery}/settings`).set('Authorization', event.authorization).send({ uploadsEnabled: false }).expect(200);
+    expect(body).toEqual({ uploadsEnabled: false });
+    expect((await h.http().get(event.base).expect(200)).body).toMatchObject({ galleryUploadsEnabled: false });
+    expect((await h.http().get(gallery).set('Authorization', event.authorization).expect(200)).body).toMatchObject({ uploadsEnabled: false });
+    const upload = await h.http().post(`${event.base}/gallery`).attach('file', await drawing(), { filename: 'photo.png', contentType: 'image/png' }).expect(409);
+    expect(upload.body.code).toBe('GALLERY_UPLOADS_DISABLED');
+    await h.http().patch(`${gallery}/${photo.id}`).set('Authorization', event.authorization).send({ moderationStatus: 'APPROVED' }).expect(200);
+    await h.http().get(`${neighbour.base}/gallery/${photo.id}/file`).expect(200);
+    await h.http().delete(`${event.base}/gallery/${photo.id}`).expect(200);
+  });
+
+  it('retires an in-flight upload even if the host re-enables uploads before bytes arrive', async () => {
+    const event = await h.setup();
+    const settings = `/api/v1/events/${event.eventId}/gallery/settings`;
+    const storage = app.get(PrivateStorageService);
+    const put = storage.put.bind(storage);
+    jest.spyOn(storage, 'put').mockImplementationOnce(async (key, bytes, mimeType) => {
+      for (const isEnabled of [false, true]) {
+        await h.http().patch(settings).set('Authorization', event.authorization).send({ uploadsEnabled: isEnabled }).expect(200);
+      }
+      await put(key, bytes, mimeType);
+    });
+    const { body } = await h.http().post(`${event.base}/gallery`).attach('file', await drawing(), { filename: 'photo.png', contentType: 'image/png' }).expect(409);
+    expect(body.code).toBe('GALLERY_UPLOADS_DISABLED');
+    const retired = await prisma.guestMedia.findFirstOrThrow({ where: { eventId: event.eventId } });
+    expect(retired.processingStatus).toBe('REMOVED');
+    const runner = new PrivateMediaRunner(prisma as unknown as PrismaService, storage);
+    expect(await runner.runOne()).toBe(false);
+    await runner.cleanup();
+    await expect(storage.get(retired.sourceKey)).rejects.toThrow();
+    await h.uploadPhoto(event.base);
+  });
 
   describe('acknowledgement history', () => {
     /** Guest A's household signs twice for A; a neighbouring household signs its own record. */

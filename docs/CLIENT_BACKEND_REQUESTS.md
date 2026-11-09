@@ -75,7 +75,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-43 | Declare each block's content and settings fields | S5 templates/renderer | Audit and implement |
 | FR-44 | Partly answered at 34ac1e6: the eventId path parameter and a nullable variant are in the schema | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-45 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
-| FR-46 | A per-event switch for the guest gallery | S3 host/guest operations | Audit and implement |
+| FR-46 | A per-event switch for the guest gallery | S3 host/guest operations | Backend implemented. Client control and staging acceptance open |
 | FR-47 | Filters, counts and usage on GET /events/:eventId/gallery | S3 host/guest operations | Audit and implement |
 | FR-48 | Say who shared a photo, to the hosts, or say why not | S3 host/guest operations | Audit and implement |
 | FR-49 | Name the guests in GET /events/:eventId/acknowledgements | S3 host/guest operations | Audit and implement |
@@ -88,7 +88,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-56 | Partly answered at 34ac1e6: zone, venueId, posX and posY are typed | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-57 | Name the venue in each seatReleases record, as seating does (guests.service.ts, guestView) | S3 host/guest operations | Audit and implement |
 | FR-58 | Codes for the export refusals that share a status | S3 host/guest operations | Audit and implement |
-| FR-59 | Export failure codes that say what to do | S3 host/guest operations | Audit and implement |
+| FR-59 | Export failure codes that say what to do | S3 host/guest operations | Backend implemented. Client recovery adoption and staging acceptance open |
 | FR-60 | Say which export kinds carry contacts, or ignore includesContacts where none do | S3 host/guest operations | Audit and implement |
 | FR-61 | Say who made each export | S3 host/guest operations | Audit and implement |
 | FR-62 | Name the event, the ticket types and the buyer in GET /ticket-orders/:accessToken and its confirm | S4 ticketing/vendors/billing | Backend merged in `c86782e`; frontend adoption pending |

@@ -2,28 +2,34 @@ import { BadRequestException, ConflictException, HttpException, Injectable, NotF
 import { GuestMediaKind, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DomainHttpException } from '../../common/domain-http.exception';
+import { lockEventOrganization, requireCurrentEventPermission } from '../../infra/auth/access-locks';
 import { PrivateStorageService } from '../../infra/storage/private/private-storage';
-import { lockGuestAccess, readGuestAccess } from './guest-access';
-import { ContributionPageDto } from './contribution.dto';
+import { GuestAccess, lockGuestAccess, readGuestAccess } from './guest-access';
+import { ContributionPageDto, GallerySettingsDto } from './contribution.dto';
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+const UPLOADS_DISABLED = 'GALLERY_UPLOADS_DISABLED';
 const MEBIBYTE = 1024 * 1024;
 export const GALLERY_BYTE_LIMIT = 2 * 1024 * MEBIBYTE;
 export const SIGNATURE_UPLOAD_LIMIT = MEBIBYTE;
 export const GALLERY_UPLOAD_LIMIT = 10 * MEBIBYTE;
 export const MEDIA_SELECT = { id: true, kind: true, processingStatus: true, moderationStatus: true, caption: true,
   width: true, height: true, createdAt: true, moderatedAt: true, failureReason: true } satisfies Prisma.GuestMediaSelect;
+interface GuestLink { slug: string; token: string }
+interface StagedUpload { id: string; kind: GuestMediaKind; uploaderGuestId: string | null; eventId: string | null; sourceBytes: number }
 
 @Injectable()
 export class GuestMediaService {
   constructor(private readonly prisma: PrismaService, private readonly storage: PrivateStorageService) {}
 
-  async upload(link: { slug: string; token: string }, kind: GuestMediaKind, file: Express.Multer.File, caption?: string) {
+  async upload(link: GuestLink, kind: GuestMediaKind, file: Express.Multer.File, caption?: string) {
     if (!IMAGE_TYPES.includes(file.mimetype)) throw new UnsupportedMediaTypeException('file: upload a JPEG, PNG, WebP or AVIF raster image');
     const max = kind === 'GALLERY' ? GALLERY_UPLOAD_LIMIT : SIGNATURE_UPLOAD_LIMIT;
     if (!file.buffer.length || file.buffer.length > max) throw new PayloadTooLargeException(`file: use a nonempty image of at most ${max} bytes`);
     const staged = await this.prisma.$transaction(async (tx) => {
       const guest = await lockGuestAccess(tx, link.slug, link.token);
+      assertUploadsEnabled(kind, guest);
       const reservedBytes = file.buffer.length + derivativeReservation(kind);
       await assertQuota(tx, { eventId: guest.eventId, guestId: guest.id, kind, reservedBytes });
       return tx.guestMedia.create({ data: { eventId: guest.eventId, uploaderGuestId: guest.id, kind,
@@ -32,16 +38,39 @@ export class GuestMediaService {
     });
     try {
       await this.storage.put(staged.sourceKey, file.buffer, file.mimetype);
-      await readGuestAccess(this.prisma, link.slug, link.token);
-      const claimed = await this.prisma.guestMedia.updateMany({ where: { id: staged.id, processingStatus: 'STAGING', uploaderGuestId: staged.uploaderGuestId },
-        data: { processingStatus: 'QUEUED', leaseUntil: null, storedBytes: file.buffer.length } });
-      if (!claimed.count) throw new NotFoundException('Upload no longer available');
-      return await this.prisma.guestMedia.findUniqueOrThrow({ where: { id: staged.id }, select: MEDIA_SELECT });
+      return await this.promoteUpload(link, staged);
     } catch (error) {
-      await this.prisma.guestMedia.updateMany({ where: { id: staged.id }, data: { processingStatus: 'REMOVED', removedAt: new Date(), cleanupAfter: new Date() } });
+      await this.prisma.guestMedia.updateMany({ where: { id: staged.id, processingStatus: 'STAGING' }, data: removedUpload() });
       if (error instanceof HttpException) throw error;
       throw new ServiceUnavailableException('Private upload storage is unavailable; retry later');
     }
+  }
+
+  private async promoteUpload(link: GuestLink, staged: StagedUpload) {
+    if (staged.kind === 'GALLERY') {
+      return this.prisma.$transaction(async (tx) => {
+        const guest = await lockGuestAccess(tx, link.slug, link.token);
+        assertUploadsEnabled(staged.kind, guest);
+        return promoteStagedUpload(tx, staged, guest);
+      });
+    }
+    const guest = await readGuestAccess(this.prisma, link.slug, link.token);
+    return promoteStagedUpload(this.prisma, staged, guest);
+  }
+
+  async setGalleryUploads(eventId: string, userId: string, { uploadsEnabled }: GallerySettingsDto) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockEventOrganization(tx, eventId);
+      await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
+      await requireCurrentEventPermission(tx, { eventId, actor: { userId }, permission: 'guest:write' });
+      const invitation = await tx.invitation.findUnique({ where: { eventId }, select: { galleryUploadsEnabled: true } });
+      if (!invitation) throw new NotFoundException('No invitation for this event');
+      if (invitation.galleryUploadsEnabled === uploadsEnabled) return { uploadsEnabled };
+      await tx.invitation.update({ where: { eventId }, data: { galleryUploadsEnabled: uploadsEnabled }, select: { id: true } });
+      if (!uploadsEnabled) await tx.guestMedia.updateMany({ where: { eventId, kind: 'GALLERY', processingStatus: 'STAGING' },
+        data: { ...removedUpload(), failureReason: UPLOADS_DISABLED } });
+      return { uploadsEnabled };
+    });
   }
 
   async listGuest(slug: string, token: string, page: ContributionPageDto) {
@@ -54,8 +83,12 @@ export class GuestMediaService {
       limits: { perGuest: 20, perEvent: 1000, bytesPerEvent: GALLERY_BYTE_LIMIT, bytesPerFile: GALLERY_UPLOAD_LIMIT } };
   }
   async listHost(eventId: string, page: ContributionPageDto) {
-    const items = await this.list({ eventId, kind: 'GALLERY', processingStatus: { not: 'REMOVED' } }, page);
-    return { items: items.map(({ uploaderGuestId: _uploader, ...item }) => item), nextCursor: items.length === page.limit ? items.at(-1)!.id : null };
+    const [items, invitation] = await Promise.all([
+      this.list({ eventId, kind: 'GALLERY', processingStatus: { not: 'REMOVED' } }, page),
+      this.prisma.invitation.findUnique({ where: { eventId }, select: { galleryUploadsEnabled: true } }),
+    ]);
+    return { items: items.map(({ uploaderGuestId: _uploader, ...item }) => item), nextCursor: items.length === page.limit ? items.at(-1)!.id : null,
+      uploadsEnabled: invitation?.galleryUploadsEnabled ?? false };
   }
   private async list(where: Prisma.GuestMediaWhereInput, page: ContributionPageDto) {
     if (page.after && !await this.prisma.guestMedia.findFirst({ where: { ...where, id: page.after }, select: { id: true } })) throw new NotFoundException('Unknown gallery cursor');
@@ -114,6 +147,28 @@ export class GuestMediaService {
     return { buffer: await this.storage.get(key), mimeType: image.kind === 'SIGNATURE' ? 'image/png' : 'image/webp' };
   }
 }
+
+function assertUploadsEnabled(kind: GuestMediaKind, guest: GuestAccess): void {
+  if (kind === 'GALLERY' && !guest.event.invitation?.galleryUploadsEnabled) throw new DomainHttpException(UPLOADS_DISABLED, 'The host has turned off photo uploads');
+}
+
+async function promoteStagedUpload(tx: Prisma.TransactionClient, staged: StagedUpload, guest: GuestAccess) {
+  if (staged.uploaderGuestId !== guest.id || staged.eventId !== guest.eventId) throw new NotFoundException('Upload no longer available');
+  const claimed = await tx.guestMedia.updateMany({ where: { id: staged.id, processingStatus: 'STAGING', uploaderGuestId: guest.id },
+    data: { processingStatus: 'QUEUED', leaseUntil: null, storedBytes: staged.sourceBytes } });
+  if (!claimed.count) {
+    const removed = await tx.guestMedia.findUnique({ where: { id: staged.id }, select: { failureReason: true } });
+    if (removed?.failureReason === UPLOADS_DISABLED) throw new DomainHttpException(UPLOADS_DISABLED, 'The host turned off photo uploads during this upload');
+    throw new NotFoundException('Upload no longer available');
+  }
+  return tx.guestMedia.findUniqueOrThrow({ where: { id: staged.id }, select: MEDIA_SELECT });
+}
+
+function removedUpload() {
+  const now = new Date();
+  return { processingStatus: 'REMOVED' as const, removedAt: now, cleanupAfter: now, caption: null };
+}
+
 function derivativeReservation(kind: GuestMediaKind) { return kind === 'GALLERY' ? 2560 * 1024 : MEBIBYTE; }
 async function assertQuota(tx: Prisma.TransactionClient, request: { eventId: string; guestId: string; kind: GuestMediaKind; reservedBytes: number }) {
   const where = { eventId: request.eventId, kind: request.kind, processingStatus: { not: 'REMOVED' as const } };
@@ -126,5 +181,5 @@ async function assertQuota(tx: Prisma.TransactionClient, request: { eventId: str
   if ((storage._sum.reservedBytes ?? 0) + request.reservedBytes > GALLERY_BYTE_LIMIT) throw new ConflictException('uploads: private storage limit reached; removed files must be reclaimed before retrying');
 }
 export async function markRemoved(tx: Prisma.TransactionClient, id: string) {
-  await tx.guestMedia.update({ where: { id }, data: { processingStatus: 'REMOVED', removedAt: new Date(), cleanupAfter: new Date(), caption: null } });
+  await tx.guestMedia.update({ where: { id }, data: removedUpload() });
 }

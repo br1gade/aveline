@@ -91,6 +91,7 @@ describe('Onboarding (e2e)', () => {
       expect(body.invitation.slug).toMatch(/^anna-davit-[0-9a-f]{8}$/);
       expect(body.invitation.status).toBe('DRAFT');
       const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: body.invitation.slug as string } });
+      expect(invitation.galleryUploadsEnabled).toBe(false);
       expect(invitation.rsvpFields).toMatchObject({
         drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false },
       });
@@ -291,6 +292,10 @@ describe('Onboarding (e2e)', () => {
         .expect(201);
       expect(created.invitation).toBeNull();
 
+      const gallery = `/api/v1/events/${created.id}/gallery`;
+      expect((await http().get(gallery).set('Authorization', authorization).expect(200)).body.uploadsEnabled).toBe(false);
+      await http().patch(`${gallery}/settings`).set('Authorization', authorization).send({ uploadsEnabled: true }).expect(404);
+
       await withTemplate();
       const { body } = await http()
         .post(`/api/v1/events/${created.id}/invitation`)
@@ -300,6 +305,7 @@ describe('Onboarding (e2e)', () => {
 
       expect(body.slug).toEqual(expect.any(String));
       const invitation = await prisma.invitation.findUniqueOrThrow({ where: { slug: body.slug as string } });
+      expect(invitation.galleryUploadsEnabled).toBe(false);
       expect(invitation.rsvpFields).toMatchObject({
         drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false },
       });

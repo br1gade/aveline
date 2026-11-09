@@ -81,6 +81,11 @@ export class ModerateGalleryDto {
   @IsIn([GalleryModerationStatus.APPROVED, GalleryModerationStatus.REJECTED])
   moderationStatus!: GalleryModerationStatus;
 }
+export class GallerySettingsDto {
+  @ApiProperty({ type: Boolean })
+  @IsBoolean()
+  uploadsEnabled!: boolean;
+}
 export class PrivateImageQuery {
   @ApiPropertyOptional({ enum: ['display', 'thumbnail'] })
   @IsOptional()

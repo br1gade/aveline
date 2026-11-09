@@ -2561,6 +2561,17 @@ Transient failure may return to `QUEUED` with a safe `failureReason`;
 attempt starts**, not when the host queues it. A recovered attempt may capture
 new inputs before publishing. A completed artifact never changes.
 
+| Snapshot `failureReason` | Recovery |
+|---|---|
+| `INPUT_LIMIT_EXCEEDED` | Fails immediately. Use a smaller report where available or contact support |
+| `OUTPUT_LIMIT_EXCEEDED` | Fails immediately. Try a smaller report or another supported format |
+| `ACCESS_REVOKED` | Fails immediately and withdraws any staged artifact. Request access or create a contact-free report where permitted |
+| `STORAGE_UNAVAILABLE` | Wait while the worker retries. After exhaustion, create a new export once storage is available |
+| `GENERATION_FAILED` | Wait while queued. If terminal, retry with a new export or contact support. Historical jobs keep this fallback |
+
+Use the localized `recovery` object for user-facing guidance. A lost lease lets
+the owning worker continue its attempt and does not overwrite the job's result.
+
 Metadata includes nullable `snapshotAt`, event `timezone`, `attendanceRevision`,
 opaque Postgres visibility token `dataRevision`, `completedAt`, `expiresAt`,
 `revokedAt`, and `failureReason`. The visibility token is provenance, not a
@@ -3994,6 +4005,13 @@ available capacity may be lower during processing. Count/storage contention retu
 409; oversized uploads return 413; unsupported MIME returns 415; storage outage
 returns 503. Removed bytes remain reserved until cleanup succeeds.
 
+The personal invitation response includes `galleryUploadsEnabled`. Uploads start
+off for new invitations. Existing invitations keep uploads enabled at migration.
+A valid guest link receives `409` with `GALLERY_UPLOADS_DISABLED` when new uploads
+are closed or a disable retires the photo while it is still being staged. Already
+queued photos can finish processing. Turning uploads off preserves approved photo
+reads, uploader removals and host moderation. Signature uploads are separate.
+
 GET returns `{ items, nextCursor, limits }`. Items contain `id`, kind,
 processing/moderation status, caption, dimensions, timestamps, fixed failure code
 or null, and `isOwn`. No storage keys, original filename, public URL or other
@@ -4009,14 +4027,18 @@ Removal revokes access immediately; durable cleanup deletes physical files later
 GET    /api/v1/events/:eventId/acknowledgements?limit=30&after=recordId
 GET    /api/v1/events/:eventId/acknowledgements/:acknowledgementId/file
 GET    /api/v1/events/:eventId/gallery?limit=30&after=mediaId
+PATCH  /api/v1/events/:eventId/gallery/settings
 PATCH  /api/v1/events/:eventId/gallery/:mediaId
 GET    /api/v1/events/:eventId/gallery/:mediaId/file?variant=display
 DELETE /api/v1/events/:eventId/gallery/:mediaId
 ```
 
 Host acknowledgement history/files require `guest:contact:read`; gallery moderation,
-files/removal require `guest:write`. Designers have neither. Lists return
-`{ items, nextCursor }`; pagination is the same as guest lists. PATCH accepts
+files, removal and settings require `guest:write`. Designers have neither. Lists return
+`{ items, nextCursor }`; the gallery adds `uploadsEnabled`. Pagination is the same
+as guest lists. Gallery settings PATCH accepts and returns `{ uploadsEnabled: boolean }`.
+If the event has no invitation, the list reports uploads off and the settings PATCH
+returns `404`. Photo moderation PATCH accepts
 `{ "moderationStatus": "APPROVED" }` or `REJECTED`; a photo must be READY and
 still present, otherwise 409. Approval is required before other guests can see it.
 Host data remains after guest expiry. Ordinary guest deletion refuses guests with

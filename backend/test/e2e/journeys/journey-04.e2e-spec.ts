@@ -159,6 +159,7 @@ describe('Journey 04: guest acknowledgements and the moderated gallery survive i
 
   /** Steps 4–6: private processing, moderation before others see a photo, owner removal down to the stored bytes. */
   const shareAndModerate = async (w: Wedding, authorization: string) => {
+    await http().patch(api(`/events/${w.eventId}/gallery/settings`)).set('Authorization', authorization).send({ uploadsEnabled: true }).expect(200);
     const dance = await uploadPhoto(w.davitLink, 'First dance');
     const toast = await uploadPhoto(w.lilitLink, 'Blurry toast');
     const cake = await uploadPhoto(w.annaLink, 'The cake');

@@ -3,7 +3,7 @@ import { JobRecoveryInterceptor } from '../../common/interceptors/job-recovery.i
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { BadRequestException, Body, Controller, Delete, Get, Header, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConflictResponse, ApiConsumes, ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Public } from '../../infra/auth/actor';
 import { AcknowledgementsService } from './acknowledgements.service';
@@ -79,6 +79,8 @@ export class ContributionsController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, caption: { type: 'string', maxLength: 500 } } } })
   @ApiOperation({ summary: 'Upload a private gallery photo requiring host approval after processing' })
+  @ApiCreatedResponse({ description: 'Photo staged for processing' })
+  @ApiConflictResponse({ schema: { $ref: '#/components/schemas/HttpErrorDto' }, description: 'Uploads are disabled (GALLERY_UPLOADS_DISABLED) or the gallery quota has been reached' })
   uploadGallery(@Param() params: LinkParams, @Body() dto: GalleryUploadDto, @UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('file: an image is required');
     return this.media.upload({ slug: params.slug, token: params.guestToken }, 'GALLERY', file, dto.caption);

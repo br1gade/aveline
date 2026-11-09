@@ -131,7 +131,7 @@ describe('Fixed export snapshots (integration)', () => {
     const recovered = await queue.claim();
     expect(recovered).toMatchObject({ id: job.id, attempts: 2 });
     expect(await queue.renew(first)).toBe(false);
-    expect(await queue.fail(first, 'STALE')).toBe(false);
+    expect(await queue.fail(first, 'GENERATION_FAILED')).toBe(false);
     await runner.process(recovered!);
     expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'COMPLETED', attempts: 2 });
   });
@@ -183,7 +183,7 @@ describe('Fixed export snapshots (integration)', () => {
       await runner.runOne();
       await prisma.exportSnapshot.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(0) } });
     }
-    expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', attempts: 3, failureReason: 'GENERATION_FAILED' });
+    expect(await service.findOne(event.eventId, job.id)).toMatchObject({ status: 'FAILED', attempts: 3, failureReason: 'STORAGE_UNAVAILABLE' });
     expect(await queue.claim()).toBeNull();
   });
 

@@ -248,6 +248,7 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     await http().post('/api/v1/webhooks/telegram').send(telegramStartUpdate(links.ani.telegramCode, ANI_TELEGRAM_CHAT)).expect(201);
     expect(await prisma.guestChannel.findMany({ select: { channel: true, address: true } })).toEqual([{ channel: MessageChannel.TELEGRAM, address: String(ANI_TELEGRAM_CHAT) }]);
 
+    await gala.host.patch(`${gala.base}/gallery/settings`, { uploadsEnabled: true }).expect(200);
     const { body: photo } = await http().post(`/api/v1${links.ani.path}/gallery`).field('caption', 'Ani at the gala')
       .attach('file', await image(), { filename: 'ani.jpg', contentType: 'image/jpeg' }).expect(201);
     expect(await mediaWorker().runOne()).toBe(true);

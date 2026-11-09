@@ -19,8 +19,12 @@ Production Compose assumes S3; add a shared volume before choosing filesystem.
 Each claim has a unique token and a 90-second lease renewed every 15 seconds.
 Claims use `FOR UPDATE SKIP LOCKED`. Expired work is reclaimed up to three total
 attempts; backoff after failure is bounded. A final expired claim becomes
-`FAILED`/`LEASE_EXHAUSTED`. Generation/storage/permission/conflict errors expose
-`GENERATION_FAILED`, never database queries, inputs or provider credentials.
+`FAILED`/`LEASE_EXHAUSTED`. Lost claims never write a replacement failure.
+Deterministic limits fail on the first attempt with `INPUT_LIMIT_EXCEEDED` or
+`OUTPUT_LIMIT_EXCEEDED`. Loss of current permission is `ACCESS_REVOKED` and
+queues any staged artifact for cleanup. `STORAGE_UNAVAILABLE` and unexpected
+`GENERATION_FAILED` use the bounded retry budget. Failure details never expose
+database queries, inputs or provider credentials.
 The API history exposes attempts and failureReason. Regenerate terminal jobs
 with a new UUID; do not edit queue rows to retry them in production.
 

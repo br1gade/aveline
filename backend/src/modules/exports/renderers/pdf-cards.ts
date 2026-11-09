@@ -1,4 +1,5 @@
 import { CsvRow } from '../csv';
+import { ExportJobError } from '../export-job-error';
 import { PdfReport } from './pdf-report';
 import { wrapText } from './pdf-text';
 
@@ -46,5 +47,5 @@ function fitCard(document: PDFKit.PDFDocument, name: string, context: string) {
       if (names.length * nameSize * 1.2 + details.length * contextSize * 1.3 + 12 <= HEIGHT - 24) return { names, context: details, nameSize, contextSize };
     }
   }
-  throw new Error('Place-card text exceeds its print boundary');
+  throw new ExportJobError('OUTPUT_LIMIT_EXCEEDED');
 }

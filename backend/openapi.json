@@ -8428,11 +8428,21 @@
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "Photo staged for processing",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ContributionsController_uploadGalleryResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Uploads are disabled (GALLERY_UPLOADS_DISABLED) or the gallery quota has been reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
                 }
               }
             }
@@ -8797,6 +8807,74 @@
           }
         },
         "summary": "Gallery processing and moderation queue for this event",
+        "tags": [
+          "guest-contributions"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/{eventId}/gallery/settings": {
+      "patch": {
+        "operationId": "ContributionsHostController_setGallerySettings",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GallerySettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionsHostController_setGallerySettingsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Enable or disable new gallery uploads for this event",
         "tags": [
           "guest-contributions"
         ],
@@ -18198,6 +18276,17 @@
           "locale"
         ]
       },
+      "GallerySettingsDto": {
+        "type": "object",
+        "properties": {
+          "uploadsEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "uploadsEnabled"
+        ]
+      },
       "ModerateGalleryDto": {
         "type": "object",
         "properties": {
@@ -20339,6 +20428,8 @@
           "code": {
             "type": "string",
             "enum": [
+              "GALLERY_UPLOADS_DISABLED",
+              "EXPORT_OUTPUT_LIMIT",
               "ADMISSION_TARGET_NOT_FOUND",
               "ADMISSION_LINK_CHANGED",
               "ADMISSION_ALREADY_CHECKED_IN",
@@ -20534,6 +20625,8 @@
           "code": {
             "type": "string",
             "enum": [
+              "GALLERY_UPLOADS_DISABLED",
+              "EXPORT_OUTPUT_LIMIT",
               "ADMISSION_TARGET_NOT_FOUND",
               "ADMISSION_LINK_CHANGED",
               "ADMISSION_ALREADY_CHECKED_IN",
@@ -21745,6 +21838,9 @@
                       }
                     ]
                   },
+                  "galleryUploadsEnabled": {
+                    "type": "boolean"
+                  },
                   "expiresAt": {
                     "type": "string",
                     "format": "date-time",
@@ -21794,6 +21890,7 @@
                   "templateId",
                   "theme",
                   "rsvpFields",
+                  "galleryUploadsEnabled",
                   "expiresAt",
                   "firstPublishedAt",
                   "lifetimeDays",
@@ -22459,6 +22556,9 @@
                       }
                     ]
                   },
+                  "galleryUploadsEnabled": {
+                    "type": "boolean"
+                  },
                   "expiresAt": {
                     "type": "string",
                     "format": "date-time",
@@ -22508,6 +22608,7 @@
                   "templateId",
                   "theme",
                   "rsvpFields",
+                  "galleryUploadsEnabled",
                   "expiresAt",
                   "firstPublishedAt",
                   "lifetimeDays",
@@ -23145,6 +23246,9 @@
                   }
                 ]
               },
+              "galleryUploadsEnabled": {
+                "type": "boolean"
+              },
               "expiresAt": {
                 "type": "string",
                 "format": "date-time",
@@ -23194,6 +23298,7 @@
               "templateId",
               "theme",
               "rsvpFields",
+              "galleryUploadsEnabled",
               "expiresAt",
               "firstPublishedAt",
               "lifetimeDays",
@@ -23828,6 +23933,9 @@
                   }
                 ]
               },
+              "galleryUploadsEnabled": {
+                "type": "boolean"
+              },
               "expiresAt": {
                 "type": "string",
                 "format": "date-time",
@@ -23877,6 +23985,7 @@
               "templateId",
               "theme",
               "rsvpFields",
+              "galleryUploadsEnabled",
               "expiresAt",
               "firstPublishedAt",
               "lifetimeDays",
@@ -24522,6 +24631,9 @@
                   }
                 ]
               },
+              "galleryUploadsEnabled": {
+                "type": "boolean"
+              },
               "expiresAt": {
                 "type": "string",
                 "format": "date-time",
@@ -24571,6 +24683,7 @@
               "templateId",
               "theme",
               "rsvpFields",
+              "galleryUploadsEnabled",
               "expiresAt",
               "firstPublishedAt",
               "lifetimeDays",
@@ -25234,6 +25347,9 @@
                   }
                 ]
               },
+              "galleryUploadsEnabled": {
+                "type": "boolean"
+              },
               "expiresAt": {
                 "type": "string",
                 "format": "date-time",
@@ -25283,6 +25399,7 @@
               "templateId",
               "theme",
               "rsvpFields",
+              "galleryUploadsEnabled",
               "expiresAt",
               "firstPublishedAt",
               "lifetimeDays",
@@ -29314,6 +29431,9 @@
                   ]
                 }
               },
+              "galleryUploadsEnabled": {
+                "type": "boolean"
+              },
               "guest": {
                 "type": "object",
                 "properties": {
@@ -29840,6 +29960,7 @@
             "required": [
               "coverUrl",
               "blocks",
+              "galleryUploadsEnabled",
               "guest",
               "musicUrl",
               "locale",
@@ -30130,6 +30251,9 @@
                     "data"
                   ]
                 }
+              },
+              "galleryUploadsEnabled": {
+                "type": "boolean"
               },
               "guest": {
                 "type": "object",
@@ -30717,6 +30841,7 @@
             "required": [
               "coverUrl",
               "blocks",
+              "galleryUploadsEnabled",
               "guest",
               "musicUrl",
               "locale",
@@ -41139,11 +41264,26 @@
           "nextCursor": {
             "type": "string",
             "nullable": true
+          },
+          "uploadsEnabled": {
+            "type": "boolean"
           }
         },
         "required": [
           "items",
-          "nextCursor"
+          "nextCursor",
+          "uploadsEnabled"
+        ]
+      },
+      "ContributionsHostController_setGallerySettingsResponse": {
+        "type": "object",
+        "properties": {
+          "uploadsEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "uploadsEnabled"
         ]
       },
       "ContributionsHostController_moderateResponse": {
@@ -43958,6 +44098,9 @@
                       }
                     ]
                   },
+                  "galleryUploadsEnabled": {
+                    "type": "boolean"
+                  },
                   "expiresAt": {
                     "type": "string",
                     "format": "date-time",
@@ -44007,6 +44150,7 @@
                   "templateId",
                   "theme",
                   "rsvpFields",
+                  "galleryUploadsEnabled",
                   "expiresAt",
                   "firstPublishedAt",
                   "lifetimeDays",
@@ -44672,6 +44816,9 @@
                       }
                     ]
                   },
+                  "galleryUploadsEnabled": {
+                    "type": "boolean"
+                  },
                   "expiresAt": {
                     "type": "string",
                     "format": "date-time",
@@ -44721,6 +44868,7 @@
                   "templateId",
                   "theme",
                   "rsvpFields",
+                  "galleryUploadsEnabled",
                   "expiresAt",
                   "firstPublishedAt",
                   "lifetimeDays",

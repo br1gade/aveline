@@ -64,6 +64,7 @@ export async function seedEvent(
       eventId: event.id,
       slug,
       templateId: template.id,
+      galleryUploadsEnabled: true,
       status: isPublished ? 'PUBLISHED' : 'DRAFT',
       blocks: {
         create: [

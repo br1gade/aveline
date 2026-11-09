@@ -8,7 +8,7 @@ import type { Response } from 'express';
 import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AcknowledgementsService } from './acknowledgements.service';
-import { ContributionPageDto, ModerateGalleryDto, PrivateImageQuery, EventMediaParams } from './contribution.dto';
+import { ContributionPageDto, GallerySettingsDto, ModerateGalleryDto, PrivateImageQuery, EventMediaParams } from './contribution.dto';
 import { GuestMediaService } from './guest-media.service';
 import { sendPrivateImage } from './contributions.controller';
 
@@ -41,6 +41,12 @@ export class ContributionsHostController {
   @ApiOperation({ summary: 'Gallery processing and moderation queue for this event' })
   gallery(@Param('eventId') eventId: string, @Query() page: ContributionPageDto) {
     return this.media.listHost(eventId, page);
+  }
+  @RequirePermission('guest:write')
+  @Patch('gallery/settings')
+  @ApiOperation({ summary: 'Enable or disable new gallery uploads for this event' })
+  setGallerySettings(@Param('eventId') eventId: string, @CurrentActor() actor: RequestActor, @Body() dto: GallerySettingsDto) {
+    return this.media.setGalleryUploads(eventId, actor.userId, dto);
   }
   @RequirePermission('guest:write')
   @Patch('gallery/:mediaId')

@@ -7,6 +7,7 @@ import { MAX_EXPORT_BYTES } from './export-document';
 import { PdfReport } from './pdf-report';
 import { drawPlaceCards } from './pdf-cards';
 import { exportValue } from './export-copy';
+import { ExportJobError } from '../export-job-error';
 
 let fonts: Promise<Buffer[]> | undefined;
 function loadFonts(): Promise<Buffer[]> {
@@ -35,7 +36,7 @@ function collectPdf(document: PDFKit.PDFDocument): Promise<Buffer> {
     let length = 0;
     document.on('data', (chunk: Buffer) => {
       length += chunk.length;
-      if (length > MAX_EXPORT_BYTES) { document.destroy(new Error('PDF byte limit exceeded')); return; }
+      if (length > MAX_EXPORT_BYTES) { document.destroy(new ExportJobError('OUTPUT_LIMIT_EXCEEDED')); return; }
       chunks.push(chunk);
     });
     document.on('error', reject);

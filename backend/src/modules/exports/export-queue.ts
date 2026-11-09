@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ExportSnapshot, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ExportFailureCode } from './export-job-error';
 
 export const EXPORT_LEASE_MS = 90_000;
 export const EXPORT_ATTEMPTS = 3;
@@ -32,9 +33,12 @@ export class ExportQueue {
     return result.count === 1;
   }
 
-  async fail(job: ExportSnapshot, code: string): Promise<boolean> {
+  async fail(job: ExportSnapshot, code: ExportFailureCode): Promise<boolean> {
+    const isRevoked = code === 'ACCESS_REVOKED';
+    const isPermanent = isRevoked || code === 'INPUT_LIMIT_EXCEEDED' || code === 'OUTPUT_LIMIT_EXCEEDED';
     const result = await this.prisma.exportSnapshot.updateMany({ where: ownedExport(job), data: {
-      status: job.attempts >= EXPORT_ATTEMPTS ? 'FAILED' : 'QUEUED', failureReason: code,
+      status: isPermanent || job.attempts >= EXPORT_ATTEMPTS ? 'FAILED' : 'QUEUED', failureReason: code,
+      ...(isRevoked ? { revokedAt: new Date() } : {}),
       leaseOwner: null, leaseUntil: null, nextAttemptAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** job.attempts)),
     } });
     return result.count === 1;

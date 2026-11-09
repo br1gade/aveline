@@ -123,10 +123,11 @@ describe('Host acknowledgements, gallery moderation and privacy files (e2e cover
         expect([path, (await h.http().get(`${route}/${path}`).set('Authorization', authorization)).status]).toEqual([path, 403]);
       }
     });
-    it('is refused moderation and removal, leaving the photo untouched', async () => {
+    it('is refused moderation, removal and changing upload settings', async () => {
       const { route, authorization, event, photo } = await asRole();
       await moderate(event.eventId, photo.id, authorization, 'APPROVED').expect(403);
       await h.http().delete(`${route}/gallery/${photo.id}`).set('Authorization', authorization).expect(403);
+      await h.http().patch(`${route}/gallery/settings`).set('Authorization', authorization).send({ uploadsEnabled: false }).expect(403);
       expect(await prisma.guestMedia.findUniqueOrThrow({ where: { id: photo.id } })).toMatchObject({ processingStatus: 'READY', moderationStatus: 'PENDING' });
     });
   });
@@ -136,10 +137,11 @@ describe('Host acknowledgements, gallery moderation and privacy files (e2e cover
       const victim = await contributions(); const intruder = await h.setup();
       return { victim, intruder, route: host(intruder.eventId), authorization: intruder.authorization };
     };
-    it('cannot list the other event’s acknowledgements or gallery', async () => {
+    it('cannot list the other event’s contributions or change upload settings', async () => {
       const { victim, authorization } = await twoEvents();
       await h.http().get(`${host(victim.event.eventId)}/acknowledgements`).set('Authorization', authorization).expect(403);
       await h.http().get(`${host(victim.event.eventId)}/gallery`).set('Authorization', authorization).expect(403);
+      await h.http().patch(`${host(victim.event.eventId)}/gallery/settings`).set('Authorization', authorization).send({ uploadsEnabled: false }).expect(403);
     });
     it('cannot read the other event’s files through its own event', async () => {
       const { victim, route, authorization } = await twoEvents();

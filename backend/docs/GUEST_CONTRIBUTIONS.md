@@ -38,7 +38,11 @@ time, one CPU, 256 MiB JS heap and 768 MiB total process memory. Sharp concurren
 is one and its cache disabled. Actual host memory/latency acceptance remains open.
 The API never decodes images. It reserves count/storage under the event lock, writes
 a STAGING ledger before the original, then conditionally queues it. Crashes leave a
-cleanup record. The worker claims QUEUED or expired PROCESSING work using Postgres
+cleanup record. Gallery upload settings use the same event lock as reservation
+and final admission. Turning uploads off retires STAGING photos immediately,
+including uploads that write to storage after the setting is enabled again.
+Existing queued/processed photos and signature uploads retain their normal paths.
+The worker claims QUEUED or expired PROCESSING work using Postgres
 SKIP LOCKED, a random claim token and two-minute lease. Up to three attempts; stable
 INVALID_IMAGE/STORAGE_UNAVAILABLE/ATTEMPTS_EXHAUSTED codes contain no source bytes,
 filenames or keys. Recovery retains output keys and accepts an already written file

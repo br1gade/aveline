@@ -4,6 +4,7 @@ import { compactGuestPayloadChanges } from './guest-payload-version';
 export interface GuestPageMeta {
   eventId: string; locales: string[]; defaultLocale: string; visibility: EventVisibility;
   status: InvitationStatus; expiresAt: Date | null; guestId: string | null; guestLocale: string | null; revision: bigint;
+  galleryUploadsEnabled: boolean;
   sharedRevision?: bigint; personalRevision?: bigint; guestHouseholdId?: string | null;
 }
 /** A live capability/availability check and durable committed revision in one snapshot. */
@@ -21,7 +22,7 @@ export function readGuestPageBatch(tx: Prisma.TransactionClient, slug: string, t
   const legacyJoin = shouldIncludeLegacyRevision ? Prisma.sql`LEFT JOIN guest_page_versions v ON v."eventId" = e.id` : Prisma.empty;
   return tx.$queryRaw<(GuestPageMeta & { requestIndex: number })[]>`WITH requested("requestIndex", token) AS (VALUES ${requested}),
     event_scope AS MATERIALIZED (
-      SELECT e.id AS "eventId", e.locales, e."defaultLocale", e.visibility, i.status, i."expiresAt",
+      SELECT e.id AS "eventId", e.locales, e."defaultLocale", e.visibility, i.status, i."expiresAt", i."galleryUploadsEnabled",
         ${legacyRevision} AS revision
       FROM invitations i JOIN events e ON e.id = i."eventId" ${legacyJoin} WHERE i.slug = ${slug}
     ), payload_totals AS MATERIALIZED (

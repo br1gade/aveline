@@ -208,6 +208,7 @@ describe('Journey 10: event lifetime expiry closes guest access and keeps host d
       status: 'ATTENDING', answers: [{ questionId: ids.questionId, value: { ...signed('Mariam Sargsyan'), statementVersionId: ids.statementVersionId } }],
     }).expect(201);
     const photo = await sharp({ create: { width: 64, height: 48, channels: 3, background: '#b76e79' } }).png().toBuffer();
+    await http().patch(api(`/events/${ids.eventId}/gallery/settings`)).set('Authorization', authorization).send({ uploadsEnabled: true }).expect(200);
     const { body: upload } = await http().post(`${mariam}/gallery`).field('caption', 'First dance')
       .attach('file', photo, { filename: 'dance.png', contentType: 'image/png' }).expect(201);
     expect(await new PrivateMediaRunner(prisma as unknown as PrismaService, app.get(PrivateStorageService)).runOne()).toBe(true);

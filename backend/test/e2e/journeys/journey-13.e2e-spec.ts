@@ -372,6 +372,7 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
 
   /** Steps 1-2: three workers each die holding a lease; the host sees the job running, not lost. */
   const workersDieMidJob = async (wedding: Wedding) => {
+    await wedding.host.patch(`${wedding.base}/gallery/settings`, { uploadsEnabled: true }).expect(200);
     const { body: photoUpload } = await http().post(api(`${wedding.lusine.link}/gallery`)).field('caption', 'Lusine at the engagement')
       .attach('file', await photo(), { filename: 'lusine.jpg', contentType: 'image/jpeg' }).expect(201);
     const { body: arrangements } = await wedding.host.get(`${wedding.base}/seating/arrangements`).expect(200);
@@ -472,7 +473,7 @@ describe('Journey 13: recovery from dependency outages and dead workers (e2e)', 
       expect(await app.get(ExportRunner).runOne()).toBe(true);
       // A queued retry tells the host to wait, not to act (API.md, job recovery).
       expect((await wedding.host.get(snapshotPath(wedding, retriedId)).expect(200)).body)
-        .toMatchObject({ status: 'QUEUED', attempts: 1, failureReason: 'GENERATION_FAILED', downloadPath: null, recovery: { action: 'WAIT' } });
+        .toMatchObject({ status: 'QUEUED', attempts: 1, failureReason: 'STORAGE_UNAVAILABLE', downloadPath: null, recovery: { action: 'WAIT' } });
     } finally { await bringPrivateStorageBack(); }
 
     expect((await download(wedding, publishedId).expect(200)).text).toBe(published);

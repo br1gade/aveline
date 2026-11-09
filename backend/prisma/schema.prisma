@@ -450,6 +450,7 @@ model Invitation {
   /// How the built-in RSVP questions are asked: which are on, and the fixed
   /// choices for dietary and drink. Empty means every one on, as free text.
   rsvpFields Json             @default("{}")
+  galleryUploadsEnabled Boolean @default(false)
   /// No cover or music columns: the cover is the HERO block's first photo
   /// and the music is the MUSIC block's audio, so each is set in one place.
   status     InvitationStatus @default(DRAFT)

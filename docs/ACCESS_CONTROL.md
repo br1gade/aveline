@@ -285,7 +285,9 @@ own gallery statuses and approved gallery photos. Only owners remove their own
 uploads; drawings attached to acknowledgements use verified privacy erasure.
 
 Host acknowledgement records/files require `guest:contact:read`. Gallery queue,
-approval/rejection/files/removal require `guest:write`. Designers gain neither.
+approval/rejection/files/removal and upload settings require `guest:write`.
+Designers gain neither. Turning uploads off preserves existing photo access
+and removal permissions.
 All list/file routes check the event and return no private storage keys or public
 original URLs. File authorization repeats after storage reads. Original DSAR
 attachments require platform `privacy:manage`, a verified EXPORT request and

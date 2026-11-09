@@ -67,6 +67,6 @@ describe('Place-card PDF layout', () => {
 
   it('fails instead of clipping a name that cannot fit inside the print boundary', async () => {
     await expect(renderExport(placeCards([card('W'.repeat(400))])))
-      .rejects.toThrow('print boundary');
+      .rejects.toMatchObject({ code: 'OUTPUT_LIMIT_EXCEEDED' });
   });
 });

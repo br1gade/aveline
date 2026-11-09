@@ -15,6 +15,7 @@ export async function checkContributions(context, client) {
   const upload = await client.request('POST', `${path()}/signature-uploads`, imageForm());
   await poll(() => client.request('GET', `${path()}/acknowledgements`), (value) => value.signatureUploads.some((item) => item.id === upload.id && item.processingStatus === 'READY'), 'signature processing');
   await client.request('POST', `${path()}/acknowledgements`, { statementVersionId: statement.statementVersionId, subjectGuestIds: [guests[0].id], method: 'DRAWN', assetId: upload.id, signerName: 'Synthetic drawing', isAcknowledged: true, locale: 'en' });
+  await host('PATCH', `/events/${event.id}/gallery/settings`, { uploadsEnabled: true });
   const photo = await client.request('POST', `${path()}/gallery`, imageForm());
   const gallery = await poll(() => client.request('GET', `${path()}/gallery`), (value) => value.items.some((item) => item.id === photo.id && item.processingStatus === 'READY'), 'gallery processing');
   assert.equal(gallery.items.find((item) => item.id === photo.id).moderationStatus, 'PENDING');

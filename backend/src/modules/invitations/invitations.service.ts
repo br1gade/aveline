@@ -74,11 +74,13 @@ export class InvitationsService {
   }
 
   async getCachedInvitation(slug: string, locale?: string) {
-    return projectTemplateAssetPaths(await this.servePage(slug, undefined, locale), designAssetPrefix(slug));
+    const { page } = await this.servePage(slug, undefined, locale);
+    return projectTemplateAssetPaths(page, designAssetPrefix(slug));
   }
 
-  async getPublicInvitation(slug: string, guestToken?: string, requestedLocale?: string, artwork?: InvitationArtworkFormat) {
-    const payload = await this.servePage(slug, guestToken, requestedLocale);
+  async getPublicInvitation(slug: string, guestToken: string, requestedLocale?: string, artwork?: InvitationArtworkFormat) {
+    const { page, galleryUploadsEnabled: isGalleryUploadEnabled } = await this.servePage(slug, guestToken, requestedLocale);
+    const payload = { ...page, galleryUploadsEnabled: isGalleryUploadEnabled };
     if (artwork !== InvitationArtworkFormat.ASSET_ID) return projectTemplateAssetPaths(payload, designAssetPrefix(slug, guestToken));
     return {
       ...payload,
@@ -98,7 +100,7 @@ export class InvitationsService {
       const current = await this.pageMeta(slug, token);
       if (!isSamePage(meta, current)) continue;
       void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: meta.guestId ?? undefined });
-      return { ...payload, guest: guest ? { ...guest, telegramLink: null } : null };
+      return { page: { ...payload, guest: guest ? { ...guest, telegramLink: null } : null }, galleryUploadsEnabled: current.galleryUploadsEnabled };
     }
     throw new ConflictException('Invitation changed while loading; please retry');
   }

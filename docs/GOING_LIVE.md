@@ -46,6 +46,7 @@ The remaining frontend-facing gates are:
 | Item | Evidence still needed |
 |---|---|
 | **FR-11** Production web service and origin | Same-origin release configuration is implemented. Deploy an attested staging release and verify canonical HTTPS, SSR, mail links and a simulated payment return |
+| **FR-46** Guest gallery uploads | Backend setting is implemented. Adopt the control and verify on staging that new invitations start with uploads off, existing invitations keep their behavior, and disabling uploads preserves approved photo reads |
 | **FR-76 / FR-79** Door screen | Adopt the backend roster and refusal codes in the door UI and rehearse check-in on a phone against the real API |
 | **FR-115 / FR-128 / FR-135** Client adoption | Opt in to the artwork ID format, confirm export delivery from the staff UI, and exercise the scheduled Free controls against the real backend |
 | **Frontend CI and wider rehearsal** | Establish the GitHub frontend workflow and run the agreed host and guest journeys against the real backend |
