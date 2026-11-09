@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { ApiError, networkError, type FieldFeedback } from '@/api/errors';
@@ -131,5 +134,21 @@ describe("the form's path for a refused field", () => {
     ['items', null],
   ])('%s → %s', (field, path) => {
     expect(formPath(field)).toBe(path);
+  });
+});
+
+describe('a seat or zone refused at checkout (PD-185)', () => {
+  const codes = readFileSync(
+    join(import.meta.dirname, '../../../../backend/src/common/domain-http.exception.ts'),
+    'utf8',
+  );
+
+  it.each([
+    ['TICKET_LAYOUT_CHANGED', 'layoutChanged'],
+    ['TICKET_SELECTION_UNAVAILABLE', 'selectionUnavailable'],
+    ['TICKET_BUYER_LIMIT_REACHED', 'buyerLimit'],
+  ])('reads the backend’s %s as %s, by its code', (code, kind) => {
+    expect(codes).toContain(`${code}: {`);
+    expect(checkoutRefusal(refused(409, 'any words', { code }))).toEqual({ kind });
   });
 });

@@ -125,8 +125,6 @@ describe('the brief', () => {
     ['Bar', 'Wine: 40'],
     ['Requested songs', 'Sirun Yar — asked for 5 times'],
     ['Seating', 'At Garden hall · 8 of 10 seats taken'],
-    // It can't tell a draft plan from a shared one (FR-107), so it always says it may change (C-44).
-    ['Seating', 'The hosts may still change this plan until they share it with their guests.'],
     ['Households', 'Karapetyan: Ani K, Aram K'],
     ['Guests’ contact details', 'No email or phone given.'],
   ])('shows the %s section: “%s”', async (heading, line) => {

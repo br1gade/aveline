@@ -58,3 +58,32 @@ describe('reading a public event', () => {
     expect(event.checkout.dietary).toEqual({ isEnabled: true, options: null });
   });
 });
+
+describe('a show’s seats and zones (PD-185)', () => {
+  const inventory = {
+    layoutVersionId: 'lv1',
+    sections: [
+      { key: 'balcony', name: 'Balcony', mode: 'NUMBERED', ticketTypeIds: ['general'] },
+      { key: 'odd', name: 'Odd', mode: 'STANDING', ticketTypeIds: ['general'] },
+    ],
+  };
+
+  it('offers only the ticket types a section sells, and drops a section of a kind it can’t read', () => {
+    const event = readPublicEvent(publicEventWire({ ticketInventory: inventory }));
+    expect(event.ticketTypes.map(({ id }) => id)).toEqual(['general']);
+    expect(event.ticketInventory?.sections.map(({ key }) => key)).toEqual(['balcony']);
+  });
+
+  it('leaves every ticket type when the show has no inventory', () => {
+    const event = readPublicEvent(publicEventWire());
+    expect(event.ticketInventory).toBeNull();
+    expect(event.ticketTypes.map(({ id }) => id)).toEqual(['general', 'table']);
+  });
+
+  it('reads an inventory without its version as none', () => {
+    const event = readPublicEvent(
+      publicEventWire({ ticketInventory: { sections: inventory.sections } }),
+    );
+    expect(event.ticketInventory).toBeNull();
+  });
+});

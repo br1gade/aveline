@@ -46,3 +46,22 @@ describe("reading the buyer's order", () => {
     expect(readBuyerOrder(orderWire()).payment).toBeNull();
   });
 });
+
+describe('a ticket’s seat or zone (PD-186)', () => {
+  it('keeps the section, row and seat, and a zone with neither', () => {
+    const wire = orderWire() as { attendees: Array<Record<string, unknown>> };
+    const [first, second] = wire.attendees;
+    const order = readBuyerOrder({
+      ...wire,
+      attendees: [
+        { ...first, selection: { sectionName: 'Balcony', row: 'A', seat: '3' } },
+        { ...second, selection: { sectionName: 'Floor', row: null, seat: null } },
+      ],
+    });
+    const byId = Object.fromEntries(order.attendees.map(({ id, selection }) => [id, selection]));
+    expect(byId).toEqual({
+      [String(first?.id)]: { sectionName: 'Balcony', row: 'A', seat: '3' },
+      [String(second?.id)]: { sectionName: 'Floor', row: null, seat: null },
+    });
+  });
+});

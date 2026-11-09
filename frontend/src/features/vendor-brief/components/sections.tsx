@@ -147,31 +147,28 @@ function TimelineSection({ data, timeZone }: { data: Timeline; timeZone: string 
 function SeatingSection({ data }: { data: Seating }) {
   const { t } = useTranslation('brief');
   if (data.length === 0) return <p className="m-0">{t('seating.none')}</p>;
-  // The brief can't say whether the hosts have shared it with guests (FR-107), so it always says so.
+  // Only published seating reaches a brief: the backend leaves it out until then (design C-55).
   return (
-    <>
-      <p className="m-0">{t('seating.mayChange')}</p>
-      <ul className="m-0 grid list-none gap-4 p-0">
-        {data.map((table, index) => (
-          <li key={`${table.name}-${index}`} className="grid gap-1">
-            <SubHeading>{table.name}</SubHeading>
-            <p className="m-0">
-              {[
-                table.venue ? t('seating.venue', { venue: table.venue }) : '',
-                table.zone ? t('seating.zone', { zone: table.zone }) : '',
-                t('seating.seats', { seated: table.seated, capacity: table.capacity }),
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-            {table.freed > 0 ? (
-              <p className="m-0">{t('seating.freed', { count: table.freed })}</p>
-            ) : null}
-            <Lines empty={t('seating.empty')} lines={table.guests} />
-          </li>
-        ))}
-      </ul>
-    </>
+    <ul className="m-0 grid list-none gap-4 p-0">
+      {data.map((table, index) => (
+        <li key={`${table.name}-${index}`} className="grid gap-1">
+          <SubHeading>{table.name}</SubHeading>
+          <p className="m-0">
+            {[
+              table.venue ? t('seating.venue', { venue: table.venue }) : '',
+              table.zone ? t('seating.zone', { zone: table.zone }) : '',
+              t('seating.seats', { seated: table.seated, capacity: table.capacity }),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+          {table.freed > 0 ? (
+            <p className="m-0">{t('seating.freed', { count: table.freed })}</p>
+          ) : null}
+          <Lines empty={t('seating.empty')} lines={table.guests} />
+        </li>
+      ))}
+    </ul>
   );
 }
 

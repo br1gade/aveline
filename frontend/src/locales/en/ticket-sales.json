@@ -188,16 +188,41 @@
     "addSection": "Add section",
     "remove": "Remove",
     "publishLayout": "Publish venue layout",
-    "version": "Version {{version}}",
     "noVenues": "No directory venues are attached to this event.",
     "attach": "Use a directory venue to publish ticket inventory.",
-    "failed": "The inventory could not be saved or loaded.",
-    "blocked": "Block numbered seats",
     "noTypes": "No ticket types yet. Create ticket types before publishing inventory.",
     "csv": "Import a venue layout CSV",
     "csvHelp": "For large layouts, use one record per numbered seat and one per unnumbered zone.",
     "csvTemplate": "Download a CSV template",
     "csvFile": "Layout CSV",
-    "csvSize": "Choose a CSV file no larger than 8 MiB."
+    "csvSize": "Choose a CSV file no larger than 8 MiB.",
+    "sectionMode": "Kind of section",
+    "sectionLegend": "Section {{number}}",
+    "rowLegend": "Row {{row}}",
+    "capacityOf": "Capacity: {{places}}",
+    "blockedCount": "Block numbered seats ({{number}} blocked)",
+    "layoutOption": "{{name}} · version {{version}}",
+    "refused": {
+      "forbidden": {
+        "read": "You can’t read this event’s venues or layouts with your role.",
+        "layout": "Only Aveline’s directory editors can publish venue layouts. Ask Aveline to add or change one.",
+        "publish": "Publishing the inventory needs a role that can edit this event."
+      },
+      "gone": "This venue or layout is no longer there. Reload the page.",
+      "changed": "This changed since you opened it, perhaps by someone else. Reload the page and try again.",
+      "rateLimited": "Too many requests just now. Please wait a moment and try again.",
+      "unreadable": "The answer couldn’t be read. Please try again.",
+      "invalid": "That wasn’t accepted. Check the sections, rows and seats:",
+      "noAnswer": "No answer came. Please try again.",
+      "other": "That wasn’t accepted:"
+    },
+    "errors": {
+      "key": "Use lowercase letters, digits and dashes, up to 40, starting with a letter or digit.",
+      "name": "Use 1 to 100 characters.",
+      "row": "Name the row, in up to 16 characters.",
+      "seats": "List at least one seat, separated by commas.",
+      "capacity": "Use a whole number of places, from 1.",
+      "summary": "Some fields need a correction: see the messages beside them."
+    }
   }
 }
