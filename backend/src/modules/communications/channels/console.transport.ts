@@ -1,3 +1,4 @@
+import { replaceTelegramStartLinks } from '../telegram-opt-in';
 import { Injectable, Logger } from '@nestjs/common';
 import { MessageChannel } from '@prisma/client';
 import { DeliveryResult, MessageTransport, OutboundMessage } from './message-channel';
@@ -21,8 +22,8 @@ export class ConsoleTransport implements MessageTransport {
     this.sent.push(message);
     this.logger.log(
       `[${this.channel}] → ${message.toAddress} (${message.locale}): ${
-        message.subject ? `${message.subject} — ` : ''
-      }${message.body.slice(0, 120)}`,
+        message.subject ? `${replaceTelegramStartLinks(message.subject, '[redacted]')} — ` : ''
+      }${replaceTelegramStartLinks(message.body, '[redacted]').slice(0, 120)}`,
     );
     return Promise.resolve({ providerRef: `console-${this.sent.length}`, isDelivered: true });
   }

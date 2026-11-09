@@ -176,6 +176,37 @@ describe('suppression (integration)', () => {
       ).toBe(1);
     });
 
+    it('preserves a stronger organization reason and its notes when a weaker write races', async () => {
+      const address = 'strong@test.local';
+      const entry = { organizationId, channel: MessageChannel.EMAIL, address };
+      await suppressions.suppress({ ...entry, reason: 'ERASED', notes: 'Verified removal' });
+      await Promise.all([
+        suppressions.suppress({ ...entry, reason: 'MANUAL', notes: 'Repeated host request' }),
+        suppressions.suppress({ ...entry, address: address.toUpperCase(), reason: 'COMPLAINT' }),
+        suppressions.suppress({ ...entry, organizationId: otherOrganizationId, reason: 'MANUAL' }),
+      ]);
+      const row = await prisma.suppression.findFirstOrThrow({ where: entry });
+      expect(row).toMatchObject({ reason: 'ERASED', notes: 'Verified removal' });
+      await expect(suppressions.unsuppress(organizationId, row.id)).rejects.toThrow(/erased/);
+    });
+
+    it('clears only the reversible Telegram block when the recipient opts in', async () => {
+      const entry = { channel: MessageChannel.TELEGRAM, address: '12345' };
+      await suppressions.suppress({ ...entry, organizationId: null, reason: 'UNSUBSCRIBED' });
+      await suppressions.suppress({ ...entry, organizationId, reason: 'UNSUBSCRIBED' });
+      await suppressions.suppress({ ...entry, organizationId: otherOrganizationId, reason: 'ERASED' });
+      await suppressions.liftAfterOptIn(MessageChannel.TELEGRAM, entry.address);
+      expect(await prisma.suppression.findMany({ where: entry, select: { organizationId: true, reason: true } }))
+        .toEqual(expect.arrayContaining([
+          { organizationId, reason: 'UNSUBSCRIBED' }, { organizationId: otherOrganizationId, reason: 'ERASED' },
+        ]));
+      expect(await suppressions.isSuppressed(MessageChannel.TELEGRAM, entry.address, null)).toBe(false);
+
+      await suppressions.suppress({ ...entry, organizationId: null, reason: 'COMPLAINT' });
+      await suppressions.liftAfterOptIn(MessageChannel.TELEGRAM, entry.address);
+      expect(await suppressions.isSuppressed(MessageChannel.TELEGRAM, entry.address, null)).toBe(true);
+    });
+
     it('lets a stronger reason replace a weaker one', async () => {
       await suppressions.suppress({
         organizationId,

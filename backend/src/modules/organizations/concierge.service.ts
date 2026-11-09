@@ -2,7 +2,7 @@ import { pageOf, parseOrganizationCursor } from './organization-pagination';
 import { lockOwnerAddress, lockCurrentUsers, lockOrganizationStanding } from '../../infra/auth/access-locks';
 import { validateOrganizationId, selectionRequired, accessDenied } from '../../infra/auth/organization-context';
 import { actorCan } from '../../infra/auth/actor';
-import { conciergeRelationshipQuery, describeConciergeMatch } from './concierge-relationship';
+import { conciergeRelationshipQuery, describeConciergeMatch, liveOwnerInvites } from './concierge-relationship';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrganizationRole, OrgKind, Prisma } from '@prisma/client';
 import { AccountService } from '../../infra/auth/account.service';
@@ -95,7 +95,7 @@ export class ConciergeService {
   /** Finding a customer's organization again — with who owns it, or who has yet to accept. */
   async find(search?: string) {
     const organizations = await this.prisma.organization.findMany({
-      where: search ? { name: { contains: search, mode: 'insensitive' } } : undefined,
+      where: { deletedAt: null, name: search ? { contains: search, mode: 'insensitive' } : undefined },
       orderBy: { createdAt: 'desc' },
       take: 50,
       select: {
@@ -105,7 +105,7 @@ export class ConciergeService {
         createdAt: true,
         memberships: { where: { role: OrganizationRole.OWNER }, select: { user: { select: { email: true } } } },
         invites: {
-          where: { role: OrganizationRole.OWNER, acceptedAt: null, revokedAt: null },
+          where: liveOwnerInvites(),
           select: { email: true },
         },
         _count: { select: { events: true } },

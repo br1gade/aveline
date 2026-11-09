@@ -15,6 +15,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 /** What a host sees for an erased person's row. */
 const ERASED_ADDRESS = '[erased]';
 
+const SUPPRESSION_PRECEDENCE = [
+  SuppressionReason.UNSUBSCRIBED, SuppressionReason.MANUAL, SuppressionReason.HARD_BOUNCE,
+  SuppressionReason.COMPLAINT, SuppressionReason.ERASED,
+] satisfies SuppressionReason[];
+
 @Injectable()
 export class SuppressionService {
   constructor(private readonly prisma: PrismaService) {}
@@ -133,69 +138,30 @@ export class SuppressionService {
     const database = transaction ?? this.prisma;
     const address = normalizeAddress(input.channel, input.address);
 
-    // A later, stronger reason wins: an unsubscribe followed by a complaint
-    // must not stay recorded as a mere unsubscribe.
-    if (input.organizationId === null) {
-      await this.upsertGlobal({ ...input, address }, database);
-    } else {
-      await database.suppression.upsert({
-        where: {
-          organizationId_channel_address: {
-            organizationId: input.organizationId,
-            channel: input.channel,
-            address,
-          },
-        },
-        create: {
-          organizationId: input.organizationId,
-          channel: input.channel,
-          address,
-          reason: input.reason,
-          notes: input.notes ?? null,
-        },
-        update: { reason: input.reason, notes: input.notes ?? undefined },
-      });
-    }
-
-    return database.suppression.findFirstOrThrow({
-      where: { organizationId: input.organizationId, channel: input.channel, address },
-    });
-  }
-
-  /**
-   * A global row cannot go through Prisma's `upsert`.
-   *
-   * Its compound unique includes the nullable `organizationId`, which Prisma
-   * will not accept as null and which Postgres would not match anyway. The
-   * conflict target here is the partial unique index that covers exactly these
-   * rows, so two concurrent bounce reports collapse into one instead of racing.
-   */
-  private async upsertGlobal(
-    input: { channel: MessageChannel; address: string; reason: SuppressionReason; notes?: string },
-    database: Prisma.TransactionClient | PrismaService,
-  ): Promise<void> {
-    const { channel, address, reason, notes } = input;
-    const priority: Record<SuppressionReason, number> = { UNSUBSCRIBED: 1, MANUAL: 2, HARD_BOUNCE: 3, COMPLAINT: 4, ERASED: 5 };
+    const { organizationId, channel, reason, notes } = input;
+    // PostgreSQL needs a different conflict target for the partial global index.
+    const conflict = organizationId === null
+      ? Prisma.sql`("channel", "address") WHERE "organizationId" IS NULL`
+      : Prisma.sql`("organizationId", "channel", "address")`;
+    const precedence = Prisma.sql`ARRAY[${Prisma.join(SUPPRESSION_PRECEDENCE)}]::text[]`;
     await database.$executeRaw`
       INSERT INTO "suppressions" ("id", "organizationId", "channel", "address", "reason", "notes", "createdAt")
-           VALUES (gen_random_uuid()::text, NULL, ${channel}::"MessageChannel", ${address},
-                   ${reason}::"SuppressionReason", ${notes ?? null}, NOW())
-      ON CONFLICT ("channel", "address") WHERE "organizationId" IS NULL
-        DO UPDATE SET "reason" = ${reason}::"SuppressionReason",
-                      "notes" = COALESCE(${notes ?? null}, "suppressions"."notes")
-      WHERE array_position(ARRAY['UNSUBSCRIBED','MANUAL','HARD_BOUNCE','COMPLAINT','ERASED'], "suppressions"."reason"::text) <= ${priority[reason]}
+      VALUES (gen_random_uuid()::text, ${organizationId}, ${channel}::"MessageChannel", ${address},
+        ${reason}::"SuppressionReason", ${notes ?? null}, NOW())
+      ON CONFLICT ${conflict}
+      DO UPDATE SET "reason" = EXCLUDED."reason", "notes" = COALESCE(EXCLUDED."notes", "suppressions"."notes")
+      WHERE array_position(${precedence}, "suppressions"."reason"::text)
+        <= array_position(${precedence}, EXCLUDED."reason"::text)
     `;
+
+    return database.suppression.findFirstOrThrow({ where: { organizationId, channel, address } });
   }
 
-  /**
-   * Lifts every suppression of a chat the guest has just opened again.
-   *
-   * Only for a channel where the recipient's own action proves consent:
-   * starting or unblocking a Telegram bot is something only the chat's owner
-   * can do. A host can never reach this; an email bounce is never lifted by it.
-   */
-  async liftAfterOptIn(channel: typeof MessageChannel.TELEGRAM, address: string): Promise<void> {
-    await this.prisma.suppression.deleteMany({ where: { channel, address: { in: storedForms(channel, address) } } });
+  /** A recipient's own opt-in only reverses the global Telegram block. */
+  async liftAfterOptIn(channel: typeof MessageChannel.TELEGRAM, address: string, tx: Prisma.TransactionClient = this.prisma): Promise<void> {
+    await tx.suppression.deleteMany({
+      where: { organizationId: null, reason: SuppressionReason.UNSUBSCRIBED, channel, address: { in: storedForms(channel, address) } },
+    });
   }
 
   /**
@@ -215,11 +181,12 @@ export class SuppressionService {
       );
     }
     if (row.organizationId !== organizationId) throw new NotFoundException('No such suppression');
-    if (row.reason === SuppressionReason.ERASED) {
+    const removed = await this.prisma.suppression.deleteMany({
+      where: { id: suppressionId, organizationId, reason: { not: SuppressionReason.ERASED } },
+    });
+    if (!removed.count && await this.prisma.suppression.count({ where: { id: suppressionId, organizationId, reason: SuppressionReason.ERASED } })) {
       throw new ConflictException('This person asked for their data to be erased; they cannot be contacted again');
     }
-
-    await this.prisma.suppression.delete({ where: { id: suppressionId } });
     return { ok: true as const };
   }
 }

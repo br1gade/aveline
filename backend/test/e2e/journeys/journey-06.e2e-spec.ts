@@ -1,3 +1,4 @@
+import { telegramStartCode, telegramStartUpdate, TEST_TELEGRAM_BOT } from '../../fixtures/telegram-opt-in.fixture';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import type { Server } from 'node:http';
@@ -12,7 +13,6 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { BlockType, EventType, MessageChannel, MessageStatus, PaymentProvider, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import sharp from 'sharp';
-import { AppModule } from '../../../src/app.module';
 import { SerializeInterceptor } from '../../../src/common/interceptors/serialize';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { STORAGE_ADAPTER } from '../../../src/infra/storage/storage-port';
@@ -33,7 +33,7 @@ import { MESSAGE_COPY } from '../../../src/seed/message-copy';
 import { authenticateAs } from '../../fixtures/auth.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
-const INTAKE_ENV = ['SALES_INTAKE_ENABLED', 'SALES_INTAKE_SUPPORT_ENABLED', 'SALES_INTENT_HMAC_KEY_ID', 'SALES_INTENT_HMAC_KEYS', 'SALES_PRIVACY_JOURNAL_DIR', 'SALES_PRIVACY_JOURNAL_KEY'];
+const INTAKE_ENV = ['TELEGRAM_BOT_USERNAME', 'SALES_INTAKE_ENABLED', 'SALES_INTAKE_SUPPORT_ENABLED', 'SALES_INTENT_HMAC_KEY_ID', 'SALES_INTENT_HMAC_KEYS', 'SALES_PRIVACY_JOURNAL_DIR', 'SALES_PRIVACY_JOURNAL_KEY'];
 
 /** The person who asks to be forgotten, written with capitals where she typed them. */
 const ANI = 'ani@journey06.test';
@@ -97,12 +97,14 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     const journal = join(root, 'journal');
     await new EnquiryJournal(journal, 'j'.repeat(32)).initialize();
     Object.assign(process.env, {
+      TELEGRAM_BOT_USERNAME: TEST_TELEGRAM_BOT,
       SALES_INTAKE_ENABLED: 'true', SALES_INTAKE_SUPPORT_ENABLED: 'true', SALES_INTENT_HMAC_KEY_ID: 'test',
       SALES_INTENT_HMAC_KEYS: JSON.stringify({ test: 'x'.repeat(32) }), SALES_PRIVACY_JOURNAL_DIR: journal, SALES_PRIVACY_JOURNAL_KEY: 'j'.repeat(32),
     });
     prisma = testPrisma();
     const privateStorage = buildPrivateStorage(new ConfigService({ S3_ENDPOINT: '', STORAGE_ROOT: join(root, 'public'), PRIVATE_STORAGE_ROOT: join(root, 'private') }));
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    const { AppModule: appModule } = await import('../../../src/app.module');
+    const moduleRef = await Test.createTestingModule({ imports: [appModule] })
       .overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED)
       .overrideProvider(STORAGE_ADAPTER).useValue(new FilesystemStorageAdapter(join(root, 'public'), '/files'))
       .overrideProvider(PRIVATE_STORAGE).useValue(privateStorage)
@@ -222,8 +224,9 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     const messages = await prisma.message.findMany({ where: { eventId: gala.eventId, templateKey: 'invitation.send' }, select: { toAddress: true, status: true, body: true } });
     expect(messages.map((message) => [message.toAddress.toLowerCase(), message.status]).sort()).toEqual([
       [ANI, MessageStatus.SENT], ['davit@journey06.test', MessageStatus.SENT]]);
-    const linkFor = (address: string) => linkIn(messages.find((message) => message.toAddress.toLowerCase() === address)!.body);
-    return { ani: linkFor(ANI), davit: linkFor('davit@journey06.test') };
+    const bodyFor = (address: string) => messages.find((message) => message.toAddress.toLowerCase() === address)!.body;
+    return { ani: { ...linkIn(bodyFor(ANI)), telegramCode: telegramStartCode(bodyFor(ANI)) },
+      davit: linkIn(bodyFor('davit@journey06.test')) };
   };
   type Links = Awaited<ReturnType<typeof invitationsGoOut>>;
 
@@ -242,7 +245,7 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
     expect(answer).toMatchObject({ status: 'ATTENDING', partyAdded: 1 });
     expect(await prisma.guestAcknowledgement.count({ where: { eventId: gala.eventId } })).toBe(2);
 
-    await http().post('/api/v1/webhooks/telegram').send({ message: { chat: { id: ANI_TELEGRAM_CHAT }, text: `/start ${links.ani.token}` } }).expect(201);
+    await http().post('/api/v1/webhooks/telegram').send(telegramStartUpdate(links.ani.telegramCode, ANI_TELEGRAM_CHAT)).expect(201);
     expect(await prisma.guestChannel.findMany({ select: { channel: true, address: true } })).toEqual([{ channel: MessageChannel.TELEGRAM, address: String(ANI_TELEGRAM_CHAT) }]);
 
     const { body: photo } = await http().post(`/api/v1${links.ani.path}/gallery`).field('caption', 'Ani at the gala')

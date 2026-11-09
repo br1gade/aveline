@@ -1605,6 +1605,12 @@ model Message {
   /// ever enqueued once.
   dedupeKey String? @unique
 
+  /// Delivery and opt-in are one outbox row so an enqueue retry cannot orphan the code.
+  telegramOptInDigest     String? @unique
+  telegramOptInBinding    String?
+  telegramOptInExpiresAt  DateTime?
+  telegramOptInRedeemedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -129,6 +129,21 @@ describe('Setting an event up for a customer (e2e)', () => {
     ]);
   });
 
+  it('omits closed organizations and owner invites that are expired or revoked', async () => {
+    const { concierge, organizationId } = await setUp();
+    await prisma.organization.create({ data: { name: 'Closed Petrosyan Wedding', deletedAt: new Date(0) } });
+    const now = new Date();
+    await prisma.organizationInvite.createMany({ data: [
+      { organizationId, email: 'expired@example.am', role: 'OWNER', tokenHash: 'expired-owner-fixture', expiresAt: new Date(0) },
+      { organizationId, email: 'revoked@example.am', role: 'OWNER', tokenHash: 'revoked-owner-fixture',
+        expiresAt: new Date(now.getTime() + 86_400_000), revokedAt: now },
+    ] });
+
+    const { body } = await http().get('/api/v1/concierge/organizations').query({ search: 'petrosyan' })
+      .set('Authorization', concierge.authorization).expect(200);
+    expect(body).toEqual([expect.objectContaining({ id: organizationId, pendingOwnerInvites: ['anna@example.am'] })]);
+  });
+
   // B74 (decided 10 October 2026, D8): a customer who already had their own
   // organization could never accept, and staff's work was orphaned.
   it('builds in the organization a customer already has, with nothing to accept', async () => {

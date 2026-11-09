@@ -114,16 +114,14 @@ credentials, not of code, since the adapter speaks plain SMTP.
 Email always works from nothing, which is why an invitation goes out on it.
 The chat channels each have a constraint worth knowing before wiring them up.
 
-**Telegram** is free and needs no approval — create a bot with `@BotFather`,
-set `TELEGRAM_BOT_TOKEN`. The constraint is absolute: **a bot cannot message
-anyone who has not started a conversation with it.** So the invitation email
-carries a deep link, `t.me/<bot>?start=<guestToken>`, available to template
-copy as `{{telegramLink}}`. Tapping it posts `/start` to
-`POST /webhooks/telegram`, which records the chat id — and reminders then go
-there instead of to email. Set `TELEGRAM_WEBHOOK_SECRET` so only Telegram can
-call that endpoint; production refuses to boot without it once a bot token is
-set, because otherwise anyone who guessed a guest token could register their
-own chat against that guest.
+**Telegram.** Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and
+`TELEGRAM_WEBHOOK_SECRET` for the same bot. The invitation email's
+`{{telegramLink}}` variable carries a single-use opt-in code. Tapping it
+sends `/start` to the authenticated `POST /webhooks/telegram` endpoint
+in a private chat. The code expires after 30 days or at invitation expiry
+and cannot be used as an invitation credential. Verify opt-in, blocking,
+unblocking and a real reminder with a staging bot before enabling live
+delivery. See [Telegram's deep-link documentation](https://core.telegram.org/bots/features#deep-linking).
 
 **WhatsApp** sends business-initiated approved templates through Meta's Cloud
 API. Configure account/sender/token, an explicitly supported API version, app

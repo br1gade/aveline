@@ -1,3 +1,4 @@
+import { issueTelegramOptIn, telegramStartUpdate, TEST_TELEGRAM_BOT } from '../../fixtures/telegram-opt-in.fixture';
 import { ConfigService } from '@nestjs/config';
 import {
   DataSubjectRequestKind,
@@ -94,8 +95,14 @@ describe('sending and communications (integration, coverage)', () => {
     // What Nest does at boot: each sender registers its last-moment check.
     sender.onModuleInit();
     reminders.onModuleInit();
-    webhook = new TelegramWebhookController(service, guestChannels, suppressions, configOf({}));
+    webhook = new TelegramWebhookController(service, guestChannels, suppressions, configOf({ TELEGRAM_BOT_USERNAME: TEST_TELEGRAM_BOT }));
   });
+
+  const linkChat = async (guestToken: string) => {
+    const { code, messageId } = await issueTelegramOptIn(prisma, guestToken);
+    await webhook.receive(telegramStartUpdate(code, 777));
+    await prisma.message.delete({ where: { id: messageId } });
+  };
 
   beforeEach(async () => {
     await resetTestDatabase();
@@ -174,7 +181,7 @@ describe('sending and communications (integration, coverage)', () => {
       const { slug, eventId, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
       await sender.send(slug);
       await communications.dispatchDue();
-      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token);
 
       // The premise: the chat is linked, so Telegram is now this guest's preferred channel.
       expect(await prisma.guestChannel.findMany({ where: { guestId: guest.id }, select: { channel: true, address: true } }))
@@ -196,7 +203,7 @@ describe('sending and communications (integration, coverage)', () => {
       const { slug, eventId, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
       await sender.send(slug);
       await communications.dispatchDue();
-      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token);
 
       const notified = await reminders.notifyDetailsChanged(slug, 'We have moved to the garden.');
 
@@ -209,7 +216,7 @@ describe('sending and communications (integration, coverage)', () => {
       const { slug, eventId, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
       await sender.send(slug);
       await communications.dispatchDue();
-      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token);
 
       await confirmer.confirm(guest.id, RsvpStatus.ATTENDING);
 

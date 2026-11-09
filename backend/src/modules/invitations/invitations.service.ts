@@ -59,7 +59,6 @@ export enum InvitationArtworkFormat {
 @Injectable()
 export class InvitationsService {
   private readonly cacheTtlSeconds: number;
-  private readonly botUsername: string;
   private readonly pageReader: GuestPageReader;
   private readonly projectionReader: GuestProjectionReader;
 
@@ -70,7 +69,6 @@ export class InvitationsService {
     config: ConfigService,
   ) {
     this.cacheTtlSeconds = Number(config.get<string>('INVITATION_CACHE_TTL') ?? 300);
-    this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
     this.pageReader = new GuestPageReader(prisma);
     this.projectionReader = new GuestProjectionReader(prisma);
   }
@@ -100,7 +98,7 @@ export class InvitationsService {
       const current = await this.pageMeta(slug, token);
       if (!isSamePage(meta, current)) continue;
       void this.analytics.recordInvitationView({ slug, eventId: meta.eventId, locale, guestId: meta.guestId ?? undefined });
-      return { ...payload, guest: guest ? { ...guest, telegramLink: this.botUsername ? `https://t.me/${this.botUsername}?start=${token!}` : null } : null };
+      return { ...payload, guest: guest ? { ...guest, telegramLink: null } : null };
     }
     throw new ConflictException('Invitation changed while loading; please retry');
   }

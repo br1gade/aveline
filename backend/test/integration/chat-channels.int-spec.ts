@@ -1,3 +1,4 @@
+import { issueTelegramOptIn, telegramStartCode, telegramStartUpdate, TEST_TELEGRAM_BOT } from '../fixtures/telegram-opt-in.fixture';
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel, MessageStatus, PrismaClient } from '@prisma/client';
 import { ConsoleTransport } from '../../src/modules/communications/channels/console.transport';
@@ -59,6 +60,7 @@ describe('chat channels (integration)', () => {
     SMTP_HOST: 'smtp.test',
     MAIL_FROM: 'Aveline <hello@aveline.test>',
     TELEGRAM_BOT_TOKEN: 'bot-token',
+    TELEGRAM_BOT_USERNAME: TEST_TELEGRAM_BOT,
   });
 
   beforeAll(() => {
@@ -81,7 +83,7 @@ describe('chat channels (integration)', () => {
       service,
       guestChannels,
       suppressions,
-      configOf({}),
+      allChannels,
     );
   });
 
@@ -124,13 +126,17 @@ describe('chat channels (integration)', () => {
     return { ...seeded, event, guest };
   };
 
+  const linkChat = async (guestToken: string, chatId: number) => {
+    const { code, messageId } = await issueTelegramOptIn(prisma, guestToken);
+    await webhook.receive(telegramStartUpdate(code, chatId));
+    await prisma.message.delete({ where: { id: messageId } });
+  };
+
   describe('the Telegram opt-in', () => {
     it('records the chat id from a deep-link /start', async () => {
       const { guest } = await eventWithCopy([MessageChannel.EMAIL]);
 
-      await webhook.receive({
-        message: { chat: { id: 987654321 }, text: `/start ${guest.token}` },
-      });
+      await linkChat(guest.token, 987654321);
 
       const channel = await prisma.guestChannel.findFirstOrThrow({
         where: { guestId: guest.id, channel: MessageChannel.TELEGRAM },
@@ -146,19 +152,20 @@ describe('chat channels (integration)', () => {
       await eventWithCopy([MessageChannel.EMAIL]);
 
       await expect(
-        webhook.receive({ message: { chat: { id: 1 }, text: '/start not-a-real-token' } }),
+        webhook.receive({ message: { chat: { id: 1, type: 'private' }, text: '/start not-a-real-token' } }),
       ).resolves.toEqual({ ok: true });
       expect(await prisma.guestChannel.count()).toBe(0);
     });
 
     it('never links a guest who asked to be erased', async () => {
       const { guest } = await eventWithCopy([MessageChannel.EMAIL]);
+      const { code } = await issueTelegramOptIn(prisma, guest.token);
       await prisma.guest.update({
         where: { id: guest.id },
         data: { anonymizedAt: new Date() },
       });
 
-      await webhook.receive({ message: { chat: { id: 1 }, text: `/start ${guest.token}` } });
+      await webhook.receive(telegramStartUpdate(code, 1));
 
       expect(await prisma.guestChannel.count()).toBe(0);
     });
@@ -168,18 +175,46 @@ describe('chat channels (integration)', () => {
     it('replaces the chat id when the guest opts in again', async () => {
       const { guest } = await eventWithCopy([MessageChannel.EMAIL]);
 
-      await webhook.receive({ message: { chat: { id: 111 }, text: `/start ${guest.token}` } });
-      await webhook.receive({ message: { chat: { id: 222 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 111);
+      await linkChat(guest.token, 222);
 
       const channels = await prisma.guestChannel.findMany({ where: { guestId: guest.id } });
       expect(channels).toHaveLength(1);
       expect(channels[0].address).toBe('222');
     });
 
+    it('consumes a code once across concurrent private chats and ignores group updates', async () => {
+      const { guest } = await eventWithCopy([MessageChannel.EMAIL]);
+      const { code } = await issueTelegramOptIn(prisma, guest.token);
+      await webhook.receive({ message: { chat: { id: -700, type: 'group' }, text: `/start ${code}` } });
+      expect(await prisma.guestChannel.count()).toBe(0);
+      await Promise.all([111, 222].map((chatId) => webhook.receive(telegramStartUpdate(code, chatId))));
+      const channel = await prisma.guestChannel.findFirstOrThrow({ where: { guestId: guest.id } });
+      expect(['111', '222']).toContain(channel.address);
+      await webhook.receive(telegramStartUpdate(code, 333));
+      expect(await prisma.guestChannel.findUniqueOrThrow({ where: { id: channel.id } })).toEqual(channel);
+      const chatId = Number(channel.address);
+      await webhook.receive({ my_chat_member: { chat: { id: chatId, type: 'private' }, new_chat_member: { status: 'kicked' } } });
+      await webhook.receive(telegramStartUpdate(code, chatId));
+      expect(await suppressions.isSuppressed(MessageChannel.TELEGRAM, channel.address, null)).toBe(true);
+      expect(await prisma.guestChannel.count()).toBe(0);
+    });
+
+    it('rejects codes for a different bot, rotated invitation credential, or past expiry', async () => {
+      const { guest } = await eventWithCopy([MessageChannel.EMAIL]);
+      const different = await issueTelegramOptIn(prisma, guest.token, 'DifferentBot');
+      const rotated = await issueTelegramOptIn(prisma, guest.token);
+      await prisma.guest.update({ where: { id: guest.id }, data: { token: 'replacement-guest-link' } });
+      const expired = await issueTelegramOptIn(prisma, 'replacement-guest-link');
+      await prisma.message.update({ where: { id: expired.messageId }, data: { telegramOptInExpiresAt: new Date(0) } });
+      for (const { code } of [different, rotated, expired]) await webhook.receive(telegramStartUpdate(code, 123));
+      expect(await prisma.guestChannel.count()).toBe(0);
+    });
+
     it('ignores a message that is not a /start', async () => {
       await eventWithCopy([MessageChannel.EMAIL]);
 
-      await webhook.receive({ message: { chat: { id: 1 }, text: 'hello there' } });
+      await webhook.receive({ message: { chat: { id: 1, type: 'private' }, text: 'hello there' } });
 
       expect(await prisma.guestChannel.count()).toBe(0);
     });
@@ -193,10 +228,10 @@ describe('chat channels (integration)', () => {
      */
     it('suppresses the chat and forgets the address', async () => {
       const { guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
-      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 555);
 
       await webhook.receive({
-        my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'kicked' } },
+        my_chat_member: { chat: { id: 555, type: 'private' }, new_chat_member: { status: 'kicked' } },
       });
 
       expect(
@@ -211,10 +246,10 @@ describe('chat channels (integration)', () => {
       const { slug, guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
       await sender.send(slug);
       await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
-      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
-      await webhook.receive({ my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'kicked' } } });
+      await linkChat(guest.token, 555);
+      await webhook.receive({ my_chat_member: { chat: { id: 555, type: 'private' }, new_chat_member: { status: 'kicked' } } });
 
-      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 555);
 
       expect(await suppressions.isSuppressed(MessageChannel.TELEGRAM, '555', guest.eventId)).toBe(false);
       const reminder = await reminders.remindNow(slug);
@@ -223,10 +258,10 @@ describe('chat channels (integration)', () => {
 
     it('lifts the suppression when the guest unblocks the bot', async () => {
       const { guest } = await eventWithCopy([MessageChannel.EMAIL, MessageChannel.TELEGRAM]);
-      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
-      await webhook.receive({ my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'kicked' } } });
+      await linkChat(guest.token, 555);
+      await webhook.receive({ my_chat_member: { chat: { id: 555, type: 'private' }, new_chat_member: { status: 'kicked' } } });
 
-      await webhook.receive({ my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'member' } } });
+      await webhook.receive({ my_chat_member: { chat: { id: 555, type: 'private' }, new_chat_member: { status: 'member' } } });
 
       expect(await suppressions.isSuppressed(MessageChannel.TELEGRAM, '555', guest.eventId)).toBe(false);
     });
@@ -236,9 +271,9 @@ describe('chat channels (integration)', () => {
         MessageChannel.EMAIL,
         MessageChannel.TELEGRAM,
       ]);
-      await webhook.receive({ message: { chat: { id: 555 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 555);
       await webhook.receive({
-        my_chat_member: { chat: { id: 555 }, new_chat_member: { status: 'kicked' } },
+        my_chat_member: { chat: { id: 555, type: 'private' }, new_chat_member: { status: 'kicked' } },
       });
 
       await sender.send(slug);
@@ -271,7 +306,7 @@ describe('chat channels (integration)', () => {
       ]);
       await sender.send(slug);
       await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
-      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 777);
 
       const result = await reminders.remindNow(slug);
       await communications.dispatchDue();
@@ -290,7 +325,7 @@ describe('chat channels (integration)', () => {
       const { slug, guest } = await eventWithCopy([MessageChannel.EMAIL]);
       await sender.send(slug);
       await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
-      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 777);
 
       const result = await reminders.remindNow(slug);
 
@@ -304,7 +339,7 @@ describe('chat channels (integration)', () => {
       ]);
       await sender.send(slug);
       await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
-      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 777);
       await reminders.remindNow(slug);
 
       const messages = await prisma.message.findMany({
@@ -328,7 +363,7 @@ describe('chat channels (integration)', () => {
       ]);
       await sender.send(slug);
       await prisma.message.updateMany({ where: { templateKey: 'invitation.send' }, data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
-      await webhook.receive({ message: { chat: { id: 777 }, text: `/start ${guest.token}` } });
+      await linkChat(guest.token, 777);
       await suppressions.suppress({
         organizationId: event.organizationId,
         channel: MessageChannel.TELEGRAM,
@@ -375,15 +410,30 @@ describe('chat channels (integration)', () => {
         reminders: new ReminderService(service, communications, guestChannels, config),
       };
     };
-    const withBot = configOf({ PUBLIC_APP_URL: 'https://aveline.test', SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c', TELEGRAM_BOT_TOKEN: 't', TELEGRAM_BOT_USERNAME: 'AvelineBot' });
+    const withBot = configOf({ PUBLIC_APP_URL: 'https://aveline.test', SMTP_HOST: 'smtp.test', MAIL_FROM: 'a@b.c', TELEGRAM_BOT_TOKEN: 't', TELEGRAM_BOT_USERNAME: TEST_TELEGRAM_BOT });
 
-    it('offers the bot in the invitation email, with the guest\'s own link', async () => {
+    it('offers the bot in the invitation email with a separate opt-in code', async () => {
       const { slug, sender: botSender, primaryGuestToken } = await withSeededCopy(withBot);
 
       await botSender.send(slug);
 
       const invitation = await prisma.message.findFirstOrThrow({ where: { templateKey: 'invitation.send' } });
-      expect(invitation.body).toContain(`https://t.me/AvelineBot?start=${primaryGuestToken}`);
+      expect(invitation.body).toContain(`/g/${primaryGuestToken}`);
+      expect(telegramStartCode(invitation.body)).not.toBe(primaryGuestToken);
+      expect(invitation.telegramOptInDigest).toMatch(/^[a-f0-9]{64}$/u);
+    });
+
+    it('removes the legacy bot URL from queued mail while keeping the invitation link', async () => {
+      const { slug, sender: botSender, primaryGuestToken } = await withSeededCopy(withBot);
+      await botSender.send(slug);
+      const message = await prisma.message.findFirstOrThrow({ where: { templateKey: 'invitation.send' } });
+      const link = `https://aveline.test/invitations/${slug}/g/${primaryGuestToken}`;
+      await prisma.message.update({ where: { id: message.id }, data: {
+        telegramOptInDigest: null, body: `${link}\nhttps://t.me/AvelineBot?start=${primaryGuestToken}`,
+      } });
+      await communications.dispatchDue();
+      expect(email.sent[0].body).toContain(link);
+      expect(email.sent[0].body).not.toContain('t.me/');
     });
 
     it('leaves the offer out when no bot is configured', async () => {
@@ -396,9 +446,10 @@ describe('chat channels (integration)', () => {
     });
 
     it('reminds a guest who opened the bot on Telegram', async () => {
-      const { slug, sender: botSender, reminders: botReminders, primaryGuestToken } = await withSeededCopy(withBot);
+      const { slug, sender: botSender, reminders: botReminders } = await withSeededCopy(withBot);
       await botSender.send(slug);
-      await webhook.receive({ message: { chat: { id: 4242 }, text: `/start ${primaryGuestToken}` } });
+      await communications.dispatchDue();
+      await webhook.receive(telegramStartUpdate(telegramStartCode(email.sent[0].body), 4242));
       await prisma.message.updateMany({ data: { createdAt: new Date(Date.now() - 4 * DAY_MS) } });
 
       const result = await botReminders.remindNow(slug);

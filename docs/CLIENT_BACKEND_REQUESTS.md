@@ -15,7 +15,7 @@ S2 schemas must describe the final S3–S5 contract. Per-request backward-compat
 
 ## Product decisions recorded during implementation
 
-- 5 November: the owner selected **hide unpublished seating in vendor briefs** and **allow suspending brief access while retaining the booking**. The owner also selected **paid-to-free changes take effect after the paid period ends**. The restricted door role is still awaiting an answer.
+- 5 November: the owner selected **hide unpublished seating in vendor briefs** and **allow suspending brief access while retaining the booking**. The owner also selected **paid-to-free changes take effect after the paid period ends**. The pilot uses existing event roles for the door.
 - 7 November: a token invalidated by **single-device logout is only rejected**;
   other sessions remain active. Only recorded successful rotation can establish
   replay requiring account-wide revocation after the retry grace.
@@ -128,7 +128,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-96 | Side labels in each language | S3 host/guest operations | Audit and implement |
 | FR-97 | An archived event: which writes stay open, and whether it can be deleted | S3 host/guest operations | Audit and implement |
 | FR-98 | "Who must not be contacted" for someone outside the organization | S3 host/guest operations | Audit and implement |
-| FR-99 | Suppression writes and reads | S1 safety/correctness | Audit and implement |
+| FR-99 | Suppression writes and reads | S1 safety/correctness | Reason precedence implemented in the first follow-up. Other suppression list and input requests remain open. |
 | FR-100 | Promo codes: a currency, a zone, clearing, the pilot | S4 ticketing/vendors/billing | Audit and implement |
 | FR-101 | translations on creating an event | S3 host/guest operations | Audit and implement |
 | FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Implemented; organization-owned edits, private notes and soft removal; merged in `75e22e8` |
@@ -363,7 +363,9 @@ FR-62, frontend CI, and adoption of FR-76, FR-130 and FR-134 remain client
 handoff items. The same-origin release wiring and the backend for FR-79,
 FR-115, FR-128 and FR-135 are implemented. The
 [larger requests implementation plan](CLIENT_LARGER_REQUESTS_PLAN.md)
-records the API handoff and remaining rollout and rehearsal work.
+records the API handoff and remaining rollout and rehearsal work. The
+[remaining priority plan](CLIENT_REMAINING_PRIORITY_PLAN.md) covers the
+additional verified requests outside Arthur’s highlighted handoff.
 
 Local verification covered lint, TypeScript, build, generated OpenAPI and
 the docs check. All 1,654 unit tests and 10 pilot tooling tests passed. All

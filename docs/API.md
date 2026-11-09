@@ -416,7 +416,7 @@ in a group chat sets the event `UNLISTED`. The editor previews through
     "household": { "name": "Petrosyan family", "seatsAllotted": 3, "members": [...] },
     "rsvp": { "status": "ATTENDING", "respondedAt": "..." },
     "seating": null,
-    "telegramLink": "https://t.me/AvelineBot?start=k7m2..."
+    "telegramLink": null
   },
   "blocks": [ { "type": "HERO", "sortOrder": 0, "variant": "full-bleed", "content": {...},
                 "media": [ { "id": "...", "url": "https://media.../3f2c....jpg",
@@ -1339,8 +1339,9 @@ invitation (`{ organization, invite }`, with `devLink` outside production).
 The second creates an event in it, with its draft invitation; staff then
 design and run it through the usual routes using their platform role. When
 the customer accepts at `/accept-invite`, choosing their own password, they
-own the organization and its events. The search lists organizations with
-their `owners`, `pendingOwnerInvites` and number of `events`.
+own the organization and its events. The search lists open organizations with
+their `owners`, live `pendingOwnerInvites` and number of `events`. Expired,
+revoked and accepted owner invitations are excluded from the pending list.
 
 Concierge setup matches an active `OWNER` membership or a live, unaccepted,
 unrevoked `OWNER` invitation for an open organization. Active ownership takes
@@ -2624,7 +2625,8 @@ an address you already have but never show one. **New value, 10 October
 2026** — handle an unknown `reason` gracefully.
 
 Addresses are matched case-insensitively for email, and `POST` is idempotent.
-`reason` defaults to `MANUAL`; a later, stronger reason replaces a weaker one.
+`reason` defaults to `MANUAL`. In either scope, a stronger reason replaces a
+weaker one. A weaker write preserves both the reason and its notes.
 
 **A suppressed recipient still produces a `Message` row**, with status
 `SUPPRESSED` and a reason — so "why did my guest never get this?" has an
@@ -2639,8 +2641,9 @@ bounce naming their address (SMTP `5.1.x`, a disabled mailbox `5.2.1`, or a
 bare `550`/`551`/`553`), a complaint, blocking the bot. Our own quota, size or
 policy rejections (`5.4.5`, `5.3.4`, `5.7.x`, a bare `554`) never are. A rejection caused by our own message
 (a WhatsApp template problem, a Telegram message too long) is retried and
-reported as `FAILED`, never held against the guest. A guest who starts or
-unblocks the bot again lifts their own Telegram suppression.
+reported as `FAILED`, never held against the guest. A guest who opts in or
+unblocks the bot again lifts their reversible global Telegram block.
+Organization-scoped restrictions and stronger reasons stay in force.
 
 Listing needs `guest:contact:read`; changing needs `guest:write`.
 
@@ -3223,13 +3226,20 @@ channel the guest already has (email for most; SMS for a guest with only a
 phone, once a provider exists), and the sequence is: invitation → guest taps
 the Telegram link → reminders, confirmations and updates go to Telegram.
 
-**The link is already in place.** When a bot is configured, Aveline's
-invitation email ends with a "Prefer Telegram?" line carrying the guest's own
-`https://t.me/<bot>?start=<guestToken>`, and the personalised invitation
-carries it as `guest.telegramLink` (`null` without a bot) — show it as "get
-updates on Telegram". Telegram copy exists for invitations, reminders,
-confirmations, detail changes and thank-yous (decided 10 October 2026).
-WhatsApp is not chosen until Meta-approved templates exist for it.
+When a bot is configured, the invitation email can include a Telegram link
+through the `telegramLink` template variable. Its start code can link a
+private chat to the guest once through the authenticated webhook. It
+expires after 30 days or at invitation expiry, whichever comes first.
+Rotating the personal link or erasing the guest invalidates unused codes.
+The code cannot open the invitation, change an RSVP or read private files.
+The personalized page retains `guest.telegramLink: null`.
+
+Previously delivered bot links that contain an invitation token no longer
+connect the bot. The ordinary invitation links and active Telegram
+connections keep working. New eligible invitation emails carry a fresh
+code. Telegram copy exists for invitations, reminders, confirmations,
+detail changes and thank-yous. WhatsApp is selected once Meta-approved
+templates exist for it.
 
 **Unreachable reasons now distinguish the cases.** A household whose only
 address is a Telegram chat that has not opted in reports *"has not opened the
@@ -3613,11 +3623,14 @@ The original is kept and stays at `url`.
 POST /api/v1/events/:eventId/tickets/:code/admit
 ```
 
-The scanner screen. `code` is what the QR encodes; the scanner is opened for
-one event, and a code from any other event is `404`.
+The QR encodes the ticket code as plain text. Issued codes are exactly 16
+characters from `A–Z`, `0–9`, hyphen and underscore. The scanner checks
+`^[A-Z0-9_-]{16}$` and sends only a
+matching code. A personal invitation URL or other QR payload never goes into
+the admission request. A code from another event returns `404`.
 
 ```json
-{ "code": "A1B2...", "admittedAt": "2026-10-05T18:02:11.000Z", "holderName": "Ani Grigoryan" }
+{ "code": "A1B2C3D4E5F6G7H8", "admittedAt": "2026-10-05T18:02:11.000Z", "holderName": "Ani Grigoryan" }
 ```
 
 **A code admits exactly once.** A second scan returns `400` with

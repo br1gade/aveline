@@ -1,3 +1,4 @@
+import { issueTelegramOptIn, telegramStartUpdate, TEST_TELEGRAM_BOT } from '../fixtures/telegram-opt-in.fixture';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -14,12 +15,13 @@ describe('Guest opt-in availability (integration)', () => {
   afterAll(() => disconnectTestDatabase());
   it.each(['expired', 'draft'])('does not register a Telegram channel through an %s invitation', async (state) => {
     const event = await seedEvent(prisma);
+    const { code } = await issueTelegramOptIn(prisma, event.primaryGuestToken);
     await prisma.invitation.update({ where: { slug: event.slug }, data: state === 'expired' ? { expiresAt: new Date(0) } : { status: 'DRAFT' } });
     const database = prisma as unknown as PrismaService;
     const lift = jest.fn();
     const controller = new TelegramWebhookController(database, new GuestChannelsService(database), { liftAfterOptIn: lift } as unknown as SuppressionService,
-      new ConfigService({ NODE_ENV: 'test', TELEGRAM_WEBHOOK_SECRET: '' }));
-    await controller.receive({ message: { chat: { id: 123456789 }, text: `/start ${event.primaryGuestToken}` } });
+      new ConfigService({ NODE_ENV: 'test', TELEGRAM_WEBHOOK_SECRET: '', TELEGRAM_BOT_USERNAME: TEST_TELEGRAM_BOT }));
+    await controller.receive(telegramStartUpdate(code, 123456789));
     expect(await prisma.guestChannel.count()).toBe(0); expect(lift).not.toHaveBeenCalled();
   });
 });

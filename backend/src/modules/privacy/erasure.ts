@@ -226,7 +226,8 @@ async function redactMessages(tx: Tx, email: string, guestIds: string[]): Promis
   });
   const redacted = await tx.message.updateMany({
     where: theirs,
-    data: { subject: null, body: ERASED, toAddress: ERASED, providerParams: [] },
+    data: { subject: null, body: ERASED, toAddress: ERASED, providerParams: [],
+      telegramOptInDigest: null, telegramOptInBinding: null, telegramOptInExpiresAt: null, telegramOptInRedeemedAt: null },
   });
   return redacted.count;
 }

@@ -126,7 +126,7 @@ describe('Authoritative personalized cache (integration)', () => {
   it('never puts bearer links or guest tokens in cache keys or projections', async () => {
     const event = await setup(); const set = jest.spyOn(redis, 'set'); const evalScript = jest.spyOn(redis, 'eval');
     const page = await invitations.getPublicInvitation(event.slug, event.primaryGuestToken);
-    expect(page.guest?.telegramLink).toContain(event.primaryGuestToken);
+    expect(page.guest?.telegramLink).toBeNull();
     const writes = JSON.stringify([...set.mock.calls, ...evalScript.mock.calls]);
     expect(writes).not.toContain(event.primaryGuestToken); expect(writes).not.toContain('https://t.me/');
   });

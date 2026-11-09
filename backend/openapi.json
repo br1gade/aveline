@@ -27398,7 +27398,10 @@
                 "properties": {
                   "telegramLink": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
                   },
                   "id": {
                     "type": "string"
@@ -28158,7 +28161,10 @@
                 "properties": {
                   "telegramLink": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
                   },
                   "id": {
                     "type": "string"
@@ -29313,7 +29319,10 @@
                 "properties": {
                   "telegramLink": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
                   },
                   "id": {
                     "type": "string"
@@ -30127,7 +30136,10 @@
                 "properties": {
                   "telegramLink": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
                   },
                   "id": {
                     "type": "string"

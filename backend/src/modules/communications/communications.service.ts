@@ -1,3 +1,4 @@
+import { INVITATION_EMAIL_TEMPLATE, replaceTelegramStartLinks, TelegramOptInGrant } from './telegram-opt-in';
 import { invitationEmailFooter } from './invitation-email-footer';
 import { storedForms } from './address-form';
 import { normalizeAddress } from './address-form';
@@ -34,6 +35,7 @@ export interface EnqueueParams {
   scheduledFor?: Date;
   /** Same logical message is only ever enqueued once. */
   dedupeKey?: string;
+  telegramOptIn?: TelegramOptInGrant;
 }
 
 /**
@@ -396,6 +398,8 @@ export class CommunicationsService {
     attempts: number;
     providerTemplate?: string | null;
     providerParams?: string[];
+    templateKey?: string | null;
+    telegramOptInDigest?: string | null;
   }): Promise<DeliveryOutcome> {
     const transport = this.transports.get(message.channel);
     if (!transport) {
@@ -408,8 +412,7 @@ export class CommunicationsService {
       result = await transport.send({
         messageId: message.id,
         toAddress: message.toAddress,
-        subject: message.subject ?? undefined,
-        body: message.body,
+        ...messageCopyForDelivery(message),
         locale: message.locale,
         template: message.providerTemplate
           ? {
@@ -563,6 +566,21 @@ export class CommunicationsService {
   }
 }
 
+function messageCopyForDelivery(message: {
+  channel: MessageChannel; templateKey?: string | null; telegramOptInDigest?: string | null;
+  subject: string | null; body: string;
+}) {
+  const subject = message.subject ?? undefined;
+  if (message.channel !== MessageChannel.EMAIL || message.templateKey !== INVITATION_EMAIL_TEMPLATE || message.telegramOptInDigest) {
+    return { subject, body: message.body };
+  }
+  // A pre-cutover outbox row can still carry the old credential in the bot URL.
+  return {
+    subject: subject === undefined ? undefined : replaceTelegramStartLinks(subject, ''),
+    body: replaceTelegramStartLinks(message.body, ''),
+  };
+}
+
 /** A message as it is stored: rendered now, so what was sent stays knowable after the copy changes. */
 function messageData(
   params: EnqueueParams,
@@ -586,6 +604,7 @@ function messageData(
     scheduledFor: params.scheduledFor ?? new Date(),
     priority: priorityFor(params.templateKey),
     dedupeKey: params.dedupeKey ?? null,
+    ...(!isSuppressed ? params.telegramOptIn : undefined),
     // Resolved here, not at dispatch, for the same reason the body is.
     providerTemplate: template.providerTemplate,
     providerParams: template.providerTemplate ? positionalParams(template.providerParams, params.variables) : [],

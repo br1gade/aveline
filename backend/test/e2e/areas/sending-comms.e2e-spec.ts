@@ -1,10 +1,10 @@
+import { issueTelegramOptIn, telegramStartUpdate, TEST_TELEGRAM_BOT } from '../../fixtures/telegram-opt-in.fixture';
 import type { Server } from 'node:http';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import { EventRole, InvitationStatus, MessageChannel, OrganizationRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import { AppModule } from '../../../src/app.module';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { authenticateAs } from '../../fixtures/auth.fixture';
 import { seedEvent } from '../../fixtures/event.fixture';
@@ -24,6 +24,7 @@ describe('sending and communications (e2e, coverage)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
   const savedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const savedBot = process.env.TELEGRAM_BOT_USERNAME;
 
   const http = () => request(app.getHttpServer() as Server);
 
@@ -31,7 +32,9 @@ describe('sending and communications (e2e, coverage)', () => {
     prisma = testPrisma();
     // Read when the webhook controller is built, so set before compiling.
     process.env.TELEGRAM_WEBHOOK_SECRET = WEBHOOK_SECRET;
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    process.env.TELEGRAM_BOT_USERNAME = TEST_TELEGRAM_BOT;
+    const { AppModule: appModule } = await import('../../../src/app.module');
+    const moduleRef = await Test.createTestingModule({ imports: [appModule] })
       .overrideProvider(PrismaService)
       .useValue(prisma)
       .compile();
@@ -48,6 +51,8 @@ describe('sending and communications (e2e, coverage)', () => {
   afterAll(async () => {
     if (savedSecret === undefined) delete process.env.TELEGRAM_WEBHOOK_SECRET;
     else process.env.TELEGRAM_WEBHOOK_SECRET = savedSecret;
+    if (savedBot === undefined) delete process.env.TELEGRAM_BOT_USERNAME;
+    else process.env.TELEGRAM_BOT_USERNAME = savedBot;
     await app.close();
     await disconnectTestDatabase();
   });
@@ -228,7 +233,7 @@ describe('sending and communications (e2e, coverage)', () => {
 
   describe('the Telegram webhook, once a secret is set', () => {
     const webhook = () => http().post('/api/v1/webhooks/telegram');
-    const startUpdate = (token: string) => ({ message: { chat: { id: 4242 }, text: `/start ${token}` } });
+    const startUpdate = (code: string) => telegramStartUpdate(code, 4242);
 
     it('refuses an update carrying no secret header, and links nothing', async () => {
       const { primaryGuestToken } = await seedEvent(prisma);
@@ -246,12 +251,21 @@ describe('sending and communications (e2e, coverage)', () => {
       expect(await prisma.guestChannel.count()).toBe(0);
     });
 
+    it('refuses to link a private Telegram chat using an invitation credential', async () => {
+      const { primaryGuestToken } = await seedEvent(prisma);
+      await webhook().set('X-Telegram-Bot-Api-Secret-Token', WEBHOOK_SECRET)
+        .send({ message: { chat: { id: 4242, type: 'private' }, text: `/start ${primaryGuestToken}` } })
+        .expect(201);
+      expect(await prisma.guestChannel.count()).toBe(0);
+    });
+
     it('accepts an update with the right secret, without any sign-in, and links the chat', async () => {
       const { primaryGuestToken, eventId } = await seedEvent(prisma);
 
+      const { code } = await issueTelegramOptIn(prisma, primaryGuestToken);
       const { body } = await webhook()
         .set('X-Telegram-Bot-Api-Secret-Token', WEBHOOK_SECRET)
-        .send(startUpdate(primaryGuestToken))
+        .send(startUpdate(code))
         .expect(201);
 
       expect(body).toEqual({ ok: true });

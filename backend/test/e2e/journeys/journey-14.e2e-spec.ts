@@ -1,3 +1,4 @@
+import { issueTelegramOptIn, telegramStartUpdate } from '../../fixtures/telegram-opt-in.fixture';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { createHmac } from 'node:crypto';
@@ -7,7 +8,6 @@ import { Test } from '@nestjs/testing';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { BlockType, EventType, MessageChannel, MessageStatus, PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import { AppModule } from '../../../src/app.module';
 import { SerializeInterceptor } from '../../../src/common/interceptors/serialize';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { MessageTransport } from '../../../src/modules/communications/channels/message-channel';
@@ -88,7 +88,8 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
     // Installed before the module compiles: the transports capture `fetch` when they are built.
     fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(providers);
     prisma = testPrisma();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED).compile();
+    const { AppModule: appModule } = await import('../../../src/app.module');
+    const moduleRef = await Test.createTestingModule({ imports: [appModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(ThrottlerStorage).useValue(UNTHROTTLED).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
     configureWhatsAppBodyParser(app);
     app.setGlobalPrefix('api/v1');
@@ -263,15 +264,17 @@ describe('Journey 14: WhatsApp invitation, Meta receipts in the host report, Tel
   };
 
   /**
-   * Ani taps the Telegram link from her invitation; Davit answers on his.
+   * Ani redeems a Telegram opt-in code; Davit answers on his invitation.
    * The host's reminder then chases only Ani — and on Telegram, the channel
    * she chose — while Davit, who replied, is left alone.
    */
   const aniMovesToTelegramAndIsReminded = async (wedding: Wedding, sent: Sent) => {
     const { body: page } = await http().get(`/api/v1${sent.ani.path}`).expect(200);
     expect(page.guest.name).toBe('Ani Hakobyan');
-    expect(page.guest.telegramLink).toBe(`https://t.me/${CHANNEL_ENV.TELEGRAM_BOT_USERNAME}?start=${sent.ani.token}`);
-    await http().post('/api/v1/webhooks/telegram').send({ message: { chat: { id: ANI_CHAT }, text: `/start ${sent.ani.token}` } }).expect(201);
+    expect(page.guest.telegramLink).toBeNull();
+    const { code, messageId } = await issueTelegramOptIn(prisma, sent.ani.token, CHANNEL_ENV.TELEGRAM_BOT_USERNAME);
+    await http().post('/api/v1/webhooks/telegram').send(telegramStartUpdate(code, ANI_CHAT)).expect(201);
+    await prisma.message.delete({ where: { id: messageId } });
     expect(await prisma.guestChannel.findMany({ select: { channel: true, address: true, optedInAt: true } }))
       .toEqual([{ channel: MessageChannel.TELEGRAM, address: String(ANI_CHAT), optedInAt: expect.any(Date) }]);
 

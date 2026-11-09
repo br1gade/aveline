@@ -1,3 +1,5 @@
+import { allowsDevelopmentShortcuts } from '../../../common/environment';
+import { createTelegramOptIn, INVITATION_EMAIL_TEMPLATE as TEMPLATE_KEY } from '../../communications/telegram-opt-in';
 import { hasInvitationExpired } from '../lifetime';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InvitationStatus, Message, MessageChannel, MessageStatus } from '@prisma/client';
@@ -17,8 +19,12 @@ import {
   planInvitationSend,
 } from './send-plan';
 
-/** The template whose copy an invitation email uses. */
-const TEMPLATE_KEY = 'invitation.send';
+function optInBotUsername(config: ConfigService): string {
+  const username = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
+  if (!/^[A-Za-z0-9_]+$/u.test(username)) return '';
+  if (allowsDevelopmentShortcuts(config.get<string>('NODE_ENV') ?? process.env.NODE_ENV)) return username;
+  return config.get<string>('TELEGRAM_BOT_TOKEN') && config.get<string>('TELEGRAM_WEBHOOK_SECRET') ? username : '';
+}
 
 @Injectable()
 export class InvitationSenderService implements OnModuleInit {
@@ -36,7 +42,7 @@ export class InvitationSenderService implements OnModuleInit {
   ) {
     this.appUrl = config.get<string>('PUBLIC_APP_URL') ?? 'http://localhost:5173';
     this.configuredChannels = deliverableChannels(config);
-    this.botUsername = config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
+    this.botUsername = optInBotUsername(config);
   }
 
   onModuleInit(): void {
@@ -191,11 +197,13 @@ export class InvitationSenderService implements OnModuleInit {
   }
 
   private messageFor(
-    invitation: { id: string; slug: string; eventId: string; organizationId: string; hosts: string; title: string; translations: unknown; defaultLocale: string },
+    invitation: { id: string; slug: string; expiresAt: Date | null; eventId: string; organizationId: string; hosts: string; title: string; translations: unknown; defaultLocale: string },
     recipient: Recipient,
     attemptNumber: number,
   ): EnqueueParams & { dedupeKey: string } {
     const { guest } = recipient;
+    const optIn = this.botUsername && recipient.via.channel === MessageChannel.EMAIL
+      ? createTelegramOptIn(this.botUsername, invitation, guest.token) : null;
     return {
       organizationId: invitation.organizationId,
       eventId: invitation.eventId,
@@ -204,11 +212,12 @@ export class InvitationSenderService implements OnModuleInit {
       templateKey: TEMPLATE_KEY,
       toAddress: recipient.via.address,
       locale: guest.locale ?? invitation.defaultLocale,
+      telegramOptIn: optIn?.grant,
       variables: {
         guestName: displayName(guest),
         ...eventWording(invitation, guest.locale ?? invitation.defaultLocale),
         link: this.linkFor(invitation.slug, guest.token),
-        telegramLink: this.telegramLinkFor(guest.token),
+        telegramLink: optIn?.url ?? '',
       },
       // Whether to send at all was decided by `hasReachedGuest`. The key, per
       // attempt, is what keeps two simultaneous presses of "send" — which both
@@ -240,19 +249,6 @@ export class InvitationSenderService implements OnModuleInit {
   /** The guest's own capability URL — the thing the whole email exists to carry. */
   private linkFor(slug: string, token: string): string {
     return `${this.appUrl}/invitations/${slug}/g/${token}`;
-  }
-
-  /**
-   * The Telegram deep link, when a bot is configured.
-   *
-   * Carried as a template variable so a host can offer it in the invitation
-   * copy: tapping it is the only way a guest can ever receive anything on
-   * Telegram, since a bot cannot open a conversation itself. The payload is
-   * the guest's existing capability token — the same one already in their
-   * invitation URL — so this adds no new secret.
-   */
-  private telegramLinkFor(token: string): string {
-    return this.botUsername ? `https://t.me/${this.botUsername}?start=${token}` : '';
   }
 
   private async loadInvitation(slug: string) {

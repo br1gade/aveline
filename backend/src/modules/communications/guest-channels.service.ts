@@ -1,5 +1,6 @@
+import { INVITATION_EMAIL_TEMPLATE, REDEEMABLE_EMAIL_STATUSES, telegramOptInBinding, telegramOptInDigest } from './telegram-opt-in';
 import { lockGuestAccess, readGuestAccess } from '../guest-contributions/guest-access';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { MessageChannel, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GuestAddress } from '../invitations/sending/channel-preference';
@@ -71,32 +72,39 @@ export class GuestChannelsService {
     return saved;
   }
 
-  async recordOptInFromToken(token: string, channel: MessageChannel, address: string) {
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        const person = await tx.guest.findUnique({ where: { token }, select: { event: { select: { invitation: { select: { slug: true } } } } } });
-        const slug = person?.event.invitation?.slug;
-        if (!slug) return null;
-        const guest = await lockGuestAccess(tx, slug, token);
-        await this.recordOptIn(guest.id, channel, address, tx);
-        await readGuestAccess(tx, slug, token);
-        return guest.id;
-      });
-    } catch (error) {
-      if (error instanceof NotFoundException) return null;
-      throw error;
-    }
-  }
+  async redeemTelegramOptIn(tx: Prisma.TransactionClient, input: { code: string; bot: string; chatId: string }) {
+    const digest = telegramOptInDigest(input.code);
+    if (!digest || !input.bot) return false;
 
-  /**
-   * Forgets a chat channel.
-   *
-   * Used when a guest blocks the bot: the suppression list stops us writing,
-   * and removing the address stops us choosing the channel at all, so they
-   * fall back to email rather than silently receiving nothing.
-   */
-  async forget(guestId: string, channel: MessageChannel) {
-    await this.prisma.guestChannel.deleteMany({ where: { guestId, channel } });
-    return { ok: true as const };
+    const pending = await readPendingTelegramOptIn(tx, digest, input.bot);
+    if (!pending) return false;
+    const { message, invitation, token } = pending;
+    const guest = await lockGuestAccess(tx, invitation.slug, token);
+    if (guest.eventId !== message.eventId || guest.event.invitation?.id !== invitation.id) return false;
+    const now = new Date();
+    const claimed = await tx.message.updateMany({
+      where: { id: message.id, telegramOptInRedeemedAt: null, status: { in: REDEEMABLE_EMAIL_STATUSES }, telegramOptInExpiresAt: { gt: now } },
+      data: { telegramOptInRedeemedAt: now },
+    });
+    if (claimed.count === 0) return false;
+    await this.recordOptIn(guest.id, MessageChannel.TELEGRAM, input.chatId, tx);
+    await readGuestAccess(tx, invitation.slug, token);
+    return true;
   }
+}
+
+async function readPendingTelegramOptIn(tx: Prisma.TransactionClient, digest: string, bot: string) {
+  const message = await tx.message.findUnique({
+    where: { telegramOptInDigest: digest, telegramOptInRedeemedAt: null,
+      channel: MessageChannel.EMAIL, templateKey: INVITATION_EMAIL_TEMPLATE,
+      status: { in: REDEEMABLE_EMAIL_STATUSES }, telegramOptInExpiresAt: { gt: new Date() } },
+    select: {
+      id: true, eventId: true, telegramOptInBinding: true,
+      guest: { select: { token: true, event: { select: { invitation: { select: { id: true, slug: true } } } } } },
+    },
+  });
+  const invitation = message?.guest?.event.invitation;
+  if (!message?.guest || !invitation || message.telegramOptInBinding !== telegramOptInBinding(bot, invitation.id, message.guest.token)) return null;
+
+  return { message, invitation, token: message.guest.token };
 }
