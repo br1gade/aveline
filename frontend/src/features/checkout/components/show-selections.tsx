@@ -4,8 +4,8 @@ import { z } from 'zod';
 
 import { expectData } from '@/api/client';
 import type { PublicEvent, TicketSection } from '@/features/public-event';
-import { useIsHydrated } from '@/ui';
-import { NativeSelect, NativeSelectOption } from '@/ui/kit/native-select';
+import { Button, useIsHydrated } from '@/ui';
+import { SelectField } from '@/ui/form';
 
 import type { TicketSelection } from '../types';
 import { useCheckoutApi } from './use-checkout-api';
@@ -130,26 +130,27 @@ function SeatChoices({
   if (!stock || stock === 'loading') return <p role="status">{t('selection.loading')}</p>;
   if (stock === 'error')
     return (
-      <button type="button" onClick={onReload}>
+      <Button variant="secondary" className="justify-self-start" onClick={onReload}>
         {t('selection.retry')}
-      </button>
+      </Button>
     );
   if (!stock.available || !stock.ticketTypeIds.includes(typeId))
     return <p role="status">{t('selection.soldOut')}</p>;
   if (section.mode === 'UNNUMBERED')
     return <p>{t('selection.remaining', { count: stock.available })}</p>;
   return (
-    <label className="grid gap-1">
-      {t('selection.seat')}
-      <NativeSelect value={pick.seatId ?? ''} onChange={(event) => onChange(event.target.value)}>
-        <NativeSelectOption value="">{t('selection.choose')}</NativeSelectOption>
-        {stock.seats.map(({ id, row, label }) => (
-          <NativeSelectOption key={id} value={id} disabled={taken.has(id)}>
-            {t('selection.seatName', { row, seat: label })}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
-    </label>
+    <SelectField
+      label={t('selection.seat')}
+      value={pick.seatId ?? ''}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      <option value="">{t('selection.choose')}</option>
+      {stock.seats.map(({ id, row, label }) => (
+        <option key={id} value={id} disabled={taken.has(id)}>
+          {t('selection.seatName', { row, seat: label })}
+        </option>
+      ))}
+    </SelectField>
   );
 }
 
@@ -186,20 +187,18 @@ function TicketSlot({
   return (
     <fieldset disabled={!isHydrated} className="grid gap-3">
       <legend>{t('selection.ticket', { count: index + 1, name: name ?? '' })}</legend>
-      <label className="grid gap-1">
-        {t('selection.section')}
-        <NativeSelect
-          value={pick?.sectionKey ?? ''}
-          onChange={(event) => choose(event.target.value)}
-        >
-          <NativeSelectOption value="">{t('selection.choose')}</NativeSelectOption>
-          {sections.map(({ key, name }) => (
-            <NativeSelectOption key={key} value={key}>
-              {name}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </label>
+      <SelectField
+        label={t('selection.section')}
+        value={pick?.sectionKey ?? ''}
+        onChange={(event) => choose(event.target.value)}
+      >
+        <option value="">{t('selection.choose')}</option>
+        {sections.map(({ key, name }) => (
+          <option key={key} value={key}>
+            {name}
+          </option>
+        ))}
+      </SelectField>
       {pick && section ? (
         <SeatChoices
           section={section}

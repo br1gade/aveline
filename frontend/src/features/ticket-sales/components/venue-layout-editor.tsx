@@ -1,96 +1,64 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
-import { useFieldArray, useForm, useWatch, type UseFormReturn } from 'react-hook-form';
+import {
+  useFieldArray,
+  useForm,
+  useWatch,
+  type FieldError,
+  type UseFormReturn,
+} from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 
-import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
+import { AppForm, SelectField, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
-import { NativeSelect, NativeSelectOption } from '@/ui/kit/native-select';
+import { NativeSelectOption } from '@/ui/kit/native-select';
 
 import { publishVenueLayout, type VenueLayout } from '../inventory-api';
+import { inventoryRefusalOf, type InventoryRefusal } from '../inventory-refusals';
+import {
+  EMPTY_ROW,
+  EMPTY_SECTION,
+  layoutSchema,
+  layoutValues,
+  sectionBody,
+  type LayoutValues,
+} from '../layout-form';
+import { InventoryProblem } from './inventory-problem';
 
-const key = z
-  .string()
-  .trim()
-  .regex(/^[a-z0-9][a-z0-9-]{0,39}$/);
-const name = z.string().trim().min(1).max(100);
-const row = z.object({ label: z.string().trim().max(16), seats: z.string().max(1700) });
-const section = z.object({
-  key,
-  name,
-  mode: z.enum(['NUMBERED', 'UNNUMBERED']),
-  capacity: z.string(),
-  rows: z.array(row).max(100),
-});
-const editorSchema = z.object({ key, name, sections: z.array(section).min(1).max(40) });
-type Values = z.infer<typeof editorSchema>;
-type LayoutForm = UseFormReturn<Values>;
-type LayoutSection = Values['sections'][number];
+type LayoutForm = UseFormReturn<LayoutValues>;
 
-const emptyRow = { label: '', seats: '' };
-const emptySection: LayoutSection = {
-  key: '',
-  name: '',
-  mode: 'NUMBERED',
-  capacity: '',
-  rows: [emptyRow],
-};
-
-function initial(existing?: VenueLayout): Values {
-  if (!existing) return { key: '', name: '', sections: [emptySection] };
-  return {
-    key: existing.key,
-    name: existing.name,
-    sections: existing.sections.map((entry) =>
-      entry.mode === 'NUMBERED'
-        ? {
-            ...entry,
-            capacity: '',
-            rows: entry.rows.map(({ label, seats }) => ({ label, seats: seats.join(', ') })),
-          }
-        : { ...entry, capacity: String(entry.capacity), rows: [emptyRow] },
-    ),
-  };
-}
-
-function sectionBody({ key, name, mode, capacity, rows }: LayoutSection) {
-  if (mode === 'UNNUMBERED') return { key, name, mode, capacity: Number(capacity) };
-  return {
-    key,
-    name,
-    mode,
-    rows: rows.map(({ label, seats }) => ({
-      label,
-      seats: seats
-        .split(',')
-        .map((seat) => seat.trim())
-        .filter(Boolean),
-    })),
-  };
+/** A field's mistake in words: the schema's message names which (`layout-form.ts`). */
+function useFieldError() {
+  const { t } = useTranslation('ticket-sales');
+  return (error: FieldError | undefined) =>
+    error?.message ? t(`inventory.errors.${error.message as 'key'}`) : undefined;
 }
 
 function RowFields({ form, index }: { form: LayoutForm; index: number }) {
   const { t } = useTranslation('ticket-sales');
+  const errorOf = useFieldError();
   const path = `sections.${index}.rows` as const;
   const rows = useFieldArray({ control: form.control, name: path });
+  const errors = form.formState.errors.sections?.[index]?.rows;
   return (
     <div className="grid gap-3">
       {rows.fields.map((row, position) => (
         <div key={row.id} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
           <TextInputField
             label={t('inventory.row')}
+            error={errorOf(errors?.[position]?.label)}
             {...form.register(`${path}.${position}.label`)}
           />
           <TextInputField
             label={t('inventory.seats')}
+            error={errorOf(errors?.[position]?.seats)}
             {...form.register(`${path}.${position}.seats`)}
           />
           <Button
             type="button"
             variant="outline"
+            className="self-end"
             disabled={rows.fields.length === 1}
             onClick={() => rows.remove(position)}
           >
@@ -101,8 +69,9 @@ function RowFields({ form, index }: { form: LayoutForm; index: number }) {
       <Button
         type="button"
         variant="outline"
+        className="justify-self-start"
         disabled={rows.fields.length >= 100}
-        onClick={() => rows.append(emptyRow)}
+        onClick={() => rows.append(EMPTY_ROW)}
       >
         {t('inventory.addRow')}
       </Button>
@@ -120,41 +89,42 @@ function SectionFields({
   onRemove: () => void;
 }) {
   const { t } = useTranslation('ticket-sales');
+  const errorOf = useFieldError();
   const path = `sections.${index}` as const;
   const mode = useWatch({ control: form.control, name: `${path}.mode` });
+  const errors = form.formState.errors.sections?.[index];
   return (
     <fieldset className="border-border grid gap-3 border p-3">
-      <legend>
-        {t('inventory.sectionName')} {index + 1}
-      </legend>
-      <TextInputField label={t('inventory.sectionKey')} {...form.register(`${path}.key`)} />
-      <TextInputField label={t('inventory.sectionName')} {...form.register(`${path}.name`)} />
-      <label className="grid gap-1">
-        {t('inventory.sectionName')}
-        <NativeSelect {...form.register(`${path}.mode`)}>
-          <NativeSelectOption value="NUMBERED">{t('inventory.numbered')}</NativeSelectOption>
-          <NativeSelectOption value="UNNUMBERED">{t('inventory.zone')}</NativeSelectOption>
-        </NativeSelect>
-      </label>
+      <legend>{t('inventory.sectionLegend', { number: index + 1 })}</legend>
+      <TextInputField
+        label={t('inventory.sectionKey')}
+        error={errorOf(errors?.key)}
+        {...form.register(`${path}.key`)}
+      />
+      <TextInputField
+        label={t('inventory.sectionName')}
+        error={errorOf(errors?.name)}
+        {...form.register(`${path}.name`)}
+      />
+      <SelectField label={t('inventory.sectionMode')} {...form.register(`${path}.mode`)}>
+        <NativeSelectOption value="NUMBERED">{t('inventory.numbered')}</NativeSelectOption>
+        <NativeSelectOption value="UNNUMBERED">{t('inventory.zone')}</NativeSelectOption>
+      </SelectField>
       {mode === 'NUMBERED' ? (
         <RowFields form={form} index={index} />
       ) : (
         <TextInputField
           inputMode="numeric"
           label={t('inventory.capacity')}
+          error={errorOf(errors?.capacity)}
           {...form.register(`${path}.capacity`)}
         />
       )}
-      <Button type="button" variant="outline" onClick={onRemove}>
+      <Button type="button" variant="outline" className="justify-self-start" onClick={onRemove}>
         {t('inventory.remove')}
       </Button>
     </fieldset>
   );
-}
-
-function EditorProblem({ problem }: { problem: Problem | null }) {
-  const { t } = useTranslation('ticket-sales');
-  return problem ? <ProblemAlert problem={problem} refused={() => t('inventory.failed')} /> : null;
 }
 
 interface EditorProps {
@@ -164,15 +134,15 @@ interface EditorProps {
 }
 
 function useLayoutEditor({ profileId, existing, onPublish }: EditorProps) {
-  const [problem, setProblem] = useState<Problem | null>(null);
-  const form = useForm<Values>({
-    resolver: zodResolver(editorSchema),
-    defaultValues: initial(existing),
+  const [refusal, setRefusal] = useState<InventoryRefusal | null>(null);
+  const form = useForm<LayoutValues>({
+    resolver: zodResolver(layoutSchema),
+    defaultValues: layoutValues(existing),
   });
   useLeaveGuard(form);
   const sections = useFieldArray({ control: form.control, name: 'sections' });
-  async function publish({ key, name, sections }: Values) {
-    setProblem(null);
+  async function publish({ key, name, sections }: LayoutValues) {
+    setRefusal(null);
     try {
       onPublish(
         await publishVenueLayout(browserSession().api, profileId, {
@@ -183,26 +153,38 @@ function useLayoutEditor({ profileId, existing, onPublish }: EditorProps) {
         }),
       );
     } catch (error) {
-      setProblem(problemFrom(error));
+      setRefusal(inventoryRefusalOf(error));
     }
   }
-  return { form, sections, publish, problem };
+  return { form, sections, publish, refusal };
 }
 
+/**
+ * A venue layout typed by hand: sections, then rows of seat labels or a zone's places. Publishing it
+ * is Aveline's directory editors' (`directory:manage`); anyone else is told so (FR-6). Each mistake
+ * shows on its own field.
+ */
 export function VenueLayoutEditor({ profileId, existing, onPublish }: EditorProps) {
   const { t } = useTranslation('ticket-sales');
-  const { form, sections, publish, problem } = useLayoutEditor({ profileId, existing, onPublish });
+  const errorOf = useFieldError();
+  const { form, sections, publish, refusal } = useLayoutEditor({ profileId, existing, onPublish });
+  const { errors } = form.formState;
   return (
     <details className="grid gap-3">
       <summary className="min-h-11 cursor-pointer">{t('inventory.editor')}</summary>
-      <EditorProblem problem={problem} />
+      <InventoryProblem refusal={refusal} action="layout" />
       <AppForm onSubmit={form.handleSubmit(publish)}>
         <TextInputField
           readOnly={Boolean(existing)}
           label={t('inventory.layoutKey')}
+          error={errorOf(errors.key)}
           {...form.register('key')}
         />
-        <TextInputField label={t('inventory.layoutName')} {...form.register('name')} />
+        <TextInputField
+          label={t('inventory.layoutName')}
+          error={errorOf(errors.name)}
+          {...form.register('name')}
+        />
         {sections.fields.map((section, index) => (
           <SectionFields
             key={section.id}
@@ -214,14 +196,13 @@ export function VenueLayoutEditor({ profileId, existing, onPublish }: EditorProp
         <Button
           type="button"
           variant="outline"
+          className="justify-self-start"
           disabled={sections.fields.length >= 40}
-          onClick={() => sections.append(emptySection)}
+          onClick={() => sections.append(EMPTY_SECTION)}
         >
           {t('inventory.addSection')}
         </Button>
-        {Object.keys(form.formState.errors).length ? (
-          <p role="alert">{t('inventory.failed')}</p>
-        ) : null}
+        {Object.keys(errors).length ? <p role="alert">{t('inventory.errors.summary')}</p> : null}
         <SubmitButton isSubmitting={form.formState.isSubmitting}>
           {t('inventory.publishLayout')}
         </SubmitButton>

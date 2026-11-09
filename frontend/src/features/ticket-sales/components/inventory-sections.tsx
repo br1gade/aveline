@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { problemFrom, type Problem } from '@/api/problems';
-import { AppForm, ProblemAlert, SubmitButton, useLeaveGuardWhen } from '@/ui/app-form';
+import { AppForm, SubmitButton, useLeaveGuardWhen } from '@/ui/app-form';
 
 import type { VenueLayout } from '../inventory-api';
+import { inventoryRefusalOf, type InventoryRefusal } from '../inventory-refusals';
+import { InventoryProblem } from './inventory-problem';
 
 interface Configuration {
   offers: { sectionKey: string; ticketTypeId: string }[];
@@ -62,15 +63,13 @@ function SeatBlocks({
   return (
     <details onToggle={(event) => setIsOpen(event.currentTarget.open)}>
       <summary className="min-h-11 cursor-pointer">
-        {t('inventory.blocked')} ({selected.length})
+        {t('inventory.blockedCount', { number: selected.length })}
       </summary>
       {isOpen ? (
         <div className="grid gap-2">
           {section.rows.map(({ label, seats }) => (
             <fieldset key={label}>
-              <legend>
-                {t('inventory.row')} {label}
-              </legend>
+              <legend>{t('inventory.rowLegend', { row: label })}</legend>
               <div className="flex flex-wrap gap-2">
                 {seats.map((seat) => {
                   const id = blockKey(label, seat);
@@ -109,9 +108,7 @@ function OfferFields({ section, prices, picked, blocked, onOffer, onBlock }: Off
     <fieldset className="border-border grid gap-2 border p-3">
       <legend>{section.name}</legend>
       {section.mode === 'UNNUMBERED' ? (
-        <p>
-          {t('inventory.capacity')} {section.capacity}
-        </p>
+        <p>{t('inventory.capacityOf', { places: section.capacity })}</p>
       ) : null}
       {prices.map(({ id, name }) => (
         <label key={id} className="flex min-h-11 items-center gap-2">
@@ -134,7 +131,7 @@ export function InventorySections({ layout, prices, onSubmit }: InventorySection
   const { t } = useTranslation('ticket-sales');
   const [picked, setPicked] = useState<PickedOffers>({});
   const [blocked, setBlocked] = useState<PickedOffers>({});
-  const [problem, setProblem] = useState<Problem | null>(null);
+  const [problem, setProblem] = useState<InventoryRefusal | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const canPublish = Object.values(picked).some((offers) => offers.length);
   useLeaveGuardWhen(canPublish && !isSaving);
@@ -145,7 +142,7 @@ export function InventorySections({ layout, prices, onSubmit }: InventorySection
     try {
       await onSubmit(prepare(layout, picked, blocked));
     } catch (error) {
-      setProblem(problemFrom(error));
+      setProblem(inventoryRefusalOf(error));
     } finally {
       setIsSaving(false);
     }
@@ -159,7 +156,7 @@ export function InventorySections({ layout, prices, onSubmit }: InventorySection
       }}
     >
       <h3 className="m-0">{t('inventory.offers')}</h3>
-      {problem ? <ProblemAlert problem={problem} refused={() => t('inventory.failed')} /> : null}
+      <InventoryProblem refusal={problem} action="publish" />
       {layout.sections.map((section) => (
         <OfferFields
           key={section.key}

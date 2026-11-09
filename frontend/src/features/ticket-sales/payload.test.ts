@@ -166,3 +166,23 @@ describe('the announcement', () => {
     });
   });
 });
+
+describe('the buyer’s ticket limit, sent (PD-183)', () => {
+  const languages = ['en'];
+
+  it('sends a number when set, and nothing when it is unchanged', () => {
+    const values = announcementFormValues(null, languages);
+    expect(announcementBody(null, { ...values, buyerTicketLimit: ' 4 ' }, languages)).toMatchObject(
+      {
+        buyerTicketLimit: 4,
+      },
+    );
+    expect(announcementBody(null, values, languages)).not.toHaveProperty('buyerTicketLimit');
+  });
+
+  it('sends null to clear a limit that was set', () => {
+    const stored = listing({ buyerTicketLimit: 6 });
+    const values = { ...announcementFormValues(stored, languages), buyerTicketLimit: '' };
+    expect(announcementBody(stored, values, languages)).toMatchObject({ buyerTicketLimit: null });
+  });
+});

@@ -174,6 +174,27 @@ describe("the buyer's order (PD-81)", () => {
     expect(within(tickets).queryByRole('img')).not.toBeInTheDocument();
   });
 
+  it('says where each ticket sits: a numbered seat, or a zone by its name (PD-186)', async () => {
+    holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
+    const wire = orderWire() as { attendees: Array<Record<string, unknown>> };
+    const [davit, anna] = wire.attendees;
+    serveRead(() =>
+      HttpResponse.json({
+        ...wire,
+        accessToken: TOKEN,
+        attendees: [
+          { ...davit, selection: { sectionName: 'Floor', row: null, seat: null } },
+          { ...anna, selection: { sectionName: 'Balcony', row: 'A', seat: '3' } },
+        ],
+      }),
+    );
+    server.use(http.get(`${API}/public/events/:slug`, () => HttpResponse.json(EVENT_WIRE)));
+    renderAt('/tickets');
+    const tickets = await screen.findByRole('region', { name: 'Tickets' });
+    expect(within(tickets).getByText('Balcony · Row A, seat 3')).toBeVisible();
+    expect(within(tickets).getByText('Floor')).toBeVisible();
+  });
+
   it('shows each person with their ticket, code and state, and the event this tab came from', async () => {
     holdOrder({ accessToken: TOKEN, slug: 'autumn-jazz-night' });
     serveRead(() => HttpResponse.json({ ...orderWire(), accessToken: TOKEN }));

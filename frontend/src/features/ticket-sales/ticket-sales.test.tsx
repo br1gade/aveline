@@ -421,3 +421,192 @@ describe('the announcement (PD-86)', () => {
     });
   });
 });
+
+describe('seat and zone inventory (PD-183, PD-184)', () => {
+  const LAYOUT = {
+    id: 'lv1',
+    key: 'main',
+    name: 'Main hall',
+    version: 1,
+    sections: [
+      {
+        key: 'balcony',
+        name: 'Balcony',
+        mode: 'NUMBERED',
+        rows: [{ label: 'A', seats: ['1', '2'] }],
+      },
+      { key: 'floor', name: 'Floor', mode: 'UNNUMBERED', capacity: 120 },
+    ],
+  };
+  const HALL = {
+    id: 'hall',
+    role: 'RECEPTION',
+    name: 'Garden Hall',
+    address: 'Abovyan 1',
+    profileId: 'vp1',
+  };
+
+  function serveInventory(inventory: Record<string, unknown> | null = null) {
+    server.use(
+      http.get(`${API}/events/e1/venues`, () =>
+        HttpResponse.json([
+          HALL,
+          { ...HALL, id: 'kitchen', name: 'Kitchen', role: 'PREPARATION' },
+          { ...HALL, id: 'garden', name: 'Garden', profileId: null },
+        ]),
+      ),
+      http.get(`${API}/events/e1/ticket-inventory`, () => HttpResponse.json(inventory)),
+      http.get(`${API}/events/e1/venues/hall/ticket-layouts`, () =>
+        HttpResponse.json([{ id: 'lv1', key: 'main', name: 'Main hall', version: 1 }]),
+      ),
+      http.get(`${API}/events/e1/venues/hall/ticket-layouts/lv1`, () => HttpResponse.json(LAYOUT)),
+    );
+  }
+
+  async function openLayout(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
+    const venue = await screen.findByRole('combobox', { name: 'Venue' });
+    // Only a guest-facing venue from the directory can carry an inventory.
+    expect(
+      within(venue)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Choose a venue', 'Garden Hall']);
+    await user.selectOptions(venue, 'hall');
+    await user.click(screen.getByRole('button', { name: 'Choose a layout' }));
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Layout version' }),
+      'lv1',
+    );
+    return screen.findByRole('group', { name: 'Balcony' });
+  }
+
+  it('publishes the sections offered, with blocked seats only in an offered numbered section', async () => {
+    serveInventory();
+    server.use(
+      http.post(
+        `${API}/events/e1/ticket-inventory`,
+        record(() =>
+          HttpResponse.json({
+            venueId: 'hall',
+            layoutVersionId: 'lv1',
+            sections: [{ key: 'balcony', name: 'Balcony', capacity: null }],
+          }),
+        ),
+      ),
+    );
+    const { user } = renderAt('/app/events/e1/tickets');
+    const balcony = await openLayout(user);
+    await user.click(within(balcony).getByRole('checkbox', { name: 'General' }));
+    await waitFor(() => expect(isLeavingAsked()).toBe(true));
+    await user.click(within(balcony).getByText(/Block numbered seats/));
+    await user.click(within(balcony).getByRole('checkbox', { name: '2' }));
+    await user.click(screen.getByRole('button', { name: 'Publish inventory' }));
+    expect(await screen.findByText('Inventory published')).toBeInTheDocument();
+    expect(sent).toEqual([
+      {
+        method: 'POST',
+        path: '/api/v1/events/e1/ticket-inventory',
+        body: {
+          venueId: 'hall',
+          layoutVersionId: 'lv1',
+          offers: [{ sectionKey: 'balcony', ticketTypeId: 'general' }],
+          blockedSeats: [{ sectionKey: 'balcony', row: 'A', seat: '2' }],
+        },
+      },
+    ]);
+  });
+
+  it('drops the seats blocked in a section once it is no longer offered', async () => {
+    serveInventory();
+    server.use(
+      http.post(
+        `${API}/events/e1/ticket-inventory`,
+        record(() => HttpResponse.json({ venueId: 'hall', layoutVersionId: 'lv1', sections: [] })),
+      ),
+    );
+    const { user } = renderAt('/app/events/e1/tickets');
+    const balcony = await openLayout(user);
+    await user.click(within(balcony).getByRole('checkbox', { name: 'General' }));
+    await user.click(within(balcony).getByText(/Block numbered seats/));
+    await user.click(within(balcony).getByRole('checkbox', { name: '2' }));
+    await user.click(within(balcony).getByRole('checkbox', { name: 'General' }));
+    const floor = screen.getByRole('group', { name: 'Floor' });
+    await user.click(within(floor).getByRole('checkbox', { name: 'General' }));
+    await user.click(screen.getByRole('button', { name: 'Publish inventory' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.body).toEqual({
+      venueId: 'hall',
+      layoutVersionId: 'lv1',
+      offers: [{ sectionKey: 'floor', ticketTypeId: 'general' }],
+      blockedSeats: [],
+    });
+  });
+
+  it('says whose a refused layout is: Aveline’s directory editors’', async () => {
+    serveInventory();
+    server.use(
+      http.post(`${API}/venue-profiles/vp1/ticket-layouts`, () =>
+        refusal(403, 'Forbidden resource'),
+      ),
+    );
+    const { user } = renderAt('/app/events/e1/tickets');
+    await openLayout(user);
+    await user.click(screen.getByText('Create a venue layout'));
+    const editor = screen.getByText('Create a venue layout').closest('details');
+    if (!editor) throw new Error('No editor');
+    await user.click(within(editor).getByRole('button', { name: 'Publish venue layout' }));
+    expect(
+      await within(editor).findByText(/Only Aveline’s directory editors can publish venue layouts/),
+    ).toBeInTheDocument();
+  });
+
+  it('puts each mistake in a typed layout on its field, sending nothing', async () => {
+    serveInventory();
+    const { user } = renderAt('/app/events/e1/tickets');
+    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Venue' }), 'hall');
+    await user.click(screen.getByText('Create a venue layout'));
+    const editor = screen.getByText('Create a venue layout').closest('details');
+    if (!editor) throw new Error('No editor');
+    await user.selectOptions(
+      within(editor).getByRole('combobox', { name: 'Kind of section' }),
+      'UNNUMBERED',
+    );
+    await user.click(within(editor).getByRole('button', { name: 'Publish venue layout' }));
+    // The layout’s key and the section’s key, each on its own field.
+    expect(
+      await within(editor).findAllByText(/Use lowercase letters, digits and dashes/),
+    ).toHaveLength(2);
+    expect(within(editor).getByText('Use a whole number of places, from 1.')).toBeVisible();
+    expect(sent).toEqual([]);
+  });
+
+  it('refuses a CSV over 8 MiB before sending it', async () => {
+    serveInventory();
+    const { user } = renderAt('/app/events/e1/tickets');
+    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Venue' }), 'hall');
+    await user.click(screen.getByText('Import a venue layout CSV'));
+    const csv = screen.getByText('Import a venue layout CSV').closest('details');
+    if (!csv) throw new Error('No import');
+    const large = new File(['x'], 'big.csv', { type: 'text/csv' });
+    Object.defineProperty(large, 'size', { value: 8 * 1024 * 1024 + 1 });
+    await user.upload(within(csv).getByLabelText('Layout CSV'), large);
+    expect(within(csv).getByRole('alert')).toHaveTextContent('no larger than 8 MiB');
+    expect(within(csv).getByRole('button', { name: 'Publish venue layout' })).toBeDisabled();
+    expect(sent).toEqual([]);
+  });
+
+  it('shows an inventory already published, by its sections', async () => {
+    serveInventory({
+      venueId: 'hall',
+      layoutVersionId: 'lv1',
+      sections: [{ key: 'balcony', name: 'Balcony', capacity: null }],
+    });
+    const { user } = renderAt('/app/events/e1/tickets');
+    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
+    expect(await screen.findByText('Inventory published')).toBeInTheDocument();
+    expect(screen.getByText('Balcony')).toBeInTheDocument();
+  });
+});

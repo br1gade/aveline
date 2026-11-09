@@ -117,3 +117,36 @@ export function TextArea({
     </Frame>
   );
 }
+
+type SelectFieldProps = FieldFrameProps & Omit<ComponentProps<'select'>, 'className'>;
+
+/**
+ * A labelled native select in the guest pages' Ivory look, its label joined by `id` so a screen reader
+ * names it by the label alone, not the label and the chosen option.
+ */
+export function SelectField({
+  label,
+  optionalText,
+  help,
+  error,
+  counter,
+  id,
+  children,
+  ...select
+}: SelectFieldProps) {
+  const ids = useFieldIds(id);
+  const frame = { label, optionalText, help, error, counter };
+  return (
+    <Frame ids={ids} frame={frame}>
+      <select
+        id={ids.fieldId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(ids, frame)}
+        className={cx(INPUT, 'min-h-(--control-height)', error && 'border-error')}
+        {...select}
+      >
+        {children}
+      </select>
+    </Frame>
+  );
+}

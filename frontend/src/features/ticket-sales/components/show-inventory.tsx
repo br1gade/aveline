@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { listVenues, type Venue } from '@/features/venues';
-import { ProblemAlert } from '@/ui/app-form';
+import { SelectField } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
-import { NativeSelect, NativeSelectOption } from '@/ui/kit/native-select';
+import { NativeSelectOption } from '@/ui/kit/native-select';
 
 import {
   listVenueLayouts,
@@ -17,8 +16,11 @@ import {
   type PublishedInventory,
   type VenueLayout,
 } from '../inventory-api';
+import { inventoryRefusalOf, type InventoryRefusal } from '../inventory-refusals';
+import { canEditByHand } from '../layout-form';
 import type { TicketSalesData } from '../load';
 import { inLanguage } from '../read';
+import { InventoryProblem } from './inventory-problem';
 import { InventorySections } from './inventory-sections';
 import { VenueLayoutImport } from './venue-layout-import';
 import { VenueLayoutEditor } from './venue-layout-editor';
@@ -28,15 +30,10 @@ interface PanelState {
   inventory: PublishedInventory | null;
 }
 
-function InventoryProblem({ problem }: { problem: Problem | null }) {
-  const { t } = useTranslation('ticket-sales');
-  return problem ? <ProblemAlert problem={problem} refused={() => t('inventory.failed')} /> : null;
-}
-
 export function ShowInventoryPanel({ data }: { data: TicketSalesData }) {
   const { t } = useTranslation('ticket-sales');
   const [state, setState] = useState<PanelState | null>(null);
-  const [problem, setProblem] = useState<Problem | null>(null);
+  const [problem, setProblem] = useState<InventoryRefusal | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
   async function load() {
@@ -53,7 +50,7 @@ export function ShowInventoryPanel({ data }: { data: TicketSalesData }) {
         inventory,
       });
     } catch (error) {
-      setProblem(problemFrom(error));
+      setProblem(inventoryRefusalOf(error));
     } finally {
       setIsBusy(false);
     }
@@ -68,7 +65,7 @@ export function ShowInventoryPanel({ data }: { data: TicketSalesData }) {
       <h2 id="inventory-heading" className="m-0 text-lg font-medium">
         {t('inventory.title')}
       </h2>
-      <InventoryProblem problem={problem} />
+      <InventoryProblem refusal={problem} action="read" />
       {state ? (
         <InventorySetup state={state} data={data} onPublish={complete} />
       ) : (
@@ -106,17 +103,18 @@ function InventorySetup({
   if (!state.venues.length) return <p>{t('inventory.noVenues')}</p>;
   return (
     <>
-      <label className="grid gap-1">
-        {t('inventory.venue')}
-        <NativeSelect value={venueId} onChange={(event) => setVenueId(event.target.value)}>
-          <NativeSelectOption value="">{t('inventory.chooseVenue')}</NativeSelectOption>
-          {state.venues.map(({ id, name }) => (
-            <NativeSelectOption key={id} value={id}>
-              {name}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </label>
+      <SelectField
+        label={t('inventory.venue')}
+        value={venueId}
+        onChange={(event) => setVenueId(event.target.value)}
+      >
+        <NativeSelectOption value="">{t('inventory.chooseVenue')}</NativeSelectOption>
+        {state.venues.map(({ id, name }) => (
+          <NativeSelectOption key={id} value={id}>
+            {name}
+          </NativeSelectOption>
+        ))}
+      </SelectField>
       {venue ? (
         <ShowVenueSetup key={venue.id} data={data} venue={venue} onPublish={onPublish} />
       ) : null}
@@ -127,7 +125,7 @@ function InventorySetup({
 function useVenueLayouts(eventId: string, venueId: string) {
   const [summaries, setSummaries] = useState<LayoutSummary[] | null>(null);
   const [layout, setLayout] = useState<VenueLayout | null>(null);
-  const [problem, setProblem] = useState<Problem | null>(null);
+  const [problem, setProblem] = useState<InventoryRefusal | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
   async function request(action: () => Promise<void>) {
@@ -136,7 +134,7 @@ function useVenueLayouts(eventId: string, venueId: string) {
     try {
       await action();
     } catch (error) {
-      setProblem(problemFrom(error));
+      setProblem(inventoryRefusalOf(error));
     } finally {
       setIsBusy(false);
     }
@@ -178,7 +176,7 @@ function ShowVenueSetup({
   }));
   return (
     <>
-      <InventoryProblem problem={state.problem} />
+      <InventoryProblem refusal={state.problem} action="read" />
       <LayoutChoice state={state} />
       {venue.profileId ? (
         <LayoutEditors
@@ -216,18 +214,9 @@ interface LayoutEditorProps {
 }
 
 function LayoutEditors(props: LayoutEditorProps) {
-  const sections = props.existing?.sections ?? [];
-  const seats = sections.reduce(
-    (total, section) =>
-      section.mode === 'NUMBERED'
-        ? total + section.rows.reduce((count, row) => count + row.seats.length, 0)
-        : total,
-    0,
-  );
-  const canEditManually = sections.length <= 40 && seats <= 5000;
   return (
     <>
-      {canEditManually ? <VenueLayoutEditor {...props} /> : null}
+      {canEditByHand(props.existing) ? <VenueLayoutEditor {...props} /> : null}
       <VenueLayoutImport {...props} />
     </>
   );
@@ -247,20 +236,18 @@ function LayoutChoice({ state }: { state: ReturnType<typeof useVenueLayouts> }) 
       </Button>
     );
   return (
-    <label className="grid gap-1">
-      {t('inventory.layout')}
-      <NativeSelect
-        value={state.layout?.id ?? ''}
-        disabled={state.isBusy}
-        onChange={(event) => void state.choose(event.target.value)}
-      >
-        <NativeSelectOption value="">{t('inventory.chooseLayout')}</NativeSelectOption>
-        {state.summaries.map(({ id, name, version }) => (
-          <NativeSelectOption key={id} value={id}>
-            {name} · {t('inventory.version', { version })}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
-    </label>
+    <SelectField
+      label={t('inventory.layout')}
+      value={state.layout?.id ?? ''}
+      disabled={state.isBusy}
+      onChange={(event) => void state.choose(event.target.value)}
+    >
+      <NativeSelectOption value="">{t('inventory.chooseLayout')}</NativeSelectOption>
+      {state.summaries.map(({ id, name, version }) => (
+        <NativeSelectOption key={id} value={id}>
+          {t('inventory.layoutOption', { name, version })}
+        </NativeSelectOption>
+      ))}
+    </SelectField>
   );
 }

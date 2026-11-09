@@ -42,9 +42,11 @@ reviews, a ticket's QR code and the door's scanner, a `Permissions-Policy` for t
 guests about any change from the invitation's page. On 6 November, product answered every open question
 (design C-28 to C-54): a Help page with the support contacts, which the two payment errors show too, "Add to
 calendar" on the invitation, drink and song request starting off, and the footer mark's link to the site
-once it exists. Since 2 November it
-follows the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3 November
-([BACKEND_REQUESTS](BACKEND_REQUESTS.md) §6); none of this has yet run against the real backend.
+once it exists. On 8 November the backend team merged the frontend into `dev` and `main`, added seats and
+zones, and delivered many of our requests; on 9 November their screens were reviewed and fixed. From 2 November it followed the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3
+November ([BACKEND_REQUESTS](BACKEND_REQUESTS.md) §6). Since 9 November its types are generated from `dev` at
+`9827cf5`, whose additions are mostly still to be adopted (§12); none of this has yet run against the real
+backend.
 
 ## 1. Stack
 
@@ -705,6 +707,15 @@ one survivor, a continuation line a byte too long, got a test. A production buil
 showed the contacts and the site's link set at build, and no phone that wasn't. **The ticket order's
 disagreement has its test but no walk, and no real phone has opened the calendar file.**
 
+**The backend team's seats and zones (reviewed and fixed 9 November 2026)** were checked on `dev` at `9827cf5`
+first: it built and passed all 4,191 tests. The review found one test for about 1,600 lines, selects named with
+their chosen option, one sentence for every refusal, errors off their fields, a mislabelled select, two targets
+under 44 px and labels joined to values. After the fixes, 4,236 tests pass, 45 of them new for this code. A walk
+on a mock in hy, ru, en and fr at 360 px and desktop (publishing an inventory, a layout's field error and its
+403, a seat and a zone at checkout) passed 297 checks, axe clean in 64 runs, every target at least 44 px. Nine
+deliberate breaks were tried: eight fail a test (one only after a test was added for it), and the survivor is a
+size check in the CSV's send that the disabled button already covers. **None of it has run against the real backend.**
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -899,16 +910,29 @@ disagreement has its test but no walk, and no real phone has opened the calendar
 | 6 Nov 2026 | **A bank's disagreement is recognised in one place,** `api/payment-disagreement.ts`, for plans and tickets alike | The ticket order showed it as "couldn't be loaded"; both now say not to pay again and whom to contact. Kept out of `features/billing`, so the public ticket page doesn't load billing's code |
 | 6 Nov 2026 | **"Add to calendar" builds an RFC 5545 file in the browser,** in UTC, from the event and its venues, and writes no link (design C-32, PD-178) | No time zone table is needed in UTC, and no server sees the guest's page. A calendar syncs to others, so the personal link, a credential, stays out |
 | 6 Nov 2026 | **Drink and song request are switched off by the client after an invitation is created** (design C-30, PD-179), until the backend's default changes (FR-134) | Product's answer, without waiting for the backend. A failure is said on the page it opens on, never swallowed |
+| 9 Nov 2026 | **Frontend work integrates through `dev`** (A6 superseded by the backend team on 8 November), and the review of their seat and zone screens was fixed on a branch from it | `dev` already held all our work; their screens shipped with one test, selects named with their values, one sentence for every refusal and errors off their fields |
+| 9 Nov 2026 | **Selects are named by their label alone,** `SelectField` in the app's kit and a new `SelectField` in `ui/form` for the guest pages' Ivory system, never a `<label>` wrapping the select | A wrapping label makes the accessible name the label plus the chosen option ("Section or zone Choose"), which axe doesn't catch |
+| 9 Nov 2026 | **The inventory's refusals are worded by status** (`ticket-sales/inventory-refusals.ts`): a 403 by whose the action is, a 400 with the backend's sentence as it came | One sentence for all hid that venue layouts are Aveline's directory editors' (FR-6) |
+| 9 Nov 2026 | **The owner's decisions of 5 and 8 November are confirmed:** unpublished seating hidden from briefs, pausing a brief allowed, gallery uploads off for new invitations (design C-55 to C-57) | The backend had built the first two; C-44 and C-46 are superseded |
 
 ## 12. Not yet built
 
-- Of the product's answers (design C-28 to C-54), what waits on the backend: drink and song request off
-  by default (FR-134; the client switches them off meanwhile, PD-179), moving to the free plan at the
-  end of the paid period (FR-135), the data-request form linked from the invitation email (FR-136),
-  paid plans shown as coming after the pilot (FR-109), and the brief's seating marked as a draft only
-  before it is published (FR-107). The support contacts and the site's address are settings nobody
-  has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not been opened on a real
-  phone.
+- Of the backend's 8 November delivery (`dev` at `9827cf5`), what the client is still to adopt
+  (BACKEND_REQUESTS §1): for the pilot, the buyer's order in a fresh tab (FR-62), the door's coded
+  refusals and paged roster (FR-76, FR-79) with a rehearsal on a phone, and a build per origin
+  (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
+  owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
+  backend's default is verified (FR-134, PD-179), and the scheduled free plan with its withdrawal
+  (FR-135). Also the response schemas and permissions (FR-1, FR-6), editing and removing a vendor
+  (FR-102), pausing a brief (C-56), and the frontend CI workflow the backend asked for. **Every
+  request marked answered in BACKEND_REQUESTS (29 of them) keeps its stand-in until adopted,** so the
+  entries below that name one now wait on the client, not the backend. Paid plans
+  shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
+  are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
+  been opened on a real phone.
+- Of seats and zones (built by the backend team, PD-183 to PD-186): a seat map; the inventory once
+  published can't be changed here; and the layout CSV's own refusals, which come back as the
+  backend's sentences.
 - Of several organizations: anything run with two real memberships, as the database's gate
   (`multiOrganizationWrites`) is off; this has only met a mock. Creating a second organization, which
   that gate refuses.
@@ -983,8 +1007,7 @@ disagreement has its test but no walk, and no real phone has opened the calendar
   read from the backend rather than a pinned copy (FR-105); more than one organization (above).
 - Of the vendor's brief: naming the language it is in, translated titles and venues, and the hosts'
   names for the sides (FR-104; the vendor's own language isn't wanted, C-45); the day-by-day answers,
-  guests' ids and who freed a seat, which the page leaves out, and whether the seating is published, so
-  its line shows only before (FR-107, C-44); keeping the
+  which the page leaves out (seating now reaches a brief only once published, C-55); keeping the
   brief across a reload, deliberately; a page in Aveline's or the hosts' own design (DQ-42).
 - Of the public listing: a date or time on a card, and marking a card's language (FR-92); a list of
   categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, until FR-92.

@@ -126,3 +126,19 @@ describe("the announcement's own checks", () => {
     expect(issues({ categories: 'x'.repeat(41) })).toEqual([['categories', 'categoryTooLong']]);
   });
 });
+
+describe('the buyer’s ticket limit (PD-183)', () => {
+  function limitIssues(buyerTicketLimit: string) {
+    const values = { ...announcementFormValues(null, ['en']), buyerTicketLimit };
+    const result = announcementSchema().safeParse(values);
+    return result.success ? [] : result.error.issues.map((issue) => issue.path.join('.'));
+  }
+
+  it.each(['', '1', '100000'])('takes %j', (limit) => {
+    expect(limitIssues(limit)).toEqual([]);
+  });
+
+  it.each(['0', '100001', '1.5', '-1', 'ten'])('refuses %j on its own field', (limit) => {
+    expect(limitIssues(limit)).toEqual(['buyerTicketLimit']);
+  });
+});

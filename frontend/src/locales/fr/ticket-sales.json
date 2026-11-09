@@ -188,16 +188,41 @@
     "addSection": "Ajouter une section",
     "remove": "Supprimer",
     "publishLayout": "Publier le plan",
-    "version": "Version {{version}}",
     "noVenues": "Aucun lieu du répertoire n’est associé à cet événement.",
     "attach": "Associez un lieu du répertoire pour publier les places.",
-    "failed": "Impossible d’enregistrer ou de charger les places.",
-    "blocked": "Bloquer des places numérotées",
     "noTypes": "Aucun tarif. Créez des types de billets avant de publier les places.",
     "csv": "Importer un plan au format CSV",
     "csvHelp": "Pour les grands plans, utilisez une ligne par place numérotée et une par zone non numérotée.",
     "csvTemplate": "Télécharger un modèle CSV",
     "csvFile": "Fichier CSV du plan",
-    "csvSize": "Choisissez un fichier CSV de 8 Mio maximum."
+    "csvSize": "Choisissez un fichier CSV de 8 Mio maximum.",
+    "sectionMode": "Type de section",
+    "sectionLegend": "Section {{number}}",
+    "rowLegend": "Rang {{row}}",
+    "capacityOf": "Capacité : {{places}}",
+    "blockedCount": "Bloquer des places numérotées ({{number}} bloquées)",
+    "layoutOption": "{{name}} · version {{version}}",
+    "refused": {
+      "forbidden": {
+        "read": "Votre rôle ne permet pas de lire les lieux ou les plans de cet événement.",
+        "layout": "Seuls les éditeurs de l’annuaire d’Aveline peuvent publier des plans de salle. Demandez à Aveline d’en ajouter ou d’en modifier un.",
+        "publish": "Publier les places demande un rôle qui peut modifier cet événement."
+      },
+      "gone": "Ce lieu ou ce plan n’existe plus. Rechargez la page.",
+      "changed": "Cela a changé depuis l’ouverture de la page, peut-être du fait de quelqu’un d’autre. Rechargez la page et réessayez.",
+      "rateLimited": "Trop de demandes pour l’instant. Patientez un moment et réessayez.",
+      "unreadable": "La réponse n’a pas pu être lue. Réessayez.",
+      "invalid": "Cela n’a pas été accepté. Vérifiez les sections, les rangs et les places :",
+      "noAnswer": "Aucune réponse n’est arrivée. Réessayez.",
+      "other": "Cela n’a pas été accepté :"
+    },
+    "errors": {
+      "key": "Utilisez des minuscules, des chiffres et des tirets, 40 au plus, en commençant par une lettre ou un chiffre.",
+      "name": "Utilisez de 1 à 100 caractères.",
+      "row": "Nommez le rang, en 16 caractères au plus.",
+      "seats": "Indiquez au moins une place, séparées par des virgules.",
+      "capacity": "Indiquez un nombre entier de places, à partir de 1.",
+      "summary": "Certains champs sont à corriger : voyez les messages à côté."
+    }
   }
 }
