@@ -481,6 +481,22 @@ describe('seat and zone inventory (PD-183, PD-184)', () => {
     return screen.findByRole('group', { name: 'Balcony' });
   }
 
+  /** With a venue chosen and no layout picked: one of its two forms for a new layout, opened. */
+  async function openForm(user: ReturnType<typeof userEvent.setup>, title: string) {
+    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Venue' }), 'hall');
+    await user.click(screen.getByText(title));
+    const form = screen.getByText(title).closest('details');
+    if (!form) throw new Error(`No form: ${title}`);
+    return form;
+  }
+
+  function csvOf(bytes: number) {
+    const file = new File(['x'], 'hall.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'size', { value: bytes });
+    return file;
+  }
+
   it('publishes the sections offered, with blocked seats only in an offered numbered section', async () => {
     serveInventory();
     server.use(
@@ -501,6 +517,11 @@ describe('seat and zone inventory (PD-183, PD-184)', () => {
     await waitFor(() => expect(isLeavingAsked()).toBe(true));
     await user.click(within(balcony).getByText(/Block numbered seats/));
     await user.click(within(balcony).getByRole('checkbox', { name: '2' }));
+    expect(within(balcony).getByText('Block numbered seats (1 blocked)')).toBeInTheDocument();
+    expect(within(balcony).getByRole('group', { name: 'Row A' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Floor' })).getByText('Capacity: 120'),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Publish inventory' }));
     expect(await screen.findByText('Inventory published')).toBeInTheDocument();
     expect(sent).toEqual([
@@ -561,14 +582,84 @@ describe('seat and zone inventory (PD-183, PD-184)', () => {
     ).toBeInTheDocument();
   });
 
-  it('puts each mistake in a typed layout on its field, sending nothing', async () => {
+  it.each([
+    [409, 'key: this venue has reached its layout limit'],
+    [400, 'sections.0.rows: duplicate seat A1'],
+  ])('shows a %i a reload can’t answer in the backend’s own words', async (status, sentence) => {
     serveInventory();
+    server.use(
+      http.post(`${API}/venue-profiles/vp1/ticket-layouts`, () => refusal(status, sentence)),
+    );
     const { user } = renderAt('/app/events/e1/tickets');
-    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Venue' }), 'hall');
+    await openLayout(user);
     await user.click(screen.getByText('Create a venue layout'));
     const editor = screen.getByText('Create a venue layout').closest('details');
     if (!editor) throw new Error('No editor');
+    await user.click(within(editor).getByRole('button', { name: 'Publish venue layout' }));
+    expect(await within(editor).findByText(sentence)).toBeInTheDocument();
+    expect(within(editor).queryByText(/Reload the page/)).toBeNull();
+  });
+
+  it('says a refused inventory is for those who can edit the event', async () => {
+    serveInventory();
+    server.use(
+      http.post(`${API}/events/e1/ticket-inventory`, () => refusal(403, 'Forbidden resource')),
+    );
+    const { user } = renderAt('/app/events/e1/tickets');
+    const balcony = await openLayout(user);
+    await user.click(within(balcony).getByRole('checkbox', { name: 'General' }));
+    await user.click(screen.getByRole('button', { name: 'Publish inventory' }));
+    expect(
+      await screen.findByText('Publishing the inventory needs a role that can edit this event.'),
+    ).toBeInTheDocument();
+  });
+
+  it('says the venues can’t be read with this role', async () => {
+    serveInventory();
+    server.use(http.get(`${API}/events/e1/venues`, () => refusal(403, 'Forbidden resource')));
+    const { user } = renderAt('/app/events/e1/tickets');
+    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
+    expect(
+      await screen.findByText('You can’t read this event’s venues or layouts with your role.'),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the last section, which a layout can’t go without', async () => {
+    serveInventory();
+    const { user } = renderAt('/app/events/e1/tickets');
+    const editor = await openForm(user, 'Create a venue layout');
+    const removes = () =>
+      within(editor)
+        .getAllByRole('button', { name: 'Remove' })
+        .map((button) => (button as HTMLButtonElement).disabled);
+    expect(removes()).toEqual([true, true]);
+    await user.click(within(editor).getByRole('button', { name: 'Add section' }));
+    expect(removes()).toEqual([true, false, true, false]);
+  });
+
+  it('puts a numbered section’s mistakes on its row and its seats', async () => {
+    serveInventory();
+    const { user } = renderAt('/app/events/e1/tickets');
+    const editor = await openForm(user, 'Create a venue layout');
+    await user.click(within(editor).getByRole('button', { name: 'Publish venue layout' }));
+    expect(await within(editor).findByText('Name the row, in up to 16 characters.')).toBeVisible();
+    expect(
+      within(editor).getByText(
+        'List 1 to 100 seats, separated by commas, each up to 16 characters.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('puts each mistake in a typed layout on its field, sending nothing', async () => {
+    serveInventory();
+    server.use(
+      http.post(
+        `${API}/venue-profiles/vp1/ticket-layouts`,
+        record(() => HttpResponse.json(LAYOUT)),
+      ),
+    );
+    const { user } = renderAt('/app/events/e1/tickets');
+    const editor = await openForm(user, 'Create a venue layout');
     await user.selectOptions(
       within(editor).getByRole('combobox', { name: 'Kind of section' }),
       'UNNUMBERED',
@@ -578,24 +669,39 @@ describe('seat and zone inventory (PD-183, PD-184)', () => {
     expect(
       await within(editor).findAllByText(/Use lowercase letters, digits and dashes/),
     ).toHaveLength(2);
-    expect(within(editor).getByText('Use a whole number of places, from 1.')).toBeVisible();
+    expect(within(editor).getAllByText('Use 1 to 100 characters.')).toHaveLength(2);
+    expect(
+      within(editor).getByText('Use a whole number of places, from 1 to 100,000.'),
+    ).toBeVisible();
     expect(sent).toEqual([]);
   });
 
   it('refuses a CSV over 8 MiB before sending it', async () => {
     serveInventory();
     const { user } = renderAt('/app/events/e1/tickets');
-    await user.click(await screen.findByRole('button', { name: 'Manage inventory' }));
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Venue' }), 'hall');
-    await user.click(screen.getByText('Import a venue layout CSV'));
-    const csv = screen.getByText('Import a venue layout CSV').closest('details');
-    if (!csv) throw new Error('No import');
-    const large = new File(['x'], 'big.csv', { type: 'text/csv' });
-    Object.defineProperty(large, 'size', { value: 8 * 1024 * 1024 + 1 });
-    await user.upload(within(csv).getByLabelText('Layout CSV'), large);
+    const csv = await openForm(user, 'Import a venue layout CSV');
+    await user.upload(within(csv).getByLabelText('Layout CSV'), csvOf(8 * 1024 * 1024 + 1));
     expect(within(csv).getByRole('alert')).toHaveTextContent('no larger than 8 MiB');
     expect(within(csv).getByRole('button', { name: 'Publish venue layout' })).toBeDisabled();
-    expect(sent).toEqual([]);
+  });
+
+  it('takes a CSV of exactly 8 MiB', async () => {
+    serveInventory();
+    const { user } = renderAt('/app/events/e1/tickets');
+    const csv = await openForm(user, 'Import a venue layout CSV');
+    await user.upload(within(csv).getByLabelText('Layout CSV'), csvOf(8 * 1024 * 1024));
+    expect(within(csv).queryByRole('alert')).toBeNull();
+    expect(within(csv).getByRole('button', { name: 'Publish venue layout' })).toBeEnabled();
+  });
+
+  it('puts an import’s blank key and name on their fields', async () => {
+    serveInventory();
+    const { user } = renderAt('/app/events/e1/tickets');
+    const csv = await openForm(user, 'Import a venue layout CSV');
+    await user.upload(within(csv).getByLabelText('Layout CSV'), csvOf(10));
+    await user.click(within(csv).getByRole('button', { name: 'Publish venue layout' }));
+    expect(await within(csv).findByText(/Use lowercase letters, digits and dashes/)).toBeVisible();
+    expect(within(csv).getByText('Use 1 to 100 characters.')).toBeVisible();
   });
 
   it('shows an inventory already published, by its sections', async () => {

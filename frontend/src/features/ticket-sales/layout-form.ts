@@ -8,11 +8,11 @@ const key = z
   .trim()
   .regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'key');
 const name = z.string().trim().min(1, 'name').max(100, 'name');
-const row = z.object({
-  label: z.string().trim().max(16, 'row'),
-  seats: z.string().max(1700, 'seats'),
-});
-const CAPACITY = /^[1-9][0-9]{0,5}$/;
+const row = z.object({ label: z.string().trim(), seats: z.string() });
+const WHOLE_PLACES = /^[1-9][0-9]*$/;
+const MAX_ZONE_PLACES = 100_000;
+const MAX_LABEL_LENGTH = 16;
+const MAX_ROW_SEATS = 100;
 
 function seatLabels(seats: string): string[] {
   return seats
@@ -21,9 +21,28 @@ function seatLabels(seats: string): string[] {
     .filter(Boolean);
 }
 
+function isZoneCapacity(capacity: string): boolean {
+  const places = capacity.trim();
+  return WHOLE_PLACES.test(places) && Number(places) <= MAX_ZONE_PLACES;
+}
+
+function isRowLabel(label: string): boolean {
+  return label.length > 0 && label.length <= MAX_LABEL_LENGTH;
+}
+
+function areRowSeats(seats: string): boolean {
+  const labels = seatLabels(seats);
+  return (
+    labels.length > 0 &&
+    labels.length <= MAX_ROW_SEATS &&
+    labels.every((seat) => seat.length <= MAX_LABEL_LENGTH)
+  );
+}
+
 /**
  * A section as typed: numbered ones are rows of seat labels, each row named and with a seat; a zone is
- * a whole number of places. Each mistake is put on its own field, so the host sees which.
+ * a whole number of places. Each mistake is put on its own field, so the host sees which, and only
+ * what the section's kind shows is checked: rows typed before switching to a zone aren't sent.
  */
 const section = z
   .object({
@@ -35,16 +54,16 @@ const section = z
   })
   .superRefine((value, context) => {
     if (value.mode === 'UNNUMBERED') {
-      if (!CAPACITY.test(value.capacity.trim())) {
+      if (!isZoneCapacity(value.capacity)) {
         context.addIssue({ code: 'custom', path: ['capacity'], message: 'capacity' });
       }
       return;
     }
     value.rows.forEach((entry, index) => {
-      if (!entry.label.trim()) {
+      if (!isRowLabel(entry.label)) {
         context.addIssue({ code: 'custom', path: ['rows', index, 'label'], message: 'row' });
       }
-      if (seatLabels(entry.seats).length === 0) {
+      if (!areRowSeats(entry.seats)) {
         context.addIssue({ code: 'custom', path: ['rows', index, 'seats'], message: 'seats' });
       }
     });

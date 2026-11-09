@@ -136,6 +136,15 @@ describe('the brief', () => {
     expect(within(section).getByText(line)).toBeInTheDocument();
   });
 
+  it('doesn’t warn that the seating shown may still change (C-55)', async () => {
+    holdBrief(plantedToken());
+    serve(() => HttpResponse.json(briefWire()));
+    renderAt('/briefs');
+    const section = (await screen.findByRole('heading', { name: 'Seating' })).closest('section');
+    if (!section) throw new Error('No section');
+    expect(within(section).queryByText(/may still change/)).toBeNull();
+  });
+
   it('links each contact’s email and phone, and counts the seats someone left free', async () => {
     holdBrief(plantedToken());
     const answer = briefWire();

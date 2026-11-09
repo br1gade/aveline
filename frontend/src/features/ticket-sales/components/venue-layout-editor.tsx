@@ -82,10 +82,12 @@ function RowFields({ form, index }: { form: LayoutForm; index: number }) {
 function SectionFields({
   form,
   index,
+  isOnly,
   onRemove,
 }: {
   form: LayoutForm;
   index: number;
+  isOnly: boolean;
   onRemove: () => void;
 }) {
   const { t } = useTranslation('ticket-sales');
@@ -120,7 +122,13 @@ function SectionFields({
           {...form.register(`${path}.capacity`)}
         />
       )}
-      <Button type="button" variant="outline" className="justify-self-start" onClick={onRemove}>
+      <Button
+        type="button"
+        variant="outline"
+        className="justify-self-start"
+        disabled={isOnly}
+        onClick={onRemove}
+      >
         {t('inventory.remove')}
       </Button>
     </fieldset>
@@ -161,8 +169,8 @@ function useLayoutEditor({ profileId, existing, onPublish }: EditorProps) {
 
 /**
  * A venue layout typed by hand: sections, then rows of seat labels or a zone's places. Publishing it
- * is Aveline's directory editors' (`directory:manage`); anyone else is told so (FR-6). Each mistake
- * shows on its own field.
+ * is Aveline's directory editors' (`directory:manage`); anyone else is told so (FR-6). A mistake in
+ * a field shows on it; duplicates and the 5,000-seat total come back as the backend's sentence.
  */
 export function VenueLayoutEditor({ profileId, existing, onPublish }: EditorProps) {
   const { t } = useTranslation('ticket-sales');
@@ -190,6 +198,7 @@ export function VenueLayoutEditor({ profileId, existing, onPublish }: EditorProp
             key={section.id}
             form={form}
             index={index}
+            isOnly={sections.fields.length === 1}
             onRemove={() => sections.remove(index)}
           />
         ))}

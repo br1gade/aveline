@@ -220,8 +220,8 @@
       "key": "Utilisez des minuscules, des chiffres et des tirets, 40 au plus, en commençant par une lettre ou un chiffre.",
       "name": "Utilisez de 1 à 100 caractères.",
       "row": "Nommez le rang, en 16 caractères au plus.",
-      "seats": "Indiquez au moins une place, séparées par des virgules.",
-      "capacity": "Indiquez un nombre entier de places, à partir de 1.",
+      "seats": "Indiquez de 1 à 100 places, séparées par des virgules, de 16 caractères au plus chacune.",
+      "capacity": "Indiquez un nombre entier de places, de 1 à 100 000.",
       "summary": "Certains champs sont à corriger : voyez les messages à côté."
     }
   }

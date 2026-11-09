@@ -9,10 +9,17 @@ export type InventoryRefusal =
   | { kind: 'noAnswer'; requestId: string | undefined }
   | { kind: 'other'; sentence: string; requestId: string | undefined };
 
+function isStaleVersion(message: string): boolean {
+  return message.startsWith('expectedVersion:');
+}
+
 /**
  * Why the inventory or a venue layout was refused, by its status, so each is worded rather than one
- * sentence for all (FR-6). A 400 keeps the backend's sentence, shown as it came. An answer the client
- * couldn't read (a parse failure in `inventory-api.ts`) is said to be so, not blamed on the host.
+ * sentence for all (FR-6). A 400 keeps the backend's sentence, shown as it came. So does a 409, but
+ * for a stale layout, the one a reload answers, which the backend's message names by its field. The
+ * others (a venue's layout limit, orders already taken) would only be refused again (FR-137). An
+ * answer the client couldn't read (a parse failure in `inventory-api.ts`) is said to be so, not
+ * blamed on the host.
  */
 export function inventoryRefusalOf(error: unknown): InventoryRefusal {
   if (!isApiError(error)) return { kind: 'unreadable' };
@@ -21,7 +28,7 @@ export function inventoryRefusalOf(error: unknown): InventoryRefusal {
   if (status === 0 || status >= 500) return { kind: 'noAnswer', requestId };
   if (status === 403) return { kind: 'forbidden' };
   if (status === 404) return { kind: 'gone' };
-  if (status === 409) return { kind: 'changed' };
+  if (status === 409 && messages.some(isStaleVersion)) return { kind: 'changed' };
   if (status === 429) return { kind: 'rateLimited' };
   if (status === 400) return { kind: 'invalid', sentence };
   return { kind: 'other', sentence, requestId };

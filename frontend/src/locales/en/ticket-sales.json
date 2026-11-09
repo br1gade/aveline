@@ -220,8 +220,8 @@
       "key": "Use lowercase letters, digits and dashes, up to 40, starting with a letter or digit.",
       "name": "Use 1 to 100 characters.",
       "row": "Name the row, in up to 16 characters.",
-      "seats": "List at least one seat, separated by commas.",
-      "capacity": "Use a whole number of places, from 1.",
+      "seats": "List 1 to 100 seats, separated by commas, each up to 16 characters.",
+      "capacity": "Use a whole number of places, from 1 to 100,000.",
       "summary": "Some fields need a correction: see the messages beside them."
     }
   }

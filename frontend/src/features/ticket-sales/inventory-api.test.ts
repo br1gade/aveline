@@ -26,6 +26,8 @@ describe('importing a layout CSV (PD-184)', () => {
     const [call] = calls;
     expect(call?.path).toBe('/api/v1/venue-profiles/{profileId}/ticket-layouts/import');
     expect(call?.options.params).toEqual({ path: { profileId: 'vp1' } });
+    // openapi-fetch calls the serializer only when a body is given.
+    expect(call?.options.body).toBeDefined();
     const serialize = call?.options.bodySerializer as () => FormData;
     const form = serialize();
     expect(form.get('key')).toBe('main');

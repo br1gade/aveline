@@ -64,7 +64,7 @@ describe('a show’s seats and zones (PD-185)', () => {
     layoutVersionId: 'lv1',
     sections: [
       { key: 'balcony', name: 'Balcony', mode: 'NUMBERED', ticketTypeIds: ['general'] },
-      { key: 'odd', name: 'Odd', mode: 'STANDING', ticketTypeIds: ['general'] },
+      { key: 'odd', name: 'Odd', mode: 'STANDING', ticketTypeIds: ['table'] },
     ],
   };
 

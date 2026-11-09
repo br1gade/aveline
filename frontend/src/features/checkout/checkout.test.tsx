@@ -205,7 +205,7 @@ describe('checkout for an event answered once (PD-79)', () => {
   });
 
   describe('choosing a seat or zone (PD-185)', () => {
-    function withInventory(seats = [{ id: 'seat-12', row: 'B', label: '12' }]) {
+    function withInventory() {
       current.event = {
         ...EVENT,
         ticketInventory: {
@@ -215,16 +215,37 @@ describe('checkout for an event answered once (PD-79)', () => {
           ],
         },
       };
-      return { layoutVersionId: 'layout-1', ticketTypeIds: ['general'], available: 1, seats };
+      return {
+        layoutVersionId: 'layout-1',
+        ticketTypeIds: ['general'],
+        available: 1,
+        seats: [{ id: 'seat-12', row: 'B', label: '12' }],
+      };
     }
 
-    it('names each choice by its label alone, as a screen reader says it', async () => {
+    function serveStock() {
       const stock = withInventory();
       server.use(
         http.get(`${ORIGIN}/api/v1/public/events/:slug/ticket-inventory/:key`, () =>
           HttpResponse.json(stock),
         ),
       );
+    }
+
+    async function chooseSeatAndFill(user: Parameters<typeof fillBuyer>[0]) {
+      await user.selectOptions(
+        await screen.findByRole('combobox', { name: 'Section or zone' }),
+        'balcony',
+      );
+      await user.selectOptions(await screen.findByRole('combobox', { name: 'Seat' }), 'seat-12');
+      await fillBuyer(user);
+      await user.click(
+        within(await name(user, 1, 'Anna', { total: 1 })).getByRole('radio', { name: 'Fish' }),
+      );
+    }
+
+    it('names each choice by its label alone, as a screen reader says it', async () => {
+      serveStock();
       const { user } = renderCheckout('general.1');
       const section = await screen.findByRole('combobox', { name: 'Section or zone' });
       await user.selectOptions(section, 'balcony');
@@ -251,51 +272,38 @@ describe('checkout for an event answered once (PD-79)', () => {
     });
 
     it('asks for the seats again when one was taken meanwhile', async () => {
-      const stock = withInventory();
-      server.use(
-        http.get(`${ORIGIN}/api/v1/public/events/:slug/ticket-inventory/:key`, () =>
-          HttpResponse.json(stock),
-        ),
-      );
+      serveStock();
       serveOrders(() =>
         refusal(409, 'That place is no longer available', { code: 'TICKET_SELECTION_UNAVAILABLE' }),
       );
       const { user } = renderCheckout('general.1');
-      const section = await screen.findByRole('combobox', { name: 'Section or zone' });
-      await user.selectOptions(section, 'balcony');
-      await user.selectOptions(await screen.findByRole('combobox', { name: 'Seat' }), 'seat-12');
-      await fillBuyer(user);
-      await user.click(
-        within(await name(user, 1, 'Anna', { total: 1 })).getByRole('radio', { name: 'Fish' }),
-      );
+      await chooseSeatAndFill(user);
       await user.click(await submit());
       expect(await screen.findByText(/A selection is unavailable/)).toBeInTheDocument();
       expect(screen.getByRole('combobox', { name: 'Section or zone' })).toHaveValue('');
       expect(await submit()).toBeDisabled();
     });
 
-    it('reads the event again when its layout changed', async () => {
-      const stock = withInventory();
-      server.use(
-        http.get(`${ORIGIN}/api/v1/public/events/:slug/ticket-inventory/:key`, () =>
-          HttpResponse.json(stock),
-        ),
-      );
+    it('reads the event again, and clears the seats, when its layout changed', async () => {
+      serveStock();
       serveOrders(() => refusal(409, 'Layout changed', { code: 'TICKET_LAYOUT_CHANGED' }));
       const { user } = renderCheckout('general.1');
-      await user.selectOptions(
-        await screen.findByRole('combobox', { name: 'Section or zone' }),
-        'balcony',
-      );
-      await user.selectOptions(await screen.findByRole('combobox', { name: 'Seat' }), 'seat-12');
-      await fillBuyer(user);
-      await user.click(
-        within(await name(user, 1, 'Anna', { total: 1 })).getByRole('radio', { name: 'Fish' }),
-      );
+      await chooseSeatAndFill(user);
       const before = current.loads;
       await user.click(await submit());
       expect(await screen.findByText(/The layout changed/)).toBeInTheDocument();
       await waitFor(() => expect(current.loads).toBe(before + 1));
+      expect(screen.getByRole('combobox', { name: 'Section or zone' })).toHaveValue('');
+    });
+
+    it('keeps the seats when the order passes the limit per buyer', async () => {
+      serveStock();
+      serveOrders(() => refusal(409, 'Too many', { code: 'TICKET_BUYER_LIMIT_REACHED' }));
+      const { user } = renderCheckout('general.1');
+      await chooseSeatAndFill(user);
+      await user.click(await submit());
+      expect(await screen.findByText(/exceeds the event’s ticket limit per buyer/)).toBeVisible();
+      expect(screen.getByRole('combobox', { name: 'Section or zone' })).toHaveValue('balcony');
     });
   });
 

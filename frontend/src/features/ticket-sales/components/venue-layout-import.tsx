@@ -14,7 +14,7 @@ import { InventoryProblem } from './inventory-problem';
 
 type Values = z.infer<typeof layoutIdentitySchema>;
 /** The backend's own limit on an uploaded layout. */
-export const CSV_LIMIT_BYTES = 8 * 1024 * 1024;
+const CSV_LIMIT_BYTES = 8 * 1024 * 1024;
 const TEMPLATE =
   'section_key,section_name,mode,row,seat,capacity\n' +
   'balcony,Balcony,NUMBERED,B,12,\n' +
