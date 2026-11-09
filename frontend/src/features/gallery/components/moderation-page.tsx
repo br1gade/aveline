@@ -18,6 +18,7 @@ import type { GalleryPhoto, PhotoVariant } from '../types';
 import { GalleryPicture } from './gallery-picture';
 import { ModerationCard, type CardActions } from './moderation-card';
 import { RemovePhotoDialog } from './remove-photo-dialog';
+import { UploadsSetting } from './uploads-setting';
 import { useModeration } from './use-moderation';
 
 const LINK =
@@ -288,7 +289,10 @@ export function GalleryModeration({ data }: { data: ModerationData }) {
       </div>
       <p className="m-0 max-w-[40rem]">{t('host.intro')}</p>
       {photos.kind === 'ready' ? (
-        <Board event={event} every={photos.value} />
+        <>
+          <UploadsSetting eventId={event.id} gallery={photos.value} />
+          <Board event={event} every={photos.value} />
+        </>
       ) : (
         <LoadedProblem loaded={photos} refusedText={t('host.refused')} />
       )}

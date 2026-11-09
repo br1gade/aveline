@@ -914,13 +914,13 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 9 Nov 2026 | **Selects are named by their label alone,** `SelectField` in the app's kit and a new `SelectField` in `ui/form` for the guest pages' Ivory system, never a `<label>` wrapping the select | A wrapping label makes the accessible name the label plus the chosen option ("Section or zone Choose"), which axe doesn't catch |
 | 9 Nov 2026 | **The inventory's refusals are worded by status** (`ticket-sales/inventory-refusals.ts`): a 403 by whose the action is, a 400 with the backend's sentence as it came | One sentence for all hid that venue layouts are Aveline's directory editors' (FR-6) |
 | 9 Nov 2026 | **The owner's decisions of 5 and 8 November are confirmed:** unpublished seating hidden from briefs, pausing a brief allowed, gallery uploads off for new invitations (design C-55 to C-57) | The backend had built the first two; C-44 and C-46 are superseded |
+| 9 Nov 2026 | **Guests' photo sharing follows the hosts' switch (FR-46)**: the share form shows only while it is on, and the setting is a sentence and a button on the photos page (design PD-187, PD-188) | New invitations start with sharing off (C-57), so guests were offered a form that could only be refused |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
 
 ## 12. Not yet built
 
 - Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
-  adopt (BACKEND_REQUESTS §1): for the pilot, the hosts' switch for guest uploads and its refusal
-  (FR-46), the buyer's order in a fresh tab (FR-62), the door's coded refusals and paged roster
+  adopt (BACKEND_REQUESTS §1): for the pilot, the buyer's order in a fresh tab (FR-62), the door's coded refusals and paged roster
   (FR-76, FR-79) with a rehearsal on a phone, export failures that say what to do (FR-59), and a
   build per origin (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
   owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
@@ -1036,7 +1036,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   supplies; the other languages when creating an event (FR-101; correcting it has them); a custom slug
   (no endpoint exists). A link to a published invitation from the overview: a private event's generic
   link is a 404.
-- Of guests' photos: a switch for the hosts (FR-46, delivered, the client adopts it next: until then a new invitation's guests can't share photos and are only told to try again); the guest's own count and the gallery's
+- Of guests' photos: the share form going at once when the hosts close sharing during a visit (it goes at the next opening; another try is refused in words); the guest's own count and the gallery's
   closing date (FR-50); who shared a photo, for the hosts (FR-48); the storage used (FR-47);
   approving several in one request (FR-112); and a photo's own
   status read (FR-41).

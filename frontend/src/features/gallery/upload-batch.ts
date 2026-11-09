@@ -17,7 +17,17 @@ export type FileOutcome =
   | { kind: 'notSent' };
 
 export type BatchStop =
-  | { kind: 'limit' | 'full' | 'conflict' | 'closed' | 'rate-limited' | 'busy' | 'unreachable' }
+  | {
+      kind:
+        | 'limit'
+        | 'full'
+        | 'conflict'
+        | 'uploadsOff'
+        | 'closed'
+        | 'rate-limited'
+        | 'busy'
+        | 'unreachable';
+    }
   | { kind: 'failed'; requestId: string | undefined }
   | { kind: 'stopped' };
 
@@ -56,6 +66,7 @@ const CONFLICT_STOPS = { count: 'limit', storage: 'full', other: 'conflict' } as
 /** What a refusal means for this file, or for the batch. */
 function classify(error: unknown): FileOutcome | BatchStop {
   if (!isApiError(error)) return { kind: 'failed', requestId: undefined };
+  if (error.code === 'GALLERY_UPLOADS_DISABLED') return { kind: 'uploadsOff' };
   if (error.status === 400 && isCaptionRefusal(error))
     return { kind: 'refused', reason: 'caption' };
   const own = OWN_REFUSALS[error.status];

@@ -9,6 +9,7 @@ import { Button, Notice, SectionHeading, useNearScreen } from '@/ui';
 
 import { guestPhotoFile, type GalleryLink } from '../api';
 import { PHOTO_LIMIT_BYTES, PHOTOS_PER_GUEST } from '../rules';
+import { guestSection } from '../status';
 import type { PhotoVariant } from '../types';
 import { GuestPhotos } from './guest-photos';
 import { OwnPhotos } from './own-photos';
@@ -64,11 +65,38 @@ function ListStateLine({ state, onRetry }: { state: ListState; onRetry: () => vo
   ) : null;
 }
 
+/** What the section shows; once it has shown something, it stays for the visit (`guestSection`). */
+function useGuestSection(isOpen: boolean, gallery: ReturnType<typeof useGuestGallery>) {
+  const [wasShown, setWasShown] = useState(false);
+  const section = guestSection({
+    isOpen,
+    wasShown,
+    list: gallery.state.kind,
+    photoCount: gallery.photos.length,
+  });
+  if (section !== 'hidden' && !wasShown) setWasShown(true);
+  return section;
+}
+
+function GalleryIntro({ isSharing }: { isSharing: boolean }) {
+  const { t } = useTranslation('gallery');
+  if (!isSharing) return <p className="m-0">{t('guest.closedIntro')}</p>;
+  return (
+    <>
+      <p className="m-0">{t('guest.intro')}</p>
+      <p className="text-ink-muted m-0 text-sm">
+        {t('guest.limits', { limit: PHOTOS_PER_GUEST, size: PHOTO_LIMIT_BYTES / MEBIBYTE })}
+      </p>
+    </>
+  );
+}
+
 /**
- * Photos from guests, on every personal link (docs/API.md §11; design PD-63, FR-46): sharing, the
- * guest's own photos in each state, and other guests' approved ones. The list is read in the
- * browser once the section nears the screen; every picture is read through the API and shown from
- * memory, so the guest's token never reaches the page (ARCHITECTURE §9).
+ * Photos from guests, on a personal link (docs/API.md §11; design PD-63, PD-187): sharing while the
+ * hosts allow it, the guest's own photos in each state, and other guests' approved ones. The list is
+ * read in the browser once the section nears the screen, so the section's root stays mounted even
+ * with nothing to show; every picture is read through the API and shown from memory, so the guest's
+ * token never reaches the page (ARCHITECTURE §9).
  */
 export function GuestGallery({ invitation, link }: { invitation: Invitation; link: GalleryLink }) {
   const { t } = useTranslation('gallery');
@@ -85,16 +113,17 @@ export function GuestGallery({ invitation, link }: { invitation: Invitation; lin
   const own = gallery.photos.filter((photo) => photo.isOwn);
   const others = gallery.photos.filter((photo) => !photo.isOwn);
   const isReady = gallery.state.kind === 'ready';
+  const section = useGuestSection(invitation.galleryUploadsEnabled === true, gallery);
+  if (section === 'hidden')
+    return <div ref={setRoot} id={GALLERY_SECTION_ID} className="absolute" />;
+  const isSharing = section === 'sharing';
   return (
     <div ref={setRoot} id={GALLERY_SECTION_ID} className="flex scroll-mt-6 flex-col gap-6">
       <SectionHeading label={t('guest.label')} heading={t('guest.heading')} />
-      <p className="m-0">{t('guest.intro')}</p>
-      <p className="text-ink-muted m-0 text-sm">
-        {t('guest.limits', { limit: PHOTOS_PER_GUEST, size: PHOTO_LIMIT_BYTES / MEBIBYTE })}
-      </p>
-      {gallery.state.kind === 'closed' ? null : (
+      <GalleryIntro isSharing={isSharing} />
+      {isSharing && gallery.state.kind !== 'closed' ? (
         <SharePhotos api={api} link={link} onShared={gallery.shared} />
-      )}
+      ) : null}
       <ListStateLine state={gallery.state} onRetry={gallery.retry} />
       {isReady ? (
         <OwnPhotos photos={own} load={load} zone={zone} onRemove={gallery.remove} />

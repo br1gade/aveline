@@ -226,6 +226,8 @@ export interface Invitation {
   /** Which built-in questions the reply form asks. A disabled one must not be sent. */
   rsvpFields?: Partial<Record<BuiltInField, RsvpFieldConfig>>;
   rsvpQuestions: RsvpQuestion[];
+  /** On a personal link: whether the guest can share new photos (FR-46). Off unless `true`. */
+  galleryUploadsEnabled?: boolean;
   /**
    * `true` on a template preview for the host (docs/API.md §6, "Previewing a template"), which
    * collects nothing; absent on a guest's page.

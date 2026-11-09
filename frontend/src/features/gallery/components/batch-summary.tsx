@@ -7,7 +7,12 @@ import type { BatchStop, FileOutcome } from '../upload-batch';
 import type { SentBatch } from './share-photos';
 
 /** A stop the guest can do nothing about here: no "Send the rest". */
-const FINAL_STOPS: ReadonlySet<BatchStop['kind']> = new Set(['limit', 'full', 'closed']);
+const FINAL_STOPS: ReadonlySet<BatchStop['kind']> = new Set([
+  'limit',
+  'full',
+  'closed',
+  'uploadsOff',
+]);
 
 function outcomeKey(outcome: FileOutcome) {
   if (outcome.kind === 'refused') return `outcomes.refused.${outcome.reason}` as const;

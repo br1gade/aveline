@@ -13,6 +13,7 @@ import {
   listEventGallery,
   listGuestGallery,
   moderatePhoto,
+  setGalleryUploads,
   uploadPhoto,
 } from './api';
 import { itemWire } from './test-data';
@@ -132,6 +133,27 @@ describe('moderating and the files', () => {
       moderation: 'APPROVED',
     });
     expect(bodies).toEqual([{ moderationStatus: 'APPROVED' }]);
+  });
+
+  it('sets whether guests can share photos, and reports what was saved', async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${API}/events/e1/gallery/settings`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ uploadsEnabled: true });
+      }),
+    );
+    await expect(setGalleryUploads(hostApi, 'e1', true)).resolves.toBe(true);
+    expect(bodies).toEqual([{ uploadsEnabled: true }]);
+  });
+
+  it('reads the hosts’ list with whether guests can share', async () => {
+    server.use(
+      http.get(`${API}/events/e1/gallery`, () =>
+        HttpResponse.json({ items: [], nextCursor: null, uploadsEnabled: true }),
+      ),
+    );
+    await expect(listEventGallery(hostApi, 'e1')).resolves.toMatchObject({ uploadsEnabled: true });
   });
 
   it('reads a copy’s bytes by its variant', async () => {

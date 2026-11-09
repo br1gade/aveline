@@ -3,6 +3,7 @@ import type {
   GalleryPage,
   GalleryPhoto,
   GuestGalleryWire,
+  HostGalleryPage,
   HostGalleryWire,
 } from './types';
 
@@ -30,6 +31,10 @@ export function readGuestPage(wire: GuestGalleryWire): GalleryPage {
   return { photos: readItems(wire.items), nextCursor: wire.nextCursor ?? null };
 }
 
-export function readHostPage(wire: HostGalleryWire): GalleryPage {
-  return { photos: readItems(wire.items), nextCursor: wire.nextCursor ?? null };
+export function readHostPage(wire: HostGalleryWire): HostGalleryPage {
+  return {
+    photos: readItems(wire.items),
+    nextCursor: wire.nextCursor ?? null,
+    uploadsEnabled: wire.uploadsEnabled,
+  };
 }

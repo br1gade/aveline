@@ -1,5 +1,28 @@
 import type { GalleryPhoto } from './types';
 
+export type GuestSection = 'sharing' | 'photosOnly' | 'hidden';
+
+/**
+ * What the guests' section shows (FR-46, design PD-187). With sharing off, photos already shared
+ * stay, and a failed read is said because there may be some; otherwise the section shows nothing.
+ * Once shown it stays for the visit, so it can't vanish from under a guest who is using it.
+ */
+export function guestSection({
+  isOpen,
+  wasShown,
+  list,
+  photoCount,
+}: {
+  isOpen: boolean;
+  wasShown: boolean;
+  list: 'waiting' | 'ready' | 'closed' | 'failed';
+  photoCount: number;
+}): GuestSection {
+  if (isOpen) return 'sharing';
+  const hasSomething = list === 'failed' || (list === 'ready' && photoCount > 0);
+  return wasShown || hasSomething ? 'photosOnly' : 'hidden';
+}
+
 /**
  * A photo's state for the guest who shared it (PD-63). Others' photos reach a guest only once
  * shown. A status a later backend adds reads as still being prepared, or still waiting.

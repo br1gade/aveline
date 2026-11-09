@@ -47,6 +47,36 @@ describe('a photo made smaller before it goes (PD-150)', () => {
   });
 });
 
+describe('when the hosts close sharing meanwhile (FR-46)', () => {
+  const closed = new ApiError({
+    status: 409,
+    messages: ['Photo uploads are off'],
+    feedback: {
+      code: 'GALLERY_UPLOADS_DISABLED',
+      action: 'RELOAD',
+      userMessage: undefined,
+      details: [],
+    },
+  });
+
+  it('stops the batch by the code, not sending the rest', async () => {
+    const send = sender(photo({ id: 'p1' }), closed);
+    const result = await sendBatch(files, send, keepGoing);
+    expect(result.stop).toEqual({ kind: 'uploadsOff' });
+    expect(result.outcomes.map((outcome) => outcome.kind)).toEqual([
+      'shared',
+      'notSent',
+      'notSent',
+    ]);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('still reads any other 409 as a conflict', async () => {
+    const result = await sendBatch(files, sender(refused(409, 'Busy')), keepGoing);
+    expect(result.stop).toEqual({ kind: 'conflict' });
+  });
+});
+
 describe('sending several photos, one after another', () => {
   it('sends each in turn and says what became of it', async () => {
     const send = sender(photo({ id: 'p1' }), photo({ id: 'p2' }), photo({ id: 'p3' }));

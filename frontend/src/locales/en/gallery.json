@@ -3,6 +3,7 @@
     "label": "Gallery",
     "heading": "Photos from guests",
     "intro": "Share your photos of the celebration. Other guests see them once the hosts approve them.",
+    "closedIntro": "Photos shared for this celebration. The hosts have closed sharing for now.",
     "limits": "Up to {{limit}} photos each, {{size}} MB per photo: JPEG, PNG, WebP or AVIF."
   },
   "share": {
@@ -52,6 +53,7 @@
     "limit": "You have shared {{limit}} photos, the most one guest can. Remove one of yours to share another.",
     "full": "The gallery is full for now. Please try again later.",
     "conflict": "This photo couldn’t be added just now. Please try again.",
+    "uploadsOff": "The hosts have closed photo sharing, so the photos not sent can’t be added.",
     "closed": "This invitation can no longer be opened, so no more photos can be shared.",
     "rate-limited": "Too many photos at once. Wait a minute, then send the rest.",
     "busy": "Photos can’t be saved just now. Please try again in a few minutes.",
@@ -114,9 +116,18 @@
   "host": {
     "back": "Back to the event",
     "title": "Guests’ photos",
-    "intro": "Photos guests share from their personal invitations. Other guests see a photo only once you approve it.",
+    "intro": "Photos guests share from their personal invitations. Other guests see a photo only once you approve it. Sharing starts off on a new invitation.",
     "refused": "Moderating guests’ photos is not available to your role.",
     "refusedAction": "Your role can’t moderate guests’ photos.",
+    "uploads": {
+      "on": "Guests can share photos from their personal invitations.",
+      "off": "Photo sharing is off: guests can’t add photos. Those already shared stay.",
+      "turnOn": "Let guests share photos",
+      "turnOff": "Stop guests sharing photos",
+      "turnedOn": "Guests can now share photos.",
+      "turnedOff": "Guests can no longer add photos. Those already shared stay.",
+      "noInvitation": "Create the invitation first: photo sharing is part of it."
+    },
     "failed": "This couldn’t be done. Please try again.",
     "count_one": "{{count, number}} photo of the {{limit, number}} the event can hold.",
     "count_other": "{{count, number}} photos of the {{limit, number}} the event can hold.",

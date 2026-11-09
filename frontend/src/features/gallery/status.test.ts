@@ -1,7 +1,37 @@
 import { describe, expect, it } from 'vitest';
 
-import { failureOf, guestState, isSettled, tabOf } from './status';
+import { failureOf, guestSection, guestState, isSettled, tabOf } from './status';
 import { photo } from './test-data';
+
+describe('what the guests’ section shows (FR-46, PD-187)', () => {
+  it.each(['waiting', 'ready', 'closed', 'failed'] as const)(
+    'offers sharing while it is open, the list %s',
+    (list) => {
+      expect(guestSection({ isOpen: true, wasShown: false, list, photoCount: 0 })).toBe('sharing');
+    },
+  );
+
+  it.each([
+    ['ready', 1, 'photosOnly'],
+    ['failed', 0, 'photosOnly'],
+    ['ready', 0, 'hidden'],
+    ['waiting', 0, 'hidden'],
+    ['waiting', 1, 'hidden'],
+    ['closed', 0, 'hidden'],
+    ['closed', 1, 'hidden'],
+  ] as const)('with sharing off, the list %s and %i photos, is %s', (list, photoCount, shown) => {
+    expect(guestSection({ isOpen: false, wasShown: false, list, photoCount })).toBe(shown);
+  });
+
+  it.each(['waiting', 'ready', 'closed', 'failed'] as const)(
+    'stays once shown, with the list %s and no photos left',
+    (list) => {
+      expect(guestSection({ isOpen: false, wasShown: true, list, photoCount: 0 })).toBe(
+        'photosOnly',
+      );
+    },
+  );
+});
 
 describe('a photo’s state for the guest who shared it (PD-63)', () => {
   it.each([

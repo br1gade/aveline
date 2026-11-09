@@ -6,6 +6,7 @@ import type {
   GalleryPage,
   GalleryPhoto,
   GuestGalleryWire,
+  HostGalleryPage,
   HostGalleryWire,
   ModerationStatus,
   PhotoVariant,
@@ -96,13 +97,28 @@ export async function listEventGallery(
   api: ApiClient,
   eventId: string,
   after?: string,
-): Promise<GalleryPage> {
+): Promise<HostGalleryPage> {
   const wire = await expectData<HostGalleryWire>(
     api.GET('/api/v1/events/{eventId}/gallery', {
       params: { path: { eventId }, query: pageQuery(after) },
     }),
   );
   return readHostPage(wire);
+}
+
+/** Whether guests can share new photos, as saved. An event with no invitation yet answers 404. */
+export async function setGalleryUploads(
+  api: ApiClient,
+  eventId: string,
+  uploadsEnabled: boolean,
+): Promise<boolean> {
+  const saved = await expectData<{ uploadsEnabled: boolean }>(
+    api.PATCH('/api/v1/events/{eventId}/gallery/settings', {
+      params: { path: { eventId } },
+      body: { uploadsEnabled },
+    }),
+  );
+  return saved.uploadsEnabled;
 }
 
 /** Approve, or not; a photo must be READY and still there, otherwise 409. */

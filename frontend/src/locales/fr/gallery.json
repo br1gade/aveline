@@ -3,6 +3,7 @@
     "label": "Galerie",
     "heading": "Photos des invités",
     "intro": "Partagez vos photos de la fête. Les autres invités les verront une fois approuvées par les hôtes.",
+    "closedIntro": "Les photos partagées pour cette fête. Les hôtes ont fermé le partage pour l’instant.",
     "limits": "Jusqu’à {{limit}} photos par invité, {{size}} Mo par photo : JPEG, PNG, WebP ou AVIF."
   },
   "share": {
@@ -53,6 +54,7 @@
     "limit": "Vous avez partagé {{limit}} photos, le maximum pour un invité. Retirez l’une des vôtres pour en partager une autre.",
     "full": "La galerie est pleine pour le moment. Veuillez réessayer plus tard.",
     "conflict": "Cette photo n’a pas pu être ajoutée pour l’instant. Veuillez réessayer.",
+    "uploadsOff": "Les hôtes ont fermé le partage de photos : celles qui n’ont pas été envoyées ne peuvent pas être ajoutées.",
     "closed": "Cette invitation ne s’ouvre plus. Aucune autre photo ne peut donc être partagée.",
     "rate-limited": "Trop de photos à la fois. Attendez une minute, puis envoyez le reste.",
     "busy": "Les photos ne peuvent pas être enregistrées pour l’instant. Veuillez réessayer dans quelques minutes.",
@@ -115,9 +117,18 @@
   "host": {
     "back": "Retour à l’événement",
     "title": "Photos des invités",
-    "intro": "Les photos que les invités partagent depuis leur invitation personnelle. Les autres invités ne voient une photo qu’une fois que vous l’avez approuvée.",
+    "intro": "Les photos que les invités partagent depuis leur invitation personnelle. Les autres invités ne voient une photo qu’une fois que vous l’avez approuvée. Le partage est désactivé au départ sur une nouvelle invitation.",
     "refused": "La modération des photos des invités n’est pas disponible pour votre rôle.",
     "refusedAction": "Votre rôle ne permet pas de modérer les photos des invités.",
+    "uploads": {
+      "on": "Les invités peuvent partager des photos depuis leur invitation personnelle.",
+      "off": "Le partage de photos est désactivé : les invités ne peuvent pas en ajouter. Celles déjà partagées restent.",
+      "turnOn": "Autoriser les invités à partager des photos",
+      "turnOff": "Empêcher les invités de partager des photos",
+      "turnedOn": "Les invités peuvent désormais partager des photos.",
+      "turnedOff": "Les invités ne peuvent plus ajouter de photos. Celles déjà partagées restent.",
+      "noInvitation": "Créez d’abord l’invitation : le partage de photos en fait partie."
+    },
     "failed": "Cette action n’a pas pu être effectuée. Veuillez réessayer.",
     "count_one": "{{count, number}} photo sur les {{limit, number}} que l’événement peut contenir.",
     "count_many": "{{count, number}} photos sur les {{limit, number}} que l’événement peut contenir.",

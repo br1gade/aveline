@@ -48,6 +48,7 @@ export interface GuestGalleryWire {
 export interface HostGalleryWire {
   items: GalleryItemWire[];
   nextCursor: string | null;
+  uploadsEnabled: boolean;
 }
 
 /** One photo as the pages hold it: its fields named, nothing else kept. */
@@ -68,6 +69,11 @@ export interface GalleryPhoto {
 export interface GalleryPage {
   photos: GalleryPhoto[];
   nextCursor: string | null;
+}
+
+/** The hosts' list also says whether guests can share (FR-46). */
+export interface HostGalleryPage extends GalleryPage {
+  uploadsEnabled: boolean;
 }
 
 export type PhotoVariant = 'thumbnail' | 'display';

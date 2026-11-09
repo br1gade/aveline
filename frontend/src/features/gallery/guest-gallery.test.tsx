@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -11,7 +11,7 @@ import { ApiError } from '@/api/errors';
 import type { Invitation } from '@/features/invitation-renderer';
 import { createI18n } from '@/lib/i18n';
 
-import { uploadPhoto } from './api';
+import { listGuestGallery, uploadPhoto } from './api';
 import { GuestGallery } from './components/guest-gallery';
 import { readPhoto } from './read';
 import { shrinkPhoto } from './shrink';
@@ -19,11 +19,12 @@ import { itemWire, picked } from './test-data';
 
 // jsdom's File and FormData are not Node's, which Node's fetch sends; the multipart body itself is
 // tested in api.test.ts, so the page's tests stub that one call.
-vi.mock('./api', async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  uploadPhoto: vi.fn(),
-}));
+vi.mock('./api', async (importOriginal) => {
+  const actual = await importOriginal<{ listGuestGallery: typeof listGuestGallery }>();
+  return { ...actual, uploadPhoto: vi.fn(), listGuestGallery: vi.fn(actual.listGuestGallery) };
+});
 const upload = vi.mocked(uploadPhoto);
+const readList = vi.mocked(listGuestGallery);
 // jsdom draws nothing on a canvas; `shrink.test.ts` tests the drawing, so the page's tests stub it.
 vi.mock('./shrink', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -40,7 +41,9 @@ const INVITATION = {
   slug: 'anna-davit',
   locale: 'en',
   event: { timezone: 'Asia/Yerevan' },
+  galleryUploadsEnabled: true,
 } as unknown as Invitation;
+const SHARING_OFF = { ...INVITATION, galleryUploadsEnabled: false };
 
 const server = setupServer();
 let removed: string[] = [];
@@ -55,6 +58,7 @@ beforeEach(() => {
   removed = [];
   files = [];
   upload.mockReset();
+  readList.mockClear();
   vi.stubEnv('VITE_API_BASE_URL', ORIGIN);
   server.use(
     http.get(`${GALLERY}/:mediaId/file`, ({ params, request }) => {
@@ -70,14 +74,15 @@ beforeEach(() => {
 afterEach(() => {
   server.resetHandlers();
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 afterAll(() => server.close());
 
-function renderGallery() {
+function renderGallery(invitation = INVITATION) {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <I18nextProvider i18n={createI18n('en')}>{children}</I18nextProvider>
   );
-  const view = render(<GuestGallery invitation={INVITATION} link={LINK} />, { wrapper });
+  const view = render(<GuestGallery invitation={invitation} link={LINK} />, { wrapper });
   // A browser lets a guest pick any file ("All files"); the page's own check must refuse it.
   return { ...view, user: userEvent.setup({ applyAccept: false }) };
 }
@@ -91,6 +96,136 @@ const OWN_FAILED = itemWire({
   failureReason: 'INVALID_IMAGE',
 });
 const OTHER = itemWire({ id: 'other-1', moderationStatus: 'APPROVED', caption: 'First dance' });
+
+describe('when photo sharing is off (FR-46, PD-187)', () => {
+  it('keeps the photos already shared, and offers no way to add more', async () => {
+    listing([OWN_SHOWN, OTHER]);
+    renderGallery(SHARING_OFF);
+    expect(await screen.findByRole('heading', { name: 'Your photos' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Photos from guests' })).toBeInTheDocument();
+    expect(screen.getByText(/The hosts have closed sharing for now/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'See larger: First dance' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Choose photos')).toBeNull();
+    expect(screen.queryByText(/photos each/)).toBeNull();
+  });
+
+  it('shows nothing at all while there is nothing to show', async () => {
+    listing([]);
+    const { container } = renderGallery(SHARING_OFF);
+    expect(container).toHaveTextContent('');
+    await waitFor(() => expect(readList).toHaveBeenCalled());
+    await act(async () => {
+      await (readList.mock.results.at(-1)?.value as Promise<unknown>);
+    });
+    expect(container).toHaveTextContent('');
+  });
+
+  it('counts a missing setting as off', async () => {
+    listing([OTHER]);
+    renderGallery({ ...INVITATION, galleryUploadsEnabled: undefined } as unknown as Invitation);
+    expect(await screen.findByRole('heading', { name: 'Photos from guests' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Choose photos')).toBeNull();
+  });
+
+  it('reads the list only when the section nears the screen, with nothing shown yet', async () => {
+    const observed: Element[] = [];
+    let report: IntersectionObserverCallback = () => undefined;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          report = callback;
+        }
+        observe(element: Element) {
+          observed.push(element);
+        }
+        disconnect() {
+          return undefined;
+        }
+      },
+    );
+    listing([OTHER]);
+    renderGallery(SHARING_OFF);
+    await waitFor(() => expect(observed[0]).toHaveAttribute('id', 'guest-photos'));
+    expect(readList).not.toHaveBeenCalled();
+    act(() => report([{ isIntersecting: true } as IntersectionObserverEntry], {} as never));
+    expect(await screen.findByRole('heading', { name: 'Photos from guests' })).toBeInTheDocument();
+  });
+
+  it('stays when the guest removes the only photo, saying so with the focus', async () => {
+    listing([OWN_SHOWN]);
+    const { user } = renderGallery(SHARING_OFF);
+    await user.click(await screen.findByRole('button', { name: 'Remove' }));
+    await user.click(screen.getByRole('button', { name: 'Remove photo' }));
+    const status = await screen.findByText('Photo removed.');
+    await waitFor(() => expect(status).toHaveFocus());
+  });
+
+  it('stays while the guest tries again after a failed read', async () => {
+    let reads = 0;
+    server.use(
+      http.get(GALLERY, () => {
+        reads += 1;
+        return reads === 1
+          ? HttpResponse.json({}, { status: 500 })
+          : HttpResponse.json({ items: [OTHER], nextCursor: null });
+      }),
+    );
+    const { user } = renderGallery(SHARING_OFF);
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(screen.getByRole('heading', { name: 'Photos from guests' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'See larger: First dance' }),
+    ).toBeInTheDocument();
+  });
+
+  it('says so when the link closes while its photos are on screen', async () => {
+    server.use(
+      http.get(GALLERY, ({ request }) =>
+        new URL(request.url).searchParams.get('after')
+          ? HttpResponse.json({}, { status: 404 })
+          : HttpResponse.json({ items: [OTHER], nextCursor: 'next' }),
+      ),
+    );
+    const { user } = renderGallery(SHARING_OFF);
+    await user.click(await screen.findByRole('button', { name: 'Show more photos' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This invitation can no longer be opened',
+    );
+  });
+
+  it('still says when the photos couldn’t be read, as there may be some', async () => {
+    server.use(http.get(GALLERY, () => HttpResponse.json({}, { status: 500 })));
+    renderGallery(SHARING_OFF);
+    expect(await screen.findByRole('alert')).toHaveTextContent('The photos couldn’t be loaded.');
+    expect(screen.getByRole('heading', { name: 'Photos from guests' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Choose photos')).toBeNull();
+  });
+
+  it('says so when the hosts close it during a visit, offering no “send the rest”', async () => {
+    listing([]);
+    upload.mockRejectedValueOnce(
+      new ApiError({
+        status: 409,
+        messages: ['Photo uploads are off'],
+        feedback: {
+          code: 'GALLERY_UPLOADS_DISABLED',
+          action: 'RELOAD',
+          userMessage: undefined,
+          details: [],
+        },
+      }),
+    );
+    const { user } = renderGallery();
+    await screen.findByText('You haven’t shared any photos yet.');
+    await user.upload(screen.getByLabelText('Choose photos'), [picked('a.jpg'), picked('b.jpg')]);
+    await user.click(screen.getByRole('button', { name: 'Share 2 photos' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The hosts have closed photo sharing',
+    );
+    expect(screen.queryByRole('button', { name: /Send the rest/ })).toBeNull();
+  });
+});
 
 describe('the guest gallery (PD-63)', () => {
   it('shows the guest’s own photos in their states and others’ approved ones, from memory', async () => {

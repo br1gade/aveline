@@ -52,14 +52,18 @@ const server = setupServer();
 const reads = { gallery: 0, files: [] as string[] };
 
 /** The gallery in two pages, as the backend pages it by cursor. */
-function serveGallery(first = [WAITING, SHOWN], second = [REFUSED, PREPARING]) {
+function serveGallery(
+  first = [WAITING, SHOWN],
+  second = [REFUSED, PREPARING],
+  uploadsEnabled = false,
+) {
   server.use(
     http.get(`${API}/events/e1/gallery`, ({ request }) => {
       reads.gallery += 1;
       const after = new URL(request.url).searchParams.get('after');
       return after
-        ? HttpResponse.json({ items: second, nextCursor: null })
-        : HttpResponse.json({ items: first, nextCursor: first.at(-1)?.id ?? null });
+        ? HttpResponse.json({ items: second, nextCursor: null, uploadsEnabled })
+        : HttpResponse.json({ items: first, nextCursor: first.at(-1)?.id ?? null, uploadsEnabled });
     }),
   );
 }
@@ -122,8 +126,139 @@ function renderPage(path = '/app/events/e1/photos') {
   return userEvent.setup();
 }
 
+/** The moderation's own line, the page's last: the upload setting has one above it. */
+const boardStatus = () => screen.getAllByRole('status').at(-1) as HTMLElement;
+
 const cards = () =>
   within(screen.getAllByRole('list').at(-1) as HTMLElement).queryAllByRole('listitem');
+
+describe('whether guests can share photos (FR-46, PD-188)', () => {
+  const OFF = /Photo sharing is off/;
+  const TURN_ON = { name: 'Let guests share photos' };
+  const TURN_OFF = { name: 'Stop guests sharing photos' };
+
+  function answerSettings(reply: () => Response | Promise<Response>) {
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${API}/events/e1/gallery/settings`, async ({ request }) => {
+        bodies.push(await request.json());
+        return reply();
+      }),
+    );
+    return bodies;
+  }
+
+  it('says it is off, and turns it on from the answer', async () => {
+    serveGallery();
+    const bodies = answerSettings(() => HttpResponse.json({ uploadsEnabled: true }));
+    const user = renderPage();
+    expect(await screen.findByText(OFF)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', TURN_ON));
+    expect(await screen.findByRole('button', TURN_OFF)).toBeInTheDocument();
+    expect(screen.queryByText(OFF)).toBeNull();
+    expect(screen.getByText('Guests can now share photos.')).toHaveAttribute('role', 'status');
+    expect(bodies).toEqual([{ uploadsEnabled: true }]);
+  });
+
+  it('says it is on, and turns it off', async () => {
+    serveGallery([WAITING], [], true);
+    const bodies = answerSettings(() => HttpResponse.json({ uploadsEnabled: false }));
+    const user = renderPage();
+    await user.click(await screen.findByRole('button', TURN_OFF));
+    expect(await screen.findByText(OFF)).toBeInTheDocument();
+    expect(screen.getByText(/Guests can no longer add photos/)).toHaveAttribute('role', 'status');
+    expect(bodies).toEqual([{ uploadsEnabled: false }]);
+  });
+
+  it('holds the sentence, and the button, until the answer comes', async () => {
+    serveGallery();
+    let answer: (response: Response) => void = () => undefined;
+    answerSettings(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const user = renderPage();
+    await user.click(await screen.findByRole('button', TURN_ON));
+    expect(screen.getByText(OFF)).toBeInTheDocument();
+    expect(screen.getByRole('button', TURN_ON)).toBeDisabled();
+    answer(HttpResponse.json({ uploadsEnabled: true }));
+    expect(await screen.findByRole('button', TURN_OFF)).toBeEnabled();
+  });
+
+  it('clears a saved line when the next press is refused, and a refusal when the next is saved', async () => {
+    serveGallery();
+    const answers = [
+      HttpResponse.json({ uploadsEnabled: true }),
+      refusal(403),
+      HttpResponse.json({ uploadsEnabled: false }),
+    ];
+    answerSettings(() => answers.shift() ?? refusal(500));
+    const user = renderPage();
+    const refused = 'Your role can’t moderate guests’ photos.';
+    await user.click(await screen.findByRole('button', TURN_ON));
+    await screen.findByText('Guests can now share photos.');
+    await user.click(screen.getByRole('button', TURN_OFF));
+    await screen.findByText(refused);
+    expect(screen.queryByText('Guests can now share photos.')).toBeNull();
+    await user.click(screen.getByRole('button', TURN_OFF));
+    await screen.findByText(OFF);
+    expect(screen.queryByText(refused)).toBeNull();
+  });
+
+  it('follows a reload that finds it changed', async () => {
+    serveGallery();
+    server.use(http.patch(`${API}/events/e1/gallery/w1`, () => refusal(409)));
+    const user = renderPage();
+    await screen.findByRole('button', TURN_ON);
+    serveGallery(undefined, undefined, true);
+    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(await screen.findByRole('button', TURN_OFF)).toBeInTheDocument();
+  });
+
+  it('follows a reload after its own save, when a co-host changed it back', async () => {
+    serveGallery();
+    answerSettings(() => HttpResponse.json({ uploadsEnabled: true }));
+    server.use(http.patch(`${API}/events/e1/gallery/w1`, () => refusal(409)));
+    const user = renderPage();
+    await user.click(await screen.findByRole('button', TURN_ON));
+    await screen.findByRole('button', TURN_OFF);
+    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(await screen.findByRole('button', TURN_ON)).toBeInTheDocument();
+  });
+
+  it('believes the answer over the press', async () => {
+    serveGallery();
+    answerSettings(() => HttpResponse.json({ uploadsEnabled: false }));
+    const user = renderPage();
+    await user.click(await screen.findByRole('button', TURN_ON));
+    await waitFor(() => expect(screen.getByRole('button', TURN_ON)).toBeEnabled());
+    expect(screen.getByText(OFF)).toBeInTheDocument();
+  });
+
+  it.each([
+    [403, 'Your role can’t moderate guests’ photos.'],
+    [404, 'Create the invitation first: photo sharing is part of it.'],
+  ])('leaves the setting as it was on a %i, in words', async (status, words) => {
+    serveGallery();
+    answerSettings(() => refusal(status));
+    const user = renderPage();
+    await user.click(await screen.findByRole('button', TURN_ON));
+    expect(await screen.findByText(words)).toBeInTheDocument();
+    expect(screen.getByText(OFF)).toBeInTheDocument();
+    expect(screen.getByRole('button', TURN_ON)).toBeEnabled();
+  });
+
+  it('offers no control to a role that can’t read the photos', async () => {
+    server.use(http.get(`${API}/events/e1/gallery`, () => refusal(403)));
+    renderPage();
+    expect(
+      await screen.findByText('Moderating guests’ photos is not available to your role.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', TURN_ON)).toBeNull();
+  });
+});
 
 describe('moderating guests’ photos (PD-65)', () => {
   it('reads every page, counts each tab, and starts on the photos to review', async () => {
@@ -279,7 +414,7 @@ describe('approving several at once', () => {
     await user.click(await screen.findByRole('checkbox', { name: 'Choose: One' }));
     await user.click(screen.getByRole('checkbox', { name: 'Choose: Three' }));
     await user.click(screen.getByRole('button', { name: 'Approve chosen (2)' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('2 photos approved.');
+    await waitFor(() => expect(boardStatus()).toHaveTextContent('2 photos approved.'));
     expect(asked).toEqual(['a1', 'a3']);
     expect(decisions).toEqual([{ moderationStatus: 'APPROVED' }, { moderationStatus: 'APPROVED' }]);
     expect(screen.getByText('Two')).toBeInTheDocument();
@@ -292,7 +427,7 @@ describe('approving several at once', () => {
     renderPage();
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Choose all 3 on this tab' }));
-    const line = screen.getByRole('status');
+    const line = boardStatus();
     const focus = vi.spyOn(line, 'focus');
     await user.click(screen.getByRole('button', { name: 'Approve chosen (3)' }));
     await screen.findByText('3 photos approved.');
@@ -351,8 +486,8 @@ describe('approving several at once', () => {
     await user.click(await screen.findByRole('button', { name: 'Choose all 3 on this tab' }));
     await user.click(screen.getByRole('button', { name: 'Approve chosen (3)' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Too many/);
-    expect(screen.getByRole('status')).toHaveTextContent('1 photo approved.');
-    expect(screen.getByRole('status')).toHaveTextContent('2 are still chosen');
+    expect(boardStatus()).toHaveTextContent('1 photo approved.');
+    expect(boardStatus()).toHaveTextContent('2 are still chosen');
     expect(asked).toEqual(['a1', 'a2']);
     expect(screen.getByRole('button', { name: 'Approve chosen (2)' })).toBeEnabled();
   });
@@ -396,7 +531,7 @@ describe('approving several at once', () => {
     const before = reads.gallery;
     await user.click(screen.getByRole('button', { name: 'Approve chosen (3)' }));
     await waitFor(() => expect(reads.gallery).toBeGreaterThan(before));
-    expect(await screen.findByRole('status')).toHaveTextContent('2 photos approved.');
+    await waitFor(() => expect(boardStatus()).toHaveTextContent('2 photos approved.'));
   });
 
   it('words a role’s 403, keeping everything chosen', async () => {
