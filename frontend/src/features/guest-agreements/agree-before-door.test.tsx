@@ -72,7 +72,19 @@ function renderPage(record = recordComing()) {
 
 describe('agreeing before the door (PD-83)', () => {
   it('lets a ticket holder agree on their own, without replying again', async () => {
-    serveReads(acknowledgementsWire(), acknowledgementsWire([{ subjectGuestId: 'g-anna' }]));
+    // The read after agreeing waits here, so each of the two lines is seen in its turn.
+    let releaseReread: () => void = () => undefined;
+    const reread = new Promise<void>((resolve) => {
+      releaseReread = resolve;
+    });
+    server.use(
+      http.get(ACKS, async () => {
+        reads.count += 1;
+        if (reads.count === 1) return HttpResponse.json(acknowledgementsWire());
+        await reread;
+        return HttpResponse.json(acknowledgementsWire([{ subjectGuestId: 'g-anna' }]));
+      }),
+    );
     serveSign(() => HttpResponse.json({ records: [] }, { status: 201 }));
     const { user } = renderPage();
     expect(await screen.findByText('1 agreement is needed before the door.')).toBeInTheDocument();
@@ -83,7 +95,11 @@ describe('agreeing before the door (PD-83)', () => {
     expect(await screen.findByText('Enter your full name.')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Your full name'), 'Anna Sargsyan');
     await user.click(screen.getByRole('button', { name: 'Agree' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('Everyone coming has agreed.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Agreed for: Anna Sargsyan.');
+    releaseReread();
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Everyone coming has agreed.'),
+    );
     expect(posted).toEqual([
       {
         statementVersionId: 'v2',
