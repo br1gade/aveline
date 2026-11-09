@@ -45,7 +45,7 @@ calendar" on the invitation, drink and song request starting off, and the footer
 once it exists. On 8 November the backend team merged the frontend into `dev` and `main`, added seats and
 zones, and delivered many of our requests; on 9 November their screens were reviewed and fixed. From 2 November it followed the backend's `34ac1e6` (merge `bd8fa75`), reviewed in full on 3
 November ([BACKEND_REQUESTS](BACKEND_REQUESTS.md) §6). Since 9 November its types are generated from `dev` at
-`9827cf5`, whose additions are mostly still to be adopted (§12); none of this has yet run against the real
+`e9a6b8f`, whose additions are mostly still to be adopted (§12); none of this has yet run against the real
 backend.
 
 ## 1. Stack
@@ -914,25 +914,28 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 9 Nov 2026 | **Selects are named by their label alone,** `SelectField` in the app's kit and a new `SelectField` in `ui/form` for the guest pages' Ivory system, never a `<label>` wrapping the select | A wrapping label makes the accessible name the label plus the chosen option ("Section or zone Choose"), which axe doesn't catch |
 | 9 Nov 2026 | **The inventory's refusals are worded by status** (`ticket-sales/inventory-refusals.ts`): a 403 by whose the action is, a 400 with the backend's sentence as it came | One sentence for all hid that venue layouts are Aveline's directory editors' (FR-6) |
 | 9 Nov 2026 | **The owner's decisions of 5 and 8 November are confirmed:** unpublished seating hidden from briefs, pausing a brief allowed, gallery uploads off for new invitations (design C-55 to C-57) | The backend had built the first two; C-44 and C-46 are superseded |
+| 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
 
 ## 12. Not yet built
 
-- Of the backend's 8 November delivery (`dev` at `9827cf5`), what the client is still to adopt
-  (BACKEND_REQUESTS §1): for the pilot, the buyer's order in a fresh tab (FR-62), the door's coded
-  refusals and paged roster (FR-76, FR-79) with a rehearsal on a phone, and a build per origin
-  (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
+- Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
+  adopt (BACKEND_REQUESTS §1): for the pilot, the hosts' switch for guest uploads and its refusal
+  (FR-46), the buyer's order in a fresh tab (FR-62), the door's coded refusals and paged roster
+  (FR-76, FR-79) with a rehearsal on a phone, export failures that say what to do (FR-59), and a
+  build per origin (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
   owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
   backend's default is verified (FR-134, PD-179), and the scheduled free plan with its withdrawal
   (FR-135). Also the response schemas and permissions (FR-1, FR-6), editing and removing a vendor
   (FR-102), pausing a brief (C-56), and the frontend CI workflow the backend asked for. **Every
-  request marked answered in BACKEND_REQUESTS (29 of them) keeps its stand-in until adopted,** so the
+  request marked answered and waiting for the client in BACKEND_REQUESTS (29 of them) keeps its stand-in until adopted,** so the
   entries below that name one now wait on the client, not the backend. Paid plans
   shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
   are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
   been opened on a real phone.
 - Of seats and zones (built by the backend team, PD-183 to PD-186): a seat map; the inventory once
-  published can't be changed here; and the layout CSV's own refusals, which come back as the
-  backend's sentences.
+  published can't be changed here; the layout CSV's own refusals, and a typed layout's duplicates and
+  5,000-seat total, which come back as the backend's sentences, as do the 409s only a code could
+  word (FR-137).
 - Of several organizations: anything run with two real memberships, as the database's gate
   (`multiOrganizationWrites`) is off; this has only met a mock. Creating a second organization, which
   that gate refuses.
@@ -1033,7 +1036,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   supplies; the other languages when creating an event (FR-101; correcting it has them); a custom slug
   (no endpoint exists). A link to a published invitation from the overview: a private event's generic
   link is a 404.
-- Of guests' photos: a switch for the hosts (FR-46); the guest's own count and the gallery's
+- Of guests' photos: a switch for the hosts (FR-46, delivered, the client adopts it next: until then a new invitation's guests can't share photos and are only told to try again); the guest's own count and the gallery's
   closing date (FR-50); who shared a photo, for the hosts (FR-48); the storage used (FR-47);
   approving several in one request (FR-112); and a photo's own
   status read (FR-41).
@@ -1042,7 +1045,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - Of exports: who made each (FR-61); cancelling one queued (the API has no such call); more than
   the newest fifty (the API lists no more); choosing how long a file is kept (a server setting);
   downloading an earlier record, deliberately (it would build today's lists); and failure words
-  finer than "something went wrong", which wait for the worker's codes (FR-59).
+  finer than "something went wrong", which the worker's codes now allow (FR-59, delivered, the
+  client adopts it next).
 - Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
   the announcement is not published (FR-71); naming the event on an order opened from its email in another
@@ -1074,5 +1078,5 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - Of the invitation's polish: music starting by itself after a full reload, which browsers refuse
   before a press (PD-143).
 - The Telegram reminders button isn't wanted (C-26). `guest.telegramLink` stays unread, and the link in
-  the invitation's email, which carries the guest's token, is the backend's (BQ-11). The guest's table is
+  the invitation's email, which since `9827cf5` carries a separate start code and not the guest's token, is the backend's (BQ-11). The guest's table is
   shown on the personal card since 30 October 2026 (design PD-71).

@@ -3,8 +3,7 @@
  * Lists every changed path outside frontend/: committed on this branch against its base, staged,
  * unstaged or untracked. An empty list is the only passing result (docs/WORKFLOW.md §5).
  *
- * The base is origin/frontend/integration once it exists, origin/main until then, or
- * BOUNDARY_BASE when set.
+ * The base is origin/dev, or BOUNDARY_BASE when set.
  */
 import { execFileSync } from 'node:child_process';
 
@@ -46,9 +45,7 @@ function lines(text) {
 const repo = git(['rev-parse', '--show-toplevel']);
 process.chdir(repo);
 
-const base =
-  process.env.BOUNDARY_BASE ??
-  (refExists('origin/frontend/integration') ? 'origin/frontend/integration' : 'origin/main');
+const base = process.env.BOUNDARY_BASE ?? 'origin/dev';
 
 const committed = refExists(base) ? lines(git(['diff', '--name-only', `${base}...HEAD`])) : [];
 const working = statusPaths();

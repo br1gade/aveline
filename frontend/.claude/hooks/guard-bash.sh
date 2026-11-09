@@ -20,7 +20,7 @@ if printf '%s' "$cmd" | grep -Eq 'git[[:space:]]+push[^|;&]*(--force([^-]|$)|[[:
   refuse "Force-pushing is not allowed from a frontend session."
 fi
 if printf '%s' "$cmd" | grep -Eq 'git[[:space:]]+push[^|;&]*[[:space:]]main([[:space:]]|$)'; then
-  refuse "The frontend stays off main for now (setup proposal A6)."
+  refuse "Frontend work integrates through dev; dev reaches main only when the frontend lead approves, from a root session."
 fi
 
 writes='(>>?|\btee\b|\bsed[[:space:]]+-i|\brm\b|\bmv\b|\bcp\b|\bpatch\b|git[[:space:]]+(checkout|restore|apply))'

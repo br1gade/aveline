@@ -46,9 +46,9 @@ export function attemptOf(snapshot: Snapshot): number {
 export type FailureKey = 'generation' | 'stopped' | 'erased';
 
 /**
- * The export worker's codes (`export-runner.ts`, `export-queue.ts`, `export-privacy.ts`). Every
- * failure of reading, rendering, storing or permission is `GENERATION_FAILED` (FR-59). An unknown
- * code is shown in the backend's own sentence, which comes in the page's language.
+ * The export worker's codes we word ourselves (`export-runner.ts`, `export-queue.ts`,
+ * `export-privacy.ts`). Any other, FR-59's among them until they are adopted, is shown in the
+ * backend's own sentence, which comes in the page's language.
  */
 const FAILURES: Readonly<Record<string, FailureKey>> = {
   GENERATION_FAILED: 'generation',

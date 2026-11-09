@@ -5,16 +5,10 @@
 
 ## 1. Where work happens right now
 
-- **The frontend stays off `main`** (A6). Nothing is pushed to `main` and no pull request targets
-  it.
-- **`frontend/integration` does not exist yet.** It needs the backend developer's agreement
-  (BA-1 to BA-6, setup proposal §3.8), and they are unavailable.
-- **Meanwhile:**
-  - the setup and the guest invitation are built on `frontend/setup`;
-  - nothing is committed until the frontend lead asks;
-  - when commits are wanted, the setup goes first, and the guest invitation moves to its own
-    `frontend/guest-invitation` branch made from `frontend/setup`;
-  - both join `frontend/integration` once it exists, the setup first.
+- **Frontend work integrates through `dev`** (A6 was superseded by the backend team on 8 November
+  2026). Branch from `origin/dev` and run the frontend verification on the combined tree.
+- **`dev` reaches `main` only when the frontend lead approves the promotion.**
+- **Nothing is committed or pushed until the frontend lead asks.**
 
 ## 2. Branches, commits and pull requests
 
@@ -81,8 +75,8 @@
 ## 5. The boundary check
 
 `npm run check:boundaries` lists every changed path, committed against the base branch or
-uncommitted, that is outside `frontend/`. The base is `origin/main` until `frontend/integration`
-exists. An empty list is the only passing result.
+uncommitted, that is outside `frontend/`. The base is `origin/dev`, or `BOUNDARY_BASE` when
+set. An empty list is the only passing result.
 
 ### Rehearsing seat and zone ticketing
 
