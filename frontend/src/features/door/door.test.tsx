@@ -108,6 +108,19 @@ function refusal(status: number, message: string) {
   );
 }
 
+/** A refusal with its stable code and the `admission` facts (FR-76). */
+function codedRefusal(
+  status: number,
+  code: string,
+  admission: Record<string, unknown> = {},
+  message = 'Words',
+) {
+  return HttpResponse.json(
+    { statusCode: status, message, code, requestId: `r-${status}`, admission },
+    { status, headers: { 'x-request-id': `r-${status}` } },
+  );
+}
+
 function record(reply: () => Response) {
   return ({ request }: { request: Request }) => {
     sent.push({ method: request.method, path: new URL(request.url).pathname });
@@ -864,5 +877,58 @@ describe('a role that may not (FR-6)', () => {
     answerCode(() => refusal(404, 'Ticket not recognised'));
     await typeCode(user, CODE);
     expect(await within(outcome()).findByText(/isn’t recognised/)).toBeInTheDocument();
+  });
+});
+
+describe('what a refused code or check-in says (FR-76)', () => {
+  async function admitOnceListRead(user: ReturnType<typeof userEvent.setup>) {
+    await waitFor(() => expect(reads('/guests')).toHaveLength(1));
+    await typeCode(user, CODE);
+  }
+
+  it('says when a used code was admitted, and whose it is, with their Undo', async () => {
+    answerCode(() =>
+      codedRefusal(400, 'TICKET_ALREADY_USED', {
+        guestId: 'g1',
+        holderName: 'Armen Petrosyan',
+        usedAt: ARRIVED_AT,
+      }),
+    );
+    const { user } = renderAt('/app/events/e1/door?by=code');
+    await admitOnceListRead(user);
+    await waitFor(() => expect(outcome()).toHaveTextContent('This ticket was admitted at 22:02.'));
+    expect(within(outcome()).getByText('Armen Petrosyan')).toBeVisible();
+    expect(within(outcome()).getByRole('button', { name: 'Undo' })).toBeEnabled();
+  });
+
+  it.each([
+    [{ orderStatus: 'CANCELLED' }, /order was cancelled\./],
+    [{ orderStatus: 'REFUNDED' }, /order was refunded\./],
+    [{ orderStatus: 'EXPIRED' }, /order was never paid\./],
+    [{ orderStatus: 'PAID', isCancellationPending: true }, /order is being cancelled\./],
+  ])('words an order it can’t admit by its state: %o', async (facts, words) => {
+    answerCode(() => codedRefusal(400, 'TICKET_ORDER_UNAVAILABLE', facts));
+    const { user } = renderAt('/app/events/e1/door?by=code');
+    await admitOnceListRead(user);
+    await waitFor(() => expect(outcome()).toHaveTextContent(words));
+  });
+
+  it('lists only that person’s missing agreements, in the page’s language', async () => {
+    answerCheckIn(() =>
+      codedRefusal(400, 'ADMISSION_ACKNOWLEDGEMENTS_REQUIRED', {
+        guestId: 'g1',
+        holderName: 'Armen Petrosyan',
+        missingAcknowledgements: [
+          { questionId: 'q1', labels: { hy: 'Տան կանոնները', en: 'The house rules' } },
+          { questionId: 'q2', labels: { hy: 'Լուսանկարները' } },
+        ],
+      }),
+    );
+    const { user } = renderAt();
+    await searchFor(user, 'armen');
+    await user.click(screen.getByRole('button', { name: 'Check in Armen Petrosyan' }));
+    await waitFor(() => expect(outcome()).toHaveTextContent('The house rules'));
+    // Not in English: the next language the statement has.
+    expect(outcome()).toHaveTextContent('Լուսանկարները');
   });
 });

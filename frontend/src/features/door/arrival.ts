@@ -29,7 +29,14 @@ export type DoorResult =
       /** This phone's own earlier press, whose answer never came, probably did this. */
       isOurEarlierPress: boolean;
     }
-  | { kind: 'ticketUsed'; isOurEarlierPress: boolean }
+  | {
+      kind: 'ticketUsed';
+      isOurEarlierPress: boolean;
+      /** When it was used, whose and who holds it, when the refusal said (FR-76). */
+      usedAt?: string;
+      guestId?: string;
+      name?: string;
+    }
   | { kind: 'undone'; name: string }
   | { kind: 'refused'; refusal: DoorRefusal; guestId: string | null; name: string | null }
   /** A walk-in on the list now, whose check-in was refused: they can be checked in from it. */
@@ -180,29 +187,60 @@ function admitted(state: DoorState, answer: DoorAdmission, guest: Guest | undefi
   return { ...marked(settled, answer.guestId, arrival), result };
 }
 
-function admitRefused(
+type NameOf = (guestId: string) => string | null;
+
+/** Who a refused code is about: the answer's own name, else the list's. */
+function holderOf(whose: { guestId?: string; holderName?: string }, nameOf: NameOf) {
+  return whose.holderName ?? (whose.guestId ? nameOf(whose.guestId) : null);
+}
+
+/** A code that says whose arrival it was, and when, marks their row here. */
+function markedHere(state: DoorState, guestId: string | undefined, at: string | null | undefined) {
+  return guestId && at ? marked(state, guestId, { isHere: true, at }) : state;
+}
+
+function codeUsed(
   state: DoorState,
-  refusal: DoorRefusal,
-  nameOf: (guestId: string) => string | null,
+  refusal: Extract<DoorRefusal, { kind: 'ticketUsed' }>,
+  isOurEarlierPress: boolean,
+  nameOf: NameOf,
 ): DoorState {
+  const name = holderOf(refusal, nameOf);
+  const result: DoorResult = {
+    kind: 'ticketUsed',
+    isOurEarlierPress,
+    ...(refusal.usedAt ? { usedAt: refusal.usedAt } : {}),
+    ...(refusal.guestId ? { guestId: refusal.guestId } : {}),
+    ...(name ? { name } : {}),
+  };
+  return { ...markedHere(state, refusal.guestId, refusal.usedAt), result };
+}
+
+function codeAlreadyHere(
+  state: DoorState,
+  refusal: Extract<DoorRefusal, { kind: 'alreadyHere' }>,
+  isOurEarlierPress: boolean,
+  nameOf: NameOf,
+): DoorState {
+  const result: DoorResult = {
+    kind: 'alreadyHere',
+    guestId: refusal.guestId ?? null,
+    name: holderOf(refusal, nameOf),
+    arrivedAt: refusal.arrivedAt,
+    isOurEarlierPress,
+  };
+  return { ...markedHere(state, refusal.guestId, refusal.arrivedAt), result };
+}
+
+function admitRefused(state: DoorState, refusal: DoorRefusal, nameOf: NameOf): DoorState {
   const isOurEarlierPress = state.isCodeLost;
   const isStillLost = refusal.kind === 'rateLimited' && state.isCodeLost;
   const settled = { ...state, isCodeLost: refusal.kind === 'noAnswer' || isStillLost };
-  if (refusal.kind === 'ticketUsed')
-    return { ...settled, result: { kind: 'ticketUsed', isOurEarlierPress } };
-  if (refusal.kind === 'alreadyHere') {
-    const { arrivedAt } = refusal;
-    const result: DoorResult = {
-      kind: 'alreadyHere',
-      guestId: null,
-      name: null,
-      arrivedAt,
-      isOurEarlierPress,
-    };
-    return { ...settled, result };
-  }
+  if (refusal.kind === 'ticketUsed') return codeUsed(settled, refusal, isOurEarlierPress, nameOf);
+  if (refusal.kind === 'alreadyHere')
+    return codeAlreadyHere(settled, refusal, isOurEarlierPress, nameOf);
   const guestId = refusal.kind === 'mustAgree' ? refusal.guestId : null;
-  const name = guestId === null ? null : nameOf(guestId);
+  const name = refusal.kind === 'mustAgree' ? holderOf(refusal, nameOf) : null;
   return { ...settled, result: { kind: 'refused', refusal, guestId, name } };
 }
 

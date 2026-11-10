@@ -307,6 +307,68 @@ describe('admitting a ticket: one arrival with its guest', () => {
   });
 });
 
+describe('a refused code that says who and when (FR-76)', () => {
+  const refusedCode = (refusal: DoorRefusal): DoorEvent => ({
+    type: 'admitRefused',
+    refusal,
+    nameOf: (guestId) => (guestId === 'g1' ? 'Armen Petrosyan' : null),
+  });
+
+  it('marks a used code’s holder here, with when it was used, named by the answer', () => {
+    const state = play(
+      refusedCode({
+        kind: 'ticketUsed',
+        usedAt: ARRIVED_AT,
+        guestId: 'g1',
+        holderName: 'Armen P.',
+      }),
+    );
+    expect(state.result).toEqual({
+      kind: 'ticketUsed',
+      isOurEarlierPress: false,
+      usedAt: ARRIVED_AT,
+      guestId: 'g1',
+      name: 'Armen P.',
+    });
+    expect(arrivalOf(armen, state)).toEqual({ isHere: true, at: ARRIVED_AT });
+  });
+
+  it('names a used code’s holder from the list when the answer doesn’t', () => {
+    const state = play(refusedCode({ kind: 'ticketUsed', usedAt: ARRIVED_AT, guestId: 'g1' }));
+    expect(state.result).toMatchObject({ name: 'Armen Petrosyan', guestId: 'g1' });
+  });
+
+  it('marks nobody for a used code with no time', () => {
+    const state = play(refusedCode({ kind: 'ticketUsed', guestId: 'g1' }));
+    expect(arrivalOf(armen, state)).toEqual({ isHere: false, at: null });
+  });
+
+  it('names and marks a code’s holder who is already here', () => {
+    const state = play(
+      refusedCode({
+        kind: 'alreadyHere',
+        arrivedAt: ARRIVED_AT,
+        guestId: 'g1',
+        holderName: 'Armen P.',
+      }),
+    );
+    expect(state.result).toMatchObject({
+      kind: 'alreadyHere',
+      guestId: 'g1',
+      name: 'Armen P.',
+      arrivedAt: ARRIVED_AT,
+    });
+    expect(arrivalOf(armen, state)).toEqual({ isHere: true, at: ARRIVED_AT });
+  });
+
+  it('names who must agree by the answer before the list', () => {
+    const state = play(
+      refusedCode({ kind: 'mustAgree', guestId: 'g1', questionId: 'q1', holderName: 'Armen P.' }),
+    );
+    expect(state.result).toMatchObject({ kind: 'refused', guestId: 'g1', name: 'Armen P.' });
+  });
+});
+
 describe('undoing', () => {
   it('takes them off, restoring the row', () => {
     const state = play({ type: 'checkedIn', answer }, { type: 'undone', guest: armen });

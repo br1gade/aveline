@@ -32,6 +32,8 @@ export interface ErrorFeedback {
   action: string | undefined;
   userMessage: string | undefined;
   details: readonly FieldFeedback[];
+  /** The door's facts on a refused admission (docs/API.md §6), as they came; read by the door. */
+  admission?: unknown;
 }
 
 const NO_FEEDBACK: ErrorFeedback = {
@@ -58,6 +60,8 @@ export class ApiError extends Error {
   readonly action: string | undefined;
   readonly userMessage: string | undefined;
   readonly details: readonly FieldFeedback[];
+  /** The door's facts on a refused admission, unread here (`features/door/refusals.ts`). */
+  readonly admission: unknown;
 
   constructor(init: ApiErrorInit) {
     super(init.messages[0] ?? `Request failed with status ${init.status}`);
@@ -74,6 +78,7 @@ export class ApiError extends Error {
     this.action = feedback.action;
     this.userMessage = feedback.userMessage;
     this.details = feedback.details;
+    this.admission = feedback.admission;
   }
 }
 
@@ -102,6 +107,7 @@ interface ErrorBody {
   action?: unknown;
   userMessage?: unknown;
   details?: unknown;
+  admission?: unknown;
 }
 
 function isErrorBody(body: unknown): body is ErrorBody {
@@ -128,6 +134,7 @@ export function feedbackFrom(body: unknown): ErrorFeedback {
     action: stringOf(body.action),
     userMessage: stringOf(body.userMessage),
     details: Array.isArray(body.details) ? body.details.flatMap(fieldFeedbackOf) : [],
+    ...(isErrorBody(body.admission) ? { admission: body.admission } : {}),
   };
 }
 

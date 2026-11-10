@@ -33,7 +33,7 @@ function toneOf(result: DoorResult): Tone {
 }
 
 function nameOf(result: DoorResult): string | null {
-  return result.kind === 'ticketUsed' ? null : result.name || null;
+  return 'name' in result ? result.name || null : null;
 }
 
 export function useRefusalWords() {
@@ -69,14 +69,34 @@ interface StatementProps {
   defaultLocale: string;
 }
 
-/** The refused statement's words, when the design has been read. */
+/** A statement's words in the page's language, else the event's, else whichever came. */
+function labelIn(labels: Readonly<Record<string, string>>, language: string, fallback: string) {
+  return labels[language] ?? labels[fallback] ?? Object.values(labels)[0] ?? null;
+}
+
+/**
+ * The statements this person still owes (FR-76): worded by the refusal itself, or, from older
+ * words naming one by its id, by the design when it has been read.
+ */
 function RefusedStatement({ refusal, door, defaultLocale }: StatementProps) {
   const { i18n } = useTranslation('door');
+  if (refusal.kind !== 'mustAgree') return null;
   const { read } = door.mustAgree;
-  if (refusal.kind !== 'mustAgree' || read.kind === 'nothing') return null;
-  const statement = read.statements?.find(({ questionId }) => questionId === refusal.questionId);
-  const words = statement ? statementWords(statement, i18n.language, defaultLocale) : null;
-  return words ? <p className="m-0 font-medium break-words">{words}</p> : null;
+  const statements = read.kind === 'nothing' ? null : read.statements;
+  const fromDesign = (questionId: string) => {
+    const statement = statements?.find((each) => each.questionId === questionId);
+    return statement ? statementWords(statement, i18n.language, defaultLocale) : null;
+  };
+  const owed = refusal.missing ?? [{ questionId: refusal.questionId, labels: {} }];
+  const words = owed.flatMap(({ questionId, labels }) => {
+    const text = labelIn(labels, i18n.language, defaultLocale) ?? fromDesign(questionId);
+    return text ? [{ questionId, text }] : [];
+  });
+  return words.map(({ questionId, text }) => (
+    <p key={questionId} className="m-0 font-medium break-words">
+      {text}
+    </p>
+  ));
 }
 
 function useResultWords(timeZone: string) {
@@ -85,6 +105,8 @@ function useResultWords(timeZone: string) {
   const seatWords = useSeatWords();
   const refusalWords = useRefusalWords();
   const earlier = (isOurs: boolean) => (isOurs ? t('result.earlierPress') : null);
+  const usedWords = (usedAt: string | undefined) =>
+    usedAt ? t('result.ticketUsedAt', { time: timeOf(usedAt) }) : t('result.ticketUsed');
   return (result: DoorResult): ReactNode[] => {
     switch (result.kind) {
       case 'arrived':
@@ -103,7 +125,7 @@ function useResultWords(timeZone: string) {
           earlier(result.isOurEarlierPress),
         ];
       case 'ticketUsed':
-        return [t('result.ticketUsed'), earlier(result.isOurEarlierPress)];
+        return [usedWords(result.usedAt), earlier(result.isOurEarlierPress)];
       case 'undone':
         return [t('result.undone')];
       case 'addedNotHere':
@@ -149,9 +171,10 @@ function TryAgain({ result, door, eventId, guest }: ActionsProps & { guest: Gues
 
 function ResultActions({ result, door, eventId }: ActionsProps) {
   const { t } = useTranslation('door');
-  const guestId = 'guestId' in result ? result.guestId : null;
+  const guestId = 'guestId' in result ? (result.guestId ?? null) : null;
   const guest = guestId === null ? undefined : door.guests.byId.get(guestId);
-  const isHere = result.kind === 'arrived' || result.kind === 'alreadyHere';
+  const isHere =
+    result.kind === 'arrived' || result.kind === 'alreadyHere' || result.kind === 'ticketUsed';
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {isHere && guest ? (

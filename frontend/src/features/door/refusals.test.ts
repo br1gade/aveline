@@ -5,12 +5,221 @@ import { describe, expect, it } from 'vitest';
 
 import { ApiError, networkError } from '@/api/errors';
 
-import { refusalOf, type DoorAction } from './refusals';
+import { refusalOf, type DoorAction, type DoorRefusal } from './refusals';
 
 const refused = (status: number, message: string) =>
   new ApiError({ status, messages: [message], requestId: `r-${status}` });
 
 const ARRIVED_AT = '2026-10-05T18:02:11.000Z';
+
+/** A refusal with the backend's stable code and its `admission` facts (FR-76). */
+const coded = (
+  status: number,
+  code: string,
+  admission?: Record<string, unknown>,
+  message = 'Words',
+) =>
+  new ApiError({
+    status,
+    messages: [message],
+    requestId: `r-${status}`,
+    feedback: {
+      code,
+      action: undefined,
+      userMessage: undefined,
+      details: [],
+      ...(admission ? { admission } : {}),
+    },
+  });
+
+const WHO = { guestId: 'g1', holderName: 'Armen Petrosyan' };
+const LABELS = { en: 'The house rules', hy: 'Տան կանոնները' };
+
+describe('a refusal by its code and facts (FR-76)', () => {
+  it.each<[string, ApiError, DoorAction, DoorRefusal]>([
+    [
+      'a second arrival, with when and who',
+      coded(409, 'ADMISSION_ALREADY_CHECKED_IN', { ...WHO, arrivedAt: ARRIVED_AT }),
+      'checkIn',
+      { kind: 'alreadyHere', arrivedAt: ARRIVED_AT, ...WHO },
+    ],
+    [
+      'a used code, with when it was used and by whom',
+      coded(400, 'TICKET_ALREADY_USED', { ...WHO, usedAt: ARRIVED_AT }),
+      'admit',
+      { kind: 'ticketUsed', usedAt: ARRIVED_AT, ...WHO },
+    ],
+    [
+      'a used code whose time is the linked check-in’s',
+      coded(400, 'TICKET_ALREADY_USED', { ...WHO, arrivedAt: ARRIVED_AT }),
+      'admit',
+      { kind: 'ticketUsed', usedAt: ARRIVED_AT, ...WHO },
+    ],
+    [
+      'a used code with no facts',
+      coded(400, 'TICKET_ALREADY_USED'),
+      'admit',
+      { kind: 'ticketUsed' },
+    ],
+    [
+      'a linked guest’s second check-in, as already here',
+      coded(400, 'TICKET_ALREADY_USED', { ...WHO, arrivedAt: ARRIVED_AT }),
+      'checkIn',
+      { kind: 'alreadyHere', arrivedAt: ARRIVED_AT, ...WHO },
+    ],
+    [
+      'a cancelled order',
+      coded(400, 'TICKET_ORDER_UNAVAILABLE', { orderStatus: 'CANCELLED' }),
+      'admit',
+      { kind: 'orderCancelled' },
+    ],
+    [
+      'a refunded order',
+      coded(400, 'TICKET_ORDER_UNAVAILABLE', { orderStatus: 'REFUNDED' }),
+      'admit',
+      { kind: 'orderRefunded' },
+    ],
+    [
+      'an order never paid',
+      coded(400, 'TICKET_ORDER_UNAVAILABLE', { orderStatus: 'EXPIRED' }),
+      'admit',
+      { kind: 'orderExpired' },
+    ],
+    [
+      'an order being cancelled',
+      coded(400, 'TICKET_ORDER_UNAVAILABLE', { orderStatus: 'PAID', isCancellationPending: true }),
+      'admit',
+      { kind: 'orderCancelling' },
+    ],
+    [
+      'an order in a state it doesn’t know',
+      coded(400, 'TICKET_ORDER_UNAVAILABLE', { orderStatus: 'SOMETHING_NEW' }),
+      'admit',
+      { kind: 'orderClosed' },
+    ],
+    [
+      'a void ticket',
+      coded(400, 'TICKET_STATUS_UNAVAILABLE', { ticketStatus: 'VOID' }),
+      'admit',
+      { kind: 'ticketVoid' },
+    ],
+    [
+      'a refunded ticket',
+      coded(400, 'TICKET_STATUS_UNAVAILABLE', { ticketStatus: 'REFUNDED' }),
+      'admit',
+      { kind: 'ticketRefunded' },
+    ],
+    [
+      'a ticket that names nobody',
+      coded(400, 'TICKET_ATTENDEE_REQUIRED'),
+      'admit',
+      { kind: 'registerFirst' },
+    ],
+    [
+      'only that person’s missing agreements',
+      coded(400, 'ADMISSION_ACKNOWLEDGEMENTS_REQUIRED', {
+        ...WHO,
+        missingAcknowledgements: [
+          { questionId: 'q1', labels: LABELS },
+          { questionId: 'q2', labels: { en: 'Photographs' } },
+          { questionId: 42 },
+        ],
+      }),
+      'checkIn',
+      {
+        kind: 'mustAgree',
+        guestId: 'g1',
+        questionId: 'q1',
+        holderName: 'Armen Petrosyan',
+        missing: [
+          { questionId: 'q1', labels: LABELS },
+          { questionId: 'q2', labels: { en: 'Photographs' } },
+        ],
+      },
+    ],
+    ['a changed link', coded(409, 'ADMISSION_LINK_CHANGED'), 'admit', { kind: 'linkChanged' }],
+    [
+      'an unknown code',
+      coded(404, 'ADMISSION_TARGET_NOT_FOUND'),
+      'admit',
+      { kind: 'notRecognised' },
+    ],
+    [
+      'an unknown guest',
+      coded(404, 'ADMISSION_TARGET_NOT_FOUND'),
+      'checkIn',
+      { kind: 'guestGone' },
+    ],
+  ])('reads %s', (_case, error, action, refusal) => {
+    expect(refusalOf(error, action)).toEqual(refusal);
+  });
+
+  it('trusts the code over the words', () => {
+    const error = coded(
+      409,
+      'ADMISSION_LINK_CHANGED',
+      undefined,
+      'Guest was already checked in at x',
+    );
+    expect(refusalOf(error, 'checkIn')).toEqual({ kind: 'linkChanged' });
+  });
+
+  it('falls back to the words for a code it doesn’t know, or one without its facts', () => {
+    expect(refusalOf(coded(400, 'BAD_REQUEST', undefined, 'Ticket already void'), 'admit')).toEqual(
+      {
+        kind: 'ticketVoid',
+      },
+    );
+    const noGuest = coded(
+      400,
+      'ADMISSION_ACKNOWLEDGEMENTS_REQUIRED',
+      { missingAcknowledgements: [] },
+      'acknowledgements: g1 must acknowledge q1 in its current version',
+    );
+    expect(refusalOf(noGuest, 'checkIn')).toEqual({
+      kind: 'mustAgree',
+      guestId: 'g1',
+      questionId: 'q1',
+    });
+  });
+
+  it('drops a fact of the wrong kind rather than guessing', () => {
+    const error = coded(409, 'ADMISSION_ALREADY_CHECKED_IN', { arrivedAt: 42, guestId: '' });
+    expect(refusalOf(error, 'checkIn')).toEqual({ kind: 'alreadyHere', arrivedAt: null });
+  });
+
+  it('holds to the codes and facts the backend has', () => {
+    const backend = (path: string) =>
+      readFileSync(join(import.meta.dirname, '../../../../backend/src', path), 'utf8');
+    const codes = backend('common/domain-http.exception.ts');
+    for (const code of [
+      'ADMISSION_TARGET_NOT_FOUND',
+      'ADMISSION_LINK_CHANGED',
+      'ADMISSION_ALREADY_CHECKED_IN',
+      'ADMISSION_ACKNOWLEDGEMENTS_REQUIRED',
+      'TICKET_ALREADY_USED',
+      'TICKET_ORDER_UNAVAILABLE',
+      'TICKET_STATUS_UNAVAILABLE',
+      'TICKET_ATTENDEE_REQUIRED',
+    ]) {
+      expect(codes).toContain(`${code}: {`);
+    }
+    const facts = backend('common/feedback.dto.ts');
+    for (const field of [
+      'guestId?:',
+      'holderName?:',
+      'arrivedAt?:',
+      'usedAt?:',
+      'orderStatus?:',
+      'isCancellationPending?:',
+      'ticketStatus?:',
+      'missingAcknowledgements?:',
+    ]) {
+      expect(facts).toContain(field);
+    }
+    expect(backend('common/filters/all-exceptions.filter.ts')).toContain('admission:');
+  });
+});
 
 describe('a check-in refused', () => {
   it.each([

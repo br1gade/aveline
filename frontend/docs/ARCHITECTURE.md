@@ -914,14 +914,15 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 9 Nov 2026 | **The inventory's refusals are worded by status** (`ticket-sales/inventory-refusals.ts`): a 403 by whose the action is, a 400 with the backend's sentence as it came | One sentence for all hid that venue layouts are Aveline's directory editors' (FR-6) |
 | 9 Nov 2026 | **The owner's decisions of 5 and 8 November are confirmed:** unpublished seating hidden from briefs, pausing a brief allowed, gallery uploads off for new invitations (design C-55 to C-57) | The backend had built the first two; C-44 and C-46 are superseded |
 | 9 Nov 2026 | **Guests' photo sharing follows the hosts' switch (FR-46)**: the share form shows only while it is on, and the setting is a sentence and a button on the photos page (design PD-187, PD-188) | New invitations start with sharing off (C-57), so guests were offered a form that could only be refused |
+| 10 Nov 2026 | **The door reads refusals by their code and facts (FR-76)**: when a code was used and whose it is, the order's state, and only that person's agreements still owed; the older words stay as a fallback (design PD-92) | The backend sends both during the migration, and a refusal shown in English or worded as one for several order states sent staff to the host for no reason |
 | 9 Nov 2026 | **The buyer's order names itself (FR-62)**: the event, ticket types, buyer and language come from the order, and the public listing is no longer read (design PD-81, PD-189) | An emailed link in a fresh tab could name nothing. The line about agreements before the door went with it, as only the listing knows (FR-138) |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
 
 ## 12. Not yet built
 
 - Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
-  adopt (BACKEND_REQUESTS §1): for the pilot, the door's coded refusals and paged roster
-  (FR-76, FR-79) with a rehearsal on a phone, export failures that say what to do (FR-59), and a
+  adopt (BACKEND_REQUESTS §1): for the pilot, the door's paged roster
+  (FR-79) with a rehearsal on a phone, export failures that say what to do (FR-59), and a
   build per origin (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
   owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
   backend's default is verified (FR-134, PD-179), and the scheduled free plan with its withdrawal
