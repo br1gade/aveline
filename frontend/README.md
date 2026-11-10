@@ -46,7 +46,7 @@ The organizer app starts at `http://localhost:5173/sign-in`. The seeded accounts
 | `build`, `start` | A production build, and our own server (`server/`), which logs no capability path; `PORT` and `HOST` choose where, and `API_INTERNAL_URL` is required, as it reads no `.env`. `Dockerfile` packages both |
 | `typecheck`, `lint`, `lint:fix`, `format`, `format:check` | Types, ESLint (zero warnings), Prettier |
 | `test`, `test:e2e` | Vitest; Playwright against the running backend (no end-to-end tests are written yet) |
-| `api:generate` | `src/api/schema.ts` from `../backend/openapi.json` |
+| `api:generate` | `src/api/schema.ts` from `../backend/openapi.json`, and `src/api/public-paths.ts`, its public operations |
 | `tokens`, `tokens:check` | `src/styles/tokens.css` and `theme.css` from `src/styles/tokens.json`, and a drift check |
 | `check:boundaries` | Lists changed paths outside `frontend/`; must be empty |
 | `check:budgets` | The guest pages' gzipped JavaScript and CSS against their limits (`scripts/check-budgets.mjs`), after a build |

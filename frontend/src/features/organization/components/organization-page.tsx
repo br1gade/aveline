@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { useCan } from '@/features/permissions';
 import { LoadedProblem } from '@/features/sending';
 import { APP_PATHS } from '@/route-paths';
 import { StatusLine, useDialogOpener, usePageStatus, type DialogContext } from '@/ui/app-form';
@@ -17,7 +18,7 @@ import {
   WithdrawInviteDialog,
 } from './member-dialogs';
 import { MemberList, type MemberAction, type OpenMemberDialog } from './member-list';
-import { NameForm } from './name-form';
+import { NameForm, OrganizationName } from './name-form';
 
 type OpenDialog =
   | { kind: MemberAction; member: OrganizationMember; revision: number }
@@ -83,8 +84,8 @@ function Members({
 
 /**
  * The organization: its name, members, invitations, leaving it and asking to close it (docs/API.md
- * §6; design PD-159). Every action is offered to every member and refused in words (FR-6), except
- * what needs a row only an owner can read.
+ * §6; design PD-159). What needs `member:manage` is offered only to whom the access read grants it,
+ * or to anyone while it is unknown, and a refusal is worded either way (FR-6, design PD-190).
  */
 export function OrganizationPage({ data }: { data: OrganizationData }) {
   const { t } = useTranslation('organization');
@@ -92,6 +93,7 @@ export function OrganizationPage({ data }: { data: OrganizationData }) {
   const { page, status, statusRef } = usePageStatus(data);
   const { remember, restoreFocus } = useDialogOpener();
   const [dialog, setDialog] = useState<OpenDialog | null>(null);
+  const canManage = useCan('member:manage');
   // Reading the page again starts the list over, so what opened a dialog may be gone when it closes.
   const returnFocus = (closing: Event) => {
     restoreFocus(closing);
@@ -117,12 +119,17 @@ export function OrganizationPage({ data }: { data: OrganizationData }) {
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {current.kind === 'ready' ? (
         <>
-          <NameForm key={current.value.name} name={current.value.name} page={page} />
+          {canManage ? (
+            <NameForm key={current.value.name} name={current.value.name} page={page} />
+          ) : (
+            <OrganizationName name={current.value.name} />
+          )}
           <Members members={members} onOpen={openMember} />
           <Invites invites={invites} now={data.now} page={page} onWithdraw={openWithdraw} />
           <p className="text-muted-foreground m-0 text-sm">{t('datesNote')}</p>
           <Leaving
             revision={current.value.accessRevision}
+            closure={current.value.closureReview}
             page={page}
             remember={remember}
             restoreFocus={restoreFocus}

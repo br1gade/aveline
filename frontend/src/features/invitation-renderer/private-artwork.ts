@@ -1,4 +1,4 @@
-import type { ApiClient } from '@/api/client';
+import type { ApiClient, PublicApiClient } from '@/api/client';
 import { expectData } from '@/api/client';
 
 import type { PrivateAsset } from './types';
@@ -48,7 +48,7 @@ export type ArtworkLoader = (asset: PrivateAsset, signal: AbortSignal) => Promis
 
 /** Through the guest's own link, or the invitation's on the generic page. */
 export function guestArtworkLoader(
-  api: ApiClient,
+  api: PublicApiClient,
   { slug, guestToken }: { slug: string; guestToken?: string | undefined },
 ): ArtworkLoader {
   return ({ id }, signal) =>

@@ -6,15 +6,21 @@ import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, Link } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '@/api/errors';
 import { createI18n } from '@/lib/i18n';
 import { useLeaveGuard } from '@/ui/app-form';
 
-import AppLayout, { shouldRevalidate } from './layout';
+import type { Route } from './+types/layout';
+import AppLayout, { clientLoader, shouldRevalidate } from './layout';
 
+const account = vi.hoisted(() => ({ read: vi.fn() }));
 // The frame's header needs a session; what is tested here is what the layout puts around a page.
 vi.mock('@/features/account', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   AppShell: ({ children }: { children: ReactNode }) => children,
+  requireSignedIn: () => Promise.resolve({ api: {} }),
+  requireOrganizationChosen: () => Promise.resolve(null),
+  readAccountOnce: account.read,
 }));
 
 function Page() {
@@ -37,6 +43,8 @@ describe('the app’s frame', () => {
       {
         path: '/app',
         Component: AppLayout,
+        HydrateFallback: () => null,
+        loader: () => ({ organization: undefined, unverifiedEmail: null }),
         children: [
           { path: 'page', Component: Page },
           { path: 'elsewhere', Component: () => <h1>Elsewhere</h1> },
@@ -72,4 +80,25 @@ describe('when the frame reads its organization again', () => {
     expect(change('/app/billing', '/app')).toBe(false);
     expect(change('/app/events/e1/guests', '/app/events/e1/guests?q=ani')).toBe(false);
   });
+});
+
+describe('an address not yet confirmed, as the frame reads it (FR-5)', () => {
+  const load = () =>
+    clientLoader({
+      request: new Request('http://app.test/app'),
+    } as unknown as Route.ClientLoaderArgs);
+  const me = (isEmailVerified: boolean) => ({ email: 'anna@example.am', isEmailVerified });
+
+  it.each([
+    ['not confirmed', () => Promise.resolve(me(false)), 'anna@example.am'],
+    ['confirmed', () => Promise.resolve(me(true)), null],
+    ['refused', () => Promise.reject(new ApiError({ status: 403, messages: [] })), null],
+    ['failing', () => Promise.reject(new ApiError({ status: 500, messages: [] })), null],
+  ])(
+    '%s: the page stands, with the notice only when unconfirmed',
+    async (_, answer, unverifiedEmail) => {
+      account.read.mockImplementationOnce(answer);
+      await expect(load()).resolves.toEqual({ organization: undefined, unverifiedEmail });
+    },
+  );
 });

@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 
 import type { PrivacyRequestValues } from './schemas';
 
@@ -12,7 +12,7 @@ interface RecordedWire {
  * anything is held about the address, so all that is read from it is the date it is due.
  */
 export async function submitPrivacyRequest(
-  api: ApiClient,
+  api: PublicApiClient,
   { kind, subjectEmail, notes }: PrivacyRequestValues,
 ): Promise<{ dueAt: string }> {
   const { dueAt } = await expectData<RecordedWire>(

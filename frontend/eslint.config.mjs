@@ -21,6 +21,7 @@ export default defineConfig(
       'test-results/**',
       'playwright-report/**',
       'src/api/schema.ts',
+      'src/api/public-paths.ts',
     ],
   },
 

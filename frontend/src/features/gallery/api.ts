@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type ApiClient, type PublicApiClient } from '@/api/client';
 
 import { readGuestPage, readHostPage, readPhoto } from './read';
 import type {
@@ -30,7 +30,7 @@ function pageQuery(after: string | undefined): { limit: number; after?: string }
 
 /** Their own photos in any state, and other guests' approved ones, newest first. */
 export async function listGuestGallery(
-  api: ApiClient,
+  api: PublicApiClient,
   link: GalleryLink,
   after?: string,
 ): Promise<GalleryPage> {
@@ -44,7 +44,7 @@ export async function listGuestGallery(
 
 /** One photo as one multipart request: an optional `caption`, then `file`. It arrives QUEUED. */
 export async function uploadPhoto(
-  api: ApiClient,
+  api: PublicApiClient,
   link: GalleryLink,
   file: File,
   caption: string | undefined,
@@ -64,7 +64,7 @@ export async function uploadPhoto(
 
 /** Their own photo, in any state, approved ones included. */
 export async function removeOwnPhoto(
-  api: ApiClient,
+  api: PublicApiClient,
   link: GalleryLink,
   mediaId: string,
 ): Promise<void> {
@@ -77,7 +77,7 @@ export async function removeOwnPhoto(
 
 /** A processed copy's bytes; never the original. Read through `PrivateImage`, never an `<img src>`. */
 export function guestPhotoFile(
-  api: ApiClient,
+  api: PublicApiClient,
   photo: GalleryLink & { mediaId: string },
   variant: PhotoVariant,
   signal: AbortSignal,

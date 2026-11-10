@@ -1,6 +1,6 @@
 import { readPublicEnv } from '@/config/env';
 
-import { createAppApi, createPublicApi, type ApiClient } from '../client';
+import { createAppApi, createPublicApi, type ApiClient, type PublicApiClient } from '../client';
 import { logOut, logOutEverywhere, refreshTokens, type SessionTokens } from './auth-calls';
 import { createSessionChannel, type SessionChannel } from './channel';
 import { organizationChoice } from './organization';
@@ -21,7 +21,7 @@ export interface BrowserSession {
   /** Signed-in calls: the bearer token, and one refresh on a 401. */
   readonly api: ApiClient;
   /** Calls that need no session. */
-  readonly publicApi: ApiClient;
+  readonly publicApi: PublicApiClient;
   start(tokens: SessionTokens): void;
   /** Whether a refresh token is stored, without asking the server whether it still works. */
   hasStoredSession(): boolean;

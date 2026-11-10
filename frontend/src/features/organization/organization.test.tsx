@@ -7,6 +7,7 @@ import { createRoutesStub, useLoaderData } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, organizationChoice, type BrowserSession } from '@/api/session';
+import { GrantedPermissions, type Granted } from '@/features/permissions';
 import { createI18n } from '@/lib/i18n';
 import { LeaveGuard } from '@/ui/app-form';
 
@@ -42,18 +43,23 @@ const organization = {
   name: 'Petrosyan Wedding',
   kind: 'HOST',
   accessRevision: CURRENT_REVISION,
+  closureReview: null,
 };
 const ani = {
   userId: 'u1',
   name: 'Ani Petrosyan',
   role: 'OWNER',
   joinedAt: '2026-10-01T22:00:00Z',
+  isActive: true,
+  isCurrentUser: true,
 };
 const aram = {
   userId: 'u2',
   name: 'Aram Sargsyan',
   role: 'MEMBER',
   joinedAt: '2026-10-02T10:00:00Z',
+  isActive: true,
+  isCurrentUser: false,
 };
 const invite = { email: 'new@example.am', role: 'MANAGER', expiresAt: '2026-11-20T10:00:00Z' };
 const NOW = Date.parse('2026-11-05T10:00:00Z');
@@ -120,7 +126,7 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-async function open() {
+async function open(permissions: Granted = null) {
   const Stub = createRoutesStub([
     {
       path: '/app/organization',
@@ -131,9 +137,11 @@ async function open() {
       },
       Component: function Loaded() {
         return (
-          <LeaveGuard>
-            <OrganizationPage data={useLoaderData<OrganizationData>()} />
-          </LeaveGuard>
+          <GrantedPermissions permissions={permissions}>
+            <LeaveGuard>
+              <OrganizationPage data={useLoaderData<OrganizationData>()} />
+            </LeaveGuard>
+          </GrantedPermissions>
         );
       },
     },
@@ -299,6 +307,41 @@ describe('the members (PD-159)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('couldn’t be loaded');
     await user.click(screen.getByRole('button', { name: 'Show more members' }));
     expect(await screen.findByText('Aram Sargsyan')).toBeInTheDocument();
+  });
+
+  it('marks the caller’s own row (FR-121)', async () => {
+    serve();
+    await open();
+    expect(member('Ani Petrosyan')).toHaveTextContent('You');
+    expect(member('Aram Sargsyan')).not.toHaveTextContent('You');
+  });
+
+  it('marks an account that is no longer active, and offers nothing for it (FR-125)', async () => {
+    serve({
+      members: () =>
+        HttpResponse.json({
+          items: [ani, { ...aram, isActive: false }],
+          nextCursor: null,
+          accessRevision: REVISION,
+        }),
+    });
+    await open();
+    expect(member('Aram Sargsyan')).toHaveTextContent('This account is no longer active.');
+    expect(within(member('Aram Sargsyan')).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(member('Ani Petrosyan')).getAllByRole('button').length).toBeGreaterThan(0);
+  });
+
+  it('offers what only an owner may do to nobody the access read says can’t (FR-6)', async () => {
+    serve({
+      members: () => refusal(403, 'Forbidden resource'),
+      invites: () => refusal(403, 'Forbidden resource'),
+    });
+    await open(['event:read']);
+    expect(screen.queryByRole('button', { name: 'Save the name' })).not.toBeInTheDocument();
+    expect(screen.getByText('Petrosyan Wedding')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send the invitation' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ask to close it' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Leave the organization' })).toBeInTheDocument();
   });
 
   it('tells someone who isn’t an owner, and leaves them the rest of the page', async () => {
@@ -500,16 +543,34 @@ describe('changing what a member may do', () => {
     expect(role).toHaveDisplayValue('Owner');
   });
 
-  it('forgets the organization the tab holds after removing someone, who may be the caller', async () => {
+  it.each([
+    ['Aram Sargsyan', 'someone else', false],
+    ['Ani Petrosyan', 'the caller', true],
+  ])(
+    'after removing %s, %s, forgets the organization the tab holds only for the caller (FR-121)',
+    async (name, _who, isForgotten) => {
+      serve();
+      answer('delete', '/organizations/current/members/:userId');
+      const user = await open();
+      await user.click(screen.getByRole('button', { name: `Remove: ${name}` }));
+      const dialog = await screen.findByRole('alertdialog');
+      expect(dialog.textContent?.includes('This is you: you lose access at once.')).toBe(
+        isForgotten,
+      );
+      await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
+      await screen.findByText(`${name} is no longer in the organization.`);
+      expect(forgotten).toHaveBeenCalledTimes(isForgotten ? 1 : 0);
+    },
+  );
+
+  it('warns only the caller that a change is to their own role (FR-121)', async () => {
     serve();
-    answer('delete', '/organizations/current/members/:userId');
     const user = await open();
-    await user.click(screen.getByRole('button', { name: 'Remove: Aram Sargsyan' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remove' }),
-    );
-    await screen.findByText('Aram Sargsyan is no longer in the organization.');
-    expect(forgotten).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button', { name: 'Change role: Ani Petrosyan' }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('This is your own role');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'Change role: Aram Sargsyan' }));
+    expect(await screen.findByRole('dialog')).not.toHaveTextContent('your own role');
   });
 
   it('asks before removing, naming what goes, and sends the revision in the address', async () => {
@@ -519,7 +580,7 @@ describe('changing what a member may do', () => {
     await user.click(screen.getByRole('button', { name: 'Remove: Aram Sargsyan' }));
     const dialog = await screen.findByRole('alertdialog');
     expect(dialog).toHaveTextContent('every role');
-    expect(dialog).toHaveTextContent('If this is you');
+    expect(dialog).not.toHaveTextContent('This is you');
     expect(writes).toEqual([]);
     await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
     expect(
@@ -782,14 +843,21 @@ describe('asking to close (PD-163)', () => {
   });
 
   it.each([
-    ['a member, whose refusal says only that access is unavailable', 'ORGANIZATION_ACCESS_DENIED'],
-    ['staff with the permission and no ownership', undefined],
-  ])('words %s', async (_, code) => {
+    ['a role without the permission (FR-124)', 403, 'This account may not member:manage'],
+    [
+      'one with the permission and no ownership',
+      403,
+      'Only a current owner may request closure review',
+    ],
+    [
+      'staff, who hold the permission and are no member',
+      404,
+      'No active member in this organization',
+    ],
+  ])('words %s', async (_, status, message) => {
     serve();
     answer('post', '/organizations/current/closure-reviews', () =>
-      code
-        ? refusal(403, 'organizationId: access is unavailable', code)
-        : refusal(403, 'Only a current owner may request closure review'),
+      refusal(status, message, status === 403 ? 'FORBIDDEN' : 'NOT_FOUND'),
     );
     const user = await open();
     await user.click(screen.getByRole('button', { name: 'Ask to close it' }));
@@ -798,5 +866,62 @@ describe('asking to close (PD-163)', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       'Only an owner can ask for this.',
     );
+  });
+
+  it('says a caller no longer in the organization so, not that only an owner may ask', async () => {
+    serve();
+    answer('post', '/organizations/current/closure-reviews', () =>
+      refusal(403, 'organizationId: access is unavailable', 'ORGANIZATION_ACCESS_DENIED'),
+    );
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: 'Ask to close it' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Ask to close it' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'This account isn’t in that organization any more.',
+    );
+  });
+
+  it('says a request is waiting, and since when, offering no second (FR-122)', async () => {
+    serve({
+      current: () =>
+        HttpResponse.json({
+          ...organization,
+          closureReview: {
+            id: 'r1',
+            status: 'OPEN',
+            revision: 1,
+            openedAt: '2026-11-03T10:00:00Z',
+            resolvedAt: null,
+          },
+        }),
+    });
+    await open();
+    expect(screen.getByText(/You asked Aveline’s staff to close it/)).toBeInTheDocument();
+    expect(screen.queryByText(/3 November 2026/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ask to close it' })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['DECLINE', 'decided on 4 November 2026 not to close it'],
+    ['HANDOVER', 'made another member an owner on 4 November 2026'],
+    ['SOMETHING_NEW', 'answered on 4 November 2026'],
+  ])('says what staff decided (%s), and lets an owner ask again', async (status, words) => {
+    serve({
+      current: () =>
+        HttpResponse.json({
+          ...organization,
+          closureReview: {
+            id: 'r1',
+            status,
+            revision: 2,
+            openedAt: '2026-11-03T10:00:00Z',
+            resolvedAt: '2026-11-04T10:00:00Z',
+          },
+        }),
+    });
+    await open();
+    expect(screen.getByText(new RegExp(words))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ask to close it' })).toBeInTheDocument();
   });
 });

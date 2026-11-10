@@ -23,7 +23,9 @@
     "removeFor": "Remove: {{name}}",
     "more": "Show more members",
     "loading": "Loading…",
-    "moreFailed": "More members couldn’t be loaded. Please try again."
+    "moreFailed": "More members couldn’t be loaded. Please try again.",
+    "you": "You",
+    "inactive": "This account is no longer active."
   },
   "role": {
     "OWNER": {
@@ -46,16 +48,18 @@
   },
   "changeRole": {
     "title": "Change the role of {{name}}",
-    "body": "It applies from their next request. If this is your own role, you may lose this page.",
+    "body": "It applies from their next request.",
     "label": "Role",
     "save": "Change role",
     "cancel": "Cancel",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "self": "This is your own role: you may lose this page."
   },
   "remove": {
     "title": "Remove {{name}} from the organization?",
-    "body": "They lose every role in this organization and its events, with their pending invitations and unfinished work. Events and their history stay. If this is you, you lose access at once.",
-    "confirm": "Remove"
+    "body": "They lose every role in this organization and its events, with their pending invitations and unfinished work. Events and their history stay.",
+    "confirm": "Remove",
+    "self": "This is you: you lose access at once."
   },
   "owner": {
     "title": "Make {{name}} an owner?",
@@ -95,8 +99,12 @@
     "lead": "An owner can ask Aveline’s staff to close it. Nothing is removed until they decide, and events and payment history are kept either way.",
     "open": "Ask to close it",
     "askTitle": "Ask Aveline to close this organization?",
-    "askBody": "Everyone keeps access until staff decide. Asking twice does no harm, as this page can’t show whether you already have.",
-    "confirm": "Ask to close it"
+    "askBody": "Everyone keeps access until staff decide.",
+    "confirm": "Ask to close it",
+    "waiting": "You asked Aveline’s staff to close it. They haven’t decided yet, and everyone keeps access meanwhile.",
+    "declined": "Aveline’s staff decided on {{date}} not to close it.",
+    "handedOver": "Aveline’s staff made another member an owner on {{date}}, rather than close it.",
+    "answered": "Aveline’s staff answered on {{date}}."
   },
   "status": {
     "renamed": "The name is saved.",

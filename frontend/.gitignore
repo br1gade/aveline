@@ -9,6 +9,7 @@ coverage/
 # Generated from backend/openapi.json — regenerate rather than commit, so the
 # types cannot drift from the server they describe.
 src/api/schema.ts
+src/api/public-paths.ts
 
 # React Router's generated route types
 .react-router/

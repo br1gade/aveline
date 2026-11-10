@@ -5,4 +5,4 @@
 export { CustomerNewEvent } from './components/customer-new-event';
 export { CustomersPage } from './components/customers-page';
 export { StaffHome } from './components/staff-home';
-export { isAvelineStaff, loadCustomers } from './load';
+export { loadCustomers } from './load';

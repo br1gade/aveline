@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { isApiError } from '@/api/errors';
 import { browserSession, organizationChoice } from '@/api/session';
 import { forgetSettledOrganization } from '@/features/account';
+import { useCan } from '@/features/permissions';
 import { APP_PATHS } from '@/route-paths';
 import {
   AskFirstDialog,
@@ -18,7 +19,8 @@ import { Button } from '@/ui/kit/button';
 
 import { askToClose, leaveOrganization } from '../api';
 import { refusalOf, type OrganizationRefusal } from '../refusals';
-import { OrganizationProblem } from './shared';
+import type { ClosureReview } from '../types';
+import { OrganizationProblem, useOrganizationDay } from './shared';
 
 /** Asking first. Once gone nothing here can be read, so it goes to the events, asking nothing. */
 function LeaveDialog({ revision, page, onClose, restoreFocus }: LeaveDialogProps) {
@@ -65,13 +67,27 @@ interface LeaveDialogProps {
 }
 
 /**
- * The route names no permission, so its service refuses anyone without one as if they weren't in the
- * organization. This page has just read it, so that means they aren't an owner (FR-124).
+ * The route needs `member:manage` and its service an active owner (FR-124): the guard's plain 403
+ * (`FORBIDDEN`) and the service's own both mean only an owner may ask, and so does its 404 for
+ * staff, who hold the permission without being a member. `ORGANIZATION_ACCESS_DENIED` says the
+ * caller isn't in the organization at all.
  */
 function closeRefusalOf(error: unknown): OrganizationRefusal {
-  return isApiError(error) && error.code === 'ORGANIZATION_ACCESS_DENIED'
-    ? { kind: 'onlyOwner' }
-    : refusalOf(error);
+  const isOwnersOnly =
+    isApiError(error) &&
+    ((error.status === 403 && error.code === 'FORBIDDEN') || error.status === 404);
+  return isOwnersOnly ? { kind: 'onlyOwner' } : refusalOf(error);
+}
+
+/**
+ * Where a request to close stands (FR-122), with the day staff answered. A waiting request names no
+ * day: asking again after an answer keeps the first request's `openedAt` (FR-148).
+ */
+function ClosureState({ closure }: { closure: ClosureReview }) {
+  const { t } = useTranslation('organization');
+  const day = useOrganizationDay();
+  const date = closure.resolvedAt ? day(closure.resolvedAt) : '';
+  return <p className="m-0 font-medium">{t(`close.${closure.state}`, { date })}</p>;
 }
 
 function CloseDialog({ revision, ...context }: DialogContext & { revision: number }) {
@@ -96,16 +112,50 @@ function CloseDialog({ revision, ...context }: DialogContext & { revision: numbe
 
 interface LeavingProps {
   revision: number;
+  closure: ClosureReview | null;
   page: PageActions;
   remember: (opener: HTMLElement) => void;
   restoreFocus: (closing: Event) => void;
 }
 
-/** Leaving is any member's; asking to close is an owner's, and worded for anyone else (FR-6). */
-export function Leaving({ revision, page, remember, restoreFocus }: LeavingProps) {
+/**
+ * Asking to close is an owner's: offered with `member:manage` (FR-6), not while a request waits, and
+ * again once staff have answered one (FR-122).
+ */
+function Closing({
+  closure,
+  onAsk,
+}: {
+  closure: ClosureReview | null;
+  onAsk: (opener: HTMLElement) => void;
+}) {
+  const { t } = useTranslation('organization');
+  const headingId = useId();
+  const canAsk = useCan('member:manage') && closure?.state !== 'waiting';
+  return (
+    <section aria-labelledby={headingId} className="flex max-w-[40rem] flex-col gap-3">
+      <h2 id={headingId} className="m-0 text-lg font-medium">
+        {t('close.title')}
+      </h2>
+      <p className="m-0">{t('close.lead')}</p>
+      {closure ? <ClosureState closure={closure} /> : null}
+      {canAsk ? (
+        <Button
+          variant="outline"
+          className={`${WRAPPING_BUTTON} self-start`}
+          onClick={(click) => onAsk(click.currentTarget)}
+        >
+          {t('close.open')}
+        </Button>
+      ) : null}
+    </section>
+  );
+}
+
+/** Leaving is any member's; asking to close, an owner's. */
+export function Leaving({ revision, closure, page, remember, restoreFocus }: LeavingProps) {
   const { t } = useTranslation('organization');
   const leaveId = useId();
-  const closeId = useId();
   const [dialog, setDialog] = useState<'leave' | 'close' | null>(null);
   const onClose = () => setDialog(null);
   const open = (next: 'leave' | 'close', opener: HTMLElement) => {
@@ -127,19 +177,7 @@ export function Leaving({ revision, page, remember, restoreFocus }: LeavingProps
           {t('leave.open')}
         </Button>
       </section>
-      <section aria-labelledby={closeId} className="flex max-w-[40rem] flex-col gap-3">
-        <h2 id={closeId} className="m-0 text-lg font-medium">
-          {t('close.title')}
-        </h2>
-        <p className="m-0">{t('close.lead')}</p>
-        <Button
-          variant="outline"
-          className={`${WRAPPING_BUTTON} self-start`}
-          onClick={(click) => open('close', click.currentTarget)}
-        >
-          {t('close.open')}
-        </Button>
-      </section>
+      <Closing closure={closure} onAsk={(opener) => open('close', opener)} />
       {dialog === 'leave' ? (
         <LeaveDialog
           revision={revision}

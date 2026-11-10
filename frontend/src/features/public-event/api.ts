@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 
 import { LISTING_PAGE_SIZE, type ListingQuery } from './listing';
 import { readListing, readPublicEvent } from './read';
@@ -12,7 +12,7 @@ export interface PublicEventRequest {
 
 /** `GET /public/events/:slug` (docs/API.md §5): the announcement, its tickets and checkout's rules. */
 export async function fetchPublicEvent(
-  api: ApiClient,
+  api: PublicApiClient,
   request: PublicEventRequest,
 ): Promise<PublicEvent> {
   const wire = await expectData<unknown>(
@@ -31,7 +31,7 @@ export async function fetchPublicEvent(
  * negotiated against each event separately, and a card does not say which it got (FR-92).
  */
 export async function fetchPublicListing(
-  api: ApiClient,
+  api: PublicApiClient,
   { offset, category, locale }: ListingQuery & { locale: string },
 ): Promise<PublicListing> {
   const wire = await expectData<unknown>(

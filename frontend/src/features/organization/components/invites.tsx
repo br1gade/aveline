@@ -15,6 +15,7 @@ import {
   type PageActions,
 } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
+import { Permitted } from '@/features/permissions';
 
 import { inviteMember } from '../api';
 import { refusalOf, type OrganizationRefusal } from '../refusals';
@@ -137,7 +138,9 @@ export function Invites({
           </ul>
         ) : null}
       </section>
-      <InviteForm page={page} />
+      <Permitted to="member:manage">
+        <InviteForm page={page} />
+      </Permitted>
     </>
   );
 }

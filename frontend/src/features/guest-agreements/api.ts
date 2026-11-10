@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 import type { ReplyLink } from '@/features/guest-reply';
 
 import type { AgreementBody } from './payload';
@@ -9,7 +9,7 @@ import type { AgreementBody } from './payload';
  * records are not read: the page reads the agreements again.
  */
 export async function signAgreement(
-  api: ApiClient,
+  api: PublicApiClient,
   link: ReplyLink,
   body: AgreementBody,
 ): Promise<void> {

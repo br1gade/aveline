@@ -16,7 +16,7 @@ import { customerChoices, findOrganizations, openForCustomer } from './api';
 import { CustomerNewEvent } from './components/customer-new-event';
 import { CustomersPage } from './components/customers-page';
 import { StaffHome } from './components/staff-home';
-import { isAvelineStaff, loadCustomers, type CustomersData } from './load';
+import { loadCustomers, type CustomersData } from './load';
 
 const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
 vi.mock('@/api/session', async (importOriginal) => ({
@@ -204,22 +204,6 @@ describe('finding a customer', () => {
     serve();
     await open();
     expect(screen.getByRole('searchbox')).toHaveAttribute('maxlength', '160');
-  });
-});
-
-describe('asking the API who is staff, as docs/API.md says to', () => {
-  const session = () => {
-    if (!current.session) throw new Error('No session in this test');
-    return current.session.api;
-  };
-
-  it.each([
-    ['answered', () => HttpResponse.json([]), true],
-    ['refused', () => refusal(403, 'Forbidden resource'), false],
-    ['failing', () => refusal(500, 'Boom'), false],
-  ])('%s', async (_name, answer, isStaff) => {
-    serve(answer);
-    await expect(isAvelineStaff(session())).resolves.toBe(isStaff);
   });
 });
 

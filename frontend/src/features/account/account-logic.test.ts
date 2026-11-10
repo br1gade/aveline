@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createBrowserSession, type TokenStore } from '@/api/session';
 
 import { registerAndSignIn } from './flows';
-import { firstStopFor } from './landing';
+import { firstStopFor, isAvelineStaff } from './landing';
 import { safeNext } from './safe-next';
 import { organizationSchema, registerSchema, resetRequestSchema, signInSchema } from './schemas';
 import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
@@ -27,6 +27,16 @@ describe('safeNext', () => {
     ['/billing/returned', '/app'],
   ])('%s → %s', (next, expected) => {
     expect(safeNext(next)).toBe(expected);
+  });
+});
+
+describe('isAvelineStaff (FR-5)', () => {
+  it.each([
+    ['NONE', false],
+    ['SUPPORT', true],
+    ['ADMIN', true],
+  ] as const)('%s → %s', (platformRole, expected) => {
+    expect(isAvelineStaff({ platformRole })).toBe(expected);
   });
 });
 

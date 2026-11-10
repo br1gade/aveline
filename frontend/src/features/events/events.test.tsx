@@ -5,7 +5,7 @@ import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub } from 'react-router';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { createPublicApi } from '@/api/client';
+import { createAppApi } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { createI18n } from '@/lib/i18n';
 
@@ -85,7 +85,7 @@ describe('listEvents', () => {
         return HttpResponse.json([]);
       }),
     );
-    expect(await listEvents(createPublicApi(ORIGIN))).toEqual([]);
+    expect(await listEvents(createAppApi(ORIGIN, {}))).toEqual([]);
     expect(search).toBe('');
   });
 });
@@ -103,7 +103,7 @@ describe('loadEventOverview', () => {
 
   it('reads the event and its headcount', async () => {
     answer(() => HttpResponse.json({ headcount, catering: {} }));
-    expect(await loadEventOverview(createPublicApi(ORIGIN), 'e1')).toEqual({
+    expect(await loadEventOverview(createAppApi(ORIGIN, {}), 'e1')).toEqual({
       event,
       headcount: { kind: 'ready', headcount },
     });
@@ -111,7 +111,7 @@ describe('loadEventOverview', () => {
 
   it('keeps the event when its numbers are refused to this role', async () => {
     answer(() => HttpResponse.json({ statusCode: 403, message: 'no' }, { status: 403 }));
-    expect(await loadEventOverview(createPublicApi(ORIGIN), 'e1')).toEqual({
+    expect(await loadEventOverview(createAppApi(ORIGIN, {}), 'e1')).toEqual({
       event,
       headcount: { kind: 'refused' },
     });
@@ -121,7 +121,7 @@ describe('loadEventOverview', () => {
     answer(() =>
       HttpResponse.json({ statusCode: 500, message: 'boom', requestId: 'req-9' }, { status: 500 }),
     );
-    expect(await loadEventOverview(createPublicApi(ORIGIN), 'e1')).toEqual({
+    expect(await loadEventOverview(createAppApi(ORIGIN, {}), 'e1')).toEqual({
       event,
       headcount: { kind: 'failed', requestId: 'req-9' },
     });
@@ -132,7 +132,7 @@ describe('loadEventOverview', () => {
       () => HttpResponse.json({ statusCode: 403, message: 'no' }, { status: 403 }),
       () => HttpResponse.json({ statusCode: 403, message: 'no' }, { status: 403 }),
     );
-    const failure: unknown = await loadEventOverview(createPublicApi(ORIGIN), 'e1').catch(
+    const failure: unknown = await loadEventOverview(createAppApi(ORIGIN, {}), 'e1').catch(
       (error: unknown) => error,
     );
     expect(isApiError(failure) && failure.status).toBe(403);

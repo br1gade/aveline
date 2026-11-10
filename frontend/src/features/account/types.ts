@@ -1,8 +1,13 @@
+import type { ResponseOf } from '@/api/client';
+
 /**
- * What the account calls return (docs/API.md §2 and §6). Interim until FR-1: the schema declares
- * no response types, so these are written from the guide and the backend's services.
+ * What the account calls return (docs/API.md §2 and §6). `Account` is the schema's; the rest are
+ * interim until FR-1 reaches this feature, written from the guide and the backend's services.
  */
 export type OrganizationKind = 'HOST' | 'PLANNER' | 'CORPORATE';
+
+/** Who is signed in (`GET /me`, FR-5). */
+export type Account = ResponseOf<'MeController_currentResponse'>;
 
 export interface Organization {
   id: string;

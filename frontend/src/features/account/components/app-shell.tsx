@@ -21,6 +21,8 @@ import {
 } from '@/ui/kit/alert-dialog';
 import { Button } from '@/ui/kit/button';
 
+import { EmailConfirmationNotice } from './email-confirmation-notice';
+
 /** Wherever the session ends, here, in another tab or by a refused refresh, go to sign in. */
 function useSignInWhenSignedOut() {
   const navigate = useNavigate();
@@ -98,10 +100,12 @@ interface AppShellProps {
   children: ReactNode;
   /** Shown only to an account with several: one organization needs no saying. */
   organization?: { name: string | null } | undefined;
+  /** The account's address while it is not confirmed (FR-5); nothing once it is. */
+  unverifiedEmail?: string | null | undefined;
 }
 
 /** The signed-in app's frame: the wordmark, the language, and signing out (design PD-39). */
-export function AppShell({ children, organization }: AppShellProps) {
+export function AppShell({ children, organization, unverifiedEmail }: AppShellProps) {
   const { t, i18n } = useTranslation('app');
   const { t: common } = useTranslation('common');
   const location = useLocation();
@@ -143,6 +147,7 @@ export function AppShell({ children, organization }: AppShellProps) {
             <AlertDescription>{t('shell.signOutFailed')}</AlertDescription>
           </Alert>
         ) : null}
+        {unverifiedEmail ? <EmailConfirmationNotice email={unverifiedEmail} /> : null}
         {children}
       </main>
     </div>

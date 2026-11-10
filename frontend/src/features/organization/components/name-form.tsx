@@ -62,3 +62,17 @@ export function NameForm({ name, page }: { name: string; page: PageActions }) {
     </section>
   );
 }
+
+/** For whom `member:manage` isn't granted (FR-6): the name, with nothing to save. */
+export function OrganizationName({ name }: { name: string }) {
+  const { t } = useTranslation('organization');
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className="flex max-w-[34rem] flex-col gap-3">
+      <h2 id={headingId} className="m-0 text-lg font-medium">
+        {t('name.title')}
+      </h2>
+      <p className="m-0 break-words">{name}</p>
+    </section>
+  );
+}

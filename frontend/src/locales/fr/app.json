@@ -69,7 +69,13 @@
       "action": "Se déconnecter partout",
       "cancel": "Annuler"
     },
-    "signOutFailed": "Impossible de déconnecter vos autres appareils. Veuillez réessayer."
+    "signOutFailed": "Impossible de déconnecter vos autres appareils. Veuillez réessayer.",
+    "unconfirmed": {
+      "body": "Confirmez votre adresse e-mail : nous avons envoyé un lien à {{email}}.",
+      "send": "Envoyer un nouveau lien",
+      "sent": "Un nouveau lien part vers {{email}}. Les liens envoyés avant lui ne fonctionnent plus.",
+      "failed": "Nous n’avons pas pu envoyer de nouveau lien. Veuillez réessayer."
+    }
   },
   "home": {
     "title": "Vos événements",

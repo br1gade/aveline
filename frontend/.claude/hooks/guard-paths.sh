@@ -29,7 +29,7 @@ case "$target" in
 esac
 
 case "$target" in
-  "$frontend/src/api/schema.ts") refuse "src/api/schema.ts is generated. Run npm run api:generate instead." ;;
+  "$frontend/src/api/schema.ts" | "$frontend/src/api/public-paths.ts") refuse "src/api/schema.ts and public-paths.ts are generated. Run npm run api:generate instead." ;;
   "$frontend/src/styles/tokens.css" | "$frontend/src/styles/theme.css") refuse "src/styles/tokens.css and theme.css are generated. Edit src/styles/tokens.json and run npm run tokens." ;;
   "$frontend/.env.example") ;;
   "$frontend/.env" | "$frontend"/.env.*) refuse "Environment files hold secrets and are not edited by agents." ;;

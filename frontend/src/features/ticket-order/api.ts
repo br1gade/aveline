@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 
 import { readBuyerOrder } from './read';
 import type { OrderRead } from './types';
@@ -17,7 +17,7 @@ async function orderFrom(call: Promise<Call>): Promise<OrderRead> {
 }
 
 /** `GET /ticket-orders/:accessToken`. The token is a credential: it goes to the API, nowhere else. */
-export function fetchOrder(api: ApiClient, accessToken: string): Promise<OrderRead> {
+export function fetchOrder(api: PublicApiClient, accessToken: string): Promise<OrderRead> {
   return orderFrom(
     api.GET('/api/v1/ticket-orders/{accessToken}', { params: { path: { accessToken } } }),
   );
@@ -27,7 +27,7 @@ export function fetchOrder(api: ApiClient, accessToken: string): Promise<OrderRe
  * `POST /ticket-orders/:accessToken/confirm`: asks the bank, server to server, and issues the
  * tickets only if the money moved. Safe to call again (docs/API.md §5).
  */
-export function confirmOrder(api: ApiClient, accessToken: string): Promise<OrderRead> {
+export function confirmOrder(api: PublicApiClient, accessToken: string): Promise<OrderRead> {
   return orderFrom(
     api.POST('/api/v1/ticket-orders/{accessToken}/confirm', { params: { path: { accessToken } } }),
   );

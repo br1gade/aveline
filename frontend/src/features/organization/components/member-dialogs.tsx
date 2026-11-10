@@ -36,7 +36,7 @@ function useOrganizationAction(context: PageDialogContext) {
   return useDialogAction<OrganizationRefusal>(context, refusalOf);
 }
 
-/** Nothing says who the caller is (FR-121), so the words warn anyone it may be their own role. */
+/** The caller changing their own role is warned they may lose this page (FR-121). */
 export function ChangeRoleDialog({ member, revision, ...context }: MemberDialogProps) {
   const { t } = useTranslation('organization');
   const roleName = useRoleName();
@@ -50,7 +50,10 @@ export function ChangeRoleDialog({ member, revision, ...context }: MemberDialogP
       <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader>
           <DialogTitle>{t('changeRole.title', { name: member.name })}</DialogTitle>
-          <DialogDescription>{t('changeRole.body')}</DialogDescription>
+          <DialogDescription>
+            {t('changeRole.body')}
+            {member.isCurrentUser ? ` ${t('changeRole.self')}` : ''}
+          </DialogDescription>
         </DialogHeader>
         {refusal ? <OrganizationProblem refusal={refusal} /> : null}
         <RoleField
@@ -89,7 +92,7 @@ export function RemoveMemberDialog({ member, revision, ...context }: MemberDialo
       onOpenChange={onOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
       title={t('remove.title', { name: member.name })}
-      body={t('remove.body')}
+      body={member.isCurrentUser ? `${t('remove.body')} ${t('remove.self')}` : t('remove.body')}
       confirmLabel={t('remove.confirm')}
       isBusy={isBusy}
       problem={refusal ? <OrganizationProblem refusal={refusal} /> : null}
@@ -100,8 +103,8 @@ export function RemoveMemberDialog({ member, revision, ...context }: MemberDialo
               userId: member.userId,
               expectedRevision: revision,
             });
-            // Nothing says who the caller is (FR-121), so it may have been themselves.
-            forgetSettledOrganization();
+            // Removing themselves ends their place here, so the tab's choice goes (FR-121).
+            if (member.isCurrentUser) forgetSettledOrganization();
           },
           t('status.removed', { name: member.name }),
         )

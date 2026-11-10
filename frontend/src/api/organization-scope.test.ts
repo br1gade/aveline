@@ -4,9 +4,34 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { takesOrganization } from './organization-scope';
+import { ORGANIZATION_HEADER, takesOrganization } from './organization-scope';
 
 const BACKEND = join(import.meta.dirname, '../../../backend/src');
+const SPEC = JSON.parse(
+  readFileSync(join(import.meta.dirname, '../../../backend/openapi.json'), 'utf8'),
+) as { paths: Record<string, Record<string, { parameters?: { in?: string; name?: string }[] }>> };
+
+/**
+ * The operations the spec says may select an organization (FR-116), less those that name their own
+ * through an event or an invitation, where another organization is a 409, and staff's own, which
+ * choose a customer's. The spec doesn't tell those apart yet (FR-146), so their paths do.
+ */
+function selectingOperations(): { method: string; path: string }[] {
+  return Object.entries(SPEC.paths).flatMap(([path, operations]) =>
+    Object.entries(operations)
+      .filter(([, operation]) =>
+        (operation.parameters ?? []).some(
+          (parameter) =>
+            parameter.in === 'header' && parameter.name?.toLowerCase() === ORGANIZATION_HEADER,
+        ),
+      )
+      .filter(() => !/\/(events|invitations)\/\{|\/(concierge|sales)\//.test(path))
+      .map(([method]) => ({
+        method: method.toUpperCase(),
+        path: path.replaceAll(/\{\w+\}/g, 'x'),
+      })),
+  );
+}
 
 function controllers(folder: string): string[] {
   return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
@@ -89,5 +114,15 @@ describe('which calls say which organization', () => {
     '/api/v1/briefs/t',
   ])('keeps it from %s: an event names its own, and a mismatch is a 409', (path) => {
     expect(takesOrganization(path, 'GET')).toBe(false);
+  });
+});
+
+describe('the header the spec declares (FR-116)', () => {
+  it('declares it somewhere, so the next test reads something', () => {
+    expect(selectingOperations().length).toBeGreaterThan(30);
+  });
+
+  it.each(selectingOperations())('sends it to $method $path', ({ method, path }) => {
+    expect(takesOrganization(path, method)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 
 import { readAcknowledgements, type AcknowledgementsWire } from './acknowledgements';
 import type { AcknowledgementsRead, SignatureUpload } from './signatures';
@@ -10,7 +10,7 @@ export interface ReplyLink {
   guestToken: string;
 }
 
-export function fetchReply(api: ApiClient, link: ReplyLink): Promise<ReplyRecord> {
+export function fetchReply(api: PublicApiClient, link: ReplyLink): Promise<ReplyRecord> {
   return expectData<ReplyRecord>(
     api.GET('/api/v1/invitations/{slug}/g/{guestToken}/rsvp', { params: { path: link } }),
   );
@@ -18,7 +18,7 @@ export function fetchReply(api: ApiClient, link: ReplyLink): Promise<ReplyRecord
 
 /** A drawn agreement's picture, read through the guest's own link and shown from memory. */
 export function drawingFile(
-  api: ApiClient,
+  api: PublicApiClient,
   { slug, guestToken }: ReplyLink,
   acknowledgementId: string,
   signal: AbortSignal,
@@ -37,7 +37,7 @@ export function drawingFile(
  * The newest hundred records: a household of at most 21 agreeing to a few statements fits.
  */
 export async function fetchAcknowledgements(
-  api: ApiClient,
+  api: PublicApiClient,
   link: ReplyLink,
 ): Promise<AcknowledgementsRead> {
   const read = await expectData<AcknowledgementsWire>(
@@ -53,7 +53,7 @@ export async function fetchAcknowledgements(
  * backend has checked it; only a READY one can sign (docs/API.md §11).
  */
 export async function uploadSignature(
-  api: ApiClient,
+  api: PublicApiClient,
   link: ReplyLink,
   drawing: Blob,
 ): Promise<SignatureUpload> {
@@ -71,7 +71,7 @@ export async function uploadSignature(
 
 /** An unused drawing, when the guest draws again; one already signed with is kept (409). */
 export async function removeSignatureUpload(
-  api: ApiClient,
+  api: PublicApiClient,
   link: ReplyLink,
   mediaId: string,
 ): Promise<void> {
@@ -84,7 +84,7 @@ export async function removeSignatureUpload(
 
 /** Safe to send again: the server updates rather than duplicates (docs/API.md §4). */
 export function submitReply(
-  api: ApiClient,
+  api: PublicApiClient,
   link: ReplyLink,
   body: SubmitReplyBody,
 ): Promise<SubmitResult> {

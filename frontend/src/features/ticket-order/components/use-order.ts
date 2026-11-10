@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { createPublicApi, type ApiClient } from '@/api/client';
+import { createPublicApi, type PublicApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { isPaymentDisagreement } from '@/api/payment-disagreement';
 import { readPublicEnv } from '@/config/env';
@@ -49,7 +49,7 @@ function usePublicApi() {
  * or one that never started a payment (`ticketing.service.ts`, `confirmOrder`). That is an answer,
  * not a failure: the order is read and shown as it is.
  */
-async function confirmOrRead(api: ApiClient, accessToken: string): Promise<OrderRead> {
+async function confirmOrRead(api: PublicApiClient, accessToken: string): Promise<OrderRead> {
   try {
     return await confirmOrder(api, accessToken);
   } catch (error) {
@@ -59,7 +59,7 @@ async function confirmOrRead(api: ApiClient, accessToken: string): Promise<Order
 }
 
 interface Opening {
-  api: ApiClient;
+  api: PublicApiClient;
   order: HeldOrder;
   confirmFirst: boolean;
   signal: AbortSignal;

@@ -19,18 +19,9 @@ export type OpenMemberDialog = (
   opener: HTMLElement,
 ) => void;
 
-function MemberRow({
-  member,
-  revision,
-  onOpen,
-}: {
-  member: OrganizationMember;
-  revision: number;
-  onOpen: OpenMemberDialog;
-}) {
+/** What can be done for a member: an owner isn't made one again. */
+function useMemberActions(member: OrganizationMember) {
   const { t } = useTranslation('organization');
-  const roleName = useRoleName();
-  const day = useOrganizationDay();
   const actions: Array<{ action: MemberAction; words: string; label: string }> = [
     {
       action: 'change',
@@ -52,25 +43,52 @@ function MemberRow({
       label: t('members.removeFor', { name: member.name }),
     },
   ];
+  return actions;
+}
+
+function MemberRow({
+  member,
+  revision,
+  onOpen,
+}: {
+  member: OrganizationMember;
+  revision: number;
+  onOpen: OpenMemberDialog;
+}) {
+  const { t } = useTranslation('organization');
+  const roleName = useRoleName();
+  const day = useOrganizationDay();
+  // An account no longer active can't be changed (FR-125). The rows load only for `member:manage`,
+  // so they need no gate of their own (FR-6).
+  const canChange = member.isActive;
+  const actions = useMemberActions(member);
   return (
     <li className="bg-card border-border flex flex-col gap-2 border px-5 py-4">
-      <span className="font-medium break-words">{member.name}</span>
+      <span className="font-medium break-words">
+        {member.name}
+        {member.isCurrentUser ? (
+          <span className="text-muted-foreground font-normal"> · {t('members.you')}</span>
+        ) : null}
+      </span>
       <p className="m-0 text-sm">
         {t('members.joined', { role: roleName(member.role), date: day(member.joinedAt) })}
       </p>
-      <div className="flex flex-wrap gap-2">
-        {actions.map(({ action, words, label }) => (
-          <Button
-            key={action}
-            variant="outline"
-            className={WRAPPING_BUTTON}
-            aria-label={label}
-            onClick={(click) => onOpen(action, member, revision, click.currentTarget)}
-          >
-            {words}
-          </Button>
-        ))}
-      </div>
+      {member.isActive ? null : <p className="m-0 text-sm">{t('members.inactive')}</p>}
+      {canChange ? (
+        <div className="flex flex-wrap gap-2">
+          {actions.map(({ action, words, label }) => (
+            <Button
+              key={action}
+              variant="outline"
+              className={WRAPPING_BUTTON}
+              aria-label={label}
+              onClick={(click) => onOpen(action, member, revision, click.currentTarget)}
+            >
+              {words}
+            </Button>
+          ))}
+        </div>
+      ) : null}
     </li>
   );
 }

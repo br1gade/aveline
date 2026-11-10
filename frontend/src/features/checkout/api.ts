@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 import type { BasketLine } from '@/features/public-event';
 
 import type { OrderBody, PlacedOrder, PromoQuote } from './types';
@@ -30,7 +30,7 @@ function readPlaced(value: unknown): PlacedOrder {
 
 /** `POST /public/events/:slug/orders` (docs/API.md §5). The same key again returns the same order. */
 export async function placeOrder(
-  api: ApiClient,
+  api: PublicApiClient,
   slug: string,
   order: OrderBody & { idempotencyKey: string },
 ): Promise<PlacedOrder> {
@@ -45,7 +45,7 @@ export async function placeOrder(
 
 /** `POST /public/events/:slug/promo-check`: what a code is worth on this basket, priced by the server. */
 export async function checkPromoCode(
-  api: ApiClient,
+  api: PublicApiClient,
   slug: string,
   check: { code: string; items: readonly BasketLine[] },
 ): Promise<PromoQuote> {

@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 
 import type { Invitation } from './types';
 
@@ -14,7 +14,10 @@ export interface InvitationRequest {
 }
 
 /** `GET /invitations/:slug` or `…/g/:guestToken` (docs/API.md §4). */
-export function fetchInvitation(api: ApiClient, request: InvitationRequest): Promise<Invitation> {
+export function fetchInvitation(
+  api: PublicApiClient,
+  request: InvitationRequest,
+): Promise<Invitation> {
   const { slug, guestToken } = request;
   const query = request.locale ? { locale: request.locale } : {};
   if (guestToken) {

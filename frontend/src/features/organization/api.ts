@@ -3,13 +3,11 @@ import { ORGANIZATION_HEADER } from '@/api/organization-scope';
 
 import type {
   CurrentOrganization,
-  InviteWire,
   MembersPage,
-  MemberWire,
   OrganizationInvite,
   OrganizationRole,
 } from './types';
-import { readInvite, readMember, roleOf } from './read';
+import { readCurrent, readInvite, readMember, roleOf } from './read';
 
 const PAGE_SIZE = 50;
 
@@ -26,14 +24,13 @@ export async function getCurrentOrganization(
   api: ApiClient,
   organizationId?: string,
 ): Promise<CurrentOrganization> {
-  const { name, accessRevision } = await expectData<CurrentOrganization>(
-    api.GET('/api/v1/organizations/current', naming(organizationId)),
+  return readCurrent(
+    await expectData(api.GET('/api/v1/organizations/current', naming(organizationId))),
   );
-  return { name, accessRevision };
 }
 
 export async function renameOrganization(api: ApiClient, name: string): Promise<void> {
-  await expectData<unknown>(api.PATCH('/api/v1/organizations/current', { body: { name } }));
+  await expectData(api.PATCH('/api/v1/organizations/current', { body: { name } }));
 }
 
 /** Names and roles, no contacts; needs `member:manage`, which is an owner's. */
@@ -42,11 +39,7 @@ export async function listMembers(
   cursor?: string,
   organizationId?: string,
 ): Promise<MembersPage> {
-  const page = await expectData<{
-    items: MemberWire[];
-    nextCursor: string | null;
-    accessRevision: number;
-  }>(
+  const page = await expectData(
     api.GET('/api/v1/organizations/current/members', {
       params: { query: { limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) } },
       ...naming(organizationId),
@@ -69,7 +62,7 @@ export async function changeMemberRole(
   { userId, expectedRevision }: MemberChange,
   role: OrganizationRole,
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.PATCH('/api/v1/organizations/current/members/{userId}', {
       params: { path: { userId } },
       body: { role, expectedRevision },
@@ -82,7 +75,7 @@ export async function removeMember(
   api: ApiClient,
   { userId, expectedRevision }: MemberChange,
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.DELETE('/api/v1/organizations/current/members/{userId}', {
       params: { path: { userId }, query: { expectedRevision } },
     }),
@@ -94,7 +87,7 @@ export async function makeOwner(
   api: ApiClient,
   { userId, expectedRevision }: MemberChange,
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.POST('/api/v1/organizations/current/owner-transfers', {
       body: { successorUserId: userId, expectedRevision },
     }),
@@ -102,20 +95,18 @@ export async function makeOwner(
 }
 
 export async function leaveOrganization(api: ApiClient, expectedRevision: number): Promise<void> {
-  await expectData<unknown>(
-    api.POST('/api/v1/organizations/current/leave', { body: { expectedRevision } }),
-  );
+  await expectData(api.POST('/api/v1/organizations/current/leave', { body: { expectedRevision } }));
 }
 
-/** Removes nothing: Aveline's staff decide, and no read says one is open (FR-122). */
+/** Removes nothing: Aveline's staff decide. `closureReview` says where it stands (FR-122). */
 export async function askToClose(api: ApiClient, expectedRevision: number): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.POST('/api/v1/organizations/current/closure-reviews', { body: { expectedRevision } }),
   );
 }
 
 export async function listInvites(api: ApiClient): Promise<OrganizationInvite[]> {
-  const invites = await expectData<InviteWire[]>(api.GET('/api/v1/organization/invites'));
+  const invites = await expectData(api.GET('/api/v1/organization/invites'));
   return invites.map(readInvite);
 }
 
@@ -124,14 +115,12 @@ export async function inviteMember(
   api: ApiClient,
   invite: { email: string; role: OrganizationRole },
 ): Promise<{ email: string; role: OrganizationRole | null }> {
-  const sent = await expectData<{ email: string; role: string }>(
-    api.POST('/api/v1/organization/invites', { body: invite }),
-  );
+  const sent = await expectData(api.POST('/api/v1/organization/invites', { body: invite }));
   return { email: sent.email, role: roleOf(sent.role) };
 }
 
 export async function withdrawInvite(api: ApiClient, email: string): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.DELETE('/api/v1/organization/invites/{email}', { params: { path: { email } } }),
   );
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { ApiClient } from '@/api/client';
+import type { PublicApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { problemFrom, type Problem } from '@/api/problems';
 import { pollUntil, waitFor } from '@/lib/poll';
@@ -33,7 +33,7 @@ function stateOf(error: unknown): ListState {
   return { kind: 'failed', problem: problemFrom(error) };
 }
 
-function useFirstPage(api: ApiClient, link: GalleryLink, isWanted: boolean) {
+function useFirstPage(api: PublicApiClient, link: GalleryLink, isWanted: boolean) {
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [state, setState] = useState<ListState>({ kind: 'waiting' });
@@ -65,7 +65,7 @@ function useFirstPage(api: ApiClient, link: GalleryLink, isWanted: boolean) {
 }
 
 /** Reads the first page again until the photos just shared are prepared or failed. */
-function useSharePoll(api: ApiClient, link: GalleryLink, fold: (page: GalleryPage) => void) {
+function useSharePoll(api: PublicApiClient, link: GalleryLink, fold: (page: GalleryPage) => void) {
   const stop = useRef<AbortController | null>(null);
   useEffect(() => () => stop.current?.abort(), []);
   return useCallback(
@@ -90,7 +90,7 @@ function useSharePoll(api: ApiClient, link: GalleryLink, fold: (page: GalleryPag
  * The guest's gallery (docs/API.md §11; design PD-63): read once the section nears the screen, a
  * hundred at a time, their own photos in any state and other guests' approved ones.
  */
-export function useGuestGallery(api: ApiClient, link: GalleryLink, isWanted: boolean) {
+export function useGuestGallery(api: PublicApiClient, link: GalleryLink, isWanted: boolean) {
   const first = useFirstPage(api, link, isWanted);
   const { setPhotos, setNextCursor, setState, nextCursor } = first;
   const [more, setMore] = useState<'idle' | 'loading' | Problem>('idle');

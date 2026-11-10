@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { createPublicApi, type ApiClient } from '@/api/client';
+import { createPublicApi, type PublicApiClient } from '@/api/client';
 import { readPublicEnv } from '@/config/env';
 import { REPLY_HEADING_ID, type Invitation } from '@/features/invitation-renderer';
 import { Notice } from '@/ui';
@@ -55,7 +55,7 @@ function withResult(record: ReplyRecord, result: SubmitResult): ReplyRecord {
 /** What a send needs besides the form: the page, its client, the reply as read, the statements. */
 interface SendSetup {
   props: GuestReplyProps;
-  api: ApiClient;
+  api: PublicApiClient;
   record: ReplyRecord;
   signatures: SignatureContext | null;
 }
@@ -111,7 +111,7 @@ interface Reloaded {
  * Reads the reply again after the invitation changed underneath the guest (design PD-51), and
  * starts the form again from the fresh reply with what they typed carried over.
  */
-function useReload(api: ApiClient, link: ReplyLink, onFresh: (fresh: ReplyRecord) => void) {
+function useReload(api: PublicApiClient, link: ReplyLink, onFresh: (fresh: ReplyRecord) => void) {
   const [reloaded, setReloaded] = useState<Reloaded>({
     draft: null,
     generation: 0,
@@ -159,7 +159,7 @@ function savedDrawings(record: ReplyRecord, signatures: SignatureContext | null)
 }
 
 function drawingsOf(props: {
-  api: ApiClient;
+  api: PublicApiClient;
   link: ReplyLink;
   record: ReplyRecord;
   signatures: SignatureContext | null;

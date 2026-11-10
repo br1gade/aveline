@@ -55,9 +55,12 @@ beforeEach(() => {
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-function renderShell() {
+function renderShell(unverifiedEmail: string | null = null) {
   const Stub = createRoutesStub([
-    { path: '/app', Component: () => <AppShell>{<p>Your events</p>}</AppShell> },
+    {
+      path: '/app',
+      Component: () => <AppShell unverifiedEmail={unverifiedEmail}>{<p>Your events</p>}</AppShell>,
+    },
     { path: '/sign-in', Component: () => <p>Sign-in page</p> },
   ]);
   render(
@@ -195,5 +198,45 @@ describe('AppShell', () => {
     );
     expect(screen.getByText('Your events')).toBeInTheDocument();
     expect(store.getRefreshToken()).toBe('r1');
+  });
+});
+
+describe('an address not yet confirmed (FR-5)', () => {
+  const VERIFY = `${ORIGIN}/api/v1/auth/verify-email`;
+
+  it('says which address, and sends a new link when asked', async () => {
+    let sent = 0;
+    server.use(
+      http.post(VERIFY, () => {
+        sent += 1;
+        return HttpResponse.json({ sent: true });
+      }),
+    );
+    const user = renderShell('anna@example.am');
+    expect(screen.getByText(/Confirm your email address/)).toHaveTextContent('anna@example.am');
+    await user.click(screen.getByRole('button', { name: 'Send a new link' }));
+    expect(
+      await screen.findByText(
+        'A new link is on its way to anna@example.am. Links sent before it no longer work.',
+      ),
+    ).toBeInTheDocument();
+    expect(sent).toBe(1);
+  });
+
+  it('says why when no link could be sent, and lets them try again', async () => {
+    server.use(
+      http.post(VERIFY, () =>
+        HttpResponse.json({ statusCode: 429, message: 'Too Many Requests' }, { status: 429 }),
+      ),
+    );
+    const user = renderShell('anna@example.am');
+    await user.click(screen.getByRole('button', { name: 'Send a new link' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Too many attempts.');
+    expect(screen.getByRole('button', { name: 'Send a new link' })).toBeEnabled();
+  });
+
+  it('says nothing once the address is confirmed', () => {
+    renderShell(null);
+    expect(screen.queryByText(/Confirm your email address/)).not.toBeInTheDocument();
   });
 });

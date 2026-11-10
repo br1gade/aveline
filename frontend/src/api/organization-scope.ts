@@ -2,8 +2,9 @@
  * Which calls say which organization (`X-Aveline-Organization-Id`, docs/API.md §6). Only those the
  * backend scopes to one: an event or an invitation names its own, and an authorized selection of
  * another is a 409, which would refuse an event the account was invited onto from elsewhere.
- * **A temporary stand-in** (design PD-138, FR-116): nothing declares this per route, so this list is
- * pinned by a test that reads the backend's controllers.
+ * The spec now declares the header on every operation that accepts it (FR-116), but on event and
+ * invitation routes too, where it must match; until it tells the two apart (FR-146) this list stays,
+ * pinned by tests against the backend's controllers and the spec (design PD-138).
  */
 export const ORGANIZATION_HEADER = 'x-aveline-organization-id';
 

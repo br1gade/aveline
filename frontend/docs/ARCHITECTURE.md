@@ -120,9 +120,12 @@ above a `/guests/:guestId`.
 
 - `npm run api:generate` writes `src/api/schema.ts` (gitignored) from `../backend/openapi.json`,
   with `--default-non-nullable false`: a request field the server defaults stays optional, as the
-  API reads it. The schema declares no responses yet (FR-1); revisit the flag when it does.
+  API reads it. The same script writes `src/api/public-paths.ts` (gitignored too): the operations
+  the spec declares `security: []` (FR-2).
 - **Two clients:** `publicApi` without credentials (guest pages), `appApi` with the bearer token
-  and refresh (later screens).
+  and refresh. The public one is typed over the public operations alone, and the signed-in one
+  carries a type-only brand, so a function a public page calls must take `PublicApiClient` and can
+  then call nothing that needs a session (FR-2). Either client can be given to such a function.
 - **One `fetch` underneath both:**
   - it sends its own `x-request-id`, so a reference exists even when no answer arrives;
   - on 401 it refreshes once and retries; on 403 it never retries;
@@ -150,7 +153,17 @@ above a `/guests/:guestId`.
   `http://localhost:3000`) in development. On the server,
   `API_INTERNAL_URL` directly. Production is not agreed (FR-11): the backend's production template
   puts the API on its own origin, which would make every browser call cross-origin.
-- **Response types are interim and hand-written** per feature (`types.ts`) until FR-1.
+- **Response types come from the schema** (FR-1): `expectData(call)` with no type gives the body the
+  operation declares, and `ResponseOf<'Controller_methodResponse'>` names one. A feature's `types.ts`
+  aliases them; its `read.ts` stays where it keeps only the fields a page uses, maps a value the
+  client doesn't know, or reads a field the spec types differently from `docs/API.md`. Features not
+  yet moved still pass their own type, `expectData<T>(call)`, marked "interim until FR-1"; that form
+  goes when the last has moved.
+- **What the caller may do** (FR-6, design PD-190): `features/permissions` reads it once per event
+  (`routes/app/event-access.tsx`) and on entering the organization's own pages
+  (`organization-access.tsx`), and again when a page reads itself after a write, or on leaving the
+  organization's page; `useCan` and `Permitted` answer from the nearest. Unknown means everything is
+  offered, as before. The event read has no reader until the vendors' pages (group 2) gate on it.
 
 ## 5. Session (`src/api/session/`)
 
@@ -318,8 +331,8 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   errors show the route's error state with the request id as a reference. On the guest list a 404
   or a conflict on a write reloads the list behind the message, since it is out of date.
 - **An event the account cannot see answers 403, not 404** (`docs/BACKLOG.md` §4), so the event
-  pages say "not available" for both. With no permissions endpoint (FR-6), every action is offered
-  and a 403 is explained when it happens.
+  pages say "not available" for both. An action the access read doesn't grant is not offered
+  (FR-6, PD-190), on the pages moved so far; every 403 is still explained when it happens.
 - **Headers** (`src/entry.server.tsx`, `src/lib/security`): a nonce-based Content Security Policy
   in production, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, but for the designer's
   draft preview (`/app/events/:eventId/design/draft-preview`), which the app frames itself:
@@ -919,6 +932,12 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 10 Nov 2026 | **An export's failure says what to do (FR-59)**: each of the worker's codes in our words, and a row offers making it again only when that could succeed, or as a CSV where that would (design PD-75) | "Make it again" on a report too large could only fail the same way. A file stopped because its maker lost access is still made again, since the list is the whole event's and the viewer may not be its maker (FR-61) |
 | 10 Nov 2026 | **The door reads the roster whole and searches it on the phone (FR-79)**, a hundred at a time and 200 ms apart, up to 2,000 people, keeping what was read when a page is refused for too many requests; one person is read again by name after a check-in, and a walk-in or unknown holder is added the same way (design PD-90, PD-94) | Searching on the server would lose names in another alphabet, a person's household and who still must agree, and stop the door finding anyone when the signal drops; the roster carries no token or contact. The pacing keeps inside the account's 10 a second and 100 a minute (FR-142) |
 | 10 Nov 2026 | **The door reads refusals by their code and facts (FR-76)**: when a code was used and whose it is, the order's state, and only that person's agreements still owed; the older words stay as a fallback (design PD-92) | The backend sends both during the migration, and a refusal shown in English or worded as one for several order states sent staff to the host for no reason |
+| 10 Nov 2026 | **Responses are typed from the schema** (FR-1): `expectData` infers the body when given no type, and `ResponseOf` names one; the session calls and the organization feature moved first, the rest move feature by feature | Every operation now declares its answer. Keeping the explicit form meanwhile spared 170 call sites one big change |
+| 10 Nov 2026 | **The public client can only call public operations** (FR-2): `api:generate` also writes `public-paths.ts` from the spec's `security: []`, `createPublicApi` is typed over it, and the signed-in client has a type-only brand so a public client can't stand in for it | Types alone didn't guard it: openapi-fetch's clients were assignable either way. The first run caught the host's artwork loader typed as public |
+| 10 Nov 2026 | **Who is signed in comes from `GET /me`** (FR-5): the app's layout reads it beside the organization, for an address not yet confirmed (design PD-191), and home reads it to know staff (PD-165), sharing one read (`readAccountOnce`), kept for the session once the address is confirmed | It replaces asking `GET /concierge/organizations` and reading a 403, which hid the console from staff who also belong to an organization. Kept, it costs nothing per page; while unconfirmed it is asked again so the notice goes once confirmed |
+| 10 Nov 2026 | **What a role may do is read, not guessed** (FR-6, design PD-190): two pathless layouts, one around an event's pages and one around the organization's own, read the access once, again after a write on their pages, and the organization's on leaving its own page; `useCan` answers from the nearest | The routes were flat; a layout keeps one read per event, not one per page. A write can change the caller's own role, so it reads again. The organization's page is gated first; the event read waits for the vendors' pages |
+| 10 Nov 2026 | **The organization header's list is also pinned to the spec** (FR-116): every operation declaring it outside events, invitations and staff's own must be on the list | The spec declares it on event routes too, where it must match, so it can't replace the list until it tells the two apart (FR-146) |
+| 10 Nov 2026 | **The organization's page knows its caller and its closure** (FR-121, FR-122, FR-124, FR-125): the caller's row is marked and alone warned, an inactive account is offered nothing, a request to close shows where it stands without the date the backend keeps from the first (FR-148), and the guard's `FORBIDDEN`, the owner-only sentence and staff's 404 on it all mean only an owner may ask | Adopted from the backend's 8 November answers; `closureReview` is read as nullable with a bare status (FR-145) |
 | 10 Nov 2026 | **The contract's small answers are adopted** (FR-7, FR-8, FR-10, FR-56, FR-72, FR-73, FR-75, FR-129): `/privacy-request` joins `ROUTE_PATHS`, pinned with the rest to `docs/API.md`'s table; the scanner's shape is pinned to the format API.md states, no longer to `issue-attendees.ts`; the reply's three unanswered-question refusals are pinned to the backend's words; comments that said a header was hidden or a read unallowanced are corrected | Each now has a published contract to hold to, and a test that fails when either side drifts. `GET /plans` was found outside FR-73's allowance (FR-147) |
 | 9 Nov 2026 | **The buyer's order names itself (FR-62)**: the event, ticket types, buyer and language come from the order, and the public listing is no longer read (design PD-81, PD-189) | An emailed link in a fresh tab could name nothing. The line about agreements before the door went with it, as only the listing knows (FR-138) |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
@@ -930,9 +949,10 @@ size check in the CSV's send that the disabled button already covers. **None of 
   build per origin (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
   owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
   backend's default is verified (FR-134, PD-179), and the scheduled free plan with its withdrawal
-  (FR-135). Also the response schemas and permissions (FR-1, FR-6), editing and removing a vendor
+  (FR-135). Also moving the remaining features onto the response schemas and permissions (FR-1,
+  FR-6; the groundwork and the organization's page are done), editing and removing a vendor
   (FR-102), pausing a brief (C-56), and the frontend CI workflow the backend asked for. **Every
-  request marked answered and waiting for the client in BACKEND_REQUESTS (23 of them on 10 November) keeps its stand-in until adopted,** so the
+  request marked answered and waiting for the client in BACKEND_REQUESTS (14 of them on 10 November, with FR-1 and FR-6 under way) keeps its stand-in until adopted,** so the
   entries below that name one now wait on the client, not the backend. Paid plans
   shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
   are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
@@ -948,9 +968,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
   (FR-9, FR-42, docs/API.md §6); choosing one when creating an event; `templateSetup`'s state on a new
   event; an edit of an event's override of a template's default artwork. Adoption has only met a mock:
   the backend's gate answers 503 today.
-- Of the organization: marking the caller's own row (FR-121); saying a closure review is open, and its
-  outcome (FR-122; staff tell the owner themselves meanwhile, C-52); telling erased members from active ones (FR-125); handling a review, which is
-  Aveline's staff's. Only a mock has met it.
+- Of the organization: a closure review's status typed, and null when none was asked (FR-145);
+  handling a review, which is Aveline's staff's. Only a mock has met it.
 - Of an event's activity: telling an empty trail from an unreadable one, words per action, and more than
   the newest hundred (FR-123).
 - Of the data-request form: reviewed words and a privacy notice to link to (Arthur drafts, a lawyer checks:
@@ -961,8 +980,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   publishing until a renderer manifest is registered in its code. Enquiries, which wait until the backend enables them, and with them carrying out a request that has no address; paging
   past the newest 50 organizations and the 200 soonest-due requests (FR-127); recovering an export whose answer was lost
   (FR-128). A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Telling a customer's own organization from
-  one they're merely on (FR-130); a staff member who belongs to an organization sees no link to their tools
-  (PD-165). Binding an enquiry, which a request with an address can also need, and which answers the backend's
+  one they're merely on (FR-130). Binding an enquiry, which a request with an address can also need, and which answers the backend's
   words as they came (PD-168). Access reviews' names, read one by one (FR-133). Only a mock has met these: no real
   staff account, no real erasure and no real closure.
 - Of a ticket's QR code and the door's scanner (C-25, PD-171 to PD-174): **a real camera has never read a code.**
@@ -1064,8 +1082,6 @@ size check in the CSV's send that the disabled button already covers. **None of 
   F27's exports), the same day. Template previews (F28),
   question order (F29) and logo uploads (F48) are built in the designer; name correction (F46),
   the gallery (F19) and the hosts' view of agreements (F25) since 29 October 2026.
-- A "verify your email" banner and a way to ask for the email again: nothing says whether an
-  address is verified (FR-5).
 - Deployment (A7, FR-11): `server/` and `Dockerfile` exist, and **the image has never been built**, as
   the machine they were written on has no Docker; its stages were replayed by hand (§10). No compression
   or TLS: the proxy's, which isn't chosen. A production build needs

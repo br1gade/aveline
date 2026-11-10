@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { createPublicApi } from '@/api/client';
+import { createAppApi, createPublicApi } from '@/api/client';
 
 import { plantedToken } from '../../../test/tokens';
 import {
@@ -177,7 +177,7 @@ describe('reading an artwork’s bytes', () => {
     ],
   ])('for a host, %o from its own address', async (asset, address) => {
     answerAny();
-    await hostArtworkLoader(api, 'e1')(asset, new AbortController().signal);
+    await hostArtworkLoader(createAppApi(ORIGIN, {}), 'e1')(asset, new AbortController().signal);
     expect(asked).toEqual([address]);
   });
 });

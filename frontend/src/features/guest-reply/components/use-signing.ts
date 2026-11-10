@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { ApiClient } from '@/api/client';
+import type { PublicApiClient } from '@/api/client';
 import type { Invitation } from '@/features/invitation-renderer';
 
 import {
@@ -28,7 +28,7 @@ import type { SigningActions } from './form-context';
  * twice.
  */
 function useAcknowledgements(
-  api: ApiClient,
+  api: PublicApiClient,
   link: ReplyLink,
   invitation: Invitation,
   refresh: number,
@@ -54,7 +54,7 @@ function useAcknowledgements(
 
 /** The statements to agree to, who already has, and who signs; `null` when there is none. */
 export function useSignatureContext(
-  api: ApiClient,
+  api: PublicApiClient,
   props: { link: ReplyLink; invitation: Invitation; record: ReplyRecord; refresh: number },
 ): SignatureContext | null {
   const { link, invitation, record, refresh } = props;
@@ -72,7 +72,7 @@ export function useSignatureContext(
 }
 
 /** Uploading a drawing and waiting for its check, then forgetting one the guest replaced. */
-export function useSigning(api: ApiClient, link: ReplyLink): SigningActions {
+export function useSigning(api: PublicApiClient, link: ReplyLink): SigningActions {
   const { slug, guestToken } = link;
   return useMemo(() => {
     const at = { slug, guestToken };

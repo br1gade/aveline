@@ -1,8 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import { Link, redirect } from 'react-router';
 
-import { appMeta, firstStopFor, ownOrganization, requireSignedIn } from '@/features/account';
-import { isAvelineStaff } from '@/features/customers';
+import { loaded } from '@/api/loaded';
+import {
+  appMeta,
+  firstStopFor,
+  isAvelineStaff,
+  ownOrganization,
+  readAccountOnce,
+  requireSignedIn,
+} from '@/features/account';
 import { ArrivalStatus, EventList, listEvents } from '@/features/events';
 import { languageOfMatches } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
@@ -14,9 +21,13 @@ import type { Route } from './+types/home';
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const session = await requireSignedIn(request);
   const { api } = session;
-  const [organization, events] = await Promise.all([ownOrganization(api), listEvents(api)]);
-  // Asked only with no organization of their own: a customer with one has no need to be refused.
-  const isStaff = organization === null && (await isAvelineStaff(api));
+  const [organization, events, account] = await Promise.all([
+    ownOrganization(api),
+    listEvents(api),
+    loaded(readAccountOnce(api)),
+  ]);
+  // A failed read offers no staff tools: the staff page itself still asks.
+  const isStaff = account.kind === 'ready' && isAvelineStaff(account.value);
   const firstStop = firstStopFor(organization, events.length, isStaff);
   if (firstStop) throw redirect(firstStop);
   return { organization, events, isStaff };

@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type ChangeEvent, type FormEvent, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { ApiClient } from '@/api/client';
+import type { PublicApiClient } from '@/api/client';
 import { Button, Icon, useIsHydrated } from '@/ui';
 import { TextArea } from '@/ui/form';
 
@@ -36,7 +36,7 @@ export interface SentBatch {
 type ChooseEvent = ChangeEvent<HTMLInputElement>;
 
 interface ShareProps {
-  api: ApiClient;
+  api: PublicApiClient;
   link: GalleryLink;
   onShared: (photos: GalleryPhoto[]) => void;
 }

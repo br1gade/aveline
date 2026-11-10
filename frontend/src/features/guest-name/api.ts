@@ -1,4 +1,4 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type PublicApiClient } from '@/api/client';
 
 import type { CorrectedName, NameBody } from './types';
 
@@ -20,7 +20,7 @@ function readCorrected(wire: CorrectedName): CorrectedName {
 
 /** Only the link holder's own name changes (docs/API.md §4, "Correct your own name"). */
 export async function correctName(
-  api: ApiClient,
+  api: PublicApiClient,
   link: NameLink,
   body: NameBody,
 ): Promise<CorrectedName> {

@@ -1,6 +1,6 @@
 import { APP_PATHS } from '@/route-paths';
 
-import type { OwnOrganization } from './types';
+import type { Account, OwnOrganization } from './types';
 
 /**
  * Where a signed-in person must go first, if anywhere. With no organization and no event they have
@@ -15,4 +15,12 @@ export function firstStopFor(
 ): string | null {
   if (organization !== null || eventCount > 0) return null;
   return isStaff ? APP_PATHS.staff : APP_PATHS.welcome;
+}
+
+/**
+ * Whether this account is Aveline's staff's (FR-5): both platform roles reach the staff tools
+ * (`concierge:manage`). A hint for what a page offers; the server still decides every action.
+ */
+export function isAvelineStaff(account: Pick<Account, 'platformRole'>): boolean {
+  return account.platformRole !== 'NONE';
 }

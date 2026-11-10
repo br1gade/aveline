@@ -1,11 +1,11 @@
-import { expectData, type ApiClient } from '@/api/client';
+import { expectData, type ApiClient, type PublicApiClient } from '@/api/client';
 
 import { readChoice, readConfirmed, readInvoice, readPlan, readSubscription } from './read';
 import type { Invoice, PaymentProvider, Plan, PlanChoice, Subscription } from './types';
 
 type InvoiceWire = Parameters<typeof readInvoice>[0];
 
-export async function listPlans(api: ApiClient): Promise<Plan[]> {
+export async function listPlans(api: PublicApiClient): Promise<Plan[]> {
   return (await expectData<Plan[]>(api.GET('/api/v1/plans'))).map(readPlan);
 }
 

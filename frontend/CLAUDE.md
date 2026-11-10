@@ -27,9 +27,10 @@ which the backend team maintains; when that template changes, copy the change he
 ## 3. Before writing code against the API
 
 1. Read `../docs/API.md` §1 (conventions) and §8 (things that bite), then the feature's section.
-2. Run `npm run api:generate`. Request types come from `backend/openapi.json`. Response types are
-   hand-written per feature in `types.ts`, marked "interim until FR-1", because the schema has
-   none yet.
+2. Run `npm run api:generate`. Request and response types come from `backend/openapi.json`:
+   `expectData(call)` gives the body the operation declares, and `ResponseOf<…>` names one (FR-1).
+   Features not yet moved keep hand-written types marked "interim until FR-1"; move a feature's
+   when you change it. A function a public page calls takes `PublicApiClient` (FR-2).
 3. Check [BACKEND_REQUESTS.md](docs/BACKEND_REQUESTS.md) and the BACKLOG items it names.
 
 ## 4. Non-negotiable client behaviours
@@ -107,8 +108,8 @@ From the template; getting them wrong breaks users.
 
 ## 10. Never
 
-- Edit outside `frontend/`, or hand-edit `src/api/schema.ts`, `src/styles/tokens.css` or
-  `src/styles/theme.css`.
+- Edit outside `frontend/`, or hand-edit `src/api/schema.ts`, `src/api/public-paths.ts`,
+  `src/styles/tokens.css` or `src/styles/theme.css`.
 - Work around a missing API without a BACKEND_REQUESTS entry.
 - Put a capability token in a log, a test fixture committed to git, or a screenshot.
 - Parse money with floats, sort blocks, or format an event time in the device's zone.

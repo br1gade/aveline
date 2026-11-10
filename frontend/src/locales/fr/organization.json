@@ -23,7 +23,9 @@
     "removeFor": "Retirer : {{name}}",
     "more": "Afficher d’autres membres",
     "loading": "Chargement…",
-    "moreFailed": "Les autres membres n’ont pas pu être chargés. Veuillez réessayer."
+    "moreFailed": "Les autres membres n’ont pas pu être chargés. Veuillez réessayer.",
+    "you": "Vous",
+    "inactive": "Ce compte n’est plus actif."
   },
   "role": {
     "OWNER": {
@@ -46,16 +48,18 @@
   },
   "changeRole": {
     "title": "Changer le rôle de {{name}}",
-    "body": "Cela s’applique dès leur prochaine requête. S’il s’agit de votre propre rôle, vous pourriez perdre l’accès à cette page.",
+    "body": "Cela s’applique dès sa prochaine requête.",
     "label": "Rôle",
     "save": "Changer le rôle",
     "cancel": "Annuler",
-    "saving": "Enregistrement…"
+    "saving": "Enregistrement…",
+    "self": "C’est votre propre rôle : vous pourriez perdre l’accès à cette page."
   },
   "remove": {
     "title": "Retirer {{name}} de l’organisation ?",
-    "body": "Cette personne perd tous ses rôles dans l’organisation et ses événements, ainsi que ses invitations en attente et ses travaux inachevés. Les événements et leur historique restent. S’il s’agit de vous, vous perdez l’accès aussitôt.",
-    "confirm": "Retirer"
+    "body": "Cette personne perd tous ses rôles dans cette organisation et ses événements, avec ses invitations en attente et ses travaux inachevés. Les événements et leur historique restent.",
+    "confirm": "Retirer",
+    "self": "C’est vous : vous perdez l’accès immédiatement."
   },
   "owner": {
     "title": "Nommer {{name}} propriétaire ?",
@@ -95,8 +99,12 @@
     "lead": "Un propriétaire peut demander au personnel d’Aveline de la fermer. Rien n’est supprimé avant leur décision, et les événements et l’historique des paiements sont conservés dans tous les cas.",
     "open": "Demander la fermeture",
     "askTitle": "Demander à Aveline de fermer cette organisation ?",
-    "askBody": "Chacun garde son accès jusqu’à la décision du personnel. Demander deux fois est sans effet, car cette page ne peut pas indiquer si c’est déjà fait.",
-    "confirm": "Demander la fermeture"
+    "askBody": "Chacun garde son accès jusqu’à la décision de l’équipe.",
+    "confirm": "Demander la fermeture",
+    "waiting": "Vous avez demandé à l’équipe d’Aveline de la fermer. Elle n’a pas encore décidé, et chacun garde son accès en attendant.",
+    "declined": "L’équipe d’Aveline a décidé le {{date}} de ne pas la fermer.",
+    "handedOver": "L’équipe d’Aveline a fait d’un autre membre un propriétaire le {{date}}, plutôt que de la fermer.",
+    "answered": "L’équipe d’Aveline a répondu le {{date}}."
   },
   "status": {
     "renamed": "Le nom est enregistré.",

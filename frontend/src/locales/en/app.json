@@ -69,7 +69,13 @@
       "action": "Sign out everywhere",
       "cancel": "Cancel"
     },
-    "signOutFailed": "We couldn’t sign out your other devices. Please try again."
+    "signOutFailed": "We couldn’t sign out your other devices. Please try again.",
+    "unconfirmed": {
+      "body": "Confirm your email address: we sent a link to {{email}}.",
+      "send": "Send a new link",
+      "sent": "A new link is on its way to {{email}}. Links sent before it no longer work.",
+      "failed": "We couldn’t send a new link. Please try again."
+    }
   },
   "home": {
     "title": "Your events",
