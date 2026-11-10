@@ -1,4 +1,4 @@
-import type { Guest, Household } from '@/features/guests';
+import type { Guest } from '@/features/guests';
 import type { Question } from '@/features/invitation-design';
 import { inLanguage } from '@/features/ticket-sales';
 
@@ -73,8 +73,8 @@ export function statementsStillOwed(
   return statements.filter((statement) => !agreed?.has(statement.versionId));
 }
 
-export interface PersonWhoMustAgree {
-  guest: Guest;
+export interface PersonWhoMustAgree<P = Guest> {
+  guest: P;
   owed: RequiredStatement[];
 }
 
@@ -82,16 +82,16 @@ export interface PersonWhoMustAgree {
  * Those worth telling in advance: coming, not erased and not here yet. `isHere` is the door's own
  * knowledge, which is newer than the list's. The gate binds everyone.
  */
-export function peopleWhoMustAgree(
-  households: readonly Household[],
+export function peopleWhoMustAgree<P extends { id: string; answer: string; isErased?: boolean }>(
+  households: readonly { guests: readonly P[] }[],
   statements: readonly RequiredStatement[],
   agreements: Agreements,
-  isHere: (guest: Guest) => boolean,
-): PersonWhoMustAgree[] {
+  isHere: (guest: P) => boolean,
+): PersonWhoMustAgree<P>[] {
   if (statements.length === 0) return [];
   return households.flatMap(({ guests }) =>
     guests.flatMap((guest) => {
-      if (guest.isErased || guest.answer !== 'ATTENDING' || isHere(guest)) return [];
+      if (guest.isErased === true || guest.answer !== 'ATTENDING' || isHere(guest)) return [];
       const owed = statementsStillOwed(guest.id, statements, agreements);
       return owed.length > 0 ? [{ guest, owed }] : [];
     }),

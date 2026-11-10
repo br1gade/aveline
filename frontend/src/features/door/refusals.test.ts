@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ApiError, networkError } from '@/api/errors';
 
-import { refusalOf, type DoorAction, type DoorRefusal } from './refusals';
+import { refusalOf, wordsIn, type DoorAction, type DoorRefusal } from './refusals';
 
 const refused = (status: number, message: string) =>
   new ApiError({ status, messages: [message], requestId: `r-${status}` });
@@ -188,36 +188,28 @@ describe('a refusal by its code and facts (FR-76)', () => {
     expect(refusalOf(error, 'checkIn')).toEqual({ kind: 'alreadyHere', arrivedAt: null });
   });
 
-  it('holds to the codes and facts the backend has', () => {
-    const backend = (path: string) =>
-      readFileSync(join(import.meta.dirname, '../../../../backend/src', path), 'utf8');
-    const codes = backend('common/domain-http.exception.ts');
-    for (const code of [
-      'ADMISSION_TARGET_NOT_FOUND',
-      'ADMISSION_LINK_CHANGED',
-      'ADMISSION_ALREADY_CHECKED_IN',
+  it('falls back to the words when agreements are listed but not whose', () => {
+    const error = coded(
+      400,
       'ADMISSION_ACKNOWLEDGEMENTS_REQUIRED',
-      'TICKET_ALREADY_USED',
-      'TICKET_ORDER_UNAVAILABLE',
+      { missingAcknowledgements: [{ questionId: 'q1', labels: {} }] },
+      'acknowledgements: g1 must acknowledge q1 in its current version',
+    );
+    expect(refusalOf(error, 'checkIn')).toEqual({
+      kind: 'mustAgree',
+      guestId: 'g1',
+      questionId: 'q1',
+    });
+  });
+
+  it('falls back to the words for a ticket state it doesn’t know', () => {
+    const error = coded(
+      400,
       'TICKET_STATUS_UNAVAILABLE',
-      'TICKET_ATTENDEE_REQUIRED',
-    ]) {
-      expect(codes).toContain(`${code}: {`);
-    }
-    const facts = backend('common/feedback.dto.ts');
-    for (const field of [
-      'guestId?:',
-      'holderName?:',
-      'arrivedAt?:',
-      'usedAt?:',
-      'orderStatus?:',
-      'isCancellationPending?:',
-      'ticketStatus?:',
-      'missingAcknowledgements?:',
-    ]) {
-      expect(facts).toContain(field);
-    }
-    expect(backend('common/filters/all-exceptions.filter.ts')).toContain('admission:');
+      { ticketStatus: 'SOMETHING_NEW' },
+      'Ticket already refunded',
+    );
+    expect(refusalOf(error, 'admit')).toEqual({ kind: 'ticketRefunded' });
   });
 });
 
@@ -335,5 +327,20 @@ describe('the sentences recognised are the backend’s own', () => {
     expect(backend('modules/guest-contributions/acknowledgement-writes.ts')).toContain(
       'acknowledgements: ${missing[0].guestId} must acknowledge ${missing[0].questionId} in its current version',
     );
+  });
+});
+
+describe('a statement’s words, by language (FR-76)', () => {
+  const labels = { hy: 'Կանոնները', ru: 'Правила', en: 'The rules' };
+  it.each([
+    ['the page’s language', 'ru', 'hy', 'Правила'],
+    ['the event’s, when the page’s is missing', 'fr', 'hy', 'Կանոնները'],
+    ['the first there is, when neither is', 'fr', 'de', 'Կանոնները'],
+  ])('takes %s', (_case, language, fallback, words) => {
+    expect(wordsIn(labels, language, fallback)).toBe(words);
+  });
+
+  it('has none for no labels', () => {
+    expect(wordsIn({}, 'en', 'hy')).toBeNull();
   });
 });

@@ -914,6 +914,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 9 Nov 2026 | **The inventory's refusals are worded by status** (`ticket-sales/inventory-refusals.ts`): a 403 by whose the action is, a 400 with the backend's sentence as it came | One sentence for all hid that venue layouts are Aveline's directory editors' (FR-6) |
 | 9 Nov 2026 | **The owner's decisions of 5 and 8 November are confirmed:** unpublished seating hidden from briefs, pausing a brief allowed, gallery uploads off for new invitations (design C-55 to C-57) | The backend had built the first two; C-44 and C-46 are superseded |
 | 9 Nov 2026 | **Guests' photo sharing follows the hosts' switch (FR-46)**: the share form shows only while it is on, and the setting is a sentence and a button on the photos page (design PD-187, PD-188) | New invitations start with sharing off (C-57), so guests were offered a form that could only be refused |
+| 10 Nov 2026 | **The door reads the roster whole and searches it on the phone (FR-79)**, a hundred at a time and 200 ms apart, up to 2,000 people, keeping what was read when a page is refused for too many requests; one person is read again by name after a check-in, and a walk-in or unknown holder is added the same way (design PD-90, PD-94) | Searching on the server would lose names in another alphabet, a person's household and who still must agree, and stop the door finding anyone when the signal drops; the roster carries no token or contact. The pacing keeps inside the account's 10 a second and 100 a minute (FR-142) |
 | 10 Nov 2026 | **The door reads refusals by their code and facts (FR-76)**: when a code was used and whose it is, the order's state, and only that person's agreements still owed; the older words stay as a fallback (design PD-92) | The backend sends both during the migration, and a refusal shown in English or worded as one for several order states sent staff to the host for no reason |
 | 9 Nov 2026 | **The buyer's order names itself (FR-62)**: the event, ticket types, buyer and language come from the order, and the public listing is no longer read (design PD-81, PD-189) | An emailed link in a fresh tab could name nothing. The line about agreements before the door went with it, as only the listing knows (FR-138) |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
@@ -921,8 +922,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 ## 12. Not yet built
 
 - Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
-  adopt (BACKEND_REQUESTS §1): for the pilot, the door's paged roster
-  (FR-79) with a rehearsal on a phone, export failures that say what to do (FR-59), and a
+  adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, export failures that say what to do (FR-59), and a
   build per origin (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
   owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
   backend's default is verified (FR-134, PD-179), and the scheduled free plan with its withdrawal
@@ -1051,7 +1051,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
   the announcement is not published (FR-71); "on sale from" before a type's sales open (FR-66); saying on the order whether the event has agreements before the door (FR-138), whether its listing is still public (FR-139), and leaving out an erased buyer's name (FR-140).
-- Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; a walk-in joining
+- Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; anyone erased told apart by the roster rather than a stand-in (FR-141); room in the rate limit for a large roster (FR-142); households told apart rather than grouped by name (FR-143); a walk-in joining
   a household already on the list, which needs one of its seats free; adding a walk-in again safely
   after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the

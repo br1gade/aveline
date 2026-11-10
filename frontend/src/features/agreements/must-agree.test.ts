@@ -1,3 +1,4 @@
+import { listedGuest, listedHousehold } from './test-data';
 import { describe, expect, it } from 'vitest';
 
 import type { Question } from '@/features/invitation-design';
@@ -12,7 +13,6 @@ import {
   statementWords,
   type RequiredStatement,
 } from './must-agree';
-import { doorGuest, doorHousehold } from '../door/test-data';
 
 function question(overrides: Partial<Question> = {}): Question {
   return {
@@ -76,11 +76,11 @@ describe('the list of people to tell', () => {
   const statements = requiredStatements([question()]);
   const nobodyHere = () => false;
   const households = [
-    doorHousehold('h1', 'Petrosyan family', [
-      doorGuest('g1', 'Armen Petrosyan'),
-      doorGuest('g2', 'Agreed Already'),
-      doorGuest('g3', 'Not Coming', { answer: 'DECLINED' }),
-      doorGuest('g4', 'Erased', { isErased: true }),
+    listedHousehold('h1', 'Petrosyan family', [
+      listedGuest('g1', 'Armen Petrosyan'),
+      listedGuest('g2', 'Agreed Already'),
+      listedGuest('g3', 'Not Coming', { answer: 'DECLINED' }),
+      listedGuest('g4', 'Erased', { isErased: true }),
     ]),
   ];
   const ids = (isHere: (guest: { id: string }) => boolean) =>
@@ -102,7 +102,7 @@ describe('the list of people to tell', () => {
   it('leaves out whoever the door says is here, whatever the list last said', () => {
     expect(ids(({ id }) => id === 'g1')).toEqual([]);
     const listedHere = [
-      doorHousehold('h2', 'Undone', [doorGuest('g9', 'Undone', { isCheckedIn: true })]),
+      listedHousehold('h2', 'Undone', [listedGuest('g9', 'Undone', { isCheckedIn: true })]),
     ];
     const people = peopleWhoMustAgree(listedHere, statements, agreementsFrom([]), nobodyHere);
     expect(people.map(({ guest }) => guest.id)).toEqual(['g9']);
@@ -127,7 +127,7 @@ describe('who still owes each statement', () => {
   const rules = { questionId: 'q1', versionId: 'v1', prompt: { en: 'The rules' } };
   const photos = { questionId: 'q2', versionId: 'v2', prompt: { en: 'Photos' } };
   const person = (name: string, owed: RequiredStatement[]) => ({
-    guest: doorGuest(name, name),
+    guest: listedGuest(name, name),
     owed,
   });
 

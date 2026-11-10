@@ -1,4 +1,5 @@
 import { isApiError, type ApiError } from '@/api/errors';
+import type { components } from '@/api/schema';
 
 /**
  * Why the door refused someone (docs/API.md §6, "Door refusal codes"). The backend's stable `code`
@@ -54,14 +55,27 @@ export type DoorRefusal =
   | { kind: 'noAnswer'; requestId?: string | undefined }
   | { kind: 'other'; sentence: string; requestId?: string | undefined };
 
-type Facts = Readonly<Record<string, unknown>>;
+type Schemas = components['schemas'];
+/** The codes the generated schema declares: a code renamed there fails the typecheck here. */
+type ErrorCode = Schemas['HttpErrorDto']['code'];
+/** The `admission` facts by the schema's own names, each unchecked until read. */
+type Facts = { readonly [K in keyof Schemas['AdmissionFeedbackDto']]?: unknown };
+type MissingFacts = {
+  readonly [K in keyof Schemas['MissingAdmissionAcknowledgementDto']]?: unknown;
+};
+type ByCode = (facts: Facts, action: DoorAction) => DoorRefusal | null;
 
-function isRecord(value: unknown): value is Facts {
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function textOf(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+/** A table's own entry for what the server sent, never one inherited from `Object`. */
+function ownEntry<T>(table: Readonly<Partial<Record<string, T>>>, key: unknown): T | undefined {
+  return typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : undefined;
 }
 
 /** Only what came: a missing or malformed fact is left out, never guessed. */
@@ -83,8 +97,9 @@ function labelsOf(value: unknown): Record<string, string> {
 function missingOf(value: unknown): MissingAgreement[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry: unknown) => {
-    const questionId = isRecord(entry) ? textOf(entry.questionId) : undefined;
-    return questionId && isRecord(entry) ? [{ questionId, labels: labelsOf(entry.labels) }] : [];
+    const facts: MissingFacts = isRecord(entry) ? entry : {};
+    const questionId = textOf(facts.questionId);
+    return questionId ? [{ questionId, labels: labelsOf(facts.labels) }] : [];
   });
 }
 
@@ -100,17 +115,12 @@ const TICKET_KINDS: Readonly<Record<string, 'ticketVoid' | 'ticketRefunded'>> = 
 
 function orderRefusal(facts: Facts): DoorRefusal {
   if (facts.isCancellationPending === true) return { kind: 'orderCancelling' };
-  const status = String(facts.orderStatus);
-  return {
-    kind: Object.hasOwn(ORDER_KINDS, status)
-      ? (ORDER_KINDS[status] ?? 'orderClosed')
-      : 'orderClosed',
-  };
+  return { kind: ownEntry(ORDER_KINDS, facts.orderStatus) ?? 'orderClosed' };
 }
 
+/** A ticket state it doesn't know is left to the words. */
 function ticketRefusal(facts: Facts): DoorRefusal | null {
-  const status = String(facts.ticketStatus);
-  const kind = Object.hasOwn(TICKET_KINDS, status) ? TICKET_KINDS[status] : undefined;
+  const kind = ownEntry(TICKET_KINDS, facts.ticketStatus);
   return kind ? { kind } : null;
 }
 
@@ -121,6 +131,7 @@ function usedRefusal(facts: Facts, action: DoorAction): DoorRefusal {
   return { kind: 'ticketUsed', ...(at ? { usedAt: at } : {}), ...whoseOf(facts) };
 }
 
+/** Without whose they are, the agreements are left to the words. */
 function agreementRefusal(facts: Facts): DoorRefusal | null {
   const guestId = textOf(facts.guestId);
   const missing = missingOf(facts.missingAcknowledgements);
@@ -136,10 +147,8 @@ function agreementRefusal(facts: Facts): DoorRefusal | null {
   };
 }
 
-const CODES: Readonly<Record<string, (facts: Facts, action: DoorAction) => DoorRefusal | null>> = {
-  ADMISSION_TARGET_NOT_FOUND: (_facts, action) => ({
-    kind: action === 'admit' ? 'notRecognised' : 'guestGone',
-  }),
+/** An unknown target is a 404, which `refusalOf` words by the action, so it needs no entry. */
+const CODES: Partial<Record<ErrorCode, ByCode>> = {
   ADMISSION_LINK_CHANGED: () => ({ kind: 'linkChanged' }),
   ADMISSION_ALREADY_CHECKED_IN: (facts) => ({
     kind: 'alreadyHere',
@@ -154,9 +163,17 @@ const CODES: Readonly<Record<string, (facts: Facts, action: DoorAction) => DoorR
 };
 
 function byCode(error: ApiError, action: DoorAction): DoorRefusal | null {
-  const { code } = error;
-  const read = code && Object.hasOwn(CODES, code) ? CODES[code] : undefined;
+  const read = ownEntry(CODES, error.code);
   return read ? read(isRecord(error.admission) ? error.admission : {}, action) : null;
+}
+
+/** A statement's words in the page's language, else the event's, else whichever came first. */
+export function wordsIn(
+  labels: Readonly<Record<string, string>>,
+  language: string,
+  fallback: string,
+): string | null {
+  return labels[language] ?? labels[fallback] ?? Object.values(labels)[0] ?? null;
 }
 
 /** The older words, sent alone by a backend without the codes: a stand-in until it is gone. */

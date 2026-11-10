@@ -11,6 +11,7 @@ import { createI18n } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 
 import { DoorPage } from './components/door-page';
+import { MAX_ROSTER_PAGES } from './components/use-guest-read';
 import { loadDoor, type DoorData } from './load';
 
 const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
@@ -47,41 +48,29 @@ const EVENT = {
   venues: [],
 };
 
-function guestWire(id: string, name: string, extra: Record<string, unknown> = {}) {
-  const [firstName, lastName = null] = name.split(' ');
+/**
+ * A roster row as the API sends it (docs/API.md §6, "Door roster"), with a token and an address
+ * planted beside it: whatever the door doesn't show must go nowhere.
+ */
+function rosterWire(id: string, name: string, extra: Record<string, unknown> = {}) {
   return {
-    id,
-    firstName,
-    lastName,
+    guestId: id,
     name,
-    locale: null,
-    attribution: 'UNKNOWN',
-    isPrimary: true,
-    addedByGuest: false,
-    isAnonymized: false,
-    rsvpStatus: 'ATTENDING',
-    table: null,
-    seating: [
-      { arrangementId: 'a1', tableId: 't1', venue: 'Hall', table: 'Table 4', isReservation: false },
-    ],
-    isCheckedIn: false,
+    householdName: 'Petrosyan family',
+    attendance: 'ATTENDING',
     arrivedAt: null,
-    email: null,
-    phone: null,
+    hasTicket: false,
+    seating: [{ venue: 'Hall', table: 'Table 4', position: null }],
     token: TOKEN,
+    email: 'planted@example.am',
     ...extra,
   };
 }
 
-const HOUSEHOLDS = [
-  {
-    id: 'h1',
-    name: 'Petrosyan family',
-    seatsAllotted: 2,
-    seatsNamed: 2,
-    guests: [guestWire('g1', 'Armen Petrosyan'), guestWire('g2', 'Lusine Petrosyan')],
-  },
-];
+const ROSTER = {
+  items: [rosterWire('g1', 'Armen Petrosyan'), rosterWire('g2', 'Lusine Petrosyan')],
+  nextCursor: null,
+};
 const ARRIVALS = {
   expected: 96,
   arrived: 73,
@@ -99,7 +88,7 @@ const CHECKED_IN = {
 };
 
 const server = setupServer();
-const sent: Array<{ method: string; path: string }> = [];
+const sent: Array<{ method: string; path: string; search: string }> = [];
 
 function refusal(status: number, message: string) {
   return HttpResponse.json(
@@ -123,14 +112,21 @@ function codedRefusal(
 
 function record(reply: () => Response) {
   return ({ request }: { request: Request }) => {
-    sent.push({ method: request.method, path: new URL(request.url).pathname });
+    const url = new URL(request.url);
+    sent.push({ method: request.method, path: url.pathname, search: url.search });
     return reply();
   };
 }
 
-const writes = () => sent.filter(({ method }) => method !== 'GET');
+const writes = () =>
+  sent.filter(({ method }) => method !== 'GET').map(({ method, path }) => ({ method, path }));
+/** Whole reads; a search for one person after a check-in is a refresh (`refreshes`). */
 const reads = (path: string) =>
-  sent.filter(({ method, path: sentPath }) => method === 'GET' && sentPath.endsWith(path));
+  sent.filter(
+    ({ method, path: sentPath, search }) =>
+      method === 'GET' && sentPath.endsWith(path) && !search.includes('search='),
+  );
+const refreshes = () => sent.filter(({ search }) => search.includes('search='));
 
 function answerCheckIn(reply: () => Response) {
   server.use(http.post(`${API}/events/e1/guests/g1/check-in`, record(reply)));
@@ -151,8 +147,8 @@ beforeEach(() => {
   server.use(
     http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)),
     http.get(
-      `${API}/events/e1/guests`,
-      record(() => HttpResponse.json(HOUSEHOLDS)),
+      `${API}/events/e1/door-roster`,
+      record(() => HttpResponse.json(ROSTER)),
     ),
     http.get(
       `${API}/events/e1/arrivals`,
@@ -266,10 +262,10 @@ describe('the door, by name (PD-90)', () => {
     answerCheckIn(() => refusal(400, 'Ticket already used'));
     const { user } = renderAt();
     await searchFor(user, 'armen');
-    const before = reads('/guests').length;
+    const before = reads('/door-roster').length;
     await user.click(screen.getByRole('button', { name: 'Check in Armen Petrosyan' }));
     expect(await within(outcome()).findByText('Already here.')).toBeInTheDocument();
-    await waitFor(() => expect(reads('/guests').length).toBe(before + 1));
+    await waitFor(() => expect(reads('/door-roster').length).toBe(before + 1));
   });
 
   it('never reads "the ticket was linked", also a 409, as already here', async () => {
@@ -345,16 +341,20 @@ describe('the door, by name (PD-90)', () => {
   });
 
   it('says when the list is empty', async () => {
-    server.use(http.get(`${API}/events/e1/guests`, () => HttpResponse.json([])));
+    server.use(
+      http.get(`${API}/events/e1/door-roster`, () =>
+        HttpResponse.json({ items: [], nextCursor: null }),
+      ),
+    );
     renderAt();
     expect(await screen.findByText(/No guests on the list yet/)).toBeInTheDocument();
   });
 
   it('says when the list can’t be read, and offers to read it again', async () => {
-    server.use(http.get(`${API}/events/e1/guests`, () => refusal(404, 'Gone')));
+    server.use(http.get(`${API}/events/e1/door-roster`, () => refusal(404, 'Gone')));
     const { user } = renderAt();
     expect(await screen.findByText('The guest list couldn’t be read.')).toBeInTheDocument();
-    server.use(http.get(`${API}/events/e1/guests`, () => HttpResponse.json(HOUSEHOLDS)));
+    server.use(http.get(`${API}/events/e1/door-roster`, () => HttpResponse.json(ROSTER)));
     await user.click(screen.getByRole('button', { name: 'Read the list again' }));
     await searchFor(user, 'armen');
     expect(screen.getByRole('heading', { name: 'Armen Petrosyan' })).toBeInTheDocument();
@@ -363,21 +363,21 @@ describe('the door, by name (PD-90)', () => {
   it('reads the list again on coming back after a minute, and not sooner', async () => {
     renderAt();
     await screen.findByRole('button', { name: 'Read the list again' });
-    const before = reads('/guests').length;
+    const before = reads('/door-roster').length;
     const now = Date.now();
     const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 59_000);
     document.dispatchEvent(new Event('visibilitychange'));
-    expect(reads('/guests')).toHaveLength(before);
+    expect(reads('/door-roster')).toHaveLength(before);
     clock.mockReturnValue(now + 61_000);
     document.dispatchEvent(new Event('visibilitychange'));
-    await waitFor(() => expect(reads('/guests')).toHaveLength(before + 1));
+    await waitFor(() => expect(reads('/door-roster')).toHaveLength(before + 1));
     clock.mockRestore();
   });
 
   it('keeps the last list and says when, when reading it again fails', async () => {
     const { user } = renderAt();
     await searchFor(user, 'armen');
-    server.use(http.get(`${API}/events/e1/guests`, () => refusal(500, 'Internal')));
+    server.use(http.get(`${API}/events/e1/door-roster`, () => refusal(500, 'Internal')));
     await user.click(screen.getByRole('button', { name: 'Read the list again' }));
     expect(await screen.findByText(/reading it again failed/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Armen Petrosyan' })).toBeInTheDocument();
@@ -392,16 +392,17 @@ describe('a walk-in, added at the door (PD-148)', () => {
     seating: [],
     wasExpected: false,
   };
-  const withNarek = [
-    ...HOUSEHOLDS,
-    {
-      id: 'h9',
-      name: 'Narek Sargsyan',
-      seatsAllotted: 1,
-      seatsNamed: 1,
-      guests: [guestWire('g9', 'Narek Sargsyan', { rsvpStatus: 'PENDING', seating: [] })],
-    },
-  ];
+  const withNarek = {
+    items: [
+      ...ROSTER.items,
+      rosterWire('g9', 'Narek Sargsyan', {
+        householdName: 'Narek Sargsyan',
+        attendance: 'PENDING',
+        seating: [],
+      }),
+    ],
+    nextCursor: null,
+  };
 
   /** Adding answers with the new guest's token, as the API does; the list then has them. */
   function answerAdd(reply: () => Response = () => HttpResponse.json({ id: 'g9', token: TOKEN })) {
@@ -409,10 +410,10 @@ describe('a walk-in, added at the door (PD-148)', () => {
     server.use(
       http.post(`${API}/events/e1/guests`, async ({ request }) => {
         bodies.push(await request.clone().json());
-        sent.push({ method: 'POST', path: new URL(request.url).pathname });
+        sent.push({ method: 'POST', path: new URL(request.url).pathname, search: '' });
         const answer = reply();
         if (answer.ok) {
-          server.use(http.get(`${API}/events/e1/guests`, () => HttpResponse.json(withNarek)));
+          server.use(http.get(`${API}/events/e1/door-roster`, () => HttpResponse.json(withNarek)));
         }
         return answer;
       }),
@@ -473,12 +474,14 @@ describe('a walk-in, added at the door (PD-148)', () => {
     expect(writes()).toEqual([{ method: 'POST', path: '/api/v1/events/e1/guests' }]);
   });
 
-  it('reads the list again after no answer, and says to search before adding again', async () => {
+  it('looks for them by the name typed after no answer, and says to search before adding again', async () => {
     answerAdd(() => refusal(502, 'Bad Gateway'));
     const { user } = renderAt();
     await addWalkIn(user, 'Narek');
     expect(await screen.findByText(/they may have been added all the same/)).toBeInTheDocument();
-    await waitFor(() => expect(reads('/events/e1/guests')).toHaveLength(2));
+    await waitFor(() => expect(refreshes()).toHaveLength(1));
+    expect(new URLSearchParams(refreshes()[0]?.search).get('search')).toBe('Narek');
+    expect(reads('/events/e1/door-roster')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Add and check in' })).toBeEnabled();
   });
 
@@ -753,6 +756,42 @@ describe('who must agree before the door (PD-93)', () => {
     expect(screen.getByRole('button', { name: 'Check in Armen Petrosyan' })).toBeEnabled();
   });
 
+  it('words a coded refusal by its own labels, and only that person’s statements', async () => {
+    const [first] = DESIGN.questions;
+    server.use(
+      http.get(`${API}/invitations/autumn/design`, () =>
+        HttpResponse.json({
+          ...DESIGN,
+          questions: [
+            ...DESIGN.questions,
+            {
+              ...first,
+              id: 'q3',
+              prompt: { en: 'Photographs may be taken' },
+              statementVersionId: 'v3',
+            },
+          ],
+        }),
+      ),
+    );
+    answerCheckIn(() =>
+      codedRefusal(400, 'ADMISSION_ACKNOWLEDGEMENTS_REQUIRED', {
+        guestId: 'g1',
+        missingAcknowledgements: [
+          { questionId: 'q1', labels: { en: 'The rules, as the refusal words them' } },
+        ],
+      }),
+    );
+    const { user } = renderAt();
+    await searchFor(user, 'armen');
+    await user.click(screen.getByRole('button', { name: 'Check in Armen Petrosyan' }));
+    await waitFor(() =>
+      expect(outcome()).toHaveTextContent('The rules, as the refusal words them'),
+    );
+    expect(outcome()).not.toHaveTextContent('I accept the venue’s rules');
+    expect(outcome()).not.toHaveTextContent('Photographs may be taken');
+  });
+
   it('words the server’s refusal with the statement, offers what to do, and reads one page again', async () => {
     answerCheckIn(() =>
       refusal(400, 'acknowledgements: g1 must acknowledge q1 in its current version'),
@@ -794,7 +833,7 @@ describe('who must agree before the door (PD-93)', () => {
     );
     renderAt();
     await screen.findByRole('button', { name: 'Read the list again' });
-    await waitFor(() => expect(reads('/guests').length).toBeGreaterThan(0));
+    await waitFor(() => expect(reads('/door-roster').length).toBeGreaterThan(0));
     expect(reads('/acknowledgements')).toEqual([]);
     expect(screen.queryByText(/Must agree before the door/)).not.toBeInTheDocument();
   });
@@ -831,7 +870,7 @@ describe('who must agree, when the reads fail (PD-93)', () => {
 describe('a role that may not (FR-6)', () => {
   it('tells a designer once that the door isn’t theirs', async () => {
     server.use(
-      http.get(`${API}/events/e1/guests`, () => refusal(403, 'Forbidden')),
+      http.get(`${API}/events/e1/door-roster`, () => refusal(403, 'Forbidden')),
       http.get(`${API}/events/e1/arrivals`, () => refusal(403, 'Forbidden')),
     );
     renderAt();
@@ -856,23 +895,23 @@ describe('a role that may not (FR-6)', () => {
   it('doesn’t ask again for a list it was refused, on coming back', async () => {
     server.use(
       http.get(
-        `${API}/events/e1/guests`,
+        `${API}/events/e1/door-roster`,
         record(() => refusal(403, 'Forbidden')),
       ),
     );
     renderAt();
     expect(await screen.findByText('Your role can’t see the guest list.')).toBeInTheDocument();
-    expect(reads('/guests')).toHaveLength(1);
+    expect(reads('/door-roster')).toHaveLength(1);
     const now = Date.now();
     const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 61_000);
     document.dispatchEvent(new Event('visibilitychange'));
     await Promise.resolve();
-    expect(reads('/guests')).toHaveLength(1);
+    expect(reads('/door-roster')).toHaveLength(1);
     clock.mockRestore();
   });
 
   it('keeps the code field working while the list can’t be read', async () => {
-    server.use(http.get(`${API}/events/e1/guests`, () => refusal(500, 'Internal')));
+    server.use(http.get(`${API}/events/e1/door-roster`, () => refusal(500, 'Internal')));
     const { user } = renderAt('/app/events/e1/door?by=code');
     answerCode(() => refusal(404, 'Ticket not recognised'));
     await typeCode(user, CODE);
@@ -882,7 +921,7 @@ describe('a role that may not (FR-6)', () => {
 
 describe('what a refused code or check-in says (FR-76)', () => {
   async function admitOnceListRead(user: ReturnType<typeof userEvent.setup>) {
-    await waitFor(() => expect(reads('/guests')).toHaveLength(1));
+    await waitFor(() => expect(reads('/door-roster')).toHaveLength(1));
     await typeCode(user, CODE);
   }
 
@@ -930,5 +969,150 @@ describe('what a refused code or check-in says (FR-76)', () => {
     await waitFor(() => expect(outcome()).toHaveTextContent('The house rules'));
     // Not in English: the next language the statement has.
     expect(outcome()).toHaveTextContent('Լուսանկարները');
+  });
+});
+
+describe('the roster, read whole (FR-79)', () => {
+  it('reads every page, a hundred at a time, and keeps nothing the door doesn’t show', async () => {
+    const asked: string[] = [];
+    server.use(
+      http.get(`${API}/events/e1/door-roster`, ({ request }) => {
+        const url = new URL(request.url);
+        asked.push(url.search);
+        return url.searchParams.get('cursor')
+          ? HttpResponse.json({ items: [rosterWire('g2', 'Lusine Petrosyan')], nextCursor: null })
+          : HttpResponse.json({ items: [rosterWire('g1', 'Armen Petrosyan')], nextCursor: 'g1' });
+      }),
+    );
+    const { user, container } = renderAt();
+    await searchFor(user, 'lusine');
+    expect(screen.getByRole('heading', { name: 'Lusine Petrosyan' })).toBeInTheDocument();
+    // The rest of the household, from another page.
+    expect(screen.getByRole('heading', { name: 'Armen Petrosyan' })).toBeInTheDocument();
+    expect(asked).toEqual(['?limit=100', '?limit=100&cursor=g1']);
+    expect(screen.queryByText(/Only the first/)).not.toBeInTheDocument();
+    expect(container.innerHTML).not.toContain(TOKEN);
+    expect(container.innerHTML).not.toContain('planted@example.am');
+  });
+
+  it('says the list is partial when it stops at its page limit, and ticket codes still work', async () => {
+    let page = 0;
+    server.use(
+      http.get(`${API}/events/e1/door-roster`, () => {
+        page += 1;
+        return HttpResponse.json({
+          items: [rosterWire(`g${page}`, `Guest ${page}`)],
+          nextCursor: `g${page}`,
+        });
+      }),
+    );
+    answerCode(() =>
+      HttpResponse.json({ admittedAt: ARRIVED_AT, holderName: 'Anna Sargsyan', guestId: null }),
+    );
+    const { user } = renderAt('/app/events/e1/door?by=code');
+    await typeCode(user, CODE);
+    expect(await within(outcome()).findByText(/Ticket admitted at 22:02/)).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'By name' }));
+    const notice = `Only the first ${MAX_ROSTER_PAGES} guests were read`;
+    expect(await screen.findByText(new RegExp(notice), {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(page).toBe(MAX_ROSTER_PAGES);
+  }, 15_000);
+
+  it('keeps the pages read when one is refused for too many requests, and says the list is partial', async () => {
+    server.use(
+      http.get(`${API}/events/e1/door-roster`, ({ request }) =>
+        new URL(request.url).searchParams.get('cursor')
+          ? refusal(429, 'Too Many Requests')
+          : HttpResponse.json({ items: ROSTER.items, nextCursor: 'g2' }),
+      ),
+    );
+    const { user } = renderAt();
+    expect(await screen.findByText(/Only the first 2 guests were read/)).toBeInTheDocument();
+    await searchFor(user, 'armen');
+    expect(screen.getByRole('heading', { name: 'Armen Petrosyan' })).toBeInTheDocument();
+  });
+
+  it('lets a whole read that began after a refresh win over it', async () => {
+    answerCheckIn(() => HttpResponse.json(CHECKED_IN, { status: 201 }));
+    const { user } = renderAt();
+    await searchFor(user, 'armen');
+    let releaseRefresh: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    server.use(
+      http.get(`${API}/events/e1/door-roster`, async ({ request }) => {
+        const url = new URL(request.url);
+        sent.push({ method: 'GET', path: url.pathname, search: url.search });
+        if (!url.searchParams.get('search')) return HttpResponse.json(ROSTER);
+        await held;
+        return HttpResponse.json({
+          items: [rosterWire('g1', 'Armen Petrosyan', { arrivedAt: ARRIVED_AT })],
+          nextCursor: null,
+        });
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Check in Armen Petrosyan' }));
+    await waitFor(() => expect(refreshes()).toHaveLength(1));
+    // Someone else undid it; this phone's whole read, begun after the check-in, says so.
+    await user.click(screen.getByRole('button', { name: 'Read the list again' }));
+    expect(await screen.findByRole('button', { name: 'Check in Armen Petrosyan' })).toBeEnabled();
+    releaseRefresh();
+    // The late answer must not mark them here again: it never appears, however long it is given.
+    await expect(screen.findByText('Here since 22:02', {}, { timeout: 500 })).rejects.toThrow();
+  });
+
+  it('reads that person again after a check-in, by their name', async () => {
+    answerCheckIn(() => HttpResponse.json(CHECKED_IN, { status: 201 }));
+    const { user } = renderAt();
+    await searchFor(user, 'armen');
+    server.use(
+      http.get(`${API}/events/e1/door-roster`, ({ request }) => {
+        const url = new URL(request.url);
+        sent.push({ method: 'GET', path: url.pathname, search: url.search });
+        const moved = { seating: [{ venue: 'Hall', table: 'Table 9', position: null }] };
+        return HttpResponse.json({
+          items: [rosterWire('g1', 'Armen Petrosyan', { arrivedAt: ARRIVED_AT, ...moved })],
+          nextCursor: null,
+        });
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Check in Armen Petrosyan' }));
+    await waitFor(() => expect(refreshes()).toHaveLength(1));
+    const asked = new URLSearchParams(refreshes()[0]?.search);
+    expect([asked.get('limit'), asked.get('search')]).toEqual(['100', 'Armen Petrosyan']);
+    const row = screen.getByRole('heading', { name: 'Armen Petrosyan' }).closest('li');
+    if (!row) throw new Error('No row');
+    await waitFor(() => expect(row).toHaveTextContent('Table 9 (Hall)'));
+    expect(row).toHaveTextContent('Here since 22:02');
+  });
+
+  it('keeps the check-in when reading that person again fails', async () => {
+    answerCheckIn(() => HttpResponse.json(CHECKED_IN, { status: 201 }));
+    const { user } = renderAt();
+    await searchFor(user, 'armen');
+    server.use(
+      http.get(`${API}/events/e1/door-roster`, ({ request }) => {
+        const url = new URL(request.url);
+        sent.push({ method: 'GET', path: url.pathname, search: url.search });
+        return refusal(500, 'Internal');
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Check in Armen Petrosyan' }));
+    await waitFor(() => expect(refreshes()).toHaveLength(1));
+    expect(screen.getByText('Here since 22:02')).toBeInTheDocument();
+    expect(screen.queryByText(/couldn’t be read/)).not.toBeInTheDocument();
+  });
+
+  it('reads a ticket’s holder again after the code admits them', async () => {
+    answerCode(() =>
+      HttpResponse.json({ admittedAt: ARRIVED_AT, holderName: 'Armen Petrosyan', guestId: 'g1' }),
+    );
+    const { user } = renderAt('/app/events/e1/door?by=code');
+    await waitFor(() => expect(reads('/door-roster')).toHaveLength(1));
+    await typeCode(user, CODE);
+    await waitFor(() => expect(refreshes()).toHaveLength(1));
+    const asked = new URLSearchParams(refreshes()[0]?.search);
+    expect([asked.get('limit'), asked.get('search')]).toEqual(['100', 'Armen Petrosyan']);
   });
 });

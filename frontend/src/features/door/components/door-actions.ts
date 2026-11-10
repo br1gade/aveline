@@ -1,18 +1,19 @@
 import type { Dispatch } from 'react';
 
 import { browserSession } from '@/api/session';
-import { addGuest, type Guest } from '@/features/guests';
+import { addGuest } from '@/features/guests';
 
 import { admitTicket, checkIn, undoCheckIn } from '../api';
 import { CODE_RUNNING, WALK_IN_RUNNING, type DoorEvent } from '../arrival';
 import { isListStale, refusalOf, type DoorRefusal } from '../refusals';
 import { walkInBody, walkInName, type WalkInValues } from '../walk-in';
+import type { DoorGuest } from '../types';
 
 export interface DoorActions {
-  checkIn: (guest: Guest) => Promise<void>;
+  checkIn: (guest: DoorGuest) => Promise<void>;
   /** The refusal to add them, for the form to show; `null` once they are on the list. */
   walkIn: (values: WalkInValues) => Promise<DoorRefusal | null>;
-  undo: (guest: Guest) => Promise<void>;
+  undo: (guest: DoorGuest) => Promise<void>;
   /** Whether the field should be emptied: the code was answered and is done with. */
   admit: (code: string) => Promise<boolean>;
   codeEdited: () => void;
@@ -22,8 +23,10 @@ export interface DoorActions {
 interface DoorActionsContext {
   eventId: string;
   dispatch: Dispatch<DoorEvent>;
-  guestOf: (guestId: string) => Guest | undefined;
+  guestOf: (guestId: string) => DoorGuest | undefined;
   reloadGuests: () => void;
+  /** One person read again by name, once their arrival is recorded (FR-79). */
+  refreshGuest: (name: string) => void;
   refreshAgreements: () => void;
   refreshCounts: () => void;
 }
@@ -41,7 +44,7 @@ function keepsCode(refusal: DoorRefusal): boolean {
  * Adds a walk-in with the guest list's own call, then checks them in (design PD-148). A refusal to
  * add them goes back to the form; once added, the outcome is the door's like any arrival's.
  */
-function walkInAction({ eventId, dispatch, reloadGuests, refreshCounts }: DoorActionsContext) {
+function walkInAction({ eventId, dispatch, refreshGuest, refreshCounts }: DoorActionsContext) {
   return async (values: WalkInValues): Promise<DoorRefusal | null> => {
     dispatch({ type: 'sent', running: WALK_IN_RUNNING });
     let id: string;
@@ -50,12 +53,12 @@ function walkInAction({ eventId, dispatch, reloadGuests, refreshCounts }: DoorAc
     } catch (error) {
       dispatch({ type: 'walkInRefused' });
       const refusal = refusalOf(error, 'checkIn');
-      // Adding takes no key (FR-119): one with no answer may have been added, so the list is read.
-      if (refusal.kind === 'noAnswer') reloadGuests();
+      // Adding takes no key (FR-119): one with no answer may have been added, so they are looked for.
+      if (refusal.kind === 'noAnswer') refreshGuest(walkInName(values));
       return refusal;
     }
-    // On the list now, so Undo and a second try find them there.
-    reloadGuests();
+    // On the roster now, so Undo and a second try find them there.
+    refreshGuest(walkInName(values));
     dispatch({ type: 'sent', running: id });
     try {
       dispatch({ type: 'checkedIn', answer: await checkIn(browserSession().api, eventId, id) });
@@ -74,6 +77,7 @@ function walkInAction({ eventId, dispatch, reloadGuests, refreshCounts }: DoorAc
  */
 export function doorActions(context: DoorActionsContext): DoorActions {
   const { eventId, dispatch, guestOf, reloadGuests, refreshAgreements, refreshCounts } = context;
+  const { refreshGuest } = context;
   const followUp = (refusal: DoorRefusal) => {
     if (isListStale(refusal)) reloadGuests();
     if (refusal.kind === 'mustAgree') refreshAgreements();
@@ -85,6 +89,7 @@ export function doorActions(context: DoorActionsContext): DoorActions {
       try {
         const answer = await checkIn(browserSession().api, eventId, guest.id);
         dispatch({ type: 'checkedIn', answer });
+        refreshGuest(answer.name);
         refreshCounts();
       } catch (error) {
         const refusal = refusalOf(error, 'checkIn');
@@ -111,7 +116,8 @@ export function doorActions(context: DoorActionsContext): DoorActions {
         const answer = await admitTicket(browserSession().api, eventId, code);
         const guest = answer.guestId === null ? undefined : guestOf(answer.guestId);
         dispatch({ type: 'admitted', answer, guest });
-        if (answer.guestId !== null && !guest) reloadGuests();
+        // Their row read again, or added when the roster doesn't hold them yet.
+        if (answer.guestId !== null) refreshGuest(guest?.name ?? answer.holderName ?? '');
         refreshCounts();
         return true;
       } catch (error) {

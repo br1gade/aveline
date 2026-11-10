@@ -30,6 +30,7 @@
     "refused": "Your role can’t see the guest list.",
     "failed": "The guest list couldn’t be read.",
     "empty": "No guests on the list yet. Ticket codes still work.",
+    "partial": "Only the first {{count, number}} guests were read: someone further on won’t be found by name. Ticket codes still work.",
     "asOf": "This is the list from {{time}}: reading it again failed.",
     "readAgain": "Read the list again",
     "reading": "Reading the list…"

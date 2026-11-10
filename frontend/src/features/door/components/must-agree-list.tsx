@@ -15,15 +15,16 @@ export function MustAgreeList({ door, defaultLocale }: { door: Door; defaultLoca
   const { t, i18n } = useTranslation('door');
   const { read } = door.mustAgree;
   const list = door.guests.read;
+  const { households } = door.guests;
   const people = useMemo(() => {
     if (read.kind !== 'ready' || list.kind !== 'ready') return [];
     return peopleWhoMustAgree(
-      list.households,
+      households,
       read.statements,
       read.agreements,
       (guest) => arrivalOf(guest, door.state).isHere,
     );
-  }, [read, list, door.state]);
+  }, [read, list, households, door.state]);
   if (read.kind === 'nothing') return null;
   if (read.kind === 'unread') return <p className="m-0 text-sm">{t('mustAgree.unread')}</p>;
   if (list.kind !== 'ready') return null;

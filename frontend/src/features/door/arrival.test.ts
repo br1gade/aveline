@@ -71,7 +71,7 @@ describe('checking someone in', () => {
   });
 
   it('fills a used ticket’s missing time from the list, when it knows', () => {
-    const known = doorGuest('g1', 'Armen', { isCheckedIn: true, arrivedAt: ARRIVED_AT });
+    const known = doorGuest('g1', 'Armen', { arrivedAt: ARRIVED_AT });
     const state = play(refusedCheckIn({ kind: 'alreadyHere', arrivedAt: null }, known));
     expect(state.result).toMatchObject({ kind: 'alreadyHere', arrivedAt: ARRIVED_AT });
   });
@@ -83,7 +83,7 @@ describe('checking someone in', () => {
   });
 
   it('reads the agreement gate as already here for someone the list shows has arrived', () => {
-    const here = doorGuest('g1', 'Armen', { isCheckedIn: true, arrivedAt: ARRIVED_AT });
+    const here = doorGuest('g1', 'Armen', { arrivedAt: ARRIVED_AT });
     const state = play(
       refusedCheckIn({ kind: 'mustAgree', guestId: 'g1', questionId: 'q1' }, here),
     );
@@ -227,15 +227,7 @@ describe('admitting a ticket: one arrival with its guest', () => {
 
   it('marks a linked holder’s row here, with the list’s table, and offers undo', () => {
     const seated = doorGuest('g1', 'Armen Petrosyan', {
-      seats: [
-        {
-          arrangementId: 'a1',
-          tableId: 't1',
-          venue: 'Hall',
-          table: 'Table 4',
-          isReservation: false,
-        },
-      ],
+      seats: [{ venue: 'Hall', table: 'Table 4' }],
     });
     const state = play({
       type: 'admitted',
@@ -377,7 +369,7 @@ describe('undoing', () => {
   });
 
   it('overrules a list that still says they arrived', () => {
-    const listed = doorGuest('g1', 'Armen', { isCheckedIn: true, arrivedAt: ARRIVED_AT });
+    const listed = doorGuest('g1', 'Armen', { arrivedAt: ARRIVED_AT });
     expect(arrivalOf(listed, play({ type: 'undone', guest: listed })).isHere).toBe(false);
   });
 
@@ -406,14 +398,14 @@ describe('reading the list again', () => {
 
   it('lets the list replace what this phone marked', () => {
     const state = play({ type: 'checkedIn', answer }, started, read);
-    const listed = doorGuest('g1', 'Armen', { isCheckedIn: true, arrivedAt: LATER });
+    const listed = doorGuest('g1', 'Armen', { arrivedAt: LATER });
     expect(arrivalOf(listed, state)).toEqual({ isHere: true, at: LATER });
     expect(state.marks.size).toBe(0);
   });
 
   it('lets it fill in a time, for a read begun straight after the answer without one', () => {
     const state = play(refusedCheckIn({ kind: 'alreadyHere', arrivedAt: null }), started, read);
-    const listed = doorGuest('g1', 'Armen', { isCheckedIn: true, arrivedAt: LATER });
+    const listed = doorGuest('g1', 'Armen', { arrivedAt: LATER });
     expect(arrivalOf(listed, state)).toEqual({ isHere: true, at: LATER });
   });
 

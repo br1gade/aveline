@@ -24,6 +24,7 @@ export function useDoor(event: EventDetail) {
     dispatch,
     guestOf: (guestId) => guests.byId.get(guestId),
     reloadGuests: () => void guests.reload(),
+    refreshGuest: (name) => void guests.refreshGuest(name),
     refreshAgreements: () => void mustAgree.refresh(),
     refreshCounts: arrivals.refresh,
   });

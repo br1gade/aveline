@@ -1,31 +1,20 @@
-import type { Guest, Household } from '@/features/guests';
+import type { DoorGuest, DoorHousehold } from './types';
 
-/** Someone on the list as the door reads them; each test names what matters to it. */
-export function doorGuest(id: string, name: string, overrides: Partial<Guest> = {}): Guest {
-  const [firstName = name, lastName = null] = name.split(' ');
+/** Someone on the roster as the door reads them; each test names what matters to it. */
+export function doorGuest(id: string, name: string, overrides: Partial<DoorGuest> = {}): DoorGuest {
   return {
     id,
-    firstName,
-    lastName,
     name,
-    locale: null,
-    side: 'UNKNOWN',
-    isPrimary: true,
-    isAddedByGuest: false,
-    isErased: false,
+    householdName: name,
     answer: 'ATTENDING',
-    table: null,
-    seats: [],
-    releases: [],
-    venueAnswers: [],
-    isAskedAgain: false,
-    isCheckedIn: false,
     arrivedAt: null,
-    contact: { isShown: false },
+    seats: [],
+    isErased: false,
     ...overrides,
   };
 }
 
-export function doorHousehold(id: string, name: string, guests: Guest[]): Household {
-  return { id, name, seatsAllotted: guests.length, seatsNamed: guests.length, guests };
+/** People grouped as the door groups them, by their household's name. */
+export function doorHousehold(name: string, guests: DoorGuest[]): DoorHousehold {
+  return { name, guests: guests.map((guest) => ({ ...guest, householdName: name })) };
 }

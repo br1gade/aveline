@@ -1,7 +1,5 @@
-import type { Guest } from '@/features/guests';
-
 import type { DoorRefusal } from './refusals';
-import type { DoorAdmission, DoorArrival, DoorSeat } from './types';
+import type { DoorAdmission, DoorArrival, DoorGuest, DoorSeat } from './types';
 
 /**
  * What this phone knows beyond the last list read, and the outcome on screen (design PD-92, PD-94).
@@ -83,11 +81,11 @@ export type DoorEvent =
   /** Adding a walk-in was refused: nothing changed but that nothing runs. */
   | { type: 'walkInRefused' }
   | { type: 'walkInNotHere'; guestId: string; name: string; refusal: DoorRefusal }
-  | { type: 'checkInRefused'; guest: Guest; refusal: DoorRefusal }
-  | { type: 'admitted'; answer: DoorAdmission; guest: Guest | undefined }
+  | { type: 'checkInRefused'; guest: DoorGuest; refusal: DoorRefusal }
+  | { type: 'admitted'; answer: DoorAdmission; guest: DoorGuest | undefined }
   | { type: 'admitRefused'; refusal: DoorRefusal; nameOf: (guestId: string) => string | null }
-  | { type: 'undone'; guest: Guest }
-  | { type: 'undoRefused'; guest: Guest; refusal: DoorRefusal }
+  | { type: 'undone'; guest: DoorGuest }
+  | { type: 'undoRefused'; guest: DoorGuest; refusal: DoorRefusal }
   | { type: 'listReadStarted' }
   | { type: 'listRead' }
   | { type: 'codeEdited' }
@@ -98,11 +96,11 @@ export interface Arrival {
   at: string | null;
 }
 
-export function arrivalOf(guest: Guest, state: DoorState): Arrival {
+export function arrivalOf(guest: DoorGuest, state: DoorState): Arrival {
   const mark = state.marks.get(guest.id);
   return mark
     ? { isHere: mark.isHere, at: mark.at }
-    : { isHere: guest.isCheckedIn, at: guest.arrivedAt };
+    : { isHere: guest.arrivedAt !== null, at: guest.arrivedAt };
 }
 
 function marked(state: DoorState, guestId: string, arrival: Arrival): DoorState {
@@ -117,7 +115,7 @@ function withoutLost(state: DoorState, guestId: string): DoorState {
   return { ...state, lostPresses };
 }
 
-function seatsOf(guest: Guest | undefined): DoorSeat[] {
+function seatsOf(guest: DoorGuest | undefined): DoorSeat[] {
   return (guest?.seats ?? []).map(({ table, venue }) => ({ table, venue }));
 }
 
@@ -129,7 +127,7 @@ function checkedIn(state: DoorState, answer: DoorArrival): DoorState {
   return { ...next, result: { kind: 'arrived', ...answer } };
 }
 
-function alreadyHere(state: DoorState, guest: Guest, known: string | null): DoorState {
+function alreadyHere(state: DoorState, guest: DoorGuest, known: string | null): DoorState {
   const at = known ?? arrivalOf(guest, state).at;
   const isOurEarlierPress = state.lostPresses.has(guest.id);
   const next = marked(withoutLost(state, guest.id), guest.id, { isHere: true, at });
@@ -154,9 +152,9 @@ function walkInNotHere(
     : { ...state, result };
 }
 
-function checkInRefused(state: DoorState, guest: Guest, refusal: DoorRefusal): DoorState {
+function checkInRefused(state: DoorState, guest: DoorGuest, refusal: DoorRefusal): DoorState {
   if (refusal.kind === 'alreadyHere') return alreadyHere(state, guest, refusal.arrivedAt);
-  // The agreement gate runs before the arrival check (FR-77): this is a second arrival.
+  // A backend that checks agreements before the arrival (before `9827cf5`, FR-77): a second arrival.
   if (refusal.kind === 'mustAgree' && arrivalOf(guest, state).isHere)
     return alreadyHere(state, guest, null);
   const result: DoorResult = { kind: 'refused', refusal, guestId: guest.id, name: guest.name };
@@ -168,7 +166,11 @@ function checkInRefused(state: DoorState, guest: Guest, refusal: DoorRefusal): D
     : { ...withoutLost(state, guest.id), result };
 }
 
-function admitted(state: DoorState, answer: DoorAdmission, guest: Guest | undefined): DoorState {
+function admitted(
+  state: DoorState,
+  answer: DoorAdmission,
+  guest: DoorGuest | undefined,
+): DoorState {
   const name = answer.holderName ?? guest?.name ?? null;
   const settled = { ...state, isCodeLost: false };
   if (answer.guestId === null) {
@@ -244,12 +246,12 @@ function admitRefused(state: DoorState, refusal: DoorRefusal, nameOf: NameOf): D
   return { ...settled, result: { kind: 'refused', refusal, guestId, name } };
 }
 
-function undone(state: DoorState, guest: Guest): DoorState {
+function undone(state: DoorState, guest: DoorGuest): DoorState {
   const next = marked(withoutLost(state, guest.id), guest.id, { isHere: false, at: null });
   return { ...next, result: { kind: 'undone', name: guest.name } };
 }
 
-function undoRefused(state: DoorState, guest: Guest, refusal: DoorRefusal): DoorState {
+function undoRefused(state: DoorState, guest: DoorGuest, refusal: DoorRefusal): DoorState {
   if (refusal.kind === 'notCheckedIn') return undone(state, guest);
   return { ...state, result: { kind: 'refused', refusal, guestId: guest.id, name: guest.name } };
 }

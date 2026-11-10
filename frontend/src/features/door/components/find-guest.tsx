@@ -28,7 +28,7 @@ function Results({
 }: FindGuestProps & { query: string }) {
   const { t } = useTranslation('door');
   const { read } = door.guests;
-  const index = read.kind === 'ready' ? read.index : null;
+  const index = read.kind === 'ready' ? door.guests.index : null;
   const found = useMemo(() => (index ? findGuests(index, query) : null), [index, query]);
   if (!found) return null;
   if (!query.trim()) return null;
@@ -95,7 +95,10 @@ function ListState({ door, timeZone }: Pick<FindGuestProps, 'door' | 'timeZone'>
   }
   return (
     <>
-      {read.households.length === 0 ? <p className="m-0">{t('list.empty')}</p> : null}
+      {read.guests.length === 0 ? <p className="m-0">{t('list.empty')}</p> : null}
+      {read.isComplete ? null : (
+        <p className="m-0 text-sm">{t('list.partial', { count: read.guests.length })}</p>
+      )}
       {read.isOutOfDate ? (
         <p className="text-muted-foreground m-0 text-sm">
           {t('list.asOf', { time: timeOf(read.readAt) })}

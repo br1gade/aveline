@@ -6,6 +6,36 @@
  * The `…Wire` types say what arrives and are read by `read.ts` alone. It builds the client's own
  * objects field by field, so the code `admit` echoes back goes no further.
  */
+import type { components } from '@/api/schema';
+
+/** The roster's answer, as the generated schema declares it (docs/API.md §6, "Door roster"). */
+export type DoorRosterWire = components['schemas']['DoorRosterDto'];
+type DoorGuestWire = components['schemas']['DoorGuestDto'];
+export type DoorAnswer = DoorGuestWire['attendance'];
+
+/**
+ * One person as the door holds them (FR-79). The roster carries no token, contact or ticket code,
+ * and its reader keeps only these fields.
+ */
+export interface DoorGuest {
+  id: string;
+  name: string;
+  /** The door shows a household by its name; the roster names no household id. */
+  householdName: string;
+  answer: DoorAnswer;
+  /** When they arrived, in UTC; `null` until they do. */
+  arrivedAt: string | null;
+  seats: DoorSeat[];
+  /** Erased at their request: never offered at the door (FR-141, a stand-in in `read.ts`). */
+  isErased: boolean;
+}
+
+/** People who share a household's name, who usually arrive together. */
+export interface DoorHousehold {
+  name: string;
+  guests: DoorGuest[];
+}
+
 export interface SeatWire {
   venue: string | null;
   table: string;

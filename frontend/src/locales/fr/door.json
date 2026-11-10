@@ -30,6 +30,7 @@
     "refused": "Votre rôle ne permet pas de voir la liste des invités.",
     "failed": "La liste des invités n’a pas pu être lue.",
     "empty": "Aucun invité sur la liste pour l’instant. Les codes de billet fonctionnent.",
+    "partial": "Seuls les {{count, number}} premiers invités ont été lus : une personne plus loin dans la liste ne sera pas trouvée par son nom. Les codes de billet fonctionnent toujours.",
     "asOf": "Voici la liste de {{time}} : la relecture a échoué.",
     "readAgain": "Relire la liste",
     "reading": "Lecture de la liste…"

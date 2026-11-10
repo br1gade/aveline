@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 
-import type { Guest, Household } from '@/features/guests';
 import { Icon } from '@/ui';
 import { cn } from '@/ui/cn';
 import { Button } from '@/ui/kit/button';
@@ -9,10 +8,11 @@ import { arrivalOf } from '../arrival';
 import { statementsStillOwed, statementWords } from '@/features/agreements';
 import type { Door } from './use-door';
 import { useEventTime, useSeatWords, WRAPPING } from './shared';
+import type { DoorGuest, DoorHousehold } from '../types';
 
 interface GuestRowProps {
-  guest: Guest;
-  household: Household;
+  guest: DoorGuest;
+  household: DoorHousehold;
   door: Door;
   timeZone: string;
   defaultLocale: string;

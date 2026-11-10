@@ -1,12 +1,13 @@
-import type { Guest, Household } from '@/features/guests';
 import { isFoundIn, nameKey, normalizeName, queryForms } from '@/lib/text';
+
+import type { DoorGuest, DoorHousehold } from './types';
 
 /** Enough for one name on a phone; a longer search says to type more. */
 export const MAX_FOUND = 20;
 
 interface Entry {
-  guest: Guest;
-  household: Household;
+  guest: DoorGuest;
+  household: DoorHousehold;
   /** Their name alone, for ranking. */
   nameKey: string;
   /** Their name and their household's, for matching. */
@@ -19,7 +20,7 @@ interface Entry {
  */
 export type GuestIndex = readonly Entry[];
 
-export function indexGuests(households: readonly Household[]): GuestIndex {
+export function indexGuests(households: readonly DoorHousehold[]): GuestIndex {
   return households.flatMap((household) => {
     const householdKey = nameKey(household.name);
     return household.guests
@@ -32,8 +33,8 @@ export function indexGuests(households: readonly Household[]): GuestIndex {
 }
 
 export interface FoundPerson {
-  guest: Guest;
-  household: Household;
+  guest: DoorGuest;
+  household: DoorHousehold;
   /** `false` for someone shown only because they share a household with who was searched for. */
   isMatch: boolean;
 }
@@ -71,7 +72,7 @@ export function findGuests(index: GuestIndex, query: string): Found {
   const matchIds = new Set(matches.map(({ guest }) => guest.id));
   const shown = new Set<string>();
   const people: FoundPerson[] = [];
-  const add = (guest: Guest, household: Household) => {
+  const add = (guest: DoorGuest, household: DoorHousehold) => {
     if (shown.has(guest.id) || guest.isErased) return;
     shown.add(guest.id);
     people.push({ guest, household, isMatch: matchIds.has(guest.id) });

@@ -1,6 +1,6 @@
 import { expectData, type ApiClient } from '@/api/client';
 
-import { readAdmission, readArrival, readCounts } from './read';
+import { readAdmission, readArrival, readCounts, readRoster } from './read';
 import type {
   AdmitWire,
   ArrivalCounts,
@@ -8,6 +8,7 @@ import type {
   CheckInWire,
   DoorAdmission,
   DoorArrival,
+  DoorRosterWire,
 } from './types';
 
 /**
@@ -62,6 +63,37 @@ export async function admitTicket(
     }),
   );
   return readAdmission(wire);
+}
+
+/** A roster page: as many as the API allows at once (docs/API.md §6: 1–100). */
+const ROSTER_PAGE = 100;
+/** The longest search the roster takes. */
+const SEARCH_LENGTH = 120;
+
+/**
+ * Needs `guest:read`. One page of the roster, after `cursor`, or the people matching `search`; a
+ * search is followed with the same words (docs/API.md §6, "Door roster").
+ */
+export async function listDoorRoster(
+  api: ApiClient,
+  eventId: string,
+  query: { cursor?: string; search?: string },
+) {
+  const search = query.search?.slice(0, SEARCH_LENGTH);
+  const wire = await expectData<DoorRosterWire>(
+    api.GET('/api/v1/events/{eventId}/door-roster', {
+      params: {
+        path: { eventId },
+        query: {
+          limit: ROSTER_PAGE,
+          ...(query.cursor ? { cursor: query.cursor } : {}),
+          ...(search ? { search } : {}),
+        },
+      },
+      signal: readDeadline(),
+    }),
+  );
+  return readRoster(wire);
 }
 
 /** Needs `operations:read`. */

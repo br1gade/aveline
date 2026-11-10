@@ -3,16 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { guestListPath } from '@/features/events';
-import type { Guest } from '@/features/guests';
 import { Icon, type IconName } from '@/ui';
 import { cn } from '@/ui/cn';
 import { Button } from '@/ui/kit/button';
 
 import type { DoorResult } from '../arrival';
 import { statementWords } from '@/features/agreements';
-import type { DoorRefusal } from '../refusals';
+import { wordsIn, type DoorRefusal } from '../refusals';
 import type { Door } from './use-door';
 import { LINK, useEventTime, useSeatWords, WRAPPING } from './shared';
+import type { DoorGuest } from '../types';
 
 type Tone = 'good' | 'calm' | 'problem';
 
@@ -69,11 +69,6 @@ interface StatementProps {
   defaultLocale: string;
 }
 
-/** A statement's words in the page's language, else the event's, else whichever came. */
-function labelIn(labels: Readonly<Record<string, string>>, language: string, fallback: string) {
-  return labels[language] ?? labels[fallback] ?? Object.values(labels)[0] ?? null;
-}
-
 /**
  * The statements this person still owes (FR-76): worded by the refusal itself, or, from older
  * words naming one by its id, by the design when it has been read.
@@ -89,7 +84,7 @@ function RefusedStatement({ refusal, door, defaultLocale }: StatementProps) {
   };
   const owed = refusal.missing ?? [{ questionId: refusal.questionId, labels: {} }];
   const words = owed.flatMap(({ questionId, labels }) => {
-    const text = labelIn(labels, i18n.language, defaultLocale) ?? fromDesign(questionId);
+    const text = wordsIn(labels, i18n.language, defaultLocale) ?? fromDesign(questionId);
     return text ? [{ questionId, text }] : [];
   });
   return words.map(({ questionId, text }) => (
@@ -143,7 +138,7 @@ interface ActionsProps {
 }
 
 /** Checking in again, where it can help: the agreement now given, or a walk-in now on the list. */
-function TryAgain({ result, door, eventId, guest }: ActionsProps & { guest: Guest }) {
+function TryAgain({ result, door, eventId, guest }: ActionsProps & { guest: DoorGuest }) {
   const { t } = useTranslation('door');
   const isToAgree = result.kind === 'refused' && result.refusal.kind === 'mustAgree';
   if (!isToAgree && result.kind !== 'addedNotHere') return null;
