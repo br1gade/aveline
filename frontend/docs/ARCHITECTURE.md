@@ -97,10 +97,12 @@ Rules:
 
 The backend builds links to client paths from `PUBLIC_APP_URL` (default `http://localhost:5173`).
 They are defined once in `ROUTE_PATHS` (`src/route-paths.ts`), used by `src/routes.ts`, and pinned
-by a test that reads the backend's sources. Renaming one is a
-breaking change for the backend's emails (FR-8 asks for the table in `docs/API.md`). They include
+by a test against both the backend's sources and the table `docs/API.md` §3 publishes (FR-8),
+each way. Renaming one is a breaking change for the backend's emails. They include
 the bank's default return pages, `/tickets/return` and `/billing/return`, and since 31 October
-2026 a public event's `/events/:slug`, which the backend builds as its `metadata.canonicalPath`;
+2026 a public event's `/events/:slug`, which the backend builds as its `metadata.canonicalPath`,
+and since 10 November the data-request form, `/privacy-request`, which every new invitation email
+links (FR-136);
 React Router ranks the static `/tickets/return` above `/tickets/:accessToken`. The client's own paths, which nothing
 outside links to, are in `APP_PATHS` beside them: registering, the app's home, onboarding, the
 event pages, an event's guest list and import, its venues (adding and correcting one) and its
@@ -108,8 +110,8 @@ invitation's publishing and sending, how guests answer, the designer, guests' ph
 agreements and the seating, the exports, ticket sales (`/app/events/:eventId/tickets`, its types
 and announcement), the orders and an event's activity, the organization's own settings
 (`/app/organization`, beside the chooser at `/app/organizations`), Aveline's own staff's tools
-(`/app/staff`, its customers, data requests and access reviews); the public price list and
-data-request form, `/pricing` and `/privacy-request`; the Help page, `/help`; checkout, `/events/:slug/checkout`, and the buyer's order once
+(`/app/staff`, its customers, data requests and access reviews); the public price list,
+`/pricing`; the Help page, `/help`; checkout, `/events/:slug/checkout`, and the buyer's order once
 its token is out of the address, `/tickets`. The static `/app/events/new` ranks above
 `/app/events/:eventId`; `/venues/new` would rank above a `/venues/:venueId`, and `/guests/import`
 above a `/guests/:guestId`.
@@ -141,7 +143,7 @@ above a `/guests/:guestId`.
   with the same choices after no answer or a server failure, either of which may have queued it;
   any other answer ends it. Automatic seating and exports use it.
 - `expectFile` (`src/api/file.ts`) is `expectData` for a call made with `parseAs: 'blob'`: the
-  bytes, their type, and the name `Content-Disposition` gives when it can be read (FR-10). Exports
+  bytes, their type, and the name `Content-Disposition` gives, exposed cross-origin (FR-10). Exports
   use it.
 - **Base URL:** in the browser, the same origin; the Vite proxy sends `/api`, and `/files` (the
   backend's own-disk uploads when no S3 is configured), to `API_INTERNAL_URL` (default
@@ -391,8 +393,8 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   (`src/api/file.ts`, `expectFile`), and handed to the browser from an object URL released half a
   minute later (`src/ui/save-file.ts`). The page never links to a file and keeps no download
   address: the readers drop `downloadPath`, and the client builds the call. The name comes from
-  `Content-Disposition`, or from the backend's own pattern when the header cannot be read
-  cross-origin (FR-10); an answer of another type than the format asked for is refused, not saved.
+  `Content-Disposition`, exposed cross-origin (FR-10), or from the backend's own pattern when a
+  response comes without one; an answer of another type than the format asked for is refused, not saved.
   The export answers carry no guest token (checked against `export-snapshots.service.ts` and
   `exports.service.ts` at `eb77cd4`); their readers still name every field they keep, and the
   tests plant a token in the answers and check it went nowhere. A file's contents are never read,
@@ -917,6 +919,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 10 Nov 2026 | **An export's failure says what to do (FR-59)**: each of the worker's codes in our words, and a row offers making it again only when that could succeed, or as a CSV where that would (design PD-75) | "Make it again" on a report too large could only fail the same way. A file stopped because its maker lost access is still made again, since the list is the whole event's and the viewer may not be its maker (FR-61) |
 | 10 Nov 2026 | **The door reads the roster whole and searches it on the phone (FR-79)**, a hundred at a time and 200 ms apart, up to 2,000 people, keeping what was read when a page is refused for too many requests; one person is read again by name after a check-in, and a walk-in or unknown holder is added the same way (design PD-90, PD-94) | Searching on the server would lose names in another alphabet, a person's household and who still must agree, and stop the door finding anyone when the signal drops; the roster carries no token or contact. The pacing keeps inside the account's 10 a second and 100 a minute (FR-142) |
 | 10 Nov 2026 | **The door reads refusals by their code and facts (FR-76)**: when a code was used and whose it is, the order's state, and only that person's agreements still owed; the older words stay as a fallback (design PD-92) | The backend sends both during the migration, and a refusal shown in English or worded as one for several order states sent staff to the host for no reason |
+| 10 Nov 2026 | **The contract's small answers are adopted** (FR-7, FR-8, FR-10, FR-56, FR-72, FR-73, FR-75, FR-129): `/privacy-request` joins `ROUTE_PATHS`, pinned with the rest to `docs/API.md`'s table; the scanner's shape is pinned to the format API.md states, no longer to `issue-attendees.ts`; the reply's three unanswered-question refusals are pinned to the backend's words; comments that said a header was hidden or a read unallowanced are corrected | Each now has a published contract to hold to, and a test that fails when either side drifts. `GET /plans` was found outside FR-73's allowance (FR-147) |
 | 9 Nov 2026 | **The buyer's order names itself (FR-62)**: the event, ticket types, buyer and language come from the order, and the public listing is no longer read (design PD-81, PD-189) | An emailed link in a fresh tab could name nothing. The line about agreements before the door went with it, as only the listing knows (FR-138) |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
 
@@ -929,7 +932,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   backend's default is verified (FR-134, PD-179), and the scheduled free plan with its withdrawal
   (FR-135). Also the response schemas and permissions (FR-1, FR-6), editing and removing a vendor
   (FR-102), pausing a brief (C-56), and the frontend CI workflow the backend asked for. **Every
-  request marked answered and waiting for the client in BACKEND_REQUESTS (29 of them) keeps its stand-in until adopted,** so the
+  request marked answered and waiting for the client in BACKEND_REQUESTS (23 of them on 10 November) keeps its stand-in until adopted,** so the
   entries below that name one now wait on the client, not the backend. Paid plans
   shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
   are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
@@ -951,7 +954,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - Of an event's activity: telling an empty trail from an unreadable one, words per action, and more than
   the newest hundred (FR-123).
 - Of the data-request form: reviewed words and a privacy notice to link to (Arthur drafts, a lawyer checks:
-  C-50, a launch gate), a line in the invitation email's footer for a guest with no account (FR-136, C-51), and notes that can't be lost or added to by someone else (FR-126).
+  C-50, a launch gate), and notes that can't be lost or added to by someone else (FR-126).
   Handling a request is Aveline's staff's.
 - Of Aveline's own staff's tools (C-24): authoring templates, which waits as enquiries do: the backend refuses
   drafts, edits and uploads while `TEMPLATE_AUTHORING_ENABLED` and `TEMPLATE_ASSETS_ENABLED` are off, and
@@ -969,7 +972,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
   (PD-173).
 - Of billing: saying beforehand that paid plans are off, on the billing page or the public price
   list (FR-109); a plan's words in other languages (FR-110); more than the newest
-  hundred invoices (FR-110); a real bank: only the mock's return has been followed.
+  hundred invoices (FR-110); a real bank: only the mock's return has been followed. The price list's
+  read has no guest-page allowance, so its hundred-and-first visitor in a minute is refused (FR-147).
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the

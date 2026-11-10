@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { ApiError, networkError } from '@/api/errors';
@@ -115,5 +118,33 @@ describe('classifySendError', () => {
     expect(classifySendError(new ApiError({ status: 404, messages: [] }), PEOPLE)).toEqual({
       kind: 'gone',
     });
+  });
+});
+
+// Read only: the backend now refuses a blank required answer too (FR-75), so these are the
+// sentences a guest meets when the page and the server disagree on what was answered.
+describe('the refusals of an unanswered question, as the backend words them', () => {
+  const rsvp = join(
+    import.meta.dirname,
+    '..',
+    '..',
+    '..',
+    '..',
+    'backend',
+    'src',
+    'modules',
+    'rsvp',
+  );
+  const source = (file: string) => readFileSync(join(rsvp, file), 'utf8');
+
+  /** The fixed words, with any interpolation between them: renaming a variable isn't drift. */
+  const sentence = (...words: string[]) => new RegExp(words.join(String.raw`\$\{[^}]+\}`));
+
+  it.each([
+    ['rsvp.service.ts', sentence('`answers: ', ' is required for a guest who is coming`')],
+    ['rsvp.service.ts', sentence('`members: ', ' must answer ', ', as they are coming`')],
+    ['party.ts', sentence('`party: ', ' must answer ', ', as they are coming`')],
+  ])('%s still says %s', (file, words) => {
+    expect(source(file)).toMatch(words);
   });
 });

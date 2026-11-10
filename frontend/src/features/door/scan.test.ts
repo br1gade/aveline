@@ -6,17 +6,21 @@ import jsQR from 'jsqr';
 import { encode } from 'uqr';
 import { describe, expect, it } from 'vitest';
 
-import { cameraProblemOf, centreSquare, createScanGate, readScannedCode } from './scan';
+import {
+  cameraProblemOf,
+  centreSquare,
+  createScanGate,
+  readScannedCode,
+  TICKET_CODE,
+} from './scan';
 
-const ISSUE = readFileSync(
-  join(import.meta.dirname, '../../../../backend/src/modules/ticketing/issue-attendees.ts'),
-  'utf8',
-);
+const API_DOC = readFileSync(join(import.meta.dirname, '../../../../docs/API.md'), 'utf8');
 
 describe('what the camera read', () => {
-  it('is pinned to how the backend makes a code', () => {
-    // 12 random bytes are 16 base64url characters, in capitals.
-    expect(ISSUE).toContain("randomBytes(12).toString('base64url').toUpperCase()");
+  it('is the shape docs/API.md states for an issued code (FR-129)', () => {
+    const section =
+      API_DOC.split('### Admitting a ticket at the door')[1]?.split(/\n##+ /)[0] ?? '';
+    expect(section).toContain(`\`${TICKET_CODE.source}\``);
   });
 
   it.each([['ABCDEFGH-JKLM_12'], ['0000000000000000'], ['--__--__--__--__']])(

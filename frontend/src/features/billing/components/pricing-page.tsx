@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { PublicFrame } from '@/features/public-event';
-import { APP_PATHS } from '@/route-paths';
+import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 
 import type { Plan } from '../types';
 import { PlanCards } from './plan-list';
@@ -34,7 +34,7 @@ export function PricingPage({ plans }: { plans: readonly Plan[] }) {
         )}
       />
       <Link
-        to={APP_PATHS.privacyRequest}
+        to={ROUTE_PATHS.privacyRequest}
         className="text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3"
       >
         {common('home.privacy')}

@@ -8,6 +8,13 @@ import { ROUTE_PATHS } from './route-paths';
 // Read only: the frontend checks that the backend still builds these paths.
 const backendSource = join(import.meta.dirname, '..', '..', 'backend', 'src');
 const backend = (path: string) => readFileSync(join(backendSource, path), 'utf8');
+const apiDoc = readFileSync(join(import.meta.dirname, '..', '..', 'docs', 'API.md'), 'utf8');
+
+/** The paths in docs/API.md's "Browser route contract" table (FR-8). */
+function documentedPaths(): string[] {
+  const section = apiDoc.split('### Browser route contract')[1]?.split(/\n##+ /)[0] ?? '';
+  return [...section.matchAll(/^\| `([^`?]+)(?:\?[^`]*)?` \|/gm)].map((match) => match[1] ?? '');
+}
 
 describe('the route contract', () => {
   it('pins every path the backend builds', () => {
@@ -23,8 +30,13 @@ describe('the route contract', () => {
       publicEvent: '/events/:slug',
       ticketPaymentReturn: '/tickets/return',
       billingPaymentReturn: '/billing/return',
+      privacyRequest: '/privacy-request',
       brief: '/briefs/:briefToken',
     });
+  });
+
+  it('is the table docs/API.md publishes, no more and no fewer', () => {
+    expect(documentedPaths().toSorted()).toEqual(Object.values(ROUTE_PATHS).toSorted());
   });
 
   it('matches the paths the backend actually builds', () => {
@@ -50,6 +62,9 @@ describe('the route contract', () => {
     );
     expect(backend('modules/billing/subscriptions.service.ts')).toContain(
       `appPage('${ROUTE_PATHS.billingPaymentReturn}')`,
+    );
+    expect(backend('modules/communications/invitation-email-footer.ts')).toContain(
+      `appPage('${ROUTE_PATHS.privacyRequest}')`,
     );
   });
 });

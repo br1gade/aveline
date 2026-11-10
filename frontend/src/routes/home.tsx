@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { APP_PATHS } from '@/route-paths';
+import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 
 import type { Route } from './+types/home';
 
@@ -28,7 +28,7 @@ export default function Home() {
         <Link to={APP_PATHS.pricing} className={LINK}>
           {t('home.pricing')}
         </Link>
-        <Link to={APP_PATHS.privacyRequest} className={LINK}>
+        <Link to={ROUTE_PATHS.privacyRequest} className={LINK}>
           {t('home.privacy')}
         </Link>
         <Link to={APP_PATHS.help} className={LINK}>

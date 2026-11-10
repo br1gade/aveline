@@ -1,8 +1,9 @@
 /**
  * Client paths the backend builds from PUBLIC_APP_URL, into emails and messages and as the bank's
  * default return pages (setup proposal §5.3). Renaming one breaks every link already sent: it
- * needs a backend change in the same release, and FR-8 asks for this table in docs/API.md. Pinned
- * by route-paths.test.ts.
+ * needs a backend change in the same release. docs/API.md §3 "Browser route contract" publishes
+ * the same table (FR-8); route-paths.test.ts pins this one to that table and to the backend's
+ * sources.
  */
 export const ROUTE_PATHS = {
   /** backend/src/modules/invitations/sending/ */
@@ -21,6 +22,8 @@ export const ROUTE_PATHS = {
   /** The bank's default return pages: ticketing.service.ts and billing/subscriptions.service.ts */
   ticketPaymentReturn: '/tickets/return',
   billingPaymentReturn: '/billing/return',
+  /** communications/invitation-email-footer.ts: every new invitation email links it (FR-136). */
+  privacyRequest: '/privacy-request',
   /** Built by the client (docs/API.md §6). */
   brief: '/briefs/:briefToken',
 } as const;
@@ -126,8 +129,6 @@ export const APP_PATHS = {
   booking: '/app/events/:eventId/vendors/:bookingId',
   /** The price list, for anyone. */
   pricing: '/pricing',
-  /** Asking what is held about an address, for anyone. */
-  privacyRequest: '/privacy-request',
   /** How to reach Aveline, for anyone (design C-54). */
   help: '/help',
   /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */

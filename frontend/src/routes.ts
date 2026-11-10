@@ -23,7 +23,7 @@ export default [
   route(relative(ROUTE_PATHS.guestInvitation), 'routes/public/guest-invitation.tsx'),
   route(relative(APP_PATHS.publicEvents), 'routes/public/events.tsx'),
   route(relative(APP_PATHS.pricing), 'routes/public/pricing.tsx'),
-  route(relative(APP_PATHS.privacyRequest), 'routes/public/privacy-request.tsx'),
+  route(relative(ROUTE_PATHS.privacyRequest), 'routes/public/privacy-request.tsx'),
   route(relative(APP_PATHS.help), 'routes/public/help.tsx'),
   route(relative(ROUTE_PATHS.publicEvent), 'routes/public/event.tsx'),
   route(relative(APP_PATHS.checkout), 'routes/public/checkout.tsx'),

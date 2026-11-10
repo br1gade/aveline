@@ -24,7 +24,7 @@ function SignInLinks() {
     <>
       <AccountLink to={ROUTE_PATHS.resetPassword}>{t('links.forgotPassword')}</AccountLink>
       <AccountLink to={APP_PATHS.register}>{t('links.register')}</AccountLink>
-      <AccountLink to={APP_PATHS.privacyRequest}>{common('home.privacy')}</AccountLink>
+      <AccountLink to={ROUTE_PATHS.privacyRequest}>{common('home.privacy')}</AccountLink>
       <AccountLink to={APP_PATHS.help}>{common('support.link')}</AccountLink>
     </>
   );

@@ -1,13 +1,13 @@
 /**
  * Reading a ticket through the camera (design PD-173, PD-174). A QR code can hold anything, a guest's
  * personal link among them, and what is sent becomes part of a request's address. So only what has a
- * ticket code's shape (`issue-attendees.ts`: 12 random bytes as base64url, in capitals) is ever sent,
- * and everything else stays on this device. Typed codes stay `ticket-code.ts`'s, which checks no shape
- * (FR-129 asks for the format to be stated).
+ * ticket code's shape is ever sent, and everything else stays on this device. Typed codes stay
+ * `ticket-code.ts`'s, which checks no shape (FR-82).
  */
 export type ScannedCode = { kind: 'ticket'; code: string } | { kind: 'notTicket' };
 
-const TICKET_CODE = /^[A-Z0-9_-]{16}$/;
+/** An issued code, as docs/API.md §6 "Admitting a ticket at the door" states it (FR-129). */
+export const TICKET_CODE = /^[A-Z0-9_-]{16}$/;
 
 export function readScannedCode(read: string): ScannedCode {
   return TICKET_CODE.test(read) ? { kind: 'ticket', code: read } : { kind: 'notTicket' };

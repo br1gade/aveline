@@ -42,7 +42,7 @@ describe('a file read through the API client', () => {
     expect(file).toEqual({ blob, contentType: 'application/pdf', filename: 'guest-list-c1.pdf' });
   });
 
-  it('has no name when the header cannot be read, as cross-origin without FR-10', async () => {
+  it('has no name when the response has no Content-Disposition', async () => {
     const blob = new Blob(['a,b'], { type: 'text/csv' });
     const file = await expectFile(
       Promise.resolve({ data: blob, ...answer(null, { status: 200 }) }),

@@ -36,7 +36,8 @@ export async function loadPublicEvent(request: PublicEventRequest): Promise<Publ
 
 /**
  * Browsing public events on the server, through the internal API address. A failure goes to the
- * error boundary with its request id. Every visitor counts against one address (FR-73).
+ * error boundary with its request id. Every visitor counts against one address, within the
+ * guest-page allowance the backend gave these reads (FR-73).
  */
 export function loadPublicListing(
   query: ListingQuery & { locale: string },

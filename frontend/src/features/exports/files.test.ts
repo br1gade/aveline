@@ -20,7 +20,7 @@ describe('the file a download hands over', () => {
     expect(fileNameOf(snapshot(), 'guest-list-s1.pdf')).toBe('guest-list-s1.pdf');
   });
 
-  it('names it as the backend does when the header could not be read (FR-10)', () => {
+  it('names it as the backend does when the response has no Content-Disposition', () => {
     expect(fileNameOf(snapshot({ kind: 'PLACE_CARDS', format: 'XLSX' }), undefined)).toBe(
       'place-cards-s1.xlsx',
     );
