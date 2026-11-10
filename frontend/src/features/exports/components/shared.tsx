@@ -12,9 +12,12 @@ import type { Exports, PlacedRefusal } from './use-exports';
 export const LINK =
   'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
 export const PANEL = 'bg-card border-border flex flex-col gap-4 border px-5 py-4';
-/** The kit's buttons never wrap; a long Armenian label would run past a 360 px screen. */
+/**
+ * The kit's buttons never wrap, and never shrink below their label; a long Armenian label would run
+ * past a 360 px screen, so they wrap within the row instead.
+ */
 export const WRAP =
-  'h-auto min-h-10 py-2 text-left whitespace-normal pointer-coarse:h-auto pointer-coarse:min-h-11';
+  'h-auto min-h-10 max-w-full py-2 text-left whitespace-normal pointer-coarse:h-auto pointer-coarse:min-h-11';
 
 /** Keys whose own words say less than the backend's sentence, shown under them in English. */
 const WITH_SENTENCES: readonly RefusalKey[] = ['create.check', 'other'];

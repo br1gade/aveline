@@ -6,6 +6,7 @@ import {
   countActive,
   failureKey,
   isActive,
+  nextStepOf,
   snapshotState,
   type SnapshotState,
 } from './states';
@@ -86,12 +87,16 @@ describe('our words for a failure', () => {
     ['GENERATION_FAILED', 'generation'],
     ['LEASE_EXHAUSTED', 'stopped'],
     ['SUBJECT_ERASED', 'erased'],
+    ['INPUT_LIMIT_EXCEEDED', 'tooLarge'],
+    ['OUTPUT_LIMIT_EXCEEDED', 'tooLargeForFormat'],
+    ['ACCESS_REVOKED', 'accessLost'],
+    ['STORAGE_UNAVAILABLE', 'storage'],
   ])('words %s as %s', (reason, key) => {
     expect(failureKey(reason)).toBe(key);
   });
 
   it('has none for a code it does not know, whose backend sentence is shown instead', () => {
-    expect(failureKey('INPUT_LIMIT_EXCEEDED')).toBeNull();
+    expect(failureKey('SOMETHING_NEW')).toBeNull();
     expect(failureKey(null)).toBeNull();
     expect(failureKey('toString')).toBeNull();
   });
@@ -102,5 +107,37 @@ describe('our words for a failure', () => {
     expect(adviceOf(recovery('RETRY'))).toBeNull();
     expect(adviceOf(recovery('REGENERATE'))).toBeNull();
     expect(adviceOf(null)).toBeNull();
+  });
+});
+
+describe('what a row offers once it has ended (FR-59)', () => {
+  const failed = (failureReason: string, overrides: Partial<Snapshot> = {}) =>
+    snapshot({ status: 'FAILED', attempts: 1, failureReason, isDownloadable: false, ...overrides });
+
+  it.each<[string, ReturnType<typeof nextStepOf>, Snapshot]>([
+    ['a ready file', 'again', snapshot()],
+    ['a failure it doesn’t know', 'again', failed('SOMETHING_NEW')],
+    ['an unexpected failure', 'again', failed('GENERATION_FAILED', { attempts: 3 })],
+    ['storage that stayed down', 'again', failed('STORAGE_UNAVAILABLE', { attempts: 3 })],
+    ['an event too large for the report', 'none', failed('INPUT_LIMIT_EXCEEDED')],
+    ['a PDF too large', 'otherFormat', failed('OUTPUT_LIMIT_EXCEEDED', { format: 'PDF' })],
+    ['an XLSX too large', 'otherFormat', failed('OUTPUT_LIMIT_EXCEEDED', { format: 'XLSX' })],
+    ['a CSV too large', 'none', failed('OUTPUT_LIMIT_EXCEEDED', { format: 'CSV' })],
+    [
+      'a guest list whose maker lost contact access, as the viewer may still have it',
+      'again',
+      failed('ACCESS_REVOKED', { includesContacts: true, revokedAt: '2026-10-31T09:00:00.000Z' }),
+    ],
+    [
+      'a ticket manifest whose maker lost access',
+      'again',
+      failed('ACCESS_REVOKED', {
+        kind: 'TICKET_MANIFEST',
+        includesContacts: true,
+        revokedAt: '2026-10-31T09:00:00.000Z',
+      }),
+    ],
+  ])('for %s, offers %s', (_case, step, ended) => {
+    expect(nextStepOf(ended)).toBe(step);
   });
 });

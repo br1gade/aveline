@@ -82,6 +82,7 @@
     "download": "Download",
     "downloading": "Downloading…",
     "again": "Make it again",
+    "asCsv": "Make it as CSV",
     "sending": "Sending…"
   },
   "state": {
@@ -95,9 +96,13 @@
     "failed": "Couldn’t be made"
   },
   "failure": {
-    "generation": "Something went wrong while the file was being made. Make it again; if it fails again, the event may be too large for one file.",
+    "generation": "Something went wrong while the file was being made. Make it again; if it fails again, contact Aveline support.",
     "stopped": "The work stopped three times before the file was finished.",
-    "erased": "A guest’s details were erased at their request, and this file held them."
+    "erased": "A guest’s details were erased at their request, and this file held them.",
+    "tooLarge": "The event is too large for this report, so making it again would fail too. Choose a smaller report above, or contact Aveline support.",
+    "tooLargeForFormat": "The file would be too large in this format. Try another format, or a smaller report above.",
+    "accessLost": "It was stopped: access to this event, or to its contact details, was removed from whoever asked for it while it was being made.",
+    "storage": "The file couldn’t be stored. Make it again in a few minutes."
   },
   "advice": {
     "support": "If it fails again, contact Aveline support.",

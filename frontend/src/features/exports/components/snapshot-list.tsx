@@ -10,10 +10,12 @@ import {
   failureKey,
   isActive,
   NEWEST,
+  nextStepOf,
   snapshotState,
+  type NextStep,
   type SnapshotState,
 } from '../states';
-import type { Snapshot } from '../types';
+import type { Intent, Snapshot } from '../types';
 import { ExportProblem, PANEL, WRAP } from './shared';
 import type { ExportText } from './use-export-text';
 import { AT_FORM, type Exports } from './use-exports';
@@ -57,7 +59,8 @@ function Reason({ snapshot }: { snapshot: Snapshot }) {
           {recovery.userMessage}
         </p>
       ) : null}
-      {advice ? <p className="m-0 text-sm">{t(`advice.${advice}`)}</p> : null}
+      {/* Our own words already say what to do; the backend's advice is for codes we don't word. */}
+      {advice && !key ? <p className="m-0 text-sm">{t(`advice.${advice}`)}</p> : null}
     </>
   );
 }
@@ -78,7 +81,18 @@ function Times({ snapshot, state, text }: RowProps & { state: SnapshotState }) {
   );
 }
 
-/** Download while it is ready; making it again whenever it is not going. */
+const STEP_LABELS = { again: 'list.again', otherFormat: 'list.asCsv' } as const;
+
+/** The choices the row's button sends: as asked, or as a CSV. */
+function intentFor(snapshot: Snapshot, step: Exclude<NextStep, 'none'>): Intent {
+  const same = sameIntentOf(snapshot);
+  return step === 'otherFormat' ? { ...same, format: 'CSV' } : same;
+}
+
+/**
+ * Download while it is ready; then whatever making it again can do (`nextStepOf`): the same
+ * choices, a CSV, or nothing when it would only fail the same way.
+ */
 function RowActions({ snapshot, exports, text }: RowProps) {
   const { t } = useTranslation('exports');
   const state = snapshotState(snapshot);
@@ -87,6 +101,7 @@ function RowActions({ snapshot, exports, text }: RowProps) {
     ', ',
   );
   const isDownloading = exports.downloadingId === snapshot.id;
+  const step = nextStepOf(snapshot);
   return (
     <div className="flex flex-wrap gap-2">
       {state === 'ready' ? (
@@ -99,15 +114,17 @@ function RowActions({ snapshot, exports, text }: RowProps) {
           {isDownloading ? t('list.downloading') : t('list.download')}
         </Button>
       ) : null}
-      <Button
-        variant="outline"
-        className={WRAP}
-        aria-label={t('actionFor', { action: t('list.again'), name })}
-        disabled={exports.creatingAt !== null}
-        onClick={() => void exports.create(sameIntentOf(snapshot), snapshot.id)}
-      >
-        {exports.creatingAt === snapshot.id ? t('list.sending') : t('list.again')}
-      </Button>
+      {step === 'none' ? null : (
+        <Button
+          variant="outline"
+          className={WRAP}
+          aria-label={t('actionFor', { action: t(STEP_LABELS[step]), name })}
+          disabled={exports.creatingAt !== null}
+          onClick={() => void exports.create(intentFor(snapshot, step), snapshot.id)}
+        >
+          {exports.creatingAt === snapshot.id ? t('list.sending') : t(STEP_LABELS[step])}
+        </Button>
+      )}
     </div>
   );
 }

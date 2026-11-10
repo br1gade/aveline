@@ -82,6 +82,7 @@
     "download": "Télécharger",
     "downloading": "Téléchargement…",
     "again": "Recréer",
+    "asCsv": "Le refaire en CSV",
     "sending": "Envoi…"
   },
   "state": {
@@ -95,9 +96,13 @@
     "failed": "Création impossible"
   },
   "failure": {
-    "generation": "Une erreur s’est produite pendant la création du fichier. Recréez-le ; s’il échoue encore, l’événement est peut-être trop volumineux pour un seul fichier.",
+    "generation": "Une erreur s’est produite pendant la création du fichier. Recréez-le ; s’il échoue encore, contactez l’assistance Aveline.",
     "stopped": "Le travail s’est arrêté trois fois avant la fin du fichier.",
-    "erased": "Les données d’un invité ont été effacées à sa demande, et ce fichier les contenait."
+    "erased": "Les données d’un invité ont été effacées à sa demande, et ce fichier les contenait.",
+    "tooLarge": "L’événement est trop volumineux pour ce rapport : le refaire échouerait aussi. Choisissez un rapport plus petit ci-dessus, ou contactez l’assistance Aveline.",
+    "tooLargeForFormat": "Le fichier serait trop volumineux dans ce format. Essayez un autre format, ou un rapport plus petit ci-dessus.",
+    "accessLost": "Il a été arrêté : l’accès à cet événement, ou à ses coordonnées, a été retiré à la personne qui l’avait demandé pendant sa création.",
+    "storage": "Le fichier n’a pas pu être enregistré. Refaites-le dans quelques minutes."
   },
   "advice": {
     "support": "S’il échoue encore, contactez l’assistance Aveline.",

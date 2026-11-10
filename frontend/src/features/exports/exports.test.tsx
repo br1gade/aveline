@@ -297,7 +297,7 @@ describe('the list and following (PD-75)', () => {
     expect(within(list).getByText(/Available until 6 November 2026, 14:05/)).toBeInTheDocument();
   });
 
-  it('words a failure by its code, and an unknown code in the backend’s own sentence', async () => {
+  it('words each failure by its code, without the backend’s sentence or advice', async () => {
     const failed = { status: 'FAILED', attempts: 3, downloadPath: null, snapshotAt: null };
     serveHistory(
       snapshotWire({ ...failed, id: 'a', failureReason: 'GENERATION_FAILED' }),
@@ -316,8 +316,35 @@ describe('the list and following (PD-75)', () => {
     renderPage();
     const list = await made();
     expect(within(list).getAllByText('Couldn’t be made')).toHaveLength(2);
-    expect(within(list).getByText(/the event may be too large/)).toBeInTheDocument();
-    expect(within(list).getByText('Too big.')).toHaveAttribute('lang', 'en');
+    expect(
+      within(list).getByText(/Make it again; if it fails again, contact Aveline support/),
+    ).toBeInTheDocument();
+    expect(within(list).queryByText('Too big.')).not.toBeInTheDocument();
+    expect(within(list).getByText(/too large for this report/)).toBeInTheDocument();
+    expect(
+      within(list).queryByText('If it fails again, contact Aveline support.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a code it doesn’t know in the backend’s own sentence, with its advice', async () => {
+    serveHistory(
+      snapshotWire({
+        status: 'FAILED',
+        attempts: 1,
+        downloadPath: null,
+        snapshotAt: null,
+        failureReason: 'SOMETHING_NEW',
+        recovery: {
+          code: 'JOB_FAILED',
+          locale: 'en',
+          userMessage: 'Odd.',
+          action: 'CONTACT_SUPPORT',
+        },
+      }),
+    );
+    renderPage();
+    const list = await made();
+    expect(within(list).getByText('Odd.')).toHaveAttribute('lang', 'en');
     expect(
       within(list).getByText('If it fails again, contact Aveline support.'),
     ).toBeInTheDocument();
@@ -451,5 +478,80 @@ describe('earlier exports (PD-77)', () => {
     expect(screen.getByRole('heading', { name: 'Make an export' })).toHaveFocus();
     expect(posted).toEqual([]);
     expect(container.innerHTML).not.toContain(TOKEN);
+  });
+});
+
+describe('what a failed export offers (FR-59)', () => {
+  const failed = (failureReason: string, overrides: Partial<SnapshotWire> = {}) =>
+    snapshotWire({
+      status: 'FAILED',
+      attempts: 1,
+      downloadPath: null,
+      snapshotAt: null,
+      failureReason,
+      ...overrides,
+    });
+
+  it('offers nothing to press for an event too large for the report', async () => {
+    serveHistory(failed('INPUT_LIMIT_EXCEEDED'));
+    renderPage();
+    const list = await made();
+    expect(within(list).getByText(/too large for this report/)).toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /^Make it/ })).not.toBeInTheDocument();
+  });
+
+  it('offers a PDF too large as a CSV, with a new key', async () => {
+    serveHistory(failed('OUTPUT_LIMIT_EXCEEDED', { format: 'PDF', locale: 'ru' }));
+    serveCreate((body) => queued(body));
+    const { user } = renderPage();
+    const list = await made();
+    expect(within(list).queryByRole('button', { name: /^Make it again/ })).not.toBeInTheDocument();
+    await user.click(
+      within(list).getByRole('button', { name: /^Make it as CSV: Guest list \(PDF\)/ }),
+    );
+    expect(posted).toEqual([
+      expect.objectContaining({
+        kind: 'GUEST_LIST',
+        format: 'CSV',
+        locale: 'ru',
+        includesContacts: true,
+      }),
+    ]);
+    expect((posted[0] as { idempotencyKey?: string }).idempotencyKey).toMatch(UUID);
+  });
+
+  it('words a file stopped because its maker lost access, and makes it again for whoever can', async () => {
+    serveHistory(
+      failed('ACCESS_REVOKED', {
+        includesContacts: true,
+        format: 'XLSX',
+        locale: 'ru',
+        revokedAt: '2026-10-31T09:00:00.000Z',
+      }),
+    );
+    let answers = 0;
+    serveCreate((body) => (answers++ === 0 ? refusal(403) : queued(body)));
+    const { user } = renderPage();
+    const list = await made();
+    expect(within(list).getByText(/^Withdrawn/)).toBeInTheDocument();
+    expect(within(list).getByText(/removed from whoever asked for it/)).toBeInTheDocument();
+    await user.click(
+      within(list).getByRole('button', { name: /^Make it again: Guest list \(XLSX\)/ }),
+    );
+    // A viewer who can't see contacts either is offered the copy without them, as when making one.
+    await user.click(
+      await screen.findByRole('button', { name: 'Make it without contact details' }),
+    );
+    await waitFor(() => expect(posted).toHaveLength(2));
+    expect(posted[0]).toMatchObject({ format: 'XLSX', locale: 'ru', includesContacts: true });
+    expect(posted[1]).toMatchObject({ format: 'XLSX', locale: 'ru', includesContacts: false });
+  });
+
+  it('offers to make it again once storage stayed down', async () => {
+    serveHistory(failed('STORAGE_UNAVAILABLE', { attempts: 3 }));
+    renderPage();
+    const list = await made();
+    expect(within(list).getByText(/couldn’t be stored/)).toBeInTheDocument();
+    expect(within(list).getByRole('button', { name: /^Make it again/ })).toBeEnabled();
   });
 });

@@ -45,7 +45,7 @@ export interface Snapshot extends Intent {
   status: SnapshotStatus;
   /** At most three, crash recovery included. */
   attempts: number;
-  /** A stable code: `GENERATION_FAILED`, `LEASE_EXHAUSTED`, `SUBJECT_ERASED`. */
+  /** A stable code, worded by `FAILURES` in `states.ts`, or `null`. */
   failureReason: string | null;
   recovery: Recovery | null;
   /** When the worker read the event; `null` until an attempt captured it. */
