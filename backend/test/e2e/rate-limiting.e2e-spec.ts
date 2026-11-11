@@ -1,10 +1,12 @@
 import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { PrismaClient } from '@prisma/client';
+import { EventRole, PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { authenticateAs } from '../fixtures/auth.fixture';
+import { seedEvent } from '../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
 
 /**
@@ -93,12 +95,24 @@ describe('Rate limiting behind a proxy (e2e)', () => {
 
   // B81: guests on the venue's Wi-Fi share one address, and opening their
   // invitation to find their table counted against one allowance — 429s.
-  it.each(['/invitations/no-such-slug/g/some-token', '/public/events/no-such-slug'])('allows a room of guests on one address to read %s', async (path) => {
+  // FR-147: the price list is read for every visitor to /pricing, from the renderer's one address.
+  it.each(['/invitations/no-such-slug/g/some-token', '/public/events/no-such-slug', '/plans'])('allows a room of guests on one address to read %s', async (path) => {
     const responses = await Promise.all(
       Array.from({ length: 40 }, () =>
         http().get(`/api/v1${path}`).set('X-Forwarded-For', '203.0.113.30'),
       ),
     );
+
+    expect(responses.filter((response) => response.status === 429)).toHaveLength(0);
+  });
+
+  // FR-142: the door reads a large roster whole, a page at a time, from one account.
+  it('lets the door read a large roster without spending the check-in allowance', async () => {
+    const { eventId } = await seedEvent(prisma);
+    const { authorization } = await authenticateAs(app, prisma, { eventId, role: EventRole.COORDINATOR });
+
+    const responses = await Promise.all(Array.from({ length: 40 }, () =>
+      http().get(`/api/v1/events/${eventId}/door-roster`).set('Authorization', authorization)));
 
     expect(responses.filter((response) => response.status === 429)).toHaveLength(0);
   });

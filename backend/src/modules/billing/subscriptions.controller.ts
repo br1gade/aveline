@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import {
   CurrentActor,
   OrganizationScope,
@@ -7,6 +8,7 @@ import {
   RequestActor,
   RequirePermission,
 } from '../../infra/auth/actor';
+import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { SubscribeDto } from './dto/subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -17,6 +19,8 @@ export class SubscriptionsController {
 
   @Public()
   @Get('plans')
+  // Our renderer reads it for every visitor to the price page, from one address (FR-147).
+  @Throttle(GUEST_PAGE_LIMITS)
   @ApiOperation({ summary: 'The price list, with each plan’s entitlements' })
   listPlans() {
     return this.subscriptions.listPlans();

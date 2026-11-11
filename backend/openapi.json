@@ -16984,6 +16984,10 @@
           },
           "hasTicket": {
             "type": "boolean"
+          },
+          "isErased": {
+            "type": "boolean",
+            "description": "The guest was erased: show them, but offer no check-in or agreement"
           }
         },
         "required": [
@@ -16993,7 +16997,8 @@
           "seating",
           "attendance",
           "arrivedAt",
-          "hasTicket"
+          "hasTicket",
+          "isErased"
         ]
       },
       "DoorRosterDto": {
@@ -39480,6 +39485,17 @@
                   "type": "string",
                   "format": "date-time"
                 },
+                "endsAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "timezone": {
+                  "type": "string"
+                },
+                "locale": {
+                  "type": "string"
+                },
                 "venue": {
                   "type": "string"
                 },
@@ -39498,6 +39514,9 @@
                 "categories",
                 "heroImage",
                 "startsAt",
+                "endsAt",
+                "timezone",
+                "locale",
                 "venue",
                 "fromPriceMinor",
                 "currency"

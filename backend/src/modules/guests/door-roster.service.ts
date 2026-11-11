@@ -15,7 +15,7 @@ export class DoorRosterService {
       orderBy: { id: 'asc' },
       take: limit + 1,
       select: {
-        id: true, firstName: true, lastName: true,
+        id: true, firstName: true, lastName: true, anonymizedAt: true,
         household: { select: { name: true } },
         rsvp: { select: { status: true } },
         checkIn: { select: { arrivedAt: true } },
@@ -35,6 +35,7 @@ export class DoorRosterService {
       attendance: guest.rsvp?.status ?? RsvpStatus.PENDING,
       arrivedAt: guest.checkIn?.arrivedAt ?? null,
       hasTicket: guest.ticket !== null,
+      isErased: guest.anonymizedAt !== null,
     }));
     return { items, nextCursor: guests.length > limit ? items[limit - 1].guestId : null };
   }

@@ -19,8 +19,11 @@ export class AccountOrAddressThrottlerGuard extends ThrottlerGuard {
 }
 
 /**
- * For a guest's own invitation page: read-only, mostly served from cache, and
- * opened by a whole room at once on one Wi-Fi when guests look up their table.
+ * For reads that many people make through one tracker at once: a guest's own
+ * invitation page, opened by a whole room on one Wi-Fi when guests look up
+ * their table; the public pages our renderer reads for every visitor from one
+ * address; and the door roster, read whole a page at a time by one account.
+ * Each route has its own bucket, so this never widens a write's allowance.
  */
 export const GUEST_PAGE_LIMITS = {
   short: { limit: 50, ttl: 1000 },

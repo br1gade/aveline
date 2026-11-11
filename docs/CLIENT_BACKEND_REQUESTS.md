@@ -121,7 +121,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-89 | Word the team invitation's email | S3 host/guest operations | Audit and implement |
 | FR-90 | A door-only role, if product wants one (PQ-15) | S3 host/guest operations | Implement defects; product-dependent portion pending answer |
 | FR-91 | A directory staff can keep | S3 host/guest operations | Audit and implement |
-| FR-92 | timezone, locale and endsAt on each listing card | S3 host/guest operations | Audit and implement |
+| FR-92 | timezone, locale and endsAt on each listing card | S3 host/guest operations | Implemented 11 November 2026. Client adoption open. |
 | FR-93 | The listing's categories and availability | S3 host/guest operations | Audit and implement |
 | FR-94 | The running order's writes: a notice, the venue, and three loose ends | S1 safety/correctness | Audit and implement |
 | FR-95 | Recording an answer: return what was saved, and let status be left out | S3 host/guest operations | Audit and implement |
@@ -373,3 +373,13 @@ the docs check. All 1,654 unit tests and 10 pilot tooling tests passed. All
 integration suites passed on rerun with the new error codes and race
 assertions. The current frontend's 324 focused contract tests and generated
 API type check passed. The signed-out privacy form returned HTTP 200 locally.
+
+### Door, listing and price-list follow-up (11 November 2026)
+
+From the frontend register at `efcdf22`. FR-92 adds `endsAt`, `timezone` and
+the negotiated `locale` to each browse card. They come from the event row the
+card already reads, so no query is added. FR-141 adds `isErased` to each door
+roster row and keeps erased guests in their household's results. FR-142 and
+FR-147 give the door roster and `GET /plans` the guest-page read allowance. Each
+route keeps its own count, so check-ins and other writes keep the default limit.
+All four are additive. Client adoption and the real-backend rehearsal are open.

@@ -275,6 +275,18 @@ describe('Public event setup (e2e)', () => {
       expect(slugs).not.toContain(theatre);
     });
 
+    // FR-92: a card gave its start with no zone and no word of the language it answered in.
+    it.each([['en', 'en'], ['fr', 'hy']])('gives each card its zone, its end and the language it answered %s in', async (asked, answered) => {
+      const { eventId, slug } = await onSale();
+      const endsAt = '2027-10-01T22:00:00.000Z';
+      await prisma.event.update({ where: { id: eventId }, data: { timezone: 'Asia/Yerevan', locales: ['hy', 'en'], defaultLocale: 'hy', endsAt: new Date(endsAt) } });
+
+      const { body } = await http().get('/api/v1/public/events').query({ locale: asked }).expect(200);
+
+      const card = (body as { items: { slug: string }[] }).items.find((item) => item.slug === slug);
+      expect(card).toMatchObject({ timezone: 'Asia/Yerevan', locale: answered, endsAt });
+    });
+
     it('still refuses a parameter it does not know', async () => {
       await http().get('/api/v1/public/events').query({ sort: 'price' }).expect(400);
     });
