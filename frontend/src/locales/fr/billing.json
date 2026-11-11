@@ -9,7 +9,8 @@
     "title": "Votre formule",
     "none": "Votre organisation n’a pas encore choisi de formule. Vous pouvez en choisir une ci-dessous.",
     "cancel": "Résilier à la fin de la période",
-    "resume": "Conserver la formule"
+    "resume": "Conserver la formule",
+    "movesToFree": "Passe à l’offre gratuite le {{date}}."
   },
   "standing": {
     "active": "Active jusqu’au {{date}}.",
@@ -29,7 +30,8 @@
     "title": "Formules",
     "none": "Aucune formule n’est proposée pour le moment.",
     "current": "Votre formule actuelle",
-    "choose": "Choisir cette formule"
+    "choose": "Choisir cette formule",
+    "pending": "Commence à la fin de votre période payée"
   },
   "price": {
     "free": "Gratuit",
@@ -72,8 +74,8 @@
     },
     "freeOverPaid": {
       "title": "Passer à {{name}} ?",
-      "body": "Elle est gratuite et commence maintenant. Le reste de la période payée s’arrête aussitôt, sans remboursement. Une facture en attente de paiement est retirée.",
-      "confirm": "Mettre fin à ma période payée et changer"
+      "body": "C’est gratuit. Votre offre payante continue jusqu’à la fin de la période payée, puis celle-ci commence ; rien de plus n’est facturé. Vous pouvez garder votre offre d’ici là. Une facture encore en attente de paiement est retirée.",
+      "confirm": "Changer à la fin de la période"
     },
     "pay": {
       "title": "Payer la facture {{name}} ?",
@@ -85,7 +87,8 @@
     "activated": "{{name}} est maintenant votre formule.",
     "leaving": "Passage à la page de la banque…",
     "cancelled": "La formule se termine le {{date}}.",
-    "resumed": "La formule continue."
+    "resumed": "La formule continue.",
+    "scheduled": "{{name}} commence à la fin de votre période payée. D’ici là, rien ne change."
   },
   "invoices": {
     "title": "Factures",
@@ -114,6 +117,7 @@
     "noBank": "Le paiement par carte n’est pas encore configuré ici. Rien n’a changé.",
     "noSubscription": "Votre organisation n’a pas de formule à modifier. Rechargez la page.",
     "periodEnded": "Cette période est déjà terminée. Choisissez une formule pour recommencer.",
+    "freeChangeTaken": "Le passage à l’offre gratuite a déjà eu lieu, il ne peut donc plus être annulé. La page a été relue.",
     "noInvoice": "Nous n’avons pas trouvé cette facture dans votre organisation.",
     "noPayment": "Cette facture n’a pas encore de paiement à vérifier.",
     "disagreement": "La banque et notre enregistrement de ce paiement ne concordent pas.",

@@ -1,4 +1,4 @@
-import { FEE_CURRENCY } from './payload';
+import { DEFAULT_FEE_CURRENCY } from './payload';
 import { inSectionOrder, isBookingStatus, isVendorCategory } from './scopes';
 import type {
   Booking,
@@ -8,9 +8,12 @@ import type {
   Fee,
   Vendor,
   VendorCategory,
+  VendorChoices,
+  VendorOptionsWire,
   VendorWire,
 } from './types';
 
+/** A kind the client doesn't know yet reads as "other", never as one it knows. */
 function categoryOf(category: string): VendorCategory {
   return isVendorCategory(category) ? category : 'OTHER';
 }
@@ -27,8 +30,9 @@ export function readVendors(wire: readonly VendorWire[]): Vendor[] {
     category: categoryOf(vendor.category),
     email: vendor.email,
     phone: vendor.phone,
+    notes: vendor.notes ?? null,
     isCurated: vendor.isCurated,
-    halls: (vendor.venueProfiles ?? []).map(({ id, name, city, capacity }) => ({
+    halls: vendor.venueProfiles.map(({ id, name, city, capacity }) => ({
       id,
       name,
       city,
@@ -37,13 +41,31 @@ export function readVendors(wire: readonly VendorWire[]): Vendor[] {
   }));
 }
 
+/** What a booking can be made with, every page of it, and each kind's usual sections (FR-103, FR-105). */
+export function readChoices(
+  items: readonly VendorOptionsWire['items'][number][],
+  defaults: VendorOptionsWire['defaults'],
+): VendorChoices {
+  return {
+    choices: items.map(({ id, name, category, isCurated }) => ({
+      id,
+      name,
+      category: categoryOf(category),
+      isCurated,
+    })),
+    usualSections: new Map(
+      defaults.map(({ category, scopes }) => [categoryOf(category), inSectionOrder(scopes)]),
+    ),
+  };
+}
+
 /** A missing `feeMinor` is withheld from this role; `null` is no fee agreed (FR-6). */
 function feeOf(booking: BookingWire): Fee {
-  if (!('feeMinor' in booking) || booking.feeMinor === undefined) return { isShown: false };
+  if (booking.feeMinor === undefined) return { isShown: false };
   return {
     isShown: true,
     amountMinor: booking.feeMinor,
-    currency: booking.feeCurrency ?? FEE_CURRENCY,
+    currency: booking.feeCurrency ?? DEFAULT_FEE_CURRENCY,
   };
 }
 
@@ -59,12 +81,13 @@ export function readBookings(wire: readonly BookingWire[]): Booking[] {
       id: booking.vendor.id,
       name: booking.vendor.name,
       category: categoryOf(booking.vendor.category),
-      email: booking.vendor.email ?? null,
-      phone: booking.vendor.phone ?? null,
+      email: booking.vendor.email,
+      phone: booking.vendor.phone,
     },
     status: statusOf(booking.status),
     scopes: inSectionOrder(booking.briefScopes),
     fee: feeOf(booking),
     link: linkOf(booking),
+    isBriefEnabled: booking.isBriefEnabled,
   }));
 }

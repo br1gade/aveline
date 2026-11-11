@@ -6,12 +6,12 @@ import { AskFirstDialog, useDialogAction, type DialogContext } from '@/ui/app-fo
 import { Input } from '@/ui/kit/input';
 import { Label } from '@/ui/kit/label';
 
-import { carryOut, updateRequest } from '../api';
+import { carryOut, confirmDelivery, updateRequest } from '../api';
 import { requestRefusalOf, type RequestRefusal } from '../refusals';
 import type { Carried, DataRequest, RequestStatus } from '../types';
 import { RequestProblem } from './shared';
 
-export type AskedStep = 'confirm' | 'reject' | 'close' | 'export' | 'erase';
+export type AskedStep = 'confirm' | 'reject' | 'close' | 'export' | 'deliver' | 'erase';
 
 const MOVES: Readonly<Record<'confirm' | 'reject' | 'close', RequestStatus>> = {
   confirm: 'IN_PROGRESS',
@@ -47,9 +47,22 @@ function TypeTheAddress({ value, onChange }: { value: string; onChange: (typed: 
   );
 }
 
+/** What confirming a step sends: a move, carrying it out, or confirming an export's delivery. */
+function stepCall(request: DataRequest, step: AskedStep, onCarried: (carried: Carried) => void) {
+  const api = browserSession().api;
+  if (step === 'export' || step === 'erase') return carryOut(api, request.id).then(onCarried);
+  if (step === 'deliver') {
+    // Offered only once an export was made (`steps.ts`); without one, it's a bug, said as one.
+    if (!request.exportGenerationId) throw new Error('No export to confirm the delivery of');
+    return confirmDelivery(api, request.id, request.exportGenerationId);
+  }
+  return updateRequest(api, request.id, { status: MOVES[step] });
+}
+
 /**
- * A step that asks first (design PD-168): saying who the requester is, since that permits carrying it
- * out; rejecting; closing a correction; and carrying one out, which can't be recalled.
+ * A step that asks first (design PD-168, PD-169): saying who the requester is, since that permits
+ * carrying it out; rejecting; closing a correction; carrying one out; and confirming an export
+ * reached the requester, which closes it (FR-128).
  */
 export function StepDialog({ request, step, onCarried, ...context }: StepDialogProps) {
   const { t } = useTranslation('data-requests');
@@ -58,11 +71,6 @@ export function StepDialog({ request, step, onCarried, ...context }: StepDialogP
     context,
     requestRefusalOf,
   );
-  const api = () => browserSession().api;
-  const confirmed = () =>
-    step === 'export' || step === 'erase'
-      ? carryOut(api(), request.id).then(onCarried)
-      : updateRequest(api(), request.id, { status: MOVES[step] });
   return (
     <AskFirstDialog
       onOpenChange={onOpenChange}
@@ -73,7 +81,7 @@ export function StepDialog({ request, step, onCarried, ...context }: StepDialogP
       isBusy={isBusy}
       problem={refusal ? <RequestProblem refusal={refusal} /> : null}
       isConfirmable={step !== 'erase' || sameAddress(typed, request.subjectEmail)}
-      onConfirm={() => void run(confirmed, t(`status.${step}`))}
+      onConfirm={() => void run(() => stepCall(request, step, onCarried), t(`status.${step}`))}
     >
       {step === 'erase' ? <TypeTheAddress value={typed} onChange={setTyped} /> : null}
     </AskFirstDialog>

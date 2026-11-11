@@ -40,6 +40,8 @@ interface Choices {
   /** They are that address's alone, so changing it takes them away. */
   address: string;
   items: CustomerChoice[];
+  /** `false` when only the first pages could be listed. */
+  isComplete: boolean;
 }
 
 function useOpenAccount() {
@@ -51,11 +53,14 @@ function useOpenAccount() {
   const [choices, setChoices] = useState<Choices | null>(null);
   const api = () => browserSession().api;
 
-  const refused = async (error: unknown, values: OpenValues) => {
+  const refused = async (error: unknown, values: OpenValues, organizationId?: string) => {
     const found = customerRefusalOf(error);
-    if (found.kind === 'needsChoice') {
-      const items = await customerChoices(api(), values.ownerEmail);
-      setChoices({ address: values.ownerEmail, items });
+    // A choice no longer the address's is said, and the matches read again (FR-130).
+    const isStaleChoice = found.kind === 'gone' && organizationId !== undefined;
+    if (found.kind === 'needsChoice' || isStaleChoice) {
+      const read = await customerChoices(api(), values.ownerEmail);
+      setChoices({ address: values.ownerEmail, ...read });
+      if (isStaleChoice) setRefusal(found);
     } else if (found.kind === 'emailRefused') form.setError('ownerEmail', { type: 'server' });
     else if (found.kind === 'nameRefused') form.setError('name', { type: 'server' });
     else setRefusal(found);
@@ -74,7 +79,7 @@ function useOpenAccount() {
       setOpened(answer);
       void revalidate();
     } catch (error) {
-      await refused(error, values).catch((failed: unknown) =>
+      await refused(error, values, organizationId).catch((failed: unknown) =>
         setRefusal(customerRefusalOf(failed)),
       );
     }
@@ -82,12 +87,19 @@ function useOpenAccount() {
   return { form, refusal, opened, choices, send };
 }
 
+/** What opening answered: new, or one the address already owns or is invited to own (FR-130). */
+function openedWords({ isExisting, relationship }: OpenedAccount) {
+  if (!isExisting) return 'open.invited';
+  if (relationship === 'OWNER') return 'open.existingOwner';
+  return relationship === 'PENDING_OWNER_INVITE' ? 'open.existingInvited' : 'open.existing';
+}
+
 function Opened({ opened }: { opened: OpenedAccount }) {
   const { t } = useTranslation('customers');
   const { id, name } = opened.organization;
   return (
     <div role="status" className="flex flex-col gap-1">
-      <p className="m-0">{t(opened.isExisting ? 'open.existing' : 'open.invited', { name })}</p>
+      <p className="m-0">{t(openedWords(opened), { name })}</p>
       <SetUpEventLink id={id} name={name} />
     </div>
   );
@@ -95,9 +107,11 @@ function Opened({ opened }: { opened: OpenedAccount }) {
 
 function Choosing({
   items,
+  isComplete,
   onChoose,
 }: {
   items: CustomerChoice[];
+  isComplete: boolean;
   onChoose: (organizationId: string) => void;
 }) {
   const { t } = useTranslation('customers');
@@ -106,14 +120,15 @@ function Choosing({
       <p role="status" className="m-0">
         {t(items.length > 0 ? 'open.several' : 'open.severalNone')}
       </p>
-      {items.map(({ id, name }) => (
+      {isComplete ? null : <p className="m-0">{t('open.partial')}</p>}
+      {items.map(({ id, name, relationship }) => (
         <Button
           key={id}
           variant="outline"
           className={`${WRAPPING_BUTTON} self-start`}
           onClick={() => onChoose(id)}
         >
-          {t('open.use', { name })}
+          {t(relationship === 'OWNER' ? 'open.useOwned' : 'open.useInvited', { name })}
         </Button>
       ))}
     </div>
@@ -167,6 +182,7 @@ export function OpenAccount() {
       {choices?.address === typedAddress ? (
         <Choosing
           items={choices.items}
+          isComplete={choices.isComplete}
           onChoose={(id) => void form.handleSubmit((values) => send(values, id))()}
         />
       ) : null}

@@ -785,10 +785,11 @@ describe('leaving (PD-162)', () => {
   it('reads again when someone else changed things first, and trying again can work', async () => {
     let isChanged = false;
     serve({
+      // The read after the change names it anew, so the page is seen to hold the newer revision.
       current: () =>
         HttpResponse.json({
           ...organization,
-          accessRevision: isChanged ? CURRENT_REVISION + 1 : CURRENT_REVISION,
+          ...(isChanged ? { name: 'Renamed meanwhile', accessRevision: CURRENT_REVISION + 1 } : {}),
         }),
     });
     answer('post', '/organizations/current/leave', () => {
@@ -802,7 +803,7 @@ describe('leaving (PD-162)', () => {
     const leave = within(dialog).getByRole('button', { name: 'Leave' });
     await user.click(leave);
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('please try again');
-    await waitFor(() => expect(reads.current).toBeGreaterThan(1));
+    expect(await screen.findByDisplayValue('Renamed meanwhile')).toBeInTheDocument();
     await waitFor(() => expect(leave).toBeEnabled());
     await user.click(leave);
     await screen.findByRole('heading', { name: 'Your events' });

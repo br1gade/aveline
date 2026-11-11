@@ -9,7 +9,8 @@
     "title": "Your plan",
     "none": "Your organization hasn’t chosen a plan. You can choose one below.",
     "cancel": "Cancel at the end of the period",
-    "resume": "Keep the plan"
+    "resume": "Keep the plan",
+    "movesToFree": "Moves to the free plan on {{date}}."
   },
   "standing": {
     "active": "Active until {{date}}.",
@@ -29,7 +30,8 @@
     "title": "Plans",
     "none": "No plans are on offer just now.",
     "current": "Your current plan",
-    "choose": "Choose this plan"
+    "choose": "Choose this plan",
+    "pending": "Starts when your paid period ends"
   },
   "price": {
     "free": "Free",
@@ -68,8 +70,8 @@
     },
     "freeOverPaid": {
       "title": "Change to {{name}}?",
-      "body": "It’s free and starts now. The rest of the period you paid for ends at once, with no refund. An invoice still waiting to be paid is withdrawn.",
-      "confirm": "End my paid period and change"
+      "body": "It’s free. Your paid plan carries on to the end of the period you paid for, and then this one starts; nothing more is charged. You can keep your plan until then. An invoice still waiting to be paid is withdrawn.",
+      "confirm": "Change at the end of the period"
     },
     "pay": {
       "title": "Pay invoice {{name}}?",
@@ -81,7 +83,8 @@
     "activated": "{{name}} is your plan now.",
     "leaving": "Going to the bank’s page…",
     "cancelled": "The plan ends on {{date}}.",
-    "resumed": "The plan carries on."
+    "resumed": "The plan carries on.",
+    "scheduled": "{{name}} starts when your paid period ends. Until then, nothing changes."
   },
   "invoices": {
     "title": "Invoices",
@@ -110,6 +113,7 @@
     "noBank": "Paying by card isn’t set up here yet. Nothing has changed.",
     "noSubscription": "Your organization has no plan to change. Reload the page.",
     "periodEnded": "This period has already ended. Choose a plan to start again.",
+    "freeChangeTaken": "The move to the free plan has already happened, so it can’t be withdrawn. The page has been read again.",
     "noInvoice": "We couldn’t find this invoice in your organization.",
     "noPayment": "This invoice has no payment to check yet.",
     "disagreement": "The bank and our record of this payment disagree.",

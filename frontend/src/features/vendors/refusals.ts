@@ -2,7 +2,18 @@ import { isApiError } from '@/api/errors';
 
 /** Each action a vendor page offers every role, so each 403 is worded for it (FR-6). */
 export type VendorAction =
-  'list' | 'add' | 'bookings' | 'book' | 'change' | 'newLink' | 'end' | 'engageAgain';
+  | 'list'
+  | 'choices'
+  | 'add'
+  | 'correct'
+  | 'remove'
+  | 'bookings'
+  | 'book'
+  | 'change'
+  | 'pause'
+  | 'newLink'
+  | 'end'
+  | 'engageAgain';
 
 /** The form's fields a 400 can name, under the backend's names for them. */
 const REFUSED_FIELDS: Readonly<Record<string, string>> = {
@@ -10,7 +21,9 @@ const REFUSED_FIELDS: Readonly<Record<string, string>> = {
   category: 'category',
   email: 'email',
   phone: 'phone',
+  notes: 'notes',
   vendorId: 'vendorId',
+  feeCurrency: 'currency',
   briefScopes: 'scopes',
   feeMinor: 'fee',
   status: 'status',
@@ -19,7 +32,8 @@ const REFUSED_FIELDS: Readonly<Record<string, string>> = {
 export type VendorRefusal =
   | { kind: 'forbidden'; action: Exclude<VendorAction, 'list'>; isStale?: undefined }
   | { kind: 'noOrganization' | 'chooseOrganization' | 'rateLimited'; isStale?: undefined }
-  /** The vendor isn't on this organization's list, or Aveline's, any more (404 on booking). */
+  /** The vendor isn't on this organization's list, or Aveline's, any more (404 on booking it,
+   * correcting it or removing it). */
   | { kind: 'vendorGone'; isStale: true }
   /** The booking is no longer on this event. */
   | { kind: 'bookingGone'; isStale: true }
@@ -47,16 +61,20 @@ const ORGANIZATION_CODES: Readonly<Record<string, VendorRefusal>> = {
   ORGANIZATION_SELECTION_REQUIRED: { kind: 'chooseOrganization' },
 };
 
+/** The actions whose 404 means the vendor is gone; on any other, the booking is. */
+const ON_THE_VENDOR: ReadonlySet<VendorAction> = new Set(['book', 'correct', 'remove']);
+
 /** A refusal its status alone says, for the action pressed; `null` when the status doesn't. */
 function byStatus(status: number, action: VendorAction): VendorRefusal | null {
   // Every organization role holds `vendor:read`, and the list's optional organization scope
   // resolves none for an account without a membership, which the guard then refuses as a plain
-  // 403 (`auth.guard.ts`): so a 403 on the list means no organization, not a role (FR-103).
+  // 403 (`auth.guard.ts`): so a 403 on the organization's list means no organization. The event's
+  // choices are read with `vendor:read` on the event, so a 403 there is the role's (FR-103).
   if (status === 403)
     return action === 'list' ? { kind: 'noOrganization' } : { kind: 'forbidden', action };
   if (status === 429) return { kind: 'rateLimited' };
   if (status !== 404) return null;
-  return action === 'book'
+  return ON_THE_VENDOR.has(action)
     ? { kind: 'vendorGone', isStale: true }
     : { kind: 'bookingGone', isStale: true };
 }
@@ -64,7 +82,8 @@ function byStatus(status: number, action: VendorAction): VendorRefusal | null {
 /**
  * Every refusal here is told apart by its status and code, so no sentence is matched. The vendor
  * routes judge `vendor:read` and `vendor:write` by the organization's role or the event's; the
- * organization's list has no event, so someone on an event only is refused it (FR-103).
+ * organization's list has no event, so someone on an event only is refused it, and books from the
+ * event's own choices (FR-103).
  */
 export function vendorRefusalOf(error: unknown, action: VendorAction): VendorRefusal {
   if (!isApiError(error)) throw error;

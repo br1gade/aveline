@@ -1,9 +1,9 @@
 import type { ApiClient } from '@/api/client';
 import { getEvent, type EventDetail } from '@/features/events';
 
-import { listBookings, listVendors } from './api';
+import { listBookings, listVendorChoices, listVendors } from './api';
 import { vendorRefusalOf, type VendorAction, type VendorRefusal } from './refusals';
-import type { Booking, Vendor } from './types';
+import type { Booking, Vendor, VendorChoices } from './types';
 
 /** A read a page shows, or the refusal it words in its place (FR-6). */
 export type VendorRead<T> =
@@ -39,17 +39,17 @@ export async function loadEventVendors(api: ApiClient, eventId: string): Promise
 }
 
 export interface NewBookingData extends EventVendorsData {
-  /** What can be booked; refused to someone on the event only (FR-103). */
-  vendors: VendorRead<Vendor[]>;
+  /** What can be booked on this event, and each kind's usual sections (FR-103, FR-105). */
+  choices: VendorRead<VendorChoices>;
 }
 
 /** The bookings mark who is booked already, which the form opens rather than posts again. */
 export async function loadNewBooking(api: ApiClient, eventId: string): Promise<NewBookingData> {
-  const [current, vendors] = await Promise.all([
+  const [current, choices] = await Promise.all([
     loadEventVendors(api, eventId),
-    readOrRefusal(listVendors(api), 'list'),
+    readOrRefusal(listVendorChoices(api, eventId), 'choices'),
   ]);
-  return { ...current, vendors };
+  return { ...current, choices };
 }
 
 export interface BookingData {

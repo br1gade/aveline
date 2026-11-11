@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { readPublicEnv } from '@/config/env';
 import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
+import { Permitted } from '@/features/permissions';
 
 import { briefUrl, isSendableOrigin } from '../brief-link';
 import type { Booking } from '../types';
@@ -25,8 +26,8 @@ async function copyLink(token: string): Promise<CopyOutcome> {
 /**
  * The vendor's brief link (docs/API.md §6). It is a credential, so it is never shown on the page,
  * only copied; a role without `vendor:write` isn't given it, and is told whose it is to share.
- * "Make a new link" is the only way to withdraw one: the old stops working, and a new one exists
- * that nobody has been sent (FR-108).
+ * "Make a new link" is for a link that reached someone it shouldn't: the old stops working, and a
+ * new one exists that nobody has been sent. Pausing the brief keeps the link (FR-108, PD-192).
  */
 export function BriefLinkPanel({
   booking,
@@ -60,16 +61,18 @@ export function BriefLinkPanel({
                 {t('link.copy')}
               </Button>
             ) : null}
-            <Button
-              variant="outline"
-              className={WRAPPING_BUTTON}
-              onClick={(click) => {
-                setOutcome(null);
-                onNewLink(click.currentTarget);
-              }}
-            >
-              {t('link.replace')}
-            </Button>
+            <Permitted to="vendor:write">
+              <Button
+                variant="outline"
+                className={WRAPPING_BUTTON}
+                onClick={(click) => {
+                  setOutcome(null);
+                  onNewLink(click.currentTarget);
+                }}
+              >
+                {t('link.replace')}
+              </Button>
+            </Permitted>
           </div>
         </>
       )}

@@ -6,13 +6,19 @@ import { describe, expect, it } from 'vitest';
 import { ApiError, networkError, type FieldFeedback } from '@/api/errors';
 
 import { briefUrl, isSendableOrigin } from './brief-link';
-import { bookingChanges, bookingEditValues, bookingPayload, newVendorPayload } from './payload';
-import { readBookings, readVendors } from './read';
+import {
+  bookingChanges,
+  bookingEditValues,
+  bookingPayload,
+  newVendorPayload,
+  vendorChanges,
+} from './payload';
+import { readBookings, readChoices, readVendors } from './read';
 import { vendorRefusalOf } from './refusals';
 import { feeProblem, vendorFormSchema } from './schemas';
-import { BRIEF_SECTIONS, inSectionOrder, USUAL_SECTIONS, VENDOR_CATEGORIES } from './scopes';
+import { BRIEF_SECTIONS, inSectionOrder, VENDOR_CATEGORIES } from './scopes';
 import { bookingWire, plantedToken, vendorWire, without } from './test-data';
-import type { Booking, BookingWire } from './types';
+import type { Booking, BookingWire, VendorWire } from './types';
 import { ADDRESSES_NOBODY_TAKES, ADDRESSES_THE_BACKEND_TAKES } from '../../../test/emails';
 
 const backend = (path: string) =>
@@ -41,7 +47,7 @@ function apiError(
   });
 }
 
-describe('the brief sections and the usual set for each kind of vendor (FR-105 stand-in)', () => {
+describe('the brief sections and the kinds of vendor', () => {
   const source = backend('modules/vendors/vendor-brief.ts');
 
   it('lists the sections in the backend’s order', () => {
@@ -49,24 +55,23 @@ describe('the brief sections and the usual set for each kind of vendor (FR-105 s
     expect([...list.matchAll(/'(\w+)'/g)].map((match) => match[1])).toEqual([...BRIEF_SECTIONS]);
   });
 
-  it('presets exactly the backend’s usual set for every category', () => {
-    for (const category of VENDOR_CATEGORIES) {
-      const row = new RegExp(`${category}: \\[([^\\]]*)\\]`).exec(source)?.[1] ?? '';
-      const usual = [...row.matchAll(/'(\w+)'/g)].map((match) => match[1]);
-      expect([...USUAL_SECTIONS[category]].sort()).toEqual(usual.sort());
-    }
-  });
-
-  it('offers every category the database knows, and never presets guests’ contacts', () => {
+  it('offers every category the database knows', () => {
     const schema = readFileSync(
       join(process.cwd(), '..', 'backend', 'prisma', 'schema.prisma'),
       'utf8',
     );
     const block = /enum VendorCategory \{([^}]+)\}/.exec(schema)?.[1] ?? '';
     expect([...VENDOR_CATEGORIES].sort()).toEqual(block.trim().split(/\s+/).sort());
-    for (const category of VENDOR_CATEGORIES) {
-      expect(USUAL_SECTIONS[category]).not.toContain('contacts');
-    }
+  });
+
+  it('takes each kind’s usual sections from the backend, in its order (FR-105)', () => {
+    const { choices, usualSections } = readChoices(
+      [{ id: 'v1', name: 'Lens', category: 'PHOTOGRAPHY', isCurated: true }],
+      [{ category: 'CATERING', scopes: ['timeline', 'catering', 'headcount'] }],
+    );
+    expect(choices).toEqual([{ id: 'v1', name: 'Lens', category: 'PHOTOGRAPHY', isCurated: true }]);
+    expect(usualSections.get('CATERING')).toEqual(['headcount', 'catering', 'timeline']);
+    expect(usualSections.get('PHOTOGRAPHY')).toBeUndefined();
   });
 
   it('puts what is ticked in the backend’s order, once each, dropping the unknown', () => {
@@ -93,13 +98,15 @@ describe('reading the vendors', () => {
       category: 'VENUE',
       email: 'hello@tashir.example',
       phone: '+374 10 000000',
+      notes: null,
       isCurated: true,
       halls: [{ id: 'h1', name: 'Garden hall', city: 'Yerevan', capacity: 300 }],
     });
   });
 
   it('reads no halls as none, and a category it does not know as “other”', () => {
-    const [vendor] = readVendors([without(vendorWire({ category: 'FLORIST' }), 'venueProfiles')]);
+    // A kind added after this client was built; the spec's enum doesn't know it either.
+    const [vendor] = readVendors([vendorWire({ category: 'FLORIST' as VendorWire['category'] })]);
     expect(vendor?.halls).toEqual([]);
     expect(vendor?.category).toBe('OTHER');
   });
@@ -170,18 +177,50 @@ describe('the fee as typed', () => {
 describe('the payloads', () => {
   it('adds a vendor with its words trimmed and empty details left out', () => {
     expect(
-      newVendorPayload({ name: '  Lens  ', category: 'PHOTOGRAPHY', email: ' ', phone: ' 1 ' }),
-    ).toEqual({ name: 'Lens', category: 'PHOTOGRAPHY', phone: '1' });
+      newVendorPayload({
+        name: '  Lens  ',
+        category: 'PHOTOGRAPHY',
+        email: ' ',
+        phone: ' 1 ',
+        notes: ' Ask for Ani ',
+      }),
+    ).toEqual({ name: 'Lens', category: 'PHOTOGRAPHY', phone: '1', notes: 'Ask for Ani' });
   });
 
-  it('books with every section ticked sent, in order, and the fee in minor units', () => {
+  it('corrects only what changed, and clears an emptied detail with null (FR-102)', () => {
+    const [vendor] = readVendors([vendorWire({ notes: 'Old note' })]);
+    if (!vendor) throw new Error('No vendor');
+    const same = {
+      name: vendor.name,
+      category: vendor.category,
+      email: vendor.email ?? '',
+      phone: vendor.phone ?? '',
+      notes: 'Old note',
+    };
+    expect(vendorChanges(vendor, same)).toEqual({});
     expect(
-      bookingPayload({ vendorId: 'v1', scopes: ['timeline', 'headcount'], fee: ' 150000 ' }),
-    ).toEqual({ vendorId: 'v1', briefScopes: ['headcount', 'timeline'], feeMinor: '150000' });
+      vendorChanges(vendor, { ...same, name: ' Tashir ', email: '', notes: ' New note ' }),
+    ).toEqual({ name: 'Tashir', email: null, notes: 'New note' });
+  });
+
+  it('books with every section ticked sent, in order, and the fee in its currency', () => {
+    expect(
+      bookingPayload({
+        vendorId: 'v1',
+        scopes: ['timeline', 'headcount'],
+        fee: ' 150.50 ',
+        currency: 'USD',
+      }),
+    ).toEqual({
+      vendorId: 'v1',
+      briefScopes: ['headcount', 'timeline'],
+      feeMinor: '15050',
+      feeCurrency: 'USD',
+    });
   });
 
   it('sends an empty section list rather than leaving the backend’s default to decide', () => {
-    expect(bookingPayload({ vendorId: 'v1', scopes: [], fee: '' })).toEqual({
+    expect(bookingPayload({ vendorId: 'v1', scopes: [], fee: '', currency: 'AMD' })).toEqual({
       vendorId: 'v1',
       briefScopes: [],
     });
@@ -192,6 +231,7 @@ describe('the payloads', () => {
       status: 'ENQUIRED',
       scopes: ['headcount', 'catering', 'timeline'],
       fee: '150000',
+      currency: 'AMD',
     });
     expect(bookingEditValues(booking({ feeMinor: null })).fee).toBe('');
   });
@@ -204,11 +244,32 @@ describe('the payloads', () => {
         status: 'QUOTED',
         scopes: ['timeline', 'catering', 'headcount'],
         fee: '150000',
+        currency: 'AMD',
       }),
     ).toEqual({ status: 'QUOTED' });
     expect(
-      bookingChanges(current, { status: 'ENQUIRED', scopes: ['headcount'], fee: '200000' }),
+      bookingChanges(current, {
+        status: 'ENQUIRED',
+        scopes: ['headcount'],
+        fee: '200000',
+        currency: 'AMD',
+      }),
     ).toEqual({ briefScopes: ['headcount'], feeMinor: '200000' });
+  });
+
+  it('clears an emptied fee, and sends a new currency with its amount (FR-106)', () => {
+    const current = booking();
+    const unchanged = bookingEditValues(current);
+    expect(bookingChanges(current, { ...unchanged, fee: ' ' })).toEqual({ feeMinor: null });
+    expect(bookingChanges(current, { ...unchanged, fee: '1500', currency: 'EUR' })).toEqual({
+      feeMinor: '150000',
+      feeCurrency: 'EUR',
+    });
+    expect(bookingChanges(current, { ...unchanged, fee: '', currency: 'EUR' })).toEqual({
+      feeMinor: null,
+      feeCurrency: 'EUR',
+    });
+    expect(bookingChanges(booking({ feeMinor: null }), { ...unchanged, fee: '' })).toEqual({});
   });
 
   it('sends a first fee, and never a fee to a role that cannot read it', () => {
@@ -217,6 +278,7 @@ describe('the payloads', () => {
         status: 'ENQUIRED',
         scopes: ['headcount', 'catering', 'timeline'],
         fee: '5000',
+        currency: 'AMD',
       }),
     ).toEqual({ feeMinor: '5000' });
     expect(
@@ -224,13 +286,14 @@ describe('the payloads', () => {
         status: 'ENQUIRED',
         scopes: ['headcount', 'catering', 'timeline'],
         fee: '5000',
+        currency: 'AMD',
       }),
     ).toEqual({});
   });
 });
 
 describe('the add form', () => {
-  const valid = { name: 'Lens', category: 'PHOTOGRAPHY', email: '', phone: '' } as const;
+  const valid = { name: 'Lens', category: 'PHOTOGRAPHY', email: '', phone: '', notes: '' } as const;
 
   it.each([
     [{ name: ' L ' }, 'name', 'nameShort'],
@@ -254,6 +317,8 @@ describe('the add form', () => {
     expect(email).toHaveLength(200);
     expect(vendorFormSchema.safeParse({ ...valid, email }).success).toBe(true);
     expect(vendorFormSchema.safeParse({ ...valid, phone: '1'.repeat(40) }).success).toBe(true);
+    expect(vendorFormSchema.safeParse({ ...valid, notes: 'n'.repeat(2000) }).success).toBe(true);
+    expect(vendorFormSchema.safeParse({ ...valid, notes: 'n'.repeat(2001) }).success).toBe(false);
   });
 });
 
@@ -304,6 +369,20 @@ describe('why a vendor call was refused', () => {
     ).toEqual({ kind: 'chooseOrganization' });
   });
 
+  it('reads a 403 on the event’s choices as the role’s, not as no organization (FR-103)', () => {
+    expect(vendorRefusalOf(apiError(403, ['x'], 'FORBIDDEN'), 'choices')).toEqual({
+      kind: 'forbidden',
+      action: 'choices',
+    });
+  });
+
+  it.each(['correct', 'remove'] as const)(
+    'reads a 404 on %s as a vendor no longer on the list, curated or foreign included (FR-102)',
+    (action) => {
+      expect(vendorRefusalOf(apiError(404), action)).toEqual({ kind: 'vendorGone', isStale: true });
+    },
+  );
+
   it('reads a 404 on booking as a vendor not on the list, and on a booking as gone', () => {
     expect(vendorRefusalOf(apiError(404, ['No such vendor']), 'book')).toEqual({
       kind: 'vendorGone',
@@ -330,10 +409,12 @@ describe('why a vendor call was refused', () => {
     const named = [
       { field: 'briefScopes', code: 'INVALID', userMessage: 'x' },
       { field: 'status', code: 'INVALID', userMessage: 'x' },
+      { field: 'feeCurrency', code: 'INVALID', userMessage: 'x' },
+      { field: 'notes', code: 'TOO_LONG', userMessage: 'x' },
     ];
     expect(vendorRefusalOf(apiError(400, ['x'], undefined, named), 'change')).toEqual({
       kind: 'fields',
-      fields: ['scopes', 'status'],
+      fields: ['scopes', 'status', 'currency', 'notes'],
     });
   });
 
@@ -361,6 +442,7 @@ describe('a vendor’s address', () => {
       category: VENDOR_CATEGORIES[0],
       email,
       phone: '',
+      notes: '',
     });
 
   it.each(['', ...ADDRESSES_THE_BACKEND_TAKES])('leaves “%s” to the backend', (email) => {

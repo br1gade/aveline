@@ -49,11 +49,11 @@
   },
   "gone": {
     "heading": "This link no longer works",
-    "body": "A newer link may have replaced it, or the booking may have ended. Ask whoever sent it to you."
+    "body": "This link no longer opens a brief. It may have been replaced by a newer one; ask whoever sent it to you."
   },
-  "ended": {
-    "heading": "This booking was ended",
-    "body": "The hosts ended this booking, so its brief is no longer shared."
+  "closed": {
+    "heading": "The hosts have closed this brief",
+    "body": "They may have paused it for now or ended the booking. Ask whoever sent you the link."
   },
   "rateLimited": {
     "body": "Too many requests just now. Wait a moment, then try again."

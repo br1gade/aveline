@@ -18,6 +18,7 @@ type WordedKind =
   | 'noBank'
   | 'noSubscription'
   | 'periodEnded'
+  | 'freeChangeTaken'
   | 'noInvoice'
   | 'noPayment'
   | 'disagreement'
@@ -36,6 +37,7 @@ const SENTENCES: ReadonlyArray<readonly [RegExp, WordedKind]> = [
   [/^This plan is paid; choose a provider/, 'noBank'],
   [/^This organization has no subscription/, 'noSubscription'],
   [/^This period has already ended/, 'periodEnded'],
+  [/^The Free change has already reached its effective date/, 'freeChangeTaken'],
   [/^No such invoice/, 'noInvoice'],
   [/^This invoice has no payment to confirm/, 'noPayment'],
   [PAYMENT_DISAGREEMENT, 'disagreement'],
@@ -44,7 +46,12 @@ const SENTENCES: ReadonlyArray<readonly [RegExp, WordedKind]> = [
 ];
 
 /** The page is out of date behind these, so it reloads behind the words. */
-const STALE: ReadonlySet<WordedKind> = new Set(['planGone', 'noSubscription', 'periodEnded']);
+const STALE: ReadonlySet<WordedKind> = new Set([
+  'planGone',
+  'noSubscription',
+  'periodEnded',
+  'freeChangeTaken',
+]);
 
 /** Whatever a status or a code decides, before the sentences are read. */
 function bySignal({ status, messages, requestId, code }: ApiError): BillingRefusal | null {

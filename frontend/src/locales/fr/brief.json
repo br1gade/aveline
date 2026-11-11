@@ -49,11 +49,11 @@
   },
   "gone": {
     "heading": "Ce lien ne fonctionne plus",
-    "body": "Un lien plus récent l’a peut-être remplacé, ou la réservation a pris fin. Demandez à la personne qui vous l’a envoyé."
+    "body": "Ce lien n’ouvre plus de brief. Il a peut-être été remplacé par un plus récent ; demandez à la personne qui vous l’a envoyé."
   },
-  "ended": {
-    "heading": "Cette réservation a pris fin",
-    "body": "Les hôtes ont mis fin à cette réservation, son brief n’est donc plus partagé."
+  "closed": {
+    "heading": "Les hôtes ont fermé ce brief",
+    "body": "Ils l’ont peut-être suspendu pour l’instant ou ont mis fin à la réservation. Demandez à la personne qui vous a envoyé le lien."
   },
   "rateLimited": {
     "body": "Trop de demandes pour l’instant. Patientez un moment, puis réessayez."

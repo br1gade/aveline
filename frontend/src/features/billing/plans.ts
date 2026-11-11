@@ -30,20 +30,33 @@ function stillHolds(subscription: Subscription | null, now: number): subscriptio
   return subscription !== null && STILL_HOLDS.has(standing(subscription, now));
 }
 
-/** A plan held and running is marked, not offered: choosing it again would start a new period. */
+/**
+ * A plan held and running is marked, not offered: choosing it again would start a new period. A
+ * free plan already scheduled for the period's end is marked too (FR-135).
+ */
 export function offerFor(plan: Plan, current: Subscription | null, now: number) {
-  return stillHolds(current, now) && current.plan.key === plan.key ? 'current' : 'choose';
+  if (!stillHolds(current, now)) return 'choose';
+  if (current.plan.key === plan.key) return 'current';
+  return current.pendingFree?.planKey === plan.key ? 'pending' : 'choose';
+}
+
+/**
+ * An active paid period that ends on a date, which a change to Free waits for, as the backend
+ * judges it (`subscriptions.service.ts`, FR-135).
+ */
+function hasPaidPeriod({ status, plan }: Subscription): boolean {
+  return status === 'ACTIVE' && !isFree(plan.priceMinor) && plan.interval !== 'PER_EVENT';
 }
 
 export type ChoiceKind = 'paid' | 'paidChange' | 'free' | 'freeOverPaid';
 
 /**
- * What the question before choosing says. A free plan starts at once and ends a paid period with no
- * refund (`subscriptions.service.ts`, `subscribe`; PQ-24); a paid one leaves the plan as it is until
- * it's paid, though it withdraws an invoice open for another plan at once (design PD-128).
+ * What the question before choosing says. A free plan over a paid period waits for its end, which
+ * can still be withdrawn (FR-135, C-49); otherwise it starts at once. A paid one leaves the plan as
+ * it is until it's paid, though it withdraws an invoice open for another plan at once (PD-128).
  */
 export function choiceKind(plan: Plan, current: Subscription | null, now: number): ChoiceKind {
   const isHeld = stillHolds(current, now);
   if (!isFree(plan.priceMinor)) return isHeld ? 'paidChange' : 'paid';
-  return isHeld && !isFree(current.plan.priceMinor) ? 'freeOverPaid' : 'free';
+  return isHeld && hasPaidPeriod(current) ? 'freeOverPaid' : 'free';
 }

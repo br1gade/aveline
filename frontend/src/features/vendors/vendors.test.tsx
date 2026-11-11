@@ -7,6 +7,7 @@ import { createRoutesStub, useLoaderData, useLocation } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
+import { GrantedPermissions, type Granted } from '@/features/permissions';
 import { createI18n } from '@/lib/i18n';
 import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
@@ -14,6 +15,7 @@ import { BookVendorPage } from './components/book-vendor-page';
 import { BookingPage } from './components/booking-page';
 import { EventVendorsPage } from './components/event-vendors-page';
 import { VendorsPage } from './components/vendors-page';
+import { listVendorChoices } from './api';
 import {
   loadBooking,
   loadEventVendors,
@@ -24,7 +26,7 @@ import {
   type NewBookingData,
   type VendorsData,
 } from './load';
-import { bookingWire, EVENT, plantedToken, vendorWire, without } from './test-data';
+import { bookingWire, EVENT, optionsWire, plantedToken, vendorWire, without } from './test-data';
 import type { BookingWire, VendorWire } from './types';
 
 const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
@@ -69,11 +71,18 @@ const refused = (status: number, code?: string) => () =>
 
 interface Served {
   vendors?: () => Response;
+  choices?: () => Response;
   bookings?: () => Response;
 }
 
+/** The event's choices, as the options read gives the vendors of `vendorList`. */
+const choicesOf = (vendors: readonly VendorWire[]) =>
+  optionsWire(
+    vendors.map(({ id, name, category, isCurated }) => ({ id, name, category, isCurated })),
+  );
+
 /** What each write sent, in order, so a test can say what went and what didn't. */
-function serve({ vendors, bookings }: Served = {}) {
+function serve({ vendors, choices, bookings }: Served = {}) {
   const sent: Array<{ method: string; path: string; body: JsonBodyType }> = [];
   const record = async ({ request }: { request: Request }) => {
     const text = await request.text();
@@ -86,6 +95,18 @@ function serve({ vendors, bookings }: Served = {}) {
   server.use(
     http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)),
     http.get(`${API}/vendors`, vendors ?? (() => HttpResponse.json(vendorList()))),
+    http.get(
+      `${API}/events/e1/vendor-options`,
+      choices ?? (() => HttpResponse.json(choicesOf(vendorList()))),
+    ),
+    http.patch(`${API}/vendors/:vendorId`, async (call) => {
+      await record(call);
+      return HttpResponse.json({ id: call.params.vendorId });
+    }),
+    http.delete(`${API}/vendors/:vendorId`, async (call) => {
+      await record(call);
+      return HttpResponse.json({ ok: true });
+    }),
     http.get(`${API}/events/e1/vendors`, bookings ?? (() => HttpResponse.json([bookingWire()]))),
     http.post(`${API}/vendors`, async (call) => {
       await record(call);
@@ -161,7 +182,7 @@ function isStored(secret: string): boolean {
   );
 }
 
-function renderAt(path: string) {
+function renderAt(path: string, permissions: Granted = null) {
   const Stub = createRoutesStub(
     guardedRoutes([
       { path: '/app', Component: Where },
@@ -186,7 +207,9 @@ function renderAt(path: string) {
   );
   render(
     <I18nextProvider i18n={createI18n('en')}>
-      <Stub initialEntries={[path]} />
+      <GrantedPermissions permissions={permissions}>
+        <Stub initialEntries={[path]} />
+      </GrantedPermissions>
     </I18nextProvider>,
   );
   return userEvent.setup();
@@ -210,7 +233,70 @@ describe('the organization’s vendors', () => {
     if (!own) throw new Error('No row');
     expect(within(own).getByText(/Yours/)).toBeInTheDocument();
     expect(within(own).getByText('hello@tashir.example')).toBeInTheDocument();
-    expect(screen.getByText(/can’t be corrected or removed yet/)).toBeInTheDocument();
+    expect(within(own).getByRole('button', { name: 'Correct: Tashir Catering' })).toBeEnabled();
+    expect(within(garden).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('corrects only what changed, clearing an emptied detail, then says so (FR-102)', async () => {
+    const sent = serve({
+      vendors: () => HttpResponse.json([vendorWire({ notes: 'Ask for Ani' })]),
+    });
+    const user = renderAt('/app/vendors');
+    const own = (await screen.findByText('Tashir Catering')).closest('li');
+    if (!own) throw new Error('No row');
+    expect(within(own).getByText('Ask for Ani')).toBeInTheDocument();
+    await user.click(within(own).getByRole('button', { name: 'Correct: Tashir Catering' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.clear(within(dialog).getByLabelText('Phone'));
+    await user.clear(within(dialog).getByLabelText('Notes'));
+    await user.type(within(dialog).getByLabelText('Notes'), 'Ask for Aram');
+    await user.click(within(dialog).getByRole('button', { name: 'Save the vendor' }));
+    expect(await screen.findByText('Tashir Catering is corrected.')).toBeInTheDocument();
+    expect(sent).toEqual([
+      {
+        method: 'PATCH',
+        path: '/api/v1/vendors/v1',
+        body: { phone: null, notes: 'Ask for Aram' },
+      },
+    ]);
+  });
+
+  it('asks before removing one, saying its bookings stay, then removes it (FR-102)', async () => {
+    const sent = serve();
+    const user = renderAt('/app/vendors');
+    await user.click(await screen.findByRole('button', { name: 'Remove: Tashir Catering' }));
+    const ask = await screen.findByRole('alertdialog');
+    expect(ask).toHaveTextContent(
+      'Bookings already made, and the briefs sent with them, are kept.',
+    );
+    expect(sent).toEqual([]);
+    await user.click(within(ask).getByRole('button', { name: 'Remove' }));
+    expect(
+      await screen.findByText('Tashir Catering is removed from your vendors.'),
+    ).toBeInTheDocument();
+    expect(sent).toEqual([{ method: 'DELETE', path: '/api/v1/vendors/v1', body: null }]);
+  });
+
+  it('says a vendor already gone is no longer on the list when removing it', async () => {
+    serve();
+    server.use(http.delete(`${API}/vendors/:vendorId`, refused(404)));
+    const user = renderAt('/app/vendors');
+    await user.click(await screen.findByRole('button', { name: 'Remove: Tashir Catering' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remove' }),
+    );
+    expect(
+      await screen.findByText(/isn’t on your organization’s list or Aveline’s/),
+    ).toBeInTheDocument();
+  });
+
+  it('offers adding, correcting and removing only to whom `vendor:write` is granted (FR-6)', async () => {
+    serve();
+    renderAt('/app/vendors', ['vendor:read']);
+    expect(await screen.findByText('Tashir Catering')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Correct|Remove|Add the vendor/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows one kind from the address, and all again', async () => {
@@ -287,7 +373,13 @@ describe('an event’s vendors', () => {
           without(bookingWire(), 'feeMinor', 'feeCurrency', 'briefToken'),
           bookingWire({
             id: 'b2',
-            vendor: { id: 'v3', name: 'Lens & Light', category: 'PHOTOGRAPHY' },
+            vendor: {
+              id: 'v3',
+              name: 'Lens & Light',
+              category: 'PHOTOGRAPHY',
+              email: null,
+              phone: null,
+            },
             feeMinor: null,
           }),
         ]),
@@ -303,7 +395,20 @@ describe('an event’s vendors', () => {
     expect(within(none).getByText('Fee: none agreed')).toBeInTheDocument();
   });
 
-  it('says vendors aren’t a designer’s, without hiding the way to book', async () => {
+  it('marks a paused brief on the event’s list (FR-108)', async () => {
+    serve({ bookings: () => HttpResponse.json([bookingWire({ isBriefEnabled: false })]) });
+    renderAt('/app/events/e1/vendors');
+    expect(await screen.findByText(/· Brief paused/)).toBeInTheDocument();
+  });
+
+  it('offers booking only to whom `vendor:write` is granted (FR-6)', async () => {
+    serve();
+    renderAt('/app/events/e1/vendors', ['vendor:read']);
+    expect(await screen.findByText('Tashir Catering')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Book a vendor' })).not.toBeInTheDocument();
+  });
+
+  it('says vendors aren’t a designer’s, without hiding the way to book while unknown', async () => {
     serve({ bookings: refused(403) });
     renderAt('/app/events/e1/vendors');
     expect(
@@ -317,7 +422,7 @@ describe('booking a vendor', () => {
   it('ticks the usual set for the vendor chosen, sends what is ticked, and opens the booking', async () => {
     const booked = bookingWire({
       id: 'b2',
-      vendor: { id: 'v3', name: 'Lens & Light', category: 'PHOTOGRAPHY' },
+      vendor: { id: 'v3', name: 'Lens & Light', category: 'PHOTOGRAPHY', email: null, phone: null },
     });
     const sent = serve({ bookings: () => HttpResponse.json(sent.length ? [booked] : []) });
     const user = renderAt('/app/events/e1/vendors/new');
@@ -330,7 +435,7 @@ describe('booking a vendor', () => {
     expect(
       screen.getByText(/the email address and phone number of every guest/),
     ).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Agreed fee, in dram (AMD)'), '250000');
+    await user.type(screen.getByLabelText('Agreed fee'), '250000');
     expect(isLeavingAsked()).toBe(true);
     await press(user, 'Book the vendor');
     expect(
@@ -344,7 +449,12 @@ describe('booking a vendor', () => {
       {
         method: 'POST',
         path: '/api/v1/events/e1/vendors',
-        body: { vendorId: 'v3', briefScopes: ['timeline', 'contacts'], feeMinor: '250000' },
+        body: {
+          vendorId: 'v3',
+          briefScopes: ['timeline', 'contacts'],
+          feeMinor: '250000',
+          feeCurrency: 'AMD',
+        },
       },
     ]);
   });
@@ -371,14 +481,18 @@ describe('booking a vendor', () => {
     expect(sent[0]?.body).toEqual({ vendorId: 'v3', briefScopes: [] });
   });
 
-  it('refuses a fee with decimals, in dram, before anything is sent', async () => {
+  it('refuses decimals dram doesn’t have, and takes cents in dollars (FR-106)', async () => {
     const sent = serve({ bookings: () => HttpResponse.json([]) });
     const user = renderAt('/app/events/e1/vendors/new');
     await user.selectOptions(await screen.findByLabelText('Vendor'), 'v3');
-    await user.type(screen.getByLabelText('Agreed fee, in dram (AMD)'), '1500.50');
+    await user.type(screen.getByLabelText('Agreed fee'), '1500.50');
     await press(user, 'Book the vendor');
-    expect(await screen.findByText(/whole number of dram/)).toBeInTheDocument();
+    expect(await screen.findByText(/no more decimals than the currency has/)).toBeInTheDocument();
     expect(sent).toEqual([]);
+    await user.selectOptions(screen.getByLabelText('Currency'), 'USD');
+    await press(user, 'Book the vendor');
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.body).toMatchObject({ feeMinor: '150050', feeCurrency: 'USD' });
   });
 
   it('won’t post a vendor booked already again, and books one whose booking ended', async () => {
@@ -388,7 +502,13 @@ describe('booking a vendor', () => {
           bookingWire(),
           bookingWire({
             id: 'b3',
-            vendor: { id: 'v3', name: 'Lens & Light', category: 'PHOTOGRAPHY' },
+            vendor: {
+              id: 'v3',
+              name: 'Lens & Light',
+              category: 'PHOTOGRAPHY',
+              email: null,
+              phone: null,
+            },
             status: 'CANCELLED',
           }),
         ]),
@@ -411,8 +531,10 @@ describe('booking a vendor', () => {
     const refusedOnce = { isDone: false };
     serve({
       bookings: () => HttpResponse.json([]),
-      vendors: () =>
-        HttpResponse.json(vendorList().filter((each) => !refusedOnce.isDone || each.id !== 'v3')),
+      choices: () =>
+        HttpResponse.json(
+          choicesOf(vendorList().filter((each) => !refusedOnce.isDone || each.id !== 'v3')),
+        ),
     });
     server.use(
       http.post(`${API}/events/e1/vendors`, () => {
@@ -431,10 +553,50 @@ describe('booking a vendor', () => {
     );
   });
 
-  it('says why there is nothing to choose for someone on the event only', async () => {
-    serve({ vendors: refused(403, 'FORBIDDEN') });
+  it('lets someone on the event only book from the event’s own choices (FR-103)', async () => {
+    serve({ vendors: refused(403, 'FORBIDDEN'), bookings: () => HttpResponse.json([]) });
     renderAt('/app/events/e1/vendors/new');
-    expect(await screen.findByText(/invited onto an event only/)).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'Lens & Light' })).toBeEnabled();
+  });
+
+  it('reads every page of the choices, a hundred at a time', async () => {
+    const offsets: string[] = [];
+    serve({
+      bookings: () => HttpResponse.json([]),
+      choices: () => HttpResponse.json({}),
+    });
+    server.use(
+      http.get(`${API}/events/e1/vendor-options`, ({ request }) => {
+        const offset = new URL(request.url).searchParams.get('offset') ?? '';
+        offsets.push(`${new URL(request.url).searchParams.get('limit')}@${offset}`);
+        const isFirst = offset === '0';
+        return HttpResponse.json(
+          optionsWire(
+            [
+              {
+                id: isFirst ? 'v1' : 'v3',
+                name: isFirst ? 'First' : 'Second',
+                category: 'MUSIC',
+                isCurated: false,
+              },
+            ],
+            { offset: Number(offset), hasMore: isFirst },
+          ),
+        );
+      }),
+    );
+    renderAt('/app/events/e1/vendors/new');
+    expect(await screen.findByRole('option', { name: 'Second' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'First' })).toBeInTheDocument();
+    expect(offsets).toEqual(['100@0', '100@100']);
+  });
+
+  it('words a role refused the event’s vendors, with nothing to choose', async () => {
+    serve({ choices: refused(403, 'FORBIDDEN') });
+    renderAt('/app/events/e1/vendors/new');
+    expect(
+      await screen.findByText(/Vendors aren’t part of your role on this event/),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText('Vendor')).not.toBeInTheDocument();
   });
 });
@@ -504,18 +666,93 @@ describe('a booking', () => {
     ]);
   });
 
-  it('sends only what changed, and refuses emptying an agreed fee', async () => {
+  it('removes an emptied fee (FR-106)', async () => {
+    const sent = serveOne(bookingWire());
+    const user = renderAt('/app/events/e1/vendors/b1');
+    await user.clear(await screen.findByLabelText('Agreed fee'));
+    await press(user, 'Save the booking');
+    expect(await screen.findByText('The booking was saved.')).toBeInTheDocument();
+    expect(sent).toEqual([
+      { method: 'PATCH', path: '/api/v1/events/e1/vendors/b1', body: { feeMinor: null } },
+    ]);
+  });
+
+  it('pauses the brief, keeping the booking (FR-108)', async () => {
+    const sent = serveOne(bookingWire());
+    const user = renderAt('/app/events/e1/vendors/b1');
+    expect(
+      await screen.findByText(/can open their brief with the link you sent/),
+    ).toBeInTheDocument();
+    await press(user, 'Pause the brief');
+    expect(
+      await screen.findByText(/The brief is paused: its link opens nothing/),
+    ).toBeInTheDocument();
+    expect(sent).toEqual([
+      { method: 'PATCH', path: '/api/v1/events/e1/vendors/b1', body: { isBriefEnabled: false } },
+    ]);
+  });
+
+  it('says a paused brief opens nothing, and offers to open it again', async () => {
+    const sent = serveOne(bookingWire({ isBriefEnabled: false }));
+    const user = renderAt('/app/events/e1/vendors/b1');
+    expect(await screen.findByText(/the link you sent opens nothing for now/)).toBeInTheDocument();
+    await press(user, 'Let them see it again');
+    expect(
+      await screen.findByText('Tashir Catering can open their brief again.'),
+    ).toBeInTheDocument();
+    expect(sent[0]?.body).toEqual({ isBriefEnabled: true });
+  });
+
+  it('offers a reader no engaging an ended booking again (FR-6)', async () => {
+    serveOne(bookingWire({ status: 'CANCELLED' }));
+    renderAt('/app/events/e1/vendors/b1', ['vendor:read']);
+    expect(await screen.findByText(/This booking was ended/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Engage again' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a fee in a currency not on the usual list, offering it to choose (FR-106)', async () => {
+    serveOne(bookingWire({ feeCurrency: 'JPY', feeMinor: '1500' }));
+    renderAt('/app/events/e1/vendors/b1');
+    const currency = await screen.findByLabelText('Currency');
+    expect(currency).toHaveValue('JPY');
+    expect(within(currency).getByRole('option', { name: /JPY/ })).toBeInTheDocument();
+  });
+
+  it('reads the event’s choices up to the furthest offset allowed, and no further', async () => {
+    const offsets: number[] = [];
+    server.use(
+      http.get(`${API}/events/e1/vendor-options`, ({ request }) => {
+        const offset = Number(new URL(request.url).searchParams.get('offset'));
+        offsets.push(offset);
+        return HttpResponse.json(optionsWire([], { offset, hasMore: true }));
+      }),
+    );
+    await listVendorChoices(session().api, 'e1');
+    expect(offsets).toHaveLength(101);
+    expect(offsets.at(-1)).toBe(10_000);
+  });
+
+  it('offers a reader no change to the booking (FR-6)', async () => {
+    serveOne(bookingWire());
+    renderAt('/app/events/e1/vendors/b1', ['vendor:read']);
+    expect(
+      await screen.findByText(/can open their brief with the link you sent/),
+    ).toBeInTheDocument();
+    for (const name of [
+      'Pause the brief',
+      'Save the booking',
+      'End the booking',
+      'Make a new link',
+    ]) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+  });
+
+  it('sends only what changed', async () => {
     const sent = serveOne(bookingWire());
     const user = renderAt('/app/events/e1/vendors/b1');
     await user.selectOptions(await screen.findByLabelText('State'), 'CONFIRMED');
     expect(isLeavingAsked()).toBe(true);
-    await user.clear(screen.getByLabelText('Agreed fee, in dram (AMD)'));
-    await press(user, 'Save the booking');
-    expect(
-      await screen.findByText('A fee once agreed can be changed, not removed.'),
-    ).toBeInTheDocument();
-    expect(sent).toEqual([]);
-    await user.type(screen.getByLabelText('Agreed fee, in dram (AMD)'), '150000');
     await press(user, 'Save the booking');
     expect(await screen.findByText('The booking was saved.')).toBeInTheDocument();
     expect(sent).toEqual([

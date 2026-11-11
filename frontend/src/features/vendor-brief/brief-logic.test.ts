@@ -104,8 +104,10 @@ describe('reading a brief', () => {
             zone: null,
             venue: 'Garden hall',
             seated: 8,
-            guests: [{ name: 'Ani K', guestId: 'g1' } as { name: string }],
-            released: [{ guestId: 'g2', name: 'Who declined', releasedAt: '2027-05-01T00:00:00Z' }],
+            guests: [
+              { name: 'Ani K', position: 2, guestId: 'g1' } as { name: string; position: number },
+            ],
+            releasedCount: 1,
           },
         ],
       }),
@@ -126,7 +128,7 @@ describe('reading a brief', () => {
         ],
       },
     ]);
-    expect(JSON.stringify(brief)).not.toMatch(/Who declined|g1|g2/);
+    expect(JSON.stringify(brief)).not.toContain('g1');
   });
 
   it('drops the headcount’s day-by-day trend and any map link that is not http or https', () => {
@@ -155,7 +157,7 @@ describe('reading a brief', () => {
 describe('why a brief could not be opened', () => {
   it.each([
     [404, 'gone'],
-    [403, 'ended'],
+    [403, 'closed'],
     [429, 'rateLimited'],
     [500, 'failed'],
   ] as const)('reads a %i as %s', (status, kind) => {

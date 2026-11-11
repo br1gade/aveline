@@ -19,7 +19,7 @@ describe('what may be done next to a request', () => {
     status: RequestStatus,
     subjectEmail: string | null = EMAIL,
     erasureAppliedAt: string | null = null,
-  ) => ({ kind, status, subjectEmail, erasureAppliedAt });
+  ) => ({ kind, status, subjectEmail, erasureAppliedAt, exportGenerationId: null });
 
   it.each([
     ['EXPORT', 'RECEIVED', ['verify', 'confirm', 'reject']],
@@ -31,6 +31,16 @@ describe('what may be done next to a request', () => {
     ['EXPORT', 'REJECTED', []],
   ] as const)('%s, %s', (kind, status, steps) => {
     expect(nextSteps(asked(kind, status))).toEqual(steps);
+  });
+
+  it('offers making an export again, and confirming its delivery, once one is made (FR-128)', () => {
+    const made = { exportGenerationId: 'gen-1' };
+    expect(nextSteps({ ...asked('EXPORT', 'IN_PROGRESS'), ...made })).toEqual([
+      'export',
+      'deliver',
+      'reject',
+    ]);
+    expect(nextSteps({ ...asked('EXPORT', 'COMPLETED'), ...made })).toEqual([]);
   });
 
   it('carries nothing out until someone has said who the requester is', () => {

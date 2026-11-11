@@ -34,8 +34,12 @@
     "invited": "{{name}} is open, and they’ve been emailed an invitation.",
     "existing": "This address is already on {{name}}, as a member or invited, so nothing new was opened and no email went out. Check it’s the customer’s own before setting up an event in it.",
     "several": "This address is on several organizations. Choose the customer’s own.",
-    "use": "Use {{name}}",
-    "severalNone": "This address is on more than one organization, and they can’t be listed here, as they may be invitations still waiting. Ask the customer which they mean, or to accept first."
+    "severalNone": "This address is on more than one organization, but none can be listed just now. Try again, or ask the customer which they mean.",
+    "existingOwner": "This address already owns {{name}}, so nothing new was opened and no email went out.",
+    "existingInvited": "This address was already invited to own {{name}} and hasn’t accepted yet, so nothing new was opened and no new email went out. You can set up an event now; they own it once they accept.",
+    "useOwned": "Use {{name}} (owns it)",
+    "useInvited": "Use {{name}} (invited, not yet accepted)",
+    "partial": "Only the first 500 are listed. If theirs isn’t here, ask the customer which they mean."
   },
   "kind": {
     "HOST": "A couple or a family",
@@ -51,7 +55,7 @@
     "rateLimited": "Too many requests just now. Please wait a moment and try again.",
     "emailRefused": "Type a valid email address.",
     "nameRefused": "Use 2 to 160 characters.",
-    "gone": "That organization is no longer theirs, or no longer there. Search for it again.",
+    "gone": "That organization is no longer theirs, or no longer there. Their organizations have been read again: choose again.",
     "noAnswer": "We didn’t get an answer. Please try again.",
     "other": "That wasn’t accepted:"
   }

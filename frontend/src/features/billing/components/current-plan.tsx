@@ -10,8 +10,9 @@ import {
   type PageActions,
 } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
+import { useCan } from '@/features/permissions';
 
-import { cancelSubscription, resumeSubscription } from '../api';
+import { cancelSubscription, resumeSubscription, withdrawFreeChange } from '../api';
 import type { BillingData } from '../load';
 import { standing } from '../plans';
 import { billingRefusalOf, type BillingRefusal } from '../refusals';
@@ -45,16 +46,20 @@ export function CancelDialog({
   );
 }
 
-/** Undoing a cancellation costs nothing, so it asks nothing. */
-function useResume(page: PageActions) {
+/**
+ * Undoing a cancellation, or a move to Free still waiting for the period's end (FR-135), costs
+ * nothing, so it asks nothing.
+ */
+function useKeep(page: PageActions) {
   const { t } = useTranslation('billing');
   const [refusal, setRefusal] = useState<BillingRefusal | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const resume = async () => {
+  const keep = async (undo: 'cancellation' | 'freeChange') => {
     setRefusal(null);
     setIsBusy(true);
     try {
-      await resumeSubscription(browserSession().api);
+      const api = browserSession().api;
+      await (undo === 'cancellation' ? resumeSubscription(api) : withdrawFreeChange(api));
       await page.done(t('status.resumed'));
     } catch (error) {
       const found = billingRefusalOf(error);
@@ -64,7 +69,7 @@ function useResume(page: PageActions) {
       setIsBusy(false);
     }
   };
-  return { refusal, isBusy, resume };
+  return { refusal, isBusy, keep };
 }
 
 interface HeldPlanProps {
@@ -80,8 +85,10 @@ function HeldPlan({ subscription, now, page, onCancel }: HeldPlanProps) {
   const price = usePrice();
   const { plan, currentPeriodEnd } = subscription;
   const state = standing(subscription, now);
-  const { refusal, isBusy, resume } = useResume(page);
-  const canCancel = state === 'active' || state === 'trial' || state === 'pastDue';
+  const { refusal, isBusy, keep } = useKeep(page);
+  const canWrite = useCan('billing:write');
+  const canCancel = canWrite && (state === 'active' || state === 'trial' || state === 'pastDue');
+  const pending = subscription.pendingFree;
   return (
     <div className="border-border flex flex-col gap-3 border p-4">
       <p lang="en" className="m-0 text-lg font-medium break-words">
@@ -89,6 +96,11 @@ function HeldPlan({ subscription, now, page, onCancel }: HeldPlanProps) {
       </p>
       <p className="m-0">{price(plan.priceMinor, plan.currency, plan.interval)}</p>
       <p className="m-0">{t(`standing.${state}`, { date: day(currentPeriodEnd) })}</p>
+      {pending ? (
+        <p className="m-0 font-medium">
+          {t('current.movesToFree', { date: day(pending.effectiveAt) })}
+        </p>
+      ) : null}
       {refusal ? <BillingProblem refusal={refusal} /> : null}
       <div className="flex flex-wrap gap-2">
         {canCancel ? (
@@ -96,12 +108,12 @@ function HeldPlan({ subscription, now, page, onCancel }: HeldPlanProps) {
             {t('current.cancel')}
           </Button>
         ) : null}
-        {state === 'ending' ? (
+        {canWrite && (state === 'ending' || pending) ? (
           <Button
             variant="outline"
             className={WRAPPING_BUTTON}
             disabled={isBusy}
-            onClick={() => void resume()}
+            onClick={() => void keep(pending ? 'freeChange' : 'cancellation')}
           >
             {t('current.resume')}
           </Button>

@@ -37,8 +37,9 @@ export function useBrief(): { state: BriefState; retry: () => void } {
       .then((brief) => isCurrent && setState({ kind: 'ready', brief }))
       .catch((error: unknown) => {
         const failure = briefFailureOf(error);
-        // A replaced link or an ended booking opens nothing again: its token is dropped.
-        if (failure.kind === 'gone' || failure.kind === 'ended') forgetBrief();
+        // A replaced link opens nothing again, so its token is dropped. A closed brief is kept:
+        // one paused opens again when the hosts resume it (FR-108).
+        if (failure.kind === 'gone') forgetBrief();
         if (isCurrent) setState(failure);
       });
     return () => {

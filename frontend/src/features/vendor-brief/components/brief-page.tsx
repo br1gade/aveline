@@ -139,6 +139,18 @@ function Problem({
       </p>
     );
   }
+  if (state.kind === 'closed') {
+    // Kept with its token, so a brief the hosts paused can be read again once they resume it.
+    return (
+      <div className="grid gap-3">
+        <h1 className="type-display-l text-heading m-0">{t('closed.heading')}</h1>
+        <p className="m-0">{t('closed.body')}</p>
+        <Button variant="secondary" className="justify-self-start" onClick={onRetry}>
+          {t('failed.retry')}
+        </Button>
+      </div>
+    );
+  }
   if (state.kind === 'failed' || state.kind === 'rateLimited') {
     return (
       <Notice

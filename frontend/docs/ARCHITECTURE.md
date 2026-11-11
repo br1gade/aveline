@@ -932,6 +932,9 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 10 Nov 2026 | **An export's failure says what to do (FR-59)**: each of the worker's codes in our words, and a row offers making it again only when that could succeed, or as a CSV where that would (design PD-75) | "Make it again" on a report too large could only fail the same way. A file stopped because its maker lost access is still made again, since the list is the whole event's and the viewer may not be its maker (FR-61) |
 | 10 Nov 2026 | **The door reads the roster whole and searches it on the phone (FR-79)**, a hundred at a time and 200 ms apart, up to 2,000 people, keeping what was read when a page is refused for too many requests; one person is read again by name after a check-in, and a walk-in or unknown holder is added the same way (design PD-90, PD-94) | Searching on the server would lose names in another alphabet, a person's household and who still must agree, and stop the door finding anyone when the signal drops; the roster carries no token or contact. The pacing keeps inside the account's 10 a second and 100 a minute (FR-142) |
 | 10 Nov 2026 | **The door reads refusals by their code and facts (FR-76)**: when a code was used and whose it is, the order's state, and only that person's agreements still owed; the older words stay as a fallback (design PD-92) | The backend sends both during the migration, and a refusal shown in English or worded as one for several order states sent staff to the host for no reason |
+| 10 Nov 2026 | **Vendors and briefs follow the backend's 8 November answers** (FR-102, FR-103, FR-105 to FR-108): the organization's own vendors are corrected and removed in dialogs sharing the add form's fields; booking reads the event's own choices and the backend's usual sections, a hundred at a time; a fee takes a currency and can be emptied; a booking's brief can be paused; the brief page says only that the hosts closed it, keeping the token (design PD-120 to PD-125, PD-192) | The copy of the usual sections and its pinning test are gone. The event's access read has its first readers in the booking pages (`vendor:write`). Paused and ended stay one sentence until FR-144 |
+| 10 Nov 2026 | **A data request's export stays open until delivery is confirmed, and the public form's submissions are their own list** (FR-126, FR-128, FR-131; design PD-168 to PD-170) | The answer is no longer the only copy, so the leave guard and its warning went. Submissions are read when asked, so a list of 200 requests makes no read per card |
+| 10 Nov 2026 | **Opening an account says what the address is to each organization, and moving to Free waits for the paid period's end** (FR-130, FR-135; design PD-166, PD-128) | The backend now says both; a choice gone stale reads the matches again, and the scheduled change is withdrawn with the existing "Keep the plan" |
 | 10 Nov 2026 | **Responses are typed from the schema** (FR-1): `expectData` infers the body when given no type, and `ResponseOf` names one; the session calls and the organization feature moved first, the rest move feature by feature | Every operation now declares its answer. Keeping the explicit form meanwhile spared 170 call sites one big change |
 | 10 Nov 2026 | **The public client can only call public operations** (FR-2): `api:generate` also writes `public-paths.ts` from the spec's `security: []`, `createPublicApi` is typed over it, and the signed-in client has a type-only brand so a public client can't stand in for it | Types alone didn't guard it: openapi-fetch's clients were assignable either way. The first run caught the host's artwork loader typed as public |
 | 10 Nov 2026 | **Who is signed in comes from `GET /me`** (FR-5): the app's layout reads it beside the organization, for an address not yet confirmed (design PD-191), and home reads it to know staff (PD-165), sharing one read (`readAccountOnce`), kept for the session once the address is confirmed | It replaces asking `GET /concierge/organizations` and reading a 403, which hid the console from staff who also belong to an organization. Kept, it costs nothing per page; while unconfirmed it is asked again so the notice goes once confirmed |
@@ -946,13 +949,13 @@ size check in the CSV's send that the disabled button already covers. **None of 
 
 - Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
   adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, and a
-  build per origin (FR-11); for launch, private artwork by asset id (FR-115), confirming an export's delivery (FR-128),
-  owners told apart from pending invitations (FR-130), removing the drink-and-song stand-in once the
-  backend's default is verified (FR-134, PD-179), and the scheduled free plan with its withdrawal
-  (FR-135). Also moving the remaining features onto the response schemas and permissions (FR-1,
-  FR-6; the groundwork and the organization's page are done), editing and removing a vendor
-  (FR-102), pausing a brief (C-56), and the frontend CI workflow the backend asked for. **Every
-  request marked answered and waiting for the client in BACKEND_REQUESTS (14 of them on 10 November, with FR-1 and FR-6 under way) keeps its stand-in until adopted,** so the
+  build per origin (FR-11); for launch, private artwork by asset id (FR-115), and removing the
+  drink-and-song stand-in once the backend's default is verified (FR-134, PD-179). Exports' delivery
+  (FR-128), owners told apart from pending invitations (FR-130) and the scheduled free plan (FR-135)
+  are adopted and wait for a real backend. Also moving the remaining features onto the response
+  schemas and permissions (FR-1, FR-6; the groundwork, the organization's page and vendors are
+  done, and billing's permissions), and the frontend CI workflow the backend asked for. **Every request marked answered and
+  waiting for the client in BACKEND_REQUESTS (7 of them on 10 November, with FR-1 and FR-6 under way) keeps its stand-in until adopted,** so the
   entries below that name one now wait on the client, not the backend. Paid plans
   shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
   are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
@@ -973,14 +976,12 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - Of an event's activity: telling an empty trail from an unreadable one, words per action, and more than
   the newest hundred (FR-123).
 - Of the data-request form: reviewed words and a privacy notice to link to (Arthur drafts, a lawyer checks:
-  C-50, a launch gate), and notes that can't be lost or added to by someone else (FR-126).
+  C-50, a launch gate).
   Handling a request is Aveline's staff's.
 - Of Aveline's own staff's tools (C-24): authoring templates, which waits as enquiries do: the backend refuses
   drafts, edits and uploads while `TEMPLATE_AUTHORING_ENABLED` and `TEMPLATE_ASSETS_ENABLED` are off, and
   publishing until a renderer manifest is registered in its code. Enquiries, which wait until the backend enables them, and with them carrying out a request that has no address; paging
-  past the newest 50 organizations and the 200 soonest-due requests (FR-127); recovering an export whose answer was lost
-  (FR-128). A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Telling a customer's own organization from
-  one they're merely on (FR-130). Binding an enquiry, which a request with an address can also need, and which answers the backend's
+  past the newest 50 organizations and the 200 soonest-due requests (FR-127). A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Binding an enquiry, which a request with an address can also need, and which answers the backend's
   words as they came (PD-168). Access reviews' names, read one by one (FR-133). Only a mock has met these: no real
   staff account, no real erasure and no real closure.
 - Of a ticket's QR code and the door's scanner (C-25, PD-171 to PD-174): **a real camera has never read a code.**
@@ -1027,15 +1028,13 @@ size check in the CSV's send that the disabled button already covers. **None of 
   bringing a retired hall back, and a page outside any event (FR-91); per-language halls (the API has
   none); starting a correction from a hall (the API takes no `profileId` there). The vendor screens
   read `venueProfiles` since 4 November 2026, read-only.
-- Of vendors: correcting or removing a vendor once added, and a vendor's notes (FR-102); booking
-  for someone on an event only, who can't read the organization's list (FR-103); adding or
-  correcting a hall, which Aveline's staff do; clearing a fee or a currency other than AMD
-  (FR-106); the usual sections
-  read from the backend rather than a pinned copy (FR-105); more than one organization (above).
+- Of vendors: adding or correcting a hall, which Aveline's staff do; the organization's list paged
+  (§3 of BACKEND_REQUESTS); more than one organization (above).
 - Of the vendor's brief: naming the language it is in, translated titles and venues, and the hosts'
   names for the sides (FR-104; the vendor's own language isn't wanted, C-45); the day-by-day answers,
-  which the page leaves out (seating now reaches a brief only once published, C-55); keeping the
-  brief across a reload, deliberately; a page in Aveline's or the hosts' own design (DQ-42).
+  which the page leaves out (seating now reaches a brief only once published, C-55); telling a
+  paused brief from an ended booking (FR-144); keeping the brief across a reload, deliberately; a
+  page in Aveline's or the hosts' own design (DQ-42).
 - Of the public listing: a date or time on a card, and marking a card's language (FR-92); a list of
   categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, until FR-92.
 - Of seating: saving many places at once, a table's revision between two hosts (FR-113); seating from

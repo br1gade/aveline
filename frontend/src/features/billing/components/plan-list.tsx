@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
+import { useCan } from '@/features/permissions';
 
 import { offerFor } from '../plans';
 import type { Entitlements, Plan, Subscription } from '../types';
@@ -86,11 +87,13 @@ interface PlanListProps {
 }
 
 /**
- * The price list (design PD-126): every plan is offered to every role, and a refusal is worded
- * (FR-6); only the one running now isn't, as choosing it would start a new period.
+ * The price list (design PD-126): offered to a role with `billing:write` (FR-6, PD-190), but for the
+ * one running now, as choosing it would start a new period, and a free one already scheduled for the
+ * period's end (FR-135).
  */
 export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
   const { t } = useTranslation('billing');
+  const canChoose = useCan('billing:write');
   return (
     <section aria-labelledby="billing-plans" className="flex flex-col gap-3">
       <h2 id="billing-plans" className="m-0 text-lg font-medium">
@@ -98,10 +101,12 @@ export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
       </h2>
       <PlanCards
         plans={plans}
-        action={(plan) =>
-          offerFor(plan, current, now) === 'current' ? (
-            <p className="m-0 mt-auto font-medium">{t('plans.current')}</p>
-          ) : (
+        action={(plan) => {
+          const offer = offerFor(plan, current, now);
+          if (offer !== 'choose') {
+            return <p className="m-0 mt-auto font-medium">{t(`plans.${offer}`)}</p>;
+          }
+          return canChoose ? (
             <Button
               variant="outline"
               className={`${WRAPPING_BUTTON} mt-auto self-start`}
@@ -109,8 +114,8 @@ export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
             >
               {t('plans.choose')}
             </Button>
-          )
-        }
+          ) : null;
+        }}
       />
     </section>
   );

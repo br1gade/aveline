@@ -1,7 +1,6 @@
 {
   "title": "Prestataires",
   "lead": "Les prestataires de votre organisation, qu’elle seule voit, et la liste d’Aveline, que toutes les organisations voient. Réservez-en un pour un événement depuis la page de cet événement.",
-  "cantCorrect": "Un prestataire ajouté ne peut pas encore être corrigé ni retiré. Vérifiez ses coordonnées avant de l’ajouter.",
   "backHome": "Retour à vos événements",
   "backEvent": "Retour à l’événement",
   "backBookings": "Retour aux prestataires de l’événement",
@@ -18,7 +17,12 @@
     "curated": "Liste d’Aveline",
     "own": "Les vôtres",
     "email": "E-mail",
-    "phone": "Téléphone"
+    "phone": "Téléphone",
+    "notes": "Notes",
+    "correct": "Corriger",
+    "correctFor": "Corriger : {{name}}",
+    "remove": "Retirer",
+    "removeFor": "Retirer : {{name}}"
   },
   "halls": {
     "title": "Salles de l’annuaire des lieux",
@@ -34,7 +38,9 @@
     "phone": "Téléphone",
     "optional": "Facultatif.",
     "submit": "Ajouter le prestataire",
-    "adding": "Ajout…"
+    "adding": "Ajout…",
+    "notes": "Notes",
+    "notesHelp": "Facultatif. Seuls ceux qui peuvent modifier vos prestataires les voient."
   },
   "status": {
     "added": "{{name}} a été ajouté.",
@@ -43,16 +49,19 @@
     "newLink": "Un nouveau lien a été créé, et celui envoyé auparavant ne fonctionne plus. Copiez le nouveau pour l’envoyer.",
     "ended": "La réservation avec {{name}} a pris fin. Son lien ne fonctionne plus.",
     "engaged": "{{name}} est de nouveau engagé, avec un nouveau lien. Copiez-le pour l’envoyer.",
-    "booked": "Réservé. Copiez le lien du brief ci-dessous pour l’envoyer au prestataire."
+    "booked": "Réservé. Copiez le lien du brief ci-dessous pour l’envoyer au prestataire.",
+    "corrected": "{{name}} est corrigé.",
+    "removed": "{{name}} est retiré de vos prestataires.",
+    "paused": "Le brief est suspendu : son lien n’ouvre rien jusqu’à ce que vous le rouvriez à {{name}}.",
+    "resumed": "{{name}} peut de nouveau ouvrir son brief."
   },
   "errors": {
     "required": "Choisissez-en un.",
     "nameShort": "Saisissez au moins 2 caractères.",
     "tooLong": "C’est trop long.",
     "email": "Saisissez une adresse e-mail, comme nom@exemple.com.",
-    "fee": "Saisissez un nombre entier de drams, en chiffres seulement, comme 150000.",
+    "fee": "Saisissez le montant en chiffres, sans plus de décimales que la devise n’en a, par exemple 150000.",
     "feeTooLarge": "Ce montant est trop élevé.",
-    "cantClear": "Un montant convenu peut être modifié, pas supprimé.",
     "refused": "Cela a été refusé. Vérifiez et réessayez."
   },
   "refused": {
@@ -63,7 +72,11 @@
       "change": "Votre rôle ne permet pas de modifier les réservations. Le propriétaire de l’événement ou un coordinateur le peut.",
       "newLink": "Votre rôle ne permet pas de remplacer les liens de brief. Le propriétaire de l’événement ou un coordinateur le peut.",
       "end": "Votre rôle ne permet pas de mettre fin aux réservations. Le propriétaire de l’événement ou un coordinateur le peut.",
-      "engageAgain": "Votre rôle ne permet pas d’engager à nouveau un prestataire. Le propriétaire de l’événement ou un coordinateur le peut."
+      "engageAgain": "Votre rôle ne permet pas d’engager à nouveau un prestataire. Le propriétaire de l’événement ou un coordinateur le peut.",
+      "choices": "Les prestataires ne font pas partie de votre rôle sur cet événement. Son propriétaire ou un coordinateur peut en réserver un.",
+      "correct": "Votre rôle ne permet pas de corriger des prestataires. Le propriétaire de l’organisation ou un responsable le peut.",
+      "remove": "Votre rôle ne permet pas de retirer des prestataires. Le propriétaire de l’organisation ou un responsable le peut.",
+      "pause": "Votre rôle ne permet pas de suspendre ou de rouvrir un brief. Le propriétaire de l’événement ou un coordinateur le peut."
     },
     "noOrganization": "Les prestataires appartiennent à une organisation, et votre compte n’en est pas membre : vous avez peut-être été invité sur un événement seulement. Demandez à son propriétaire de réserver un prestataire, ou de vous ajouter à l’organisation.",
     "chooseOrganization": "Vous appartenez à plusieurs organisations, et cette page ne sait pas encore choisir entre elles.",
@@ -131,12 +144,14 @@
     }
   },
   "fee": {
-    "label": "Montant convenu, en drams (AMD)",
-    "help": "Facultatif. Des drams entiers, en chiffres seulement.",
-    "cantClearHelp": "Des drams entiers, en chiffres seulement. Il peut être modifié, pas supprimé.",
+    "label": "Montant convenu",
+    "help": "Facultatif. En chiffres, dans la devise choisie ci-dessous.",
     "hidden": "pas à vous de le voir",
     "none": "aucun convenu",
-    "amount": "{{amount}}"
+    "amount": "{{amount}}",
+    "clearHelp": "En chiffres, dans la devise choisie ci-dessous. Videz-le pour retirer le montant.",
+    "currency": "Devise",
+    "currencyName": "{{name}} ({{code}})"
   },
   "bookings": {
     "title": "Prestataires",
@@ -146,7 +161,8 @@
     "listTitle": "Réservés pour cet événement",
     "empty": "Personne n’est encore réservé.",
     "open": "Ouvrir la réservation",
-    "openFor": "Ouvrir la réservation avec {{name}}"
+    "openFor": "Ouvrir la réservation avec {{name}}",
+    "paused": "Brief suspendu"
   },
   "booking": {
     "title": "Une réservation",
@@ -171,8 +187,7 @@
     "ended": "réservation annulée, se réserve à nouveau",
     "scopesHelp": "L’ensemble habituel pour ce type de prestataire est coché au départ. Le prestataire lit exactement ce qui est coché.",
     "submit": "Réserver le prestataire",
-    "booking": "Réservation…",
-    "organization": "Les prestataires de votre organisation"
+    "booking": "Réservation…"
   },
   "link": {
     "title": "Le lien du brief",
@@ -199,5 +214,23 @@
   "ended": {
     "lead": "Cette réservation a pris fin. Engager à nouveau le prestataire crée un nouveau lien à lui envoyer.",
     "again": "Engager à nouveau"
+  },
+  "correct": {
+    "title": "Corriger {{name}}",
+    "save": "Enregistrer le prestataire",
+    "saving": "Enregistrement…",
+    "cancel": "Annuler"
+  },
+  "remove": {
+    "title": "Retirer {{name}} de vos prestataires ?",
+    "body": "Il n’est plus proposé pour de nouvelles réservations. Les réservations déjà faites, et les briefs envoyés avec elles, sont conservés.",
+    "confirm": "Retirer"
+  },
+  "pause": {
+    "title": "Qui peut ouvrir le brief",
+    "on": "{{name}} peut ouvrir son brief avec le lien que vous avez envoyé.",
+    "off": "Le brief est suspendu : le lien envoyé n’ouvre rien pour l’instant. La réservation, son montant et ses sections sont conservés.",
+    "pause": "Suspendre le brief",
+    "resume": "Le rouvrir"
   }
 }

@@ -1,17 +1,35 @@
-import type { Carried, DataRequest, PrivateFile } from './types';
+import type {
+  Carried,
+  DataRequest,
+  PrivateFile,
+  RequestWire,
+  SubmissionsPage,
+  SubmissionsWire,
+} from './types';
 
 /** Every field named, so who handled it and anything else go no further. */
-export function readRequest({
-  id,
-  kind,
-  status,
-  subjectEmail,
-  notes,
-  erasureAppliedAt,
-  requestedAt,
-  dueAt,
-}: DataRequest): DataRequest {
-  return { id, kind, status, subjectEmail, notes, erasureAppliedAt, requestedAt, dueAt };
+export function readRequest(wire: RequestWire): DataRequest {
+  return {
+    id: wire.id,
+    kind: wire.kind,
+    status: wire.status,
+    subjectEmail: wire.subjectEmail,
+    notes: wire.notes,
+    erasureAppliedAt: wire.erasureAppliedAt,
+    requestedAt: wire.requestedAt,
+    dueAt: wire.dueAt,
+    exportGenerationId: wire.exportGenerationId,
+    exportGeneratedAt: wire.exportGeneratedAt,
+  };
+}
+
+/** A page of what the public form said, oldest first, with where the next starts. */
+export function readSubmissions(wire: SubmissionsWire): SubmissionsPage {
+  return {
+    items: wire.items.map(({ id, notes, createdAt }) => ({ id, notes, createdAt })),
+    hasMore: wire.hasMore,
+    nextOffset: wire.offset + wire.items.length,
+  };
 }
 
 /** Those with words of their own; one the backend adds later still shows, as it came. */

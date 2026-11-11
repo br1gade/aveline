@@ -32,12 +32,13 @@ export function useDialogAction<Refusal extends DialogRefusal>(
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen && !isBusy) onClose();
   };
-  const run = async (action: () => Promise<void>, message: string) => {
+  /** `message` may be decided by what the action answered, as a function read once it has. */
+  const run = async (action: () => Promise<void>, message: string | (() => string)) => {
     setRefusal(null);
     setIsBusy(true);
     try {
       await action();
-      await page.done(message);
+      await page.done(typeof message === 'function' ? message() : message);
       isDone.current = true;
       onClose();
     } catch (error) {

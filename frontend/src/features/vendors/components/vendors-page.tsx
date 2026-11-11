@@ -1,14 +1,17 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 
 import { APP_PATHS } from '@/route-paths';
-import { StatusLine, usePageStatus } from '@/ui/app-form';
+import { StatusLine, useDialogOpener, usePageStatus, WRAPPING_BUTTON } from '@/ui/app-form';
+import { Button } from '@/ui/kit/button';
+import { Permitted, useCan } from '@/features/permissions';
 
 import type { VendorsData } from '../load';
 import { isVendorCategory, VENDOR_CATEGORIES } from '../scopes';
 import type { Hall, Vendor, VendorCategory } from '../types';
 import { AddVendorForm } from './add-vendor-form';
+import { CorrectVendorDialog, RemoveVendorDialog } from './vendor-dialogs';
 import { Fact, PageHeading, useCategoryText, VendorProblem } from './shared';
 
 const FILTER_LINK =
@@ -64,7 +67,35 @@ function HallLine({ hall }: { hall: Hall }) {
   );
 }
 
-function VendorRow({ vendor }: { vendor: Vendor }) {
+interface VendorDialog {
+  kind: 'correct' | 'remove';
+  vendor: Vendor;
+}
+type OpenVendorDialog = (dialog: VendorDialog, opener: HTMLElement) => void;
+
+/** Correcting and removing: the organization's own vendors only, and with `vendor:write` (FR-102). */
+function OwnVendorActions({ vendor, onOpen }: { vendor: Vendor; onOpen: OpenVendorDialog }) {
+  const { t } = useTranslation('vendors');
+  const canChange = useCan('vendor:write') && !vendor.isCurated;
+  if (!canChange) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(['correct', 'remove'] as const).map((kind) => (
+        <Button
+          key={kind}
+          variant="outline"
+          className={WRAPPING_BUTTON}
+          aria-label={t(`list.${kind}For`, { name: vendor.name })}
+          onClick={(click) => onOpen({ kind, vendor }, click.currentTarget)}
+        >
+          {t(`list.${kind}`)}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function VendorRow({ vendor, onOpen }: { vendor: Vendor; onOpen: OpenVendorDialog }) {
   const { t } = useTranslation('vendors');
   const categoryText = useCategoryText();
   return (
@@ -76,6 +107,7 @@ function VendorRow({ vendor }: { vendor: Vendor }) {
       <dl className="m-0 grid gap-2">
         {vendor.email ? <Fact label={t('list.email')}>{vendor.email}</Fact> : null}
         {vendor.phone ? <Fact label={t('list.phone')}>{vendor.phone}</Fact> : null}
+        {vendor.notes ? <Fact label={t('list.notes')}>{vendor.notes}</Fact> : null}
       </dl>
       {vendor.halls.length > 0 ? (
         <div className="flex flex-col gap-1">
@@ -87,6 +119,7 @@ function VendorRow({ vendor }: { vendor: Vendor }) {
           </ul>
         </div>
       ) : null}
+      <OwnVendorActions vendor={vendor} onOpen={onOpen} />
     </li>
   );
 }
@@ -94,9 +127,11 @@ function VendorRow({ vendor }: { vendor: Vendor }) {
 function VendorList({
   vendors,
   category,
+  onOpen,
 }: {
   vendors: readonly Vendor[];
   category: VendorCategory | null;
+  onOpen: OpenVendorDialog;
 }) {
   const { t } = useTranslation('vendors');
   const headingId = useId();
@@ -112,7 +147,7 @@ function VendorList({
       ) : (
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {shown.map((vendor) => (
-            <VendorRow key={vendor.id} vendor={vendor} />
+            <VendorRow key={vendor.id} vendor={vendor} onOpen={onOpen} />
           ))}
         </ul>
       )}
@@ -121,27 +156,41 @@ function VendorList({
 }
 
 /**
- * The organization's vendors (docs/API.md §6; design PD-120): its own, which only it sees, and
- * Aveline's curated list, which every organization sees and none can change. A vendor once added
- * can't be corrected or removed (FR-102); a curated venue vendor's halls are kept by Aveline's
- * staff. Every role is offered everything, and a refusal is worded (FR-6).
+ * The organization's vendors (docs/API.md §6; design PD-120): its own, which only it sees, with its
+ * notes, and Aveline's curated list, which every organization sees and none can change. Its own can
+ * be corrected and removed (FR-102); a curated venue vendor's halls are kept by Aveline's staff.
+ * Adding, correcting and removing are offered with `vendor:write` (FR-6, PD-190).
  */
 export function VendorsPage({ data }: { data: VendorsData }) {
   const { t } = useTranslation('vendors');
   const { page, status, statusRef } = usePageStatus(data);
   const category = useCategoryFilter();
+  const { remember, restoreFocus } = useDialogOpener();
+  const [dialog, setDialog] = useState<VendorDialog | null>(null);
+  const open: OpenVendorDialog = (next, opener) => {
+    remember(opener);
+    setDialog(next);
+  };
+  const context = { page, onClose: () => setDialog(null), restoreFocus };
   return (
     <section className="flex flex-col gap-6">
       <PageHeading back={APP_PATHS.app} backLabel={t('backHome')} title={t('title')} />
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
-      <p className="border-border m-0 max-w-[40rem] border-l-2 pl-3">{t('cantCorrect')}</p>
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {data.vendors.kind === 'ready' ? (
-        <VendorList vendors={data.vendors.value} category={category} />
+        <VendorList vendors={data.vendors.value} category={category} onOpen={open} />
       ) : (
         <VendorProblem refusal={data.vendors.refusal} />
       )}
-      <AddVendorForm page={page} />
+      <Permitted to="vendor:write">
+        <AddVendorForm page={page} />
+      </Permitted>
+      {dialog?.kind === 'correct' ? (
+        <CorrectVendorDialog {...context} vendor={dialog.vendor} />
+      ) : null}
+      {dialog?.kind === 'remove' ? (
+        <RemoveVendorDialog {...context} vendor={dialog.vendor} />
+      ) : null}
     </section>
   );
 }

@@ -52,6 +52,19 @@ describe('a refused step on a data request', () => {
   });
 
   it.each([
+    [400, 'privacy.service.ts', 'status: an applied erasure cannot be rejected', 'erasureApplied'],
+    [
+      409,
+      'privacy.service.ts',
+      'Only the latest export generation can be confirmed',
+      'newerExport',
+    ],
+  ])('words the %i that %s says as “%s”: %s', (status, file, said, kind) => {
+    expect(source(file)).toContain(said);
+    expect(requestRefusalOf(refused(status, said))).toEqual({ kind, isStale: true });
+  });
+
+  it.each([
     [404, 'No such request', 'moved'],
     [409, 'This request is being carried out by someone else', 'moved'],
     [403, 'Forbidden resource', 'forbidden'],

@@ -12,26 +12,20 @@ export const BRIEF_SECTIONS = [
   'contacts',
 ] as const satisfies readonly BriefSection[];
 
-/**
- * The usual sections for each kind of vendor, which the booking form ticks to start with.
- * **A temporary stand-in (design PD-121):** the backend does not expose its `SUGGESTED_SCOPES`
- * (FR-105), so this copy is pinned to it by a test that reads `vendor-brief.ts`. The form always
- * sends what is ticked, so the backend's own default never decides. Deleted when FR-105 is answered.
- * The keys are also the categories, in the order the pages offer them.
- */
-export const USUAL_SECTIONS = {
-  VENUE: ['headcount', 'seating', 'timeline'],
-  CATERING: ['headcount', 'catering', 'timeline'],
-  BAR: ['headcount', 'bar', 'timeline'],
-  DECOR: ['seating', 'timeline'],
-  PHOTOGRAPHY: ['timeline', 'households'],
-  VIDEOGRAPHY: ['timeline', 'households'],
-  MUSIC: ['playlist', 'timeline'],
-  PRINT: ['households'],
-  OTHER: ['timeline'],
-} as const satisfies Record<VendorCategory, readonly BriefSection[]>;
+/** Every kind of vendor, in the order the pages offer them; the record makes the list whole. */
+const CATEGORY_ORDER = {
+  VENUE: true,
+  CATERING: true,
+  BAR: true,
+  DECOR: true,
+  PHOTOGRAPHY: true,
+  VIDEOGRAPHY: true,
+  MUSIC: true,
+  PRINT: true,
+  OTHER: true,
+} as const satisfies Record<VendorCategory, true>;
 
-export const VENDOR_CATEGORIES = Object.keys(USUAL_SECTIONS) as VendorCategory[];
+export const VENDOR_CATEGORIES = Object.keys(CATEGORY_ORDER) as VendorCategory[];
 
 /** The statuses a booking can be moved to by hand; ending it is its own, asked-first action. */
 export const CHOOSABLE_STATUSES = [
@@ -44,7 +38,7 @@ export const CHOOSABLE_STATUSES = [
 const ALL_STATUSES: readonly string[] = [...CHOOSABLE_STATUSES, 'CANCELLED'];
 
 export function isVendorCategory(value: string): value is VendorCategory {
-  return Object.hasOwn(USUAL_SECTIONS, value);
+  return Object.hasOwn(CATEGORY_ORDER, value);
 }
 
 export function isBookingStatus(value: string): value is BookingStatus {
@@ -55,8 +49,4 @@ export function isBookingStatus(value: string): value is BookingStatus {
 export function inSectionOrder(sections: readonly string[]): BriefSection[] {
   const ticked = new Set(sections);
   return BRIEF_SECTIONS.filter((section) => ticked.has(section));
-}
-
-export function usualSectionsFor(category: VendorCategory): BriefSection[] {
-  return [...USUAL_SECTIONS[category]];
 }

@@ -19,11 +19,18 @@ export interface Plan {
   entitlements: Entitlements;
 }
 
+/** A move to a free plan once the paid period ends, which can still be withdrawn (FR-135). */
+export interface PendingFree {
+  planKey: string;
+  effectiveAt: string;
+}
+
 export interface Subscription {
   status: string;
   plan: Pick<Plan, 'key' | 'name' | 'priceMinor' | 'currency' | 'interval'>;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
+  pendingFree: PendingFree | null;
 }
 
 export interface InvoiceLine {
@@ -49,8 +56,11 @@ export interface Invoice {
   paymentStatus: string | null;
 }
 
-/** What choosing a plan comes to. */
-export type PlanChoice = { kind: 'activated' } | { kind: 'bank'; redirectUrl: string | null };
+/** What choosing a plan comes to: at once, at the paid period's end (FR-135), or at the bank. */
+export type PlanChoice =
+  | { kind: 'activated' }
+  | { kind: 'scheduled'; effectiveAt: string }
+  | { kind: 'bank'; redirectUrl: string | null };
 
 /** From the schema, so a bank the API stops taking fails the typecheck. */
 export type PaymentProvider = components['schemas']['SubscribeDto']['provider'];

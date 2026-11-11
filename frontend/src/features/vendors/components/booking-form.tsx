@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useId, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useId, useState } from 'react';
+import { useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
@@ -22,16 +22,13 @@ import { bookingEditSchema, type BookingEditValues } from '../schemas';
 import { CHOOSABLE_STATUSES } from '../scopes';
 import type { Booking } from '../types';
 import { ScopeFields } from './scope-fields';
-import { useFeeText, useFieldText, VendorProblem } from './shared';
+import { CurrencyField, useFeeText, useFieldText, VendorProblem } from './shared';
 
 function useCorrection(eventId: string, booking: Booking, page: PageActions) {
   const { t } = useTranslation('vendors');
   const [refusal, setRefusal] = useState<VendorRefusal | null>(null);
-  const currency = currencyOf(booking);
-  const hasFee = booking.fee.isShown && booking.fee.amountMinor !== null;
-  const schema = useMemo(() => bookingEditSchema(currency, hasFee), [currency, hasFee]);
   const form = useForm<BookingEditValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(bookingEditSchema),
     defaultValues: bookingEditValues(booking),
   });
   useLeaveGuard(form);
@@ -58,10 +55,46 @@ function useCorrection(eventId: string, booking: Booking, page: PageActions) {
   return { form, refusal, onSubmit };
 }
 
+/** The fee and its currency, or for a role not shown the fee, that it isn't theirs to see. */
+function FeeFields({
+  booking,
+  form,
+}: {
+  booking: Booking;
+  form: UseFormReturn<BookingEditValues>;
+}) {
+  const { t } = useTranslation('vendors');
+  const fieldText = useFieldText();
+  const feeText = useFeeText();
+  const { errors } = form.formState;
+  if (!booking.fee.isShown) {
+    return (
+      <p className="m-0">{t('pair', { label: t('booking.fee'), value: feeText(booking.fee) })}</p>
+    );
+  }
+  return (
+    <>
+      <TextInputField
+        label={t('fee.label')}
+        help={booking.fee.amountMinor === null ? t('fee.help') : t('fee.clearHelp')}
+        inputMode="decimal"
+        autoComplete="off"
+        error={fieldText(errors.fee)}
+        {...form.register('fee')}
+      />
+      <CurrencyField
+        current={currencyOf(booking)}
+        error={fieldText(errors.currency)}
+        {...form.register('currency')}
+      />
+    </>
+  );
+}
+
 /**
- * The booking's state, what the brief shares and the fee (design PD-122, PD-123). Only what changed
- * is sent. A fee once agreed can be changed, not removed (FR-106); a role not shown the fee is told
- * so, and no fee is sent for it.
+ * The booking's state, what the brief shares and the fee with its currency (design PD-122, PD-123).
+ * Only what changed is sent; an emptied fee is removed, and a new currency goes with its amount
+ * (FR-106). A role not shown the fee is told so, and no fee is sent for it.
  */
 export function BookingForm({
   eventId,
@@ -75,7 +108,6 @@ export function BookingForm({
   const { t } = useTranslation('vendors');
   const headingId = useId();
   const fieldText = useFieldText();
-  const feeText = useFeeText();
   const { form, refusal, onSubmit } = useCorrection(eventId, booking, page);
   const { errors, isSubmitting } = form.formState;
   return (
@@ -97,20 +129,7 @@ export function BookingForm({
           ))}
         </SelectField>
         <ScopeFields control={form.control} name="scopes" help={t('booking.scopesHelp')} />
-        {booking.fee.isShown ? (
-          <TextInputField
-            label={t('fee.label')}
-            help={booking.fee.amountMinor === null ? t('fee.help') : t('fee.cantClearHelp')}
-            inputMode="numeric"
-            autoComplete="off"
-            error={fieldText(errors.fee)}
-            {...form.register('fee')}
-          />
-        ) : (
-          <p className="m-0">
-            {t('pair', { label: t('booking.fee'), value: feeText(booking.fee) })}
-          </p>
-        )}
+        <FeeFields booking={booking} form={form} />
         <SubmitButton
           isSubmitting={isSubmitting}
           className={`w-auto self-start ${WRAPPING_BUTTON}`}

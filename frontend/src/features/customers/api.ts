@@ -1,4 +1,5 @@
 import { expectData, type ApiClient } from '@/api/client';
+import { readEveryPage, type EveryPage } from '@/api/every-page';
 import type { components } from '@/api/schema';
 import type { EventDetail } from '@/features/events';
 
@@ -33,21 +34,41 @@ export async function openForCustomer(
   api: ApiClient,
   body: Schemas['OpenForCustomerDto'],
 ): Promise<OpenedAccount> {
-  const { organization, isExisting } = await expectData<OpenedAccount>(
+  const { organization, isExisting, relationship } = await expectData(
     api.POST('/api/v1/concierge/organizations', { body }),
   );
-  return { organization: { id: organization.id, name: organization.name }, isExisting };
+  return {
+    organization: { id: organization.id, name: organization.name },
+    isExisting,
+    relationship: relationship ?? null,
+  };
 }
 
-/** The organizations a customer's address already belongs to, when it is more than one. */
+/** How far the matches are read: 50 a page, as the backend caps it, and at most ten pages. */
+const CHOICES_PAGES = 10;
+
+/**
+ * The organizations a customer's address owns or is invited to own, when it is more than one
+ * (FR-130): every page, by `nextCursor`, saying when the limit cut them short. Another role there
+ * doesn't count.
+ */
 export async function customerChoices(
   api: ApiClient,
   ownerEmail: string,
-): Promise<CustomerChoice[]> {
-  const { items } = await expectData<{ items: CustomerChoice[] }>(
-    api.POST('/api/v1/concierge/organizations/resolve-customer', { body: { ownerEmail } }),
+): Promise<EveryPage<CustomerChoice>> {
+  const read = await readEveryPage(
+    (cursor) =>
+      expectData(
+        api.POST('/api/v1/concierge/organizations/resolve-customer', {
+          body: { ownerEmail, ...(cursor ? { cursor } : {}) },
+        }),
+      ),
+    CHOICES_PAGES,
   );
-  return items.map(({ id, name }) => ({ id, name }));
+  return {
+    items: read.items.map(({ id, name, relationship }) => ({ id, name, relationship })),
+    isComplete: read.isComplete,
+  };
 }
 
 /** An event in a customer's organization, which staff then run through their platform role. */

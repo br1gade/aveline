@@ -32,7 +32,8 @@
     "reject": "Reject",
     "close": "Close as done",
     "export": "Export",
-    "erase": "Erase"
+    "erase": "Erase",
+    "deliver": "Confirm delivery"
   },
   "confirm": {
     "title": "Is this really {{address}}?",
@@ -48,11 +49,12 @@
   },
   "export": {
     "title": "Export the data of {{address}}?",
-    "body": "This can be done only once: the copy isn’t kept, and the request closes. It is saved to your device at once. Keep the page open until you have the file.",
-    "saved": "The file was saved to your device. It isn’t kept anywhere else, and this copy goes when you leave the page.",
+    "body": "The file is saved to your device at once. Nothing keeps a copy, but if it is lost, export again: the request stays open until you confirm the requester has it.",
+    "saved": "The file was saved to your device. Nothing else keeps it: if it is lost, export again.",
     "saveAgain": "Save the file again",
     "saveFile": "Save private file {{position}} of {{total}}",
-    "fileFailed": "That file couldn’t be saved. Please try again."
+    "fileFailed": "That file couldn’t be saved. Please try again.",
+    "made": "Exported on {{date}}. Once the requester has the file, confirm its delivery to close the request."
   },
   "erase": {
     "title": "Erase the data of {{address}}?",
@@ -88,19 +90,34 @@
     "confirm": "Identity confirmed: it can now be carried out.",
     "reject": "The request is rejected.",
     "close": "The correction is closed.",
-    "export": "The export is done.",
+    "export": "The export is made and saved.",
     "erase": "The erasure ran. What it did is below.",
-    "notes": "The notes are saved."
+    "notes": "The notes are saved.",
+    "deliver": "Delivery is confirmed, and the request is closed."
   },
   "refusal": {
     "forbidden": "This page is for Aveline’s administrators, as a request reaches across every customer.",
     "moved": "This request has moved on since the page was read, perhaps by someone else. It has been read again.",
     "rateLimited": "Too many requests just now. Please wait a moment and try again.",
     "noAnswer": "We didn’t get an answer, so it may have happened. Read the page again before trying again.",
-    "other": "That wasn’t accepted:"
+    "other": "That wasn’t accepted:",
+    "erasureApplied": "Someone has already applied this erasure, so it can no longer be rejected. The page has been read again.",
+    "newerExport": "A newer export was made meanwhile. The page has been read again: confirm the delivery of that one once it is sent."
   },
   "noAddressHelp": "This came from an enquiry, so it can’t be carried out on this page yet. It needs the enquiry’s record.",
   "limitClosed": "This shows at most 200, soonest due first, so the newest may be missing.",
   "noneClosed": "None here.",
-  "noAddressWho": "this enquiry’s requester"
+  "noAddressWho": "this enquiry’s requester",
+  "deliver": {
+    "title": "Confirm {{address}} has the export?",
+    "body": "Confirm only once the requester has the file from the latest export. The request then closes."
+  },
+  "submissions": {
+    "title": "From the public form (not verified)",
+    "show": "Show what the public form said",
+    "more": "Show more",
+    "none": "The public form sent nothing for this request.",
+    "noNotes": "Sent with no notes.",
+    "failed": "What the public form said couldn’t be read. Please try again."
+  }
 }

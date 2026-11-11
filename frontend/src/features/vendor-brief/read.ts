@@ -42,7 +42,7 @@ function seatingOf(wire: SeatingWire) {
     venue: table.venue,
     seated: table.seated,
     guests: table.guests.map((guest) => guest.name),
-    freed: table.released.length,
+    freed: table.releasedCount,
   }));
 }
 
@@ -166,8 +166,11 @@ export function readBrief(wire: BriefWire): Brief {
 export type BriefFailure =
   /** Not a link, or one replaced since: a new one may have been sent (404). */
   | { kind: 'gone' }
-  /** The engagement was ended (403). */
-  | { kind: 'ended' }
+  /**
+   * The hosts paused the brief or ended the booking (403). Both answer the same `FORBIDDEN`, told
+   * apart only by an English sentence, so the page says neither (FR-144, design PD-124).
+   */
+  | { kind: 'closed' }
   | { kind: 'rateLimited' }
   | { kind: 'failed'; requestId?: string | undefined };
 
@@ -178,7 +181,7 @@ export type BriefFailure =
 export function briefFailureOf(error: unknown): BriefFailure {
   if (!isApiError(error)) return { kind: 'failed' };
   if (error.status === 404) return { kind: 'gone' };
-  if (error.status === 403) return { kind: 'ended' };
+  if (error.status === 403) return { kind: 'closed' };
   if (error.status === 429) return { kind: 'rateLimited' };
   return { kind: 'failed', requestId: error.requestId };
 }

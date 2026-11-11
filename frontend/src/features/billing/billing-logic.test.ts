@@ -44,6 +44,7 @@ function subscription(overrides: Partial<Subscription> = {}): Subscription {
     plan: { key: 'paid', name: 'Paid', priceMinor: '25000', currency: 'AMD', interval: 'MONTHLY' },
     currentPeriodEnd: LATER,
     cancelAtPeriodEnd: false,
+    pendingFree: null,
     ...overrides,
   };
 }
@@ -129,6 +130,18 @@ describe('what a plan offers', () => {
   it('offers another plan', () => {
     expect(offerFor(plan('other', '9000'), subscription(), NOW)).toBe('choose');
   });
+
+  it('marks a free plan scheduled for the period’s end, and no other (FR-135)', () => {
+    const pending = subscription({ pendingFree: { planKey: 'free', effectiveAt: LATER } });
+    expect(offerFor(plan('free', '0'), pending, NOW)).toBe('pending');
+    expect(offerFor(plan('free2', '0'), pending, NOW)).toBe('choose');
+    expect(offerFor(plan('paid', '25000'), pending, NOW)).toBe('current');
+    const lapsed = subscription({
+      currentPeriodEnd: EARLIER,
+      pendingFree: { planKey: 'free', effectiveAt: EARLIER },
+    });
+    expect(offerFor(plan('free', '0'), lapsed, NOW)).toBe('choose');
+  });
 });
 
 describe('what choosing says first', () => {
@@ -137,6 +150,18 @@ describe('what choosing says first', () => {
     ['a free first', plan('free', '0'), null, 'free'],
     ['a change of paid plan', plan('other', '9000'), subscription(), 'paidChange'],
     ['free over a paid period', plan('free', '0'), subscription(), 'freeOverPaid'],
+    [
+      'free over a trial, which the backend changes at once',
+      plan('free', '0'),
+      subscription({ status: 'TRIALING' }),
+      'free',
+    ],
+    [
+      'free over a per-event purchase, which has no period to wait for',
+      plan('free', '0'),
+      subscription({ plan: { ...subscription().plan, interval: 'PER_EVENT' } }),
+      'free',
+    ],
     [
       'free over a lapsed period',
       plan('free', '0'),
@@ -228,8 +253,21 @@ describe('the readers keep no order number and no bank address beyond the one to
     };
     const read = readSubscription(wire);
     expect(Object.keys(read).sort()).toEqual(
-      ['cancelAtPeriodEnd', 'currentPeriodEnd', 'plan', 'status'].sort(),
+      ['cancelAtPeriodEnd', 'currentPeriodEnd', 'pendingFree', 'plan', 'status'].sort(),
     );
+    const { pendingFree: _absent, ...older } = wire;
+    expect(readSubscription(older).pendingFree).toBeNull();
+  });
+
+  it('a free plan scheduled for the period’s end, apart from one active now (FR-135)', () => {
+    const pendingFree = { planKey: 'free', effectiveAt: LATER };
+    expect(readChoice({ subscription: { pendingFree }, invoice: null, payment: null })).toEqual({
+      kind: 'scheduled',
+      effectiveAt: LATER,
+    });
+    expect(
+      readChoice({ subscription: { pendingFree: null }, invoice: null, payment: null }),
+    ).toEqual({ kind: 'activated' });
   });
 
   it('a free plan activated', () => {
@@ -341,6 +379,7 @@ describe('a refusal', () => {
     ['No plan "x" is available', 404, true],
     ['This organization has no subscription', 404, true],
     ['This period has already ended; subscribe again', 400, true],
+    ['The Free change has already reached its effective date', 409, true],
     ['This plan is paid; choose a provider', 400, false],
   ])('reloads behind "%s" only if the page is out of date', (message, status, isStale) => {
     expect(billingRefusalOf(apiError(status, message)).isStale).toBe(isStale);
@@ -351,6 +390,7 @@ describe('a refusal', () => {
     ['subscriptions.service.ts', 'This plan is paid; choose a provider'],
     ['subscriptions.service.ts', 'This organization has no subscription'],
     ['subscriptions.service.ts', 'This period has already ended; subscribe again'],
+    ['subscriptions.service.ts', 'The Free change has already reached its effective date'],
     ['subscriptions.service.ts', 'No such invoice'],
     ['subscriptions.service.ts', 'This invoice has no payment to confirm'],
   ])('finds "%s %s" in the backend', (file, sentence) => {

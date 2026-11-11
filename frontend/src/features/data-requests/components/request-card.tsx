@@ -15,8 +15,9 @@ import { requestRefusalOf, type RequestRefusal } from '../refusals';
 import { isClosed, isStuckWithoutAddress, nextSteps, type RequestStep } from '../steps';
 import type { DataRequest } from '../types';
 import { RequestProblem, useRequestDay } from './shared';
+import { Submissions } from './submissions';
 
-/** `UpdateDataSubjectRequestDto`'s limit. A requester's own can run to ten times that (FR-126). */
+/** `UpdateDataSubjectRequestDto`'s limit. Notes from before FR-126 can hold a requester's words too. */
 const NOTES_LIMIT = 2000;
 const notesSchema = z.object({ notes: z.string().trim().max(NOTES_LIMIT) });
 type NotesValues = z.infer<typeof notesSchema>;
@@ -110,6 +111,9 @@ function RequestFacts({ request, now }: Pick<RequestCardProps, 'request' | 'now'
       {request.erasureAppliedAt && !isClosed(request.status) ? (
         <p className="m-0 text-sm">{t('erase.appliedWaiting')}</p>
       ) : null}
+      {request.exportGeneratedAt && !isClosed(request.status) ? (
+        <p className="m-0 text-sm">{t('export.made', { date: day(request.exportGeneratedAt) })}</p>
+      ) : null}
     </>
   );
 }
@@ -140,10 +144,10 @@ function StepButtons({
 }
 
 /**
- * One request: who, what, how long is left, its notes and what may be done next (`steps.ts`). A step
- * waits for notes still being typed, as one that closes the request would leave them behind unsaid.
- * Notes a requester has run past what may be sent are read, not edited, as saving would mean cutting
- * their words (FR-126).
+ * One request: who, what, how long is left, staff's notes, what the public form said, and what may be
+ * done next (`steps.ts`). A step waits for notes still being typed, as one that closes the request
+ * would leave them behind unsaid. Notes from before FR-126 that run past what may be sent are read,
+ * not edited, as saving would mean cutting a requester's words.
  */
 export function RequestCard({ request, now, page, onStep }: RequestCardProps) {
   const { t } = useTranslation('data-requests');
@@ -175,6 +179,7 @@ export function RequestCard({ request, now, page, onStep }: RequestCardProps) {
           {t('notes.saveFirst')}
         </p>
       ) : null}
+      <Submissions requestId={request.id} who={who} />
       <StepButtons request={request} who={who} onStep={step} />
     </li>
   );

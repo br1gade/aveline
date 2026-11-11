@@ -4,8 +4,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { ERASURE_COUNTS, readCarried, readRequest } from './read';
-import type { DataRequest } from './types';
+import { ERASURE_COUNTS, readCarried, readRequest, readSubmissions } from './read';
+import type { DataRequest, RequestWire } from './types';
 
 function source(path: string): string {
   return readFileSync(join(import.meta.dirname, '../../../../backend/src/modules', path), 'utf8');
@@ -115,7 +115,33 @@ describe('a request as read', () => {
       erasureAppliedAt: null,
       requestedAt: '2026-11-01T00:00:00.000Z',
       dueAt: '2026-12-01T00:00:00.000Z',
+      exportGenerationId: 'gen-1',
+      exportGeneratedAt: '2026-11-02T00:00:00.000Z',
     };
-    expect(readRequest({ ...named, handledByUserId: 'u1' } as DataRequest)).toEqual(named);
+    const wire = { ...named, handledByUserId: 'u1' } as unknown as RequestWire;
+    expect(readRequest(wire)).toEqual(named);
+  });
+
+  it('reads a page of the public form’s submissions, and where the next starts (FR-126)', () => {
+    expect(
+      readSubmissions({
+        items: [
+          {
+            id: 's1',
+            notes: 'Please',
+            createdAt: '2026-11-01T00:00:00.000Z',
+            source: 'UNVERIFIED_PUBLIC',
+          },
+        ],
+        total: 25,
+        limit: 20,
+        offset: 20,
+        hasMore: false,
+      }),
+    ).toEqual({
+      items: [{ id: 's1', notes: 'Please', createdAt: '2026-11-01T00:00:00.000Z' }],
+      hasMore: false,
+      nextOffset: 21,
+    });
   });
 });

@@ -35,8 +35,12 @@
     "invited": "{{name}} est ouverte, et une invitation lui a été envoyée.",
     "existing": "Cette adresse figure déjà dans {{name}}, comme membre ou invitée : rien de nouveau n’a été ouvert et aucun e-mail n’est parti. Vérifiez qu’il s’agit bien de celle du client avant d’y créer un événement.",
     "several": "Cette adresse figure dans plusieurs organisations. Choisissez celle du client.",
-    "use": "Utiliser {{name}}",
-    "severalNone": "Cette adresse figure dans plusieurs organisations, qui ne peuvent pas être listées ici, car il peut s’agir d’invitations en attente. Demandez au client laquelle il veut dire, ou d’accepter d’abord."
+    "severalNone": "Cette adresse figure dans plusieurs organisations, mais aucune ne peut être listée pour l’instant. Réessayez, ou demandez au client laquelle il veut dire.",
+    "existingOwner": "Cette adresse possède déjà {{name}}, donc rien de nouveau n’a été ouvert et aucun e-mail n’est parti.",
+    "existingInvited": "Cette adresse a déjà été invitée à posséder {{name}} et n’a pas encore accepté, donc rien de nouveau n’a été ouvert et aucun nouvel e-mail n’est parti. Vous pouvez préparer un événement maintenant ; elle le possédera une fois l’invitation acceptée.",
+    "useOwned": "Utiliser {{name}} (la possède)",
+    "useInvited": "Utiliser {{name}} (invitée, pas encore acceptée)",
+    "partial": "Seules les 500 premières sont listées. Si la sienne n’y est pas, demandez au client laquelle il veut dire."
   },
   "kind": {
     "HOST": "Un couple ou une famille",
@@ -52,7 +56,7 @@
     "rateLimited": "Trop de requêtes pour le moment. Patientez un instant et réessayez.",
     "emailRefused": "Saisissez une adresse e-mail valide.",
     "nameRefused": "Utilisez de 2 à 160 caractères.",
-    "gone": "Cette organisation n’est plus la sienne, ou n’existe plus. Recherchez-la à nouveau.",
+    "gone": "Cette organisation n’est plus la sienne, ou n’existe plus. Ses organisations ont été relues : choisissez de nouveau.",
     "noAnswer": "Nous n’avons pas reçu de réponse. Veuillez réessayer.",
     "other": "Cela n’a pas été accepté :"
   }

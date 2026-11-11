@@ -49,8 +49,9 @@ export type SeatingWire = Array<{
   zone: string | null;
   venue: string | null;
   seated: number;
-  guests: Array<{ name: string }>;
-  released: unknown[];
+  guests: Array<{ name: string; position: number | null }>;
+  /** How many seats someone who declined left free; never who (FR-107, design PD-125). */
+  releasedCount: number;
 }>;
 
 export type HouseholdsWire = Array<{ household: string; guests: string[] }>;

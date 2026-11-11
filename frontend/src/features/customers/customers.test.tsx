@@ -213,6 +213,31 @@ describe('what the API layer keeps', () => {
     return current.session.api;
   };
 
+  it('reads at most ten pages of matches, however many the cursor offers (FR-130)', async () => {
+    let posts = 0;
+    server.use(
+      http.post(`${ORGANIZATIONS}/resolve-customer`, () => {
+        posts += 1;
+        return HttpResponse.json({
+          items: [
+            {
+              id: `o${posts}`,
+              name: `Page ${posts}`,
+              kind: 'HOST',
+              createdAt: 'x',
+              relationship: 'OWNER',
+            },
+          ],
+          nextCursor: `after-${posts}`,
+        });
+      }),
+    );
+    const read = await customerChoices(api(), 'anna@example.am');
+    expect(read.items).toHaveLength(10);
+    expect(read.isComplete).toBe(false);
+    expect(posts).toBe(10);
+  });
+
   it('keeps nothing of a development link’s token', async () => {
     answerOpen(() =>
       HttpResponse.json({
@@ -223,19 +248,29 @@ describe('what the API layer keeps', () => {
     );
     await expect(
       openForCustomer(api(), { name: 'A b', kind: 'HOST', ownerEmail: 'a@x.am' }),
-    ).resolves.toEqual({ organization: { id: 'o2', name: 'A' }, isExisting: false });
+    ).resolves.toEqual({
+      organization: { id: 'o2', name: 'A' },
+      isExisting: false,
+      relationship: null,
+    });
   });
 
   it('keeps what it shows of an organization and a choice', async () => {
     serve(() => HttpResponse.json([{ ...petrosyan, extra: 'x' }]));
     server.use(
       http.post(`${ORGANIZATIONS}/resolve-customer`, () =>
-        HttpResponse.json({ items: [{ id: 'o3', name: 'B', kind: 'HOST', extra: 'x' }] }),
+        HttpResponse.json({
+          items: [{ id: 'o3', name: 'B', kind: 'HOST', relationship: 'OWNER', extra: 'x' }],
+          nextCursor: null,
+        }),
       ),
     );
     const { kind: _kind, createdAt: _createdAt, ...shown } = petrosyan;
     await expect(findOrganizations(api(), null)).resolves.toEqual([shown]);
-    await expect(customerChoices(api(), 'a@x.am')).resolves.toEqual([{ id: 'o3', name: 'B' }]);
+    await expect(customerChoices(api(), 'a@x.am')).resolves.toEqual({
+      items: [{ id: 'o3', name: 'B', relationship: 'OWNER' }],
+      isComplete: true,
+    });
   });
 });
 
@@ -360,6 +395,7 @@ describe('opening an account', () => {
           organization: { id: 'o3', name: 'Sargsyan Events' },
           invite: null,
           isExisting: true,
+          relationship: 'PENDING_OWNER_INVITE',
         }),
     );
     const asked: unknown[] = [];
@@ -367,18 +403,30 @@ describe('opening an account', () => {
       http.post(`${ORGANIZATIONS}/resolve-customer`, async ({ request }) => {
         asked.push(await request.json());
         return HttpResponse.json({
-          items: [{ id: 'o3', name: 'Sargsyan Events', kind: 'PLANNER', createdAt: 'x' }],
+          items: [
+            {
+              id: 'o3',
+              name: 'Sargsyan Events',
+              kind: 'PLANNER',
+              createdAt: 'x',
+              relationship: 'PENDING_OWNER_INVITE',
+            },
+            { id: 'o4', name: 'Anna’s Own', kind: 'HOST', createdAt: 'x', relationship: 'OWNER' },
+          ],
           nextCursor: null,
         });
       }),
     );
     const user = await open();
     await fillIn(user);
-    const choose = await screen.findByRole('button', { name: 'Use Sargsyan Events' });
+    const choose = await screen.findByRole('button', {
+      name: 'Use Sargsyan Events (invited, not yet accepted)',
+    });
+    expect(screen.getByRole('button', { name: 'Use Anna’s Own (owns it)' })).toBeInTheDocument();
     expect(asked).toEqual([{ ownerEmail: 'anna@example.am' }]);
     await user.click(choose);
-    await screen.findByText(/already on Sargsyan Events/);
-    expect(screen.queryByRole('button', { name: 'Use Sargsyan Events' })).not.toBeInTheDocument();
+    await screen.findByText(/already invited to own Sargsyan Events and hasn’t accepted yet/);
+    expect(screen.queryByRole('button', { name: /Use Sargsyan Events/ })).not.toBeInTheDocument();
     expect(bodies[1]).toEqual({
       name: 'Petrosyan Wedding',
       kind: 'HOST',
@@ -392,7 +440,37 @@ describe('opening an account', () => {
   }
   const several = () => refusal(409, 'Choose', 'ORGANIZATION_SELECTION_REQUIRED');
   const oneChoice = () =>
-    HttpResponse.json({ items: [{ id: 'o3', name: 'Sargsyan Events' }], nextCursor: null });
+    HttpResponse.json({
+      items: [
+        { id: 'o3', name: 'Sargsyan Events', kind: 'HOST', createdAt: 'x', relationship: 'OWNER' },
+      ],
+      nextCursor: null,
+    });
+
+  it('reads every page of the matches, by their cursor (FR-130)', async () => {
+    serve();
+    answerOpen(several);
+    const asked: unknown[] = [];
+    server.use(
+      http.post(`${ORGANIZATIONS}/resolve-customer`, async ({ request }) => {
+        const body = (await request.json()) as { cursor?: string };
+        asked.push(body);
+        const item = body.cursor
+          ? { id: 'o5', name: 'Second Page', kind: 'HOST', createdAt: 'x', relationship: 'OWNER' }
+          : { id: 'o3', name: 'First Page', kind: 'HOST', createdAt: 'x', relationship: 'OWNER' };
+        return HttpResponse.json({ items: [item], nextCursor: body.cursor ? null : 'next' });
+      }),
+    );
+    const user = await open();
+    await fillIn(user);
+    expect(
+      await screen.findByRole('button', { name: 'Use Second Page (owns it)' }),
+    ).toBeInTheDocument();
+    expect(asked).toEqual([
+      { ownerEmail: 'anna@example.am' },
+      { ownerEmail: 'anna@example.am', cursor: 'next' },
+    ]);
+  });
 
   it('says what to do when nothing can be listed to choose from', async () => {
     serve();
@@ -400,7 +478,7 @@ describe('opening an account', () => {
     answerChoices(() => HttpResponse.json({ items: [], nextCursor: null }));
     const user = await open();
     await fillIn(user);
-    expect(await screen.findByText(/can’t be listed here/)).toBeVisible();
+    expect(await screen.findByText(/none can be listed just now/)).toBeVisible();
   });
 
   it('gives a reference when the choices can’t be read', async () => {
@@ -418,21 +496,51 @@ describe('opening an account', () => {
     answerChoices(oneChoice);
     const user = await open();
     await fillIn(user);
-    await screen.findByRole('button', { name: 'Use Sargsyan Events' });
+    await screen.findByRole('button', { name: 'Use Sargsyan Events (owns it)' });
     await user.type(screen.getByLabelText('Owner’s email address'), 'x');
-    expect(screen.queryByRole('button', { name: 'Use Sargsyan Events' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Use Sargsyan Events (owns it)' }),
+    ).not.toBeInTheDocument();
   });
 
-  it('says a chosen organization is no longer theirs, not that this isn’t staff’s', async () => {
+  it('says a chosen organization is no longer theirs, and reads the matches again (FR-130)', async () => {
     serve();
     answerOpen(several, () => refusal(403, 'x', 'ORGANIZATION_ACCESS_DENIED'));
-    answerChoices(oneChoice);
+    let reads = 0;
+    answerChoices(() => {
+      reads += 1;
+      const name = reads === 1 ? 'Sargsyan Events' : 'Still Theirs';
+      return HttpResponse.json({
+        items: [{ id: `o${reads}`, name, kind: 'HOST', createdAt: 'x', relationship: 'OWNER' }],
+        nextCursor: null,
+      });
+    });
     const user = await open();
     await fillIn(user);
-    await user.click(await screen.findByRole('button', { name: 'Use Sargsyan Events' }));
+    await user.click(await screen.findByRole('button', { name: 'Use Sargsyan Events (owns it)' }));
     const said = await screen.findByRole('alert');
     expect(said).toHaveTextContent(/no longer/);
     expect(said).not.toHaveTextContent('Aveline’s staff');
+    expect(
+      await screen.findByRole('button', { name: 'Use Still Theirs (owns it)' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Sargsyan Events/ })).not.toBeInTheDocument();
+    expect(reads).toBe(2);
+  });
+
+  it('says the address already owns one (FR-130)', async () => {
+    serve();
+    answerOpen(() =>
+      HttpResponse.json({
+        organization: { id: 'o1', name: 'Petrosyan Wedding' },
+        invite: null,
+        isExisting: true,
+        relationship: 'OWNER',
+      }),
+    );
+    const user = await open();
+    await fillIn(user);
+    expect(await screen.findByText(/This address already owns Petrosyan Wedding/)).toBeVisible();
   });
 
   it('reads the list again, and takes away the last answer when the next is refused', async () => {

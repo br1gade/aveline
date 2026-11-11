@@ -1,4 +1,7 @@
-/** Interim until FR-1: the schema declares no answers. */
+/**
+ * The search's answer is interim until FR-1 reaches it; the open and resolve answers are read from
+ * the schema.
+ */
 export interface CustomerOrganization {
   id: string;
   name: string;
@@ -8,12 +11,18 @@ export interface CustomerOrganization {
   pendingOwnerInvites: string[];
 }
 
+/** What an address already is to an organization: its owner, or invited to own it (FR-130). */
+export type Relationship = 'OWNER' | 'PENDING_OWNER_INVITE';
+
 export interface OpenedAccount {
   organization: { id: string; name: string };
   isExisting: boolean;
+  /** For one already there; `null` when the answer doesn't say, as an older backend's won't. */
+  relationship: Relationship | null;
 }
 
 export interface CustomerChoice {
   id: string;
   name: string;
+  relationship: Relationship;
 }

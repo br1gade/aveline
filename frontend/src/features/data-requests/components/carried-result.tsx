@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { isApiError } from '@/api/errors';
 import { browserSession } from '@/api/session';
-import { useLeaveGuardWhen, WRAPPING_BUTTON } from '@/ui/app-form';
+import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { saveFile } from '@/ui/save-file';
 
@@ -55,12 +55,11 @@ function PrivateFiles({ carried }: { carried: ExportResult }) {
 }
 
 /**
- * What an export answered, the only copy there is (FR-128): saved as soon as it came, and held in this
- * page's memory to save again, which the leave guard protects. Nothing else keeps it.
+ * What an export answered: saved as soon as it came, and held in this page's memory to save again.
+ * Nothing else keeps it; if it is lost, the export is made again (FR-128).
  */
 function ExportHeld({ carried }: { carried: ExportResult }) {
   const { t } = useTranslation('data-requests');
-  useLeaveGuardWhen(true);
   return (
     <div className="flex flex-col gap-2">
       <p className="m-0">{t('export.saved')}</p>

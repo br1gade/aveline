@@ -32,7 +32,8 @@
     "reject": "Rejeter",
     "close": "Clore comme fait",
     "export": "Exporter",
-    "erase": "Effacer"
+    "erase": "Effacer",
+    "deliver": "Confirmer la remise"
   },
   "confirm": {
     "title": "S’agit-il bien de {{address}} ?",
@@ -48,11 +49,12 @@
   },
   "export": {
     "title": "Exporter les données de {{address}} ?",
-    "body": "Cela ne peut se faire qu’une seule fois : la copie n’est pas conservée et la demande se clôt. Elle est enregistrée aussitôt sur votre appareil. Gardez la page ouverte jusqu’à ce que vous ayez le fichier.",
-    "saved": "Le fichier a été enregistré sur votre appareil. Il n’est conservé nulle part ailleurs, et cette copie disparaît quand vous quittez la page.",
+    "body": "Le fichier est enregistré aussitôt sur votre appareil. Aucune copie n’est conservée, mais s’il est perdu, exportez de nouveau : la demande reste ouverte jusqu’à ce que vous confirmiez que le demandeur l’a reçu.",
+    "saved": "Le fichier a été enregistré sur votre appareil. Rien d’autre ne le conserve : s’il est perdu, exportez de nouveau.",
     "saveAgain": "Enregistrer à nouveau le fichier",
     "saveFile": "Enregistrer le fichier privé {{position}} sur {{total}}",
-    "fileFailed": "Ce fichier n’a pas pu être enregistré. Veuillez réessayer."
+    "fileFailed": "Ce fichier n’a pas pu être enregistré. Veuillez réessayer.",
+    "made": "Exporté le {{date}}. Une fois le fichier reçu par le demandeur, confirmez sa remise pour clore la demande."
   },
   "erase": {
     "title": "Effacer les données de {{address}} ?",
@@ -88,19 +90,34 @@
     "confirm": "Identité confirmée : la demande peut maintenant être exécutée.",
     "reject": "La demande est rejetée.",
     "close": "La correction est close.",
-    "export": "L’export est terminé.",
+    "export": "L’export est fait et enregistré.",
     "erase": "L’effacement a été lancé. Ce qu’il a fait figure ci-dessous.",
-    "notes": "Les notes sont enregistrées."
+    "notes": "Les notes sont enregistrées.",
+    "deliver": "La remise est confirmée et la demande est close."
   },
   "refusal": {
     "forbidden": "Cette page est réservée aux administrateurs d’Aveline, car une demande concerne tous les clients.",
     "moved": "Cette demande a évolué depuis la lecture de la page, peut-être du fait de quelqu’un d’autre. La page a été relue.",
     "rateLimited": "Trop de requêtes pour le moment. Patientez un instant et réessayez.",
     "noAnswer": "Nous n’avons pas reçu de réponse : l’action a peut-être eu lieu. Relisez la page avant de réessayer.",
-    "other": "Cela n’a pas été accepté :"
+    "other": "Cela n’a pas été accepté :",
+    "erasureApplied": "Quelqu’un a déjà appliqué cet effacement, il ne peut donc plus être rejeté. La page a été relue.",
+    "newerExport": "Un export plus récent a été fait entre-temps. La page a été relue : confirmez la remise de celui-là une fois envoyé."
   },
   "noAddressHelp": "Cette demande vient d’une prise de contact : elle ne peut pas encore être exécutée sur cette page. Il lui faut la fiche de la prise de contact.",
   "limitClosed": "Cette liste en affiche 200 au maximum, les échéances les plus proches d’abord : les plus récentes peuvent manquer.",
   "noneClosed": "Aucune ici.",
-  "noAddressWho": "l’auteur de cette prise de contact"
+  "noAddressWho": "l’auteur de cette prise de contact",
+  "deliver": {
+    "title": "Confirmer que {{address}} a reçu l’export ?",
+    "body": "Confirmez seulement une fois que le demandeur a le fichier du dernier export. La demande se clôt alors."
+  },
+  "submissions": {
+    "title": "Depuis le formulaire public (non vérifié)",
+    "show": "Voir ce qu’a dit le formulaire public",
+    "more": "Voir plus",
+    "none": "Le formulaire public n’a rien envoyé pour cette demande.",
+    "noNotes": "Envoyé sans notes.",
+    "failed": "Ce qu’a dit le formulaire public n’a pas pu être lu. Veuillez réessayer."
+  }
 }

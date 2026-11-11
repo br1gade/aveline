@@ -43,6 +43,11 @@ export async function resumeSubscription(api: ApiClient): Promise<void> {
   await expectData<unknown>(api.POST('/api/v1/subscription/resume'));
 }
 
+/** Keeps the paid plan past its period's end; refused once the change has taken effect (FR-135). */
+export async function withdrawFreeChange(api: ApiClient): Promise<void> {
+  await expectData(api.DELETE('/api/v1/subscription/pending-free'));
+}
+
 /** Asks the bank, server to server. Safe to call twice (docs/API.md §6). */
 export async function confirmInvoice(api: ApiClient, number: string): Promise<Invoice> {
   return readConfirmed(

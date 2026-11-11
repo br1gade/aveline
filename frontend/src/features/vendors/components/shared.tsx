@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { formatMinor } from '@/lib/money';
-import { WordedRefusal } from '@/ui/app-form';
+import { SelectField, WordedRefusal } from '@/ui/app-form';
+import { NativeSelectOption } from '@/ui/kit/native-select';
 
+import { FEE_CURRENCIES } from '../payload';
 import type { VendorRefusal } from '../refusals';
 import type { VendorFieldCode } from '../schemas';
 import type { BriefSection, Fee, VendorCategory } from '../types';
@@ -35,7 +37,6 @@ const FIELD_CODES: readonly string[] = [
   'email',
   'fee',
   'feeTooLarge',
-  'cantClear',
 ] satisfies VendorFieldCode[];
 
 function isFieldCode(code: string): code is VendorFieldCode {
@@ -113,3 +114,27 @@ export function Fact({ label, children }: { label: string; children: ReactNode }
 }
 
 export { BACK_LINK };
+
+/**
+ * The fee's currency (FR-106, design PD-123): the usual few, named in the page's language, and a
+ * booking's own beside them if it is another.
+ */
+export function CurrencyField({
+  current,
+  ...select
+}: Omit<ComponentProps<typeof SelectField>, 'label' | 'children'> & { current: string }) {
+  const { t, i18n } = useTranslation('vendors');
+  const names = new Intl.DisplayNames([i18n.language], { type: 'currency' });
+  const codes = FEE_CURRENCIES.some((code) => code === current)
+    ? FEE_CURRENCIES
+    : [...FEE_CURRENCIES, current];
+  return (
+    <SelectField label={t('fee.currency')} {...select}>
+      {codes.map((code) => (
+        <NativeSelectOption key={code} value={code}>
+          {t('fee.currencyName', { code, name: names.of(code) ?? code })}
+        </NativeSelectOption>
+      ))}
+    </SelectField>
+  );
+}

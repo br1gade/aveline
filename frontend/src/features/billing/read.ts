@@ -1,4 +1,4 @@
-import type { Invoice, InvoiceLine, Plan, PlanChoice, Subscription } from './types';
+import type { Invoice, InvoiceLine, Plan, PlanChoice, Subscription, PendingFree } from './types';
 
 /**
  * Each field kept is named. A payment's order number opens its state to anyone (docs/API.md §1), so
@@ -64,25 +64,34 @@ export function readPlan(wire: Plan): Plan {
   };
 }
 
-export function readSubscription(wire: Subscription): Subscription {
+/** `pendingFree` is absent from an older backend's answer, which never schedules one. */
+type SubscriptionWire = Omit<Subscription, 'pendingFree'> & { pendingFree?: PendingFree | null };
+
+export function readSubscription(wire: SubscriptionWire): Subscription {
   const { key, name, priceMinor, currency, interval } = wire.plan;
+  const pending = wire.pendingFree ?? null;
   return {
     status: wire.status,
     plan: { key, name, priceMinor, currency, interval },
     currentPeriodEnd: wire.currentPeriodEnd,
     cancelAtPeriodEnd: wire.cancelAtPeriodEnd,
+    pendingFree: pending && { planKey: pending.planKey, effectiveAt: pending.effectiveAt },
   };
 }
 
 interface ChoiceWire {
-  subscription: unknown;
+  subscription: { pendingFree?: PendingFree | null } | null;
   invoice: unknown;
   payment: { redirectUrl: string | null } | null;
 }
 
-/** `invoice: null` is a free plan, active already; a paid one goes on at the bank's page. */
+/**
+ * `invoice: null` is a free plan: active already, or scheduled for the paid period's end when the
+ * answer carries `pendingFree` (FR-135). A paid one goes on at the bank's page.
+ */
 export function readChoice(wire: ChoiceWire): PlanChoice {
-  return wire.invoice === null
-    ? { kind: 'activated' }
-    : { kind: 'bank', redirectUrl: wire.payment?.redirectUrl ?? null };
+  if (wire.invoice !== null)
+    return { kind: 'bank', redirectUrl: wire.payment?.redirectUrl ?? null };
+  const pending = wire.subscription?.pendingFree;
+  return pending ? { kind: 'scheduled', effectiveAt: pending.effectiveAt } : { kind: 'activated' };
 }

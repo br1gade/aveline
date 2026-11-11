@@ -38,7 +38,9 @@ export function vendorWire(overrides: Partial<VendorWire> = {}): VendorWire {
     category: 'CATERING',
     email: 'hello@tashir.example',
     phone: '+374 10 000000',
+    notes: null,
     isCurated: false,
+    venueProfile: null,
     venueProfiles: [],
     ...overrides,
   };
@@ -53,6 +55,27 @@ export function bookingWire(overrides: Partial<BookingWire> = {}): BookingWire {
     briefToken: plantedToken(),
     feeMinor: '150000',
     feeCurrency: 'AMD',
+    isBriefEnabled: true,
+    createdAt: '2026-11-01T10:00:00.000Z',
     ...overrides,
+  };
+}
+
+/** The event's choices as `GET …/vendor-options` gives a page of them (FR-103, FR-105). */
+export function optionsWire(
+  items: Array<{ id: string; name: string; category: VendorWire['category']; isCurated: boolean }>,
+  over: { offset?: number; hasMore?: boolean } = {},
+) {
+  return {
+    items,
+    total: items.length,
+    limit: 100,
+    offset: over.offset ?? 0,
+    hasMore: over.hasMore ?? false,
+    sections: [],
+    defaults: [
+      { category: 'CATERING', scopes: ['timeline', 'headcount', 'catering'] },
+      { category: 'PHOTOGRAPHY', scopes: ['households', 'timeline'] },
+    ],
   };
 }

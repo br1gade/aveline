@@ -150,7 +150,7 @@ describe('the brief', () => {
     const answer = briefWire();
     const [table] = answer.seating ?? [];
     if (!table) throw new Error('No table');
-    serve(() => HttpResponse.json({ ...answer, seating: [{ ...table, released: [{}, {}] }] }));
+    serve(() => HttpResponse.json({ ...answer, seating: [{ ...table, releasedCount: 2 }] }));
     renderAt('/briefs');
     expect(await screen.findByRole('link', { name: 'ani@example.am' })).toHaveAttribute(
       'href',
@@ -226,15 +226,19 @@ describe('the brief', () => {
   });
 
   it.each([
-    [404, 'This link no longer works'],
-    [403, 'This booking was ended'],
-  ])('tells the vendor a %i link opens nothing, and drops the token', async (status, heading) => {
-    holdBrief(plantedToken());
-    serve(() => HttpResponse.json({ statusCode: status, message: 'x' }, { status }));
-    renderAt('/briefs');
-    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
-    expect(heldBrief()).toBeNull();
-  });
+    [404, 'NOT_FOUND', 'This link no longer works', false],
+    [403, 'FORBIDDEN', 'The hosts have closed this brief', true],
+  ])(
+    'tells the vendor a %i (%s) opens nothing: %s, keeping the token: %s',
+    async (status, code, heading, isKept) => {
+      const token = plantedToken();
+      holdBrief(token);
+      serve(() => HttpResponse.json({ statusCode: status, message: 'x', code }, { status }));
+      renderAt('/briefs');
+      expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
+      expect(heldBrief()).toBe(isKept ? token : null);
+    },
+  );
 
   it('asks the vendor to wait when there were too many requests, keeping the token', async () => {
     const token = plantedToken();
@@ -243,6 +247,27 @@ describe('the brief', () => {
     renderAt('/briefs');
     expect(await screen.findByText(/Too many requests just now/)).toBeInTheDocument();
     expect(heldBrief()).toBe(token);
+  });
+
+  it('opens a brief the hosts paused once they resume it, on trying again (FR-108)', async () => {
+    const token = plantedToken();
+    holdBrief(token);
+    let isPaused = true;
+    const { asked } = serve(() =>
+      isPaused
+        ? HttpResponse.json({ statusCode: 403, message: 'x', code: 'FORBIDDEN' }, { status: 403 })
+        : HttpResponse.json(brief()),
+    );
+    const user = renderAt('/briefs');
+    expect(
+      await screen.findByRole('heading', { name: 'The hosts have closed this brief' }),
+    ).toBeInTheDocument();
+    isPaused = false;
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Anna & Davit' }),
+    ).toBeInTheDocument();
+    expect(asked).toEqual([token, token]);
   });
 
   it('tries again with the token it holds, never by reloading, which would lose it', async () => {

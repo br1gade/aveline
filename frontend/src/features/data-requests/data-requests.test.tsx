@@ -42,6 +42,9 @@ function request(over: Record<string, unknown> = {}) {
     requestedAt: '2026-10-20T10:00:00Z',
     dueAt: '2026-11-20T10:00:00Z',
     completedAt: null,
+    erasureAppliedAt: null,
+    exportGenerationId: null,
+    exportGeneratedAt: null,
     handledByUserId: 'secret-staff-id',
     ...over,
   };
@@ -197,11 +200,71 @@ describe('the queue', () => {
     expect(screen.getByText(/Yerevan time/)).toBeInTheDocument();
   });
 
-  it('shows closed ones on their own tab, offering nothing', async () => {
+  it('shows closed ones on their own tab, offering no step, only what the form said', async () => {
     serve(() => [request({ status: 'COMPLETED' })]);
     await open(`${APP_PATHS.staffDataRequests}?status=completed`);
     expect(reads).toEqual(['COMPLETED']);
-    expect(within(item()).queryByRole('button')).not.toBeInTheDocument();
+    expect(
+      within(item())
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Show what the public form said']);
+  });
+
+  it('says when what the public form said can’t be read, and reads it again when asked', async () => {
+    serve(() => [request()]);
+    let reads = 0;
+    server.use(
+      http.get(`${REQUESTS}/r1/submissions`, () => {
+        reads += 1;
+        if (reads === 1) return refusal(500, 'Boom');
+        return HttpResponse.json({ items: [], total: 0, limit: 20, offset: 0, hasMore: false });
+      }),
+    );
+    const user = await open();
+    const show = `Show what the public form said: ${ADDRESS}`;
+    await user.click(within(item()).getByRole('button', { name: show }));
+    expect(await within(item()).findByRole('alert')).toHaveTextContent(/couldn’t be read/);
+    await user.click(within(item()).getByRole('button', { name: show }));
+    expect(
+      await within(item()).findByText('The public form sent nothing for this request.'),
+    ).toBeInTheDocument();
+    expect(reads).toBe(2);
+  });
+
+  it('reads what the public form said only when asked, a page at a time, as not verified (FR-126)', async () => {
+    serve(() => [request()]);
+    const offsets: string[] = [];
+    server.use(
+      http.get(`${REQUESTS}/r1/submissions`, ({ request: asked }) => {
+        const offset = Number(new URL(asked.url).searchParams.get('offset'));
+        offsets.push(String(offset));
+        const item = {
+          id: `s${offset}`,
+          notes: offset ? null : 'Please send everything',
+          createdAt: '2026-11-01T10:00:00Z',
+          source: 'UNVERIFIED_PUBLIC',
+        };
+        return HttpResponse.json({
+          items: [item],
+          total: 2,
+          limit: 20,
+          offset,
+          hasMore: offset === 0,
+        });
+      }),
+    );
+    const user = await open();
+    expect(offsets).toEqual([]);
+    expect(within(item()).getByText('From the public form (not verified)')).toBeInTheDocument();
+    await user.click(
+      within(item()).getByRole('button', { name: `Show what the public form said: ${ADDRESS}` }),
+    );
+    expect(await within(item()).findByText('Please send everything')).toBeInTheDocument();
+    await user.click(within(item()).getByRole('button', { name: `Show more: ${ADDRESS}` }));
+    expect(await within(item()).findByText('Sent with no notes.')).toBeInTheDocument();
+    expect(offsets).toEqual(['0', '1']);
+    expect(within(item()).queryByRole('button', { name: /Show more/ })).not.toBeInTheDocument();
   });
 
   it('says when one comes from an enquiry, with no address, and doesn’t offer carrying it out', async () => {
@@ -409,12 +472,12 @@ describe('carrying out an export', () => {
   async function carryOut(user: ReturnType<typeof userEvent.setup>) {
     await user.click(within(item()).getByRole('button', { name: `Export: ${ADDRESS}` }));
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent('only once');
+    expect(dialog).toHaveTextContent('if it is lost, export again');
     expect(writes).toEqual([]);
     await user.click(within(dialog).getByRole('button', { name: 'Export' }));
   }
 
-  it('saves the file at once, naming no one, as nothing can fetch it again', async () => {
+  it('saves the file at once, naming no one, as nothing keeps it', async () => {
     serve(inProgress);
     answerFulfil(() => exported());
     const user = await open();
@@ -427,14 +490,71 @@ describe('carrying out an export', () => {
     expect(JSON.parse(await (blob as Blob).text())).toMatchObject({ account: { email: ADDRESS } });
   });
 
-  it('offers saving again, and asks before it is lost', async () => {
+  it('offers saving again, without holding the page, as it can be made again (FR-128)', async () => {
     serve(inProgress);
-    answerFulfil(() => exported());
+    answerFulfil(() => exported({ generationId: 'gen-1' }));
     const user = await open();
     await carryOut(user);
     await user.click(await screen.findByRole('button', { name: 'Save the file again' }));
     expect(saveFile).toHaveBeenCalledTimes(2);
-    expect(isUnloadAsked()).toBe(true);
+    expect(isUnloadAsked()).toBe(false);
+  });
+
+  it('confirms delivery of the latest export, asking first, which closes it (FR-128)', async () => {
+    const made = {
+      status: 'IN_PROGRESS',
+      exportGenerationId: 'gen-2',
+      exportGeneratedAt: '2026-11-04T10:00:00Z',
+    };
+    serve(() => [request(made)]);
+    const posted: unknown[] = [];
+    server.use(
+      http.post(`${REQUESTS}/r1/confirm-delivery`, async ({ request: asked }) => {
+        posted.push(await asked.json());
+        return HttpResponse.json({
+          reference: 'r1',
+          status: 'COMPLETED',
+          generationId: 'gen-2',
+          completedAt: null,
+        });
+      }),
+    );
+    const user = await open();
+    expect(within(item()).getByText(/Exported on 4 November 2026/)).toBeInTheDocument();
+    expect(within(item()).getByRole('button', { name: `Export: ${ADDRESS}` })).toBeInTheDocument();
+    await user.click(within(item()).getByRole('button', { name: `Confirm delivery: ${ADDRESS}` }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(posted).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm delivery' }));
+    expect(
+      await screen.findByText('Delivery is confirmed, and the request is closed.'),
+    ).toBeInTheDocument();
+    expect(posted).toEqual([{ generationId: 'gen-2' }]);
+  });
+
+  it('says a newer export was made meanwhile, and reads the page again', async () => {
+    serve(() => [
+      request({
+        status: 'IN_PROGRESS',
+        exportGenerationId: 'gen-1',
+        exportGeneratedAt: '2026-11-04T10:00:00Z',
+      }),
+    ]);
+    server.use(
+      http.post(`${REQUESTS}/r1/confirm-delivery`, () =>
+        refusal(409, 'Only the latest export generation can be confirmed'),
+      ),
+    );
+    const user = await open();
+    const before = reads.length;
+    await user.click(within(item()).getByRole('button', { name: `Confirm delivery: ${ADDRESS}` }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Confirm delivery',
+      }),
+    );
+    expect(await screen.findByText(/A newer export was made meanwhile/)).toBeInTheDocument();
+    await waitFor(() => expect(reads.length).toBeGreaterThan(before));
   });
 
   it('keeps it nowhere else', async () => {

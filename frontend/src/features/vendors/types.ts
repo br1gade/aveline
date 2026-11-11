@@ -1,15 +1,20 @@
+import type { ResponseOf } from '@/api/client';
 import type { components } from '@/api/schema';
 
 /**
- * What the vendor calls return (docs/API.md §6, "Vendors and scoped briefs"). Interim until FR-1:
- * written from `vendors.service.ts` at `34ac1e6`. `read.ts` alone reads the `…Wire` types.
+ * What the vendor calls return (docs/API.md §6, "Vendors and scoped briefs"), from the schema
+ * (FR-1). `read.ts` alone reads the `…Wire` types.
  */
 
 type Schemas = components['schemas'];
 
-export type VendorCategory = Schemas['CreateVendorDto']['category'];
+export type VendorCategory = Schemas['VendorCategory'];
 export type BookingStatus = NonNullable<Schemas['UpdateBookingDto']['status']>;
 export type BriefSection = NonNullable<Schemas['BookVendorDto']['briefScopes']>[number];
+
+export type VendorWire = ResponseOf<'VendorsController_listVendorsResponse'>[number];
+export type BookingWire = ResponseOf<'VendorsController_listBookingsResponse'>[number];
+export type VendorOptionsWire = Schemas['VendorOptionsDto'];
 
 /** A hall in the shared directory that a curated venue vendor runs; hosts read it only. */
 export interface Hall {
@@ -19,43 +24,31 @@ export interface Hall {
   capacity: number | null;
 }
 
-export interface VendorWire {
-  id: string;
-  name: string;
-  category: string;
-  email: string | null;
-  phone: string | null;
-  isCurated: boolean;
-  venueProfiles?: Hall[];
-}
-
 export interface Vendor {
   id: string;
   name: string;
   category: VendorCategory;
   email: string | null;
   phone: string | null;
+  /** The organization's own notes, given only to a role that may edit vendors (FR-102). */
+  notes: string | null;
   /** Aveline's own list, which every organization sees; otherwise this organization's. */
   isCurated: boolean;
   halls: Hall[];
 }
 
-export interface BookingWire {
+/** One vendor a booking can be made with: no contacts, notes or fees (FR-103). */
+export interface VendorChoice {
   id: string;
-  vendor: {
-    id: string;
-    name: string;
-    category: string;
-    email?: string | null;
-    phone?: string | null;
-  };
-  status: string;
-  briefScopes: string[];
-  /** Absent without `vendor:write`: the link is a credential. */
-  briefToken?: string;
-  /** Absent without `vendor:fee:read`; `null` when no fee is agreed. */
-  feeMinor?: string | null;
-  feeCurrency?: string;
+  name: string;
+  category: VendorCategory;
+  isCurated: boolean;
+}
+
+export interface VendorChoices {
+  choices: VendorChoice[];
+  /** The sections the backend gives each kind of vendor when none are chosen (FR-105). */
+  usualSections: ReadonlyMap<VendorCategory, BriefSection[]>;
 }
 
 /** The agreed fee, which a role without `vendor:fee:read` is not shown (FR-6). */
@@ -78,4 +71,6 @@ export interface Booking {
   scopes: BriefSection[];
   fee: Fee;
   link: BriefLink;
+  /** False while the host has paused the brief: its link opens nothing (FR-108, C-56). */
+  isBriefEnabled: boolean;
 }

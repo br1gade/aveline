@@ -19,6 +19,7 @@ import {
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n, type Language } from '@/lib/i18n';
 import { leaveForBank } from '@/lib/links/bank';
+import { GrantedPermissions, type Granted } from '@/features/permissions';
 
 import { plantedToken } from '../../../test/tokens';
 import { BillingPage } from './components/billing-page';
@@ -75,6 +76,7 @@ const held = {
   cancelAtPeriodEnd: false,
   cancelledAt: null,
   trialEndsAt: null,
+  pendingFree: null as { planKey: string; effectiveAt: string } | null,
 };
 const orderNumber = `AVL-${plantedToken()}`;
 const invoice = {
@@ -146,19 +148,30 @@ function LoadedPage() {
   return <BillingPage data={useLoaderData<typeof loaded>()} provider="FAKE" />;
 }
 
-async function openPage(language: Language = 'en') {
+async function openPage(language: Language = 'en', permissions: Granted = null) {
   const Stub = createRoutesStub([
     { path: '/app/billing', Component: LoadedPage, loader: loaded, HydrateFallback: () => null },
   ]);
   render(
     <I18nextProvider i18n={createI18n(language)}>
-      <Stub initialEntries={['/app/billing']} />
+      <GrantedPermissions permissions={permissions}>
+        <Stub initialEntries={['/app/billing']} />
+      </GrantedPermissions>
     </I18nextProvider>,
   );
   await screen.findByRole('heading', { level: 1 });
 }
 
 describe('the billing page', () => {
+  it('offers choosing, cancelling and keeping only with `billing:write` (FR-6)', async () => {
+    answerReads({ ...held, pendingFree: { planKey: 'free', effectiveAt: held.currentPeriodEnd } });
+    await openPage('en', ['billing:read']);
+    expect(screen.getByText('Moves to the free plan on 4 December 2026.')).toBeInTheDocument();
+    for (const name of [/Choose/, /Cancel/, 'Keep the plan']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+  });
+
   it('shows the plan held, the price list and the invoices, with no order number', async () => {
     answerReads();
     await openPage();
@@ -294,25 +307,53 @@ describe('the billing page', () => {
     expect(leaveForBank).not.toHaveBeenCalled();
   });
 
-  it('warns that a free plan ends a paid period, and sends no provider', async () => {
+  it('says a free plan waits for the paid period’s end, and sends no provider (FR-135)', async () => {
     answerReads();
     let body: unknown;
     server.use(
       http.post(`${API}/subscription`, async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ subscription: held, invoice: null, payment: null });
+        const pendingFree = { planKey: 'free', effectiveAt: held.currentPeriodEnd };
+        return HttpResponse.json({
+          subscription: { ...held, pendingFree },
+          invoice: null,
+          payment: null,
+        });
       }),
     );
     await openPage();
     await userEvent.click(screen.getByRole('button', { name: 'Choose this plan' }));
     const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText(/ends at once, with no refund/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/carries on to the end of the period you paid for/),
+    ).toBeInTheDocument();
     await userEvent.click(
-      within(dialog).getByRole('button', { name: 'End my paid period and change' }),
+      within(dialog).getByRole('button', { name: 'Change at the end of the period' }),
     );
-    expect(await screen.findByText('Free tier is your plan now.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Free tier starts when your paid period ends/),
+    ).toBeInTheDocument();
     expect(body).toEqual({ planKey: 'free' });
     expect(leaveForBank).not.toHaveBeenCalled();
+  });
+
+  it('says when it moves to Free, offers keeping the plan, and offers Free no more (FR-135)', async () => {
+    const pendingFree = { planKey: 'free', effectiveAt: held.currentPeriodEnd };
+    answerReads({ ...held, pendingFree });
+    let isWithdrawn = false;
+    server.use(
+      http.delete(`${API}/subscription/pending-free`, () => {
+        isWithdrawn = true;
+        return HttpResponse.json({ subscription: { ...held, pendingFree: null } });
+      }),
+    );
+    await openPage();
+    expect(screen.getByText('Moves to the free plan on 4 December 2026.')).toBeInTheDocument();
+    expect(screen.getByText('Starts when your paid period ends')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Choose this plan' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Keep the plan' }));
+    await vi.waitFor(() => expect(isWithdrawn).toBe(true));
+    expect(await screen.findByText('The plan carries on.')).toBeInTheDocument();
   });
 
   it('says the pilot is why, as unavailable and not a failure, and what stays usable', async () => {

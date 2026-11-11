@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { browserSession } from '@/api/session';
 import { ArrivalStatus, eventVendorsPath } from '@/features/events';
+import { Permitted, useCan } from '@/features/permissions';
 import {
   AskFirstDialog,
   StatusLine,
@@ -113,28 +114,89 @@ function VendorFacts({ booking }: { booking: Booking }) {
   );
 }
 
-function EndedPanel({
-  eventId,
-  booking,
-  page,
-}: {
+interface BookingPanelProps {
   eventId: string;
   booking: Booking;
   page: PageActions;
-}) {
+}
+
+function EndedPanel({ eventId, booking, page }: BookingPanelProps) {
   const { t } = useTranslation('vendors');
   const again = useEngageAgain(eventId, booking, page);
   return (
     <section className="flex max-w-[34rem] flex-col gap-3">
       <p className="m-0">{t('ended.lead')}</p>
       {again.refusal ? <VendorProblem refusal={again.refusal} /> : null}
-      <Button
-        className={`self-start ${WRAPPING_BUTTON}`}
-        disabled={again.isBusy}
-        onClick={again.engage}
-      >
-        {t('ended.again')}
-      </Button>
+      {useCan('vendor:write') ? (
+        <Button
+          className={`self-start ${WRAPPING_BUTTON}`}
+          disabled={again.isBusy}
+          onClick={again.engage}
+        >
+          {t('ended.again')}
+        </Button>
+      ) : null}
+    </section>
+  );
+}
+
+/** Pausing keeps the booking, its fee, sections and link; the link opens nothing meanwhile. */
+function useBriefAccess({ eventId, booking, page }: BookingPanelProps) {
+  const { t } = useTranslation('vendors');
+  const [isBusy, setIsBusy] = useState(false);
+  const [refusal, setRefusal] = useState<VendorRefusal | null>(null);
+  const toggle = async () => {
+    const isEnabled = !booking.isBriefEnabled;
+    setRefusal(null);
+    setIsBusy(true);
+    try {
+      await changeBooking(
+        browserSession().api,
+        { eventId, bookingId: booking.id },
+        { isBriefEnabled: isEnabled },
+      );
+      await page.done(
+        t(isEnabled ? 'status.resumed' : 'status.paused', { name: booking.vendor.name }),
+      );
+    } catch (error) {
+      const found = vendorRefusalOf(error, 'pause');
+      setRefusal(found);
+      if (found.isStale) page.reload();
+    } finally {
+      setIsBusy(false);
+    }
+  };
+  return { isBusy, refusal, toggle: () => void toggle() };
+}
+
+/**
+ * Whether the vendor can open their brief (FR-108, C-56, design PD-192): said to anyone who reads
+ * the booking, changed at once by a role with `vendor:write`, since resuming undoes it.
+ */
+function BriefAccess(props: BookingPanelProps) {
+  const { t } = useTranslation('vendors');
+  const headingId = useId();
+  const access = useBriefAccess(props);
+  const { booking } = props;
+  return (
+    <section aria-labelledby={headingId} className="flex max-w-[34rem] flex-col gap-3">
+      <h2 id={headingId} className="m-0 text-lg font-medium">
+        {t('pause.title')}
+      </h2>
+      <p className="m-0">
+        {booking.isBriefEnabled ? t('pause.on', { name: booking.vendor.name }) : t('pause.off')}
+      </p>
+      {access.refusal ? <VendorProblem refusal={access.refusal} /> : null}
+      <Permitted to="vendor:write">
+        <Button
+          variant="outline"
+          className={`self-start ${WRAPPING_BUTTON}`}
+          disabled={access.isBusy}
+          onClick={access.toggle}
+        >
+          {booking.isBriefEnabled ? t('pause.pause') : t('pause.resume')}
+        </Button>
+      </Permitted>
     </section>
   );
 }
@@ -152,24 +214,26 @@ function BookingBody({
   const { event, booking } = data;
   if (booking.kind === 'missing') return <p className="m-0">{t('booking.missing')}</p>;
   if (booking.kind === 'refused') return <VendorProblem refusal={booking.refusal} />;
-  const current = booking.value;
-  const isEnded = current.status === 'CANCELLED';
+  const panel = { eventId: event.id, booking: booking.value, page };
   return (
     <>
-      <VendorFacts booking={current} />
-      <BriefLinkPanel booking={current} onNewLink={(opener) => onOpen('newLink', opener)} />
-      {isEnded ? (
-        <EndedPanel eventId={event.id} booking={current} page={page} />
+      <VendorFacts booking={booking.value} />
+      <BriefLinkPanel booking={booking.value} onNewLink={(opener) => onOpen('newLink', opener)} />
+      {booking.value.status === 'CANCELLED' ? (
+        <EndedPanel {...panel} />
       ) : (
         <>
-          <BookingForm eventId={event.id} booking={current} page={page} />
-          <Button
-            variant="outline"
-            className={`self-start ${WRAPPING_BUTTON}`}
-            onClick={(click) => onOpen('end', click.currentTarget)}
-          >
-            {t('end.open')}
-          </Button>
+          <BriefAccess {...panel} />
+          <Permitted to="vendor:write">
+            <BookingForm {...panel} />
+            <Button
+              variant="outline"
+              className={`self-start ${WRAPPING_BUTTON}`}
+              onClick={(click) => onOpen('end', click.currentTarget)}
+            >
+              {t('end.open')}
+            </Button>
+          </Permitted>
         </>
       )}
     </>
@@ -178,8 +242,9 @@ function BookingBody({
 
 /**
  * One vendor's booking on this event (docs/API.md §6; design PD-122): who they are, the brief link
- * to copy or replace, the state, sections and fee to correct, and ending it, which asks first.
- * Every action is offered to every role; a refusal is worded for the action (FR-6).
+ * to copy or replace, whether the vendor can open it, the state, sections and fee to correct, and
+ * ending it, which asks first. Changes are offered to a role with `vendor:write` (FR-6, PD-190),
+ * and a refusal is still worded for the action.
  */
 export function BookingPage({ data }: { data: BookingData }) {
   const { t } = useTranslation('vendors');

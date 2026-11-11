@@ -1,7 +1,6 @@
 {
   "title": "Vendors",
   "lead": "Your organization’s own vendors, which only it sees, and Aveline’s list, which every organization sees. Book one for an event from that event’s page.",
-  "cantCorrect": "A vendor you add can’t be corrected or removed yet. Check the details before adding one.",
   "backHome": "Back to your events",
   "backEvent": "Back to the event",
   "backBookings": "Back to the event’s vendors",
@@ -18,7 +17,12 @@
     "curated": "Aveline’s list",
     "own": "Yours",
     "email": "Email",
-    "phone": "Phone"
+    "phone": "Phone",
+    "notes": "Notes",
+    "correct": "Correct",
+    "correctFor": "Correct: {{name}}",
+    "remove": "Remove",
+    "removeFor": "Remove: {{name}}"
   },
   "halls": {
     "title": "Halls in the venue directory",
@@ -34,7 +38,9 @@
     "phone": "Phone",
     "optional": "Optional.",
     "submit": "Add the vendor",
-    "adding": "Adding…"
+    "adding": "Adding…",
+    "notes": "Notes",
+    "notesHelp": "Optional. Only those who may change your vendors see them."
   },
   "status": {
     "added": "{{name}} was added.",
@@ -43,16 +49,19 @@
     "newLink": "A new link was made, and the one sent before no longer works. Copy the new one to send it.",
     "ended": "The booking with {{name}} was ended. Their link no longer works.",
     "engaged": "{{name}} is engaged again, with a new link. Copy it to send it.",
-    "booked": "Booked. Copy the brief link below to send it to the vendor."
+    "booked": "Booked. Copy the brief link below to send it to the vendor.",
+    "corrected": "{{name}} is corrected.",
+    "removed": "{{name}} is removed from your vendors.",
+    "paused": "The brief is paused: its link opens nothing until you let {{name}} see it again.",
+    "resumed": "{{name}} can open their brief again."
   },
   "errors": {
     "required": "Choose one.",
     "nameShort": "Give at least 2 characters.",
     "tooLong": "This is too long.",
     "email": "Enter an email address, like name@example.com.",
-    "fee": "Enter a whole number of dram, digits only, like 150000.",
+    "fee": "Enter the amount in digits, with no more decimals than the currency has, like 150000.",
     "feeTooLarge": "This fee is too large.",
-    "cantClear": "A fee once agreed can be changed, not removed.",
     "refused": "This was refused. Check it and try again."
   },
   "refused": {
@@ -63,7 +72,11 @@
       "change": "Your role can’t change bookings. The event’s owner or a coordinator can.",
       "newLink": "Your role can’t replace brief links. The event’s owner or a coordinator can.",
       "end": "Your role can’t end bookings. The event’s owner or a coordinator can.",
-      "engageAgain": "Your role can’t engage a vendor again. The event’s owner or a coordinator can."
+      "engageAgain": "Your role can’t engage a vendor again. The event’s owner or a coordinator can.",
+      "choices": "Vendors aren’t part of your role on this event. The event’s owner or a coordinator can book one.",
+      "correct": "Your role can’t correct vendors. The organization’s owner or a manager can.",
+      "remove": "Your role can’t remove vendors. The organization’s owner or a manager can.",
+      "pause": "Your role can’t pause or resume a brief. The event’s owner or a coordinator can."
     },
     "noOrganization": "Vendors are kept by an organization, and your account isn’t a member of one: you may have been invited onto an event only. Ask the organization’s owner to book a vendor, or to add you to the organization.",
     "chooseOrganization": "You belong to more than one organization, and this page can’t choose between them yet.",
@@ -131,12 +144,14 @@
     }
   },
   "fee": {
-    "label": "Agreed fee, in dram (AMD)",
-    "help": "Optional. Whole dram, digits only.",
-    "cantClearHelp": "Whole dram, digits only. It can be changed, not removed.",
+    "label": "Agreed fee",
+    "help": "Optional. Digits, in the currency chosen below.",
     "hidden": "not yours to see",
     "none": "none agreed",
-    "amount": "{{amount}}"
+    "amount": "{{amount}}",
+    "clearHelp": "Digits, in the currency chosen below. Empty it to remove the fee.",
+    "currency": "Currency",
+    "currencyName": "{{name}} ({{code}})"
   },
   "bookings": {
     "title": "Vendors",
@@ -146,7 +161,8 @@
     "listTitle": "Booked for this event",
     "empty": "Nobody is booked yet.",
     "open": "Open the booking",
-    "openFor": "Open the booking with {{name}}"
+    "openFor": "Open the booking with {{name}}",
+    "paused": "Brief paused"
   },
   "booking": {
     "title": "A booking",
@@ -171,8 +187,7 @@
     "ended": "booking ended, books again",
     "scopesHelp": "The usual set for this kind of vendor is ticked to start with. The vendor reads exactly what is ticked.",
     "submit": "Book the vendor",
-    "booking": "Booking…",
-    "organization": "Your organization’s vendors"
+    "booking": "Booking…"
   },
   "link": {
     "title": "The brief link",
@@ -199,5 +214,23 @@
   "ended": {
     "lead": "This booking was ended. Engaging the vendor again makes a new link to send them.",
     "again": "Engage again"
+  },
+  "correct": {
+    "title": "Correct {{name}}",
+    "save": "Save the vendor",
+    "saving": "Saving…",
+    "cancel": "Cancel"
+  },
+  "remove": {
+    "title": "Remove {{name}} from your vendors?",
+    "body": "They are no longer offered for new bookings. Bookings already made, and the briefs sent with them, are kept.",
+    "confirm": "Remove"
+  },
+  "pause": {
+    "title": "Who can open the brief",
+    "on": "{{name}} can open their brief with the link you sent.",
+    "off": "The brief is paused: the link you sent opens nothing for now. The booking, its fee and its sections are kept.",
+    "pause": "Pause the brief",
+    "resume": "Let them see it again"
   }
 }
