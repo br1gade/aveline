@@ -90,7 +90,7 @@ export class UpdateEventDto {
   @ApiPropertyOptional({
     type: 'object',
     additionalProperties: true,
-    description: 'Per-language title and hosts, edited one language at a time; null removes one',
+    description: 'Per-language title, hosts and side labels, edited one language at a time; null removes one',
     example: { en: { title: 'The wedding of Anna and Davit', hostsLabel: 'Anna & Davit' } },
   })
   @IsOptional()

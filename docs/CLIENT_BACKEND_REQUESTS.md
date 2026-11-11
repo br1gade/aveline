@@ -125,15 +125,15 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-93 | The listing's categories and availability | S3 host/guest operations | Audit and implement |
 | FR-94 | The running order's writes: a notice, the venue, and three loose ends | S1 safety/correctness | Audit and implement |
 | FR-95 | Recording an answer: return what was saved, and let status be left out | S3 host/guest operations | Audit and implement |
-| FR-96 | Side labels in each language | S3 host/guest operations | Audit and implement |
+| FR-96 | Side labels in each language | S3 host/guest operations | Implemented 12 November 2026. Client adoption open. |
 | FR-97 | An archived event: which writes stay open, and whether it can be deleted | S3 host/guest operations | Audit and implement |
 | FR-98 | "Who must not be contacted" for someone outside the organization | S3 host/guest operations | Audit and implement |
-| FR-99 | Suppression writes and reads | S1 safety/correctness | Reason precedence implemented in the first follow-up. Other suppression list and input requests remain open. |
+| FR-99 | Suppression writes and reads | S1 safety/correctness | (a) precedence, (b) host reasons, (c) blank addresses, (d) phone form and (f) schema implemented. (e), the list's silent 500 cap, remains open: signalling it changes the response shape. |
 | FR-100 | Promo codes: a currency, a zone, clearing, the pilot | S4 ticketing/vendors/billing | Audit and implement |
 | FR-101 | translations on creating an event | S3 host/guest operations | Audit and implement |
 | FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Implemented; organization-owned edits, private notes and soft removal; merged in `75e22e8` |
 | FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Implemented; event-scoped vendor choices verified; merged in `75e22e8` |
-| FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Audit and implement |
+| FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Implemented 12 November 2026 in the event's language (C-45). Client adoption open. |
 | FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Implemented; picker returns brief section purposes and defaults; merged in `75e22e8` |
 | FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Implemented; 84 vendor/access HTTP cases passed; merged in `75e22e8` |
 | FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
@@ -383,3 +383,14 @@ roster row and keeps erased guests in their household's results. FR-142 and
 FR-147 give the door roster and `GET /plans` the guest-page read allowance. Each
 route keeps its own count, so check-ins and other writes keep the default limit.
 All four are additive. Client adoption and the real-backend rehearsal are open.
+
+### Side labels, brief language and suppression input (12 November 2026)
+
+FR-96 makes `sideALabel` and `sideBLabel` translatable like the title and
+resolves them in the guest page's language. FR-104 names the brief's `locale`,
+the event's default language, and gives the title, side labels and venues in
+it. FR-99 refuses a host-sent reason other than `MANUAL` and a blank address,
+stores SMS and WhatsApp numbers without formatting, and declares the request
+schema. Refusing the other reasons is breaking for a client that sent them; the
+current client sends none. FR-99(e) stays open. The release workflow now takes
+the support contacts and website address as optional inputs.

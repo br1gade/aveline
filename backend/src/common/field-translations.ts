@@ -12,7 +12,7 @@ import { LOCALE } from './locale';
  */
 export type FieldLimits = Readonly<Record<string, number>>;
 
-export const EVENT_TRANSLATABLE: FieldLimits = { title: 200, hostsLabel: 200 };
+export const EVENT_TRANSLATABLE: FieldLimits = { title: 200, hostsLabel: 200, sideALabel: 60, sideBLabel: 60 };
 export const VENUE_TRANSLATABLE: FieldLimits = { name: 160, address: 300 };
 
 /**

@@ -43,7 +43,10 @@ export function buildInvitationContent(invitation: InvitationContent, requestedL
       title: translatedField(event.translations, locale, 'title') ?? event.title,
       hosts: translatedField(event.translations, locale, 'hostsLabel') ?? event.hostsLabel,
       startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone,
-      sides: { a: event.sideALabel, b: event.sideBLabel },
+      sides: {
+        a: translatedField(event.translations, locale, 'sideALabel') ?? event.sideALabel,
+        b: translatedField(event.translations, locale, 'sideBLabel') ?? event.sideBLabel,
+      },
     },
     guest: null,
     blocks: invitation.blocks.map((block) => ({

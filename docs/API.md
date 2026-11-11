@@ -455,7 +455,7 @@ it, and `locale` in the response says which you got. Switching does not change
 the guest's stored language — an RSVP with `locale` does that. Build a
 language switcher from `availableLocales`.
 
-The event's `title` and `hosts`, and each venue's `name` and `address`, come
+The event's `title`, `hosts` and `sides`, and each venue's `name` and `address`, come
 back in the page's language when the host has translated them, and in the
 original otherwise.
 
@@ -2421,7 +2421,9 @@ guest invitation. Send the vendor
 {
   "vendor": { "name": "Tashir Catering", "category": "CATERING" },
   "status": "CONFIRMED",
-  "event": { "title": "...", "startsAt": "...", "timezone": "Asia/Yerevan", "venues": [...] },
+  "locale": "hy",
+  "event": { "title": "...", "startsAt": "...", "endsAt": null, "timezone": "Asia/Yerevan",
+             "sides": { "a": "Bride", "b": null }, "venues": [...] },
   "granted": [
     { "section": "headcount", "purpose": "Confirmed headcount by side" },
     { "section": "catering", "purpose": "Covers and dietary requirements" }
@@ -2430,6 +2432,13 @@ guest invitation. Send the vendor
   "catering": { ... }
 }
 ```
+
+`locale` names the language the event's own words are in: always the event's
+default language. The title, side labels (`null` when the host set none) and
+venue names and addresses are given in it, falling back to the typed original.
+Mark that content with `locale`; the page's own wording can follow the vendor's
+browser. `headcount.bySide` keys stay `SIDE_A`, `SIDE_B`, `SHARED` and `UNKNOWN`;
+label the first two with `event.sides`.
 
 **A section the booking did not grant is absent, not empty.** Render from
 `granted` rather than probing for keys. `granted: []` is valid and means the
@@ -2649,7 +2658,13 @@ an address you already have but never show one. **New value, 10 October
 2026** — handle an unknown `reason` gracefully.
 
 Addresses are matched case-insensitively for email, and `POST` is idempotent.
-`reason` defaults to `MANUAL`. In either scope, a stronger reason replaces a
+An SMS or WhatsApp number is stored without spaces, dashes, dots or brackets,
+and a leading `00` becomes `+`, so `+374 91 000 000` matches a guest's
+`+37491000000`. A local number such as `091 000 000` keeps its leading 0 and
+matches only the same local number. A blank `address` is a `400`. `reason` is
+optional and may only be `MANUAL`, its default; any other reason is a `400`
+naming `reason`, because bounces, complaints, unsubscribes and erasures are
+recorded by the platform. The list still stops at 500 entries without saying so. In either scope, a stronger reason replaces a
 weaker one. A weaker write preserves both the reason and its notes.
 
 **A suppressed recipient still produces a `Message` row**, with status
@@ -2873,11 +2888,12 @@ PATCH /api/v1/events/:id
 
 Needs `event:write`. Takes `type`, `title`, `hostsLabel`, `startsAt`,
 `endsAt`, `timezone`, `locales`, `defaultLocale`, `sideALabel`, `sideBLabel`
-and `translations` — per-language versions of the title and hosts,
-`{ "en": { "title": "...", "hostsLabel": "..." } }`, edited one language at a
-time (`null` removes one; a problem is a `400` starting `translations:`). The
-plain `title` and `hostsLabel` are what shows in a language with no
-translation. **Omitted means unchanged**; `null` clears `endsAt` and the side
+and `translations` — per-language versions of the title, hosts and side labels,
+`{ "en": { "title": "...", "hostsLabel": "...", "sideALabel": "...", "sideBLabel": "..." } }`,
+edited one language at a time (`null` removes one; a problem is a `400` starting
+`translations:`). A translated title or hosts label is at most 200 characters, a
+side label at most 60. The plain `title`, `hostsLabel`, `sideALabel` and
+`sideBLabel` are what shows in a language with no translation. **Omitted means unchanged**; `null` clears `endsAt` and the side
 labels, and is refused for the rest. The edit is validated as a whole before
 anything is written — the end after the start, a real IANA time zone, each
 language once, the default among them — and any problem is a `400` whose

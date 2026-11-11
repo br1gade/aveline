@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { BookingStatus, Prisma, RsvpStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolveTranslation } from '../../common/locale';
+import { translatedField } from '../../common/field-translations';
 import { OperationsService } from '../operations/operations.service';
 import { BRIEF_SECTION_PURPOSE, BriefSection, sectionsFor } from './vendor-brief';
 import { readPublishedVendorSeating } from './vendor-seating';
@@ -38,19 +39,7 @@ export class VendorBriefsService {
         briefScopes: true,
         isBriefEnabled: true,
         vendor: { select: { name: true, category: true } },
-        event: {
-          select: {
-            title: true,
-            startsAt: true,
-            endsAt: true,
-            timezone: true,
-            defaultLocale: true,
-            venues: {
-              select: { role: true, name: true, address: true, arriveAt: true, mapUrl: true },
-              orderBy: { sortOrder: 'asc' },
-            },
-          },
-        },
+        event: { select: briefEventSelect },
       },
     });
 
@@ -66,13 +55,9 @@ export class VendorBriefsService {
     return {
       vendor: booking.vendor,
       status: booking.status,
-      event: {
-        title: booking.event.title,
-        startsAt: booking.event.startsAt,
-        endsAt: booking.event.endsAt,
-        timezone: booking.event.timezone,
-        venues: booking.event.venues,
-      },
+      // The event's own language, decided for vendors (design C-45); named so the page can mark it.
+      locale: booking.event.defaultLocale,
+      event: briefEvent(booking.event),
       // Stating the scope in the response is deliberate: a vendor who can see
       // what they were and were not given does not ask for the rest by email.
       granted: sections.filter((section) => content[section] !== undefined).map((section) => ({
@@ -168,4 +153,38 @@ export class VendorBriefsService {
       phone: guest.phone,
     }));
   }
+}
+
+const briefEventSelect = {
+  title: true,
+  startsAt: true,
+  endsAt: true,
+  timezone: true,
+  defaultLocale: true,
+  translations: true,
+  sideALabel: true,
+  sideBLabel: true,
+  venues: {
+    select: { role: true, name: true, address: true, translations: true, arriveAt: true, mapUrl: true },
+    orderBy: { sortOrder: 'asc' },
+  },
+} satisfies Prisma.EventSelect;
+
+/** The event's words in its default language, falling back to the typed original as the guest page does. */
+function briefEvent(event: Prisma.EventGetPayload<{ select: typeof briefEventSelect }>) {
+  const locale = event.defaultLocale;
+  const inLanguage = (translations: unknown, field: string, original: string | null) =>
+    translatedField(translations, locale, field) ?? original;
+  return {
+    title: inLanguage(event.translations, 'title', event.title),
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+    timezone: event.timezone,
+    sides: { a: inLanguage(event.translations, 'sideALabel', event.sideALabel), b: inLanguage(event.translations, 'sideBLabel', event.sideBLabel) },
+    venues: event.venues.map(({ translations, ...venue }) => ({
+      ...venue,
+      name: inLanguage(translations, 'name', venue.name),
+      address: inLanguage(translations, 'address', venue.address),
+    })),
+  };
 }
