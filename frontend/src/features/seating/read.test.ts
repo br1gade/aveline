@@ -159,7 +159,24 @@ describe('reading seating answers by naming their fields', () => {
     expect(failed).toMatchObject({ recoveryMessage: 'Refresh and run it again.', result: null });
     expect(readJob({ ...wireOf(failed), status: 'CANCELLED' }).status).toBe('FAILED');
   });
+
+  // The schema allows any value there; docs/API.md documents an object (FR-149).
+  it.each([[[]], ['x'], [1], [true]])('reads a result of %j as none', (result) => {
+    const job = readJob({ ...wireOf(readJob(SUMMARY)), result });
+    expect(job.result).toBeNull();
+  });
 });
+
+const SUMMARY: JobWire = {
+  id: 'j3',
+  arrangementId: 'a1',
+  status: 'COMPLETED',
+  attempts: 1,
+  failureReason: null,
+  appliedRevision: 4,
+  createdAt: '2027-06-01T10:00:00.000Z',
+  completedAt: '2027-06-01T10:00:02.000Z',
+};
 
 function wireOf(job: ReturnType<typeof readJob>): JobWire {
   return { ...job, recovery: null, result: null };

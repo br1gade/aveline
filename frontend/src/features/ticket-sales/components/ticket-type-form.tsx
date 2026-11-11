@@ -14,6 +14,7 @@ import {
   TextInputField,
   useLeaveGuard,
 } from '@/ui/app-form';
+import { ChangeableWith } from '@/features/permissions';
 import { Button } from '@/ui/kit/button';
 import { FieldLegend, FieldSet } from '@/ui/kit/field';
 
@@ -244,27 +245,29 @@ export function TicketTypeForm({ data }: { data: TicketTypeData }) {
       {problem ? (
         <ProblemAlert problem={problem} refused={(status) => t(refusedWords(status))} />
       ) : null}
-      <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
-        <Translated form={form} field="names" languages={context.languages} labelOf={labelOf} />
-        <Translated
-          form={form}
-          field="descriptions"
-          languages={context.languages}
-          labelOf={labelOf}
-        />
-        <Limits form={form} type={type} currency={context.currency} />
-        <SalesEdge form={form} edge="salesStart" timeZone={event.timezone} />
-        <SalesEdge form={form} edge="salesEnd" timeZone={event.timezone} />
-        <p className="text-muted-foreground m-0 text-sm">{t('typeForm.windowNote')}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton isSubmitting={form.formState.isSubmitting} className="w-auto">
-            {t(type ? 'typeForm.save' : 'typeForm.add')}
-          </SubmitButton>
-          <Button asChild variant="ghost">
-            <Link to={ticketSalesPath(event.id)}>{t('cancel')}</Link>
-          </Button>
-        </div>
-      </AppForm>
+      <ChangeableWith to="event:write" readOnly={t('forbidden')}>
+        <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
+          <Translated form={form} field="names" languages={context.languages} labelOf={labelOf} />
+          <Translated
+            form={form}
+            field="descriptions"
+            languages={context.languages}
+            labelOf={labelOf}
+          />
+          <Limits form={form} type={type} currency={context.currency} />
+          <SalesEdge form={form} edge="salesStart" timeZone={event.timezone} />
+          <SalesEdge form={form} edge="salesEnd" timeZone={event.timezone} />
+          <p className="text-muted-foreground m-0 text-sm">{t('typeForm.windowNote')}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <SubmitButton isSubmitting={form.formState.isSubmitting} className="w-auto">
+              {t(type ? 'typeForm.save' : 'typeForm.add')}
+            </SubmitButton>
+            <Button asChild variant="ghost">
+              <Link to={ticketSalesPath(event.id)}>{t('cancel')}</Link>
+            </Button>
+          </div>
+        </AppForm>
+      </ChangeableWith>
     </section>
   );
 }

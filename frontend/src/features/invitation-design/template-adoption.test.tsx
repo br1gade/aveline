@@ -109,7 +109,10 @@ beforeEach(() => {
     ),
   );
 });
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  server.events.removeAllListeners();
+});
 afterAll(() => server.close());
 
 function renderAdoption() {
@@ -349,7 +352,26 @@ describe('adopting an authored template', () => {
 });
 
 describe('choosing an authored template by its key', () => {
-  it('goes to its preview, and to nothing else', async () => {
+  it('goes straight to its preview when the list says it needs one (FR-114)', async () => {
+    server.use(
+      http.get(`${API}/events/e1/design-templates`, () =>
+        HttpResponse.json([
+          { ...CLASSIC, versionId: 'v1', requiresAdoptionPreview: false },
+          { ...AUTHORED, requiresAdoptionPreview: true },
+        ]),
+      ),
+    );
+    const chosen: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      if (request.method === 'POST' && request.url.endsWith('/template')) chosen.push(request.url);
+    });
+    answerPreview(() => HttpResponse.json(READY, { status: 201 }));
+    await chooseByKey();
+    expect(await screen.findByRole('heading', { name: 'Adoption page' })).toBeInTheDocument();
+    expect(chosen).toEqual([]);
+  });
+
+  it('goes to its preview when only the refusal says it needs one', async () => {
     answerPreview(() => HttpResponse.json(READY, { status: 201 }));
     await chooseByKey();
     expect(await screen.findByRole('heading', { name: 'Adoption page' })).toBeInTheDocument();

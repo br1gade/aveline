@@ -7,6 +7,7 @@ import { Link, useNavigate, useRevalidator } from 'react-router';
 import { browserSession } from '@/api/session';
 import { guestListPath } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
+import { ChangeableWith } from '@/features/permissions';
 import { oneByOne, type OneByOne } from '@/lib/queue';
 import {
   AppForm,
@@ -285,7 +286,9 @@ export function HouseholdAnswersPage({ data }: { data: HouseholdAnswersData }) {
         <p className="text-muted-foreground m-0 break-words">{name}</p>
       </div>
       <p className="m-0 max-w-[40rem]">{t('household.lead')}</p>
-      <HouseholdBody data={data} />
+      <ChangeableWith to="guest:write" readOnly={t('refused.forbidden')}>
+        <HouseholdBody data={data} />
+      </ChangeableWith>
     </section>
   );
 }

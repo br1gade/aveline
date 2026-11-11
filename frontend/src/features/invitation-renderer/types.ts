@@ -1,10 +1,9 @@
 /**
  * The guest invitation payload: `GET /api/v1/invitations/:slug` and `…/g/:guestToken`.
  *
- * Interim until FR-1: the OpenAPI schema declares no response types yet, so these are written by
- * hand from docs/API.md §4 and checked against the backend's `InvitationsService.buildPayload`
- * (re-checked 23 October 2026, after the backend's audit fixes). The end-to-end tests catch
- * drift.
+ * Written by hand, and checked against the schema at each call (FR-1), from docs/API.md §4 and
+ * checked against the backend's `InvitationsService.buildPayload` (re-checked 23 October 2026,
+ * after the backend's audit fixes). The end-to-end tests catch drift.
  */
 
 export const BLOCK_TYPES = [

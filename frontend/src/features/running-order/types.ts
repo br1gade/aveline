@@ -1,6 +1,6 @@
 /**
- * What the running-order calls return (docs/API.md §6, "The running order"). Interim until FR-1:
- * the schema declares no response types, so these are written from `timeline.service.ts`.
+ * What the running-order calls return (docs/API.md §6, "The running order"). These are checked
+ * against the schema at each call (FR-1), written from `timeline.service.ts`.
  */
 
 /** An entry as `GET /events/:eventId/timeline` lists it, by `occursAt` then `sortOrder`. */

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import type { EventDetail } from '@/features/events';
+import { useCan } from '@/features/permissions';
 import { formatEventDay } from '@/lib/time';
 import {
   deliveryGroupOf,
@@ -143,6 +144,8 @@ function Results({
   formatDay,
 }: ResultsProps) {
   const { t } = useTranslation('guests');
+  // Read once here: each of two thousand rows is memoized and takes it as a prop.
+  const canChange = useCan('guest:write');
   if (households.length === 0)
     return <p className="text-muted-foreground m-0">{t('list.empty')}</p>;
   if (visible.length === 0) {
@@ -170,6 +173,7 @@ function Results({
           isChosen={sending.chosen ? sending.chosen.has(household.id) : null}
           onChoose={sending.onChoose}
           formatDay={formatDay}
+          canChange={canChange}
         />
       ))}
     </div>
@@ -215,9 +219,10 @@ function useSending(
 ) {
   const texts = useDeliveryTexts(report, event);
   const sender = useSendFromList({ event, households, report });
+  const canSend = useCan('invitation:publish');
   const { invitation } = event;
   const isSendable =
-    invitation?.status === 'PUBLISHED' && !invitation.isExpired && households.length > 0;
+    canSend && invitation?.status === 'PUBLISHED' && !invitation.isExpired && households.length > 0;
   const sending: Sending = {
     texts,
     chosen: isSendable ? sender.chosen : null,
@@ -246,9 +251,22 @@ function useFormatDay(event: EventDetail): FormatDay {
   );
 }
 
-/** Adding a guest, and importing a spreadsheet. */
+/**
+ * Adding a guest, and importing a spreadsheet, with `guest:write`; a role that may only read is
+ * offered the imports' history, which its role opens (FR-74).
+ */
 function ListActions({ eventId, onOpen }: { eventId: string; onOpen: OpenDialog }) {
   const { t } = useTranslation('guests');
+  if (!useCan('guest:write')) {
+    return (
+      <Link
+        to={importGuestsPath(eventId)}
+        className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
+      >
+        {t('list.pastImports')}
+      </Link>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-2">
       <Button
@@ -294,7 +312,8 @@ interface GuestDirectoryProps {
 /**
  * The guest list itself (design PD-44): the actions, the search and the filters, the households,
  * and one dialog at a time; with the invitation's delivery report on each household, and choosing
- * households to send it to while it is published (PD-48). Filtering runs on a deferred copy of the
+ * households to send it to while it is published (PD-48). Changes are offered with `guest:write`,
+ * sending with `invitation:publish` (FR-6, PD-190). Filtering runs on a deferred copy of the
  * search, so typing stays quick on a list of two thousand.
  */
 export function GuestDirectory({ event, households, delivery }: GuestDirectoryProps) {

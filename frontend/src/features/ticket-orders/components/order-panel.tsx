@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { EventDetail } from '@/features/events';
 import { inLanguage, type TicketType } from '@/features/ticket-sales';
+import { useCan } from '@/features/permissions';
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import { ProblemAlert, type PageActions } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
@@ -80,7 +81,8 @@ function TicketLine({ ticket, order, holder, names, event, onOpen }: TicketLineP
           time: formatEventTime(ticket.usedAt, zone),
         })
       : t(`ticketStatus.${ticket.status}`);
-  const isActive = canReconcile(order, ticket);
+  // Linking and registering change the guest list (FR-6, PD-190).
+  const isActive = useCan('guest:write') && canReconcile(order, ticket);
   return (
     <div className="flex flex-col gap-1 text-sm">
       <p className="m-0">
@@ -239,6 +241,8 @@ function OrderBody(props: OrderPanelProps & { order: OrderDetail }) {
   const { t } = useTranslation('ticket-orders');
   const { order, row } = props;
   const [dialog, setDialog] = useState<Dialog>(null);
+  // Refunding is the organization's money (FR-6, PD-190).
+  const canCancelOrders = useCan('billing:write');
   return (
     <div className="flex flex-col gap-3">
       {order.isCancelling ? <p className="m-0 font-medium">{t('detail.cancelling')}</p> : null}
@@ -246,7 +250,7 @@ function OrderBody(props: OrderPanelProps & { order: OrderDetail }) {
         <p className="text-muted-foreground m-0 text-sm">{t('detail.hidden')}</p>
       ) : null}
       <People order={order} data={props.data} opened={props.opened} onOpen={setDialog} />
-      {row && canCancel(order) ? (
+      {row && canCancel(order) && canCancelOrders ? (
         <Button
           variant="destructive"
           className="self-start"

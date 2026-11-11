@@ -10,7 +10,7 @@ import type { DesignLookData } from '../load';
 import { designPreviewPath } from '../paths';
 import { canRender } from '../payload';
 import type { Design, DesignTemplate } from '../types';
-import { DesignHeader, NoInvitation, useSectionName } from './design-parts';
+import { DesignChanges, DesignHeader, NoInvitation, useSectionName } from './design-parts';
 import { SwitchTemplateDialog } from './switch-template-dialog';
 import { PaletteSwatches, ThemeForm } from './theme-form';
 
@@ -117,26 +117,28 @@ function Look({ data, design }: { data: DesignLookData; design: Design }) {
         <p className="m-0 max-w-[40rem]">{t('look.lead')}</p>
       </DesignHeader>
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
-      <section aria-labelledby="look-current" className="flex flex-col gap-3">
-        <h2 id="look-current" className={SECTION_TITLE}>
-          {t('look.current', { name: design.template.name })}
-        </h2>
-        <p className="text-muted-foreground m-0 max-w-[40rem] text-sm">{t('look.standIn')}</p>
-        {/* A new template brings its own fonts and palettes: the form starts again from them. */}
-        <ThemeForm key={design.template.key} design={design} page={page} />
-        <Link
-          to={designPreviewPath(design.event.id)}
-          className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
-        >
-          {t('look.preview')}
-        </Link>
-      </section>
-      <section aria-labelledby="look-others" className="flex flex-col gap-3">
-        <h2 id="look-others" className={SECTION_TITLE}>
-          {t('look.othersTitle')}
-        </h2>
-        <OtherTemplates data={data} design={design} page={page} />
-      </section>
+      <DesignChanges>
+        <section aria-labelledby="look-current" className="flex flex-col gap-3">
+          <h2 id="look-current" className={SECTION_TITLE}>
+            {t('look.current', { name: design.template.name })}
+          </h2>
+          <p className="text-muted-foreground m-0 max-w-[40rem] text-sm">{t('look.standIn')}</p>
+          {/* A new template brings its own fonts and palettes: the form starts again from them. */}
+          <ThemeForm key={design.template.key} design={design} page={page} />
+          <Link
+            to={designPreviewPath(design.event.id)}
+            className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
+          >
+            {t('look.preview')}
+          </Link>
+        </section>
+        <section aria-labelledby="look-others" className="flex flex-col gap-3">
+          <h2 id="look-others" className={SECTION_TITLE}>
+            {t('look.othersTitle')}
+          </h2>
+          <OtherTemplates data={data} design={design} page={page} />
+        </section>
+      </DesignChanges>
     </section>
   );
 }

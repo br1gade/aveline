@@ -12,7 +12,7 @@ export async function findOrganizations(
   api: ApiClient,
   search: string | null,
 ): Promise<CustomerOrganization[]> {
-  const found = await expectData<CustomerOrganization[]>(
+  const found = await expectData(
     api.GET('/api/v1/concierge/organizations', {
       params: { query: search ? { search } : {} },
     }),
@@ -77,7 +77,7 @@ export function createEventFor(
   organizationId: string,
   body: Schemas['CreateEventDto'],
 ): Promise<EventDetail> {
-  return expectData<EventDetail>(
+  return expectData(
     api.POST('/api/v1/concierge/organizations/{organizationId}/events', {
       params: { path: { organizationId } },
       body,

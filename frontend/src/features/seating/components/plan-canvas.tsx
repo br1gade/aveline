@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useCan } from '@/features/permissions';
 import { Icon, type IconName } from '@/ui';
 import { SelectField, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
@@ -106,6 +107,8 @@ function DrawnTable(props: DrawnTableProps) {
   const element = useRef<HTMLButtonElement>(null);
   const isSelected = canvas.selectedId === table.id;
   const moves = useDrawnTableMoves(props);
+  // A disabled button still gets pointer events: a role that may only read can't drag (PD-193).
+  const canMove = useCan('seating:write');
   useEffect(() => {
     if (isSelected) element.current?.focus({ preventScroll: true });
   }, [isSelected]);
@@ -115,7 +118,7 @@ function DrawnTable(props: DrawnTableProps) {
       ref={element}
       type="button"
       aria-pressed={isSelected}
-      {...moves}
+      {...(canMove ? moves : {})}
       style={{ left: position.x, top: position.y, ...sizeOf(table.shape) }}
       className={`bg-card absolute flex cursor-grab touch-none flex-col items-center justify-center overflow-hidden border-2 p-1 text-center text-sm leading-[18px] select-none active:cursor-grabbing ${SHAPE_CORNERS[table.shape]} ${isSelected ? 'border-primary' : 'border-border'}`}
     >

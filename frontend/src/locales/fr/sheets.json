@@ -59,12 +59,17 @@
       "DECLINED": "Ne vient pas",
       "UNDECIDED": "Pas encore sûr",
       "PENDING": "Sans réponse"
-    }
+    },
+    "more": "Voir plus de réponses",
+    "moreQuestions": "Voir plus de questions",
+    "moreFailed": "Ces éléments n’ont pas pu être lus. Veuillez réessayer."
   },
   "guestBook": {
     "title": "Livre d’or",
-    "lead": "Les messages laissés par les invités avec leur réponse, les plus récents d’abord.",
+    "lead": "Les messages laissés par les invités avec leur réponse, les plus récents d’abord, puis ceux sans date.",
     "none": "Personne n’a encore laissé de message.",
-    "at": "{{day}}, {{time}}"
+    "at": "{{day}}, {{time}}",
+    "more": "Voir plus de messages",
+    "noWords": "N’a laissé aucun mot."
   }
 }

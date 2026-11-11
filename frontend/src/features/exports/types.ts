@@ -1,7 +1,7 @@
 /**
- * Private snapshot exports (docs/API.md §6, "Private snapshot exports"). Responses are typed by hand,
- * **interim until FR-1**, from `export-snapshots.service.ts` (`snapshotView`), the job recovery
- * interceptor and `exports.service.ts` for the legacy records.
+ * Private snapshot exports (docs/API.md §6, "Private snapshot exports"). Responses are typed by
+ * hand, checked against the schema at each call (FR-1), from `export-snapshots.service.ts`
+ * (`snapshotView`), the job recovery interceptor and `exports.service.ts` for the legacy records.
  */
 
 /** In the API's order, which the form keeps. */

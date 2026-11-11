@@ -8,7 +8,7 @@ import { Button } from '@/ui/kit/button';
 import type { DesignMediaData } from '../load';
 import type { Design, LibraryItem } from '../types';
 import { AltTextForm } from './alt-text-form';
-import { DesignHeader, NoInvitation, useSectionName } from './design-parts';
+import { DesignChanges, DesignHeader, NoInvitation, useSectionName } from './design-parts';
 import { MediaThumbnail } from './media-thumbnail';
 import { RemoveMediaDialog } from './remove-media-dialog';
 import { UploadForm } from './upload-form';
@@ -63,7 +63,9 @@ function LibraryRow({ item, design, page, onRemove }: ItemProps) {
   return (
     <li className="bg-card border-border flex flex-col gap-2 border px-5 py-4">
       <MediaThumbnail media={item} languages={languages} />
-      <p className="text-muted-foreground m-0 text-sm">{size(item.sizeBytes)}</p>
+      {item.sizeBytes === null ? null : (
+        <p className="text-muted-foreground m-0 text-sm">{size(item.sizeBytes)}</p>
+      )}
       <Uses item={item} />
       {item.kind === 'AUDIO' ? null : (
         <details className="group">
@@ -147,18 +149,20 @@ function MediaPage({ data, design }: { data: DesignMediaData; design: Design }) 
         <p className="m-0 max-w-[40rem]">{t('media.lead')}</p>
       </DesignHeader>
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
-      <section aria-labelledby="media-upload" className="flex flex-col gap-3">
-        <h2 id="media-upload" className={SECTION_TITLE}>
-          {t('media.uploadTitle')}
-        </h2>
-        <UploadForm eventId={design.event.id} page={page} />
-      </section>
-      <section aria-labelledby="media-library" className="flex flex-col gap-3">
-        <h2 id="media-library" className={SECTION_TITLE}>
-          {t('media.libraryTitle')}
-        </h2>
-        <Library data={data} design={design} page={page} />
-      </section>
+      <DesignChanges>
+        <section aria-labelledby="media-upload" className="flex flex-col gap-3">
+          <h2 id="media-upload" className={SECTION_TITLE}>
+            {t('media.uploadTitle')}
+          </h2>
+          <UploadForm eventId={design.event.id} page={page} />
+        </section>
+        <section aria-labelledby="media-library" className="flex flex-col gap-3">
+          <h2 id="media-library" className={SECTION_TITLE}>
+            {t('media.libraryTitle')}
+          </h2>
+          <Library data={data} design={design} page={page} />
+        </section>
+      </DesignChanges>
     </section>
   );
 }

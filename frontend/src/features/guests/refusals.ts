@@ -67,8 +67,8 @@ type ProblemKey =
   | 'tooManyRows';
 
 /**
- * The words for each refusal, by action and status. There is no permissions endpoint (FR-6), so
- * every action is offered and a 403 is explained after the fact. The backend's reasons that name no
+ * The words for each refusal, by action and status. A 403 is for a role changed mid-visit: the
+ * page offers each change only to whom it is granted (FR-6). The backend's reasons that name no
  * field are English sentences without a code (FR-28), so the status and the action decide.
  */
 const WORDS: Readonly<Record<GuestAction, Partial<Record<number, ProblemKey>>>> = {

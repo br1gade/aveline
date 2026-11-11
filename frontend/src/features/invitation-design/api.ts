@@ -1,7 +1,8 @@
 import { expectData, type ApiClient } from '@/api/client';
-import { withPrivateArtwork } from '@/features/invitation-renderer';
 
-import { readAdoption, type AdoptionRead, type AdoptionWire } from './adoption';
+import { withPrivateArtwork, type BlockType } from '@/features/invitation-renderer';
+
+import { readAdoption, type AdoptionRead } from './adoption';
 
 import type {
   Arrangement,
@@ -12,16 +13,10 @@ import type {
   SectionEdit,
   ThemeEdit,
 } from './payload';
+
 import { readDesign, readLibrary, readTemplates } from './read';
-import type {
-  Design,
-  DesignTemplate,
-  DesignWire,
-  LibraryItem,
-  LibraryItemWire,
-  Preview,
-  TemplateWire,
-} from './types';
+
+import type { Design, DesignTemplate, LibraryItem, Preview } from './types';
 
 /**
  * The design calls (docs/API.md §6). Reading needs `invitation:read`, which every role on the
@@ -35,7 +30,7 @@ export async function getDesign(
   slug: string,
   signal?: AbortSignal,
 ): Promise<Design> {
-  const design = await expectData<DesignWire>(
+  const design = await expectData(
     api.GET('/api/v1/invitations/{slug}/design', {
       params: { path: { slug } },
       ...(signal ? { signal } : {}),
@@ -46,7 +41,7 @@ export async function getDesign(
 
 /** Keyed by event, because a plan may later narrow the catalogue. */
 export async function listTemplates(api: ApiClient, eventId: string): Promise<DesignTemplate[]> {
-  const templates = await expectData<TemplateWire[]>(
+  const templates = await expectData(
     api.GET('/api/v1/events/{eventId}/design-templates', {
       params: { path: { eventId } },
     }),
@@ -64,7 +59,7 @@ export async function startAdoption(
   body: { targetVersionId: string; expectedDesignRevision: string },
 ): Promise<AdoptionRead> {
   return readAdoption(
-    await expectData<AdoptionWire>(
+    await expectData(
       api.POST('/api/v1/invitations/{slug}/template-upgrade-preview', {
         params: { path: { slug } },
         body,
@@ -79,7 +74,7 @@ export async function pollAdoption(
   previewId: string,
 ): Promise<AdoptionRead> {
   return readAdoption(
-    await expectData<AdoptionWire>(
+    await expectData(
       api.GET('/api/v1/invitations/{slug}/template-upgrade-previews/{previewId}', {
         params: { path: { slug, previewId } },
       }),
@@ -97,13 +92,13 @@ export interface AdoptionConfirm {
   idempotencyKey: string;
 }
 
-/** `openapi.json` declares only `templateKey`, so these five fields go unchecked by it (FR-114). */
+/** Confirms a ready preview; `ChooseTemplateDto` declares every field (FR-114). */
 export async function confirmAdoption(
   api: ApiClient,
   slug: string,
   body: AdoptionConfirm,
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.POST('/api/v1/invitations/{slug}/template', { params: { path: { slug } }, body }),
   );
 }
@@ -114,7 +109,7 @@ export async function createInvitation(
   eventId: string,
   templateKey: string | undefined,
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.POST('/api/v1/events/{id}/invitation', {
       params: { path: { id: eventId } },
       body: templateKey ? { templateKey } : {},
@@ -234,7 +229,7 @@ export async function reorderQuestions(
 
 /** The event's uploads, newest first. */
 export async function listMedia(api: ApiClient, eventId: string): Promise<LibraryItem[]> {
-  const items = await expectData<LibraryItemWire[]>(
+  const items = await expectData(
     api.GET('/api/v1/events/{eventId}/media', { params: { path: { eventId } } }),
   );
   return readLibrary(items);
@@ -295,6 +290,8 @@ function queryOf(query: Readonly<Record<string, string | undefined>>): Record<st
   );
 }
 
+/* A preview keeps its own type: the schema declares media `variants` as any value (FR-149). */
+
 /** The invitation's saved design, drafts included, in this or another template. */
 export function previewInvitation(
   api: ApiClient,
@@ -304,6 +301,24 @@ export function previewInvitation(
   return expectData<Preview>(
     api.GET('/api/v1/invitations/{slug}/template-preview', {
       params: { path: { slug }, query: queryOf(query) },
+    }),
+  ).then(withPrivateArtwork);
+}
+
+/**
+ * The page with one section as its form stands, drawn by the backend and stored nowhere (FR-120).
+ * The section is drawn even while hidden, so its editor can see it.
+ */
+export function previewDraft(
+  api: ApiClient,
+  { slug, locale }: { slug: string; locale: string },
+  type: BlockType,
+  edit: SectionEdit,
+): Promise<Preview> {
+  return expectData<Preview>(
+    api.POST('/api/v1/invitations/{slug}/template-preview', {
+      params: { path: { slug }, query: { locale } },
+      body: { type, enabled: true, ...edit },
     }),
   ).then(withPrivateArtwork);
 }

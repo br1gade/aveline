@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { NotifyGuests, type EventDetail, type NotifyOffer } from '@/features/events';
+import { ChangeableWith } from '@/features/permissions';
 
 import type { NewVenueData, VenueEditData } from '../load';
 import { venuesPath } from '../paths';
@@ -28,13 +29,15 @@ function FormOrOffer({
   return offer ? (
     <NotifyGuests offer={offer} back={{ to: venuesPath(event.id), label: t('notify.back') }} />
   ) : (
-    <VenueForm
-      event={event}
-      venue={venue}
-      directory={directory}
-      onHallRetired={onHallRetired}
-      onSuggested={setOffer}
-    />
+    <ChangeableWith to="event:write" readOnly={t('problems.forbidden')}>
+      <VenueForm
+        event={event}
+        venue={venue}
+        directory={directory}
+        onHallRetired={onHallRetired}
+        onSuggested={setOffer}
+      />
+    </ChangeableWith>
   );
 }
 

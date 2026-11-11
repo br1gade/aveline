@@ -30,7 +30,7 @@ export async function setVisibility(
 
 /** What is for sale, with sold, held and available counts; inactive types included. */
 export async function listTicketTypes(api: ApiClient, eventId: string): Promise<TicketType[]> {
-  const types = await expectData<unknown[]>(
+  const types = await expectData(
     api.GET('/api/v1/events/{eventId}/ticket-types', { params: { path: { eventId } } }),
   );
   return types.map(readTicketType);
@@ -80,7 +80,7 @@ export async function deleteTicketType(
 export async function getListing(api: ApiClient, eventId: string): Promise<Listing | null> {
   try {
     return readListing(
-      await expectData<unknown>(
+      await expectData(
         api.GET('/api/v1/events/{eventId}/listing', { params: { path: { eventId } } }),
       ),
     );

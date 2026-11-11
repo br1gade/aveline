@@ -71,8 +71,13 @@ function readUnseated(household: UnseatedWire): UnseatedHousehold {
   };
 }
 
-function readResult(result: ResultWire | null | undefined): JobResult | null {
-  if (!result) return null;
+/** The object docs/API.md §6 documents; anything else the schema allows is read as no result. */
+function isResult(value: unknown): value is ResultWire {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readResult(result: unknown): JobResult | null {
+  if (!isResult(result)) return null;
   return {
     seated: result.seated ?? 0,
     households: result.households ?? 0,

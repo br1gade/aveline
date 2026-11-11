@@ -136,6 +136,51 @@ describe('a page with private artwork', () => {
   });
 });
 
+describe('a guest’s page that names private artwork by its id (FR-115)', () => {
+  const reference = (assetId: string) => ({ kind: 'private-design-asset', assetId });
+  const invitation = {
+    slug: 'anna',
+    coverUrl: reference('cover'),
+    musicUrl: null,
+    event: { hosts: 'Anna & Davit' },
+    blocks: [
+      {
+        type: 'HERO',
+        media: [
+          { id: 'a1', url: reference('a1'), kind: 'COVER', altText: 'Arch', variants: [] },
+          { id: 'p', url: 'https://media.example/p.jpg', kind: 'PHOTO', variants: [] },
+        ],
+      },
+    ],
+  } as unknown as Invitation;
+
+  it('names the picture by its id, read through the guest’s link', () => {
+    const [cover, photo] = withPrivateArtwork(invitation).blocks[0]?.media ?? [];
+    expect(cover).toMatchObject({ id: 'a1', url: '', privateAsset: { id: 'a1' }, altText: 'Arch' });
+    expect(photo).toEqual(invitation.blocks[0]?.media[1]);
+  });
+
+  it('drops a reference whose id is not text, rather than pass it on', () => {
+    const odd = { ...invitation, coverUrl: { kind: 'private-design-asset', assetId: 7 } };
+    const read = withPrivateArtwork(odd as unknown as Invitation);
+    expect(read.coverUrl).toBeNull();
+  });
+
+  it('gives a link preview neither the picture nor its id', () => {
+    const read = withPrivateArtwork(invitation);
+    expect(read.coverUrl).toBeNull();
+    expect(JSON.stringify(read)).not.toContain('private-design-asset');
+  });
+
+  it('holds to the shape the backend builds', () => {
+    const modules = join(import.meta.dirname, '../../../../backend/src/modules');
+    const paths = readFileSync(join(modules, 'design/templates/template-asset-paths.ts'), 'utf8');
+    expect(paths).toMatch(/kind:\s*'private-design-asset'[\s\S]{0,40}assetId/);
+    const service = readFileSync(join(modules, 'invitations/invitations.service.ts'), 'utf8');
+    expect(service).toMatch(/'asset-id'/);
+  });
+});
+
 describe('reading an artwork’s bytes', () => {
   const ORIGIN = 'http://api.test';
   const server = setupServer();

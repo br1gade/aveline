@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { eventPath } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
+import { ChangeableWith } from '@/features/permissions';
 import { StatusLine, usePageStatus, type PageActions } from '@/ui/app-form';
 
 import { chaseOffer, expectedChase, expectedThanks, thankOffer } from '../audience';
@@ -48,27 +49,32 @@ function Panels({ data, page }: { data: FollowUpsData; page: PageActions }) {
       ) : (
         <ExpectedProblem data={data} />
       )}
-      <AutomaticReminders event={event} page={page} />
-      <ChasePanel
-        eventId={event.id}
-        slug={invitation.slug}
-        offer={chaseOffer(invitation, event.startsAt, now)}
-        audience={audiences?.chase ?? null}
-      />
-      <ThankPanel
-        eventId={event.id}
-        slug={invitation.slug}
-        offer={thankOffer(invitation, event.startsAt, now)}
-        audience={audiences?.thanks ?? null}
-      />
+      <ChangeableWith to="event:write" readOnly={t('automatic.forbidden')}>
+        <AutomaticReminders event={event} page={page} />
+      </ChangeableWith>
+      <ChangeableWith to="invitation:publish" readOnly={t('refused.forbidden')}>
+        <ChasePanel
+          eventId={event.id}
+          slug={invitation.slug}
+          offer={chaseOffer(invitation, event.startsAt, now)}
+          audience={audiences?.chase ?? null}
+        />
+        <ThankPanel
+          eventId={event.id}
+          slug={invitation.slug}
+          offer={thankOffer(invitation, event.startsAt, now)}
+          audience={audiences?.thanks ?? null}
+        />
+      </ChangeableWith>
     </>
   );
 }
 
 /**
  * Reminders and thanks (design PD-95): each panel says who is expected to get it, asks, then shows
- * what the server did. Every action is offered to every role, and a 403 is worded when it happens
- * (FR-6); only a state the backend refuses, or one it should (FR-86), takes the button away.
+ * what the server did. Sending needs `invitation:publish` and the automatic reminders
+ * `event:write`; without one, its part is shown with nothing to press (FR-6, PD-193), and a 403 is
+ * still worded. A state the backend refuses, or one it should (FR-86), takes the button away.
  */
 export function FollowUpsPage({ data }: { data: FollowUpsData }) {
   const { t } = useTranslation('follow-ups');

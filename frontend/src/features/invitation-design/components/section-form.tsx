@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -7,7 +7,7 @@ import { Link } from 'react-router';
 import type { Loaded } from '@/api/loaded';
 import { problemFrom } from '@/api/problems';
 import { browserSession } from '@/api/session';
-import type { BlockEditing } from '@/features/invitation-renderer';
+import type { BlockEditing, BlockType } from '@/features/invitation-renderer';
 import {
   AppForm,
   ErrorLine,
@@ -39,9 +39,11 @@ import { useLayoutName } from './layout-name';
 interface SectionFormProps {
   design: Design;
   block: DesignBlock;
+  /** The block's type, known to this release. */
+  type: BlockType;
   editing: BlockEditing;
-  /** The template's layouts for this section; `null` when the catalogue could not be read. */
-  layouts: readonly string[] | null;
+  /** The template's layouts for this section, read with the design (FR-44). */
+  layouts: readonly string[];
   library: Loaded<LibraryItem[]>;
   page: PageActions;
 }
@@ -118,20 +120,16 @@ function useSave(
   return { baseline, refusal, save };
 }
 
-/** The section's layouts, or a line saying the template's couldn't be read. */
+/** The section's layouts; a section whose template offers none has no choice to make. */
 function SectionLayout({
   form,
   layouts,
   type,
 }: {
   form: UseFormReturn<SectionFormValues>;
-  layouts: readonly string[] | null;
+  layouts: readonly string[];
   type: string;
 }) {
-  const { t } = useTranslation('design');
-  if (layouts === null) {
-    return <p className="text-muted-foreground m-0 text-sm">{t('section.noLayouts')}</p>;
-  }
   return layouts.length > 0 ? (
     <LayoutField form={form} layouts={layouts} isCover={type === 'HERO'} />
   ) : null;
@@ -166,6 +164,7 @@ export function SectionForm(props: SectionFormProps) {
   });
   useLeaveGuard(form);
   const { refusal, save } = useSave(props, form);
+  const onRefused = useCallback((error: unknown) => markRefusals(error, form), [form]);
   const fieldText = useFieldText();
   const withoutCopy = languagesWithoutCopy(block, design.event.locales);
   const { isSubmitting } = form.formState;
@@ -206,7 +205,7 @@ export function SectionForm(props: SectionFormProps) {
         ) : null}
         <SectionFooter isSubmitting={isSubmitting} eventId={design.event.id} />
       </AppForm>
-      <DraftPreview form={form} {...props} />
+      <DraftPreview form={form} onRefused={onRefused} {...props} />
     </div>
   );
 }

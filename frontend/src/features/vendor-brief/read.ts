@@ -63,7 +63,9 @@ const SECTION_READERS: { [S in BriefSection]: (wire: BriefWire) => GrantedSectio
               requirement,
               count,
             })),
-            notes: catering.notes.map(({ guest, household, note }) => ({ guest, household, note })),
+            notes: catering.notes.flatMap(({ guest, household, note }) =>
+              note ? [{ guest, household, note }] : [],
+            ),
           },
         }
       : null,

@@ -1,6 +1,7 @@
 /**
  * The host's orders (docs/API.md §5, "Cancelling an order" and "Reviewing and reconciling
- * attendees"), interim until FR-1. Contacts and codes arrive only with `guest:contact:read`.
+ * attendees"), checked against the schema at each call (FR-1). Contacts and codes arrive only with
+ * `guest:contact:read`.
  */
 export type OrderStatus = 'RESERVED' | 'PAID' | 'CANCELLED' | 'EXPIRED' | 'REFUNDED';
 export type TicketStatus = 'VALID' | 'USED' | 'VOID' | 'REFUNDED';

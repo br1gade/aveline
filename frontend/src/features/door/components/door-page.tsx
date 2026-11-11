@@ -59,8 +59,9 @@ function MethodSwitch({ isByCode }: { isByCode: boolean }) {
 
 /**
  * The door (docs/API.md §6; design PD-90): one page for staff at the entrance, one-handed at 360 px.
- * Every action is offered to every role and a 403 is worded when it happens (FR-6). A role with
- * neither the list nor the counts, an event's designer, cannot do anything here, and is told once.
+ * Not gated (FR-6): letting people in is the page's whole purpose, so a role without `guest:write`
+ * is told by the page's reads, or by a worded 403. A role with neither the list nor the counts, an
+ * event's designer, cannot do anything here, and is told once.
  */
 export function DoorPage({ data }: { data: DoorData }) {
   const { t } = useTranslation('door');

@@ -20,8 +20,8 @@ export function markRefusals(error: unknown, setError: UseFormSetError<EventForm
 export type EventAction = 'create' | 'edit' | 'notify';
 
 /**
- * The words for a refusal. There is no permissions endpoint (FR-6), so every action is offered and
- * a 403 is explained after the fact. A 409 means the event's state changed underneath or, for
+ * The words for a refusal. A 403 is for a role changed mid-visit: the page offers each action only
+ * to whom it is granted (FR-6). A 409 means the event's state changed underneath or, for
  * someone in several organizations, that none was chosen, which no screen offers yet.
  */
 export function useRefusedText(action: EventAction): (status: number) => string {

@@ -46,13 +46,15 @@ export type ResponseOf<Name extends `${string}Response` & keyof components['sche
 
 /**
  * The response body, or an ApiError. Called without a type, the body is the one the schema
- * declares for the operation (FR-1). A type given names a feature's own type, which the features
- * not yet moved onto the schema still do; that form goes once the last of them has moved.
+ * declares for the operation (FR-1). A type is given only where the schema is looser than
+ * `docs/API.md` (FR-149).
  */
 export async function expectData<Given = undefined, Body = unknown>(
   call: Promise<FetchResult<Body>>,
   requestId?: string,
-): Promise<Given extends undefined ? Body : Given> {
+  // `NoInfer`: a call's place (a `return`, an argument) must not choose `Given`, or the body the
+  // schema declares would go unchecked.
+): Promise<NoInfer<Given> extends undefined ? Body : NoInfer<Given>> {
   let result: FetchResult<Body>;
   try {
     result = await call;
@@ -62,5 +64,5 @@ export async function expectData<Given = undefined, Body = unknown>(
   if (!result.response.ok) {
     throw apiErrorFrom(result.response, result.error, requestId);
   }
-  return result.data as Given extends undefined ? Body : Given;
+  return result.data as NoInfer<Given> extends undefined ? Body : NoInfer<Given>;
 }

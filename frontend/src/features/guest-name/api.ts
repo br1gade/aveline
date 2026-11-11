@@ -24,7 +24,7 @@ export async function correctName(
   link: NameLink,
   body: NameBody,
 ): Promise<CorrectedName> {
-  const wire = await expectData<CorrectedName>(
+  const wire = await expectData(
     api.PATCH('/api/v1/invitations/{slug}/g/{guestToken}/name', {
       params: { path: link },
       body,

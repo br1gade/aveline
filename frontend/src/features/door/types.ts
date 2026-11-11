@@ -1,6 +1,6 @@
 /**
  * What the door's calls return (docs/API.md §6: "Check-in on the day", "Admitting a ticket at the
- * door"). Interim until FR-1: the schema declares no response types, so these are written from the
+ * door"). These are checked against the schema at each call (FR-1), written from the
  * guide and the backend's `check-in.service.ts` and `ticketing.service.ts`.
  *
  * The `…Wire` types say what arrives and are read by `read.ts` alone. It builds the client's own

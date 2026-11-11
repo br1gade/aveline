@@ -79,10 +79,11 @@ export function readSubscription(wire: SubscriptionWire): Subscription {
   };
 }
 
+/** `invoice` and `payment` are optional only to the type: openapi-fetch drops a field typed `null`. */
 interface ChoiceWire {
   subscription: { pendingFree?: PendingFree | null } | null;
-  invoice: unknown;
-  payment: { redirectUrl: string | null } | null;
+  invoice?: unknown;
+  payment?: { redirectUrl: string | null } | null;
 }
 
 /**
@@ -90,7 +91,7 @@ interface ChoiceWire {
  * answer carries `pendingFree` (FR-135). A paid one goes on at the bank's page.
  */
 export function readChoice(wire: ChoiceWire): PlanChoice {
-  if (wire.invoice !== null)
+  if (wire.invoice !== null && wire.invoice !== undefined)
     return { kind: 'bank', redirectUrl: wire.payment?.redirectUrl ?? null };
   const pending = wire.subscription?.pendingFree;
   return pending ? { kind: 'scheduled', effectiveAt: pending.effectiveAt } : { kind: 'activated' };

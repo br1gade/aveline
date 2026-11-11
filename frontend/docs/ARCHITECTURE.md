@@ -154,16 +154,19 @@ above a `/guests/:guestId`.
   `API_INTERNAL_URL` directly. Production is not agreed (FR-11): the backend's production template
   puts the API on its own origin, which would make every browser call cross-origin.
 - **Response types come from the schema** (FR-1): `expectData(call)` with no type gives the body the
-  operation declares, and `ResponseOf<'Controller_methodResponse'>` names one. A feature's `types.ts`
-  aliases them; its `read.ts` stays where it keeps only the fields a page uses, maps a value the
-  client doesn't know, or reads a field the spec types differently from `docs/API.md`. Features not
-  yet moved still pass their own type, `expectData<T>(call)`, marked "interim until FR-1"; that form
-  goes when the last has moved.
+  operation declares, and `ResponseOf<'Controller_methodResponse'>` names one. A feature may keep
+  its own wire types, written from the guide; the call checks them, as the declared body must fit
+  them, so a field the schema retypes fails the typecheck. Its `read.ts` keeps only the fields a page
+  uses and maps a value the client doesn't know. `expectData` takes no type from where the call
+  stands (`NoInfer`), so a `return` or an argument is checked too. A type is passed,
+  `expectData<T>(call)`, only where the schema is looser than `docs/API.md`: the guest page's two
+  reads, the guest's reply and the designer's three previews (FR-149).
 - **What the caller may do** (FR-6, design PD-190): `features/permissions` reads it once per event
   (`routes/app/event-access.tsx`) and on entering the organization's own pages
   (`organization-access.tsx`), and again when a page reads itself after a write, or on leaving the
   organization's page; `useCan` and `Permitted` answer from the nearest. Unknown means everything is
-  offered, as before. The event read has no reader until the vendors' pages (group 2) gate on it.
+  offered, as before. `Permitted` hides one action; `ChangeableWith` shows a page a role may read
+  but not change with its controls off, under one line (design PD-193).
 
 ## 5. Session (`src/api/session/`)
 
@@ -942,6 +945,12 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 10 Nov 2026 | **The organization header's list is also pinned to the spec** (FR-116): every operation declaring it outside events, invitations and staff's own must be on the list | The spec declares it on event routes too, where it must match, so it can't replace the list until it tells the two apart (FR-146) |
 | 10 Nov 2026 | **The organization's page knows its caller and its closure** (FR-121, FR-122, FR-124, FR-125): the caller's row is marked and alone warned, an inactive account is offered nothing, a request to close shows where it stands without the date the backend keeps from the first (FR-148), and the guard's `FORBIDDEN`, the owner-only sentence and staff's 404 on it all mean only an owner may ask | Adopted from the backend's 8 November answers; `closureReview` is read as nullable with a bare status (FR-145) |
 | 10 Nov 2026 | **The contract's small answers are adopted** (FR-7, FR-8, FR-10, FR-56, FR-72, FR-73, FR-75, FR-129): `/privacy-request` joins `ROUTE_PATHS`, pinned with the rest to `docs/API.md`'s table; the scanner's shape is pinned to the format API.md states, no longer to `issue-attendees.ts`; the reply's three unanswered-question refusals are pinned to the backend's words; comments that said a header was hidden or a read unallowanced are corrected | Each now has a published contract to hold to, and a test that fails when either side drifts. `GET /plans` was found outside FR-73's allowance (FR-147) |
+| 11 Nov 2026 | **An import's refused rows are worded by their code** (FR-26), with the column where the backend names one, and the history's heading filter is gone (FR-74; design PD-45) | Every reason the backend gives is in `import-reasons.ts`, pinned to its source by a test, so a new one is seen; a row recorded before the codes keeps its English sentence, marked as English |
+| 11 Nov 2026 | **The answers and the guest book are read twenty at a time** (FR-117), with `useMore` keeping what was read, and who answered a question read only when asked (design PD-144) | The backend pages both now. Reading each question's answers on request keeps the first read to one page of questions |
+| 11 Nov 2026 | **The designer follows the backend's answers:** a section's layouts come with the design (FR-44); the catalogue says which template needs a preview, which then opens first (FR-114, PD-139); a section's draft is drawn by the backend on press (FR-120, PD-153); and drink and song request are no longer switched off by the client (FR-134, PD-179 withdrawn) | `draftInvitation` restated the backend's fallbacks; drawing on press, not as the host types, keeps one request per look. The catalogue is no longer read for a section page |
+| 11 Nov 2026 | **A guest's page names private artwork by its id** (FR-115): its read asks for `?artwork=asset-id`, and the server's reader turns each reference into the id, as it did each address (design PD-140) | No address with the token is built at all. The address reader stays, for the generic and host pages that still give addresses. The guest route is at 298 of its 300 KB |
+| 11 Nov 2026 | **Every response is checked against the schema** (FR-1): only six calls pass their own type, where the schema is looser than the guide (FR-149); a feature's wire types stay, checked at the call, rather than becoming aliases. `expectData`'s type is `NoInfer`, as a call's place had been choosing it unseen | Dropping 142 types left mismatches: nine were our types wrong (an import's `PENDING`, a library item's empty type and size, a catering note, an invite's `sent`, a viewer's delivery rows, an invite accepted by either route), the rest the schema looser than the guide (FR-149), or openapi-fetch dropping a field typed only `null`. Aliasing every type would have rewritten each reader for no further check |
+| 11 Nov 2026 | **Every feature offers an action only with its permission** (FR-6): `Permitted` hides one, `ChangeableWith` shows a page a role may read with its controls off under one line (design PD-193) | A page whose content is the point, a section's words or the seating plan, was worth showing to a reader. The guest list reads the permission once and hands it to its memoized rows; the door, exports and the gallery need it to be read at all |
 | 9 Nov 2026 | **The buyer's order names itself (FR-62)**: the event, ticket types, buyer and language come from the order, and the public listing is no longer read (design PD-81, PD-189) | An emailed link in a fresh tab could name nothing. The line about agreements before the door went with it, as only the listing knows (FR-138) |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
 
@@ -949,14 +958,11 @@ size check in the CSV's send that the disabled button already covers. **None of 
 
 - Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
   adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, and a
-  build per origin (FR-11); for launch, private artwork by asset id (FR-115), and removing the
-  drink-and-song stand-in once the backend's default is verified (FR-134, PD-179). Exports' delivery
-  (FR-128), owners told apart from pending invitations (FR-130) and the scheduled free plan (FR-135)
-  are adopted and wait for a real backend. Also moving the remaining features onto the response
-  schemas and permissions (FR-1, FR-6; the groundwork, the organization's page and vendors are
-  done, and billing's permissions), and the frontend CI workflow the backend asked for. **Every request marked answered and
-  waiting for the client in BACKEND_REQUESTS (7 of them on 10 November, with FR-1 and FR-6 under way) keeps its stand-in until adopted,** so the
-  entries below that name one now wait on the client, not the backend. Paid plans
+  build per origin (FR-11); and the frontend CI workflow the backend asked for. Every answered
+  request is adopted (11 November 2026), and none has met a running backend: private artwork by id
+  (FR-115) and drink and song starting off (FR-134) are checked on staging, as are exports' delivery
+  (FR-128), owners told apart from pending invitations (FR-130) and the scheduled free plan (FR-135).
+  The schema is looser than the guide in four places, which the client narrows or types itself (FR-149). Paid plans
   shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
   are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
   been opened on a real phone.
@@ -1001,8 +1007,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   the door's scanner, Aveline's own staff's customers, data requests and access reviews, and the Help
   page: nothing is left unbuilt as a screen, though every one waits for its design (DQ-13 to DQ-71).
 - Of what guests' answers add up to: printing it, which exports do; views beyond their count by
-  language, and telling no views from no count (FR-111); paging the answers and the guest book, and
-  a yes-or-no answer in the event's language (FR-117).
+  language, and telling no views from no count (FR-111).
 - Of the running order: ordering two entries at the same minute by hand (the client puts a new one
   last); telling guests about a change, as no notice comes back (FR-94).
 - Of recording an answer: a household's answers in one read and one request, all or nothing (FR-118;
@@ -1044,7 +1049,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   place cards are on the exports page since 30 October 2026.
 - Of designing the invitation: previewing the look's and the questions' edits before they are saved
   (the renderer applies neither the theme nor the fonts yet, and shows a notice for the questions);
-  a draft preview built by the backend rather than the browser (FR-120); cropping and focal points (not in the API either); host-tuned
+  cropping and focal points (not in the API either); host-tuned
   colours (BQ-3); template fonts in the browser (FR-9), so a font chosen does not show yet; the
   layouts the seeded templates name, which the renderer does not draw (FR-42).
 - Of the guest list: seating from

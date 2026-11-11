@@ -37,6 +37,7 @@ describe('switchEffects', () => {
     supportedBlocks: ['HERO', 'VENUE', 'RSVP', 'CONTACT'],
     blockVariants: { HERO: ['split'], VENUE: ['stacked'] },
     defaultTheme: { bodyFont: 'Inter', palette: 'paper' },
+    requiresAdoptionPreview: false,
   };
 
   it('lists the shown sections it hides, the layouts it resets and the sections it lacks', () => {

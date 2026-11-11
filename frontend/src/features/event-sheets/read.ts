@@ -1,3 +1,5 @@
+import type { ResponseOf } from '@/api/client';
+
 import type {
   AnswersSheet,
   BarSheet,
@@ -5,7 +7,9 @@ import type {
   Engagement,
   EventSheets,
   GuestBookEntry,
+  Page,
   Playlist,
+  QuestionResponse,
   SheetVenue,
 } from './types';
 
@@ -69,29 +73,47 @@ export function readSheets(wire: DashboardWire): EventSheets {
   };
 }
 
-/** The wire also carries `required`, `options` and each stored `value`, which no screen reads. */
-export type AnswersWire = AnswersSheet;
+type QuestionPageWire = ResponseOf<'OperationsController_questionPageResponse'>;
+type AnswerPageWire = ResponseOf<'OperationsController_answerPageResponse'>;
+type GuestBookPageWire = ResponseOf<'OperationsController_guestBookPageResponse'>;
 
-export function readAnswers({ locale, questions }: AnswersWire): AnswersSheet {
+/** Where the page after this one starts, or none (docs/API.md §6: `{items,total,limit,offset,hasMore}`). */
+function nextOffsetOf(page: { offset: number; items: unknown[]; hasMore: boolean }): number | null {
+  return page.hasMore ? page.offset + page.items.length : null;
+}
+
+/** The questions only; `required`, `options` and stored values aren't read by any screen. */
+export function readQuestionPage(wire: QuestionPageWire): AnswersSheet {
   return {
-    locale,
-    questions: questions.map(({ id, type, prompt, answered, tally, responses }) => ({
+    locale: wire.locale,
+    items: wire.items.map(({ id, type, prompt, answered, tally }) => ({
       id,
       type,
       prompt,
       answered,
       tally: tally?.map(({ option, attending, total }) => ({ option, attending, total })) ?? null,
-      responses: responses.map(({ guestId, name, household, status, display }) => ({
-        guestId,
-        name,
-        household,
-        status,
-        display,
-      })),
     })),
+    nextOffset: nextOffsetOf(wire),
   };
 }
 
-export function readGuestBook(wire: GuestBookEntry[]): GuestBookEntry[] {
-  return wire.map(({ from, message, at }) => ({ from, message, at }));
+export function readAnswerPage(wire: AnswerPageWire): Page<QuestionResponse> {
+  return {
+    items: wire.items.map(({ id, guestId, name, household, status, display }) => ({
+      id,
+      guestId,
+      name,
+      household,
+      status,
+      display,
+    })),
+    nextOffset: nextOffsetOf(wire),
+  };
+}
+
+export function readGuestBookPage(wire: GuestBookPageWire): Page<GuestBookEntry> {
+  return {
+    items: wire.items.map(({ id, from, message, at }) => ({ id, from, message, at })),
+    nextOffset: nextOffsetOf(wire),
+  };
 }

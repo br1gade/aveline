@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import type { Problem } from '@/api/problems';
 import { eventPath } from '@/features/events';
+import { ChangeableWith } from '@/features/permissions';
 import { BLOCK_TYPES, type BlockType } from '@/features/invitation-renderer';
 import { isLanguage } from '@/lib/i18n';
 import { ProblemAlert } from '@/ui/app-form';
@@ -52,7 +53,9 @@ export function NoInvitation({ eventId, title }: { eventId: string; title: strin
     <section className="flex flex-col gap-5">
       <DesignHeader eventId={eventId} back="event" title={t('overview.title')} subtitle={title} />
       <p className="m-0 max-w-[40rem]">{t('noInvitation')}</p>
-      <AddInvitation eventId={eventId} />
+      <ChangeableWith to="event:write" readOnly={t('add.refused.forbidden')}>
+        <AddInvitation eventId={eventId} />
+      </ChangeableWith>
     </section>
   );
 }
@@ -82,6 +85,16 @@ export interface DesignRefusalState {
 export function DesignRefusal({ refusal }: { refusal: DesignRefusalState }) {
   const refused = useRefusedText(refusal.action);
   return <ProblemAlert problem={refusal.problem} refused={refused} />;
+}
+
+/** What only a role with `invitation:design` may change; another sees it with nothing to press (PD-193). */
+export function DesignChanges({ children }: { children: ReactNode }) {
+  const { t } = useTranslation('design');
+  return (
+    <ChangeableWith to="invitation:design" readOnly={t('problems.forbidden')}>
+      {children}
+    </ChangeableWith>
+  );
 }
 
 export const TEXT_LINK = LINK;

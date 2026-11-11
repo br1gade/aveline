@@ -1,7 +1,7 @@
 /**
- * What the team calls return (docs/API.md §6, "The event's team"). Interim until FR-1: written from
- * the guide and `team.service.ts`, with only the fields the screens read. `read.ts` alone reads the
- * `…Wire` types.
+ * What the team calls return (docs/API.md §6, "The event's team"). Checked against the schema at
+ * each call (FR-1); written from the guide and `team.service.ts`, with only the fields the screens
+ * read. `read.ts` alone reads the `…Wire` types.
  */
 
 export const EVENT_ROLES = ['COORDINATOR', 'DESIGNER', 'VIEWER', 'OWNER'] as const;
@@ -57,7 +57,7 @@ export interface TeamWire {
 
 /** Outside production it also holds `devLink`, which is never read (frontend/CLAUDE.md §4). */
 export interface InviteSentWire {
-  sent: true;
+  sent: boolean;
   email: string;
   role: string;
   devLink?: string;

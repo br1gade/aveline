@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router';
 import { eventPath, exportsPath, type AttendanceMode, type EventDetail } from '@/features/events';
 import type { Household } from '@/features/guests';
 import { LoadedProblem } from '@/features/sending';
+import { ChangeableWith } from '@/features/permissions';
 import { StatusLine } from '@/ui/app-form';
 
 import { householdsToSeat, isComing } from '../candidates';
@@ -232,8 +233,8 @@ function Header({ event }: { event: EventDetail }) {
 
 /**
  * An event's seating (design PD-67): whether guests see their tables, a tab per plan, and the
- * chosen plan's tables, automatic seating and the households still to seat. Every action is
- * offered to every role, and a 403 is explained when it happens (FR-6).
+ * chosen plan's tables, automatic seating and the households still to seat. A role without
+ * `seating:write` sees it with nothing to press (FR-6, PD-193); a 403 is still explained.
  */
 export function SeatingPage({ data }: { data: SeatingData }) {
   const { t } = useTranslation('seating');
@@ -259,20 +260,22 @@ export function SeatingPage({ data }: { data: SeatingData }) {
       <Header event={event} />
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {refusal ? <SeatingProblem refusal={refusal} /> : null}
-      <PublishPanel event={event} host={host} />
-      {plan ? (
-        <>
-          <PlanTabs plans={plans} current={plan} tables={tables.value} />
-          <PlanView
-            data={data}
-            plan={plan}
-            tables={tables.value}
-            host={host}
-            dialog={dialog}
-            plans={plans}
-          />
-        </>
-      ) : null}
+      <ChangeableWith to="seating:write" readOnly={t('readOnly')}>
+        <PublishPanel event={event} host={host} />
+        {plan ? (
+          <>
+            <PlanTabs plans={plans} current={plan} tables={tables.value} />
+            <PlanView
+              data={data}
+              plan={plan}
+              tables={tables.value}
+              host={host}
+              dialog={dialog}
+              plans={plans}
+            />
+          </>
+        ) : null}
+      </ChangeableWith>
     </section>
   );
 }

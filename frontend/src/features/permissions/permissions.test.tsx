@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createAppApi } from '@/api/client';
 
 import { readEventAccess, readOrganizationAccess } from './api';
-import { GrantedPermissions, Permitted, useCan } from './components/granted';
+import { ChangeableWith, GrantedPermissions, Permitted, useCan } from './components/granted';
 
 const ORIGIN = 'http://api.test';
 const server = setupServer();
@@ -22,6 +22,41 @@ function within(permissions: Parameters<typeof GrantedPermissions>[0]['permissio
     <GrantedPermissions permissions={permissions}>{children}</GrantedPermissions>
   );
 }
+
+describe('what the caller may see but not change (FR-6, design PD-193)', () => {
+  function form(permissions: Parameters<typeof GrantedPermissions>[0]['permissions']) {
+    render(
+      <GrantedPermissions permissions={permissions}>
+        <ChangeableWith to="invitation:design" readOnly="Yours to see, not to change.">
+          <label>
+            Title
+            <input defaultValue="Anna & Davit" />
+          </label>
+          <button type="submit">Save</button>
+        </ChangeableWith>
+      </GrantedPermissions>,
+    );
+  }
+
+  it('shows it with every control off, and says why, to a role without the permission', () => {
+    form(['invitation:read']);
+    expect(screen.getByText('Yours to see, not to change.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Title')).toHaveValue('Anna & Davit');
+    expect(screen.getByLabelText('Title')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('offers it as it is to a role with it', () => {
+    form(['invitation:design']);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(screen.queryByText('Yours to see, not to change.')).not.toBeInTheDocument();
+  });
+
+  it('offers it while nothing is known', () => {
+    form(null);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+  });
+});
 
 describe('what the caller may do (FR-6, design PD-190)', () => {
   it('allows everything while nothing is known, as before the read existed', () => {

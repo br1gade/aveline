@@ -1,13 +1,11 @@
 import { expectData, type ApiClient, type PublicApiClient } from '@/api/client';
 
 import { readGuestPage, readHostPage, readPhoto } from './read';
+
 import type {
-  GalleryItemWire,
   GalleryPage,
   GalleryPhoto,
-  GuestGalleryWire,
   HostGalleryPage,
-  HostGalleryWire,
   ModerationStatus,
   PhotoVariant,
 } from './types';
@@ -34,7 +32,7 @@ export async function listGuestGallery(
   link: GalleryLink,
   after?: string,
 ): Promise<GalleryPage> {
-  const wire = await expectData<GuestGalleryWire>(
+  const wire = await expectData(
     api.GET('/api/v1/invitations/{slug}/g/{guestToken}/gallery', {
       params: { path: link, query: pageQuery(after) },
     }),
@@ -52,7 +50,7 @@ export async function uploadPhoto(
   const form = new FormData();
   if (caption) form.append('caption', caption);
   form.append('file', file, file.name);
-  const wire = await expectData<GalleryItemWire>(
+  const wire = await expectData(
     api.POST('/api/v1/invitations/{slug}/g/{guestToken}/gallery', {
       params: { path: link },
       body: {},
@@ -82,7 +80,7 @@ export function guestPhotoFile(
   variant: PhotoVariant,
   signal: AbortSignal,
 ): Promise<Blob> {
-  return expectData<Blob>(
+  return expectData(
     api.GET('/api/v1/invitations/{slug}/g/{guestToken}/gallery/{mediaId}/file', {
       params: { path: photo, query: { variant } },
       parseAs: 'blob',
@@ -98,7 +96,7 @@ export async function listEventGallery(
   eventId: string,
   after?: string,
 ): Promise<HostGalleryPage> {
-  const wire = await expectData<HostGalleryWire>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/gallery', {
       params: { path: { eventId }, query: pageQuery(after) },
     }),
@@ -112,7 +110,7 @@ export async function setGalleryUploads(
   eventId: string,
   uploadsEnabled: boolean,
 ): Promise<boolean> {
-  const saved = await expectData<{ uploadsEnabled: boolean }>(
+  const saved = await expectData(
     api.PATCH('/api/v1/events/{eventId}/gallery/settings', {
       params: { path: { eventId } },
       body: { uploadsEnabled },
@@ -128,7 +126,7 @@ export async function moderatePhoto(
   mediaId: string,
   moderationStatus: Exclude<ModerationStatus, 'PENDING'>,
 ): Promise<GalleryPhoto> {
-  const wire = await expectData<GalleryItemWire>(
+  const wire = await expectData(
     api.PATCH('/api/v1/events/{eventId}/gallery/{mediaId}', {
       params: { path: { eventId, mediaId } },
       body: { moderationStatus },
@@ -152,7 +150,7 @@ export function eventPhotoFile(
   variant: PhotoVariant,
   signal: AbortSignal,
 ): Promise<Blob> {
-  return expectData<Blob>(
+  return expectData(
     api.GET('/api/v1/events/{eventId}/gallery/{mediaId}/file', {
       params: { path: photo, query: { variant } },
       parseAs: 'blob',

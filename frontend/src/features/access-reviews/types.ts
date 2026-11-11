@@ -1,4 +1,4 @@
-/** Interim until FR-1: the schema declares no answers. */
+/** Checked against the schema at each call (FR-1). */
 export interface AccessReview {
   id: string;
   organizationId: string;

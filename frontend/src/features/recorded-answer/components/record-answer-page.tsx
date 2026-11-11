@@ -14,6 +14,7 @@ import {
   WordedRefusal,
   WRAPPING_BUTTON,
 } from '@/ui/app-form';
+import { ChangeableWith } from '@/features/permissions';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { Label } from '@/ui/kit/label';
@@ -184,7 +185,9 @@ export function RecordAnswerPage({ data }: { data: RecordAnswerData }) {
       </div>
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
       {refusal ? <AnswerProblem refusal={refusal} /> : null}
-      <PageBody data={data} onRefused={setRefusal} />
+      <ChangeableWith to="guest:write" readOnly={t('refused.forbidden')}>
+        <PageBody data={data} onRefused={setRefusal} />
+      </ChangeableWith>
     </section>
   );
 }

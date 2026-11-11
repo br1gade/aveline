@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router';
 import { type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { timeZoneOptions } from '@/lib/time';
+import { ChangeableWith } from '@/features/permissions';
 import { AppForm, ProblemAlert, SubmitButton, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
@@ -25,6 +26,20 @@ const schema = eventFormSchema('edit');
 interface EditFormProps {
   event: EventDetail;
   onSuggested: (offer: NotifyOffer) => void;
+}
+
+function EditFooter({ isSubmitting, eventId }: { isSubmitting: boolean; eventId: string }) {
+  const { t } = useTranslation('events');
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <SubmitButton isSubmitting={isSubmitting} className="w-auto">
+        {isSubmitting ? t('edit.submitting') : t('edit.submit')}
+      </SubmitButton>
+      <Button asChild variant="ghost">
+        <Link to={eventPath(eventId)}>{t('edit.cancel')}</Link>
+      </Button>
+    </div>
+  );
 }
 
 /** Sends only what the host changed, and nothing at all when nothing did. */
@@ -72,23 +87,18 @@ function EditForm({ event, onSuggested }: EditFormProps) {
       </div>
       <p className="m-0">{t('edit.lead')}</p>
       {problem ? <ProblemAlert problem={problem} refused={refused} /> : null}
-      <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
-        <EventFields
-          form={form}
-          mode="edit"
-          zones={zones}
-          languages={languageOptions(event.locales)}
-          stored={event.translations}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton isSubmitting={isSubmitting} className="w-auto">
-            {isSubmitting ? t('edit.submitting') : t('edit.submit')}
-          </SubmitButton>
-          <Button asChild variant="ghost">
-            <Link to={eventPath(event.id)}>{t('edit.cancel')}</Link>
-          </Button>
-        </div>
-      </AppForm>
+      <ChangeableWith to="event:write" readOnly={t('edit.readOnly')}>
+        <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
+          <EventFields
+            form={form}
+            mode="edit"
+            zones={zones}
+            languages={languageOptions(event.locales)}
+            stored={event.translations}
+          />
+          <EditFooter isSubmitting={isSubmitting} eventId={event.id} />
+        </AppForm>
+      </ChangeableWith>
     </section>
   );
 }

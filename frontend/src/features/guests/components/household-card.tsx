@@ -29,6 +29,8 @@ interface RowProps {
   t: TFunction<'guests'>;
   onOpen: OpenDialog;
   formatDay: FormatDay;
+  /** With `guest:write` (FR-6, PD-190): correcting, recording and removing are offered. */
+  canChange: boolean;
 }
 
 function notesOf(guest: Guest, t: TFunction<'guests'>): string[] {
@@ -97,7 +99,8 @@ function ContactLines({ guest }: { guest: Guest }) {
  * One guest. No hooks of its own: a list of two thousand renders these, and the card above gives
  * them its words. An erased guest is never edited (the backend refuses it), so has no "Edit".
  */
-function GuestRow({ eventId, guest, household, sides, t, onOpen, formatDay }: RowProps) {
+function GuestRow(props: RowProps) {
+  const { guest, household, sides, t, onOpen, formatDay } = props;
   const open = (kind: 'edit' | 'remove') => (event: MouseEvent<HTMLButtonElement>) =>
     onOpen({ kind, guest, household }, event.currentTarget);
   const facts = [sides[guest.side], ...guest.seats.map((seat) => seatText(seat, t))]
@@ -120,23 +123,9 @@ function GuestRow({ eventId, guest, household, sides, t, onOpen, formatDay }: Ro
         <ContactLines guest={guest} />
       </div>
       <div className="flex flex-none flex-wrap gap-2">
-        {guest.isErased ? null : (
-          <Button
-            variant="outline"
-            aria-label={t('actionFor', { action: t('row.edit'), name: guest.name })}
-            onClick={open('edit')}
-          >
-            {t('row.edit')}
-          </Button>
-        )}
-        {guest.isErased ? null : <RecordAnswerLink eventId={eventId} guest={guest} t={t} />}
-        <Button
-          variant="ghost"
-          aria-label={t('actionFor', { action: t('row.remove'), name: guest.name })}
-          onClick={open('remove')}
-        >
-          {t('row.remove')}
-        </Button>
+        {props.canChange ? (
+          <RowChanges {...props} onEdit={open('edit')} onRemove={open('remove')} />
+        ) : null}
         <Button
           variant="ghost"
           aria-label={t('actionFor', { action: t('row.history'), name: guest.name })}
@@ -146,6 +135,40 @@ function GuestRow({ eventId, guest, household, sides, t, onOpen, formatDay }: Ro
         </Button>
       </div>
     </li>
+  );
+}
+
+/** Correcting, recording and removing; an erased guest is only removed. */
+function RowChanges({
+  eventId,
+  guest,
+  t,
+  onEdit,
+  onRemove,
+}: RowProps & {
+  onEdit: (event: MouseEvent<HTMLButtonElement>) => void;
+  onRemove: (event: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <>
+      {guest.isErased ? null : (
+        <Button
+          variant="outline"
+          aria-label={t('actionFor', { action: t('row.edit'), name: guest.name })}
+          onClick={onEdit}
+        >
+          {t('row.edit')}
+        </Button>
+      )}
+      {guest.isErased ? null : <RecordAnswerLink eventId={eventId} guest={guest} t={t} />}
+      <Button
+        variant="ghost"
+        aria-label={t('actionFor', { action: t('row.remove'), name: guest.name })}
+        onClick={onRemove}
+      >
+        {t('row.remove')}
+      </Button>
+    </>
   );
 }
 
@@ -191,6 +214,7 @@ interface HouseholdCardProps {
   isChosen: boolean | null;
   onChoose: OnChoose;
   formatDay: FormatDay;
+  canChange: boolean;
 }
 
 /**
@@ -253,12 +277,32 @@ function HouseholdActions({
   onOpen,
   isChosen,
   onChoose,
-}: Pick<HouseholdCardProps, 'eventId' | 'household' | 't' | 'onOpen' | 'isChosen' | 'onChoose'>) {
+  canChange,
+}: Pick<
+  HouseholdCardProps,
+  'eventId' | 'household' | 't' | 'onOpen' | 'isChosen' | 'onChoose' | 'canChange'
+>) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {isChosen === null ? null : (
         <ChooseBox household={household} isChosen={isChosen} onChoose={onChoose} t={t} />
       )}
+      {canChange ? (
+        <HouseholdChanges eventId={eventId} household={household} t={t} onOpen={onOpen} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Correcting it, recording its answers, and adding a guest while a seat is free. */
+function HouseholdChanges({
+  eventId,
+  household,
+  t,
+  onOpen,
+}: Pick<HouseholdCardProps, 'eventId' | 'household' | 't' | 'onOpen'>) {
+  return (
+    <>
       <Button
         variant="ghost"
         aria-label={t('actionFor', { action: t('household.edit'), name: household.name })}
@@ -278,7 +322,7 @@ function HouseholdActions({
           {t('household.addHere')}
         </Button>
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -298,6 +342,7 @@ export const HouseholdCard = memo(function HouseholdCard({
   isChosen,
   onChoose,
   formatDay,
+  canChange,
 }: HouseholdCardProps) {
   const titleId = useId();
   return (
@@ -322,6 +367,7 @@ export const HouseholdCard = memo(function HouseholdCard({
           onOpen={onOpen}
           isChosen={isChosen}
           onChoose={onChoose}
+          canChange={canChange}
         />
       </div>
       <ul className="m-0 flex list-none flex-col p-0">
@@ -335,6 +381,7 @@ export const HouseholdCard = memo(function HouseholdCard({
             t={t}
             onOpen={onOpen}
             formatDay={formatDay}
+            canChange={canChange}
           />
         ))}
       </ul>

@@ -115,8 +115,7 @@ function keyOf(action: SeatingAction, status: number, messages: readonly string[
 
 /**
  * A 404 is something gone meanwhile; a seat's 409 or 400, and a removal's 409, are the plan
- * changing underneath. Each leaves the page out of date, so it reloads behind the words. There is no
- * permissions endpoint (FR-6), so every action is offered and a 403 explained after the fact.
+ * changing underneath. Each leaves the page out of date, so it reloads behind the words.
  */
 function isStaleAfter(action: SeatingAction, status: number): boolean {
   if (status === 404) return true;

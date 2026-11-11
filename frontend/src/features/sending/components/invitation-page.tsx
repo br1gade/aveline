@@ -9,6 +9,7 @@ import {
   type EventDetail,
   type InvitationStatus,
 } from '@/features/events';
+import { ChangeableWith } from '@/features/permissions';
 import { formatEventDay, formatEventTime } from '@/lib/time';
 import { StatusLine, usePageStatus, type PageActions } from '@/ui/app-form';
 
@@ -105,8 +106,8 @@ function InvitationFacts({ event }: { event: EventDetail }) {
 /**
  * The invitation's way out (design PD-47): while a draft, what blocks publishing and the way to
  * publish; once published, stopping and taking replies, sending, and telling guests about a change
- * (PD-177), which takes the page's place until the host answers. Every action is offered to every
- * role, and a 403 is explained when it happens (FR-6).
+ * (PD-177), which takes the page's place until the host answers. A role without
+ * `invitation:publish` sees it with nothing to press (FR-6, PD-193); a 403 is still explained.
  */
 export function InvitationPage({ data }: { data: InvitationPageData }) {
   const { t } = useTranslation('sending');
@@ -132,18 +133,20 @@ export function InvitationPage({ data }: { data: InvitationPageData }) {
       <InvitationFacts event={event} />
       <ArchivedNotice event={event} where="invitation" />
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
-      {invitation?.status === 'DRAFT' && draft ? (
-        <PublishPanel eventId={event.id} slug={invitation.slug} draft={draft} page={page} />
-      ) : null}
-      {invitation && invitation.status !== 'DRAFT' ? (
-        <Published
-          event={event}
-          invitation={{ ...invitation, status: invitation.status }}
-          delivery={delivery}
-          page={page}
-          onTell={() => setIsTelling(true)}
-        />
-      ) : null}
+      <ChangeableWith to="invitation:publish" readOnly={t('problems.forbidden')}>
+        {invitation?.status === 'DRAFT' && draft ? (
+          <PublishPanel eventId={event.id} slug={invitation.slug} draft={draft} page={page} />
+        ) : null}
+        {invitation && invitation.status !== 'DRAFT' ? (
+          <Published
+            event={event}
+            invitation={{ ...invitation, status: invitation.status }}
+            delivery={delivery}
+            page={page}
+            onTell={() => setIsTelling(true)}
+          />
+        ) : null}
+      </ChangeableWith>
     </section>
   );
 }

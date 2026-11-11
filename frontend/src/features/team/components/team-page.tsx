@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { browserSession } from '@/api/session';
 import { eventPath, type EventDetail } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
+import { ChangeableWith } from '@/features/permissions';
 import { formatEventDay, formatEventTime } from '@/lib/time';
 import { StatusLine, useDialogOpener, usePageStatus, type PageActions } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
@@ -211,9 +212,8 @@ function CurrentDialog({
 }
 
 /**
- * The event's team (docs/API.md §6; design PD-99). A role refused the list is told who can see it,
- * and the invite form stays, its 403 worded (FR-6); change and remove have no row to attach to
- * without the list. Accepting grants this event and nothing in the organization.
+ * The event's team (docs/API.md §6; design PD-99). A role without `member:manage` sees it with
+ * nothing to press (FR-6, PD-193); a 403 is still worded. Accepting grants this event and nothing in the organization.
  */
 export function TeamPage({ data }: { data: TeamPageData }) {
   const { t } = useTranslation('team');
@@ -241,12 +241,14 @@ export function TeamPage({ data }: { data: TeamPageData }) {
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {again.refusal ? <TeamProblem refusal={again.refusal} /> : null}
-      {team.kind === 'ready' ? (
-        <TeamLists team={team.value} event={event} again={again} onOpen={open} />
-      ) : (
-        <LoadedProblem loaded={team} refusedText={t('listRefused')} />
-      )}
-      <InviteForm eventId={event.id} page={page} />
+      <ChangeableWith to="member:manage" readOnly={t('refused.forbidden')}>
+        {team.kind === 'ready' ? (
+          <TeamLists team={team.value} event={event} again={again} onOpen={open} />
+        ) : (
+          <LoadedProblem loaded={team} refusedText={t('listRefused')} />
+        )}
+        <InviteForm eventId={event.id} page={page} />
+      </ChangeableWith>
       <CurrentDialog
         dialog={dialog}
         eventId={event.id}

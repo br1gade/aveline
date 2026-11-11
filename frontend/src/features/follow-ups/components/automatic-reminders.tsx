@@ -34,7 +34,7 @@ function useSaveSetting(eventId: string, page: PageActions) {
 /**
  * Switching the automatic reminders off for this event, or on again (design PD-111). A checkbox
  * and Save, not a switch, which the kit doesn't have; on until the host says otherwise, as the
- * backend has it. Every role is offered it, and a 403 is worded (FR-6).
+ * backend has it. Offered with `event:write` (FR-6, PD-193); a 403 is still worded.
  */
 export function AutomaticReminders({ event, page }: { event: EventDetail; page: PageActions }) {
   const { t } = useTranslation('follow-ups');

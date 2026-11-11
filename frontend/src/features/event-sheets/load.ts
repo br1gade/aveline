@@ -2,13 +2,14 @@ import type { ApiClient } from '@/api/client';
 import { loaded, type Loaded } from '@/api/loaded';
 import { getEvent, type EventDetail } from '@/features/events';
 
-import { getAnswers, getGuestBook, getSheets, getVenueBar, getVenueCatering } from './api';
+import { getGuestBookPage, getQuestionPage, getSheets, getVenueBar, getVenueCatering } from './api';
 import type {
   AnswersSheet,
   BarSheet,
   CateringSheet,
   EventSheets,
   GuestBookEntry,
+  Page,
   SheetVenue,
 } from './types';
 
@@ -70,20 +71,20 @@ export async function loadAnswers(
 ): Promise<AnswersData> {
   const [event, answers] = await Promise.all([
     getEvent(api, eventId),
-    loaded(getAnswers(api, eventId, locale)),
+    loaded(getQuestionPage(api, eventId, { locale, offset: 0 })),
   ]);
   return { event, answers, asked: locale };
 }
 
 export interface GuestBookData {
   event: EventDetail;
-  book: Loaded<GuestBookEntry[]>;
+  book: Loaded<Page<GuestBookEntry>>;
 }
 
 export async function loadGuestBook(api: ApiClient, eventId: string): Promise<GuestBookData> {
   const [event, book] = await Promise.all([
     getEvent(api, eventId),
-    loaded(getGuestBook(api, eventId)),
+    loaded(getGuestBookPage(api, eventId, 0)),
   ]);
   return { event, book };
 }

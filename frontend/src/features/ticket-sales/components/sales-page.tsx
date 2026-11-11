@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 
 import { eventPath, ordersPath } from '@/features/events';
 import { APP_PATHS } from '@/route-paths';
+import { ChangeableWith } from '@/features/permissions';
 import { StatusLine, usePageStatus } from '@/ui/app-form';
 
 import type { TicketSalesData } from '../load';
@@ -14,8 +15,8 @@ import { VisibilityPanel } from './visibility-panel';
 
 /**
  * Selling tickets for an event (docs/API.md §5, "Setting up ticket sales"; design PD-84): who can
- * find it, its announcement, and what is for sale. Every action is offered to every role, and a
- * 403 is worded when it happens (FR-6).
+ * find it, its announcement, and what is for sale. A role without `event:write` sees it with
+ * nothing to press (FR-6, PD-193); a 403 is still worded.
  */
 export function TicketSalesPage({ data }: { data: TicketSalesData }) {
   const { t } = useTranslation('ticket-sales');
@@ -32,10 +33,12 @@ export function TicketSalesPage({ data }: { data: TicketSalesData }) {
       </div>
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
-      <VisibilityPanel key={event.visibility ?? 'PRIVATE'} data={data} page={page} />
-      <AnnouncementPanel data={data} page={page} />
-      <TicketTypesPanel data={data} page={page} />
-      <ShowInventoryPanel data={data} />
+      <ChangeableWith to="event:write" readOnly={t('forbidden')}>
+        <VisibilityPanel key={event.visibility ?? 'PRIVATE'} data={data} page={page} />
+        <AnnouncementPanel data={data} page={page} />
+        <TicketTypesPanel data={data} page={page} />
+        <ShowInventoryPanel data={data} />
+      </ChangeableWith>
       <Link to={APP_PATHS.promoCodes} className={LINK}>
         {t('promoCodes')}
       </Link>

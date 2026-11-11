@@ -14,6 +14,7 @@
     "showing": "Showing {{guests}} in {{households}}",
     "add": "Add a guest",
     "import": "Import a spreadsheet",
+    "pastImports": "Past imports",
     "contactHidden": "Email addresses and phone numbers aren’t shown to your role on this event.",
     "empty": "No guests yet. Import a spreadsheet, or add guests one at a time.",
     "noMatch": "No guests match.",
@@ -168,11 +169,12 @@
       "COMPLETED": "Every row was imported: {{guests}}.",
       "PARTIAL": "{{guests}} imported. {{rows}} could not be imported.",
       "FAILED": "Nothing was imported. {{rows}} could not be imported.",
+      "PENDING": "The import has not started yet.",
       "PROCESSING": "The import has not finished yet.",
       "fileRefused": "Nothing was imported."
     },
     "refusedTitle": "Not imported",
-    "inEnglish": "The reasons are given in English for now.",
+    "inEnglish": "Some reasons are given in English, as they were recorded.",
     "row": "Row {{row}}",
     "file": "The file",
     "value": "“{{value}}”",
@@ -187,10 +189,35 @@
         "COMPLETED": "Complete",
         "PARTIAL": "Some rows not imported",
         "FAILED": "Nothing imported",
+        "PENDING": "Waiting, or did not start",
         "PROCESSING": "Running, or did not finish"
       },
       "showRows_one": "Show the row not imported",
       "showRows_other": "Show the {{count}} rows not imported"
+    },
+    "reasons": {
+      "NAME_REQUIRED": "No first name.",
+      "INVALID_SEATS": "Seats must be a whole number, at least 1.",
+      "INVALID_EMAIL": "That isn’t an email address.",
+      "INVALID_PHONE": "That isn’t a phone number.",
+      "FIELD_TOO_LONG": "{{field}} is too long.",
+      "SUBJECT_ERASED": "This person asked for their data to be erased, so they can’t be added again.",
+      "HOUSEHOLD_FULL": "Their household has no seat left for them.",
+      "NOT_SAVED": "This row couldn’t be saved. Import the file again.",
+      "NAME_COLUMN_MISSING": "No first-name column was found. Check the row of headings.",
+      "NO_ROWS": "The file has headings but no guests.",
+      "CSV_UNREADABLE": "The file couldn’t be read as CSV.",
+      "FILE_UNREADABLE": "The file isn’t UTF-8 text. Save it as “CSV UTF-8” and try again."
+    },
+    "fields": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "seats": "Seats",
+      "email": "Email",
+      "phone": "Phone",
+      "household": "Household",
+      "locale": "Language",
+      "unknown": "A value"
     }
   },
   "inviteGroup": {

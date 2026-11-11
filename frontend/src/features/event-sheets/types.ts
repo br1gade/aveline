@@ -1,4 +1,7 @@
-/** Interim until FR-1: read against `operations.service.ts` at `34ac1e6`. */
+/**
+ * Checked against the schema at each call (FR-1); read against `operations.service.ts` at
+ * `34ac1e6`.
+ */
 export interface CateringSheet {
   covers: number;
   /** Most asked for first; each label in the event's language. */
@@ -35,12 +38,20 @@ export interface EventSheets {
   venues: SheetVenue[];
 }
 
-/** A message a guest left with their answer. Interim until FR-1 and FR-117. */
+/** A message a guest left with their answer (FR-117). */
 export interface GuestBookEntry {
+  id: string;
   from: string;
-  message: string;
-  /** When they answered; the backend allows none. */
+  /** None when an older answer kept a name and no words. */
+  message: string | null;
+  /** When they answered; the backend allows none, and lists those last. */
   at: string | null;
+}
+
+/** One page of a bounded list (docs/API.md §6), and where the next starts, if there is one. */
+export interface Page<T> {
+  items: T[];
+  nextOffset: number | null;
 }
 
 export interface AnswerTally {
@@ -52,6 +63,7 @@ export interface AnswerTally {
 }
 
 export interface QuestionResponse {
+  id: string;
   guestId: string;
   name: string;
   household: string;
@@ -68,12 +80,10 @@ export interface AnsweredQuestion {
   answered: number;
   /** Null for free text: read its responses. */
   tally: AnswerTally[] | null;
-  responses: QuestionResponse[];
 }
 
-/** Interim until FR-1: read against `answers-sheet.service.ts` at `34ac1e6`. */
-export interface AnswersSheet {
+/** A page of the host's questions (FR-117); the answers to each are read on their own. */
+export interface AnswersSheet extends Page<AnsweredQuestion> {
   /** The language the prompts and options are in, which may differ from the one asked for. */
   locale: string;
-  questions: AnsweredQuestion[];
 }

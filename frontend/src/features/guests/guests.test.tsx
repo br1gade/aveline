@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import type { EventDetail } from '@/features/events';
+import { GrantedPermissions, type Granted } from '@/features/permissions';
 import { createI18n } from '@/lib/i18n';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
 import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
@@ -232,6 +233,7 @@ function GuestsPage() {
 
 function renderList(
   path: string | Array<string | { pathname: string; state: unknown }> = '/app/events/e1/guests',
+  granted: Granted = null,
 ) {
   const Stub = createRoutesStub(
     guardedRoutes([
@@ -248,7 +250,9 @@ function renderList(
   );
   render(
     <I18nextProvider i18n={createI18n('en')}>
-      <Stub initialEntries={typeof path === 'string' ? [path] : path} />
+      <GrantedPermissions permissions={granted}>
+        <Stub initialEntries={typeof path === 'string' ? [path] : path} />
+      </GrantedPermissions>
     </I18nextProvider>,
   );
   return userEvent.setup();
@@ -265,6 +269,34 @@ const save = (user: ReturnType<typeof userEvent.setup>) =>
   user.click(screen.getByRole('button', { name: 'Save changes' }));
 
 describe('GuestList: reading', () => {
+  it('offers a role that may only read no change, and still each guest’s history (FR-6)', async () => {
+    serve();
+    renderList('/app/events/e1/guests', ['event:read', 'guest:read']);
+    await screen.findByText('3 guests in 2 households');
+    expect(screen.queryByRole('button', { name: 'Add a guest' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Edit: / })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Remove: / })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Edit household: / })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Add a guest here: / })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Record an answer/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /^Choose / })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Answer history: / }).length).toBeGreaterThan(0);
+    // The imports' history stays theirs to open (FR-74).
+    expect(screen.getByRole('link', { name: 'Past imports' })).toHaveAttribute(
+      'href',
+      '/app/events/e1/guests/import',
+    );
+  });
+
+  it('offers changing the guests apart from sending to them (FR-6)', async () => {
+    serve();
+    renderList('/app/events/e1/guests', ['event:read', 'guest:read', 'guest:write']);
+    await screen.findByText('3 guests in 2 households');
+    expect(screen.getAllByRole('button', { name: /^Edit: / }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Add a guest' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /^Choose / })).not.toBeInTheDocument();
+  });
+
   it('lists each household with its seats, and each guest’s answer, side and table', async () => {
     serve();
     renderList();

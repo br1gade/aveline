@@ -1,6 +1,6 @@
 /**
- * The search's answer is interim until FR-1 reaches it; the open and resolve answers are read from
- * the schema.
+ * The search's answer and the open and resolve answers are all
+ * checked against the schema at each call (FR-1).
  */
 export interface CustomerOrganization {
   id: string;

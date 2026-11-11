@@ -43,7 +43,7 @@ export function ImportResultView({ eventId, result }: { eventId: string; result:
       {result.errors.length > 0 ? (
         <div className="flex flex-col gap-2">
           <h3 className="m-0 text-sm font-medium">{t('import.refusedTitle')}</h3>
-          {i18n.language === 'en' ? null : (
+          {i18n.language === 'en' || result.errors.every((error) => error.reason) ? null : (
             <p className="text-muted-foreground m-0 text-sm">{t('import.inEnglish')}</p>
           )}
           <RefusedRows errors={result.errors} t={t} />

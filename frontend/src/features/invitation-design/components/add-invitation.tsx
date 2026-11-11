@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useRevalidator } from 'react-router';
 
 import { browserSession } from '@/api/session';
-import { startQuestionsOff } from '@/features/events';
 import { AppForm, SelectField, SubmitButton, useLeaveGuard, WordedRefusal } from '@/ui/app-form';
 
 import { createInvitation, listTemplates } from '../api';
@@ -42,8 +41,8 @@ function useTemplates(eventId: string, generation: number): TemplatesRead {
 
 /**
  * Adding an invitation to an event that has none (docs/API.md §6; design PD-132), which only an
- * event created before any template existed can lack. Every role is offered it, and a refusal is
- * worded (FR-6). An authored template's own preview comes later, on choosing it in the look.
+ * event created before any template existed can lack. Offered with `event:write` (FR-6, PD-193),
+ * and a refusal is worded. An authored template's own preview comes later, on choosing it in the look.
  */
 export function AddInvitation({ eventId }: { eventId: string }) {
   const { t } = useTranslation('design');
@@ -60,9 +59,8 @@ export function AddInvitation({ eventId }: { eventId: string }) {
     try {
       const { api } = browserSession();
       await createInvitation(api, eventId, templateKey || undefined);
-      const leftOn = await startQuestionsOff(api, eventId);
       form.reset({ templateKey });
-      await navigate(designPath(eventId), { state: leftOn });
+      await navigate(designPath(eventId));
       await revalidate();
     } catch (error) {
       const found = addRefusalOf(error);

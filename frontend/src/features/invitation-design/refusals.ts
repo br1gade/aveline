@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/errors';
 
 /**
- * The words for each refusal, by action and status. There is no permissions endpoint (FR-6), so
- * every action is offered to every role and a 403 is explained after the fact: designing needs
- * `invitation:design`, which an event's owner, coordinator and designer hold, and an organization
- * member, an organization viewer and an event viewer do not. Each status here has one meaning for
+ * The words for each refusal, by action and status. Designing needs `invitation:design`, which an
+ * event's owner, coordinator and designer hold; a role without it is shown the design with nothing
+ * to press (FR-6, PD-193), and a 403 is still explained for a role changed mid-visit. Each status here has one meaning for
  * its action, so nothing is told apart by the backend's text (FR-28). The exception is a write on
  * an archived event, which is also a 400; no screen archives one, so it takes a staff archive.
  */

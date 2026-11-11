@@ -1,8 +1,8 @@
 /**
- * What the seating calls return (docs/API.md §6, "Tables and seating"). Interim until FR-1: the
- * schema declares no response types, so these are written from the guide and the backend's
- * services (`seating.service.ts`, `seating-jobs.service.ts`, `localized-seating.ts`), and only the
- * fields the page reads are typed. `read.ts` alone reads the `…Wire` types.
+ * What the seating calls return (docs/API.md §6, "Tables and seating"). These are checked against
+ * the schema at each call (FR-1), written from the guide and the backend's services
+ * (`seating.service.ts`, `seating-jobs.service.ts`, `localized-seating.ts`), and only the fields
+ * the page reads are typed. `read.ts` alone reads the `…Wire` types.
  */
 
 /** One seating plan: a venue's, or the event's plan that names no venue. */
@@ -154,7 +154,10 @@ export interface JobWire {
   appliedRevision: number | null;
   createdAt: string;
   completedAt: string | null;
-  result?: ResultWire | null;
+  /**
+   * Any JSON value, as the schema declares it (FR-149); docs/API.md §6 documents a `ResultWire`.
+   */
+  result?: unknown;
 }
 
 /** `POST /seating/publish` and `/unpublish`. */

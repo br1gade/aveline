@@ -81,8 +81,9 @@ function ExportsBody({ data, initial }: { data: ExportsData; initial: readonly S
 
 /**
  * An event's exports (design PD-73): making one, the newest fifty with where each stands, and the
- * earlier ones to make again. Every action is offered to every role, and a 403 is worded when it
- * happens (FR-6); a role that cannot read exports (a designer) is told the page is not theirs.
+ * earlier ones to make again. Making one needs `operations:read`, as reading them does, so the
+ * list's own refusal is the gate (FR-6): a role without it (a designer) is told the page is not
+ * theirs.
  */
 export function ExportsPage({ data }: { data: ExportsData }) {
   const { t } = useTranslation('exports');

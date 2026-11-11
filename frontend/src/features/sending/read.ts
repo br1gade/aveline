@@ -29,11 +29,14 @@ function channelOf(value: string | undefined): Channel | null {
   return CHANNELS.find((channel) => channel === value) ?? null;
 }
 
-/** `in`, not a null check: a missing address is "not yours to see". Telegram's is a chat number. */
-function destinationOf(entry: { toAddress?: string; channel?: string }): Destination {
+/** An address absent, or not text, is "not yours to see" (FR-149). Telegram's is a chat number. */
+function addressOf(entry: { toAddress?: unknown }): string | null {
+  return typeof entry.toAddress === 'string' ? entry.toAddress : null;
+}
+
+function destinationOf(entry: { toAddress?: unknown; channel?: string }): Destination {
   const channel = channelOf(entry.channel);
-  const isShown = 'toAddress' in entry && typeof entry.toAddress === 'string';
-  return { channel, address: isShown && channel !== 'TELEGRAM' ? (entry.toAddress ?? null) : null };
+  return { channel, address: channel === 'TELEGRAM' ? null : addressOf(entry) };
 }
 
 /** Only the status and the blockers, out of the whole draft the editor would load. */
@@ -83,7 +86,7 @@ function readRow(row: DeliveryRowWire): HouseholdDelivery {
     isRetrying: status === 'QUEUED' && row.attempts > 0,
     // It often quotes the address. The backend withholds it from this role too (FR-35): a second
     // guard, since a read-only role must never see an address.
-    failureReason: 'toAddress' in row ? row.failureReason : null,
+    failureReason: addressOf(row) === null ? null : (row.failureReason ?? null),
     sentAt: row.sentAt,
     deliveredAt: row.deliveredAt ?? null,
     readAt: row.readAt ?? null,

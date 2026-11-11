@@ -9,6 +9,7 @@ import {
   type EventNotice,
   type NotifyOffer,
 } from '@/features/events';
+import { ChangeableWith, Permitted } from '@/features/permissions';
 import { safeExternalUrl } from '@/lib/links';
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import { EXTERNAL_LINK, Icon } from '@/ui';
@@ -184,6 +185,7 @@ function StatusLine({
  * An event's venues (docs/API.md §6, "Venues"; design PD-46): where guests go, in the order they
  * were added. Adding and correcting are pages; removing asks first, and a removal whose notice
  * suggests it becomes the offer to tell guests, in place of the list until the host answers.
+ * Changes are offered with `event:write` (FR-6, PD-193).
  */
 export function VenueList({ data }: { data: VenueListData }) {
   const { t } = useTranslation('venues');
@@ -207,9 +209,11 @@ export function VenueList({ data }: { data: VenueListData }) {
         <p className="text-muted-foreground m-0">{event.title}</p>
       </div>
       <p className="m-0 max-w-[40rem]">{t('list.lead')}</p>
-      <Button asChild className="self-start">
-        <Link to={newVenuePath(event.id)}>{t('list.add')}</Link>
-      </Button>
+      <Permitted to="event:write">
+        <Button asChild className="self-start">
+          <Link to={newVenuePath(event.id)}>{t('list.add')}</Link>
+        </Button>
+      </Permitted>
       <StatusLine statusRef={removal.statusRef}>{removal.status}</StatusLine>
       <Link
         to={venueDirectoryPath(event.id)}
@@ -220,11 +224,13 @@ export function VenueList({ data }: { data: VenueListData }) {
       {venues.length === 0 ? (
         <p className="text-muted-foreground m-0">{t('list.empty')}</p>
       ) : (
-        <ul className="m-0 flex max-w-[40rem] list-none flex-col gap-4 p-0">
-          {venues.map((venue) => (
-            <VenueCard key={venue.id} venue={venue} event={event} onRemove={removal.open} />
-          ))}
-        </ul>
+        <ChangeableWith to="event:write" readOnly={t('problems.forbidden')}>
+          <ul className="m-0 flex max-w-[40rem] list-none flex-col gap-4 p-0">
+            {venues.map((venue) => (
+              <VenueCard key={venue.id} venue={venue} event={event} onRemove={removal.open} />
+            ))}
+          </ul>
+        </ChangeableWith>
       )}
       {removal.target ? (
         <RemoveVenueDialog

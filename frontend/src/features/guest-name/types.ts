@@ -11,8 +11,8 @@ export interface NameBody {
 }
 
 /**
- * Its answer (docs/API.md §4, "Correct your own name"). Interim until FR-1: the schema declares no
- * response.
+ * Its answer (docs/API.md §4, "Correct your own name"). Checked against the schema at its call
+ * (FR-1).
  */
 export interface CorrectedName {
   id: string;

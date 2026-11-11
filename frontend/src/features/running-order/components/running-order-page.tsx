@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { eventPath, type EventDetail } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
+import { ChangeableWith } from '@/features/permissions';
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import {
   StatusLine,
@@ -163,7 +164,8 @@ function CurrentDialog({
 
 /**
  * The day's running order (docs/API.md §6; design PD-106): what happens when, and where, in the
- * event's zone. Every action is offered to every role, and a 403 is worded when it happens (FR-6).
+ * event's zone. A role without `event:write` sees it with nothing to press (FR-6, PD-193); a 403
+ * is still worded.
  * No "let your guests know" follows a change: the backend returns no notice for it (FR-94).
  */
 export function RunningOrderPage({ data }: { data: RunningOrderData }) {
@@ -194,16 +196,18 @@ export function RunningOrderPage({ data }: { data: RunningOrderData }) {
         {t('zone', { timeZone: event.timezone.replaceAll('_', ' ') })}
       </p>
       {/* Adding needs the list: where an entry goes, and what guests stop seeing, are read from it. */}
-      {data.entries.kind === 'ready' ? (
-        <Button
-          className={`self-start ${WRAPPING_BUTTON}`}
-          onClick={(click) => open({ kind: 'add' }, click.currentTarget)}
-        >
-          {t('add')}
-        </Button>
-      ) : null}
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
-      <EntryList data={data} onOpen={open} />
+      <ChangeableWith to="event:write" readOnly={t('refused.forbidden')}>
+        {data.entries.kind === 'ready' ? (
+          <Button
+            className={`self-start ${WRAPPING_BUTTON}`}
+            onClick={(click) => open({ kind: 'add' }, click.currentTarget)}
+          >
+            {t('add')}
+          </Button>
+        ) : null}
+        <EntryList data={data} onOpen={open} />
+      </ChangeableWith>
       <CurrentDialog dialog={dialog} data={data} context={context} />
     </section>
   );

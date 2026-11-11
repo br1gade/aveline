@@ -40,6 +40,12 @@ describe('a response body read through the client (FR-1)', () => {
     expect(body).toEqual(TOKENS);
   });
 
+  it('is not chosen by where the call stands: a `return` is checked against the schema too', () => {
+    // @ts-expect-error The login answer is not this shape, whatever the function says it returns.
+    const misread = (): Promise<{ notInTheSchema: Date }> => expectData(logIn());
+    expectTypeOf(misread).toBeFunction();
+  });
+
   it('is an ApiError, with the status, when the answer is not a success', async () => {
     server.use(
       http.post(`${ORIGIN}/api/v1/auth/login`, () =>
@@ -60,8 +66,10 @@ describe('a response body read through the client (FR-1)', () => {
 describe('which operations each client may call (FR-2)', () => {
   it('lets the public client call only what the spec declares public', () => {
     const publicApi = createPublicApi(ORIGIN);
+    // Typed only, never called: no request leaves the test.
     // @ts-expect-error `GET /me` needs a session, so the public client has no such operation.
-    void publicApi.GET('/api/v1/me', {});
+    const readMe = () => publicApi.GET('/api/v1/me', {});
+    expectTypeOf(readMe).toBeFunction();
     expectTypeOf(publicApi).not.toMatchTypeOf<ApiClient>();
   });
 

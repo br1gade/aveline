@@ -71,6 +71,25 @@ describe('the delivery report, per household', () => {
     expect(read.byHousehold.get('h2')).toMatchObject({ isRetrying: false });
   });
 
+  // The schema allows any value for the address (FR-149): only text is one to show.
+  it.each([null, 123])(
+    'shows neither the address nor the failure text when it is %j',
+    (address) => {
+      const read = report([
+        { ...row({ status: 'BOUNCED', failureReason: '550 rejected' }), toAddress: address },
+      ]);
+      expect(read.byHousehold.get('h1')).toMatchObject({
+        failureReason: null,
+        destination: { channel: 'EMAIL', address: null },
+      });
+    },
+  );
+
+  it('reads an address with no failure text as none', () => {
+    const { failureReason: _none, ...withoutReason } = row({ status: 'BOUNCED' });
+    expect(report([withoutReason]).byHousehold.get('h1')).toMatchObject({ failureReason: null });
+  });
+
   it('keeps the server’s failure text only when the address arrived too (FR-35)', () => {
     const reason = '550 5.1.1 <armen@example.am>: Recipient address rejected';
     const { toAddress: _hidden, ...withoutAddress } = row({

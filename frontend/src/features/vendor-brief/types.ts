@@ -1,10 +1,10 @@
 import type { components } from '@/api/schema';
 
 /**
- * A vendor's brief (docs/API.md §6, "Vendors and scoped briefs"). Interim until FR-1: written from
- * `vendor-briefs.service.ts`, `operations.service.ts` and `seating.service.ts` at `34ac1e6`.
- * `read.ts` alone reads the `…Wire` types. The answer names no language (FR-104): its words are
- * the event's default language's, which the page can't say.
+ * A vendor's brief (docs/API.md §6, "Vendors and scoped briefs"). Checked against the schema at
+ * each call (FR-1); written from `vendor-briefs.service.ts`, `operations.service.ts` and
+ * `seating.service.ts` at `34ac1e6`. `read.ts` alone reads the `…Wire` types. The answer names no
+ * language (FR-104): its words are the event's default language's, which the page can't say.
  */
 
 export type BriefSection = NonNullable<
@@ -29,7 +29,8 @@ export interface HeadcountWire extends Counts {
 export interface CateringWire {
   covers: number;
   requirements: Array<{ requirement: string; count: number }>;
-  notes: Array<{ guest: string; household: string; note: string }>;
+  /** The backend lists only guests who wrote one, though the schema allows `null`. */
+  notes: Array<{ guest: string; household: string; note: string | null }>;
 }
 
 export interface BarWire {

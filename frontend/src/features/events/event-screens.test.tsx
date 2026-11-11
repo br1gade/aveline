@@ -10,6 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { ApiError } from '@/api/errors';
 import { createBrowserSession, type BrowserSession } from '@/api/session';
+import { GrantedPermissions, type Granted } from '@/features/permissions';
 import { createI18n } from '@/lib/i18n';
 import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
 
@@ -18,7 +19,6 @@ import { CreateEvent } from './components/create-event';
 import { EditEvent } from './components/edit-event';
 import { EventOverview } from './components/event-overview';
 import { EventUnavailable } from './components/event-unavailable';
-import { QuestionsLeftOnNotice } from './components/questions-left-on';
 import type { EventOverviewData } from './load';
 import type { EventDetail } from './types';
 
@@ -43,7 +43,10 @@ beforeEach(() => {
     schedule: () => () => undefined,
   });
 });
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  server.events.removeAllListeners();
+});
 afterAll(() => server.close());
 
 const EVENT: EventDetail = {
@@ -63,12 +66,7 @@ const EVENT: EventDetail = {
 
 /** Where the page sent the host. */
 function EventPage() {
-  return (
-    <>
-      <QuestionsLeftOnNotice />
-      <p>{`Event page ${useParams().eventId ?? ''}`}</p>
-    </>
-  );
+  return <p>{`Event page ${useParams().eventId ?? ''}`}</p>;
 }
 
 function renderAt(path: string, pattern: string, Page: ComponentType) {
@@ -146,35 +144,19 @@ describe('CreateEvent', () => {
     await waitFor(() => expect(isLeavingAsked()).toBe(true));
   });
 
-  it('starts drink and song request off on the new invitation (C-30, PD-179)', async () => {
+  it('opens the new event and writes nothing more (FR-134)', async () => {
     answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
-    server.use(http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)));
-    const switched = answer('patch', `/invitations/anna-davit-3f8a1c20/rsvp-fields`, () =>
-      HttpResponse.json({}),
-    );
+    const asked: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      if (request.method !== 'GET')
+        asked.push(`${request.method} ${new URL(request.url).pathname}`);
+    });
     const user = at();
     await fillNewEvent(user);
     await submitCreate(user);
     expect(await screen.findByText('Event page e1')).toBeInTheDocument();
-    expect(switched).toEqual([
-      { drinkPreference: { isEnabled: false }, songRequest: { isEnabled: false } },
-    ]);
-    expect(screen.queryByText(/still asked on this invitation/)).not.toBeInTheDocument();
-  });
-
-  it('opens the event all the same when they couldn’t be switched off, and says so', async () => {
-    answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
-    server.use(http.get(`${API}/events/e1`, () => HttpResponse.json(EVENT)));
-    answer('patch', `/invitations/anna-davit-3f8a1c20/rsvp-fields`, refusal(500, 'down'));
-    const user = at();
-    await fillNewEvent(user);
-    await submitCreate(user);
-    expect(await screen.findByText('Event page e1')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('still asked on this invitation');
-    expect(screen.getByRole('link', { name: 'The invitation’s questions' })).toHaveAttribute(
-      'href',
-      '/app/events/e1/design/questions',
-    );
+    // Drink and song request start off on the backend (design C-30).
+    expect(asked).toEqual(['POST /api/v1/events']);
   });
 
   it('sends the time typed in Yerevan as UTC, then opens the new event', async () => {
@@ -307,31 +289,49 @@ describe('CreateEvent', () => {
   });
 });
 
-function overview(data: Partial<EventOverviewData> = {}) {
+function overview(data: Partial<EventOverviewData> = {}, granted: Granted = null) {
   const page = () => (
-    <EventOverview
-      data={{
-        event: EVENT,
-        headcount: {
-          kind: 'ready',
+    <GrantedPermissions permissions={granted}>
+      <EventOverview
+        data={{
+          event: EVENT,
           headcount: {
-            invited: 412,
-            households: 160,
-            attending: 230,
-            declined: 41,
-            undecided: 12,
-            pending: 129,
-            responseRate: 69,
+            kind: 'ready',
+            headcount: {
+              invited: 412,
+              households: 160,
+              attending: 230,
+              declined: 41,
+              undecided: 12,
+              pending: 129,
+              responseRate: 69,
+            },
           },
-        },
-        ...data,
-      }}
-    />
+          ...data,
+        }}
+      />
+    </GrantedPermissions>
   );
   renderAt('/app/events/e1/overview', '/app/events/:eventId/overview', page);
 }
 
 describe('EventOverview', () => {
+  it.each([
+    ['event:write', true, false],
+    ['event:delete', false, true],
+  ] as const)(
+    'offers with %s only what it covers (FR-6)',
+    async (permission, isCorrectable, isPutAway) => {
+      const event = { ...EVENT, attendanceMode: 'EVENT_WIDE' as const, attendanceRevision: 1 };
+      overview({ event }, ['event:read', permission]);
+      expect(await screen.findByText('English, Հայերեն (default)')).toBeInTheDocument();
+      const shown = (query: HTMLElement | null) => query !== null;
+      expect(shown(screen.queryByRole('link', { name: 'Edit details' }))).toBe(isCorrectable);
+      expect(shown(screen.queryByRole('link', { name: 'Change' }))).toBe(isCorrectable);
+      expect(shown(screen.queryByRole('heading', { name: 'Put this event away' }))).toBe(isPutAway);
+    },
+  );
+
   it('dates the event in its own zone, and names the zone', async () => {
     overview();
     expect(

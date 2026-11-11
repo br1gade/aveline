@@ -64,14 +64,29 @@ describe('importGuests', () => {
             status: 'PARTIAL',
             rowsImported: 1,
             rowsFailed: 1,
-            errors: [{ row: 3, message: 'No name in this row' }],
+            errors: [
+              {
+                row: 3,
+                message: 'No name in this row',
+                reason: 'NAME_REQUIRED',
+                field: 'firstName',
+              },
+            ],
           },
           { status: 201 },
         ),
       ),
     );
     const result = await importGuests(api, 'e1', new File(['x'], 'guests.csv'));
-    expect(result.errors).toEqual([{ row: 3, message: 'No name in this row', value: null }]);
+    expect(result.errors).toEqual([
+      {
+        row: 3,
+        reason: 'NAME_REQUIRED',
+        field: 'firstName',
+        message: 'No name in this row',
+        value: null,
+      },
+    ]);
   });
 
   it('turns a 413 into an error with its status', async () => {

@@ -8,6 +8,7 @@ import { isApiError } from '@/api/errors';
 import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import type { LibraryItem } from '@/features/invitation-design';
+import { ChangeableWith } from '@/features/permissions';
 import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
@@ -209,6 +210,20 @@ function announcementLanguages({ event, listing }: AnnouncementData): string[] {
   return languagesWithStored(eventLanguages(event), ...stored);
 }
 
+function FormFooter({ isSubmitting, eventId }: { isSubmitting: boolean; eventId: string }) {
+  const { t } = useTranslation('ticket-sales');
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <SubmitButton isSubmitting={isSubmitting} className="w-auto">
+        {t('announcementForm.save')}
+      </SubmitButton>
+      <Button asChild variant="ghost">
+        <Link to={ticketSalesPath(eventId)}>{t('cancel')}</Link>
+      </Button>
+    </div>
+  );
+}
+
 /**
  * Writing the announcement (design PD-86), a page as a designer section is (PD-57): the words in
  * each of the event's languages, categories, its address, its pictures, and whether search engines
@@ -255,20 +270,20 @@ export function AnnouncementForm({ data }: { data: AnnouncementData }) {
           refused={(status) => t(status === 403 ? 'forbidden' : 'refused')}
         />
       ) : null}
-      <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-6">
-        {languages.map((language) => (
-          <LanguageCopy key={language} form={form} language={language} label={labelOf(language)} />
-        ))}
-        <Settings form={form} data={data} />
-        <div className="flex flex-wrap items-center gap-3">
-          <SubmitButton isSubmitting={form.formState.isSubmitting} className="w-auto">
-            {t('announcementForm.save')}
-          </SubmitButton>
-          <Button asChild variant="ghost">
-            <Link to={ticketSalesPath(event.id)}>{t('cancel')}</Link>
-          </Button>
-        </div>
-      </AppForm>
+      <ChangeableWith to="event:write" readOnly={t('forbidden')}>
+        <AppForm onSubmit={form.handleSubmit(onSubmit)} className="gap-6">
+          {languages.map((language) => (
+            <LanguageCopy
+              key={language}
+              form={form}
+              language={language}
+              label={labelOf(language)}
+            />
+          ))}
+          <Settings form={form} data={data} />
+          <FormFooter isSubmitting={form.formState.isSubmitting} eventId={event.id} />
+        </AppForm>
+      </ChangeableWith>
     </section>
   );
 }

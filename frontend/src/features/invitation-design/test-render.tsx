@@ -4,6 +4,7 @@ import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, useLoaderData, type LoaderFunctionArgs } from 'react-router';
 
 import type { BrowserSession } from '@/api/session';
+import { GrantedPermissions, type Granted } from '@/features/permissions';
 import { createI18n, type Language } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 import { guardedRoutes } from '@/ui/app-form/guarded-routes';
@@ -101,11 +102,15 @@ const ELSEWHERE = [
   { path: APP_PATHS.editEvent, Component: () => <p>Edit event page</p> },
 ];
 
-/** Every design page, routed as the app routes them inside its frame's guard, against the test's session. */
+/**
+ * Every design page, routed as the app routes them inside its frame's guard, against the test's
+ * session, for a caller granted `granted` (unknown, so every action offered, unless given).
+ */
 export function renderDesign(
   session: () => BrowserSession,
   path: string,
   language: Language = 'en',
+  granted: Granted = null,
 ) {
   const api = () => session().api;
   const Stub = createRoutesStub(
@@ -113,7 +118,9 @@ export function renderDesign(
   );
   render(
     <I18nextProvider i18n={createI18n(language)}>
-      <Stub initialEntries={[path]} />
+      <GrantedPermissions permissions={granted}>
+        <Stub initialEntries={[path]} />
+      </GrantedPermissions>
     </I18nextProvider>,
   );
   return userEvent.setup();

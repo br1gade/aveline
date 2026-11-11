@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { browserSession } from '@/api/session';
+import { Permitted } from '@/features/permissions';
 import { formatMinor } from '@/lib/money';
 import { APP_PATHS } from '@/route-paths';
 import {
@@ -206,8 +207,8 @@ function CurrentDialog({
 /**
  * The organization's promo codes (docs/API.md §6; design PD-116 to PD-118): listed, made, corrected,
  * stopped and used again. Nothing is ever deleted, as the API keeps every code a refund may need.
- * Only the organization's owner holds `billing:*`; anyone else is told so, and the form stays, its
- * refusal worded (FR-6). While payments are off, only a code that makes an order free goes through.
+ * Only the organization's owner holds `billing:*`; anyone else is told so, and isn't offered the
+ * form (FR-6, PD-190). While payments are off, only a code that makes an order free goes through.
  */
 export function PromoCodesPage({ data }: { data: PromoCodesData }) {
   const { t } = useTranslation('promo-codes');
@@ -247,7 +248,9 @@ export function PromoCodesPage({ data }: { data: PromoCodesData }) {
       ) : (
         <PromoProblem refusal={data.codes.refusal} />
       )}
-      <CreateForm events={events} zones={data.zones} page={page} />
+      <Permitted to="billing:write">
+        <CreateForm events={events} zones={data.zones} page={page} />
+      </Permitted>
       <CurrentDialog dialog={dialog} zones={data.zones} context={context} />
     </section>
   );

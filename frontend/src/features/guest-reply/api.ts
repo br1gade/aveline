@@ -1,7 +1,8 @@
 import { expectData, type PublicApiClient } from '@/api/client';
 
-import { readAcknowledgements, type AcknowledgementsWire } from './acknowledgements';
+import { readAcknowledgements } from './acknowledgements';
 import type { AcknowledgementsRead, SignatureUpload } from './signatures';
+
 import type { ReplyRecord, SubmitReplyBody, SubmitResult } from './types';
 
 /** A personal link's address. The token is a credential: it goes to the API and nowhere else. */
@@ -10,6 +11,7 @@ export interface ReplyLink {
   guestToken: string;
 }
 
+/** Its own type: the schema gives a reply not yet sent `answers: unknown[]` (FR-149). */
 export function fetchReply(api: PublicApiClient, link: ReplyLink): Promise<ReplyRecord> {
   return expectData<ReplyRecord>(
     api.GET('/api/v1/invitations/{slug}/g/{guestToken}/rsvp', { params: { path: link } }),
@@ -23,7 +25,7 @@ export function drawingFile(
   acknowledgementId: string,
   signal: AbortSignal,
 ): Promise<Blob> {
-  return expectData<Blob>(
+  return expectData(
     api.GET('/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements/{acknowledgementId}/file', {
       params: { path: { slug, guestToken, acknowledgementId } },
       parseAs: 'blob',
@@ -40,7 +42,7 @@ export async function fetchAcknowledgements(
   api: PublicApiClient,
   link: ReplyLink,
 ): Promise<AcknowledgementsRead> {
-  const read = await expectData<AcknowledgementsWire>(
+  const read = await expectData(
     api.GET('/api/v1/invitations/{slug}/g/{guestToken}/acknowledgements', {
       params: { path: link, query: { limit: 100 } },
     }),
@@ -59,7 +61,7 @@ export async function uploadSignature(
 ): Promise<SignatureUpload> {
   const form = new FormData();
   form.append('file', drawing, 'signature.png');
-  const staged = await expectData<{ id: string }>(
+  const staged = await expectData(
     api.POST('/api/v1/invitations/{slug}/g/{guestToken}/signature-uploads', {
       params: { path: link },
       body: {},
@@ -88,7 +90,7 @@ export function submitReply(
   link: ReplyLink,
   body: SubmitReplyBody,
 ): Promise<SubmitResult> {
-  return expectData<SubmitResult>(
+  return expectData(
     api.POST('/api/v1/invitations/{slug}/g/{guestToken}/rsvp', {
       params: { path: link },
       body,

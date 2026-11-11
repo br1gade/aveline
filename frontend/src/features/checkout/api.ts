@@ -34,7 +34,7 @@ export async function placeOrder(
   slug: string,
   order: OrderBody & { idempotencyKey: string },
 ): Promise<PlacedOrder> {
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.POST('/api/v1/public/events/{slug}/orders', {
       params: { path: { slug } },
       body: order,
@@ -50,7 +50,7 @@ export async function checkPromoCode(
   check: { code: string; items: readonly BasketLine[] },
 ): Promise<PromoQuote> {
   const wire = record(
-    await expectData<unknown>(
+    await expectData(
       api.POST('/api/v1/public/events/{slug}/promo-check', {
         params: { path: { slug } },
         body: {

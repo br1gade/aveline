@@ -72,6 +72,11 @@ export function SwitchTemplateDialog({ design, target, page, onClose }: SwitchPr
 
   const confirm = async () => {
     setRefusal(null);
+    // An authored template is previewed first (design PD-139); the list says which (FR-114).
+    if (target.requiresAdoptionPreview && target.versionId) {
+      void navigate(designAdoptionPath(design.event.id, target.versionId));
+      return;
+    }
     setIsSwitching(true);
     try {
       await chooseTemplate(browserSession().api, design.slug, target.key);
@@ -79,7 +84,7 @@ export function SwitchTemplateDialog({ design, target, page, onClose }: SwitchPr
       isDoneRef.current = true;
       onClose();
     } catch (error) {
-      // An authored template is previewed first (design PD-139); only this refusal says it is one.
+      // A list read before the backend said which templates need a preview learns it here.
       if (isPreviewRequired(error) && target.versionId) {
         // The leave guard may keep the host here, with the dialog still open.
         setIsSwitching(false);

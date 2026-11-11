@@ -87,23 +87,22 @@ export async function loadAdoption(
   }
 }
 
-export interface DesignSectionData extends DesignLookData {
+export interface DesignSectionData extends DesignData {
   type: string;
   library: Loaded<LibraryItem[]>;
 }
 
-/** The catalogue for the section's layouts (FR-44), and the library to choose its media from. */
+/** The library to choose the section's media from; its layouts come with the design (FR-44). */
 export async function loadDesignSection(
   api: ApiClient,
   eventId: string,
   type: string,
 ): Promise<DesignSectionData> {
-  const [data, templates, library] = await Promise.all([
+  const [data, library] = await Promise.all([
     loadDesign(api, eventId),
-    loaded(listTemplates(api, eventId)),
     loaded(listMedia(api, eventId)),
   ]);
-  return { ...data, type, templates, library };
+  return { ...data, type, library };
 }
 
 export function loadDesignQuestions(api: ApiClient, eventId: string): Promise<DesignData> {

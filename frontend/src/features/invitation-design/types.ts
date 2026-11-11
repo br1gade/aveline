@@ -4,10 +4,10 @@ import type { BuiltInField, Invitation, QuestionType } from '@/features/invitati
 
 /**
  * What the design calls return (docs/API.md §6, "Loading the invitation into the editor",
- * "Designing the invitation", "Custom RSVP questions", "Uploading a file"). Interim until FR-1:
- * the schema declares no response types, so these are written from the guide and the backend's
- * `draft-reader.service.ts`, `design.service.ts` and `media.service.ts`. Translated values are
- * typed by hand until FR-1. `read.ts` alone reads the `…Wire` types.
+ * "Designing the invitation", "Custom RSVP questions", "Uploading a file"). These are checked
+ * against the schema at each call (FR-1), written from the guide and the backend's
+ * `draft-reader.service.ts`, `design.service.ts` and `media.service.ts`. `read.ts` alone reads
+ * the `…Wire` types.
  */
 
 /** One text per language code, such as `{ "hy": "…", "en": "…" }`. */
@@ -72,13 +72,15 @@ export interface TemplateSummary {
   palettes: readonly Palette[];
   /** An empty list means the template declares no restriction. */
   supportedBlocks: readonly string[];
+  /** The layouts each block may take; a block with no entry takes none (FR-44). */
+  blockVariants: Readonly<Record<string, readonly string[]>>;
 }
 
 /** A template from the catalogue, `GET /events/:eventId/design-templates`. */
 export interface DesignTemplate extends TemplateSummary {
-  /** The layouts each block may take; a block with no entry takes none. */
-  blockVariants: Readonly<Record<string, readonly string[]>>;
   defaultTheme: Theme;
+  /** An authored version, adopted only through its preview (FR-114, design PD-139). */
+  requiresAdoptionPreview: boolean;
 }
 
 export interface ChoiceOption {
@@ -139,8 +141,8 @@ export interface Design {
 
 /** An upload in the event's library, newest first. */
 export interface LibraryItem extends DesignMedia {
-  mimeType: string;
-  sizeBytes: number;
+  mimeType: string | null;
+  sizeBytes: number | null;
   createdAt: string;
   /** The block types showing it. */
   usedBy: readonly string[];
@@ -179,6 +181,7 @@ export interface TemplateWire {
   supportedBlocks: string[];
   blockVariants?: unknown;
   defaultTheme?: unknown;
+  requiresAdoptionPreview?: boolean;
 }
 
 export interface QuestionWire {
@@ -213,8 +216,8 @@ export interface DesignWire {
 }
 
 export interface LibraryItemWire extends MediaWire {
-  mimeType: string;
-  sizeBytes: number;
+  mimeType: string | null;
+  sizeBytes: number | null;
   createdAt: string;
   usedBy?: string[];
   listingUses?: string[];
@@ -226,5 +229,6 @@ export interface LibraryItemWire extends MediaWire {
  * as it reads a guest's page.
  */
 export interface Preview extends Invitation {
-  previewSource?: 'SYNTHETIC' | 'EVENT';
+  /** `EVENT_DRAFT` when it draws a section's unsaved form (FR-120). */
+  previewSource?: 'SYNTHETIC' | 'EVENT' | 'EVENT_DRAFT';
 }

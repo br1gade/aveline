@@ -13,6 +13,7 @@ import { designLookPath, venuesPath } from '../paths';
 import { canRender } from '../payload';
 import type { Design, DesignBlock } from '../types';
 import {
+  DesignChanges,
   DesignHeader,
   DesignRefusal,
   isKnownBlock,
@@ -121,24 +122,27 @@ function SectionBody({ data, design, page }: SectionProps) {
   const { type } = data;
   if (!isKnownBlock(type)) return <p className="m-0">{t('section.unknown')}</p>;
   const block = design.blocks.find((candidate) => candidate.type === type);
-  if (!block) return <MissingSection design={design} page={page} type={type} />;
-  const template =
-    data.templates.kind === 'ready'
-      ? data.templates.value.find((candidate) => candidate.key === design.template.key)
-      : undefined;
+  if (!block) {
+    return (
+      <DesignChanges>
+        <MissingSection design={design} page={page} type={type} />
+      </DesignChanges>
+    );
+  }
   return (
-    <>
+    <DesignChanges>
       <Visibility design={design} block={block} page={page} />
       <DataNote type={type} eventId={design.event.id} />
       <SectionForm
         design={design}
         block={block}
+        type={type}
         editing={BLOCK_EDITING[type]}
-        layouts={template ? (template.blockVariants[type] ?? []) : null}
+        layouts={design.template.blockVariants[type] ?? []}
         library={data.library}
         page={page}
       />
-    </>
+    </DesignChanges>
   );
 }
 

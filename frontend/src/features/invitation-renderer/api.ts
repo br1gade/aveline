@@ -13,7 +13,11 @@ export interface InvitationRequest {
   locale?: string | undefined;
 }
 
-/** `GET /invitations/:slug` or `…/g/:guestToken` (docs/API.md §4). */
+/**
+ * `GET /invitations/:slug` or `…/g/:guestToken` (docs/API.md §4). Its own type: the schema gives
+ * media `variants` as any value (FR-149). A private picture's reference, or its address, is turned
+ * into its id by `withPrivateArtwork` before anything keeps the page.
+ */
 export function fetchInvitation(
   api: PublicApiClient,
   request: InvitationRequest,
@@ -21,9 +25,10 @@ export function fetchInvitation(
   const { slug, guestToken } = request;
   const query = request.locale ? { locale: request.locale } : {};
   if (guestToken) {
+    // Private artwork by its id, not an address holding the token (FR-115).
     return expectData<Invitation>(
       api.GET('/api/v1/invitations/{slug}/g/{guestToken}', {
-        params: { path: { slug, guestToken }, query },
+        params: { path: { slug, guestToken }, query: { ...query, artwork: 'asset-id' } },
       }),
     );
   }

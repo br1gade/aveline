@@ -1,18 +1,10 @@
 import { expectData, type ApiClient } from '@/api/client';
+
 import type { components } from '@/api/schema';
 
 import { readAttendanceHistory, readHouseholds, readImportHistory, readImportResult } from './read';
-import type {
-  AttendanceRecord,
-  AttendanceRecordWire,
-  Household,
-  HouseholdWire,
-  ImportRecord,
-  ImportRecordWire,
-  ImportResult,
-  ImportResultWire,
-  RemovedWire,
-} from './types';
+
+import type { AttendanceRecord, Household, ImportRecord, ImportResult } from './types';
 
 type Schemas = components['schemas'];
 
@@ -22,7 +14,7 @@ export async function listGuests(
   eventId: string,
   signal?: AbortSignal,
 ): Promise<Household[]> {
-  const households = await expectData<HouseholdWire[]>(
+  const households = await expectData(
     api.GET('/api/v1/events/{eventId}/guests', {
       params: { path: { eventId } },
       ...(signal ? { signal } : {}),
@@ -41,7 +33,7 @@ export async function addGuest(
   eventId: string,
   body: Schemas['AddGuestDto'],
 ): Promise<{ id: string }> {
-  const { id } = await expectData<{ id: string }>(
+  const { id } = await expectData(
     api.POST('/api/v1/events/{eventId}/guests', { params: { path: { eventId } }, body }),
   );
   return { id };
@@ -54,7 +46,7 @@ export async function updateGuest(
   guestId: string,
   body: Schemas['UpdateGuestDto'],
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.PATCH('/api/v1/events/{eventId}/guests/{guestId}', {
       params: { path: { eventId, guestId } },
       body,
@@ -68,7 +60,7 @@ export async function removeGuest(
   eventId: string,
   guestId: string,
 ): Promise<{ isHouseholdRemoved: boolean }> {
-  const removed = await expectData<RemovedWire>(
+  const removed = await expectData(
     api.DELETE('/api/v1/events/{eventId}/guests/{guestId}', {
       params: { path: { eventId, guestId } },
     }),
@@ -82,7 +74,7 @@ export async function updateHousehold(
   householdId: string,
   body: Schemas['UpdateHouseholdDto'],
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.PATCH('/api/v1/events/{eventId}/households/{householdId}', {
       params: { path: { eventId, householdId } },
       body,
@@ -102,7 +94,7 @@ export async function importGuests(
 ): Promise<ImportResult> {
   const form = new FormData();
   form.append('file', file, file.name);
-  const result = await expectData<ImportResultWire>(
+  const result = await expectData(
     api.POST('/api/v1/events/{eventId}/guests/import', {
       params: { path: { eventId } },
       body: {},
@@ -114,7 +106,7 @@ export async function importGuests(
 
 /** The last twenty, newest first. */
 export async function listImports(api: ApiClient, eventId: string): Promise<ImportRecord[]> {
-  const records = await expectData<ImportRecordWire[]>(
+  const records = await expectData(
     api.GET('/api/v1/events/{eventId}/guests/imports', { params: { path: { eventId } } }),
   );
   return readImportHistory(records);
@@ -126,7 +118,7 @@ export async function getAttendanceHistory(
   eventId: string,
   guestId: string,
 ): Promise<AttendanceRecord[]> {
-  const records = await expectData<AttendanceRecordWire[]>(
+  const records = await expectData(
     api.GET('/api/v1/events/{eventId}/guests/{guestId}/attendance-history', {
       params: { path: { eventId, guestId } },
     }),

@@ -60,9 +60,8 @@ export function isHallRetired(messages: readonly string[]): boolean {
 }
 
 /**
- * The words for each refusal, by action and status. There is no permissions endpoint (FR-6), so
- * every action is offered and a 403 is explained after the fact: writing venues needs
- * `event:write`. A removal's 400 is otherwise the venue still in use (FR-28).
+ * The words for each refusal, by action and status. Writing venues needs `event:write`, which the
+ * page offers only to whom it is granted (FR-6); a 403 is for a role changed mid-visit. A removal's 400 is otherwise the venue still in use (FR-28).
  */
 const WORDS: Readonly<Record<VenueAction, Partial<Record<number, ProblemKey>>>> = {
   create: { 400: 'check', 403: 'forbidden', 404: 'eventMissing', 409: 'conflict' },

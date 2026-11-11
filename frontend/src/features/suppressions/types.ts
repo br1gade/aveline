@@ -1,6 +1,7 @@
 /**
- * Who must not be contacted (docs/API.md §6, "Suppression"). Interim until FR-1: written from
- * `suppression.service.ts`. The list is the organization's, not an event's.
+ * Who must not be contacted (docs/API.md §6, "Suppression"). Checked against the schema at each
+ * call (FR-1); written from `suppression.service.ts`. The list is the organization's, not an
+ * event's.
  */
 
 /** The channels a host can name an address on: Telegram and push take ids a host never sees. */

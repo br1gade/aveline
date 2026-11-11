@@ -122,6 +122,7 @@
   "edit": {
     "title": "Edit the details",
     "lead": "Guests who open the invitation see a change at once.",
+    "readOnly": "Your role on this event can see its details but not change them. The event’s owner can change your role.",
     "submit": "Save changes",
     "submitting": "Saving…",
     "cancel": "Cancel"
@@ -241,9 +242,5 @@
       "noAnswer": "No answer came. Reload the page to see whether it went through.",
       "other": "This was refused."
     }
-  },
-  "questionsLeftOn": {
-    "body": "Drink and song request are still asked on this invitation: they couldn’t be switched off just now. Switch them off in the invitation’s questions if you don’t want them.",
-    "link": "The invitation’s questions"
   }
 }

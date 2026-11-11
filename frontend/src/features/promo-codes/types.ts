@@ -1,7 +1,7 @@
 /**
- * The organization's promo codes (docs/API.md §6, "Promo codes"). Interim until FR-1: written from
- * `promo-codes.service.ts` (`describe`). Codes carry no currency (FR-100): amounts are read as AMD,
- * the pilot's (design PD-117).
+ * The organization's promo codes (docs/API.md §6, "Promo codes"). Checked against the schema at
+ * each call (FR-1); written from `promo-codes.service.ts` (`describe`). Codes carry no currency
+ * (FR-100): amounts are read as AMD, the pilot's (design PD-117).
  */
 
 export type PromoKind = 'PERCENT' | 'FIXED';

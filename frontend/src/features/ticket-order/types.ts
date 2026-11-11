@@ -1,6 +1,6 @@
 /**
- * The buyer's order (`GET /ticket-orders/:accessToken` and its confirm, docs/API.md §5), interim
- * until FR-1.
+ * The buyer's order (`GET /ticket-orders/:accessToken` and its confirm, docs/API.md §5), checked
+ * against the schema where it is read (FR-1).
  */
 export type OrderStatus = 'RESERVED' | 'PAID' | 'CANCELLED' | 'EXPIRED' | 'REFUNDED';
 

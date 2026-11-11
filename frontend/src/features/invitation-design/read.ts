@@ -129,6 +129,12 @@ function readSummary(template: TemplateWire): TemplateSummary {
     allowedFonts: stringsOf(template.allowedFonts),
     palettes: readPalettes(template.palettes),
     supportedBlocks: stringsOf(template.supportedBlocks),
+    blockVariants: Object.fromEntries(
+      Object.entries(objectOf(template.blockVariants)).map(([type, offered]) => [
+        type,
+        stringsOf(offered),
+      ]),
+    ),
   };
 }
 
@@ -136,13 +142,8 @@ function readSummary(template: TemplateWire): TemplateSummary {
 export function readTemplates(templates: readonly TemplateWire[]): DesignTemplate[] {
   return templates.map((template) => ({
     ...readSummary(template),
-    blockVariants: Object.fromEntries(
-      Object.entries(objectOf(template.blockVariants)).map(([type, offered]) => [
-        type,
-        stringsOf(offered),
-      ]),
-    ),
     defaultTheme: readTheme(template.defaultTheme),
+    requiresAdoptionPreview: template.requiresAdoptionPreview === true,
   }));
 }
 

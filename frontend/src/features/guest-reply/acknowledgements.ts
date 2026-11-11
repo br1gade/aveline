@@ -8,8 +8,9 @@ import type {
 } from './signatures';
 
 /**
- * `GET …/acknowledgements` (docs/API.md §11), interim until FR-1. Read by naming each field kept:
- * the records also carry the rendered statement and the signer's ids, which the form never needs.
+ * `GET …/acknowledgements` (docs/API.md §11), checked against the schema at each call (FR-1). Read
+ * by naming each field kept: the records also carry the rendered statement and the signer's ids,
+ * which the form never needs.
  */
 interface StatementWire {
   questionId: string;

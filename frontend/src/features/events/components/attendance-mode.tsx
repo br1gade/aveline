@@ -4,6 +4,7 @@ import { Link, useRevalidator } from 'react-router';
 
 import type { Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
+import { ChangeableWith } from '@/features/permissions';
 import { ProblemAlert } from '@/ui/app-form';
 import {
   AlertDialog,
@@ -184,7 +185,8 @@ function Changed({ event, changed }: { event: EventDetail; changed: AttendanceCh
 /**
  * How guests answer (docs/API.md §6; design PD-53): once for the whole event, or for each venue
  * guests see. Changing it sets every answer back and asks guests again, so it is previewed and
- * confirmed first. Offered to every role; one without `event:write` is told so (FR-6).
+ * confirmed first. A role without `event:write` sees how it stands, with nothing to press (FR-6,
+ * PD-193).
  */
 export function AttendanceSettings({ event }: { event: EventDetail }) {
   const { t } = useTranslation('events');
@@ -214,12 +216,12 @@ export function AttendanceSettings({ event }: { event: EventDetail }) {
         />
       ) : null}
       {step.kind === 'start' ? (
-        <>
+        <ChangeableWith to="event:write" readOnly={t('attendance.problems.forbidden')}>
           <StartNotice notice={step.notice} eventId={event.id} />
           <Button className="self-start" disabled={isBusy} onClick={() => void preview()}>
             {t('attendance.see')}
           </Button>
-        </>
+        </ChangeableWith>
       ) : (
         <PreviewPanel
           to={to}

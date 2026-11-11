@@ -122,6 +122,7 @@
   "edit": {
     "title": "Modifier les informations",
     "lead": "Les invités qui ouvrent l’invitation voient immédiatement le changement.",
+    "readOnly": "Votre rôle sur cet événement permet d’en voir les détails, pas de les modifier. Le propriétaire de l’événement peut changer votre rôle.",
     "submit": "Enregistrer les modifications",
     "submitting": "Enregistrement…",
     "cancel": "Annuler"
@@ -247,9 +248,5 @@
       "noAnswer": "Aucune réponse n’est arrivée. Rechargez la page pour voir si c’est passé.",
       "other": "C’est refusé."
     }
-  },
-  "questionsLeftOn": {
-    "body": "La boisson et la chanson demandée sont encore posées sur cette invitation : elles n’ont pas pu être désactivées à l’instant. Désactivez-les dans les questions de l’invitation si vous n’en voulez pas.",
-    "link": "Les questions de l’invitation"
   }
 }

@@ -1,25 +1,22 @@
 import { expectData, type ApiClient, type PublicApiClient } from '@/api/client';
 
 import { readChoice, readConfirmed, readInvoice, readPlan, readSubscription } from './read';
+
 import type { Invoice, PaymentProvider, Plan, PlanChoice, Subscription } from './types';
 
-type InvoiceWire = Parameters<typeof readInvoice>[0];
-
 export async function listPlans(api: PublicApiClient): Promise<Plan[]> {
-  return (await expectData<Plan[]>(api.GET('/api/v1/plans'))).map(readPlan);
+  return (await expectData(api.GET('/api/v1/plans'))).map(readPlan);
 }
 
 /** `{ subscription: null }`: never subscribed, which is not an error. */
 export async function currentSubscription(api: ApiClient): Promise<Subscription | null> {
-  const { subscription } = await expectData<{ subscription: Subscription | null }>(
-    api.GET('/api/v1/subscription'),
-  );
+  const { subscription } = await expectData(api.GET('/api/v1/subscription'));
   return subscription && readSubscription(subscription);
 }
 
 /** Newest first, at most a hundred (FR-110). */
 export async function listInvoices(api: ApiClient): Promise<Invoice[]> {
-  return (await expectData<InvoiceWire[]>(api.GET('/api/v1/invoices'))).map(readInvoice);
+  return (await expectData(api.GET('/api/v1/invoices'))).map(readInvoice);
 }
 
 /**
@@ -36,11 +33,11 @@ export async function choosePlan(
 }
 
 export async function cancelSubscription(api: ApiClient): Promise<void> {
-  await expectData<unknown>(api.POST('/api/v1/subscription/cancel'));
+  await expectData(api.POST('/api/v1/subscription/cancel'));
 }
 
 export async function resumeSubscription(api: ApiClient): Promise<void> {
-  await expectData<unknown>(api.POST('/api/v1/subscription/resume'));
+  await expectData(api.POST('/api/v1/subscription/resume'));
 }
 
 /** Keeps the paid plan past its period's end; refused once the change has taken effect (FR-135). */

@@ -73,7 +73,7 @@ export async function confirmDelivery(
 
 /** The original, which the docs say to treat as untrusted: it is only ever saved, never shown. */
 export function privateFile(api: ApiClient, requestId: string, mediaId: string): Promise<Blob> {
-  return expectData<Blob>(
+  return expectData(
     api.GET('/api/v1/privacy/requests/{requestId}/guest-media/{mediaId}/file', {
       params: { path: { requestId, mediaId } },
       parseAs: 'blob',

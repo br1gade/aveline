@@ -40,7 +40,7 @@ export function useShowSelections(event: PublicEvent, scope: string) {
       const next = current(draft);
       return { ...next, availability: { ...next.availability, [key]: 'loading' } };
     });
-    const response = await expectData<unknown>(
+    const response = await expectData(
       api.GET('/api/v1/public/events/{slug}/ticket-inventory/{sectionKey}', {
         params: { path: { slug: event.slug, sectionKey: key } },
       }),

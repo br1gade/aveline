@@ -3,8 +3,8 @@ import type { BlockMedia, QuestionType, RsvpFieldConfig } from '@/features/invit
 import type { SaleLimits } from './basket';
 
 /**
- * `GET /public/events/:slug` (docs/API.md §5), interim until FR-1. Translated values are already
- * in the response's `locale`; `null` where the host gave none.
+ * `GET /public/events/:slug` (docs/API.md §5), checked against the schema at each call (FR-1).
+ * Translated values are already in the response's `locale`; `null` where the host gave none.
  */
 export type AttendanceMode = 'EVENT_WIDE' | 'PER_VENUE';
 

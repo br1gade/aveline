@@ -11,7 +11,7 @@ interface Call {
 
 /** The order, with the server's clock from the same answer for the hold's countdown. */
 async function orderFrom(call: Promise<Call>): Promise<OrderRead> {
-  const order = readBuyerOrder(await expectData<unknown>(call));
+  const order = readBuyerOrder(await expectData(call));
   const { response } = await call;
   return { order, serverDate: response.headers.get('date'), receivedAt: Date.now() };
 }

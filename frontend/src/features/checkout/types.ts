@@ -1,6 +1,7 @@
 /**
  * Checkout's form values and what it sends and receives (docs/API.md §5, "Buying tickets"),
- * interim until FR-1. What is sent is built in payload.ts; how the form is checked, in schemas.ts.
+ * checked against the schema at each call (FR-1). What is sent is built in payload.ts; how the form
+ * is checked, in schemas.ts.
  */
 export type VenueStatus = 'ATTENDING' | 'DECLINED' | 'UNDECIDED';
 

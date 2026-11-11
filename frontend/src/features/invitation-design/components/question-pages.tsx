@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 
 import type { DesignData, DesignQuestionData } from '../load';
 import { designQuestionsPath } from '../paths';
-import { DesignHeader, NoInvitation, TEXT_LINK } from './design-parts';
+import { DesignChanges, DesignHeader, NoInvitation, TEXT_LINK } from './design-parts';
 import { QuestionFormView } from './question-form';
 
 /** Adding a question of the host's own (design PD-61). */
@@ -19,7 +19,9 @@ export function NewDesignQuestion({ data }: { data: DesignData }) {
         title={t('question.newTitle')}
         subtitle={data.event.title}
       />
-      <QuestionFormView design={design} question={null} />
+      <DesignChanges>
+        <QuestionFormView design={design} question={null} />
+      </DesignChanges>
     </section>
   );
 }
@@ -38,7 +40,9 @@ export function EditDesignQuestion({ data }: { data: DesignQuestionData }) {
         subtitle={data.event.title}
       />
       {question ? (
-        <QuestionFormView design={design} question={question} />
+        <DesignChanges>
+          <QuestionFormView design={design} question={question} />
+        </DesignChanges>
       ) : (
         <>
           <p className="m-0">{t('question.gone')}</p>

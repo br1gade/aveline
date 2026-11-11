@@ -18,7 +18,8 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('fetchInvitation', () => {
-  it('asks for a language only when the page names one, on both kinds of link', async () => {
+  // A personal page names private artwork by its id, never by an address holding the token (FR-115).
+  it('asks for a language only when the page names one, and for artwork by id on a guest’s', async () => {
     const asked: string[] = [];
     const record = ({ request }: { request: Request }) => {
       asked.push(new URL(request.url).search);
@@ -32,6 +33,6 @@ describe('fetchInvitation', () => {
     await fetchInvitation(api, { slug: 'wedding', locale: 'hy' });
     await fetchInvitation(api, { slug: 'wedding', guestToken: TOKEN });
     await fetchInvitation(api, { slug: 'wedding', guestToken: TOKEN, locale: 'hy' });
-    expect(asked).toEqual(['', '?locale=hy', '', '?locale=hy']);
+    expect(asked).toEqual(['', '?locale=hy', '?artwork=asset-id', '?locale=hy&artwork=asset-id']);
   });
 });

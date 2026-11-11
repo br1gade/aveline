@@ -1,8 +1,10 @@
 import { readEveryPage } from '@/api/every-page';
+
 import { expectData, type ApiClient } from '@/api/client';
 
 import { readPage } from './read';
-import type { AgreementsPage, AgreementsWire } from './types';
+
+import type { AgreementsPage } from './types';
 
 /** The most one read returns (docs/API.md §11: 1–100). */
 export const PAGE_SIZE = 100;
@@ -18,7 +20,7 @@ export async function listAgreements(
   after?: string,
   signal?: AbortSignal,
 ): Promise<AgreementsPage> {
-  const wire = await expectData<AgreementsWire>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/acknowledgements', {
       params: { path: { eventId }, query: pageQuery(after) },
       ...(signal ? { signal } : {}),
@@ -45,7 +47,7 @@ export function agreementFile(
   acknowledgementId: string,
   signal: AbortSignal,
 ): Promise<Blob> {
-  return expectData<Blob>(
+  return expectData(
     api.GET('/api/v1/events/{eventId}/acknowledgements/{acknowledgementId}/file', {
       params: { path: { eventId, acknowledgementId } },
       parseAs: 'blob',

@@ -4,12 +4,6 @@ import type { AttendeeBody } from '@/features/checkout';
 import { readCancelOutcome, readOrderDetail, readOrderRows } from './read';
 import type { CancelOutcome, LinkBody, OrderDetail, OrderRow, OrderStatus } from './types';
 
-/** The schema declares no `status` query on this list (FR-70): the one place it is added. */
-function listParams(eventId: string, status?: OrderStatus) {
-  const params = { path: { eventId }, ...(status ? { query: { status } } : {}) };
-  return params as unknown as { path: { eventId: string } };
-}
-
 /**
  * The event's orders, newest first, at most 500 (FR-68). Needs `operations:read`; the buyer's
  * address only with `guest:contact:read`.
@@ -20,8 +14,10 @@ export async function listOrders(
   status?: OrderStatus,
 ): Promise<OrderRow[]> {
   return readOrderRows(
-    await expectData<unknown>(
-      api.GET('/api/v1/events/{eventId}/ticket-orders', { params: listParams(eventId, status) }),
+    await expectData(
+      api.GET('/api/v1/events/{eventId}/ticket-orders', {
+        params: { path: { eventId }, ...(status ? { query: { status } } : {}) },
+      }),
     ),
   );
 }
@@ -33,7 +29,7 @@ export async function getOrder(
   orderId: string,
 ): Promise<OrderDetail> {
   return readOrderDetail(
-    await expectData<unknown>(
+    await expectData(
       api.GET('/api/v1/events/{eventId}/ticket-orders/{orderId}', {
         params: { path: { eventId, orderId } },
       }),
@@ -51,7 +47,7 @@ export async function cancelOrder(
   orderId: string,
 ): Promise<CancelOutcome> {
   return readCancelOutcome(
-    await expectData<unknown>(
+    await expectData(
       api.POST('/api/v1/events/{eventId}/ticket-orders/{orderId}/cancel', {
         params: { path: { eventId, orderId } },
       }),

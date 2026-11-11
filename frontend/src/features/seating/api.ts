@@ -1,23 +1,18 @@
 import { expectData, type ApiClient } from '@/api/client';
+
 import type { components } from '@/api/schema';
 
 import type { TableUpdate } from './payload';
+
 import { readArrangements, readJob, readTables } from './read';
-import type {
-  Arrangement,
-  ArrangementWire,
-  JobWire,
-  PublishedWire,
-  SeatingJob,
-  SeatingTable,
-  TableWire,
-} from './types';
+
+import type { Arrangement, SeatingJob, SeatingTable } from './types';
 
 type Schemas = components['schemas'];
 
 /** Every venue's plan and the one that names no venue, a bare array (docs/API.md §6). */
 export async function listArrangements(api: ApiClient, eventId: string): Promise<Arrangement[]> {
-  const wire = await expectData<ArrangementWire[]>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/seating/arrangements', { params: { path: { eventId } } }),
   );
   return readArrangements(wire);
@@ -25,7 +20,7 @@ export async function listArrangements(api: ApiClient, eventId: string): Promise
 
 /** Every plan's tables in one read, with who sits at each and the seats declines freed. */
 export async function listTables(api: ApiClient, eventId: string): Promise<SeatingTable[]> {
-  const wire = await expectData<TableWire[]>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/tables', { params: { path: { eventId } } }),
   );
   return readTables(wire);
@@ -37,7 +32,7 @@ export async function createTable(
   eventId: string,
   body: Schemas['CreateTableDto'],
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.POST('/api/v1/events/{eventId}/tables', { params: { path: { eventId } }, body }),
   );
 }
@@ -48,7 +43,7 @@ export async function createTables(
   eventId: string,
   body: Schemas['CreateTablesDto'],
 ): Promise<number> {
-  const { created } = await expectData<{ created: number }>(
+  const { created } = await expectData(
     api.POST('/api/v1/events/{eventId}/tables/bulk', { params: { path: { eventId } }, body }),
   );
   return created;
@@ -61,7 +56,7 @@ export async function updateTable(
   tableId: string,
   body: TableUpdate,
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.PATCH('/api/v1/events/{eventId}/tables/{tableId}', {
       params: { path: { eventId, tableId } },
       body,
@@ -71,7 +66,7 @@ export async function updateTable(
 
 /** Refused with 409 while anyone sits at it. */
 export async function deleteTable(api: ApiClient, eventId: string, tableId: string): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.DELETE('/api/v1/events/{eventId}/tables/{tableId}', {
       params: { path: { eventId, tableId } },
     }),
@@ -84,7 +79,7 @@ export async function assignSeat(
   eventId: string,
   body: { guestId: string; tableId: string; position?: number },
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.POST('/api/v1/events/{eventId}/seats', { params: { path: { eventId } }, body }),
   );
 }
@@ -99,7 +94,7 @@ export async function unassignSeat(
   guestId: string,
   arrangementId: string,
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.DELETE('/api/v1/events/{eventId}/seats/{guestId}', {
       params: { path: { eventId, guestId }, query: { arrangementId } },
     }),
@@ -113,7 +108,7 @@ export async function startAutoSeating(
   arrangementId: string,
   idempotencyKey: string,
 ): Promise<SeatingJob> {
-  const wire = await expectData<JobWire>(
+  const wire = await expectData(
     api.POST('/api/v1/events/{eventId}/seats/auto-assign', {
       params: { path: { eventId }, query: { arrangementId } },
       body: { idempotencyKey },
@@ -124,7 +119,7 @@ export async function startAutoSeating(
 
 /** The event's newest fifty runs, newest first, without their results. */
 export async function listSeatingJobs(api: ApiClient, eventId: string): Promise<SeatingJob[]> {
-  const wire = await expectData<JobWire[]>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/seating/jobs', { params: { path: { eventId } } }),
   );
   return wire.map(readJob);
@@ -135,7 +130,7 @@ export async function getSeatingJob(
   eventId: string,
   jobId: string,
 ): Promise<SeatingJob> {
-  const wire = await expectData<JobWire>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/seating/jobs/{jobId}', {
       params: { path: { eventId, jobId } },
     }),
@@ -152,6 +147,6 @@ export async function setSeatingPublished(
   const call = isPublished
     ? api.POST('/api/v1/events/{eventId}/seating/publish', { params: { path: { eventId } } })
     : api.POST('/api/v1/events/{eventId}/seating/unpublish', { params: { path: { eventId } } });
-  const { seatingPublishedAt } = await expectData<PublishedWire>(call);
+  const { seatingPublishedAt } = await expectData(call);
   return seatingPublishedAt;
 }

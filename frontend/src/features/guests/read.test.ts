@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
+import { IMPORT_FIELDS, IMPORT_REASONS } from './import-reasons';
 import { readHouseholds, readImportHistory, readImportResult } from './read';
 import { guestWire, guestWithoutContact, householdWire } from './test-data';
 
@@ -202,8 +206,14 @@ describe('readImportResult', () => {
       rowsImported: 412,
       rowsFailed: 2,
       errors: [
-        { row: 7, message: 'No name in this row', value: null },
-        { row: 19, message: 'That does not look like an email address', value: 'ani@@example' },
+        { row: 7, reason: null, field: null, message: 'No name in this row', value: null },
+        {
+          row: 19,
+          reason: null,
+          field: null,
+          message: 'That does not look like an email address',
+          value: 'ani@@example',
+        },
       ],
     });
   });
@@ -220,25 +230,40 @@ describe('readImportResult', () => {
   });
 });
 
-describe('a file with no header row (FR-74)', () => {
-  const SENTENCE = 'No first-name column found.';
-  const refused = {
-    status: 'FAILED' as const,
-    rowsImported: 0,
-    rowsFailed: 1,
-    errors: [{ row: 0, message: `${SENTENCE} Headings read: Ani, ani@example.am, +37491000000` }],
-  };
-
-  it('never shows its first guest in the history, which read-only roles can open', () => {
-    const [record] = readImportHistory([
-      { ...refused, id: 'i1', filename: 'guests.csv', createdAt: '2026-11-01T10:00:00.000Z' },
+describe('why a row was refused (FR-26)', () => {
+  it('keeps the backend’s reason and field, and names neither when they are unknown', () => {
+    const { errors } = readImportResult({
+      importId: 'i1',
+      status: 'PARTIAL',
+      rowsImported: 1,
+      rowsFailed: 3,
+      errors: [
+        { row: 2, message: 'x', reason: 'FIELD_TOO_LONG', field: 'lastName' },
+        { row: 3, message: 'x', reason: 'SOMETHING_NEW', field: 'shoeSize' },
+        { row: 4, message: 'Legacy words' },
+      ],
+    });
+    expect(errors).toEqual([
+      { row: 2, reason: 'FIELD_TOO_LONG', field: 'lastName', message: 'x', value: null },
+      { row: 3, reason: null, field: null, message: 'x', value: null },
+      { row: 4, reason: null, field: null, message: 'Legacy words', value: null },
     ]);
-    expect(record?.errors[0]?.message).toBe(SENTENCE);
   });
 
-  it('leaves the answer to the import whole: whoever imported it holds the file', () => {
-    const { errors } = readImportResult({ ...refused, importId: 'i1' });
-    expect(errors[0]?.message).toContain('Headings read: Ani');
+  it('knows exactly the reasons and columns the backend stores, both ways', () => {
+    const source = readFileSync(
+      join(
+        import.meta.dirname,
+        '../../../../backend/src/modules/guests/import/import-diagnostics.ts',
+      ),
+      'utf8',
+    );
+    const reasons = /STORED_MESSAGES = \{([\s\S]*?)\}/.exec(source)?.[1] ?? '';
+    const stored = [...reasons.matchAll(/^\s*([A-Z_]+):/gm)].map(([, code]) => code);
+    expect(new Set(stored)).toEqual(new Set(IMPORT_REASONS));
+    const fields = /FIELDS = new Set\(\[([^\]]*)\]/.exec(source)?.[1] ?? '';
+    const columns = [...fields.matchAll(/'(\w+)'/g)].map(([, field]) => field);
+    expect(new Set(columns)).toEqual(new Set(IMPORT_FIELDS));
   });
 });
 

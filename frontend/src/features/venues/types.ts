@@ -1,9 +1,9 @@
 import type { EventNotice } from '@/features/events';
 
 /**
- * What the venue calls return (docs/API.md §6, "Venues"). Interim until FR-1: the schema declares
- * no response types, so these are written from the guide and the backend's service, and only the
- * fields the screens read are typed. `read.ts` alone reads the `…Wire` types.
+ * What the venue calls return (docs/API.md §6, "Venues"). These are checked against the schema at
+ * each call (FR-1), written from the guide and the backend's service, and only the fields the
+ * screens read are typed. `read.ts` alone reads the `…Wire` types.
  */
 
 export const VENUE_ROLES = [

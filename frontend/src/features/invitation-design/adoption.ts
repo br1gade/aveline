@@ -4,9 +4,9 @@ import { withPrivateArtwork } from '@/features/invitation-renderer';
 import type { Preview } from './types';
 
 /**
- * Adopting an authored template (docs/API.md §6; design PD-139): an exact version, previewed against
- * the design as it stands, then confirmed. Whether a template needs this is learned from the refusal
- * of choosing it by key, as the catalogue doesn't say (FR-114). Interim until FR-1.
+ * Adopting an authored template (docs/API.md §6; design PD-139): an exact version, previewed
+ * against the design as it stands, then confirmed. The catalogue says which templates need this
+ * (FR-114); the refusal of choosing one by key is kept for a list read before it did.
  */
 export interface AdoptionChanges {
   themeReset: boolean;

@@ -1,7 +1,7 @@
 /**
- * `GET /events/:eventId/acknowledgements` (docs/API.md §11), interim until FR-1: the schema declares
- * no response. Read from the backend's `acknowledgements.service.ts` (`RECORD_SELECT`) at `eb77cd4`.
- * No guest is named: subjects and signers are ids (FR-49).
+ * `GET /events/:eventId/acknowledgements` (docs/API.md §11), checked against the schema at each
+ * call (FR-1). Read from the backend's `acknowledgements.service.ts` (`RECORD_SELECT`) at
+ * `eb77cd4`. No guest is named: subjects and signers are ids (FR-49).
  */
 export interface AgreementRecordWire {
   id: string;

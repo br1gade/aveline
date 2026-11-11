@@ -6,9 +6,9 @@ import type { SignatureAnswerValue } from './signatures';
 /**
  * `GET /api/v1/invitations/:slug/g/:guestToken/rsvp` and the submit result.
  *
- * Interim until FR-1: written by hand from docs/API.md §4 and checked against the backend's
- * `RsvpService.getForGuest` and `submit` (re-checked 3 November 2026, at `34ac1e6`). The request
- * body is generated.
+ * Checked against the schema at each call (FR-1); written by hand from docs/API.md §4 and checked
+ * against the backend's `RsvpService.getForGuest` and `submit` (re-checked 3 November 2026, at
+ * `34ac1e6`). The request body is generated.
  */
 type GeneratedBody = components['schemas']['SubmitRsvpDto'];
 

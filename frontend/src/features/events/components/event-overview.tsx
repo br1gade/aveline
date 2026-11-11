@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { isLanguage } from '@/lib/i18n';
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import { APP_PATHS } from '@/route-paths';
+import { Permitted } from '@/features/permissions';
 import { StatusLine, useDialogOpener, usePageStatus } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
@@ -90,12 +91,14 @@ function EventDetails({ event }: { event: EventDetail }) {
       {event.attendanceMode ? (
         <Detail term={t('overview.attendance')}>
           {t(`attendance.now.${event.attendanceMode}`)}{' '}
-          <Link
-            to={attendancePath(event.id)}
-            className="text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline"
-          >
-            {t('overview.attendanceChange')}
-          </Link>
+          <Permitted to="event:write">
+            <Link
+              to={attendancePath(event.id)}
+              className="text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline"
+            >
+              {t('overview.attendanceChange')}
+            </Link>
+          </Permitted>
         </Detail>
       ) : null}
     </dl>
@@ -135,15 +138,18 @@ function EventLinks({ event }: { event: EventDetail }) {
           <EventLink to={agreementsPath(event.id)}>{t('overview.agreements')}</EventLink>
         </>
       ) : null}
-      <EventLink to={editEventPath(event.id)}>{t('overview.edit')}</EventLink>
+      <Permitted to="event:write">
+        <EventLink to={editEventPath(event.id)}>{t('overview.edit')}</EventLink>
+      </Permitted>
     </div>
   );
 }
 
 /**
  * One event: its details and its headcount (design PD-42), and the ways to its guest list (PD-44),
- * its venues (PD-46), its seating (PD-67) and its invitation's publishing and sending (PD-47). Every action is offered
- * to every role; one that may not do it is told so when it tries (FR-6).
+ * its venues (PD-46), its seating (PD-67) and its invitation's publishing and sending (PD-47).
+ * Correcting the event is offered with `event:write`, archiving and deleting with `event:delete`
+ * (FR-6, PD-190); a 403 is still worded.
  */
 export function EventOverview({ data }: { data: EventOverviewData }) {
   const { t } = useTranslation('events');
@@ -172,7 +178,9 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
       <ArchivedNotice event={event} where="overview" />
       <EventDetails event={event} />
       <HeadcountSummary result={data.headcount} mode={event.attendanceMode} />
-      <PutAwaySection event={event} page={page} onOpen={open} />
+      <Permitted to="event:delete">
+        <PutAwaySection event={event} page={page} onOpen={open} />
+      </Permitted>
       {dialog === 'archive' ? <ArchiveDialog {...context} /> : null}
       {dialog === 'delete' ? <DeleteDialog {...context} /> : null}
     </section>

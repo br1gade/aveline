@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useRevalidator } from 'react-router';
 
 import { browserSession } from '@/api/session';
+import { ChangeableWith } from '@/features/permissions';
 import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
 
 import { importGuests } from '../api';
@@ -108,7 +109,9 @@ export function ImportGuests({ data }: { data: GuestImportsData }) {
       </div>
       <div className="grid items-start gap-5 md:grid-cols-[1fr_18rem]">
         {result ? <ImportResultView eventId={event.id} result={result} /> : null}
-        <ImportForm eventId={event.id} hasResult={result !== null} onResult={showResult} />
+        <ChangeableWith to="guest:write" readOnly={t('problems.importForbidden')}>
+          <ImportForm eventId={event.id} hasResult={result !== null} onResult={showResult} />
+        </ChangeableWith>
       </div>
       <ImportHistory history={history} event={event} />
     </section>

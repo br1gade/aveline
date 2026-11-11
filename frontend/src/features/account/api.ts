@@ -8,12 +8,12 @@ type Schemas = components['schemas'];
 
 /** Answers 202 whether or not the address had an account, and never signs in (D16). */
 export async function register(api: PublicApiClient, body: Schemas['RegisterDto']): Promise<void> {
-  await expectData<unknown>(api.POST('/api/v1/auth/register', { body }));
+  await expectData(api.POST('/api/v1/auth/register', { body }));
 }
 
 /** Always reports that a link was sent, for any address (docs/API.md §2). */
 export async function requestPasswordReset(api: PublicApiClient, email: string): Promise<void> {
-  await expectData<unknown>(api.POST('/api/v1/auth/password-reset', { body: { email } }));
+  await expectData(api.POST('/api/v1/auth/password-reset', { body: { email } }));
 }
 
 /** Ends every session of the account, this one included. */
@@ -21,7 +21,7 @@ export async function confirmPasswordReset(
   api: PublicApiClient,
   body: Schemas['ConfirmPasswordResetDto'],
 ): Promise<void> {
-  await expectData<unknown>(api.POST('/api/v1/auth/password-reset/confirm', { body }));
+  await expectData(api.POST('/api/v1/auth/password-reset/confirm', { body }));
 }
 
 /** Who is signed in: identity, platform role and whether the address is confirmed (FR-5). */
@@ -35,7 +35,7 @@ export async function requestEmailConfirmation(api: ApiClient): Promise<void> {
 }
 
 export async function confirmEmail(api: PublicApiClient, token: string): Promise<void> {
-  await expectData<unknown>(api.POST('/api/v1/auth/verify-email/confirm', { body: { token } }));
+  await expectData(api.POST('/api/v1/auth/verify-email/confirm', { body: { token } }));
 }
 
 export function acceptInvite(
@@ -43,11 +43,9 @@ export function acceptInvite(
   kind: InviteKind,
   body: Schemas['AcceptInviteDto'],
 ): Promise<InviteAccepted> {
-  const call =
-    kind === 'organization'
-      ? api.POST('/api/v1/invites/accept', { body })
-      : api.POST('/api/v1/event-invites/accept', { body });
-  return expectData<InviteAccepted>(call);
+  return kind === 'organization'
+    ? expectData(api.POST('/api/v1/invites/accept', { body }))
+    : expectData(api.POST('/api/v1/event-invites/accept', { body }));
 }
 
 /** The same key and body answer the organization already made (docs/API.md §6), so a retry is safe. */
@@ -56,7 +54,7 @@ export function createOrganization(
   body: Schemas['CreateOrganizationDto'],
   idempotencyKey: string,
 ): Promise<Organization> {
-  return expectData<Organization>(
+  return expectData(
     api.POST('/api/v1/organizations', {
       body,
       params: { header: { 'idempotency-key': idempotencyKey } },

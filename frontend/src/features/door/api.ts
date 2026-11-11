@@ -1,15 +1,8 @@
 import { expectData, type ApiClient } from '@/api/client';
 
 import { readAdmission, readArrival, readCounts, readRoster } from './read';
-import type {
-  AdmitWire,
-  ArrivalCounts,
-  ArrivalsWire,
-  CheckInWire,
-  DoorAdmission,
-  DoorArrival,
-  DoorRosterWire,
-} from './types';
+
+import type { ArrivalCounts, DoorAdmission, DoorArrival } from './types';
 
 /**
  * Without these a request on a poor signal never ends, and neither does its spinner (design PD-94).
@@ -28,7 +21,7 @@ export async function checkIn(
   eventId: string,
   guestId: string,
 ): Promise<DoorArrival> {
-  const wire = await expectData<CheckInWire>(
+  const wire = await expectData(
     api.POST('/api/v1/events/{eventId}/guests/{guestId}/check-in', {
       params: { path: { eventId, guestId } },
       signal: AbortSignal.timeout(WRITE_TIME_MS),
@@ -39,7 +32,7 @@ export async function checkIn(
 
 /** Needs `guest:write`. For a ticket-linked guest it also makes the ticket valid again. */
 export async function undoCheckIn(api: ApiClient, eventId: string, guestId: string): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.DELETE('/api/v1/events/{eventId}/guests/{guestId}/check-in', {
       params: { path: { eventId, guestId } },
       signal: AbortSignal.timeout(WRITE_TIME_MS),
@@ -56,7 +49,7 @@ export async function admitTicket(
   eventId: string,
   code: string,
 ): Promise<DoorAdmission> {
-  const wire = await expectData<AdmitWire>(
+  const wire = await expectData(
     api.POST('/api/v1/events/{eventId}/tickets/{code}/admit', {
       params: { path: { eventId, code } },
       signal: AbortSignal.timeout(WRITE_TIME_MS),
@@ -80,7 +73,7 @@ export async function listDoorRoster(
   query: { cursor?: string; search?: string },
 ) {
   const search = query.search?.slice(0, SEARCH_LENGTH);
-  const wire = await expectData<DoorRosterWire>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/door-roster', {
       params: {
         path: { eventId },
@@ -98,7 +91,7 @@ export async function listDoorRoster(
 
 /** Needs `operations:read`. */
 export async function getArrivals(api: ApiClient, eventId: string): Promise<ArrivalCounts> {
-  const wire = await expectData<ArrivalsWire>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/arrivals', {
       params: { path: { eventId } },
       signal: readDeadline(),

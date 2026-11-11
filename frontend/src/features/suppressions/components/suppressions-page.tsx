@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { browserSession } from '@/api/session';
+import { Permitted } from '@/features/permissions';
 import { DEFAULT_TIME_ZONE, formatEventDay } from '@/lib/time';
 import { APP_PATHS } from '@/route-paths';
 import {
@@ -111,8 +112,8 @@ function EntryList({ list, onOpen }: { list: readonly Suppression[]; onOpen: Ope
 /**
  * Who must not be contacted (docs/API.md §6, "Suppression"; design PD-114, PD-115). The list is
  * the organization's: it applies to every event, and only the organization's owner or a manager
- * reaches it. Someone on one event alone is told so (FR-98). A role refused the list keeps the form,
- * whose own refusal is worded (FR-6).
+ * reaches it. Someone on one event alone is told so (FR-98). Adding is offered with `guest:write`
+ * (FR-6, PD-190); a 403 is still worded.
  */
 export function SuppressionsPage({ data }: { data: SuppressionsData }) {
   const { t } = useTranslation('suppressions');
@@ -140,7 +141,9 @@ export function SuppressionsPage({ data }: { data: SuppressionsData }) {
       ) : (
         <SuppressionProblem refusal={list.refusal} />
       )}
-      <AddForm list={list.kind === 'ready' ? list.value : []} page={page} />
+      <Permitted to="guest:write">
+        <AddForm list={list.kind === 'ready' ? list.value : []} page={page} />
+      </Permitted>
       {lifting ? (
         <LiftDialog
           entry={lifting}

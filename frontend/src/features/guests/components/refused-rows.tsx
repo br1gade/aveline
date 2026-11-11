@@ -2,10 +2,16 @@ import type { TFunction } from 'i18next';
 
 import type { RowError } from '../types';
 
+/** A reason in the page's language; one with no code, as older history can hold, as it came. */
+function Reason({ error, t }: { error: RowError; t: TFunction<'guests'> }) {
+  if (!error.reason) return <span lang="en">{error.message}</span>;
+  const field = error.field ? t(`import.fields.${error.field}`) : t('import.fields.unknown');
+  return <span>{t(`import.reasons.${error.reason}`, { field })}</span>;
+}
+
 /**
  * The rows an import refused, by the spreadsheet's own numbers, never renumbered (docs/API.md §6).
- * Row 0 is the file itself. The reasons are the backend's English sentences (FR-26), marked so a
- * screen reader reads them as English.
+ * Row 0 is the file itself. Each reason is worded from the backend's code (FR-26).
  */
 export function RefusedRows({
   errors,
@@ -21,7 +27,7 @@ export function RefusedRows({
           <span className="font-medium">
             {error.row === 0 ? t('import.file') : t('import.row', { row: String(error.row) })}
           </span>
-          <span lang="en">{error.message}</span>
+          <Reason error={error} t={t} />
           {error.value ? (
             <span className="text-muted-foreground break-all">
               {t('import.value', { value: error.value })}

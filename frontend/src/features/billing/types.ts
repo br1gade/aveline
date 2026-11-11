@@ -1,6 +1,9 @@
 import type { components } from '@/api/schema';
 
-/** Interim until FR-1: read against `subscriptions.service.ts` at `34ac1e6`. */
+/**
+ * Checked against the schema at each call (FR-1); read against `subscriptions.service.ts` at
+ * `34ac1e6`.
+ */
 export interface Entitlements {
   maxEventsPerPeriod: number | null;
   maxGuestsPerEvent: number | null;

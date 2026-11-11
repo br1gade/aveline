@@ -3,8 +3,9 @@ import type { InvitationStatus } from '@/features/events';
 /**
  * What the invitation's lifecycle calls return (docs/API.md §6: "Loading the invitation into the
  * editor", "Publishing the invitation", "Sending the invitation", "Which channel a message goes out
- * on", and the delivery report). Interim until FR-1: written from the guide and the backend's
- * services, with only the fields the screens read. `read.ts` alone reads the `…Wire` types.
+ * on", and the delivery report). Checked against the schema at each call (FR-1); written from the
+ * guide and the backend's services, with only the fields the screens read. `read.ts` alone reads
+ * the `…Wire` types.
  *
  * None of these responses carries a guest's token; `read.ts` still names every field it keeps, so
  * nothing added later goes further.
@@ -154,10 +155,14 @@ export interface DeliveryRowWire {
   household: string;
   guest: string;
   channel?: string;
-  toAddress?: string;
+  /**
+   * Absent without `guest:contact:read` (docs/API.md §6); the schema declares any value (FR-149).
+   */
+  toAddress?: unknown;
   status: string;
   attempts: number;
-  failureReason: string | null;
+  /** Only beside `toAddress`: a row without the address carries no failure words either. */
+  failureReason?: string | null;
   sentAt: string | null;
   reminders?: number;
   lastRemindedAt?: string | null;

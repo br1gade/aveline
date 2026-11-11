@@ -192,9 +192,22 @@ describe('ImportGuests: uploading', () => {
       rowsImported: 412,
       rowsFailed: 3,
       errors: [
-        { row: 0, message: 'Could not read the file: Invalid Closing Quote' },
-        { row: 7, message: 'No name in this row' },
-        { row: 19, message: 'That does not look like an email address', value: 'ani@@example' },
+        { row: 0, message: 'Could not read the file', reason: 'CSV_UNREADABLE' },
+        { row: 7, message: 'No name in this row', reason: 'NAME_REQUIRED', field: 'firstName' },
+        {
+          row: 19,
+          message: 'That does not look like an email address',
+          reason: 'INVALID_EMAIL',
+          field: 'email',
+          value: 'ani@@example',
+        },
+        {
+          row: 23,
+          message: 'firstName must be at most 80 characters',
+          reason: 'FIELD_TOO_LONG',
+          field: 'firstName',
+        },
+        { row: 31, message: 'An older sentence' },
       ],
     });
     const user = renderImport();
@@ -205,12 +218,13 @@ describe('ImportGuests: uploading', () => {
     });
     await waitFor(() => expect(heading).toHaveFocus());
     const result = screen.getByRole('region', { name: heading.textContent ?? '' });
-    expect(result).toHaveTextContent('The file');
-    expect(result).toHaveTextContent('Row 7No name in this row');
-    expect(result).toHaveTextContent(
-      'Row 19That does not look like an email address“ani@@example”',
-    );
-    expect(within(result).getByText('No name in this row')).toHaveAttribute('lang', 'en');
+    expect(result).toHaveTextContent('The fileThe file couldn’t be read as CSV.');
+    expect(result).toHaveTextContent('Row 7No first name.');
+    expect(result).toHaveTextContent('Row 19That isn’t an email address.“ani@@example”');
+    expect(result).toHaveTextContent('Row 23First name is too long.');
+    expect(within(result).getByText('No first name.')).not.toHaveAttribute('lang');
+    // An error with no code, as older history can hold, keeps the backend's sentence, in English.
+    expect(within(result).getByText('An older sentence')).toHaveAttribute('lang', 'en');
     expect(screen.getByRole('button', { name: 'Import the corrected file' })).toBeInTheDocument();
     expect(within(result).getByRole('link', { name: 'See the guest list' })).toHaveAttribute(
       'href',
@@ -236,7 +250,7 @@ describe('ImportGuests: uploading', () => {
     expect(result).not.toHaveTextContent('1 row');
   });
 
-  it('says the reasons are in English on a page in another language (FR-26)', async () => {
+  it('says which reasons are in English on a page in another language: those with no code (FR-26)', async () => {
     serve();
     imports({
       status: 'FAILED',
@@ -247,10 +261,38 @@ describe('ImportGuests: uploading', () => {
     const user = renderImport('ru');
     await choose(user, csv(), 'Таблица (CSV)');
     await user.click(screen.getByRole('button', { name: 'Импортировать' }));
-    expect(await screen.findByText('Причины пока указаны на английском.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Некоторые причины даны на английском, как они были записаны.'),
+    ).toBeInTheDocument();
     expect(
       screen.getByText('Ничего не импортировано. Не удалось импортировать: 1 строка.'),
     ).toBeInTheDocument();
+  });
+
+  it('says nothing of English when every reason has its code (FR-26)', async () => {
+    serve();
+    imports({
+      status: 'PARTIAL',
+      rowsImported: 1,
+      rowsFailed: 2,
+      errors: [
+        { row: 2, message: 'Email address is invalid', reason: 'INVALID_EMAIL', field: 'email' },
+        {
+          row: 3,
+          message: 'Field exceeds the allowed length',
+          reason: 'FIELD_TOO_LONG',
+          field: 'shoeSize',
+        },
+      ],
+    });
+    const user = renderImport('ru');
+    await choose(user, csv(), 'Таблица (CSV)');
+    await user.click(screen.getByRole('button', { name: 'Импортировать' }));
+    // A column it doesn't know is named as "the value".
+    expect(await screen.findByText('Значение: слишком длинно.')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Некоторые причины даны на английском, как они были записаны.'),
+    ).not.toBeInTheDocument();
   });
 
   it('asks for a file before sending anything', async () => {
@@ -310,6 +352,23 @@ describe('ImportGuests: past imports', () => {
     expect(within(history).getByText('Show the row not imported')).toBeInTheDocument();
     expect(history).toHaveTextContent('Row 19Seats must be a whole number between 1 and 20“many”');
     expect(history).toHaveTextContent('Running, or did not finish');
+  });
+
+  it('says an import not yet started is waiting, the backend’s first status', async () => {
+    serve([
+      {
+        id: 'i0',
+        filename: 'guests.csv',
+        status: 'PENDING',
+        rowsImported: 0,
+        rowsFailed: 0,
+        errors: null,
+        createdAt: '2026-10-22T05:30:00.000Z',
+      },
+    ]);
+    renderImport();
+    const history = await screen.findByRole('region', { name: 'Past imports' });
+    expect(history).toHaveTextContent('Waiting, or did not start');
   });
 
   it('says when nothing has been imported yet', async () => {

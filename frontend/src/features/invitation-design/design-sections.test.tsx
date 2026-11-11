@@ -339,14 +339,22 @@ describe('a 429 and a server failure', () => {
   });
 });
 
-describe('previewing a section’s unsaved edits (PD-153)', () => {
-  /** The saved page in the language asked for, counting the languages asked. */
-  function servePreview(reply = (locale: string) => HttpResponse.json(previewWire(locale))) {
-    const asked: string[] = [];
+describe('previewing a section’s unsaved edits (PD-153, FR-120)', () => {
+  interface Asked {
+    locale: string;
+    body: Record<string, unknown>;
+  }
+
+  /** The backend draws the draft it is sent, in the language asked for; each request is kept. */
+  function servePreview(
+    reply: (locale: string) => Response | Promise<Response> = (locale) =>
+      HttpResponse.json(previewWire(locale)),
+  ) {
+    const asked: Asked[] = [];
     server.use(
-      http.get(`${API}/invitations/${SLUG}/template-preview`, ({ request }) => {
+      http.post(`${API}/invitations/${SLUG}/template-preview`, async ({ request }) => {
         const locale = new URL(request.url).searchParams.get('locale') ?? '';
-        asked.push(locale);
+        asked.push({ locale, body: (await request.json()) as Record<string, unknown> });
         return reply(locale);
       }),
     );
@@ -372,29 +380,115 @@ describe('previewing a section’s unsaved edits (PD-153)', () => {
   const lastDraft = (sent: ReturnType<typeof frameReady>['sent']) =>
     JSON.stringify(sent.mock.calls.at(-1)?.[0] ?? null);
 
-  it('draws the words typed, in the language chosen, in a frame of the app’s own', async () => {
+  it('has the backend draw the section as it stands, hidden or not, in a frame of the app’s own', async () => {
     serveDesign(server);
     const asked = servePreview();
     const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
     await user.click(await screen.findByRole('button', { name: 'Show the preview' }));
     const { frame, sent } = frameReady();
     expect(frame).toHaveAttribute('src', '/app/events/e1/design/draft-preview');
-    await waitFor(() => expect(asked).toEqual(['hy']));
-    await user.selectOptions(screen.getByLabelText('Language of the preview'), 'en');
-    await waitFor(() => expect(asked).toEqual(['hy', 'en']));
-    const english = screen.getByRole('group', { name: 'English' });
-    await user.type(within(english).getByLabelText('Line under the names'), 'invite you');
-    await waitFor(() => expect(lastDraft(sent)).toContain('invite you'));
-    expect(lastDraft(sent)).toContain('"locale":"en"');
+    await waitFor(() =>
+      expect(asked).toEqual([{ locale: 'hy', body: { type: 'HERO', enabled: true } }]),
+    );
+    await waitFor(() => expect(lastDraft(sent)).toContain('"locale":"hy"'));
+    expect(screen.getByText('Showing what is saved.')).toBeInTheDocument();
     // Only ever to the app's own origin, never to whatever the frame might have become.
     expect(sent).toHaveBeenLastCalledWith(
       expect.objectContaining({ kind: 'draft' }),
       window.location.origin,
     );
+  });
+
+  it('draws what was typed only when asked to, in the language chosen', async () => {
+    serveDesign(server);
+    const asked = servePreview();
+    const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
+    await user.click(await screen.findByRole('button', { name: 'Show the preview' }));
+    const { sent } = frameReady();
+    await user.selectOptions(screen.getByLabelText('Language of the preview'), 'en');
+    await waitFor(() => expect(asked.map(({ locale }) => locale)).toEqual(['hy', 'en']));
+    const english = screen.getByRole('group', { name: 'English' });
+    await user.type(within(english).getByLabelText('Line under the names'), 'invite you');
+    expect(
+      screen.getByText('The form has changed since. Press “Preview my changes” to see it.'),
+    ).toBeInTheDocument();
+    expect(asked).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Preview my changes' }));
+    await waitFor(() => expect(asked).toHaveLength(3));
+    expect(JSON.stringify(asked[2])).toContain('invite you');
+    expect(asked[2]).toMatchObject({ locale: 'en', body: { type: 'HERO', enabled: true } });
+    await waitFor(() => expect(lastDraft(sent)).toContain('"locale":"en"'));
     expect(screen.getByText('Showing your changes, not yet saved.')).toBeInTheDocument();
   });
 
-  it('says when the saved page can’t be read, and leaves the form to edit and save', async () => {
+  /** The first language's answer waits until the test lets it go; every other answers at once. */
+  function holdFirst(late: () => Response) {
+    let release = () => undefined as void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    servePreview(async (locale) => {
+      if (locale !== 'hy') return HttpResponse.json(previewWire(locale));
+      await held;
+      return late();
+    });
+    return release;
+  }
+
+  /** Opens the preview, moves to English while Armenian is still out, then lets Armenian answer. */
+  async function answerOutOfOrder(late: () => Response) {
+    serveDesign(server);
+    const release = holdFirst(late);
+    const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
+    await user.click(await screen.findByRole('button', { name: 'Show the preview' }));
+    const { sent } = frameReady();
+    await user.selectOptions(screen.getByLabelText('Language of the preview'), 'en');
+    await waitFor(() => expect(lastDraft(sent)).toContain('"locale":"en"'));
+    release();
+    // A later request, answered after the late one was let go.
+    await user.click(screen.getByRole('button', { name: 'Preview my changes' }));
+    await waitFor(() => expect(sent).toHaveBeenCalledTimes(2));
+    return sent;
+  }
+
+  it('draws only the latest request’s answer, whichever comes back last', async () => {
+    const sent = await answerOutOfOrder(() => HttpResponse.json(previewWire('hy')));
+    expect(JSON.stringify(sent.mock.calls)).not.toContain('"locale":"hy"');
+  });
+
+  it('marks nothing for a refusal of a request since replaced', async () => {
+    await answerOutOfOrder(() =>
+      HttpResponse.json(
+        { statusCode: 400, message: ['variant: must be one the template offers'] },
+        { status: 400 },
+      ),
+    );
+    expect(screen.getByLabelText('Layout')).not.toHaveAccessibleDescription(
+      expect.stringContaining('This wasn’t accepted. Check it.'),
+    );
+  });
+
+  it('marks on the form what the backend refused to draw', async () => {
+    serveDesign(server);
+    servePreview(() =>
+      HttpResponse.json(
+        { statusCode: 400, message: ['variant: must be one the template offers'] },
+        { status: 400 },
+      ),
+    );
+    const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
+    await user.click(await screen.findByRole('button', { name: 'Show the preview' }));
+    expect(
+      await screen.findByText(
+        'The preview can’t draw what is marked. Change it, then preview again.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Layout')).toHaveAccessibleDescription(
+      expect.stringContaining('This wasn’t accepted. Check it.'),
+    );
+  });
+
+  it('says when the preview can’t be read, and leaves the form to edit and save', async () => {
     serveDesign(server);
     servePreview(() => refusal(403)());
     const user = renderDesign(session, '/app/events/e1/design/sections/HERO');
@@ -425,10 +519,8 @@ describe('previewing a section’s unsaved edits (PD-153)', () => {
     window.dispatchEvent(
       new MessageEvent('message', { data: READY_MESSAGE, origin, source: window }),
     );
-    await waitFor(() => expect(asked).toEqual(['hy']));
-    const english = await screen.findByRole('group', { name: 'English' });
-    await user.type(within(english).getByLabelText('Line under the names'), 'x');
-    await screen.findByText('Showing your changes, not yet saved.');
+    await waitFor(() => expect(asked).toHaveLength(1));
+    await screen.findByText('Showing what is saved.');
     expect(sent).not.toHaveBeenCalled();
   });
 
@@ -438,5 +530,53 @@ describe('previewing a section’s unsaved edits (PD-153)', () => {
     renderDesign(session, '/app/events/e1/design/sections/HERO');
     await screen.findByRole('button', { name: 'Show the preview' });
     expect(asked).toEqual([]);
+  });
+});
+
+describe('a role that may see the design but not change it (FR-6, PD-193)', () => {
+  const VIEWER = ['event:read', 'invitation:read'] as const;
+  const READ_ONLY = /can see the invitation’s design but not change it/;
+
+  it('is shown the sections with nothing to press, and told why', async () => {
+    serveDesign(server);
+    renderDesign(session, OVERVIEW, 'en', VIEWER);
+    expect(await screen.findByText(READ_ONLY)).toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Sections of the page' });
+    for (const button of within(region).getAllByRole('button')) expect(button).toBeDisabled();
+  });
+
+  it('is shown a section’s words with no saving them', async () => {
+    serveDesign(server);
+    renderDesign(session, '/app/events/e1/design/sections/HERO', 'en', VIEWER);
+    expect(await screen.findByText(READ_ONLY)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it.each([
+    ['the look', '/app/events/e1/design/look'],
+    ['the questions', '/app/events/e1/design/questions'],
+    ['the uploads', '/app/events/e1/design/media'],
+    ['a new question', '/app/events/e1/design/questions/new'],
+  ])('is told so on %s, with nothing to press', async (_page, path) => {
+    serveDesign(server);
+    server.use(http.get(`${API}/events/e1/media`, () => HttpResponse.json(libraryWire())));
+    renderDesign(session, path, 'en', VIEWER);
+    expect(await screen.findByText(READ_ONLY)).toBeInTheDocument();
+    const inside = screen.queryAllByRole('button').filter((button) => button.closest('fieldset'));
+    expect(inside.length).toBeGreaterThan(0);
+    const enabled = screen
+      .queryAllByRole('button')
+      .filter((button) => button.closest('fieldset') && !button.matches(':disabled'));
+    expect(enabled).toEqual([]);
+  });
+
+  it('is offered every change when it holds `invitation:design`', async () => {
+    serveDesign(server);
+    renderDesign(session, '/app/events/e1/design/sections/HERO', 'en', [
+      ...VIEWER,
+      'invitation:design',
+    ]);
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(screen.queryByText(READ_ONLY)).not.toBeInTheDocument();
   });
 });

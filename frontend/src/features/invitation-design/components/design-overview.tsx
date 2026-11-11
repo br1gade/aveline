@@ -12,6 +12,7 @@ import { designLookPath, designMediaPath, designPreviewPath, designQuestionsPath
 import { canRender } from '../payload';
 import type { Design } from '../types';
 import {
+  DesignChanges,
   DesignHeader,
   DesignRefusal,
   NoInvitation,
@@ -123,25 +124,27 @@ function Overview({ data, design }: { data: DesignData; design: Design }) {
           {t('overview.changeLook')}
         </Link>
       </p>
-      <section aria-labelledby="design-sections" className="flex flex-col gap-3">
-        <h2 id="design-sections" className={SECTION_TITLE}>
-          {t('overview.sectionsTitle')}
-        </h2>
-        <p className="text-muted-foreground m-0 max-w-[40rem] text-sm">
-          {t('overview.sectionsLead')}
-        </p>
-        {actions.refusal ? <DesignRefusal refusal={actions.refusal} /> : null}
-        <SectionList design={design} actions={actions} page={page} />
-      </section>
-      <AddableSections design={design} actions={actions} />
+      <DesignChanges>
+        <section aria-labelledby="design-sections" className="flex flex-col gap-3">
+          <h2 id="design-sections" className={SECTION_TITLE}>
+            {t('overview.sectionsTitle')}
+          </h2>
+          <p className="text-muted-foreground m-0 max-w-[40rem] text-sm">
+            {t('overview.sectionsLead')}
+          </p>
+          {actions.refusal ? <DesignRefusal refusal={actions.refusal} /> : null}
+          <SectionList design={design} actions={actions} page={page} />
+        </section>
+        <AddableSections design={design} actions={actions} />
+      </DesignChanges>
     </section>
   );
 }
 
 /**
  * Designing the invitation (design PD-56): what still blocks publishing, the template, and the
- * page's sections in their order, each shown or hidden, moved, or opened to edit. Every action is
- * offered to every role, and a 403 is explained when it happens (FR-6).
+ * page's sections in their order, each shown or hidden, moved, or opened to edit. A role without
+ * `invitation:design` sees them with nothing to press (FR-6, PD-193); a 403 is still explained.
  */
 export function DesignOverview({ data }: { data: DesignData }) {
   if (!data.design) return <NoInvitation eventId={data.event.id} title={data.event.title} />;

@@ -292,6 +292,7 @@ const TEMPLATE: TemplateSummary = {
   allowedFonts: [],
   palettes: [],
   supportedBlocks: ['HERO', 'VENUE', 'RSVP', 'CONTACT'],
+  blockVariants: {},
 };
 
 const BLOCKS = [

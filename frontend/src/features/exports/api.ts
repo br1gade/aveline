@@ -1,9 +1,12 @@
 import { expectData, type ApiClient } from '@/api/client';
+
 import { expectFile, type FetchedFile } from '@/api/file';
+
 import { isLanguage } from '@/lib/i18n';
 
 import { readLegacyExports, readSnapshot, readSnapshots } from './read';
-import type { Intent, LegacyExport, LegacyExportWire, Snapshot, SnapshotWire } from './types';
+
+import type { Intent, LegacyExport, Snapshot, SnapshotWire } from './types';
 
 /** A single answer is for an export this client asked for, so its kind and format are known. */
 function known(wire: SnapshotWire): Snapshot {
@@ -14,7 +17,7 @@ function known(wire: SnapshotWire): Snapshot {
 
 /** The event's newest fifty snapshots, newest first, a bare array (docs/API.md §6). */
 export async function listSnapshots(api: ApiClient, eventId: string): Promise<Snapshot[]> {
-  const wire = await expectData<SnapshotWire[]>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/export-snapshots', { params: { path: { eventId } } }),
   );
   return readSnapshots(wire);
@@ -25,7 +28,7 @@ export async function getSnapshot(
   eventId: string,
   snapshotId: string,
 ): Promise<Snapshot> {
-  const wire = await expectData<SnapshotWire>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/export-snapshots/{snapshotId}', {
       params: { path: { eventId, snapshotId } },
     }),
@@ -45,7 +48,7 @@ export async function createSnapshot(
   idempotencyKey: string,
 ): Promise<Snapshot> {
   const { kind, format, locale } = intent;
-  const wire = await expectData<SnapshotWire>(
+  const wire = await expectData(
     api.POST('/api/v1/events/{eventId}/export-snapshots', {
       params: { path: { eventId } },
       body: {
@@ -79,7 +82,7 @@ export function downloadSnapshot(
 
 /** Records from before snapshots, read only to say they must be made again. */
 export async function listLegacyExports(api: ApiClient, eventId: string): Promise<LegacyExport[]> {
-  const wire = await expectData<LegacyExportWire[]>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/exports', { params: { path: { eventId } } }),
   );
   return readLegacyExports(wire);

@@ -31,6 +31,22 @@ describe('reading a brief', () => {
     });
   });
 
+  it('leaves out a catering note that holds no words', () => {
+    const catering = {
+      covers: 90,
+      requirements: [],
+      notes: [
+        { guest: 'Ani K', household: 'Karapetyan', note: 'No nuts' },
+        { guest: 'Aram K', household: 'Karapetyan', note: null },
+        { guest: 'Lilit K', household: 'Karapetyan', note: '' },
+      ],
+    };
+    const [, section] = readBrief(wire({ catering })).sections;
+    expect(section).toMatchObject({
+      data: { notes: [{ guest: 'Ani K', household: 'Karapetyan', note: 'No nuts' }] },
+    });
+  });
+
   it('reads only what was granted, never a section the answer happens to carry', () => {
     const brief = readBrief(
       wire({

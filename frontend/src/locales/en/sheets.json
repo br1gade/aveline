@@ -54,12 +54,17 @@
       "DECLINED": "Not coming",
       "UNDECIDED": "Not sure yet",
       "PENDING": "Not answered"
-    }
+    },
+    "more": "Show more answers",
+    "moreQuestions": "Show more questions",
+    "moreFailed": "These couldn’t be read. Please try again."
   },
   "guestBook": {
     "title": "Guest book",
-    "lead": "The messages guests left with their answers, newest first.",
+    "lead": "The messages guests left with their answers, newest first, then those with no date.",
     "none": "Nobody has left a message yet.",
-    "at": "{{day}}, {{time}}"
+    "at": "{{day}}, {{time}}",
+    "more": "Show more messages",
+    "noWords": "Left no words."
   }
 }

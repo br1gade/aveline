@@ -1,7 +1,8 @@
+import type { ImportField, ImportReason } from './import-reasons';
 /**
  * What the guest calls return (docs/API.md §6: "Reading the guest list", "Editing the guest list",
- * "Importing a guest list"). Interim until FR-1: the schema declares no response types, so these
- * are written from the guide and the backend's services, and only the fields the screens read are
+ * "Importing a guest list"). These are checked against the schema at each call (FR-1),
+ * written from the guide and the backend's services, and only the fields the screens read are
  * typed.
  *
  * The `…Wire` types say what arrives and are read by `read.ts` alone. It builds the client's own
@@ -91,7 +92,8 @@ export interface Household {
   guests: Guest[];
 }
 
-export type ImportStatus = 'PROCESSING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
+/** `PENDING` is an import not yet started: the backend's default. */
+export type ImportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
 
 /**
  * A row the import refused. `row` is the spreadsheet's own number, the header being row 1; row 0
@@ -99,7 +101,11 @@ export type ImportStatus = 'PROCESSING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
  */
 export interface RowError {
   row: number;
-  /** In English, whatever the page's language (FR-26). */
+  /** Why, as the backend codes it (FR-26); `null` for older history, or a code this client lacks. */
+  reason: ImportReason | null;
+  /** The column the reason is about, when one is named. */
+  field: ImportField | null;
+  /** The backend's English sentence, shown only when there is no reason to word. */
   message: string;
   /** The cell that was refused. A contact value is quoted only in the import's own response. */
   value: string | null;
@@ -175,6 +181,8 @@ export interface HouseholdWire {
 export interface RowErrorWire {
   row: number;
   message: string;
+  reason?: string;
+  field?: string;
   value?: string;
 }
 

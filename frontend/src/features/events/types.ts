@@ -1,7 +1,7 @@
 /**
- * What the event calls return (docs/API.md §6). Interim until FR-1: the schema declares no response
- * types, so these are written from the guide and the backend's services, and only the fields the
- * screens read are typed.
+ * What the event calls return (docs/API.md §6). These are checked against the schema at each call
+ * (FR-1), written from the guide and the backend's services, and only the fields the screens read
+ * are typed.
  */
 
 /** An event as `GET /events` lists it. */

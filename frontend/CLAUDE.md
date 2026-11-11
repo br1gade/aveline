@@ -29,8 +29,9 @@ which the backend team maintains; when that template changes, copy the change he
 1. Read `../docs/API.md` §1 (conventions) and §8 (things that bite), then the feature's section.
 2. Run `npm run api:generate`. Request and response types come from `backend/openapi.json`:
    `expectData(call)` gives the body the operation declares, and `ResponseOf<…>` names one (FR-1).
-   Features not yet moved keep hand-written types marked "interim until FR-1"; move a feature's
-   when you change it. A function a public page calls takes `PublicApiClient` (FR-2).
+   A feature's own wire types are checked against the schema at the call; pass a type to
+   `expectData` only where the schema is looser than `docs/API.md`, and record it under FR-149.
+   A function a public page calls takes `PublicApiClient` (FR-2).
 3. Check [BACKEND_REQUESTS.md](docs/BACKEND_REQUESTS.md) and the BACKLOG items it names.
 
 ## 4. Non-negotiable client behaviours

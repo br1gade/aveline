@@ -2,7 +2,8 @@ import type { ResponseOf } from '@/api/client';
 
 /**
  * What the account calls return (docs/API.md §2 and §6). `Account` is the schema's; the rest are
- * interim until FR-1 reaches this feature, written from the guide and the backend's services.
+ * checked against the schema at each call (FR-1), written from the guide and the backend's
+ * services.
  */
 export type OrganizationKind = 'HOST' | 'PLANNER' | 'CORPORATE';
 

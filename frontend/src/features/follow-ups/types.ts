@@ -6,9 +6,9 @@ import type {
 } from '@/features/sending';
 
 /**
- * What `remind` and `thank-you` return (docs/API.md §6). Interim until FR-1: written from the guide
- * and `reminder.service.ts`, with only the fields the screens read. `read.ts` alone reads the
- * `…Wire` types.
+ * What `remind` and `thank-you` return (docs/API.md §6). Checked against the schema at each call
+ * (FR-1); written from the guide and `reminder.service.ts`, with only the fields the screens read.
+ * `read.ts` alone reads the `…Wire` types.
  */
 
 export const THANK_BASES = ['ARRIVED', 'ACCEPTED'] as const;

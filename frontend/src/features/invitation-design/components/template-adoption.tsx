@@ -19,7 +19,7 @@ import { confirmAdoption, pollAdoption } from '../api';
 import type { AdoptionData } from '../load';
 import { designLookPath, designPath } from '../paths';
 import { PreviewPage } from './design-preview';
-import { TEXT_LINK, useSectionName } from './design-parts';
+import { DesignChanges, TEXT_LINK, useSectionName } from './design-parts';
 
 /** About half a minute, as the drawn signature's check; then the host can look again. */
 const POLL_DELAYS = [1000, 2000, 4000, 4000, 4000, 5000, 5000, 5000];
@@ -137,9 +137,11 @@ function Confirm({ data, ready, onDone }: ConfirmProps) {
       {refusal ? <RefusalWords refusal={refusal} /> : null}
       {refusal?.kind === 'stale' ? <PreviewAgain label={t('adopt.previewAgain')} /> : null}
       <div className="flex flex-wrap gap-2">
-        <Button className={WRAPPING_BUTTON} disabled={isBusy} onClick={() => void confirm()}>
-          {t('adopt.confirm', { name: target?.name ?? '' })}
-        </Button>
+        <DesignChanges>
+          <Button className={WRAPPING_BUTTON} disabled={isBusy} onClick={() => void confirm()}>
+            {t('adopt.confirm', { name: target?.name ?? '' })}
+          </Button>
+        </DesignChanges>
         <Button asChild variant="outline" className={WRAPPING_BUTTON}>
           <Link to={designLookPath(data.event.id)}>
             {t('adopt.keep', { name: design?.template.name ?? '' })}

@@ -1,17 +1,12 @@
 import { expectData, type ApiClient } from '@/api/client';
+
 import type { components } from '@/api/schema';
+
 import type { EventNotice } from '@/features/events';
 
 import { readDirectory, readHallOperators, readNotice, readVenues } from './read';
-import type {
-  DirectoryHall,
-  DirectoryHallWire,
-  HallOperator,
-  VendorWire,
-  Venue,
-  VenueWire,
-  VenueWriteWire,
-} from './types';
+
+import type { DirectoryHall, HallOperator, Venue } from './types';
 
 type Schemas = components['schemas'];
 
@@ -20,7 +15,7 @@ export type VenueUpdate = Schemas['UpdateVenueDto'];
 
 /** Reading needs `event:read`, which every role on the event holds. */
 export async function listVenues(api: ApiClient, eventId: string): Promise<Venue[]> {
-  const venues = await expectData<VenueWire[]>(
+  const venues = await expectData(
     api.GET('/api/v1/events/{eventId}/venues', { params: { path: { eventId } } }),
   );
   return readVenues(venues);
@@ -32,7 +27,7 @@ export async function createVenue(
   eventId: string,
   body: Schemas['CreateVenueDto'],
 ): Promise<EventNotice> {
-  const saved = await expectData<VenueWriteWire>(
+  const saved = await expectData(
     api.POST('/api/v1/events/{eventId}/venues', { params: { path: { eventId } }, body }),
   );
   return readNotice(saved);
@@ -45,7 +40,7 @@ export async function updateVenue(
   venueId: string,
   body: VenueUpdate,
 ): Promise<EventNotice> {
-  const saved = await expectData<VenueWriteWire>(
+  const saved = await expectData(
     api.PATCH('/api/v1/events/{eventId}/venues/{venueId}', {
       params: { path: { eventId, venueId } },
       body,
@@ -60,7 +55,7 @@ export async function removeVenue(
   eventId: string,
   venueId: string,
 ): Promise<EventNotice> {
-  const removed = await expectData<VenueWriteWire>(
+  const removed = await expectData(
     api.DELETE('/api/v1/events/{eventId}/venues/{venueId}', {
       params: { path: { eventId, venueId } },
     }),
@@ -73,7 +68,7 @@ export async function removeVenue(
  * event holds. It lists active halls only, and there is no read outside an event (FR-91).
  */
 export async function listDirectory(api: ApiClient, eventId: string): Promise<DirectoryHall[]> {
-  const halls = await expectData<DirectoryHallWire[]>(
+  const halls = await expectData(
     api.GET('/api/v1/events/{eventId}/venue-profiles', { params: { path: { eventId } } }),
   );
   return readDirectory(halls);
@@ -84,7 +79,7 @@ export async function listDirectory(api: ApiClient, eventId: string): Promise<Di
  * the event alone doesn't count. Filtered here: the schema declares no `category` (FR-91).
  */
 export async function listHallOperators(api: ApiClient): Promise<HallOperator[]> {
-  const vendors = await expectData<VendorWire[]>(api.GET('/api/v1/vendors'));
+  const vendors = await expectData(api.GET('/api/v1/vendors'));
   return readHallOperators(vendors);
 }
 
@@ -93,7 +88,7 @@ export async function addHall(
   api: ApiClient,
   body: Schemas['CreateVenueProfileDto'],
 ): Promise<void> {
-  await expectData<unknown>(api.POST('/api/v1/venue-profiles', { body }));
+  await expectData(api.POST('/api/v1/venue-profiles', { body }));
 }
 
 /** Omitted fields are unchanged. Event venues already copied keep their copy. */
@@ -102,7 +97,7 @@ export async function updateHall(
   profileId: string,
   body: Schemas['UpdateVenueProfileDto'],
 ): Promise<void> {
-  await expectData<unknown>(
+  await expectData(
     api.PATCH('/api/v1/venue-profiles/{profileId}', { params: { path: { profileId } }, body }),
   );
 }

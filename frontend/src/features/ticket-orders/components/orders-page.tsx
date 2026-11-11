@@ -135,8 +135,8 @@ function List({ data, page }: { data: OrdersData; page: PageActions }) {
 
 /**
  * An event's ticket orders (docs/API.md §5; design PD-87): by status, newest first, each opened in
- * place with its people and tickets, cancelling and reconciling. Every action is offered to every
- * role, and a 403 is worded when it happens (FR-6).
+ * place with its people and tickets, cancelling and reconciling. Cancelling is offered with
+ * `billing:write`, linking and registering with `guest:write` (FR-6, PD-190); a 403 is still worded.
  */
 export function OrdersPage({ data }: { data: OrdersData }) {
   const { t } = useTranslation('ticket-orders');

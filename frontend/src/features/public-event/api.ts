@@ -15,7 +15,7 @@ export async function fetchPublicEvent(
   api: PublicApiClient,
   request: PublicEventRequest,
 ): Promise<PublicEvent> {
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.GET('/api/v1/public/events/{slug}', {
       params: {
         path: { slug: request.slug },
@@ -34,7 +34,7 @@ export async function fetchPublicListing(
   api: PublicApiClient,
   { offset, category, locale }: ListingQuery & { locale: string },
 ): Promise<PublicListing> {
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.GET('/api/v1/public/events', {
       params: {
         query: { limit: LISTING_PAGE_SIZE, offset, locale, ...(category ? { category } : {}) },

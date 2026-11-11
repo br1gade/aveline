@@ -1,5 +1,5 @@
 /**
- * The gallery's answers (docs/API.md §11), interim until FR-1: the schema declares no response.
+ * The gallery's answers (docs/API.md §11), checked against the schema at each call (FR-1).
  * Read from the backend's `guest-media.service.ts` (`MEDIA_SELECT`) at `eb77cd4`.
  */
 

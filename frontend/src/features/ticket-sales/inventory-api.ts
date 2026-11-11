@@ -35,11 +35,11 @@ export async function readInventory(api: ApiClient, eventId: string) {
     params: { path: { eventId } },
   });
   if (result.response.ok && result.data === undefined) return null;
-  return published.nullable().parse(await expectData<unknown>(Promise.resolve(result)));
+  return published.nullable().parse(await expectData(Promise.resolve(result)));
 }
 
 export async function listVenueLayouts(api: ApiClient, path: { eventId: string; venueId: string }) {
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/venues/{venueId}/ticket-layouts', { params: { path } }),
   );
   return z.array(layoutSummary).parse(wire);
@@ -49,7 +49,7 @@ export async function readVenueLayout(
   api: ApiClient,
   path: { eventId: string; venueId: string; versionId: string },
 ) {
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.GET('/api/v1/events/{eventId}/venues/{venueId}/ticket-layouts/{versionId}', {
       params: { path },
     }),
@@ -62,7 +62,7 @@ export async function publishVenueLayout(
   profileId: string,
   body: Schemas['PublishVenueTicketLayoutDto'],
 ) {
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.POST('/api/v1/venue-profiles/{profileId}/ticket-layouts', {
       params: { path: { profileId } },
       body,
@@ -76,7 +76,7 @@ export async function publishInventory(
   eventId: string,
   body: Schemas['PublishShowTicketInventoryDto'],
 ) {
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.POST('/api/v1/events/{eventId}/ticket-inventory', { params: { path: { eventId } }, body }),
   );
   return published.parse(wire);
@@ -92,7 +92,7 @@ export async function importVenueLayout(
   form.set('name', input.name);
   form.set('expectedVersion', String(input.expectedVersion));
   form.set('file', input.file, input.file.name);
-  const wire = await expectData<unknown>(
+  const wire = await expectData(
     api.POST('/api/v1/venue-profiles/{profileId}/ticket-layouts/import', {
       params: { path: { profileId } },
       body: {

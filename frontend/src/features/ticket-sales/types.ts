@@ -1,6 +1,7 @@
 /**
- * Setting up ticket sales (docs/API.md §5, "Setting up ticket sales"), interim until FR-1. The
- * host reads every language: names and words come as maps of language to text.
+ * Setting up ticket sales (docs/API.md §5, "Setting up ticket sales"), checked against the schema
+ * at each call (FR-1). The host reads every language: names and words come as maps of language to
+ * text.
  */
 export type Translations = Readonly<Record<string, string>>;
 

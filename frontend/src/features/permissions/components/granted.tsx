@@ -30,3 +30,28 @@ export function useCan(permission: Permission): boolean {
 export function Permitted({ to, children }: { to: Permission; children: ReactNode }) {
   return useCan(to) ? children : null;
 }
+
+/**
+ * What a caller may read but not change (design PD-193): shown whole, every control in it switched
+ * off, under one line that says so. While nothing is known it is offered as for any role.
+ */
+export function ChangeableWith({
+  to,
+  readOnly,
+  children,
+}: {
+  to: Permission;
+  /** The line saying the role can see this but not change it. */
+  readOnly: string;
+  children: ReactNode;
+}) {
+  if (useCan(to)) return children;
+  return (
+    <>
+      <p className="m-0">{readOnly}</p>
+      <fieldset disabled className="contents">
+        {children}
+      </fieldset>
+    </>
+  );
+}

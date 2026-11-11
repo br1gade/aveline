@@ -17,6 +17,7 @@
     "showing": "{{guests}} affichés dans {{households}}",
     "add": "Ajouter un invité",
     "import": "Importer un tableur",
+    "pastImports": "Imports précédents",
     "contactHidden": "Les adresses e-mail et numéros de téléphone ne sont pas affichés pour votre rôle sur cet événement.",
     "empty": "Aucun invité pour l’instant. Importez un tableur, ou ajoutez les invités un par un.",
     "noMatch": "Aucun invité ne correspond.",
@@ -174,11 +175,12 @@
       "COMPLETED": "Toutes les lignes ont été importées : {{guests}}.",
       "PARTIAL": "{{guests}} importés. {{rows}} n’ont pas pu être importées.",
       "FAILED": "Rien n’a été importé. {{rows}} n’ont pas pu être importées.",
+      "PENDING": "L’import n’a pas encore commencé.",
       "PROCESSING": "L’import n’est pas encore terminé.",
       "fileRefused": "Rien n’a été importé."
     },
     "refusedTitle": "Non importé",
-    "inEnglish": "Les raisons sont données en anglais pour l’instant.",
+    "inEnglish": "Certaines raisons sont données en anglais, telles qu’elles ont été enregistrées.",
     "row": "Ligne {{row}}",
     "file": "Le fichier",
     "value": "« {{value}} »",
@@ -193,11 +195,36 @@
         "COMPLETED": "Terminé",
         "PARTIAL": "Certaines lignes non importées",
         "FAILED": "Rien d’importé",
+        "PENDING": "En attente, ou non commencé",
         "PROCESSING": "En cours, ou non terminé"
       },
       "showRows_one": "Afficher la ligne non importée",
       "showRows_many": "Afficher les {{count}} lignes non importées",
       "showRows_other": "Afficher les {{count}} lignes non importées"
+    },
+    "reasons": {
+      "NAME_REQUIRED": "Aucun prénom.",
+      "INVALID_SEATS": "Le nombre de places doit être un nombre entier, au moins 1.",
+      "INVALID_EMAIL": "Ce n’est pas une adresse e-mail.",
+      "INVALID_PHONE": "Ce n’est pas un numéro de téléphone.",
+      "FIELD_TOO_LONG": "{{field}} est trop long.",
+      "SUBJECT_ERASED": "Cette personne a demandé l’effacement de ses données, elle ne peut donc pas être ajoutée de nouveau.",
+      "HOUSEHOLD_FULL": "Son foyer n’a plus de place pour elle.",
+      "NOT_SAVED": "Cette ligne n’a pas pu être enregistrée. Importez le fichier de nouveau.",
+      "NAME_COLUMN_MISSING": "Aucune colonne de prénom trouvée. Vérifiez la ligne des titres.",
+      "NO_ROWS": "Le fichier a des titres mais aucun invité.",
+      "CSV_UNREADABLE": "Le fichier n’a pas pu être lu comme un CSV.",
+      "FILE_UNREADABLE": "Le fichier n’est pas du texte UTF-8. Enregistrez-le en « CSV UTF-8 » et réessayez."
+    },
+    "fields": {
+      "firstName": "Le prénom",
+      "lastName": "Le nom",
+      "seats": "Le nombre de places",
+      "email": "L’e-mail",
+      "phone": "Le téléphone",
+      "household": "Le foyer",
+      "locale": "La langue",
+      "unknown": "Une valeur"
     }
   },
   "inviteGroup": {

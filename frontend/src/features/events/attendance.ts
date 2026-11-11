@@ -6,7 +6,8 @@ import type { AttendanceMode } from './types';
 /**
  * Changing how guests answer (docs/API.md §6, "Attendance modes"; design PD-53). The change is
  * previewed first, since it sets every answer back to "not answered", and confirmed with what the
- * preview returned. Interim types until FR-1, read by naming each field kept.
+ * preview returned. Its types are checked against the schema at each call (FR-1), and read by
+ * naming each field kept.
  */
 
 export interface AttendanceImpact {
