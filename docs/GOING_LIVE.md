@@ -39,27 +39,33 @@ publishing numbered seats and zones, purchasing tickets in the four supported
 languages, and door admission. The wider host and guest walkthrough and
 production-host acceptance remain release gates.
 
-The pilot frontend items FR-73 and FR-74 are delivered. The door refusal
-contract (FR-76) is implemented in the backend and awaits frontend adoption.
-The remaining frontend-facing gates are:
+The client adopted FR-46, FR-62, FR-76, FR-79, FR-115, FR-128, FR-130, FR-134 and
+FR-135 on 11 November 2026, after FR-73 and FR-74. None of it has run against a
+real backend yet: the client was built and tested against a mock. The remaining
+frontend-facing gates are:
 
 | Item | Evidence still needed |
 |---|---|
 | **FR-11** Production web service and origin | Same-origin release configuration is implemented. Deploy an attested staging release and verify canonical HTTPS, SSR, mail links and a simulated payment return |
-| **FR-46** Guest gallery uploads | Backend setting is implemented. Adopt the control and verify on staging that new invitations start with uploads off, existing invitations keep their behavior, and disabling uploads preserves approved photo reads |
-| **FR-76 / FR-79** Door screen | Adopt the backend roster and refusal codes in the door UI and rehearse check-in on a phone against the real API |
-| **FR-115 / FR-128 / FR-135** Client adoption | Opt in to the artwork ID format, confirm export delivery from the staff UI, and exercise the scheduled Free controls against the real backend |
-| **Frontend CI and wider rehearsal** | Establish the GitHub frontend workflow and run the agreed host and guest journeys against the real backend |
-| **Public build settings and privacy copy** | Verify the public web origin, support links, token-safe server logs and approved privacy notice and form. Confirm the invitation email footer reaches the public form from a signed-out browser |
+| **FR-46** Guest gallery uploads | Adopted. Verify on staging that new invitations start with uploads off, existing invitations keep their behavior, and disabling uploads preserves approved photo reads |
+| **FR-76 / FR-79** Door screen | Adopted. Rehearse check-in on a phone against the real API; the QR camera has never read a real code |
+| **FR-115 / FR-128 / FR-135** Client adoption | Adopted. Exercise artwork, export delivery and the scheduled Free controls against the real backend. Then switch the artwork default to asset IDs and remove the token-bearing artwork paths |
+| **FR-92 / FR-141 / FR-142** Listing cards and door roster | Backend delivered 11 November 2026. The client still treats a guest named like the erasure placeholder as erased and pauses 200 ms between roster pages; replace both with `isErased` and the new allowance before the pilot. Adopt the card dates before the listing is linked beyond the home placeholder |
+| **FR-96 / FR-99 / FR-104** Backend, before the pilot | Not built: side labels in each language, suppression input checks (reasons a host may send, empty addresses, phone normalisation, the 500-row cap, the schema), and the language a vendor brief is in |
+| **FR-42 / FR-9** What the guest page draws | Hosts choose layouts, fonts and palettes that the preview and guest page ignore. Decide which the renderer supports before the designer's sign-off |
+| **Frontend CI and wider rehearsal** | No gate runs the client's tests: not `ci:local` and not any workflow; the release only builds the image. There are no browser tests. Establish the frontend workflow and run the agreed host and guest journeys against the real backend |
+| **Public build settings and privacy copy** | `release.yml` passes only the public and media origins to the web build, so the support contacts (`VITE_SUPPORT_*`) and `VITE_SITE_URL` cannot be set from a release; add them as release inputs. Then verify the public web origin, support links, token-safe server logs and approved privacy notice and form. Confirm the invitation email footer reaches the public form from a signed-out browser |
 
 ### Money
+
+These gates apply to paid launch. The free pilot keeps `PILOT_MODE=true` and live charges disabled.
 
 | # | Blocker | Why |
 |---|---|---|
 | 1 | **No bank merchant account** | Ameriabank, Inecobank and IDBank each need a business account and, in practice, a visit. Nothing can be charged until one exists |
 | 2 | **No adapter has run against a real sandbox** | The three gateways are written against published integrations and their field names are our best reading. They must be checked against the spec each bank sends |
 | 3 | **Ameriabank certification not done** | Requires at least five successful completed REST payments in their test environment before production access is granted |
-| 4 | **One-step vs two-step not decided** | Deposits probably want authorize-then-capture, which must be requested from the bank separately |
+| 4 | **Immediate deposit charging needs provider verification** | Product approved charging the agreed deposit immediately. Verify one-step capture and settlement evidence with the selected bank. [Deposit decision](post-pilot/DECISIONS.md#round-8--deposit-amount-charge-and-pre-payment-holds) |
 | 4b | **Three suspected field mismatches** | Ameriabank's `OrderID` may need to be an integer; ArCa may expect AMD in luma (× 100); Ameriabank's `OrderStatus` is read with ArCa's codes. Each must be confirmed against the bank's own specification — see PAYMENTS.md §6 |
 | 4c | **The bank's order lifetime is not tied to ours** | We expire an unpaid order after an hour, but `registerOrder` sends the bank no session timeout, so its form may stay payable longer. A payment the bank captures after we wrote it off is never asked about again (`EXPIRED` is final), and a retried paid subscribe now starts a fresh payment for the invoice — two charges for one invoice. Send the bank a lifetime no longer than `ORDER_LIFETIME_MS`, or keep asking about recently expired orders |
 | 5 | **Refunds never executed for real** | The claim-then-call ordering is tested against a fake gateway. It has never moved actual money |
@@ -70,6 +76,7 @@ The remaining frontend-facing gates are:
 |---|---|---|
 | 6 | **A sending domain and its DNS** | Email is implemented over SMTP and refuses to boot in production without it, but no mail account, sending domain or SPF/DKIM/DMARC records exist. Without them mail is sent and then filed as spam, which looks like delivery and is not |
 | 7 | **Real delivery feedback is not connected** | Persistent quotas and signed provider-neutral delivery/bounce/complaint handling are built. A native provider bridge is deferred by the user; sending, authentication and internal message correlation must still be proven against the chosen provider |
+| 7b | **Telegram opt-in needs a staging bot rehearsal before activation** | Verify that an eligible invitation email carries a working single-use code, that reuse is refused, and that existing subscriptions still receive messages. [Telegram cutover plan](CLIENT_REMAINING_PRIORITY_PLAN.md#1-protect-guest-credentials-and-contact-preferences) |
 
 ### Security and data
 
@@ -82,7 +89,7 @@ The remaining frontend-facing gates are:
 | 11 | **A host and a domain** | The Docker/Compose profile wizard and release/promotion jobs are implemented. Local stack/worker/migration/backup rehearsals exist. Provision a real host, API/media DNS, public TLS and SMTP; configure GitHub environments, reviewers and verified SSH. See [release setup](../backend/docs/RELEASES.md). No live deployment has been performed |
 | 12b | **An SMS provider** | The channel is built and inert. Choose a provider that reaches Armenian numbers, write its adapter (one class), and set `SMS_PROVIDER`. Until then guests with only a phone number are reported unreachable |
 | 12 | **WhatsApp account and live acceptance** | Transport and signed/scoped receipt backend are built; no account/test number exists yet. Verify account/number/permissions, supported API version, approved four-language templates/consent, real subscription and send/receipt evidence using the [setup checklist](../backend/docs/WHATSAPP_SETUP.md). External approval can move the pilot date |
-| 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil, and nothing alerts on the clock running down |
+| 13 | **GDPR identity verification is manual** | Requests are accepted, tracked against the one-month clock, and carried out — erasure anonymises, export assembles. But nothing verifies who is asking, so a human must do it before pressing fulfil. A scheduled sweep logs requests due within seven days and raises overdue ones to Sentry, so that alert reaches anyone only once `SENTRY_DSN` is set (#17) |
 
 ### Operations
 
@@ -106,7 +113,6 @@ The remaining frontend-facing gates are:
 | Shared rate limits | Limits are per account or per address, but counted in each instance's memory: a second API instance doubles them. `POST /privacy/requests` has only the general public limit |
 | Asynchronous bounce reports | Signed provider-neutral delivery/bounce/complaint ingestion is built. Native provider/mailbox integration stays deferred by D30; it is not connected to real delivery events |
 | Provider send-rate throttling | Persistent per-minute/daily budgets and sending concurrency are built. Configure them against the actual sender's limits and prove controlled sending; quota waits do not consume delivery attempts |
-| Data-subject request alerting | The one-month clock is stored and ordered on, but nothing warns when it is close |
 | Background export/seating completion | All seven CSV/PDF/XLSX exports and automatic seating use dedicated Postgres workers; frontend job integration and production worker rehearsal remain |
 | Seating chart on paper | PDFs and A4 flat place cards are implemented and visually checked with synthetic data; verify the venue's physical printouts |
 | Subscription renewal | A lapsed period charges nothing; no card binding is stored, so renewal is manual |
