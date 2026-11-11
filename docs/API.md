@@ -183,7 +183,10 @@ for every guest from one address: `GET /invitations/:slug`,
 `GET /invitations/:slug/g/:guestToken`, the guest's own
 `GET /invitations/:slug/g/:guestToken/rsvp`, and the acknowledgement, signature and
 gallery file reads, both gallery/acknowledgement lists, invitation design-artwork files,
-and the public event listing, detail and section availability. Every write keeps the default.
+the public event listing, detail and section availability, and the price list
+(`GET /plans`). The door roster has the same allowance, counted per account, so
+reading a large roster whole does not spend the budget check-ins need. Each route
+has its own count. Every write keeps the default.
 
 ### Dates
 
@@ -788,6 +791,13 @@ Browse lists an event until it ends (an event with no end time, until it
 starts); the detail page keeps loading by link afterwards. **Ticket sales
 stop when the event starts** — checkout is then a `400` saying so — and an
 archived event's listing cannot be published again (decided 10 October 2026).
+
+Each browse card carries `slug`, `headline`, `summary`, `categories`,
+`heroImage`, `startsAt`, `endsAt` (UTC or null), the event's IANA `timezone`,
+`locale` (the language this card's text was resolved in, negotiated per event
+against `?locale=`), `venue`, `fromPriceMinor` and `currency`. Format the times in
+`timezone` and mark the card's words with `locale`. Cards in one page can answer in
+different languages.
 
 The detail response includes `ticketTypes` with `available` (a count, never
 the raw inventory counters) and a `metadata` object:
@@ -1928,8 +1938,11 @@ Rows are ordered by guest ID so check-in or name changes cannot move the cursor.
 
 The response is `{ items, nextCursor }`. Each item contains `guestId`, `name`,
 `householdName`, `attendance` (the guest's aggregate RSVP status, defaulting to
-`PENDING`), `arrivedAt` (UTC or null), `hasTicket`, and `seating` (venue, table
-and position, visible with `seating:read`). Ticket holders without a linked guest
+`PENDING`), `arrivedAt` (UTC or null), `hasTicket`, `isErased`, and `seating` (venue, table
+and position, visible with `seating:read`). An erased guest stays in the results so
+their household reads whole, with `isErased: true` and the placeholder name. Don't
+offer them for check-in, and don't count them among those who must agree: agreement
+writes refuse them. Ticket holders without a linked guest
 remain available through ticket admission. The roster is private and no-store.
 Check-in writes and arrival totals retain their existing permissions.
 
@@ -2095,7 +2108,7 @@ PATCH /api/v1/organizations/current   { "name": "..." }
 GET /api/v1/plans
 ```
 
-Public — this is the pricing page.
+Public — this is the pricing page. It has the guest-page read allowance (see Rate limits).
 
 ```json
 [

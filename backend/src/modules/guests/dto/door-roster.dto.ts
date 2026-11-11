@@ -40,6 +40,7 @@ export class DoorGuestDto {
   @ApiProperty({ enum: RsvpStatus }) attendance!: RsvpStatus;
   @ApiProperty({ type: Date, nullable: true }) arrivedAt!: Date | null;
   @ApiProperty() hasTicket!: boolean;
+  @ApiProperty({ description: 'The guest was erased: show them, but offer no check-in or agreement' }) isErased!: boolean;
 }
 
 export class DoorRosterDto {

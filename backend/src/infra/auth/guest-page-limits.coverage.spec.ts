@@ -60,6 +60,7 @@ describe('guest-page rate limits', () => {
 
     expect(widened.map((route) => route.path).sort()).toEqual([
       'events/:eventId/acknowledgements/:acknowledgementId/file',
+      'events/:eventId/door-roster',
       'events/:eventId/gallery/:mediaId/file',
       'invitations/:slug',
       'invitations/:slug/design-assets/:assetId/file',
@@ -71,6 +72,7 @@ describe('guest-page rate limits', () => {
       'invitations/:slug/g/:guestToken/gallery/:mediaId/file',
       'invitations/:slug/g/:guestToken/rsvp',
       'invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file',
+      'plans',
       'public/events',
       'public/events/:slug',
       'public/events/:slug/ticket-inventory/:sectionKey',

@@ -12,6 +12,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GuestsService } from './guests.service';
 import { DoorRosterService } from './door-roster.service';
@@ -111,6 +113,8 @@ export class GuestsController {
 
   @RequirePermission('guest:read')
   @Get('door-roster')
+  // The door reads a large roster whole; its pages must not spend the allowance check-ins need (FR-142).
+  @Throttle(GUEST_PAGE_LIMITS)
   @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Search the contact-free event door roster' })
   @ApiOkResponse({ type: DoorRosterDto })

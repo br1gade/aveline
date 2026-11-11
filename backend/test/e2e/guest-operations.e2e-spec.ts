@@ -87,7 +87,7 @@ describe('Guest operations (e2e)', () => {
     expect(first.items[0]).toEqual({
       guestId: expect.any(String), name: expect.stringContaining('Petrosyan'),
       householdName: 'Petrosyan family', seating: [], attendance: 'PENDING',
-      arrivedAt: null, hasTicket: false,
+      arrivedAt: null, hasTicket: false, isErased: false,
     });
     const second = await http().get(path).set('Authorization', authorization)
       .query({ search: 'PETROSYAN', limit: 2, cursor: first.nextCursor }).expect(200);
@@ -96,6 +96,21 @@ describe('Guest operations (e2e)', () => {
     expect(first.items.map((item) => item.guestId)).not.toContain(second.body.items[0].guestId);
     const { eventId: otherId } = await seedEvent(prisma);
     await http().get(`/api/v1/events/${otherId}/door-roster`).set('Authorization', authorization).expect(403);
+  });
+
+  // FR-141: an erased guest looked like anyone else, so the door offered them for check-in.
+  it('marks an erased guest on the door roster and keeps their household whole', async () => {
+    const { eventId, authorization } = await coordinator();
+    await importCsv(eventId, authorization, CSV).expect(201);
+    const erased = await prisma.guest.findFirstOrThrow({ where: { eventId, firstName: 'Lusine' } });
+    await prisma.guest.update({ where: { id: erased.id }, data: { anonymizedAt: new Date() } });
+
+    const { body } = await http().get(`/api/v1/events/${eventId}/door-roster`).set('Authorization', authorization)
+      .query({ search: 'Petrosyan family' }).expect(200);
+
+    const roster = (body as DoorRosterDto).items;
+    expect(roster).toHaveLength(3);
+    expect(roster.filter((guest) => guest.isErased).map((guest) => guest.guestId)).toEqual([erased.id]);
   });
 
   describe('importing a guest list', () => {
