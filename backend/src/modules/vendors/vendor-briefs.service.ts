@@ -173,7 +173,8 @@ const briefEventSelect = {
 /** The event's words in its default language, falling back to the typed original as the guest page does. */
 function briefEvent(event: Prisma.EventGetPayload<{ select: typeof briefEventSelect }>) {
   const locale = event.defaultLocale;
-  const inLanguage = (translations: unknown, field: string, original: string | null) =>
+  // Generic so a required original keeps the result non-null in the schema.
+  const inLanguage = <Original extends string | null>(translations: unknown, field: string, original: Original): string | Original =>
     translatedField(translations, locale, field) ?? original;
   return {
     title: inLanguage(event.translations, 'title', event.title),

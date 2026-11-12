@@ -36,7 +36,9 @@ export function loggingConfig(env: NodeJS.ProcessEnv): Params {
 
   return {
     pinoHttp: {
-      level: env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug'),
+      // `||`, not `??`: .env.example leaves LOG_LEVEL empty, and pino refuses
+      // an empty level at boot.
+      level: env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
 
       // JSON in production so a log shipper can parse it; readable locally,
       // because a human is the consumer there.

@@ -43206,8 +43206,7 @@
             "type": "object",
             "properties": {
               "title": {
-                "type": "string",
-                "nullable": true
+                "type": "string"
               },
               "startsAt": {
                 "type": "string",
@@ -43244,12 +43243,10 @@
                   "type": "object",
                   "properties": {
                     "name": {
-                      "type": "string",
-                      "nullable": true
+                      "type": "string"
                     },
                     "address": {
-                      "type": "string",
-                      "nullable": true
+                      "type": "string"
                     },
                     "role": {
                       "type": "string",

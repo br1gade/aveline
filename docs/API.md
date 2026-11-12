@@ -2639,7 +2639,7 @@ DELETE /api/v1/suppressions/:suppressionId
 
 ```json
 { "items": [{ "id": "clz...", "channel": "EMAIL", "address": "ani@example.am",
-              "reason": "UNSUBSCRIBED", "scope": "ORGANIZATION", "notes": null, "createdAt": "..." }],
+              "reason": "MANUAL", "scope": "ORGANIZATION", "notes": null, "createdAt": "..." }],
   "total": 1, "limit": 20, "offset": 0, "hasMore": false }
 ```
 
@@ -2650,11 +2650,14 @@ at 500 entries. It is now the standard page: `limit` 1–100 (default 20),
 The list is your own suppressions, plus the platform-wide ones that touch
 an email or phone on your own guests — never another customer's.
 
-`scope` is the field that matters. `ORGANIZATION` is an ordinary unsubscribe
-from your events and you can lift it. `GLOBAL` is a hard bounce or a spam
-complaint, applies platform-wide, and `DELETE` on it returns `409` — one
-customer's send must not be allowed to damage delivery for the others. Show
-global entries as informational, without a remove button.
+`scope` is the field that matters. An `ORGANIZATION` entry comes from one of
+two places: a host added it (`reason: "MANUAL"`), and you can lift it, or a
+person's data was erased (`"ERASED"`, below). `GLOBAL` is a hard bounce
+(`"HARD_BOUNCE"`), a spam complaint (`"COMPLAINT"`) or a guest blocking the
+Telegram bot (`"UNSUBSCRIBED"`, lifted only by that guest opting in again).
+It applies platform-wide, and `DELETE` on it returns `409` — one customer's
+send must not be allowed to damage delivery for the others. Show global
+entries as informational, without a remove button.
 
 `reason: "ERASED"` marks someone whose data was erased at their request. It
 is `ORGANIZATION`-scoped, cannot be lifted (`DELETE` returns `409`), and its

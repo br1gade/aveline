@@ -10,8 +10,9 @@ import { PaginationQuery, resolvePaging, toPage } from '../../common/dto/paginat
  * Two scopes, and the difference matters legally. A row with no organization
  * is global: a hard bounce or a spam complaint means that address is never
  * written to again by anyone, because continuing to send damages deliverability
- * for every customer. A row with an organization is an ordinary unsubscribe
- * from one host's events, and says nothing about the others.
+ * for every customer; a guest blocking the Telegram bot is global too. A row
+ * with an organization is a host's own entry or an erasure, and says nothing
+ * about the others.
  */
 /** What a host sees for an erased person's row. */
 const ERASED_ADDRESS = '[erased]';

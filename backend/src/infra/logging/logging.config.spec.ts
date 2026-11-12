@@ -31,6 +31,11 @@ describe('loggingConfig', () => {
     it('honours an explicit LOG_LEVEL', () => {
       expect(config({ NODE_ENV: 'production', LOG_LEVEL: 'warn' }).level).toBe('warn');
     });
+
+    it('treats an empty LOG_LEVEL as unset, as .env.example leaves it', () => {
+      expect(config({ NODE_ENV: 'production', LOG_LEVEL: '' }).level).toBe('info');
+      expect(config({ LOG_LEVEL: '' }).level).toBe('debug');
+    });
   });
 
   describe('output shape', () => {

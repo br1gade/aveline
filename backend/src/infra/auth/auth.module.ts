@@ -7,22 +7,16 @@ import { MeController } from './me.controller';
 import { InvitesController } from './invites.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
-import { allowsDevelopmentShortcuts } from '../../common/environment';
+import { jwtSecret } from './jwt-secret';
 
 @Global()
 @Module({
   imports: [
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET');
-        if (!secret && !allowsDevelopmentShortcuts(config.get<string>('NODE_ENV'))) {
-          // Refusing to boot is the only safe response: a default secret in
-          // production means anyone can mint a staff token.
-          throw new Error('JWT_SECRET must be set outside development and test');
-        }
-        return { secret: secret ?? 'development-only-secret-do-not-use-in-production' };
-      },
+      useFactory: (config: ConfigService) => ({
+        secret: jwtSecret(config.get<string>('JWT_SECRET'), config.get<string>('NODE_ENV')),
+      }),
     }),
   ],
   controllers: [AuthController, InvitesController, MeController],
