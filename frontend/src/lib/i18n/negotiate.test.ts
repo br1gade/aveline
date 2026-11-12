@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { fromAcceptLanguage, LANGUAGE_COOKIE, negotiateLanguage } from './negotiate';
+import { LANGUAGE_COOKIE } from './language-cookie';
+import { fromAcceptLanguage, negotiateLanguage } from './negotiate';
 
 function request(url: string, headers: Record<string, string> = {}): Request {
   return new Request(url, { headers });

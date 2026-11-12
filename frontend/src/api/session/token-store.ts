@@ -18,7 +18,8 @@ export interface TokenStore {
   clear(): void;
 }
 
-const REFRESH_KEY = 'aveline.refreshToken';
+/** Where the refresh token is kept; the end-to-end suite signs a page in through it. */
+export const REFRESH_KEY = 'aveline.refreshToken';
 
 function storage(): Storage | undefined {
   try {

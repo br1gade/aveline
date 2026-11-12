@@ -108,8 +108,7 @@ the specs is a recommendation.
   `eb77cd4`, on PD-50 to PD-55. On 29 October, the invitation designer, on PD-56 to PD-62, and
   guests' photos, names and agreements, on PD-63 to PD-66. On 30 October, seating, on PD-67 to
   PD-72, and exports, on PD-73 to PD-77. Tickets and the door followed, on PD-78 to PD-94, and on
-  3 November the pilot's gaps, on PD-95 to PD-105, and everything since, on PD-106 to PD-193 (PD-182 withdrawn on 9 November, PD-179 on 11 November, PD-104 on 12 November). Still to come: the end-to-end and accessibility tests
-  against the real backend.
+  3 November the pilot's gaps, on PD-95 to PD-105, and everything since, on PD-106 to PD-193 (PD-182 withdrawn on 9 November, PD-179 on 11 November, PD-104 on 12 November). Since 12 November the end-to-end and accessibility tests run against the backend's development stack.
 - **Keeping the registers current** as answers arrive (rule 7).
 
 **Waits for its owner:**
@@ -164,10 +163,10 @@ shared-document process, with the backend developer's review. This work did not 
   reader.
 - **The published review page is not corrected.** It stays a snapshot.
 - **The backend questions are not yet sent.** They are listed in
-  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-150, BQ-1 to BQ-11), and
+  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-153, BQ-1 to BQ-11), and
   [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) still holds their reasoning.
 - **The launch gates are not yet in `docs/GOING_LIVE.md`** (§6).
-- **The guest, account, event, guest-list, venue, invitation, attendance, design, photo, agreement, seating, export, ticket, door, reminder, team, directory and listing pages have not run against the real backend.** They were
-  checked against a mock of the API, and walked through in a browser against it, in all four
-  languages, most recently on 3 November; the end-to-end and accessibility tests wait for the local backend
-  ([ARCHITECTURE §12](../ARCHITECTURE.md#12-not-yet-built)).
+- **The pages have met the real backend only in development,** since 12 November 2026: the
+  end-to-end suite walks every pilot journey against the backend's own development stack, and checks
+  nineteen pages in all four languages with axe ([ARCHITECTURE §10](../ARCHITECTURE.md#10-testing)).
+  Staging, real phones and screen readers are still to come.

@@ -1,4 +1,5 @@
 import { isLanguage, SOURCE_LANGUAGE, type Language } from './i18n';
+import { LANGUAGE_COOKIE } from './language-cookie';
 
 /**
  * The language of a page that has no event to take it from: sign-in, the account pages and the
@@ -8,7 +9,6 @@ import { isLanguage, SOURCE_LANGUAGE, type Language } from './i18n';
  * In order: `?lang=` (the switcher's links), the cookie a previous `?lang=` set, the browser's
  * `Accept-Language`, then English. The cookie only remembers a choice; it unlocks nothing.
  */
-export const LANGUAGE_COOKIE = 'aveline-lang';
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
 export interface NegotiatedLanguage {

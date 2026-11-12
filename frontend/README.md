@@ -16,10 +16,14 @@ Agent rules: [CLAUDE.md](CLAUDE.md). The design: [docs/design/](docs/design/READ
 
   ```bash
   cd ../backend
-  npm run db:up          # Postgres, Redis, Mongo, Garage
+  npm run db:up          # Postgres, Redis, Mongo, Garage, Mailpit
   npm run db:seed        # one demo wedding; prints guest links
   npm run start:dev      # API on http://localhost:3000
   ```
+
+  The end-to-end tests make their own data and need no seed, but they do need the reference data
+  (`npm run seed:production`) and the export and seating workers; see
+  [test/e2e/README.md](test/e2e/README.md).
 
 ## Run it
 
@@ -45,7 +49,7 @@ The organizer app starts at `http://localhost:5173/sign-in`. The seeded accounts
 | `dev` | The development server on port 5173, with `/api` and `/files` (uploads on the backend's disk) proxied to the backend |
 | `build`, `start` | A production build, and our own server (`server/`), which logs no capability path; `PORT` and `HOST` choose where, and `API_INTERNAL_URL` is required, as it reads no `.env`. `Dockerfile` packages both |
 | `typecheck`, `lint`, `lint:fix`, `format`, `format:check` | Types, ESLint (zero warnings), Prettier |
-| `test`, `test:e2e` | Vitest; Playwright against the running backend (no end-to-end tests are written yet) |
+| `test`, `test:e2e` | Vitest; Playwright and axe against the running backend, every journey on a phone and a desktop ([test/e2e/README.md](test/e2e/README.md)) |
 | `api:generate` | `src/api/schema.ts` from `../backend/openapi.json`, and `src/api/public-paths.ts`, its public operations |
 | `tokens`, `tokens:check` | `src/styles/tokens.css` and `theme.css` from `src/styles/tokens.json`, and a drift check |
 | `check:boundaries` | Lists changed paths outside `frontend/`; must be empty |

@@ -1,9 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { negotiatedLanguageData, negotiatedLanguageHandle, passLoaderHeaders } from '@/lib/i18n';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 
 import type { Route } from './+types/home';
+
+/** In the visitor's language, as every page without an event of its own is (design PD-40). */
+export function loader({ request }: Route.LoaderArgs) {
+  return negotiatedLanguageData(request);
+}
+
+export const headers = passLoaderHeaders;
+export const handle = negotiatedLanguageHandle;
 
 const LINK =
   'text-action inline-flex min-h-11 items-center underline decoration-1 underline-offset-3 hover:decoration-2';

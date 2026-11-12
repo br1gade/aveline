@@ -42,7 +42,7 @@
 | 4 | Plan | In plan mode: changes, routes and files, endpoints, every UI state, i18n keys, tests, docs, risks, backend gaps |
 | 5 | Approve | The user approves the plan |
 | 6 | Implement | The smallest coherent change; tests first for logic |
-| 7 | Verify | `npm run verify`; `npm run test:e2e` for touched journeys, with the backend running |
+| 7 | Verify | `npm run verify`; `npm run test:e2e` for touched journeys, with the backend's development stack running ([test/e2e/README.md](../test/e2e/README.md)) |
 | 8 | Review the diff | Line by line against the plan; remove or explain anything unplanned |
 | 9 | Check the boundary | `npm run check:boundaries` lists only `frontend/` paths |
 | 10 | Document | ARCHITECTURE.md, README, BACKEND_REQUESTS.md, design docs, in the same change |
