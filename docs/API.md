@@ -3932,6 +3932,27 @@ Mail is really sent in development too: a local SMTP server holds it, and the
 dev inbox is at <http://localhost:8025>. So the same flow can be checked the
 way a user will see it, formatting included.
 
+Two routes exist for an end-to-end suite against a local stack. Both are
+public, answer `204` with no body, and are `404` in production:
+
+```http
+POST /api/v1/development/outbox/send
+POST /api/v1/development/plans/:planKey/offer   { "priceMinor": "25000" }
+```
+
+- **`outbox/send`** sends queued mail now instead of at the next minute. It
+  runs the same job as the schedule, under its lock: if that job is already
+  running, that run sends and this call returns at once. So read the mailbox
+  with a short retry rather than once.
+- **`plans/:planKey/offer`** puts a plan on sale at that price.
+  `seed:production` creates every paid plan switched off at a price of 0, so
+  a fresh stack sells none. `priceMinor` is a positive whole number as a
+  string; anything else is a `400` naming it, and an unknown key is a `404`.
+  `GET /plans` lists it afterwards.
+
+The fake bank, `POST /payments/:orderNumber/fake-bank`, is the third such
+route; see Payments.
+
 ## 10. Not built yet
 
 So you can plan around them rather than discover them:

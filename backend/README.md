@@ -413,6 +413,8 @@ its records are references to regenerate, never historical snapshots.
 | `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |
 | `POST` | `/api/v1/payments/reconcile` | Sweep unresolved payments |
 | `POST` | `/api/v1/payments/:orderNumber/fake-bank` | Development only: pay or decline at the fake bank |
+| `POST` | `/api/v1/development/outbox/send` | Development only: send queued mail now |
+| `POST` | `/api/v1/development/plans/:planKey/offer` | Development only: put a plan on sale at a price |
 
 ### Organization and billing
 

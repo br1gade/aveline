@@ -38,6 +38,7 @@ src/
     media/          public uploads, recorded as MediaAsset
     guest-contributions/ versioned acknowledgements and moderated private gallery
     devices/        push registration tokens
+    development/    development-only shortcuts for the client's end-to-end suite; 404 in production
   prisma/           PrismaService
 ```
 

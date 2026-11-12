@@ -217,6 +217,32 @@ describe('Payments and billing over HTTP (e2e)', () => {
     });
   });
 
+  describe('offering a plan, for local development', () => {
+    const offer = (planKey: string, priceMinor: unknown) =>
+      http().post(`/api/v1/development/plans/${planKey}/offer`).send({ priceMinor });
+
+    it('puts a plan the seed left off on sale at the given price', async () => {
+      await prisma.plan.update({ where: { id: (await plan('planner-monthly', 0n)).id }, data: { isActive: false } });
+
+      await offer('planner-monthly', '25000').expect(204);
+
+      const { body: plans } = await http().get('/api/v1/plans').expect(200);
+      expect(plans).toEqual([expect.objectContaining({ key: 'planner-monthly', priceMinor: '25000' })]);
+    });
+
+    it.each([undefined, '0', '-1', '1.5', 25000])('400s priceMinor %p, naming the field', async (priceMinor) => {
+      await plan('planner-monthly', 0n);
+
+      const { body } = await offer('planner-monthly', priceMinor).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('priceMinor');
+    });
+
+    it('404s an unknown plan', async () => {
+      await offer('no-such-plan', '25000').expect(404);
+    });
+  });
+
   describe('refunding through the payments endpoint', () => {
     it('lets a platform admin refund part of a captured payment', async () => {
       const orderNumber = await capturedPayment();

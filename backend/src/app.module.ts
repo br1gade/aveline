@@ -37,6 +37,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { VendorsModule } from './modules/vendors/vendors.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { SeatingModule } from './modules/seating/seating.module';
+import { DevelopmentModule } from './modules/development/development.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { SeatingModule } from './modules/seating/seating.module';
     GuestContributionsModule,
     DevicesModule,
     SeatingModule,
+    DevelopmentModule,
     BillingModule,
     VendorsModule,
     OrganizationsModule,

@@ -40,8 +40,9 @@ languages, and door admission. The wider host and guest walkthrough and
 production-host acceptance remain release gates.
 
 The client adopted FR-46, FR-62, FR-76, FR-79, FR-115, FR-128, FR-130, FR-134 and
-FR-135 on 11 November 2026, after FR-73 and FR-74. None of it has run against a
-real backend yet: the client was built and tested against a mock. The remaining
+FR-135 on 11 November 2026, after FR-73 and FR-74, and FR-96, FR-99, FR-104 and
+FR-150 on 12 November. Its end-to-end suite (`frontend/test/e2e/`) has run
+against a local development stack, not yet against staging. The remaining
 frontend-facing gates are:
 
 | Item | Evidence still needed |
@@ -50,9 +51,9 @@ frontend-facing gates are:
 | **FR-46** Guest gallery uploads | Adopted. Verify on staging that new invitations start with uploads off, existing invitations keep their behavior, and disabling uploads preserves approved photo reads |
 | **FR-76 / FR-79** Door screen | Adopted. Rehearse check-in on a phone against the real API; the QR camera has never read a real code |
 | **FR-115 / FR-128 / FR-135** Client adoption | Adopted. Exercise artwork, export delivery and the scheduled Free controls against the real backend. Then switch the artwork default to asset IDs and remove the token-bearing artwork paths |
-| **FR-96 / FR-99 / FR-104 / FR-150** Side labels, suppressions, brief language, erased guests at the door | Backend delivered 12 November 2026; client adoption open. The suppression list is now paged, a breaking change the client must adopt in the same release |
+| **FR-96 / FR-99 / FR-104 / FR-150** Side labels, suppressions, brief language, erased guests at the door | Adopted 12 November 2026. The suppression list is paged, a breaking change: release the backend and client together |
 | **FR-42 / FR-9** What the guest page draws | Hosts choose layouts, fonts and palettes that the preview and guest page ignore. Decide which the renderer supports before the designer's sign-off |
-| **Frontend CI and wider rehearsal** | No gate runs the client's tests: not `ci:local` and not any workflow; the release only builds the image. There are no browser tests. Establish the frontend workflow and run the agreed host and guest journeys against the real backend |
+| **Frontend CI and the client's suite on staging** | `ci:local` does not run the client's tests, and `.github/workflows/frontend.yml` runs only by hand. Enable the workflow, and pass `frontend/test/e2e/` against staging at both widths. Staging runs as production, so the fake bank and the `development/` routes are absent there: the paid ticket and plan journeys either skip, saying so, or pay at the real bank's test environment. Decide which before the run |
 | **Public build settings and privacy copy** | Set the support contacts and website address as release inputs (C-54). Then verify the public web origin, support links, token-safe server logs and approved privacy notice and form. Confirm the invitation email footer reaches the public form from a signed-out browser |
 
 ### Money
