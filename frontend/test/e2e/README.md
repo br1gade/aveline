@@ -14,7 +14,7 @@ makes its own data through the API as a host would (setup proposal §12): a fres
 | `sending.spec.ts` | The invitation by email, its link opening the guest's page, the delivery on the guest list; a reminder held back for three days after an invitation |
 | `seating.spec.ts` | Tables and seating by hand; a table filled meanwhile from a second page (409); automatic seating by the worker |
 | `exports.spec.ts` | The guest list as PDF, XLSX and CSV, made by the worker and downloaded |
-| `tickets.spec.ts` | A listing card's date in the event's zone (FR-92); a free ticket to its order and door code; a paid one to the bank's return |
+| `tickets.spec.ts` | A listing card's date in the event's zone (FR-92); a free ticket to its order and door code; a paid one waiting at the bank, then answered paid (its tickets) and declined at the FAKE bank (FR-151) |
 | `door.spec.ts` | Checking in by name and undoing it; a ticket code admitted once; a walk-in |
 | `vendors.spec.ts` | A vendor's brief in the vendor's language with the event's words marked in the event's (FR-104), and closed when paused |
 | `suppressions.spec.ts` | A spaced phone stored compact, and the same number typed another way known as listed (FR-99) |
@@ -57,8 +57,8 @@ npx playwright test door.spec.ts --project=phone              # one file, one wi
 - **No Mailpit:** the tests that read mail say so and skip.
 - **The worker isn't running:** automatic seating and exports wait 60 s and fail, rather than pass without it.
 - **A paid ticket:**
-  - under `PILOT_MODE`, the pilot's refusal is checked;
-  - otherwise, the FAKE bank's return, left pending. Since `e9e75e3` the backend's development-only `fake-bank` route can settle it (FR-151); the suite doesn't use it yet.
+  - under `PILOT_MODE`, the pilot's refusal is checked, and the tests that pay at the bank skip;
+  - otherwise, the FAKE bank's return waits, then the backend's development-only `fake-bank` route answers for the payer, paid or declined (FR-151). It is a 404 wherever the FAKE bank isn't registered.
 - **Slow mail:** the backend sends mail once a minute (FR-152), so a test that reads mail can take that long.
 
 ## Tokens

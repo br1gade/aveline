@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 
+import { apiAs, must } from './support/api';
 import { newHost, testAddress, ticketedEvent, type TicketedEvent } from './support/factories';
 import { expect, test } from './support/fixtures';
 
@@ -26,7 +27,7 @@ async function checkout(page: Page, event: TicketedEvent, ticket: string): Promi
 /**
  * Buying tickets (pilot Milestone C; docs/API.md §4, "Buying tickets"): the listing's card with its
  * date (FR-92), a free ticket from the event's page to the order and its door code, and a paid one
- * as far as this stack's bank allows.
+ * answered at the FAKE bank, paid and declined (FR-151), or refused where payments are off.
  */
 test.describe('tickets', () => {
   test('the listing shows the event with its date in the event’s zone', async ({ page }) => {
@@ -55,7 +56,9 @@ test.describe('tickets', () => {
     await expect.poll(() => new URL(page.url()).pathname).toBe('/tickets');
   });
 
-  test('a paid ticket goes to the bank, or is refused while payments are off', async ({ page }) => {
+  test('a paid ticket is refused while payments are off, or waits at the bank', async ({
+    page,
+  }) => {
     const event = await ticketedEvent(await newHost());
     await checkout(page, event, 'General');
     await page.getByRole('button', { name: 'Continue to payment' }).click();
@@ -64,10 +67,44 @@ test.describe('tickets', () => {
     const waiting = page.getByRole('heading', { name: 'Waiting for your bank' });
     await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
     if (await waiting.isVisible()) {
-      // The FAKE bank returned without paying; confirm leaves the order pending. Settling it through
-      // the backend's development-only fake-bank route (FR-151) is not used here yet.
-      await expect(page).toHaveURL(/\/tickets(\/return)?(\?|$)/u);
+      // The FAKE bank returns at once and the payment waits, until the payer answers at the bank.
       await expect(page.getByText(/^Held for \d+ more minutes?$/u)).toBeVisible();
     }
   });
+
+  for (const [outcome, heading] of [
+    ['PAID', 'Your tickets'],
+    ['DECLINED', 'The payment didn’t go through'],
+  ] as const) {
+    test(`a paid ticket the bank answers ${outcome} reads as such once checked`, async ({
+      page,
+      seen,
+    }) => {
+      const event = await ticketedEvent(await newHost());
+      await checkout(page, event, 'General');
+      await page.getByRole('button', { name: 'Continue to payment' }).click();
+      const waiting = page.getByRole('heading', { name: 'Waiting for your bank' });
+      const refused = page.getByText(/Paid tickets can’t be bought yet/u);
+      await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
+      test.skip(await refused.isVisible(), 'Payments are off on this stack (PILOT_MODE)');
+
+      // What the payer does at the FAKE bank (FR-151): its order number is on the return address.
+      const returned = seen.requests.find((address) => address.includes('fakePayment=fake_'));
+      const orderNumber =
+        returned && new URL(returned).searchParams.get('fakePayment')?.replace(/^fake_/u, '');
+      expect(orderNumber, 'the bank’s return names its order').toBeTruthy();
+      await must(
+        apiAs().POST('/api/v1/payments/{orderNumber}/fake-bank', {
+          params: { path: { orderNumber: orderNumber ?? '' } },
+          body: { outcome },
+        }),
+        `answer ${outcome} at the fake bank`,
+      );
+
+      await page.getByRole('button', { name: 'Check with the bank' }).click();
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+      const code = page.getByText('Code to show at the door');
+      await (outcome === 'PAID' ? expect(code).toBeVisible() : expect(code).toHaveCount(0));
+    });
+  }
 });
