@@ -103,6 +103,7 @@
     "notRecognised": "This code isn’t recognised for this event. Check it letter by letter; if it’s right, send them to the host.",
     "linkChanged": "This ticket’s link to a guest changed just now. The list is being read again: press again.",
     "guestGone": "This guest is no longer on the list. The list is being read again.",
+    "guestErased": "This guest’s details were erased at their request, so they can’t be checked in. The list is being read again; send them to the host.",
     "forbidden": "Your role on this event can’t let people in. Ask the event’s owner to add you as a coordinator.",
     "rateLimited": "Too many tries just now. Wait a moment and press again.",
     "noAnswer": "No answer came. It may have counted: press again, which is safe.",

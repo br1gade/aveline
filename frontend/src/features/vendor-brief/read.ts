@@ -147,11 +147,13 @@ export function readBrief(wire: BriefWire): Brief {
   return {
     vendor: { name: wire.vendor.name },
     status: wire.status,
+    locale: wire.locale,
     event: {
       title: wire.event.title,
       startsAt: wire.event.startsAt,
       endsAt: wire.event.endsAt,
       timezone: wire.event.timezone,
+      sides: { a: wire.event.sides.a, b: wire.event.sides.b },
       venues: wire.event.venues.map(venueOf),
     },
     sections: wire.granted.map(

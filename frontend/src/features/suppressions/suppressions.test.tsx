@@ -72,12 +72,17 @@ function list(): SuppressionWire[] {
   ];
 }
 
-function serve(read: () => Response = () => HttpResponse.json(list())) {
+/** One page as the backend sends it (docs/API.md §1, paging). */
+function page(items: SuppressionWire[], offset = 0, hasMore = false) {
+  return { items, total: offset + items.length + (hasMore ? 1 : 0), limit: 100, offset, hasMore };
+}
+
+function serve(read: (request: Request) => Response = () => HttpResponse.json(page(list()))) {
   const reads = { list: 0 };
   server.use(
-    http.get(`${API}/suppressions`, () => {
+    http.get(`${API}/suppressions`, ({ request }) => {
       reads.list += 1;
-      return read();
+      return read(request);
     }),
   );
   return reads;
@@ -130,14 +135,38 @@ describe('the list', () => {
     expect(screen.getAllByRole('button', { name: /Allow again/ })).toHaveLength(1);
   });
 
-  it('says the list may stop at 500', async () => {
-    serve(() =>
-      HttpResponse.json(
-        Array.from({ length: 500 }, (_, index) => ({ ...list()[0], id: `s${index}` })),
-      ),
+  it('reads a page of a hundred, then the next on request, each entry once (FR-99)', async () => {
+    const [first, second, third] = list();
+    if (!first || !second || !third) throw new Error('No entries');
+    const asked: string[] = [];
+    serve((request) => {
+      const query = new URL(request.url).searchParams;
+      asked.push(`${query.get('limit')}/${query.get('offset')}`);
+      // Someone added elsewhere meanwhile: the second page starts with the first page's last again.
+      return HttpResponse.json(
+        query.get('offset') === '0' ? page([first, second], 0, true) : page([second, third], 2),
+      );
+    });
+    const user = renderPage();
+    expect(await screen.findByText('ani@example.am')).toBeInTheDocument();
+    expect(screen.queryByText('An address no longer kept')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show more addresses' }));
+    expect(await screen.findByText('An address no longer kept')).toBeInTheDocument();
+    expect(screen.getAllByText('gone@example.am')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Show more addresses' })).not.toBeInTheDocument();
+    expect(asked).toEqual(['100/0', '100/2']);
+  });
+
+  it('keeps what was read when the next page can’t be, and says so', async () => {
+    serve((request) =>
+      new URL(request.url).searchParams.get('offset') === '0'
+        ? HttpResponse.json(page(list().slice(0, 1), 0, true))
+        : refused(500)(),
     );
-    renderPage();
-    expect(await screen.findByText(/Only the newest 500 are shown/)).toBeInTheDocument();
+    const user = renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Show more addresses' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('More couldn’t be loaded');
+    expect(screen.getByText('ani@example.am')).toBeInTheDocument();
   });
 
   it('tells someone on an event only that the list is the organization’s, and keeps the form', async () => {
@@ -206,11 +235,11 @@ describe('adding someone', () => {
     expect(received).toEqual([]);
   });
 
-  it('asks for a phone as the guest list has it, and refuses one that isn’t', async () => {
+  it('says how a phone matches, and refuses one that isn’t (FR-99)', async () => {
     serve();
     const user = renderPage();
     await user.click(await screen.findByRole('radio', { name: 'Phone, by WhatsApp' }));
-    expect(screen.getByText(/exactly as it is on the guest list/)).toBeInTheDocument();
+    expect(screen.getByText(/Spaces, dashes, dots and brackets don’t matter/)).toBeInTheDocument();
     await user.type(screen.getByLabelText('Their address'), 'call me');
     await submit(user);
     expect(await screen.findByText('That doesn’t look like a phone number.')).toBeInTheDocument();

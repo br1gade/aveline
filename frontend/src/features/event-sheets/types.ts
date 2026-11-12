@@ -1,3 +1,5 @@
+import type { OffsetPage } from '@/ui/app-form';
+
 /**
  * Checked against the schema at each call (FR-1); read against `operations.service.ts` at
  * `34ac1e6`.
@@ -49,10 +51,7 @@ export interface GuestBookEntry {
 }
 
 /** One page of a bounded list (docs/API.md §6), and where the next starts, if there is one. */
-export interface Page<T> {
-  items: T[];
-  nextOffset: number | null;
-}
+export type Page<T> = OffsetPage<T>;
 
 export interface AnswerTally {
   option: string;

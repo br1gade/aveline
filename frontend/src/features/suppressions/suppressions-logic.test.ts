@@ -8,9 +8,8 @@ import { ApiError, networkError } from '@/api/errors';
 import { readSuppressions } from './read';
 import {
   findListed,
+  normalizedAddress,
   isLiftable,
-  LIST_LIMIT,
-  mayBeTruncated,
   SENTENCES,
   suppressionRefusalOf,
 } from './rules';
@@ -56,12 +55,6 @@ describe('what may be lifted', () => {
     const [read] = readSuppressions([entry]);
     expect(read && isLiftable(read)).toBe(expected);
   });
-
-  it('says the list may have stopped at the backend’s limit, and not below it', () => {
-    const many = (count: number) => readSuppressions(Array.from({ length: count }, () => wire()));
-    expect(mayBeTruncated(many(LIST_LIMIT))).toBe(true);
-    expect(mayBeTruncated(many(LIST_LIMIT - 1))).toBe(false);
-  });
 });
 
 describe('an address already listed (design PD-115)', () => {
@@ -74,10 +67,22 @@ describe('an address already listed (design PD-115)', () => {
     expect(findListed(list, 'EMAIL', '  Ani@Example.AM ')?.id).toBe('s1');
   });
 
-  it('is found by phone only as typed, and only on its channel', () => {
-    expect(findListed(list, 'SMS', '+374 91 000000')?.id).toBe('s2');
-    expect(findListed(list, 'SMS', '+37491000000')).toBeUndefined();
-    expect(findListed(list, 'WHATSAPP', '+374 91 000000')).toBeUndefined();
+  // The backend's own examples (`address-form.spec.ts`): a number is stored and matched compact (FR-99).
+  it.each([
+    '+374 91 000000',
+    '+374-91-000-000',
+    '(+374) 91 000 000',
+    '0037491000000',
+    ' +37491000000 ',
+  ])('is found by phone however it is spaced: %s', (typed) => {
+    expect(findListed(list, 'SMS', typed)?.id).toBe('s2');
+  });
+
+  it('keeps a local number local, and matches a phone only on its channel', () => {
+    expect(findListed(list, 'SMS', '091 000 000')).toBeUndefined();
+    expect(findListed(list, 'WHATSAPP', '+37491000000')).toBeUndefined();
+    expect(normalizedAddress('SMS', '091 000-000')).toBe('091000000');
+    expect(normalizedAddress('TELEGRAM', ' some-handle ')).toBe('some-handle');
   });
 });
 
@@ -93,6 +98,7 @@ describe('the form', () => {
     [{ channel: 'EMAIL', address: 'ani@example.am' }, []],
     [{ channel: 'SMS', address: 'call me' }, ['phone']],
     [{ channel: 'WHATSAPP', address: '+374 (91) 00-00-00' }, []],
+    [{ channel: 'SMS', address: '+374.91.000.000' }, []],
     [{ channel: 'EMAIL', address: `${'a'.repeat(196)}@x.am` }, ['tooLong']],
     [{ channel: 'EMAIL', address: `${'a'.repeat(195)}@x.am` }, []],
     [{ channel: 'SMS', address: '12345' }, ['phone']],
@@ -157,10 +163,6 @@ describe('the backend', () => {
   it('still words its refusals so', () => {
     const source = read('modules/communications/suppression.service.ts');
     for (const [words] of SENTENCES) expect(source).toContain(words);
-  });
-
-  it('still lists at most the limit the page warns of', () => {
-    expect(read('modules/communications/suppression.service.ts')).toContain(`take: ${LIST_LIMIT}`);
   });
 });
 

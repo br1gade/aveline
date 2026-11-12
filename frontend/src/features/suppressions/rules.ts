@@ -2,13 +2,6 @@ import { isApiError } from '@/api/errors';
 
 import type { HostChannel, Suppression } from './types';
 
-/** The backend lists at most this many, newest first, and doesn't say when it stopped (FR-99). */
-export const LIST_LIMIT = 500;
-
-export function mayBeTruncated(list: readonly Suppression[]): boolean {
-  return list.length >= LIST_LIMIT;
-}
-
 /**
  * Only an ordinary entry of the organization's own can be lifted: a platform-wide bounce or
  * complaint, and someone erased at their request, are refused (docs/API.md §6), so they are shown
@@ -18,10 +11,19 @@ export function isLiftable(entry: Suppression): boolean {
   return !entry.isGlobal && entry.reason !== 'ERASED';
 }
 
-/** As the backend compares them: email without regard to capitals, the rest as typed, trimmed. */
+const PHONE_CHANNELS: ReadonlySet<string> = new Set(['SMS', 'WHATSAPP']);
+
+/**
+ * As the backend stores and compares them (`address-form.ts`, `normalizeAddress`; FR-99): email
+ * without regard to capitals; a phone without spaces, dashes, dots or brackets, a leading `00` as
+ * `+`, and a local number left local; anything else trimmed.
+ */
 export function normalizedAddress(channel: string, address: string): string {
   const trimmed = address.trim();
-  return channel === 'EMAIL' ? trimmed.toLowerCase() : trimmed;
+  if (channel === 'EMAIL') return trimmed.toLowerCase();
+  if (!PHONE_CHANNELS.has(channel)) return trimmed;
+  const compact = trimmed.replace(/[\s().-]/gu, '');
+  return compact.startsWith('00') ? `+${compact.slice(2)}` : compact;
 }
 
 /**

@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { PublicFrame } from '@/features/public-event';
+import { useLanguageName } from '@/lib/i18n';
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import { Button, Notice } from '@/ui';
 
@@ -19,15 +20,26 @@ function useMoment(timeZone: string) {
   return (iso: string) => `${formatEventDate(iso, zone)}, ${formatEventTime(iso, zone)}`;
 }
 
-function VenueItem({ venue, timeZone }: { venue: BriefVenue; timeZone: string }) {
+/** A venue, its name and address in the event's own language (FR-104). */
+function VenueItem({
+  venue,
+  timeZone,
+  lang,
+}: {
+  venue: BriefVenue;
+  timeZone: string;
+  lang: string;
+}) {
   const { t, i18n } = useTranslation('brief');
   return (
     <li className="grid gap-1 break-words">
       <span className="type-eyebrow">
         {t(`venues.roles.${known(VENUE_ROLES, venue.role, 'OTHER')}`)}
       </span>
-      <span className="font-medium">{venue.name}</span>
-      <span>{venue.address}</span>
+      <span className="font-medium" lang={lang}>
+        {venue.name}
+      </span>
+      <span lang={lang}>{venue.address}</span>
       {venue.arriveAt ? (
         <span>
           {t('venues.arrive', {
@@ -80,7 +92,7 @@ function GrantedSections({ brief }: { brief: Brief }) {
           className="grid gap-3"
         >
           <SectionTitle granted={granted} id={`${id}-${index}`} />
-          <SectionBody granted={granted} timeZone={brief.event.timezone} />
+          <SectionBody granted={granted} brief={brief} />
         </section>
       ))}
     </>
@@ -90,20 +102,23 @@ function GrantedSections({ brief }: { brief: Brief }) {
 function BriefView({ brief }: { brief: Brief }) {
   const { t } = useTranslation('brief');
   const moment = useMoment(brief.event.timezone);
+  const languageName = useLanguageName();
   const venuesId = useId();
   const { event } = brief;
   return (
     <>
       <header className="grid gap-3">
         <p className="type-eyebrow m-0">{t('heading', { vendor: brief.vendor.name })}</p>
-        <h1 className="type-display-l text-heading m-0">{event.title}</h1>
+        <h1 className="type-display-l text-heading m-0" lang={brief.locale}>
+          {event.title}
+        </h1>
         <p className="type-lead m-0">{moment(event.startsAt)}</p>
         {event.endsAt ? <p className="m-0">{t('until', { when: moment(event.endsAt) })}</p> : null}
         <p className="m-0">{t('zone', { timeZone: event.timezone.replaceAll('_', ' ') })}</p>
         <p className="m-0">
           {t('status', { status: t(`statuses.${known(STATUSES, brief.status, 'ENQUIRED')}`) })}
         </p>
-        <p className="type-small m-0">{t('language')}</p>
+        <p className="type-small m-0">{t('language', { language: languageName(brief.locale) })}</p>
       </header>
       <section aria-labelledby={venuesId} className="grid gap-3">
         <h2 id={venuesId} className="type-heading-2 text-heading m-0">
@@ -114,7 +129,12 @@ function BriefView({ brief }: { brief: Brief }) {
         ) : (
           <ul className="m-0 grid list-none gap-4 p-0">
             {event.venues.map((venue, index) => (
-              <VenueItem key={`${venue.name}-${index}`} venue={venue} timeZone={event.timezone} />
+              <VenueItem
+                key={`${venue.name}-${index}`}
+                venue={venue}
+                timeZone={event.timezone}
+                lang={brief.locale}
+              />
             ))}
           </ul>
         )}
@@ -180,7 +200,8 @@ function Problem({
 /**
  * A vendor's brief (docs/API.md §6; design PD-124, PD-125): exactly the sections the booking
  * granted, in their order, with the event and its venues, times in the event's zone. The page's
- * words are in the negotiated language; the event's own are as its hosts wrote them (FR-104).
+ * words are in the negotiated language; the event's own are in the language the brief names, and
+ * marked with it (FR-104, design C-45).
  */
 export function BriefPage() {
   const { state, retry } = useBrief();

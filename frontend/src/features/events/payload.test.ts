@@ -211,7 +211,7 @@ describe('the end, the sides and the other languages (design PD-109, PD-110)', (
     endsAt: '2027-06-12T20:00:00.000Z',
     sideALabel: 'Anna’s family',
     translations: {
-      en: { title: 'The wedding', hostsLabel: 'Anna & Davit' },
+      en: { title: 'The wedding', hostsLabel: 'Anna & Davit', sideALabel: 'Bride’s side' },
       fr: { title: 'Mariage' },
     },
   };
@@ -227,9 +227,14 @@ describe('the end, the sides and the other languages (design PD-109, PD-110)', (
       sideBLabel: '',
     });
     expect(initial.translations).toMatchObject({
-      en: { title: 'The wedding', hostsLabel: 'Anna & Davit' },
-      ru: { title: '', hostsLabel: '' },
-      fr: { title: 'Mariage', hostsLabel: '' },
+      en: {
+        title: 'The wedding',
+        hostsLabel: 'Anna & Davit',
+        sideALabel: 'Bride’s side',
+        sideBLabel: '',
+      },
+      ru: { title: '', hostsLabel: '', sideALabel: '', sideBLabel: '' },
+      fr: { title: 'Mariage', hostsLabel: '', sideALabel: '', sideBLabel: '' },
     });
   });
 
@@ -268,26 +273,65 @@ describe('the end, the sides and the other languages (design PD-109, PD-110)', (
       edit({
         translations: {
           ...initial.translations,
-          en: { title: 'Our wedding', hostsLabel: 'Anna & Davit' },
-          ru: { title: 'Свадьба', hostsLabel: '' },
+          en: {
+            title: 'Our wedding',
+            hostsLabel: 'Anna & Davit',
+            sideALabel: 'Bride’s side',
+            sideBLabel: '',
+          },
+          ru: { title: 'Свадьба', hostsLabel: '', sideALabel: '', sideBLabel: '' },
         },
       }),
     ).toEqual({
       translations: {
-        en: { title: 'Our wedding', hostsLabel: 'Anna & Davit' },
+        en: { title: 'Our wedding', hostsLabel: 'Anna & Davit', sideALabel: 'Bride’s side' },
         ru: { title: 'Свадьба' },
       },
     });
     expect(
-      edit({ translations: { ...initial.translations, en: { title: '', hostsLabel: '' } } }),
+      edit({
+        translations: {
+          ...initial.translations,
+          en: { title: '', hostsLabel: '', sideALabel: '', sideBLabel: '' },
+        },
+      }),
     ).toEqual({ translations: { en: null } });
+  });
+
+  it('sends a language’s side names with its other words (FR-96)', () => {
+    expect(
+      edit({
+        translations: {
+          ...initial.translations,
+          ru: {
+            title: '',
+            hostsLabel: '',
+            sideALabel: 'Сторона невесты',
+            sideBLabel: 'Сторона жениха',
+          },
+        },
+      }),
+    ).toEqual({
+      translations: { ru: { sideALabel: 'Сторона невесты', sideBLabel: 'Сторона жениха' } },
+    });
+    expect(
+      edit({
+        translations: {
+          ...initial.translations,
+          en: { title: 'The wedding', hostsLabel: 'Anna & Davit', sideALabel: '', sideBLabel: '' },
+        },
+      }),
+    ).toEqual({ translations: { en: { title: 'The wedding', hostsLabel: 'Anna & Davit' } } });
   });
 
   it('leaves alone a language no longer ticked, whose words stay stored', () => {
     expect(
       edit({
         locales: ['hy', 'ru'],
-        translations: { ...initial.translations, en: { title: '', hostsLabel: '' } },
+        translations: {
+          ...initial.translations,
+          en: { title: '', hostsLabel: '', sideALabel: '', sideBLabel: '' },
+        },
       }),
     ).toEqual({ locales: ['hy', 'ru'] });
   });

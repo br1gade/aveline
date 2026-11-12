@@ -5,7 +5,8 @@
   "list": {
     "title": "Sur la liste",
     "empty": "Personne n’est sur la liste.",
-    "truncated": "Seules les 500 plus récentes sont affichées : il peut y en avoir d’autres."
+    "more": "Afficher d’autres adresses",
+    "moreFailed": "La suite n’a pas pu être chargée. Veuillez réessayer."
   },
   "entry": {
     "line": "{{channel}} · {{reason}} · ajoutée le {{added}}",
@@ -36,7 +37,7 @@
     "channel": "Ne pas le contacter par",
     "address": "Son adresse",
     "emailHelp": "Les majuscules ne comptent pas.",
-    "phoneHelp": "Saisissez le numéro exactement comme sur la liste des invités, espaces compris : un numéro écrit autrement n’est pas reconnu.",
+    "phoneHelp": "Les espaces, tirets, points et parenthèses ne comptent pas. Écrivez le numéro avec son indicatif, comme +374, pour qu’il corresponde à celui d’un invité, quelle que soit son écriture. Un numéro commençant par 0 ne correspond qu’au même numéro.",
     "submit": "Ajouter à la liste",
     "adding": "Ajout…",
     "already": "{{address}} est déjà sur la liste pour ce canal : rien n’a changé.",

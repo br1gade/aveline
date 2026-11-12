@@ -37,7 +37,10 @@ function EndFields({ form }: { form: EventForm }) {
   );
 }
 
-/** The host's names for the two sides, which the guest list sorts guests by; not translated (FR-96). */
+/**
+ * The host's names for the two sides, which the guest list sorts guests by. Guests reading another
+ * language see its own names for them, set with its title and hosts (FR-96).
+ */
 function SideFields({ form }: { form: EventForm }) {
   const { t } = useTranslation('events');
   const fieldText = useEventFieldText();
@@ -63,8 +66,8 @@ function SideFields({ form }: { form: EventForm }) {
 }
 
 /**
- * The title and hosts in each ticked language but the default (design PD-109). Guests reading a
- * language see its words here, else the plain title and hosts: the backend has no step between.
+ * The title, hosts and sides in each ticked language but the default (design PD-109, FR-96). Guests
+ * reading a language see its words here, else the plain ones: the backend has no step between.
  */
 function EventTranslations({ form, stored }: { form: EventForm; stored: unknown }) {
   const { t } = useTranslation('events');
@@ -84,6 +87,8 @@ function EventTranslations({ form, stored }: { form: EventForm; stored: unknown 
       fields={[
         { key: 'title' as const, label: (language) => t('fields.titleIn', { language }) },
         { key: 'hostsLabel' as const, label: (language) => t('fields.hostsIn', { language }) },
+        { key: 'sideALabel' as const, label: (language) => t('fields.sideAIn', { language }) },
+        { key: 'sideBLabel' as const, label: (language) => t('fields.sideBIn', { language }) },
       ]}
       inputProps={(language, field) => form.register(`translations.${language}.${field}`)}
       errorOf={(language, field) => fieldText(errors.translations?.[language]?.[field])}

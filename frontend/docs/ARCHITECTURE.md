@@ -74,7 +74,7 @@ backend.
 | Public event: `/events/:slug` | Server | A server `loader` against the public API; `meta` from the response's `metadata`, verbatim, its robots rule included |
 | Checkout: `/events/:slug/checkout?tickets=…&locale=…` | Server, the form included | The event from a server `loader`; the order posts from the browser. `private, no-store` |
 | Capability: `/tickets/:accessToken`, `/tickets`, `/tickets/return` | Server shell | The language negotiated for the frame, the order's own once it is read (design PD-189); the order read and confirmed in the browser with the token the tab holds (§9). `noindex`; `no-referrer`; `no-store` |
-| Capability: `/briefs/:briefToken`, `/briefs` | Server shell | The language negotiated (the brief names none, FR-104); the brief read in the browser with the token the page holds in memory (§9). `noindex`; `no-referrer`; `no-store` |
+| Capability: `/briefs/:briefToken`, `/briefs` | Server shell | The language negotiated for the page, the event's own words marked with the language the brief names (FR-104); the brief read in the browser with the token the page holds in memory (§9). `noindex`; `no-referrer`; `no-store` |
 | Account: `/sign-in`, `/register`, `/reset-password`, `/verify-email`, `/accept-invite`, `/accept-event-invite` | Server, the form included | A server `loader` for the language only; forms submit from the browser. Sign-in and register skip to the app when a session is stored (`clientLoader`) |
 | App: `/app`, `/app/welcome`, `/app/events/new`, `/app/events/:eventId`, `/app/events/:eventId/edit`, `/app/events/:eventId/guests`, `/app/events/:eventId/guests/import`, `/app/events/:eventId/venues`, `/app/events/:eventId/venues/new`, `/app/events/:eventId/venues/:venueId/edit`, `/app/events/:eventId/invitation`, `/app/events/:eventId/attendance`, the designer's pages under `/app/events/:eventId/design`, `/app/events/:eventId/photos`, `/app/events/:eventId/agreements`, `/app/events/:eventId/seating`, `/app/events/:eventId/exports`, `/app/events/:eventId/tickets` (with `…/types/new`, `…/types/:typeId` and `…/announcement`), `/app/events/:eventId/orders?status=…&order=…`, `/app/events/:eventId/vendors` (with `…/new` and `…/:bookingId`), `/app/vendors?category=…` | The server renders the loading state, in the negotiated language | The `/app` segment's `loader` gives the language; a pathless layout under it checks the session in its `clientLoader`; each page's `clientLoader` reads the API. The event pages' `ErrorBoundary` shows an event that cannot be opened inside the app's frame. A change of query alone (the guest list's search and filter, the seating page's plan) reloads nothing: the root, the layout and the guest list skip it, and the `/app` segment reloads only when `?lang=` changes (`src/lib/routing`) |
 
@@ -160,7 +160,7 @@ above a `/guests/:guestId`.
   uses and maps a value the client doesn't know. `expectData` takes no type from where the call
   stands (`NoInfer`), so a `return` or an argument is checked too. A type is passed,
   `expectData<T>(call)`, only where the schema is looser than `docs/API.md`: the guest page's two
-  reads, the guest's reply and the designer's three previews (FR-149).
+  reads, the guest's reply, the designer's three previews and the vendor's brief (FR-149).
 - **What the caller may do** (FR-6, design PD-190): `features/permissions` reads it once per event
   (`routes/app/event-access.tsx`) and on entering the organization's own pages
   (`organization-access.tsx`), and again when a page reads itself after a write, or on leaving the
@@ -955,17 +955,18 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
 | 12 Nov 2026 | **The backend's `3ddc51f` is adopted:** a listing card gives its start in the event's zone, said in the page's language, and marks the host's translated words with the card's `locale` (FR-92; PD-104 withdrawn; `endsAt` unread, as the event's page shows no end); the door takes who was erased from the roster's `isErased` (FR-141) and reads the roster back to back, up to 5,000 people (FR-142); `GET /plans` has the guest-page allowance (FR-147) | Each was delivered additive, and each removes a stand-in. 5,000 is the most guests the backend's automatic seating takes (`seating-input.ts`) and the most seats in a typed layout; past it the door still says the list is partial |
 | 12 Nov 2026 | **`npm run verify` is the frontend's gate, not `ci:local`**, and the frontend lead alone decides when frontend changes reach `main` and are deployed | The backend's reply of 11 November: `ci:local` checks only the backend and no workflow tests the frontend; each team promotes its own changes. A frontend workflow and a frontend stage in `ci:local` are asked of us, not yet drafted (BACKEND_REQUESTS §4) |
+| 12 Nov 2026 | **The backend's `aade8fe` and `4f097c8` are adopted in one change:** an event's sides are named per language with its title and hosts (FR-96); a vendor's brief marks the event's own words with the language it names and labels the sides with the hosts' names (FR-104); who must not be contacted is read a hundred at a time with "Show more", phones matched as the backend stores them, the cast gone (FR-99); the door words an erased guest's refusal and reads its list again (FR-150). `useMore` and `MoreButton` move from `features/event-sheets` to `ui/app-form`, their second user | The list's paging was breaking, so both batches go together. The brief's call passes its own type: the schema lets its title and venues be null, which the guide and the database don't (FR-149) |
 
 ## 12. Not yet built
 
-- Of the backend's deliveries to 11 November (`dev` at `3ddc51f`), what the client is still to
+- Of the backend's deliveries to 12 November (`dev` at `b2240e0`), what the client is still to
   adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, and a
   build per origin (FR-11); and the frontend CI workflow and `ci:local` stage the backend asked for. Every answered
   request is adopted (12 November 2026), and none has met a running backend; the backend will run its
   disposable stack with the combined tree: private artwork by id
   (FR-115) and drink and song starting off (FR-134) are checked on staging, as are exports' delivery
   (FR-128), owners told apart from pending invitations (FR-130) and the scheduled free plan (FR-135).
-  The schema is looser than the guide in four places, which the client narrows or types itself (FR-149). Paid plans
+  The schema is looser than the guide in five places, which the client narrows or types itself (FR-149). Paid plans
   shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
   are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
   been opened on a real phone.
@@ -1016,13 +1017,14 @@ size check in the CSV's send that the disabled button already covers. **None of 
   the page reads and records each member in turn); the guest's side, which is set on the guest;
   agreeing to a statement for the guest (the backend refuses it from a host); taking an answer back
   (the API can't); and leaving the event-wide answer out to correct only a meal (FR-95).
-- Of an event's and a venue's words: the sides in each language (FR-96); per-language words for a
+- Of an event's and a venue's words: per-language words for a
   running-order entry are in its own dialog, the invitation's sections' in the designer.
 - Of archiving and deleting: knowing beforehand whether money moved through an event, so whether
   deleting will be refused (FR-97).
-- Of who must not be contacted (the organization's alone, C-43): a Telegram or push address, which a host never sees; choosing a reason; more than
-  the newest 500; matching a phone written differently; and an address already listed further down
-  than the newest 500, which is posted again, harmlessly (FR-99).
+- Of who must not be contacted (the organization's alone, C-43): a Telegram or push address, which a host never sees;
+  choosing a reason, as a host may give only `MANUAL` (FR-99); a local number matched to its
+  international form, which the backend leaves local; and an address already listed on a page not
+  yet shown, which is posted again, harmlessly.
 - Of promo codes: a currency other than AMD; removing a limit or an end once set, and changing the
   start; when a code was made; and knowing whether payments are off, so the pilot's line shows always
   (FR-100; every kind of code is offered meanwhile, C-42).
@@ -1037,8 +1039,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   read `venueProfiles` since 4 November 2026, read-only.
 - Of vendors: adding or correcting a hall, which Aveline's staff do; the organization's list paged
   (§3 of BACKEND_REQUESTS); more than one organization (above).
-- Of the vendor's brief: naming the language it is in, translated titles and venues, and the hosts'
-  names for the sides (FR-104; the vendor's own language isn't wanted, C-45); the day-by-day answers,
+- Of the vendor's brief: the vendor's own language, which isn't wanted (C-45); the day-by-day answers,
   which the page leaves out (seating now reaches a brief only once published, C-55); telling a
   paused brief from an ended booking (FR-144); keeping the brief across a reload, deliberately; a
   page in Aveline's or the hosts' own design (DQ-42).
@@ -1079,7 +1080,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
   the announcement is not published (FR-71); "on sale from" before a type's sales open (FR-66); saying on the order whether the event has agreements before the door (FR-138), whether its listing is still public (FR-139), and leaving out an erased buyer's name (FR-140).
-- Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; the server refusing an erased guest's check-in, which only the door's own results prevent (FR-150); more than 5,000 people in its list, past which it says the list is partial and codes still work; households told apart rather than grouped by name (FR-143); a walk-in joining
+- Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; more than 5,000 people in its list, past which it says the list is partial and codes still work; households told apart rather than grouped by name (FR-143); a walk-in joining
   a household already on the list, which needs one of its seats free; adding a walk-in again safely
   after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the

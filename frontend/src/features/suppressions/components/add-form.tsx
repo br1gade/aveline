@@ -91,7 +91,7 @@ function useAdd(list: readonly Suppression[], page: PageActions) {
 
 /**
  * Adding someone who must not be contacted (design PD-114). No reason is asked: the backend records
- * the host's own as `MANUAL`. A phone matches only as typed (FR-99), which the help says.
+ * the host's own as `MANUAL`. A phone matches however it is spaced; a local one only itself (FR-99).
  */
 export function AddForm({ list, page }: { list: readonly Suppression[]; page: PageActions }) {
   const { t } = useTranslation('suppressions');

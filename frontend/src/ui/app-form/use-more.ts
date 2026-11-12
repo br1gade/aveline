@@ -2,13 +2,21 @@ import { useState } from 'react';
 
 import { isApiError } from '@/api/errors';
 
-import type { Page } from '../types';
+/** One page of a list read by offset, and where the next starts, if there is one. */
+export interface OffsetPage<T> {
+  items: T[];
+  nextOffset: number | null;
+}
 
 /**
  * A list read a page at a time, from the first page given or from none, which the first press reads
- * (FR-117). A new first page, as when the route reads itself again, starts it over.
+ * (the answers and guest book, FR-117; who must not be contacted, FR-99). A new first page, as when
+ * the route reads itself again, starts it over.
  */
-export function useMore<T>(first: Page<T> | null, read: (offset: number) => Promise<Page<T>>) {
+export function useMore<T>(
+  first: OffsetPage<T> | null,
+  read: (offset: number) => Promise<OffsetPage<T>>,
+) {
   const [shown, setShown] = useState(first);
   const [items, setItems] = useState<T[] | null>(first?.items ?? null);
   const [nextOffset, setNextOffset] = useState<number | null>(first ? first.nextOffset : 0);

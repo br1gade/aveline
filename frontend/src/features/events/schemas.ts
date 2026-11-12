@@ -88,10 +88,12 @@ function endIssue(end: ZonedInstant, start: StartFields) {
   return null;
 }
 
-/** A language's title and hosts, each bounded as the backend bounds them (`EVENT_TRANSLATABLE`). */
+/** A language's title, hosts and sides, each bounded as the backend bounds them (`EVENT_TRANSLATABLE`). */
 const translation = z.object({
   title: z.string().trim().max(200, code('tooLong')),
   hostsLabel: z.string().trim().max(200, code('tooLong')),
+  sideALabel: z.string().trim().max(60, code('tooLong')),
+  sideBLabel: z.string().trim().max(60, code('tooLong')),
 });
 
 function checkDefaultLanguage(

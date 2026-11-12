@@ -48,6 +48,8 @@ export type DoorRefusal =
         | 'linkChanged'
         | 'notRecognised'
         | 'guestGone'
+        /** Erased at their request since the list was read (FR-150): never let in by name. */
+        | 'guestErased'
         | 'notCheckedIn'
         | 'forbidden'
         | 'rateLimited';
@@ -150,6 +152,7 @@ function agreementRefusal(facts: Facts): DoorRefusal | null {
 /** An unknown target is a 404, which `refusalOf` words by the action, so it needs no entry. */
 const CODES: Partial<Record<ErrorCode, ByCode>> = {
   ADMISSION_LINK_CHANGED: () => ({ kind: 'linkChanged' }),
+  ADMISSION_GUEST_ERASED: () => ({ kind: 'guestErased' }),
   ADMISSION_ALREADY_CHECKED_IN: (facts) => ({
     kind: 'alreadyHere',
     arrivedAt: textOf(facts.arrivedAt) ?? null,
@@ -227,6 +230,7 @@ export function isListStale(refusal: DoorRefusal): boolean {
   return (
     refusal.kind === 'linkChanged' ||
     refusal.kind === 'guestGone' ||
+    refusal.kind === 'guestErased' ||
     refusal.kind === 'notCheckedIn' ||
     (refusal.kind === 'alreadyHere' && refusal.arrivedAt === null)
   );

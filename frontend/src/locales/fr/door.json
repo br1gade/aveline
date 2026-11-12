@@ -103,6 +103,7 @@
     "notRecognised": "Ce code n’est pas reconnu pour cet événement. Vérifiez-le caractère par caractère. S’il est juste, adressez cette personne à l’hôte.",
     "linkChanged": "Le lien de ce billet avec un invité vient de changer. La liste est relue : appuyez à nouveau.",
     "guestGone": "Cet invité n’est plus sur la liste. La liste est relue.",
+    "guestErased": "Les données de cette personne ont été effacées à sa demande ; elle ne peut pas être enregistrée à l’entrée. La liste est relue ; envoyez-la vers l’hôte.",
     "forbidden": "Votre rôle sur cet événement ne permet pas de faire entrer des personnes. Demandez au propriétaire de l’événement de vous ajouter comme coordinateur.",
     "rateLimited": "Trop d’essais pour l’instant. Patientez un moment et appuyez à nouveau.",
     "noAnswer": "Aucune réponse. L’arrivée a peut-être été comptée : appuyez à nouveau, sans risque.",

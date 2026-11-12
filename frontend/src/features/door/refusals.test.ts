@@ -139,6 +139,18 @@ describe('a refusal by its code and facts (FR-76)', () => {
     ],
     ['a changed link', coded(409, 'ADMISSION_LINK_CHANGED'), 'admit', { kind: 'linkChanged' }],
     [
+      'someone erased, by name',
+      coded(409, 'ADMISSION_GUEST_ERASED'),
+      'checkIn',
+      { kind: 'guestErased' },
+    ],
+    [
+      'a ticket linked to someone erased',
+      coded(409, 'ADMISSION_GUEST_ERASED'),
+      'admit',
+      { kind: 'guestErased' },
+    ],
+    [
       'an unknown code',
       coded(404, 'ADMISSION_TARGET_NOT_FOUND'),
       'admit',

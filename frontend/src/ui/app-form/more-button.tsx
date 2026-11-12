@@ -1,5 +1,6 @@
-import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
+
+import { WRAPPING_BUTTON } from './wrapping';
 
 /** "Show more", or the first press of a list read on request, with what went wrong under it. */
 export function MoreButton({

@@ -279,6 +279,29 @@ describe('the door, by name (PD-90)', () => {
     expect(screen.getByRole('button', { name: 'Check in Armen Petrosyan' })).toBeInTheDocument();
   });
 
+  it('refuses someone erased since the list was read, says so, and reads the list again (FR-150)', async () => {
+    answerCheckIn(() =>
+      HttpResponse.json(
+        {
+          statusCode: 409,
+          message: 'That guest was erased and cannot be checked in',
+          code: 'ADMISSION_GUEST_ERASED',
+          requestId: 'r-409',
+        },
+        { status: 409 },
+      ),
+    );
+    const { user } = renderAt();
+    await searchFor(user, 'armen');
+    const before = reads('/door-roster').length;
+    await user.click(screen.getByRole('button', { name: 'Check in Armen Petrosyan' }));
+    expect(
+      await within(outcome()).findByText(/details were erased at their request/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Here since/)).not.toBeInTheDocument();
+    await waitFor(() => expect(reads('/door-roster').length).toBe(before + 1));
+  });
+
   it('shows a refusal it doesn’t know as it came, marked English, with its reference', async () => {
     answerCheckIn(() => refusal(409, 'Something new'));
     const { user } = renderAt();

@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { formatEventDay, formatEventTime } from '@/lib/time';
 
 import { known } from '../known';
 import type {
   Bar,
+  Brief,
+  BriefSides,
   Catering,
   Contacts,
   GrantedSection,
@@ -18,9 +20,33 @@ import type {
 
 const SIDES = ['SIDE_A', 'SIDE_B', 'SHARED', 'UNKNOWN'] as const;
 
-/** The sides come as the guest list's codes, without the hosts' names for them (FR-104). */
 function sideKey(side: string) {
   return known(SIDES, side, 'UNKNOWN');
+}
+
+/** The hosts' name for a side, from the event's own words (FR-104); `null` for ours to say. */
+function hostsName(side: (typeof SIDES)[number], sides: BriefSides): string | null {
+  if (side === 'SIDE_A') return sides.a;
+  return side === 'SIDE_B' ? sides.b : null;
+}
+
+/**
+ * A side's counts. The guest list's codes are named by the hosts where they named them, marked
+ * with the event's language; otherwise, and for both sides or none, in the page's words.
+ */
+function SideLine({ side, value, brief }: { side: string; value: string; brief: Brief }) {
+  const { t } = useTranslation('brief');
+  const key = sideKey(side);
+  const name = hostsName(key, brief.event.sides);
+  if (!name) return t('pair', { label: t(`headcount.sides.${key}`), value });
+  return (
+    <Trans
+      t={t}
+      i18nKey="pairNamed"
+      values={{ label: name, value }}
+      components={{ name: <span lang={brief.locale} /> }}
+    />
+  );
 }
 
 function Lines({ lines, empty }: { lines: readonly ReactNode[]; empty: string }) {
@@ -47,7 +73,7 @@ function useCountsText() {
   return (counts: Counted) => t('headcount.counts', { ...counts });
 }
 
-function HeadcountSection({ data }: { data: Headcount }) {
+function HeadcountSection({ data, brief }: { data: Headcount; brief: Brief }) {
   const { t } = useTranslation('brief');
   const counts = useCountsText();
   return (
@@ -66,9 +92,9 @@ function HeadcountSection({ data }: { data: Headcount }) {
       <SubHeading>{t('headcount.bySide')}</SubHeading>
       <Lines
         empty={t('nothingYet')}
-        lines={data.bySide.map((side) =>
-          t('pair', { label: t(`headcount.sides.${sideKey(side.side)}`), value: counts(side) }),
-        )}
+        lines={data.bySide.map((side) => (
+          <SideLine key={side.side} side={side.side} value={counts(side)} brief={brief} />
+        ))}
       />
       <SubHeading>{t('headcount.byVenue')}</SubHeading>
       <Lines
@@ -215,12 +241,13 @@ function ContactsSection({ data }: { data: Contacts }) {
   );
 }
 
-/** One section's contents; the event's own words are shown as its hosts wrote them (FR-104). */
-export function SectionBody({ granted, timeZone }: { granted: GrantedSection; timeZone: string }) {
+/** One section's contents, its times in the event's zone and its sides as the hosts named them. */
+export function SectionBody({ granted, brief }: { granted: GrantedSection; brief: Brief }) {
   const { t } = useTranslation('brief');
+  const timeZone = brief.event.timezone;
   switch (granted.section) {
     case 'headcount':
-      return <HeadcountSection data={granted.data} />;
+      return <HeadcountSection data={granted.data} brief={brief} />;
     case 'catering':
       return <CateringSection data={granted.data} />;
     case 'bar':

@@ -4,11 +4,14 @@ import { isEmailShaped } from '@/lib/text';
 
 import { HOST_CHANNELS } from './types';
 
-/** Messages are codes, worded by the form. The backend checks no address (FR-99), so this does. */
+/**
+ * Messages are codes, worded by the form. The backend refuses only a blank address (FR-99); the form
+ * also checks an address's shape, so a mistyped one is said before it is sent.
+ */
 export type SuppressionFieldCode = 'required' | 'email' | 'phone' | 'tooLong';
 
-/** A phone number as a guest list stores one: digits, with a leading + and spaces or dashes. */
-const PHONE = /^\+?[\d\s()-]{6,}$/;
+/** A phone number as people type one: digits, a leading +, and spaces, dashes, dots or brackets. */
+const PHONE = /^\+?[\d\s().-]{6,}$/;
 
 export const suppressionSchema = z
   .object({

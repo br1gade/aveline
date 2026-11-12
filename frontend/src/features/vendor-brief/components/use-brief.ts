@@ -19,7 +19,8 @@ export type BriefState =
 
 /**
  * The brief this page holds, read in the browser only: the server never sees the token (design
- * PD-124). The interface's language is asked for; the answer names none of its own (FR-104).
+ * PD-124). The interface's language is asked for; the event's own words come in the language the
+ * answer names, its default (FR-104, design C-45).
  * `retry` reads again: a reload would lose the token, which only memory holds.
  */
 export function useBrief(): { state: BriefState; retry: () => void } {

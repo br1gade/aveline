@@ -8,18 +8,20 @@ import { DEFAULT_TIME_ZONE, formatEventDay } from '@/lib/time';
 import { APP_PATHS } from '@/route-paths';
 import {
   AskFirstDialog,
+  MoreButton,
   StatusLine,
   useDialogAction,
   useDialogOpener,
+  useMore,
   usePageStatus,
   WRAPPING_BUTTON,
   type DialogContext,
 } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
-import { liftSuppression } from '../api';
+import { liftSuppression, listSuppressions } from '../api';
 import type { SuppressionsData } from '../load';
-import { isLiftable, mayBeTruncated, suppressionRefusalOf } from '../rules';
+import { isLiftable, suppressionRefusalOf } from '../rules';
 import type { Suppression } from '../types';
 import { AddForm } from './add-form';
 import { SuppressionProblem } from './shared';
@@ -90,7 +92,25 @@ function LiftDialog({ entry, ...context }: DialogContext & { entry: Suppression 
   );
 }
 
-function EntryList({ list, onOpen }: { list: readonly Suppression[]; onOpen: OpenHandler }) {
+type More = ReturnType<typeof useMore<Suppression>>;
+
+/**
+ * Each entry once. Pages are read by offset, newest first, so one added elsewhere between two reads
+ * would show the last of a page again at the top of the next.
+ */
+function onceEach(entries: readonly Suppression[]): Suppression[] {
+  return [...new Map(entries.map((entry) => [entry.id, entry])).values()];
+}
+
+function EntryList({
+  list,
+  more,
+  onOpen,
+}: {
+  list: readonly Suppression[];
+  more: More;
+  onOpen: OpenHandler;
+}) {
   const { t } = useTranslation('suppressions');
   const headingId = useId();
   return (
@@ -99,12 +119,20 @@ function EntryList({ list, onOpen }: { list: readonly Suppression[]; onOpen: Ope
         {t('list.title')}
       </h2>
       {list.length === 0 ? <p className="m-0">{t('list.empty')}</p> : null}
-      {mayBeTruncated(list) ? <p className="m-0">{t('list.truncated')}</p> : null}
       <ul className="m-0 flex list-none flex-col gap-3 p-0">
         {list.map((entry) => (
           <EntryRow key={entry.id} entry={entry} onOpen={onOpen} />
         ))}
       </ul>
+      {more.hasMore ? (
+        <MoreButton
+          label={t('list.more')}
+          failed={t('list.moreFailed')}
+          isLoading={more.state === 'loading'}
+          hasFailed={more.state === 'failed'}
+          onPress={more.more}
+        />
+      ) : null}
     </section>
   );
 }
@@ -121,6 +149,11 @@ export function SuppressionsPage({ data }: { data: SuppressionsData }) {
   const [lifting, setLifting] = useState<Suppression | null>(null);
   const { remember, restoreFocus } = useDialogOpener();
   const { list } = data;
+  // Later pages, read on request; the page's own reload, after adding or lifting, starts again.
+  const more = useMore(list.kind === 'ready' ? list.value : null, (offset) =>
+    listSuppressions(browserSession().api, offset),
+  );
+  const entries = onceEach(more.items ?? []);
   const open: OpenHandler = (entry, opener) => {
     remember(opener);
     setLifting(entry);
@@ -137,12 +170,12 @@ export function SuppressionsPage({ data }: { data: SuppressionsData }) {
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {list.kind === 'ready' ? (
-        <EntryList list={list.value} onOpen={open} />
+        <EntryList list={entries} more={more} onOpen={open} />
       ) : (
         <SuppressionProblem refusal={list.refusal} />
       )}
       <Permitted to="guest:write">
-        <AddForm list={list.kind === 'ready' ? list.value : []} page={page} />
+        <AddForm list={entries} page={page} />
       </Permitted>
       {lifting ? (
         <LiftDialog

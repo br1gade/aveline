@@ -5,7 +5,8 @@
   "list": {
     "title": "On the list",
     "empty": "Nobody is on the list.",
-    "truncated": "Only the newest 500 are shown: there may be more."
+    "more": "Show more addresses",
+    "moreFailed": "More couldn’t be loaded. Please try again."
   },
   "entry": {
     "line": "{{channel}} · {{reason}} · added {{added}}",
@@ -36,7 +37,7 @@
     "channel": "Don’t contact them by",
     "address": "Their address",
     "emailHelp": "Capitals don’t matter.",
-    "phoneHelp": "Type the number exactly as it is on the guest list, spaces included: a number written differently isn’t recognised.",
+    "phoneHelp": "Spaces, dashes, dots and brackets don’t matter. Write it with its country code, such as +374, to match a guest’s number however it is written. A number starting with 0 matches only that same number.",
     "submit": "Add to the list",
     "adding": "Adding…",
     "already": "{{address}} is already on the list for this, so nothing was changed.",

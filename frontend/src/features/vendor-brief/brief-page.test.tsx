@@ -16,6 +16,7 @@ import { briefWire, plantedToken } from './test-data';
 import type { BriefWire } from './types';
 
 const ORIGIN = 'http://api.test';
+const COUNTS_OF_ONE = { invited: 1, attending: 1, declined: 0, undecided: 0, pending: 0 };
 const server = setupServer();
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
@@ -200,6 +201,44 @@ describe('the brief', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('12 June 2027, 16:00 · Ceremony · at Garden hall')).toBeInTheDocument();
+  });
+
+  it('marks the event’s own words with the language the brief names, and says which (FR-104)', async () => {
+    holdBrief(plantedToken());
+    serve(() => HttpResponse.json(brief()));
+    renderAt('/briefs');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Anna & Davit' })).toHaveAttribute(
+      'lang',
+      'hy',
+    );
+    expect(screen.getByText('Garden hall')).toHaveAttribute('lang', 'hy');
+    expect(screen.getByText('1 Abovyan St')).toHaveAttribute('lang', 'hy');
+    expect(
+      screen.getByText('The event’s own words below are in its language: Հայերեն.'),
+    ).not.toHaveAttribute('lang');
+  });
+
+  it('names the sides as the hosts did, in the event’s language, and in ours where they didn’t', async () => {
+    holdBrief(plantedToken());
+    const answer = brief();
+    serve(() =>
+      HttpResponse.json({
+        ...answer,
+        event: { ...answer.event, sides: { a: 'Աննայի կողմ', b: null } },
+        headcount: {
+          ...answer.headcount,
+          bySide: [
+            { side: 'SIDE_A', ...COUNTS_OF_ONE },
+            { side: 'SIDE_B', ...COUNTS_OF_ONE },
+          ],
+        },
+      }),
+    );
+    renderAt('/briefs');
+    const named = await screen.findByText('Աննայի կողմ');
+    expect(named).toHaveAttribute('lang', 'hy');
+    expect(named.parentElement).toHaveTextContent(/^Աննայի կողմ: 1 coming/);
+    expect(screen.getByText(/^Second side: 1 coming/)).not.toHaveAttribute('lang');
   });
 
   it('says it shares only the event and venues when nothing was granted', async () => {

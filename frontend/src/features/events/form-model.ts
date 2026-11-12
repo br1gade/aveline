@@ -20,8 +20,8 @@ export const NEW_EVENT_VALUES: EventFormInput = {
   translations: {},
 };
 
-/** What an event's title and hosts are called in `translations`. */
-export const EVENT_TRANSLATED = ['title', 'hostsLabel'] as const;
+/** What an event's title, hosts and side labels are called in `translations` (FR-96). */
+export const EVENT_TRANSLATED = ['title', 'hostsLabel', 'sideALabel', 'sideBLabel'] as const;
 
 /** Every language the form could show, so ticking one reveals its stored words, or empty ones. */
 function formLanguages(event: EventDetail): string[] {

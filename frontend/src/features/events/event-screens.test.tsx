@@ -796,6 +796,21 @@ describe('EditEvent', () => {
     expect(received[0]).toMatchObject({ translations: { ru: { title: 'Свадьба' } } });
   });
 
+  it('offers each other language’s names for the sides, and sends them with its words (FR-96)', async () => {
+    const received = answer('patch', '/events/e1', saved({}));
+    const user = at();
+    await user.click(await screen.findByRole('checkbox', { name: 'Русский' }));
+    const sideA = await screen.findByLabelText('First side in Русский');
+    expect(sideA).toHaveAttribute('lang', 'ru');
+    await user.type(sideA, 'Сторона невесты');
+    await user.type(screen.getByLabelText('Second side in Русский'), 'Сторона жениха');
+    await save(user);
+    await waitFor(() => expect(received).toHaveLength(1));
+    expect(received[0]).toMatchObject({
+      translations: { ru: { sideALabel: 'Сторона невесты', sideBLabel: 'Сторона жениха' } },
+    });
+  });
+
   it('marks a language’s word that is too long on its own field, and nothing on the section', async () => {
     const user = at();
     await user.click(await screen.findByRole('checkbox', { name: 'Русский' }));

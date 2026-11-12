@@ -3,8 +3,8 @@ import type { components } from '@/api/schema';
 /**
  * A vendor's brief (docs/API.md §6, "Vendors and scoped briefs"). Checked against the schema at
  * each call (FR-1); written from `vendor-briefs.service.ts`, `operations.service.ts` and
- * `seating.service.ts` at `34ac1e6`. `read.ts` alone reads the `…Wire` types. The answer names no
- * language (FR-104): its words are the event's default language's, which the page can't say.
+ * `seating.service.ts` at `34ac1e6`. `read.ts` alone reads the `…Wire` types. The answer names the
+ * language of the event's own words, always the event's default (FR-104, design C-45).
  */
 
 export type BriefSection = NonNullable<
@@ -67,14 +67,27 @@ export interface BriefVenueWire {
   mapUrl: string | null;
 }
 
+/** The hosts' names for the two sides, `null` where they set none. */
+export interface BriefSides {
+  a: string | null;
+  b: string | null;
+}
+
+/**
+ * Checked against the schema at the call but for the title and each venue's name and address,
+ * which the schema allows to be `null` and docs/API.md and the database never do (FR-149).
+ */
 export interface BriefWire {
   vendor: { name: string; category: string };
   status: string;
+  /** The language of the event's own words: its title, sides and venues (FR-104). */
+  locale: string;
   event: {
     title: string;
     startsAt: string;
     endsAt: string | null;
     timezone: string;
+    sides: BriefSides;
     venues: BriefVenueWire[];
   };
   granted: Array<{ section: string; purpose: string }>;
@@ -132,11 +145,14 @@ export interface BriefVenue {
 export interface Brief {
   vendor: { name: string };
   status: string;
+  /** The language of the event's own words, which the page marks them with (FR-104). */
+  locale: string;
   event: {
     title: string;
     startsAt: string;
     endsAt: string | null;
     timezone: string;
+    sides: BriefSides;
     venues: BriefVenue[];
   };
   /** In the order the backend granted them, which is its own fixed order. */

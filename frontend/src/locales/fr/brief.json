@@ -12,7 +12,7 @@
     "CONFIRMED": "Confirmée",
     "COMPLETED": "Terminée"
   },
-  "language": "Les mots propres à l’événement sont affichés tels que les hôtes les ont écrits.",
+  "language": "Les mots propres à l’événement ci-dessous sont dans sa langue : {{language}}.",
   "venues": {
     "title": "Où",
     "none": "Aucun lieu indiqué pour l’instant.",
@@ -42,6 +42,7 @@
   "nothingYet": "Rien pour l’instant.",
   "unknown": "Cette page ne peut pas encore afficher cette partie du brief. Demandez-la aux hôtes.",
   "pair": "{{label}} : {{value}}",
+  "pairNamed": "<name>{{label}}</name> : {{value}}",
   "listSeparator": ", ",
   "none": {
     "heading": "Ouvrez votre brief depuis son lien",

@@ -3,14 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { browserSession } from '@/api/session';
 import { sheetsPath } from '@/features/events';
 import { formatEventDay, formatEventTime, type EventZone } from '@/lib/time';
+import { MoreButton, useMore } from '@/ui/app-form';
 
 import { getGuestBookPage } from '../api';
 import type { GuestBookData } from '../load';
 import type { GuestBookEntry, Page } from '../types';
 
-import { MoreButton } from './more-button';
 import { PartOf, SheetHeader } from './parts';
-import { useMore } from './use-more';
 
 /** Guests write in any language, so no message is marked with one. */
 function Entries({ entries, zone }: { entries: readonly GuestBookEntry[]; zone: EventZone }) {

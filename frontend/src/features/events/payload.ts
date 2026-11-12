@@ -57,7 +57,12 @@ function translationsEdited(values: EventFormValues, stored: unknown) {
   const edited = Object.fromEntries(
     shown.map((language) => [
       language,
-      values.translations[language] ?? { title: '', hostsLabel: '' },
+      values.translations[language] ?? {
+        title: '',
+        hostsLabel: '',
+        sideALabel: '',
+        sideBLabel: '',
+      },
     ]),
   );
   return translationEdits(stored, edited, EVENT_TRANSLATED);

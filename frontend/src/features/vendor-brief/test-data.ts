@@ -49,11 +49,13 @@ export function briefWire(overrides: Partial<BriefWire> = {}): BriefWire {
   return {
     vendor: { name: 'Tashir Catering', category: 'CATERING' },
     status: 'CONFIRMED',
+    locale: 'hy',
     event: {
       title: 'Anna & Davit',
       startsAt: '2027-06-12T12:00:00.000Z',
       endsAt: '2027-06-12T20:00:00.000Z',
       timezone: 'Asia/Yerevan',
+      sides: { a: null, b: null },
       venues: [
         {
           role: 'RECEPTION',

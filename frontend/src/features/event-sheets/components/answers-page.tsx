@@ -4,14 +4,13 @@ import { Link } from 'react-router';
 import { browserSession } from '@/api/session';
 import { sheetsPath } from '@/features/events';
 import { useLanguageName } from '@/lib/i18n';
+import { MoreButton, useMore } from '@/ui/app-form';
 
 import { getAnswerPage, getQuestionPage } from '../api';
 import type { AnswersData } from '../load';
 import type { AnsweredQuestion, AnswersSheet, QuestionResponse } from '../types';
 
-import { MoreButton } from './more-button';
 import { LINK, PartOf, Rows, Sheet, SheetHeader } from './parts';
-import { useMore } from './use-more';
 
 function Responses({ responses }: { responses: readonly QuestionResponse[] }) {
   const { t } = useTranslation('sheets');

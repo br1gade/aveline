@@ -14,7 +14,8 @@ import type { Route } from './+types/brief';
 /**
  * A vendor's brief, read in the browser with the token this page holds (design PD-124). The server
  * renders only the frame: it never sees the token. entry.server.tsx keeps the page out of caches,
- * referrers and indexes. The brief names no language (FR-104), so the page negotiates one (PD-40).
+ * referrers and indexes. The page negotiates its own language (PD-40); the event's words come in the
+ * one the brief names (FR-104, design C-45).
  */
 export function loader({ request }: Route.LoaderArgs) {
   return negotiatedLanguageData(request);

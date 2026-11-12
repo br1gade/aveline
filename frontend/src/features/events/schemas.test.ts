@@ -123,14 +123,23 @@ describe('the end, the sides and the other languages', () => {
         ...valid,
         hostsLabel: 'A',
         sideALabel: 'A'.repeat(60),
-        translations: { ru: { title: 'A'.repeat(200), hostsLabel: 'A'.repeat(200) } },
+        translations: {
+          ru: {
+            title: 'A'.repeat(200),
+            hostsLabel: 'A'.repeat(200),
+            sideALabel: 'A'.repeat(60),
+            sideBLabel: 'A'.repeat(60),
+          },
+        },
       }),
     ).toEqual({});
     expect(
       problems('edit', {
         ...valid,
         hostsLabel: 'A',
-        translations: { ru: { title: '', hostsLabel: 'A'.repeat(201) } },
+        translations: {
+          ru: { title: '', hostsLabel: 'A'.repeat(201), sideALabel: '', sideBLabel: '' },
+        },
       }),
     ).toEqual({ 'translations.ru.hostsLabel': 'tooLong' });
   });
@@ -141,8 +150,19 @@ describe('the end, the sides and the other languages', () => {
         ...valid,
         hostsLabel: 'A',
         sideALabel: 'A'.repeat(61),
-        translations: { ru: { title: 'A'.repeat(201), hostsLabel: '' } },
+        translations: {
+          ru: {
+            title: 'A'.repeat(201),
+            hostsLabel: '',
+            sideALabel: '',
+            sideBLabel: 'A'.repeat(61),
+          },
+        },
       }),
-    ).toEqual({ sideALabel: 'tooLong', 'translations.ru.title': 'tooLong' });
+    ).toEqual({
+      sideALabel: 'tooLong',
+      'translations.ru.title': 'tooLong',
+      'translations.ru.sideBLabel': 'tooLong',
+    });
   });
 });
