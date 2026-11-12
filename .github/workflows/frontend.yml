@@ -1,0 +1,38 @@
+name: Frontend checks
+# Not enabled: this runs only when started by hand (Actions → Frontend checks → Run workflow).
+# Before launch, enable it by adding, beside workflow_dispatch:
+#
+#   push:
+#     paths: ['frontend/**', 'backend/openapi.json', '.github/workflows/frontend.yml']
+#   pull_request:
+#     paths: ['frontend/**', 'backend/openapi.json', '.github/workflows/frontend.yml']
+#
+# See frontend/docs/ARCHITECTURE.md §12 (CI). The end-to-end suite (frontend/test/e2e) is not run
+# here: it needs the backend's development stack, and runs against it by hand until staging exists.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The boundary check compares with origin/dev.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # Types from ../backend/openapi.json, tokens, formatting, types, lint, unit tests, build, budgets.
+      - run: npm run verify
+      # Only a pull request can carry changes outside frontend/ that it shouldn't.
+      - if: github.event_name == 'pull_request'
+        run: npm run check:boundaries

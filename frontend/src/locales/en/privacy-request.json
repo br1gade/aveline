@@ -20,5 +20,42 @@
     "email": "Type a valid email address.",
     "notes": "Keep it to 2,000 characters.",
     "refused": "The request wasn’t accepted. Check what you typed and try again."
+  },
+  "noticeLink": "Read the privacy notice",
+  "notice": {
+    "metaTitle": "Privacy notice · Aveline",
+    "title": "Privacy notice",
+    "placeholder": {
+      "title": "This is a placeholder.",
+      "body": "Before Aveline launches, this notice will be rewritten and reviewed by a lawyer. Don’t rely on it until then."
+    },
+    "who": {
+      "title": "Who is responsible",
+      "body": "Aveline runs this service and is responsible for the personal data it holds."
+    },
+    "what": {
+      "title": "What we hold",
+      "body": "Hosts’ accounts and their teams; the guest lists hosts give us, and the replies, answers and agreements guests send; ticket orders and their holders; and the photos guests choose to share."
+    },
+    "why": {
+      "title": "Why",
+      "body": "To send invitations, take replies, sell tickets and run the event for the hosts who invited you, and nothing else."
+    },
+    "whoSees": {
+      "title": "Who sees it",
+      "body": "The hosts of an event and their team, each as their role allows. A vendor sees only what the hosts chose to share with them, never your contact details unless shared."
+    },
+    "howLong": {
+      "title": "How long",
+      "body": "For as long as the event’s invitation stays open, then as the hosts’ plan sets. You can ask for your data to be erased at any time."
+    },
+    "rights": {
+      "title": "Your rights",
+      "body": "You may ask what we hold about your email address, and ask for it to be corrected or erased. You don’t need an account.",
+      "link": "Ask about your data"
+    },
+    "contact": {
+      "title": "How to reach us"
+    }
   }
 }

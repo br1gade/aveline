@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useId, useMemo, useState } from 'react';
 import { Controller, useForm, type Control, type FieldError } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 import { createPublicApi } from '@/api/client';
 import { isApiError } from '@/api/errors';
@@ -9,6 +10,7 @@ import { problemFrom, type Problem } from '@/api/problems';
 import { readPublicEnv } from '@/config/env';
 import { PublicFrame } from '@/features/public-event';
 import { DEFAULT_TIME_ZONE, formatEventDay } from '@/lib/time';
+import { APP_PATHS } from '@/route-paths';
 import {
   AppForm,
   ErrorLine,
@@ -122,6 +124,12 @@ export function PrivacyRequestPage() {
           {t('title')}
         </h1>
         <p className="m-0">{t('lead')}</p>
+        <Link
+          to={APP_PATHS.privacy}
+          className="text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3"
+        >
+          {t('noticeLink')}
+        </Link>
       </div>
       {dueAt ? (
         <div role="status" className="flex flex-col gap-2">

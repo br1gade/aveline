@@ -12,7 +12,7 @@ import { expect, inLanguage, LANGUAGES, test } from './support/fixtures';
 import { signInPage } from './support/session';
 
 /**
- * Every key page in every interface language, at the project's width (ARCHITECTURE §10; design
+ * Every key page (twenty) in every interface language, at the project's width (ARCHITECTURE §10; design
  * DESIGN_SYSTEM "Accessibility"): axe's WCAG 2.2 AA with serious and critical failing, 44 px
  * targets on a phone, no sideways scroll, the page's language and no raw key. Guest pages first.
  */
@@ -43,6 +43,7 @@ test.beforeAll(async () => {
       '/pricing',
       '/help',
       '/privacy-request',
+      '/privacy',
       '/sign-in',
       '/register',
     ],
@@ -87,7 +88,7 @@ for (const [group, index] of [
   ['guest', 0],
   ['guest', 1],
   ['guest', 2],
-  ...Array.from({ length: 8 }, (_, i) => ['public', i] as const),
+  ...Array.from({ length: 9 }, (_, i) => ['public', i] as const),
   ...Array.from({ length: 8 }, (_, i) => ['app', i] as const),
 ] as const) {
   test(`${group} page ${index + 1} is sound in every language`, async ({ page }) => {

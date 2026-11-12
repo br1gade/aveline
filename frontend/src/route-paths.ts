@@ -131,6 +131,8 @@ export const APP_PATHS = {
   pricing: '/pricing',
   /** How to reach Aveline, for anyone (design C-54). */
   help: '/help',
+  /** The privacy notice: a placeholder until it is rewritten and reviewed before launch (C-50). */
+  privacy: '/privacy',
   /** Browsing public events. Static, so it needs no rank against `ROUTE_PATHS.publicEvent`. */
   publicEvents: '/events',
   /** Buying tickets for a public event: who comes on each ticket, a promo code, the order. */

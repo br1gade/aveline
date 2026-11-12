@@ -12,8 +12,7 @@ async function checkout(page: Page, event: TicketedEvent, ticket: string): Promi
   await page.getByRole('link', { name: 'Continue with 1 ticket' }).click();
 
   await expect(page.getByRole('heading', { name: 'Your tickets' })).toBeVisible();
-  // The form works only once hydrated: its submit is disabled until then, and "for me" copies
-  // nothing before it.
+  // The form works only once hydrated: its submit and "This ticket is for me" are disabled until then.
   await expect(
     page.getByRole('button', { name: /^(Get tickets|Continue to payment)$/u }),
   ).toBeEnabled();

@@ -10,8 +10,9 @@ import { createI18n } from '@/lib/i18n';
 import { LeaveGuard } from '@/ui/app-form';
 
 import { isUnloadAsked } from '../../../test/unload';
+import { PrivacyNoticePage } from './components/privacy-notice-page';
 import { PrivacyRequestPage } from './components/privacy-request-page';
-import { privacyRequestMeta } from './meta';
+import { privacyNoticeMeta, privacyRequestMeta } from './meta';
 
 const ORIGIN = 'http://api.test';
 const REQUESTS = `${ORIGIN}/api/v1/privacy/requests`;
@@ -232,5 +233,48 @@ describe('asking about one’s data (PD-156)', () => {
     await screen.findByRole('status');
     await user.click(screen.getByRole('link', { name: 'Elsewhere' }));
     expect(await screen.findByRole('heading', { name: 'Elsewhere' })).toBeInTheDocument();
+  });
+});
+
+describe('the privacy notice, a placeholder until launch (PD-194, C-50)', () => {
+  function showNotice(language: 'hy' | 'ru' | 'en' | 'fr') {
+    const Stub = createRoutesStub([{ path: '/privacy', Component: PrivacyNoticePage }]);
+    render(
+      <I18nextProvider i18n={createI18n(language)}>
+        <Stub initialEntries={['/privacy']} />
+      </I18nextProvider>,
+    );
+  }
+
+  it.each(['hy', 'ru', 'en', 'fr'] as const)(
+    'says first, in %s, that it is a placeholder not to be relied on',
+    async (language) => {
+      showNotice(language);
+      const heading = await screen.findByRole('heading', { level: 1 });
+      const warning = heading.nextElementSibling;
+      const words = createI18n(language).getFixedT(language, 'privacy-request');
+      expect(warning).toHaveTextContent(words('notice.placeholder.title'));
+      expect(warning).toHaveTextContent(words('notice.placeholder.body'));
+    },
+  );
+
+  it('leads to the data-request form', async () => {
+    showNotice('en');
+    expect(await screen.findByRole('link', { name: 'Ask about your data' })).toHaveAttribute(
+      'href',
+      '/privacy-request',
+    );
+  });
+
+  it('is kept out of search results while it is a placeholder', () => {
+    expect(privacyNoticeMeta('en')).toContainEqual({ name: 'robots', content: 'noindex,follow' });
+  });
+
+  it('is linked from the data-request form', () => {
+    open();
+    expect(screen.getByRole('link', { name: 'Read the privacy notice' })).toHaveAttribute(
+      'href',
+      '/privacy',
+    );
   });
 });

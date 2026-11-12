@@ -42,6 +42,12 @@ The organizer app starts at `http://localhost:5173/sign-in`. The seeded accounts
 (FR-14), so create one at `/register`; the emails it sends land in the backend's dev inbox,
 `http://localhost:8025`.
 
+## Continuous integration
+
+`.github/workflows/frontend.yml` runs `npm ci` and `npm run verify` on GitHub, and **is not enabled**: it
+runs only when started by hand until it is switched on before launch, as its header says. The end-to-end
+suite isn't in it, as it needs the backend's stack.
+
 ## Scripts
 
 | Script | Does |

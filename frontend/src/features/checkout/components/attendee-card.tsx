@@ -1,6 +1,7 @@
 import { useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
+import { useIsHydrated } from '@/ui';
 import { TextField } from '@/ui/form';
 
 import { isComing } from '../attendance';
@@ -12,13 +13,15 @@ import { VenueChoices } from './venue-choices';
 
 /**
  * "This ticket is for me": copies the buyer's own name and contacts onto this ticket, explicitly,
- * on one ticket at most (design PD-79). Nothing is ever copied without it.
+ * on one ticket at most (design PD-79). Nothing is ever copied without it. It waits for hydration,
+ * as the copying is done by its handler: ticked before, it would show ticked with nothing copied.
  */
 function BuyerToggle({ index }: { index: number }) {
   const { t } = useTranslation('checkout');
   const { register, getValues, setValue } = useCheckoutForm();
   const people = useWatch<{ people: Array<{ isBuyer: boolean }> }, 'people'>({ name: 'people' });
   const isTaken = people.some((person, other) => other !== index && person.isBuyer);
+  const isHydrated = useIsHydrated();
   const error = useFieldError(`people.${index}.isBuyer`);
   const field = register(`people.${index}.isBuyer`, {
     onChange: (event: { target: { checked: boolean } }) => {
@@ -33,7 +36,12 @@ function BuyerToggle({ index }: { index: number }) {
   return (
     <div className="grid gap-1">
       <label className="flex min-h-(--target-min) cursor-pointer items-center gap-3 has-disabled:cursor-not-allowed has-disabled:opacity-60">
-        <input type="checkbox" className="accent-action size-5" disabled={isTaken} {...field} />
+        <input
+          type="checkbox"
+          className="accent-action size-5"
+          disabled={isTaken || !isHydrated}
+          {...field}
+        />
         {t('people.forMe')}
       </label>
       {error ? <p className="text-error m-0 text-sm">{error}</p> : null}

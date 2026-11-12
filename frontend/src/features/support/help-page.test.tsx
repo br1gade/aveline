@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createI18n } from '@/lib/i18n';
@@ -9,7 +10,9 @@ import { HelpPage } from './components/help-page';
 function show(language: 'en' | 'hy' = 'en') {
   render(
     <I18nextProvider i18n={createI18n(language)}>
-      <HelpPage />
+      <MemoryRouter>
+        <HelpPage />
+      </MemoryRouter>
     </I18nextProvider>,
   );
 }
@@ -17,6 +20,14 @@ function show(language: 'en' | 'hy' = 'en') {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('the Help page (C-54, PD-180)', () => {
+  it('leads to the privacy notice', () => {
+    show();
+    expect(screen.getByRole('link', { name: 'Privacy notice' })).toHaveAttribute(
+      'href',
+      '/privacy',
+    );
+  });
+
   it('lists every contact set, each leading where it should, and the languages answered in', () => {
     vi.stubEnv('VITE_SUPPORT_EMAIL', 'help@example.am');
     vi.stubEnv('VITE_SUPPORT_PHONE', '+37410123456');

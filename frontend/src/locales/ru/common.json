@@ -49,6 +49,7 @@
       "phone": "Телефон",
       "whatsapp": "WhatsApp",
       "telegram": "Telegram"
-    }
+    },
+    "privacy": "Уведомление о конфиденциальности"
   }
 }

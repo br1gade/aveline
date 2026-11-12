@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { renderToString } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, useLoaderData } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -328,6 +329,36 @@ describe('checkout for an event answered once (PD-79)', () => {
     const second = await ticket(2);
     expect(within(second).getByLabelText('First name')).toHaveValue('');
     expect(within(second).getByRole('checkbox', { name: 'This ticket is for me' })).toBeDisabled();
+  });
+});
+
+describe('before hydration', () => {
+  it('keeps “This ticket is for me” disabled, as nothing would copy the buyer yet', () => {
+    const Stub = createRoutesStub([
+      {
+        path: APP_PATHS.checkout,
+        Component: () => (
+          <LeaveGuard>
+            <CheckoutPage
+              event={EVENT}
+              basket={readBasket('general.1', EVENT.ticketTypes)}
+              isSalesClosed={false}
+              provider="FAKE"
+            />
+          </LeaveGuard>
+        ),
+      },
+    ]);
+    const html = renderToString(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub initialEntries={['/events/autumn-jazz-night/checkout']} />
+      </I18nextProvider>,
+    );
+    const toggle = /<input[^>]*type="checkbox"[^>]*>(?=[^<]*This ticket is for me)/u.exec(
+      html,
+    )?.[0];
+    expect(toggle).toBeDefined();
+    expect(toggle).toContain('disabled=""');
   });
 });
 

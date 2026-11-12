@@ -20,5 +20,42 @@
     "email": "Saisissez une adresse e-mail valide.",
     "notes": "2 000 caractères au maximum.",
     "refused": "La demande n’a pas été acceptée. Vérifiez votre saisie et réessayez."
+  },
+  "noticeLink": "Lire la notice de confidentialité",
+  "notice": {
+    "metaTitle": "Notice de confidentialité · Aveline",
+    "title": "Notice de confidentialité",
+    "placeholder": {
+      "title": "Ceci est un texte provisoire.",
+      "body": "Avant le lancement d’Aveline, cette notice sera réécrite et relue par un juriste. D’ici là, ne vous y fiez pas."
+    },
+    "who": {
+      "title": "Qui est responsable",
+      "body": "Aveline exploite ce service et est responsable des données personnelles qu’il conserve."
+    },
+    "what": {
+      "title": "Ce que nous conservons",
+      "body": "Les comptes des hôtes et de leurs équipes ; les listes d’invités que les hôtes nous confient, ainsi que les réponses, accords et messages des invités ; les commandes de billets et leurs titulaires ; et les photos que les invités choisissent de partager."
+    },
+    "why": {
+      "title": "Pourquoi",
+      "body": "Pour envoyer les invitations, recueillir les réponses, vendre des billets et organiser l’événement pour les hôtes qui vous ont invité, et rien d’autre."
+    },
+    "whoSees": {
+      "title": "Qui les voit",
+      "body": "Les hôtes de l’événement et leur équipe, chacun selon son rôle. Un prestataire ne voit que ce que les hôtes ont choisi de lui communiquer."
+    },
+    "howLong": {
+      "title": "Pendant combien de temps",
+      "body": "Tant que l’invitation à l’événement reste ouverte, puis selon la formule des hôtes. Vous pouvez demander à tout moment l’effacement de vos données."
+    },
+    "rights": {
+      "title": "Vos droits",
+      "body": "Vous pouvez demander ce que nous conservons au sujet de votre adresse e-mail, et en demander la correction ou l’effacement. Aucun compte n’est nécessaire.",
+      "link": "Faire une demande sur vos données"
+    },
+    "contact": {
+      "title": "Nous contacter"
+    }
   }
 }
