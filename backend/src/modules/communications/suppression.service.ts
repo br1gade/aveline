@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { MessageChannel, Prisma, SuppressionReason } from '@prisma/client';
 import { isFingerprint, normalizeAddress, storedForms } from './address-form';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PaginationQuery, resolvePaging, toPage } from '../../common/dto/pagination.dto';
 
 /**
  * Who must not be contacted.
@@ -80,15 +81,16 @@ export class SuppressionService {
    * suppression used to be listed to every host — every bounced or
    * complaining address on the platform, including other customers' guests.
    */
-  async list(organizationId: string) {
+  async list(organizationId: string, query: PaginationQuery = {}) {
     const plainByForm = await this.guestAddressForms(organizationId);
-    const rows = await this.prisma.suppression.findMany({
-      where: { OR: [{ organizationId }, { organizationId: null, address: { in: [...plainByForm.keys()] } }] },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-    });
+    const where = { OR: [{ organizationId }, { organizationId: null, address: { in: [...plainByForm.keys()] } }] };
+    const paging = resolvePaging(query);
+    const [rows, total] = await Promise.all([
+      this.prisma.suppression.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], ...paging }),
+      this.prisma.suppression.count({ where }),
+    ]);
 
-    return rows.map((row) => ({
+    return toPage(rows.map((row) => ({
       id: row.id,
       channel: row.channel,
       // A hashed row shows the guest address it matches, if the host has one;
@@ -100,7 +102,7 @@ export class SuppressionService {
       scope: row.organizationId === null ? ('GLOBAL' as const) : ('ORGANIZATION' as const),
       notes: row.notes,
       createdAt: row.createdAt,
-    }));
+    })), total, paging);
   }
 
   /**

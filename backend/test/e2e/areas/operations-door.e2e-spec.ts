@@ -180,6 +180,17 @@ describe('Operations sheets and the door (coverage, e2e)', () => {
       expect(await prisma.checkIn.count({ where: { guestId: event.primary.id } })).toBe(1);
     });
 
+    // FR-150: check-in admitted an erased guest, though agreement writes refuse one.
+    it('refuses to check in an erased guest with a stable code, and records no arrival', async () => {
+      const event = await coordinator();
+      await prisma.guest.update({ where: { id: event.primary.id }, data: { anonymizedAt: new Date() } });
+
+      const { body } = await http().post(checkInUrl(event.eventId, event.primary.id)).set('Authorization', event.authorization).expect(409);
+
+      expect(body).toMatchObject({ code: 'ADMISSION_GUEST_ERASED' });
+      expect(await prisma.checkIn.count({ where: { guestId: event.primary.id } })).toBe(0);
+    });
+
     it.each(['post', 'delete'] as const)('does not %s a check-in for another event’s guest', async (method) => {
       const ours = await coordinator();
       const theirs = await seedEvent(prisma);
@@ -272,6 +283,16 @@ describe('Operations sheets and the door (coverage, e2e)', () => {
       expect(body).toEqual({ code: event.code, admittedAt: expect.any(String), holderName: event.ticket.holderName, guestId: event.ticket.guestId });
       const arrival = await prisma.checkIn.findUniqueOrThrow({ where: { guestId: event.ticket.guestId! } });
       expect(arrival.arrivedAt.toISOString()).toBe(body.admittedAt);
+    });
+
+    it('refuses a ticket whose linked guest was erased, and leaves it unused', async () => {
+      const event = await soldTicket();
+      await prisma.guest.update({ where: { id: event.ticket.guestId! }, data: { anonymizedAt: new Date() } });
+
+      const { body } = await event.admit().expect(409);
+
+      expect(body).toMatchObject({ code: 'ADMISSION_GUEST_ERASED' });
+      expect(await prisma.ticket.findUniqueOrThrow({ where: { id: event.ticket.id } })).toMatchObject({ status: 'VALID', usedAt: null });
     });
 
     it('refuses a second scan as already used', async () => {

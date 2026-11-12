@@ -269,7 +269,7 @@ describe('suppression (integration)', () => {
       });
 
       await expect(suppressions.unsuppress(organizationId, row.id)).rejects.toThrow(/erased/);
-      expect(await suppressions.list(organizationId)).toEqual([expect.objectContaining({ id: row.id, address: '[erased]' })]);
+      expect((await suppressions.list(organizationId)).items).toEqual([expect.objectContaining({ id: row.id, address: '[erased]' })]);
     });
 
     it('will not let one organization remove another’s', async () => {

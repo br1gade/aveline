@@ -194,7 +194,7 @@ describe('Access between and within organizations (e2e)', () => {
 
       const { body } = await http().get('/api/v1/suppressions').set('Authorization', host.authorization).expect(200);
 
-      expect((body as { address: string }[]).map((row) => row.address).sort()).toEqual([
+      expect((body.items as { address: string }[]).map((row) => row.address).sort()).toEqual([
         'our-guest@example.am',
         'unsubscribed@example.am',
       ]);

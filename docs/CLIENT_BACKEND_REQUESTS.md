@@ -128,7 +128,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-96 | Side labels in each language | S3 host/guest operations | Implemented 12 November 2026. Client adoption open. |
 | FR-97 | An archived event: which writes stay open, and whether it can be deleted | S3 host/guest operations | Audit and implement |
 | FR-98 | "Who must not be contacted" for someone outside the organization | S3 host/guest operations | Audit and implement |
-| FR-99 | Suppression writes and reads | S1 safety/correctness | (a) precedence, (b) host reasons, (c) blank addresses, (d) phone form and (f) schema implemented. (e), the list's silent 500 cap, remains open: signalling it changes the response shape. |
+| FR-99 | Suppression writes and reads | S1 safety/correctness | Implemented: (a) precedence, (b)–(d) and (f) on 12 November 2026, and (e) by paging the list, breaking for the client. Client adoption open. |
 | FR-100 | Promo codes: a currency, a zone, clearing, the pilot | S4 ticketing/vendors/billing | Audit and implement |
 | FR-101 | translations on creating an event | S3 host/guest operations | Audit and implement |
 | FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Implemented; organization-owned edits, private notes and soft removal; merged in `75e22e8` |
@@ -392,5 +392,10 @@ the event's default language, and gives the title, side labels and venues in
 it. FR-99 refuses a host-sent reason other than `MANUAL` and a blank address,
 stores SMS and WhatsApp numbers without formatting, and declares the request
 schema. Refusing the other reasons is breaking for a client that sent them; the
-current client sends none. FR-99(e) stays open. The release workflow now takes
-the support contacts and website address as optional inputs.
+current client sends none. The release workflow now takes the support contacts
+and website address as optional inputs.
+
+Later the same day, FR-99(e) pages `GET /suppressions` in the standard shape
+(`items`, `total`, `limit`, `offset`, `hasMore`), breaking for the client, and
+FR-150 refuses checking in or admitting the ticket of an erased guest with
+`ADMISSION_GUEST_ERASED`.

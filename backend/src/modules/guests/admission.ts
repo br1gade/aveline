@@ -9,15 +9,19 @@ export async function lockAdmission(tx: Prisma.TransactionClient, eventId: strin
   await lockAttendancePolicy(tx, eventId);
   if (ticket) await tx.$queryRaw`SELECT id FROM ticket_orders WHERE id = ${ticket.orderId} FOR UPDATE`;
   const personId = guestId ?? ticket?.guestId;
-  if (personId) {
-    const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM guests WHERE id = ${personId} AND "eventId" = ${eventId} FOR UPDATE`;
-    if (!rows.length) throw new AdmissionRefusal('ADMISSION_TARGET_NOT_FOUND', 'That guest is not on this event');
-  }
+  if (personId) await lockAdmittableGuest(tx, eventId, personId);
   if (ticket) return lockTicketAdmission(tx, eventId, ticket, personId);
   // A host linking while a guest-only scan waited must not create two admissions.
   if (personId && await tx.ticket.count({ where: { guestId: personId } })) throw new AdmissionRefusal('ADMISSION_LINK_CHANGED', 'Ticket was linked; refresh and scan again');
   if (personId) await assertGuestMayEnter(tx, { eventId, guestId: personId });
   return null;
+}
+
+async function lockAdmittableGuest(tx: Prisma.TransactionClient, eventId: string, guestId: string) {
+  const rows = await tx.$queryRaw<{ anonymizedAt: Date | null }[]>`SELECT "anonymizedAt" FROM guests WHERE id = ${guestId} AND "eventId" = ${eventId} FOR UPDATE`;
+  if (!rows.length) throw new AdmissionRefusal('ADMISSION_TARGET_NOT_FOUND', 'That guest is not on this event');
+  // As agreement writes do: an erased person is a placeholder, not someone to admit (FR-150).
+  if (rows[0].anonymizedAt) throw new AdmissionRefusal('ADMISSION_GUEST_ERASED', 'That guest was erased and cannot be checked in');
 }
 
 async function lockTicketAdmission(tx: Prisma.TransactionClient, eventId: string, ticket: { id: string; guestId: string | null }, personId?: string | null) {

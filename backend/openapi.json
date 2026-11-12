@@ -15290,9 +15290,30 @@
     },
     "/api/v1/suppressions": {
       "get": {
-        "description": "Includes platform-wide entries, marked with scope GLOBAL.",
+        "description": "Includes platform-wide entries, marked with scope GLOBAL. Paged, newest first.",
         "operationId": "SuppressionsController_list",
         "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          },
           {
             "name": "X-Aveline-Organization-Id",
             "in": "header",
@@ -20467,6 +20488,7 @@
               "GALLERY_UPLOADS_DISABLED",
               "EXPORT_OUTPUT_LIMIT",
               "ADMISSION_TARGET_NOT_FOUND",
+              "ADMISSION_GUEST_ERASED",
               "ADMISSION_LINK_CHANGED",
               "ADMISSION_ALREADY_CHECKED_IN",
               "ADMISSION_ACKNOWLEDGEMENTS_REQUIRED",
@@ -20664,6 +20686,7 @@
               "GALLERY_UPLOADS_DISABLED",
               "EXPORT_OUTPUT_LIMIT",
               "ADMISSION_TARGET_NOT_FOUND",
+              "ADMISSION_GUEST_ERASED",
               "ADMISSION_LINK_CHANGED",
               "ADMISSION_ALREADY_CHECKED_IN",
               "ADMISSION_ACKNOWLEDGEMENTS_REQUIRED",
@@ -60763,62 +60786,86 @@
         ]
       },
       "SuppressionsController_listResponse": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "string"
-            },
-            "channel": {
-              "type": "string",
-              "enum": [
-                "EMAIL",
-                "SMS",
-                "TELEGRAM",
-                "WHATSAPP",
-                "PUSH"
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "EMAIL",
+                    "SMS",
+                    "TELEGRAM",
+                    "WHATSAPP",
+                    "PUSH"
+                  ]
+                },
+                "address": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "MANUAL",
+                    "UNSUBSCRIBED",
+                    "HARD_BOUNCE",
+                    "COMPLAINT",
+                    "ERASED"
+                  ]
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "GLOBAL",
+                    "ORGANIZATION"
+                  ]
+                },
+                "notes": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "channel",
+                "address",
+                "reason",
+                "scope",
+                "notes",
+                "createdAt"
               ]
-            },
-            "address": {
-              "type": "string"
-            },
-            "reason": {
-              "type": "string",
-              "enum": [
-                "MANUAL",
-                "UNSUBSCRIBED",
-                "HARD_BOUNCE",
-                "COMPLAINT",
-                "ERASED"
-              ]
-            },
-            "scope": {
-              "type": "string",
-              "enum": [
-                "GLOBAL",
-                "ORGANIZATION"
-              ]
-            },
-            "notes": {
-              "type": "string",
-              "nullable": true
-            },
-            "createdAt": {
-              "type": "string",
-              "format": "date-time"
             }
           },
-          "required": [
-            "id",
-            "channel",
-            "address",
-            "reason",
-            "scope",
-            "notes",
-            "createdAt"
-          ]
-        }
+          "total": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "hasMore"
+        ]
       },
       "SuppressionsController_suppressResponse": {
         "type": "object",

@@ -1982,6 +1982,7 @@ envelope. Use its stable `code` and optional `admission` object.
 | 404 | `ADMISSION_TARGET_NOT_FOUND` | None. A guest or code from another event is treated as unknown. |
 | 409 | `ADMISSION_LINK_CHANGED` | None. Reload and scan again. |
 | 409 | `ADMISSION_ALREADY_CHECKED_IN` | Original `arrivedAt`, `guestId` and holder name when available. |
+| 409 | `ADMISSION_GUEST_ERASED` | None. The guest, or the guest a ticket is linked to, was erased at their request; nothing is recorded. |
 | 400 | `TICKET_ALREADY_USED` | Original `usedAt` or the linked check-in’s `arrivedAt`, plus `holderName` and `guestId` when known. |
 | 400 | `TICKET_ORDER_UNAVAILABLE` | `orderStatus` and `isCancellationPending`. |
 | 400 | `TICKET_STATUS_UNAVAILABLE` | `ticketStatus`. |
@@ -2631,15 +2632,20 @@ job adoption and production worker acceptance remain F27 release gates.
 ### Suppression — who must not be contacted
 
 ```http
-GET    /api/v1/suppressions
+GET    /api/v1/suppressions?limit=20&offset=0
 POST   /api/v1/suppressions              { "channel": "EMAIL", "address": "ani@example.am" }
 DELETE /api/v1/suppressions/:suppressionId
 ```
 
 ```json
-[{ "id": "clz...", "channel": "EMAIL", "address": "ani@example.am",
-   "reason": "UNSUBSCRIBED", "scope": "ORGANIZATION", "createdAt": "..." }]
+{ "items": [{ "id": "clz...", "channel": "EMAIL", "address": "ani@example.am",
+              "reason": "UNSUBSCRIBED", "scope": "ORGANIZATION", "notes": null, "createdAt": "..." }],
+  "total": 1, "limit": 20, "offset": 0, "hasMore": false }
 ```
+
+**Breaking, 12 November 2026:** the list was a bare array that silently stopped
+at 500 entries. It is now the standard page: `limit` 1–100 (default 20),
+`offset`, newest first, and `hasMore` says whether another page remains.
 
 The list is your own suppressions, plus the platform-wide ones that touch
 an email or phone on your own guests — never another customer's.
@@ -2664,7 +2670,7 @@ and a leading `00` becomes `+`, so `+374 91 000 000` matches a guest's
 matches only the same local number. A blank `address` is a `400`. `reason` is
 optional and may only be `MANUAL`, its default; any other reason is a `400`
 naming `reason`, because bounces, complaints, unsubscribes and erasures are
-recorded by the platform. The list still stops at 500 entries without saying so. In either scope, a stronger reason replaces a
+recorded by the platform. In either scope, a stronger reason replaces a
 weaker one. A weaker write preserves both the reason and its notes.
 
 **A suppressed recipient still produces a `Message` row**, with status
