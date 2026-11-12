@@ -28,7 +28,7 @@
   "listing": {
     "metaTitle": "Public events · Aveline",
     "title": "Public events",
-    "lead": "Events anyone can attend, soonest first. Each event’s page gives its date and time.",
+    "lead": "Events anyone can attend, soonest first.",
     "from": "From {{price}}",
     "free": "Free tickets",
     "empty": "No public events are listed right now.",

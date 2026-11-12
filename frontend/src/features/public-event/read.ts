@@ -197,11 +197,19 @@ export function readPublicEvent(value: unknown): PublicEvent {
   };
 }
 
+function readCardStart(wire: Wire): ListingCard['start'] {
+  const startsAt = text(wire.startsAt);
+  const timezone = text(wire.timezone);
+  return startsAt && timezone ? { startsAt, timezone } : null;
+}
+
 function readCard(wire: Wire): ListingCard[] {
   if (typeof wire.slug !== 'string' || wire.slug === '') return [];
   return [
     {
       slug: wire.slug,
+      locale: text(wire.locale),
+      start: readCardStart(wire),
       headline: text(wire.headline),
       summary: text(wire.summary),
       categories: texts(wire.categories),

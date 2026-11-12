@@ -108,14 +108,14 @@ the specs is a recommendation.
   `eb77cd4`, on PD-50 to PD-55. On 29 October, the invitation designer, on PD-56 to PD-62, and
   guests' photos, names and agreements, on PD-63 to PD-66. On 30 October, seating, on PD-67 to
   PD-72, and exports, on PD-73 to PD-77. Tickets and the door followed, on PD-78 to PD-94, and on
-  3 November the pilot's gaps, on PD-95 to PD-105, and everything since, on PD-106 to PD-193 (PD-182 withdrawn on 9 November, PD-179 on 11 November). Still to come: the end-to-end and accessibility tests
+  3 November the pilot's gaps, on PD-95 to PD-105, and everything since, on PD-106 to PD-193 (PD-182 withdrawn on 9 November, PD-179 on 11 November, PD-104 on 12 November). Still to come: the end-to-end and accessibility tests
   against the real backend.
 - **Keeping the registers current** as answers arrive (rule 7).
 
 **Waits for its owner:**
 
 - **The designer's fixes and decisions** (DQ-1 to DQ-76). Until then, work follows PD-1 to PD-14,
-  PD-27 to PD-39, PD-41, PD-42, PD-44 to PD-48 and PD-50 to PD-193, but for PD-179 and PD-182.
+  PD-27 to PD-39, PD-41, PD-42, PD-44 to PD-48 and PD-50 to PD-193, but for PD-104, PD-179 and PD-182.
 - **Product decisions:** none waits. All 29 are answered (C-24, C-25, C-28 to C-54); what they need from the
   backend is in BACKEND_REQUESTS (FR-107, FR-109, FR-134 to FR-136).
 - **Backend changes** (BQ-1 to BQ-3, BQ-6, BQ-7, BQ-10, BQ-11), on PD-21 and PD-24 to PD-26.
@@ -123,8 +123,7 @@ the specs is a recommendation.
   for the guest, venue, expired-send and seat refusals (FR-28), on the text stand-ins in PD-54, PD-55
   and PD-69; seating a household in one request (FR-53), on PD-69's stand-in; codes for the export
   refusals (FR-58), on PD-76's reading of the client's own state; which export kinds carry contacts
-  (FR-60), on PD-74's stand-in; who a reminder or a thank-you would reach (FR-84), on PD-96's stand-in;
-  a listing card's zone and language (FR-92), on PD-104's.
+  (FR-60), on PD-74's stand-in; who a reminder or a thank-you would reach (FR-84), on PD-96's stand-in.
   - The frontend never changes backend code.
   - A need becomes a backend question, not a lasting workaround
     ([DESIGN_DECISIONS §1.1](DESIGN_DECISIONS.md#11-while-questions-are-open), rule 5).
@@ -165,7 +164,7 @@ shared-document process, with the backend developer's review. This work did not 
   reader.
 - **The published review page is not corrected.** It stays a snapshot.
 - **The backend questions are not yet sent.** They are listed in
-  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-143, BQ-1 to BQ-11), and
+  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-150, BQ-1 to BQ-11), and
   [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) still holds their reasoning.
 - **The launch gates are not yet in `docs/GOING_LIVE.md`** (§6).
 - **The guest, account, event, guest-list, venue, invitation, attendance, design, photo, agreement, seating, export, ticket, door, reminder, team, directory and listing pages have not run against the real backend.** They were

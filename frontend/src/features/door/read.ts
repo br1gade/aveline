@@ -42,15 +42,10 @@ export function readAdmission(wire: AdmitWire): DoorAdmission {
 const ANSWERS: ReadonlySet<string> = new Set(['ATTENDING', 'DECLINED', 'UNDECIDED', 'PENDING']);
 
 /**
- * **A temporary stand-in** under FR-141: the roster doesn't say who was erased, and erasure renames
- * a guest to the backend's placeholder with no last name (`privacy/anonymisation.ts`,
- * `ERASED_NAME`), under a test that reads that source. Without it the door would offer them for
- * check-in and keep them among those who must agree, which nobody can clear. Deleted when the
- * roster marks them.
+ * A roster row by its named fields: anything else a row carries goes no further (FR-79). The
+ * roster keeps someone erased in their household, marked, so the door leaves them out of its
+ * results and doesn't wait for their agreement (FR-141).
  */
-const ERASED_NAME = 'Removed';
-
-/** A roster row by its named fields: anything else a row carries goes no further (FR-79). */
 function readRosterGuest(wire: DoorRosterWire['items'][number]): DoorGuest {
   return {
     id: wire.guestId,
@@ -59,7 +54,7 @@ function readRosterGuest(wire: DoorRosterWire['items'][number]): DoorGuest {
     answer: ANSWERS.has(wire.attendance) ? wire.attendance : ('PENDING' satisfies DoorAnswer),
     arrivedAt: wire.arrivedAt ?? null,
     seats: wire.seating.map(({ table, venue }) => ({ table, venue: venue ?? null })),
-    isErased: wire.name === ERASED_NAME,
+    isErased: wire.isErased,
   };
 }
 

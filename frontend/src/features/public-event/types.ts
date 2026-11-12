@@ -89,12 +89,15 @@ export interface PublicEvent {
 }
 
 /**
- * A card from browsing public events (docs/API.md §5). Its `startsAt` is not kept: the answer gives
- * no zone to show it in (FR-92), and its words are in a language it does not name (FR-92), so a card
- * can't mark them either.
+ * A card from browsing public events (docs/API.md §5). Each event negotiates its own language, so
+ * cards on one page can answer in different ones, and each names its own (FR-92).
  */
 export interface ListingCard {
   slug: string;
+  /** The language the card's words came back in; `null` if the answer didn't say. */
+  locale: string | null;
+  /** When it starts, with the event's own zone to show it in; `null` without either (FR-92). */
+  start: { startsAt: string; timezone: string } | null;
   headline: string | null;
   summary: string | null;
   categories: string[];

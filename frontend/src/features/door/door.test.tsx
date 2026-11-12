@@ -60,6 +60,7 @@ function rosterWire(id: string, name: string, extra: Record<string, unknown> = {
     attendance: 'ATTENDING',
     arrivedAt: null,
     hasTicket: false,
+    isErased: false,
     seating: [{ venue: 'Hall', table: 'Table 4', position: null }],
     token: TOKEN,
     email: 'planted@example.am',
@@ -1014,9 +1015,9 @@ describe('the roster, read whole (FR-79)', () => {
     expect(await within(outcome()).findByText(/Ticket admitted at 22:02/)).toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'By name' }));
     const notice = `Only the first ${MAX_ROSTER_PAGES} guests were read`;
-    expect(await screen.findByText(new RegExp(notice), {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByText(new RegExp(notice))).toBeInTheDocument();
     expect(page).toBe(MAX_ROSTER_PAGES);
-  }, 15_000);
+  });
 
   it('keeps the pages read when one is refused for too many requests, and says the list is partial', async () => {
     server.use(

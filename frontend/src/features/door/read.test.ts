@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { readRoster } from './read';
@@ -12,6 +9,7 @@ const ROW = {
   attendance: 'ATTENDING' as const,
   arrivedAt: null,
   hasTicket: true,
+  isErased: false,
   seating: [{ venue: null, table: 'Table 4', position: 2 }],
 };
 
@@ -39,14 +37,10 @@ describe('reading the door roster (FR-79)', () => {
     expect(readRoster({ items: [odd], nextCursor: null }).guests[0]?.answer).toBe('PENDING');
   });
 
-  it('tells someone erased by the backend’s placeholder, a stand-in until FR-141', () => {
-    const erased = { ...ROW, name: 'Removed' };
-    expect(readRoster({ items: [erased], nextCursor: null }).guests[0]?.isErased).toBe(true);
-    const anonymisation = readFileSync(
-      join(import.meta.dirname, '../../../../backend/src/modules/privacy/anonymisation.ts'),
-      'utf8',
-    );
-    expect(anonymisation).toContain("export const ERASED_NAME = 'Removed';");
-    expect(anonymisation).toMatch(/firstName: ERASED_NAME,\s+lastName: null,/);
+  it('takes who was erased from the roster, not from their name (FR-141)', () => {
+    const erased = { ...ROW, name: 'Armen Petrosyan', isErased: true };
+    const namedLikeThePlaceholder = { ...ROW, guestId: 'g2', name: 'Removed' };
+    const { guests } = readRoster({ items: [erased, namedLikeThePlaceholder], nextCursor: null });
+    expect(guests.map((guest) => guest.isErased)).toEqual([true, false]);
   });
 });

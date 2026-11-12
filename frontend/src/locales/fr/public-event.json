@@ -30,7 +30,7 @@
   "listing": {
     "metaTitle": "Événements publics · Aveline",
     "title": "Événements publics",
-    "lead": "Des événements ouverts à tous, les plus proches d’abord. La page de chaque événement donne sa date et son heure.",
+    "lead": "Des événements ouverts à tous, les plus proches d’abord.",
     "from": "À partir de {{price}}",
     "free": "Billets gratuits",
     "empty": "Aucun événement public n’est listé pour l’instant.",

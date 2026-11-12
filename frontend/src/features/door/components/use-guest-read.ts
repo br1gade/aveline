@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { isApiError } from '@/api/errors';
 import { browserSession } from '@/api/session';
 import { problemFrom, type Problem } from '@/api/problems';
-import { waitFor } from '@/lib/poll';
 
 import { listDoorRoster } from '../api';
 import { householdsOf } from '../read';
@@ -13,13 +12,12 @@ import type { DoorGuest } from '../types';
 /** Coming back to the page after this long reads the roster again. */
 const STALE_AFTER_MS = 60_000;
 /**
- * At a hundred a page, 2,000 people. An account may make 10 requests a second and 100 a minute
- * (docs/API.md, "Rate limits"), shared with the counts, the agreements and every check-in, so a
- * read stops here and the door says the list is partial (design PD-94; FR-142 asks for more).
+ * At a hundred a page, 5,000 people, past which the door says the list is partial (design PD-94).
+ * The roster has the guest-page allowance, 50 requests a second and 3,000 a minute counted on its
+ * own (docs/API.md, "Rate limits"; FR-142), so its pages are read back to back without spending
+ * what the counts, the agreements and check-ins need.
  */
-export const MAX_ROSTER_PAGES = 20;
-/** Between pages, so a read stays well under ten requests a second beside the door's others. */
-const PAGE_GAP_MS = 200;
+export const MAX_ROSTER_PAGES = 50;
 
 export type GuestRead =
   | { kind: 'loading' }
@@ -48,7 +46,7 @@ function afterFailure(before: GuestRead, error: unknown): GuestRead {
 const isTooMany = (error: unknown) => isApiError(error) && error.status === 429;
 
 /**
- * Every page, spaced out, until the roster ends or the page limit. A page refused for too many
+ * Every page, until the roster ends or the page limit. A page refused for too many
  * requests ends the read with the pages already read, as partial, rather than losing them; a read
  * begun since (`signal`) stops this one between pages.
  */
@@ -57,7 +55,6 @@ async function readRosterWhole(eventId: string, signal: AbortSignal) {
   const guests: DoorGuest[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < MAX_ROSTER_PAGES && !signal.aborted; page += 1) {
-    if (page > 0) await waitFor(PAGE_GAP_MS, signal);
     let read;
     try {
       read = await listDoorRoster(api, eventId, cursor ? { cursor } : {});

@@ -27,6 +27,9 @@ function cardWire(overrides: object = {}) {
       altText: 'A stage lit in amber',
     },
     startsAt: '2027-06-12T11:00:00.000Z',
+    endsAt: null,
+    timezone: 'Asia/Yerevan',
+    locale: 'en',
     venue: 'Grand Hall',
     fromPriceMinor: '5000',
     currency: 'AMD',
@@ -60,8 +63,16 @@ describe('the listing, as read', () => {
     });
   });
 
-  it('does not keep the start, which arrives without a zone to show it in (FR-92)', () => {
-    expect(JSON.stringify(readListing(pageWire()))).not.toContain('2027-06-12');
+  it('keeps the start with the event’s zone, and the language the card came back in (FR-92)', () => {
+    expect(readListing(pageWire()).cards[0]).toMatchObject({
+      start: { startsAt: '2027-06-12T11:00:00.000Z', timezone: 'Asia/Yerevan' },
+      locale: 'en',
+    });
+  });
+
+  it('keeps no start without a zone to show it in, rather than guessing one', () => {
+    const [card] = readListing(pageWire([cardWire({ timezone: null, locale: 42 })])).cards;
+    expect(card).toMatchObject({ start: null, locale: null });
   });
 
   it('reads a card with nothing optional', () => {
@@ -221,9 +232,27 @@ describe('the listing’s page', () => {
     );
   });
 
-  it('says no date is on a card, and where to find it, rather than guessing a zone', async () => {
+  it('gives each card’s start in the event’s zone, not the device’s', async () => {
     renderPage(pageWire());
-    expect(await screen.findByText(/soonest first/)).toHaveTextContent('page gives its date');
+    // 11:00 UTC is 15:00 in Yerevan.
+    expect(await screen.findByText(/12 June 2027, 15:00 · Yerevan time/)).toBeInTheDocument();
+  });
+
+  it('marks a card’s words with the language it came back in, and the page’s own words not', async () => {
+    renderPage(pageWire([cardWire({ locale: 'hy' })]));
+    expect(await screen.findByRole('link', { name: 'Autumn jazz night' })).toHaveAttribute(
+      'lang',
+      'hy',
+    );
+    expect(screen.getByText('An evening of music.')).toHaveAttribute('lang', 'hy');
+    expect(screen.getByRole('img', { name: 'A stage lit in amber' })).toHaveAttribute('lang', 'hy');
+    expect(screen.getByText(/From .*5,000/)).not.toHaveAttribute('lang');
+    expect(screen.getByText(/12 June 2027/)).not.toHaveAttribute('lang');
+  });
+
+  it('shows no start for a card without one', async () => {
+    renderPage(pageWire([cardWire({ timezone: null })]));
+    expect(await screen.findByRole('link', { name: 'Autumn jazz night' })).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/2027|June/);
   });
 

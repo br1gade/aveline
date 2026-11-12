@@ -26,7 +26,7 @@ export interface DoorGuest {
   /** When they arrived, in UTC; `null` until they do. */
   arrivedAt: string | null;
   seats: DoorSeat[];
-  /** Erased at their request: never offered at the door (FR-141, a stand-in in `read.ts`). */
+  /** Erased at their request: left out of the door's results and of who must agree (FR-141). */
   isErased: boolean;
 }
 

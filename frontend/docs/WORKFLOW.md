@@ -7,7 +7,8 @@
 
 - **Frontend work integrates through `dev`** (A6 was superseded by the backend team on 8 November
   2026). Branch from `origin/dev` and run the frontend verification on the combined tree.
-- **`dev` reaches `main` only when the frontend lead approves the promotion.**
+- **`dev` reaches `main` only when the frontend lead approves the promotion.** Since 11 November 2026
+  each team decides when its own changes reach `main` and are deployed; the backend promotes its own.
 - **Nothing is committed or pushed until the frontend lead asks.**
 
 ## 2. Branches, commits and pull requests

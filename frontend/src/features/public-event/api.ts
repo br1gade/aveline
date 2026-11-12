@@ -28,7 +28,7 @@ export async function fetchPublicEvent(
 
 /**
  * `GET /public/events` (docs/API.md §5): `PUBLIC` events until they end, soonest first. `locale` is
- * negotiated against each event separately, and a card does not say which it got (FR-92).
+ * negotiated against each event separately, and each card names the one it got (FR-92).
  */
 export async function fetchPublicListing(
   api: PublicApiClient,

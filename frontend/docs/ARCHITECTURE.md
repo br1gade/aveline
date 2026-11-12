@@ -953,13 +953,16 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 11 Nov 2026 | **Every feature offers an action only with its permission** (FR-6): `Permitted` hides one, `ChangeableWith` shows a page a role may read with its controls off under one line (design PD-193) | A page whose content is the point, a section's words or the seating plan, was worth showing to a reader. The guest list reads the permission once and hands it to its memoized rows; the door, exports and the gallery need it to be read at all |
 | 9 Nov 2026 | **The buyer's order names itself (FR-62)**: the event, ticket types, buyer and language come from the order, and the public listing is no longer read (design PD-81, PD-189) | An emailed link in a fresh tab could name nothing. The line about agreements before the door went with it, as only the listing knows (FR-138) |
 | 9 Nov 2026 | **The boundary check compares with `origin/dev`,** no longer `origin/main` or a `frontend/integration` that was never made | Work branches from `dev`, so against `main` the check would list the backend's commits whenever `dev` is ahead |
+| 12 Nov 2026 | **The backend's `3ddc51f` is adopted:** a listing card gives its start in the event's zone, said in the page's language, and marks the host's translated words with the card's `locale` (FR-92; PD-104 withdrawn; `endsAt` unread, as the event's page shows no end); the door takes who was erased from the roster's `isErased` (FR-141) and reads the roster back to back, up to 5,000 people (FR-142); `GET /plans` has the guest-page allowance (FR-147) | Each was delivered additive, and each removes a stand-in. 5,000 is the most guests the backend's automatic seating takes (`seating-input.ts`) and the most seats in a typed layout; past it the door still says the list is partial |
+| 12 Nov 2026 | **`npm run verify` is the frontend's gate, not `ci:local`**, and the frontend lead alone decides when frontend changes reach `main` and are deployed | The backend's reply of 11 November: `ci:local` checks only the backend and no workflow tests the frontend; each team promotes its own changes. A frontend workflow and a frontend stage in `ci:local` are asked of us, not yet drafted (BACKEND_REQUESTS §4) |
 
 ## 12. Not yet built
 
-- Of the backend's 8 and 9 November deliveries (`dev` at `e9a6b8f`), what the client is still to
+- Of the backend's deliveries to 11 November (`dev` at `3ddc51f`), what the client is still to
   adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, and a
-  build per origin (FR-11); and the frontend CI workflow the backend asked for. Every answered
-  request is adopted (11 November 2026), and none has met a running backend: private artwork by id
+  build per origin (FR-11); and the frontend CI workflow and `ci:local` stage the backend asked for. Every answered
+  request is adopted (12 November 2026), and none has met a running backend; the backend will run its
+  disposable stack with the combined tree: private artwork by id
   (FR-115) and drink and song starting off (FR-134) are checked on staging, as are exports' delivery
   (FR-128), owners told apart from pending invitations (FR-130) and the scheduled free plan (FR-135).
   The schema is looser than the guide in four places, which the client narrows or types itself (FR-149). Paid plans
@@ -997,8 +1000,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   (PD-173).
 - Of billing: saying beforehand that paid plans are off, on the billing page or the public price
   list (FR-109); a plan's words in other languages (FR-110); more than the newest
-  hundred invoices (FR-110); a real bank: only the mock's return has been followed. The price list's
-  read has no guest-page allowance, so its hundred-and-first visitor in a minute is refused (FR-147).
+  hundred invoices (FR-110); a real bank: only the mock's return has been followed.
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the
@@ -1040,8 +1042,9 @@ size check in the CSV's send that the disabled button already covers. **None of 
   which the page leaves out (seating now reaches a brief only once published, C-55); telling a
   paused brief from an ended booking (FR-144); keeping the brief across a reload, deliberately; a
   page in Aveline's or the hosts' own design (DQ-42).
-- Of the public listing: a date or time on a card, and marking a card's language (FR-92); a list of
-  categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, until FR-92.
+- Of the public listing: a card's end time, which the event's page doesn't show either; a list of
+  categories and a sold-out mark (FR-93); a link from anywhere but the home placeholder, which waits
+  for the listing's design (DQ-30) now that cards carry their date (FR-92).
 - Of seating: saving many places at once, a table's revision between two hosts (FR-113); seating from
   the drawn plan, which holds no guests; seating a household in one
   request (FR-53); seating at check-in; unseating everyone to plan again (the API has no such
@@ -1076,7 +1079,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - Of ticketing (pilot Milestone C): reordering ticket types (no endpoint); more than the
   newest 500 orders (FR-68); clearing a sales window (FR-67); registering a ticket's holder while
   the announcement is not published (FR-71); "on sale from" before a type's sales open (FR-66); saying on the order whether the event has agreements before the door (FR-138), whether its listing is still public (FR-139), and leaving out an erased buyer's name (FR-140).
-- Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; anyone erased told apart by the roster rather than a stand-in (FR-141); room in the rate limit for a large roster (FR-142); households told apart rather than grouped by name (FR-143); a walk-in joining
+- Of the door: working offline, not for the pilot (C-40); what the QR scanner still lacks, listed above (C-25); seating at check-in; the server refusing an erased guest's check-in, which only the door's own results prevent (FR-150); more than 5,000 people in its list, past which it says the list is partial and codes still work; households told apart rather than grouped by name (FR-143); a walk-in joining
   a household already on the list, which needs one of its seats free; adding a walk-in again safely
   after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the
@@ -1093,9 +1096,10 @@ size check in the CSV's send that the disabled button already covers. **None of 
   page refuses to copy one on a local or `http` origin from a real `https` page (BACKEND_REQUESTS §4).
   It also needs the support contacts, `VITE_SUPPORT_*`, a launch gate (C-54), and `VITE_SITE_URL` once
   the site exists; each is a build argument in the `Dockerfile`.
-- CI (BA-3). Sentry and Storybook aren't wanted for now, to be looked at again before going live (C-27). The root push gate, `npm run ci:local`, needs Linux and Docker, so it
-  has run on no frontend commit made on the Mac this is written on (BACKEND_REQUESTS §3, §4); those commits
-  name it as not run.
+- CI (BA-3): no workflow tests the frontend, and the root gate, `npm run ci:local`, checks only the backend
+  (the backend's correction, 11 November 2026), so `npm run verify` is the frontend's only gate. The backend
+  asked us to draft `.github/workflows/frontend.yml` and add a frontend stage to `ci:local`; neither is drafted
+  (BACKEND_REQUESTS §4). Sentry and Storybook aren't wanted for now, to be looked at again before going live (C-27).
 - The end-to-end and axe tests (`test/e2e/`, §10): written once the local backend can run.
   `npm run test:e2e` finds no tests until then.
 - Of the invitation's polish: music starting by itself after a full reload, which browsers refuse
