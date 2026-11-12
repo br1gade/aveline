@@ -180,7 +180,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
     /** Before anyone answers, the brief is honest zeros and the running order; ungranted sections are absent. */
     const expectEmptyBriefs = (caterer: Brief, photographer: Brief, timeline: { arrives: string; dinner: string }) => {
       expect(caterer.granted.map((entry) => entry.section)).toEqual(['headcount', 'catering', 'timeline']);
-      expect(Object.keys(caterer).sort()).toEqual(['catering', 'event', 'granted', 'headcount', 'status', 'timeline', 'vendor']);
+      expect(Object.keys(caterer).sort()).toEqual(['catering', 'event', 'granted', 'headcount', 'locale', 'status', 'timeline', 'vendor']);
       expect(caterer).toMatchObject({ vendor: { name: 'Tashir Catering', category: 'CATERING' }, status: 'ENQUIRED', event: { title: 'Anna & Davit', timezone: 'Asia/Yerevan' } });
       expect(caterer.headcount).toMatchObject({ invited: 5, households: 4, attending: 0, declined: 0, pending: 5, responseRate: 0 });
       expect(caterer.catering).toEqual({ covers: 0, requirements: [], notes: [] });
@@ -190,7 +190,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
         { label: 'Dinner', occursAt: timeline.dinner, venue: 'Ararat Hall' },
       ]);
       expect(photographer.granted.map((entry) => entry.section)).toEqual(['households', 'contacts']);
-      expect(Object.keys(photographer).sort()).toEqual(['contacts', 'event', 'granted', 'households', 'status', 'vendor']);
+      expect(Object.keys(photographer).sort()).toEqual(['contacts', 'event', 'granted', 'households', 'locale', 'status', 'vendor']);
       expect(photographer).toMatchObject({ households: [], contacts: [] });
     };
 
@@ -382,7 +382,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
     const expectVenueBrief = async (authorization: string, venues: Venues, briefs: { venue: string; caterer: string }) => {
       const venueBrief = await brief(briefs.venue);
       expect(venueBrief.granted.map((entry) => entry.section)).toEqual(['headcount', 'timeline', 'seating']);
-      expect(Object.keys(venueBrief).sort()).toEqual(['event', 'granted', 'headcount', 'seating', 'status', 'timeline', 'vendor']);
+      expect(Object.keys(venueBrief).sort()).toEqual(['event', 'granted', 'headcount', 'locale', 'seating', 'status', 'timeline', 'vendor']);
       const dashboard = await hostView(authorization, `/events/${venues.eventId}/dashboard`);
       expect((venueBrief.headcount as { venues: unknown[] }).venues).toEqual((dashboard.headcount as { venues: unknown[] }).venues);
       expect(venueCounts(venueBrief.headcount, venues.church)).toMatchObject({ attending: 2, declined: 3, pending: 0 });
@@ -418,7 +418,7 @@ describe('Journey 08: vendor booking, scoped brief links that follow the guestsâ
       const venueVendor = await book(coordinator, venues.eventId, { vendorId: await directoryVendor('Ararat Hall Ltd', 'VENUE') });
       const caterer = await book(coordinator, venues.eventId, { vendorId: await directoryVendor('Tashir Catering', 'CATERING'), briefScopes: ['catering'] });
       const briefs = { venue: venueVendor.briefToken, caterer: caterer.briefToken };
-      expect(Object.keys(await brief(briefs.caterer)).sort()).toEqual(['catering', 'event', 'granted', 'status', 'vendor']);
+      expect(Object.keys(await brief(briefs.caterer)).sort()).toEqual(['catering', 'event', 'granted', 'locale', 'status', 'vendor']);
 
       const links = await publishAndSend(host, venues);
       await answerPerVenue(venues, links);

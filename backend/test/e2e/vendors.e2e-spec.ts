@@ -211,12 +211,28 @@ describe('Vendor briefs (e2e)', () => {
         'event',
         'granted',
         'headcount',
+        'locale',
         'status',
         'vendor',
       ]);
       for (const withheld of ['bar', 'playlist', 'seating', 'households', 'contacts']) {
         expect(body[withheld]).toBeUndefined();
       }
+    });
+
+    // FR-104: the brief named no language, and gave the sides only as SIDE_A and SIDE_B.
+    it('names the event language it is written in and gives the sides in it', async () => {
+      const { eventId, token } = await briefFor(['headcount']);
+      await prisma.event.update({ where: { id: eventId }, data: {
+        defaultLocale: 'hy', locales: ['hy', 'en'], sideALabel: 'Հարսի կողմ', sideBLabel: null,
+        translations: { en: { sideALabel: 'Bride', title: 'The wedding' } },
+      } });
+
+      const { body } = await http().get(`/api/v1/briefs/${token}`).expect(200);
+
+      expect(body.locale).toBe('hy');
+      expect(body.event.sides).toEqual({ a: 'Հարսի կողմ', b: null });
+      expect(body.event.title).not.toBe('The wedding');
     });
 
     // B93: the headcount section carried every household's name, which only

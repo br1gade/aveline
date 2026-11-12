@@ -403,6 +403,45 @@ describe('Privacy and exports (e2e)', () => {
       expect(list).toHaveLength(0);
     });
 
+    // FR-99(b): a host could post the platform's own reasons, ERASED among them, which can then never be lifted.
+    it.each(['ERASED', 'COMPLAINT', 'HARD_BOUNCE', 'UNSUBSCRIBED'])('refuses a host-sent reason %s with a 400 naming it', async (reason) => {
+      const { authorization } = await organizationOwner();
+
+      const { body } = await http().post('/api/v1/suppressions').set('Authorization', authorization)
+        .send({ channel: MessageChannel.EMAIL, address: 'ani@test.local', reason }).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('reason');
+    });
+
+    it('takes MANUAL, the one reason a host gives', async () => {
+      const { authorization } = await organizationOwner();
+
+      const { body } = await http().post('/api/v1/suppressions').set('Authorization', authorization)
+        .send({ channel: MessageChannel.EMAIL, address: 'ani@test.local', reason: 'MANUAL' }).expect(201);
+
+      expect(body).toMatchObject({ reason: 'MANUAL' });
+    });
+
+    // FR-99(c): an empty address was stored.
+    it.each(['', '   '])('refuses the blank address %j with a 400 naming it', async (address) => {
+      const { authorization } = await organizationOwner();
+
+      const { body } = await http().post('/api/v1/suppressions').set('Authorization', authorization)
+        .send({ channel: MessageChannel.SMS, address }).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('address');
+    });
+
+    // FR-99(d): a spaced number never matched the guest's compact one.
+    it('stores a spaced phone number in the form a guest’s number is matched by', async () => {
+      const { authorization } = await organizationOwner();
+
+      const { body } = await http().post('/api/v1/suppressions').set('Authorization', authorization)
+        .send({ channel: MessageChannel.SMS, address: '+374 91 000 000' }).expect(201);
+
+      expect(body).toMatchObject({ address: '+37491000000' });
+    });
+
     it('cannot lift a platform-wide suppression', async () => {
       const { authorization } = await organizationOwner();
       const global = await prisma.suppression.create({

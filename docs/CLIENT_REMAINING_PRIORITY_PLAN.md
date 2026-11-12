@@ -93,5 +93,7 @@ Telegram rollout still needs a staging bot and provider rehearsal. FR-129's
 existing ticket code format is documented. FR-132's concierge eligibility
 filters are in place before pagination. FR-46 and FR-59 are implemented in the
 backend and await client adoption and staging acceptance. FR-92's listing card
-fields are implemented and await client adoption. Locale changes, payment
-metadata, staff pagination and access review context remain open. Frontend adoption follows the handoff for each slice.
+fields are implemented and await client adoption, as are FR-96's translated side
+labels and FR-104's brief language. FR-99's input checks are implemented except
+(e), the list's 500-entry cap. Payment metadata, staff pagination and access
+review context remain open. Frontend adoption follows the handoff for each slice.

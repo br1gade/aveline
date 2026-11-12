@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { MessageChannel, SuppressionReason } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import {
   CurrentActor,
   OrganizationScope,
@@ -10,18 +10,30 @@ import {
 } from '../../infra/auth/actor';
 import { SuppressionService } from '../communications/suppression.service';
 
+/**
+ * The other reasons belong to the platform: a bounce, a complaint or an
+ * erasure recorded by a host would look like the platform's, and an erasure
+ * could never be lifted (FR-99).
+ */
+const HOST_REASONS = [SuppressionReason.MANUAL] as const;
+
 class SuppressDto {
+  @ApiProperty({ enum: MessageChannel })
   @IsEnum(MessageChannel)
   channel!: MessageChannel;
 
+  @ApiProperty({ maxLength: 200, example: 'ani@example.am' })
   @IsString()
+  @Matches(/\S/u, { message: 'address must not be blank' })
   @MaxLength(200)
   address!: string;
 
+  @ApiPropertyOptional({ enum: HOST_REASONS, default: SuppressionReason.MANUAL })
   @IsOptional()
-  @IsEnum(SuppressionReason)
+  @IsIn(HOST_REASONS)
   reason?: SuppressionReason;
 
+  @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)

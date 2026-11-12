@@ -10,6 +10,26 @@ on:
         description: Separate HTTPS media origin for this release
         required: true
         type: string
+      support_email:
+        description: Support email shown to customers (optional)
+        required: false
+        type: string
+      support_phone:
+        description: Support phone shown to customers (optional)
+        required: false
+        type: string
+      support_whatsapp:
+        description: Support WhatsApp number shown to customers (optional)
+        required: false
+        type: string
+      support_telegram:
+        description: Support Telegram handle shown to customers (optional)
+        required: false
+        type: string
+      site_url:
+        description: Public website address, if separate from the app (optional)
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -27,6 +47,11 @@ jobs:
     env:
       APP_ORIGIN: ${{ inputs.app_origin }}
       MEDIA_ORIGIN: ${{ inputs.media_origin }}
+      SUPPORT_EMAIL: ${{ inputs.support_email }}
+      SUPPORT_PHONE: ${{ inputs.support_phone }}
+      SUPPORT_WHATSAPP: ${{ inputs.support_whatsapp }}
+      SUPPORT_TELEGRAM: ${{ inputs.support_telegram }}
+      SITE_URL: ${{ inputs.site_url }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -55,6 +80,9 @@ jobs:
           docker build --label "org.opencontainers.image.revision=$SOURCE_REVISION" --label "org.opencontainers.image.source=https://github.com/$SOURCE_REPOSITORY" --tag aveline-api:ci .
           docker build --file Dockerfile.backup --label "org.opencontainers.image.revision=$SOURCE_REVISION" --tag aveline-backup:pilot-readiness .
           docker build --build-arg "VITE_PUBLIC_ORIGIN=$APP_ORIGIN" --build-arg "VITE_MEDIA_BASE_URL=$MEDIA_ORIGIN" --build-arg VITE_API_BASE_URL= \
+            --build-arg "VITE_SUPPORT_EMAIL=$SUPPORT_EMAIL" --build-arg "VITE_SUPPORT_PHONE=$SUPPORT_PHONE" \
+            --build-arg "VITE_SUPPORT_WHATSAPP=$SUPPORT_WHATSAPP" --build-arg "VITE_SUPPORT_TELEGRAM=$SUPPORT_TELEGRAM" \
+            --build-arg "VITE_SITE_URL=$SITE_URL" \
             --label "com.aveline.app-origin=$APP_ORIGIN" --label "com.aveline.media-origin=$MEDIA_ORIGIN" \
             --label "org.opencontainers.image.revision=$SOURCE_REVISION" --tag aveline-web:pilot-readiness ../frontend
           OPS_REHEARSAL_IMAGE=aveline-api:ci OPS_REHEARSAL_BACKUP_IMAGE=aveline-backup:pilot-readiness OPS_REHEARSAL_WEB_IMAGE=aveline-web:pilot-readiness npm run ops:rehearsal

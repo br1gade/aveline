@@ -62,7 +62,7 @@ describe('Reading the invitation in another language (e2e)', () => {
   const personalPage = async (slug: string, token: string, locale?: string) =>
     (await http().get(`/api/v1/invitations/${slug}/g/${token}`).query(locale ? { locale } : {}).expect(200)).body as {
       locale: string;
-      event: { title: string; hosts: string };
+      event: { title: string; hosts: string; sides: { a: string | null; b: string | null } };
       blocks: { type: string; content: unknown; data: { name: string; address: string }[] | null }[];
     };
 
@@ -101,6 +101,20 @@ describe('Reading the invitation in another language (e2e)', () => {
     });
   });
 
+  // FR-96: side labels were one string each, shown to guests reading any language.
+  it('shows the side labels in the page’s language, falling back to the original', async () => {
+    const { eventId, slug, primaryGuestToken, authorization } = await host();
+
+    await http()
+      .patch(`/api/v1/events/${eventId}`)
+      .set('Authorization', authorization)
+      .send({ sideALabel: 'Հարսի կողմ', sideBLabel: 'Փեսայի կողմ', translations: { en: { sideALabel: 'Bride’s side' } } })
+      .expect(200);
+
+    expect((await personalPage(slug, primaryGuestToken, 'en')).event.sides).toEqual({ a: 'Bride’s side', b: 'Փեսայի կողմ' });
+    expect((await personalPage(slug, primaryGuestToken, 'hy')).event.sides).toEqual({ a: 'Հարսի կողմ', b: 'Փեսայի կողմ' });
+  });
+
   it('shows the venue’s name and address in the page’s language', async () => {
     const { eventId, slug, primaryGuestToken, authorization } = await host();
     const venue = await prisma.venue.findFirstOrThrow({ where: { eventId } });
@@ -136,6 +150,7 @@ describe('Reading the invitation in another language (e2e)', () => {
     [{ English: { title: 'x' } }],
     [{ en: { title: 42 } }],
     [{ en: { motto: 'unknown field' } }],
+    [{ en: { sideBLabel: 'x'.repeat(61) } }],
   ])('refuses translations %j with a 400 naming the field', async (translations) => {
     const { eventId, authorization } = await host();
 

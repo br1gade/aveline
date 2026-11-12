@@ -89,7 +89,10 @@ preservation independently of ordinary recovery sets.
    `release` environment when prompted.
 2. The successful run's manifest binds the source commit, origins and three
    image digests to the run ID. The web build sets the app and media origins
-   and uses relative browser API requests. These build arguments are public.
+   and uses relative browser API requests. The optional support email, phone,
+   WhatsApp and Telegram inputs and the website address are compiled into the
+   web image too; set the support contacts before the pilot (design C-54). Every
+   one of these build arguments is public.
 3. Run **Deploy an attested release** with that run ID, target `staging`, and
    its exact Compose project name. Approve the environment, then verify health,
    real-browser workflows, worker queues, mail and backup evidence.

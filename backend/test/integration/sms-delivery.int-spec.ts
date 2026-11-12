@@ -77,6 +77,7 @@ describe('SMS delivery (integration)', () => {
 
     expect(sent).toEqual([]);
     expect((await prisma.message.findUniqueOrThrow({ where: { id: message.id } })).status).toBe(MessageStatus.BOUNCED);
-    expect(await prisma.suppression.count({ where: { channel: MessageChannel.SMS, address: '91 000000' } })).toBe(1);
+    // Stored without its spaces, the form every later spelling of this number is matched in.
+    expect(await prisma.suppression.count({ where: { channel: MessageChannel.SMS, address: '91000000' } })).toBe(1);
   });
 });

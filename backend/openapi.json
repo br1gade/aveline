@@ -16805,7 +16805,7 @@
           "translations": {
             "type": "object",
             "additionalProperties": true,
-            "description": "Per-language title and hosts, edited one language at a time; null removes one",
+            "description": "Per-language title, hosts and side labels, edited one language at a time; null removes one",
             "example": {
               "en": {
                 "title": "The wedding of Anna and Davit",
@@ -20014,7 +20014,38 @@
       },
       "SuppressDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "SMS",
+              "TELEGRAM",
+              "WHATSAPP",
+              "PUSH"
+            ]
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "ani@example.am"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "MANUAL"
+            ],
+            "default": "MANUAL"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "channel",
+          "address"
+        ]
       },
       "CreateEnquiryPrivacyRequestDto": {
         "type": "object",
@@ -43083,11 +43114,15 @@
               "CONFIRMED"
             ]
           },
+          "locale": {
+            "type": "string"
+          },
           "event": {
             "type": "object",
             "properties": {
               "title": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               },
               "startsAt": {
                 "type": "string",
@@ -43101,13 +43136,35 @@
               "timezone": {
                 "type": "string"
               },
+              "sides": {
+                "type": "object",
+                "properties": {
+                  "a": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "b": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "a",
+                  "b"
+                ]
+              },
               "venues": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
                     "name": {
-                      "type": "string"
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "address": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "role": {
                       "type": "string",
@@ -43118,9 +43175,6 @@
                         "AFTER_PARTY",
                         "PREPARATION"
                       ]
-                    },
-                    "address": {
-                      "type": "string"
                     },
                     "mapUrl": {
                       "type": "string",
@@ -43134,8 +43188,8 @@
                   },
                   "required": [
                     "name",
-                    "role",
                     "address",
+                    "role",
                     "mapUrl",
                     "arriveAt"
                   ]
@@ -43147,6 +43201,7 @@
               "startsAt",
               "endsAt",
               "timezone",
+              "sides",
               "venues"
             ]
           },
@@ -43182,6 +43237,7 @@
         "required": [
           "vendor",
           "status",
+          "locale",
           "event",
           "granted"
         ]
