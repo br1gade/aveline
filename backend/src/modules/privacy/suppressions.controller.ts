@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { MessageChannel, SuppressionReason } from '@prisma/client';
 import { IsEnum, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
@@ -8,6 +8,7 @@ import {
   RequestActor,
   RequirePermission,
 } from '../../infra/auth/actor';
+import { PaginationQuery } from '../../common/dto/pagination.dto';
 import { SuppressionService } from '../communications/suppression.service';
 
 /**
@@ -50,10 +51,10 @@ export class SuppressionsController {
   @Get()
   @ApiOperation({
     summary: 'Addresses that will not be contacted',
-    description: 'Includes platform-wide entries, marked with scope GLOBAL.',
+    description: 'Includes platform-wide entries, marked with scope GLOBAL. Paged, newest first.',
   })
-  list(@CurrentActor() actor: RequestActor) {
-    return this.suppressions.list(actor.organizationId ?? '');
+  list(@CurrentActor() actor: RequestActor, @Query() query: PaginationQuery) {
+    return this.suppressions.list(actor.organizationId ?? '', query);
   }
 
   @RequirePermission('guest:write')

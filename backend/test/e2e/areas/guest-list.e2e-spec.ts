@@ -238,7 +238,7 @@ describe('Guest list (e2e)', () => {
 
       const { body } = await http().get('/api/v1/suppressions').set('Authorization', authorization).expect(200);
 
-      expect(body).toEqual([expect.objectContaining({ id: row.id, address: 'ani@test.local' })]);
+      expect(body.items).toEqual([expect.objectContaining({ id: row.id, address: 'ani@test.local' })]);
     });
 
     it.each([OrganizationRole.VIEWER, OrganizationRole.MEMBER])('refuses an organization %s adding or lifting one', async (role) => {

@@ -263,7 +263,7 @@ describe('Guest list (integration)', () => {
       const organizationId = await organizationOf(eventId);
       const row = await erasedRow(organizationId, 'back@test.local');
 
-      expect(await new SuppressionService(database).list(organizationId)).toEqual([expect.objectContaining({ id: row.id, address: 'back@test.local' })]);
+      expect((await new SuppressionService(database).list(organizationId)).items).toEqual([expect.objectContaining({ id: row.id, address: 'back@test.local' })]);
     });
 
     it("stays unreadable when only another organization's guest has the address", async () => {
@@ -273,7 +273,7 @@ describe('Guest list (integration)', () => {
       const organizationId = await organizationOf(own.eventId);
       const row = await erasedRow(organizationId, 'back@test.local');
 
-      expect(await new SuppressionService(database).list(organizationId)).toEqual([expect.objectContaining({ id: row.id, address: '[erased]' })]);
+      expect((await new SuppressionService(database).list(organizationId)).items).toEqual([expect.objectContaining({ id: row.id, address: '[erased]' })]);
     });
   });
 });

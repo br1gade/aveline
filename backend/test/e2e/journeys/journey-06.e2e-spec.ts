@@ -516,7 +516,7 @@ describe('Journey 6: DSAR erasure after a full event reaches every module (e2e)'
    */
   const suppressionKeepsHerOut = async (gala: Gala) => {
     const { body: suppressions } = await gala.host.get('/suppressions').expect(200);
-    const erased = (suppressions as { id: string; channel: string; address: string; reason: string; scope: string }[]).filter((row) => row.reason === 'ERASED');
+    const erased = (suppressions.items as { id: string; channel: string; address: string; reason: string; scope: string }[]).filter((row) => row.reason === 'ERASED');
     expect(erased.map((row) => row.channel).sort()).toEqual(['EMAIL', 'SMS', 'TELEGRAM', 'WHATSAPP']);
     expect(erased.every((row) => row.address === '[erased]' && row.scope === 'ORGANIZATION')).toBe(true);
     await gala.host.delete(`/suppressions/${erased[0].id}`).expect(409);

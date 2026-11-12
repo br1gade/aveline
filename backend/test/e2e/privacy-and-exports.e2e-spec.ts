@@ -379,8 +379,8 @@ describe('Privacy and exports (e2e)', () => {
         .get('/api/v1/suppressions')
         .set('Authorization', authorization)
         .expect(200);
-      expect(list).toHaveLength(1);
-      expect(list[0]).toMatchObject({ address: 'ani@test.local', scope: 'ORGANIZATION' });
+      expect(list).toMatchObject({ total: 1, hasMore: false });
+      expect(list.items[0]).toMatchObject({ address: 'ani@test.local', scope: 'ORGANIZATION' });
     });
 
     it('resumes contacting one of its own', async () => {
@@ -400,7 +400,24 @@ describe('Privacy and exports (e2e)', () => {
         .get('/api/v1/suppressions')
         .set('Authorization', authorization)
         .expect(200);
-      expect(list).toHaveLength(0);
+      expect(list).toMatchObject({ items: [], total: 0 });
+    });
+
+    // FR-99(e): the list stopped at 500 with no sign that it had.
+    it('pages the list and says when more remain', async () => {
+      const { authorization } = await organizationOwner();
+      for (const name of ['a', 'b', 'c']) {
+        await http().post('/api/v1/suppressions').set('Authorization', authorization).send({ channel: MessageChannel.EMAIL, address: `${name}@test.local` }).expect(201);
+      }
+      const page = (offset: number) => http().get('/api/v1/suppressions').query({ limit: 2, offset }).set('Authorization', authorization).expect(200);
+
+      const first = (await page(0)).body;
+      const last = (await page(2)).body;
+
+      expect(first).toMatchObject({ total: 3, limit: 2, offset: 0, hasMore: true });
+      expect(first.items).toHaveLength(2);
+      expect(last).toMatchObject({ total: 3, offset: 2, hasMore: false });
+      expect([...first.items, ...last.items].map((row: { address: string }) => row.address).sort()).toEqual(['a@test.local', 'b@test.local', 'c@test.local']);
     });
 
     // FR-99(b): a host could post the platform's own reasons, ERASED among them, which can then never be lifted.
