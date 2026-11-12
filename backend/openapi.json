@@ -4788,6 +4788,52 @@
         "security": []
       }
     },
+    "/api/v1/payments/{orderNumber}/fake-bank": {
+      "post": {
+        "description": "Exists only where the FAKE provider is registered (development and test); a 404 everywhere else. Records nothing: confirm afterwards, as after any bank.",
+        "operationId": "PaymentsController_answerAsFakeBank",
+        "parameters": [
+          {
+            "name": "orderNumber",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FakeBankAnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Development only: pay or decline at the fake bank",
+        "tags": [
+          "payments"
+        ],
+        "security": []
+      }
+    },
     "/api/v1/payments/{orderNumber}/refund": {
       "post": {
         "description": "Not for ticket payments: cancel the order instead, which refunds it and voids its tickets together.",
@@ -17534,6 +17580,22 @@
             "description": "Send the guest the usual confirmation. Off by default: they told you themselves."
           }
         }
+      },
+      "FakeBankAnswerDto": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "PAID",
+              "DECLINED"
+            ],
+            "description": "What the payer did at the fake bank"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
       },
       "RefundPaymentDto": {
         "type": "object",

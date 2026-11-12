@@ -69,6 +69,7 @@ differ.
 | `POST` | `/api/v1/payments/:orderNumber/confirm` | Ask the bank what happened |
 | `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |
 | `POST` | `/api/v1/payments/reconcile` | Sweep everything unresolved |
+| `POST` | `/api/v1/payments/:orderNumber/fake-bank` | Development only: pay or decline at the `FAKE` bank |
 
 Paid subscription selection validates local provider registration before issuing
 or replacing an invoice. An unconfigured provider returns `404` without consuming
@@ -273,6 +274,14 @@ The `FAKE` provider runs the entire flow in process, so registration, redirect,
 confirmation, refunds and reconciliation are all exercisable before any bank
 responds. `PaymentsModule` registers it only when `NODE_ENV` is `development` or `test`,
 because it would otherwise let anyone mint a paid order.
+
+The fake bank has no page, so `POST /api/v1/payments/:orderNumber/fake-bank`
+(`{ "outcome": "PAID" | "DECLINED" }`) stands in for the payer, letting a
+checkout be finished in a browser. It only sets what the fake bank will answer;
+the next confirm records it. It reads the same registration, so where `FAKE` is
+not registered it is a `404` before any payment is read. The fake bank keeps its
+orders in memory: after a backend restart it calls an earlier order unknown, and
+confirm records that order `FAILED`.
 
 ## 5. Apple Pay and Google Pay
 

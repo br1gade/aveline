@@ -179,6 +179,44 @@ describe('Payments and billing over HTTP (e2e)', () => {
     });
   });
 
+  describe('answering as the fake bank, for local development', () => {
+    const unpaidPayment = async () => {
+      const organization = await prisma.organization.create({ data: { name: 'Payer Org', kind: 'HOST' } });
+      const started = await payments.start({
+        organizationId: organization.id, purpose: PaymentPurpose.DEPOSIT, provider: PaymentProvider.FAKE,
+        amountMinor: '20000', currency: 'AMD', returnUrl: 'https://aveline.test/return', idempotencyKey: `fake-bank-${(keySequence += 1)}`,
+      });
+      return started.orderNumber;
+    };
+    const answer = (orderNumber: string, outcome: unknown) =>
+      http().post(`/api/v1/payments/${orderNumber}/fake-bank`).send({ outcome });
+
+    it.each([
+      ['PAID', 'CAPTURED'],
+      ['DECLINED', 'FAILED'],
+    ])('records nothing itself, and the next confirm reads %s as %s', async (outcome, status) => {
+      const orderNumber = await unpaidPayment();
+
+      await answer(orderNumber, outcome).expect(204);
+      expect(await prisma.payment.findUniqueOrThrow({ where: { orderNumber } })).toMatchObject({ status: 'PENDING' });
+
+      const { body } = await http().post(`/api/v1/payments/${orderNumber}/confirm`).expect(201);
+      expect(body).toMatchObject({ orderNumber, status });
+    });
+
+    it.each([undefined, 'CAPTURED', 'paid'])('400s outcome %p, naming the field', async (outcome) => {
+      const orderNumber = await unpaidPayment();
+
+      const { body } = await answer(orderNumber, outcome).expect(400);
+
+      expect(JSON.stringify(body.message)).toContain('outcome');
+    });
+
+    it('404s an unknown order number', async () => {
+      await answer('AVL-NOPE', 'PAID').expect(404);
+    });
+  });
+
   describe('refunding through the payments endpoint', () => {
     it('lets a platform admin refund part of a captured payment', async () => {
       const orderNumber = await capturedPayment();

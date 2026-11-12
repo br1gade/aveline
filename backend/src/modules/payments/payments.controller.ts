@@ -1,5 +1,6 @@
 import { OptionalQuery } from '../../common/openapi-document';
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { FakeBankAnswerDto } from './dto/fake-bank-answer.dto';
 import { PaymentEventSource } from '@prisma/client';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RefundPaymentDto } from '../ticketing/dto/ticket-setup.dto';
@@ -37,6 +38,19 @@ export class PaymentsController {
       orderNumber,
       source === 'callback' ? PaymentEventSource.CALLBACK : PaymentEventSource.API,
     );
+  }
+
+  @Public()
+  @Post(':orderNumber/fake-bank')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Development only: pay or decline at the fake bank',
+    description:
+      'Exists only where the FAKE provider is registered (development and test); a 404 everywhere else. ' +
+      'Records nothing: confirm afterwards, as after any bank.',
+  })
+  answerAsFakeBank(@Param('orderNumber') orderNumber: string, @Body() dto: FakeBankAnswerDto): Promise<void> {
+    return this.payments.answerAsFakeBank(orderNumber, dto.outcome);
   }
 
   /**

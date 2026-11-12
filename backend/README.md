@@ -412,6 +412,7 @@ its records are references to regenerate, never historical snapshots.
 | `POST` | `/api/v1/payments/:orderNumber/confirm` | Server-to-server outcome check |
 | `POST` | `/api/v1/payments/:orderNumber/refund` | Full or partial refund |
 | `POST` | `/api/v1/payments/reconcile` | Sweep unresolved payments |
+| `POST` | `/api/v1/payments/:orderNumber/fake-bank` | Development only: pay or decline at the fake bank |
 
 ### Organization and billing
 

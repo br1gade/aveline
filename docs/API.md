@@ -3711,7 +3711,17 @@ POST /api/v1/payments/:orderNumber/confirm   # public: ask the bank what happene
 POST /api/v1/payments/:orderNumber/refund    # Aveline staff (platform ADMIN); not for tickets
 # a refund the bank does not answer is a 502 "outcome unknown"; it is never retried automatically
 POST /api/v1/payments/reconcile              # requires billing:read; ops only
+POST /api/v1/payments/:orderNumber/fake-bank # development only: { "outcome": "PAID" | "DECLINED" }
 ```
+
+**Local development only:** the `FAKE` provider has no bank page, so its
+redirect returns the payer at once with `fakePayment=fake_<orderNumber>` on the
+return URL and the payment still `PENDING`. `fake-bank` stands in for what the
+payer does at the bank: `PAID` or `DECLINED`, answered `204`. It records
+nothing; confirm afterwards as after any bank (for tickets,
+`POST /ticket-orders/:accessToken/confirm`). A dev-build control on the return
+page may call it; it is `404` wherever `FAKE` is not registered, which
+includes production, and for an order paid through a real bank.
 
 The same rule as ticketing applies and is the one people get wrong: **the
 return redirect is not proof of payment.** Call confirm, which checks

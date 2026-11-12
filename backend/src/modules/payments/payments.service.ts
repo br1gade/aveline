@@ -19,6 +19,8 @@ import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { assertTransition, isSettled, nextStatusForRefund } from './payment-status';
 import { BankDeclinedError, ProviderOutcome, ProviderStatus } from './providers/payment-provider';
 import { StartPaymentDto } from './dto/start-payment.dto';
+import { FakeBankOutcome } from './dto/fake-bank-answer.dto';
+import { FakeGateway } from './providers/fake.gateway';
 import { assertChargesEnabled } from './pilot-payments';
 import { isRecordNotFound, isUniqueViolation } from '../../common/prisma-errors';
 
@@ -37,6 +39,11 @@ const ENDED_WITHOUT_MONEY_STATUSES: readonly PaymentStatus[] = [PaymentStatus.FA
 /** How long a loser of the idempotency race waits for the winner's result. */
 const REGISTRATION_WAIT_MS = 50;
 const REGISTRATION_WAIT_ATTEMPTS = 40;
+
+const FAKE_BANK_ANSWERS: Record<FakeBankOutcome, (fake: FakeGateway, providerRef: string) => void> = {
+  PAID: (fake, providerRef) => fake.simulateSuccess(providerRef),
+  DECLINED: (fake, providerRef) => fake.simulate(providerRef, { kind: 'failed', reason: 'Declined at the fake bank' }),
+};
 
 /** Told after a refund the bank accepted, with the payment as it now stands. */
 export type RefundListener = (payment: { orderNumber: string; status: PaymentStatus }) => Promise<unknown>;
@@ -440,6 +447,23 @@ export class PaymentsService {
     const payment = await this.prisma.payment.findUnique({ where: { orderNumber } });
     if (!payment) throw new NotFoundException(`No payment ${orderNumber}`);
     return this.describe(payment);
+  }
+
+  /**
+   * Development only: what a payer would do on the fake bank's page, which
+   * does not exist, so a checkout can be finished in a browser. It records
+   * nothing — the caller's next confirm reads the answer as from any bank.
+   * The fake gateway is registered only in development and test, so
+   * elsewhere this is a 404 before any payment is read.
+   */
+  async answerAsFakeBank(orderNumber: string, outcome: FakeBankOutcome): Promise<void> {
+    if (!this.gateways.configured().includes(PaymentProvider.FAKE)) throw new NotFoundException();
+    const fake = this.gateways.get(PaymentProvider.FAKE) as FakeGateway;
+    const payment = await this.prisma.payment.findUnique({ where: { orderNumber }, select: { provider: true, providerRef: true } });
+    if (payment?.provider !== PaymentProvider.FAKE || !payment.providerRef) {
+      throw new NotFoundException(`No fake-bank payment ${orderNumber}`);
+    }
+    FAKE_BANK_ANSWERS[outcome](fake, payment.providerRef);
   }
 
   /**
