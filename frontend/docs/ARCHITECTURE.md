@@ -962,10 +962,11 @@ size check in the CSV's send that the disabled button already covers. **None of 
 
 ## 12. Not yet built
 
-- Of the backend's deliveries to 12 November (`dev` at `b2240e0`), what the client is still to
+- Of the backend's deliveries to 13 November (`dev` at `874b929`), what the client is still to
   adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, and a
-  build per origin (FR-11); and the frontend CI workflow and `ci:local` stage the backend asked for. Every answered
-  request is adopted (12 November 2026), and since then the end-to-end suite has run every pilot journey
+  build per origin (FR-11). The frontend workflow is written and not enabled, and the `ci:local` stage is the
+  backend's, after the rehearsal (below, "CI"). Every answered
+  request is adopted (13 November 2026), and since then the end-to-end suite has run every pilot journey
   against the backend's own development stack (§10); a production-like stack and staging have not met
   it yet. Still checked only on staging: private artwork by id
   (FR-115) and drink and song starting off (FR-134) are checked on staging, as are exports' delivery
