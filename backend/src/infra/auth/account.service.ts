@@ -23,6 +23,7 @@ import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 import { AcceptInviteDto, InviteMemberDto, InviteToEventDto } from './dto/account.dto';
 import { RegisterDto } from './dto/auth.dto';
 import { isUniqueViolation } from '../../common/prisma-errors';
+import { USED_EMAIL_VERIFICATION } from './verified-email';
 
 const BCRYPT_ROUNDS = 12;
 const RESET_LIFETIME_MS = 60 * 60 * 1000;
@@ -62,7 +63,7 @@ export class AccountService {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, isActive: true },
       select: { id: true, email: true, name: true, platformRole: true, createdAt: true,
-        verificationTokens: { where: { purpose: 'EMAIL_VERIFICATION', usedAt: { not: null } },
+        verificationTokens: { where: USED_EMAIL_VERIFICATION,
           orderBy: { usedAt: 'desc' }, take: 1, select: { usedAt: true } } },
     });
     if (!user) throw new UnauthorizedException('Account is not active');

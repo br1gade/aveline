@@ -190,6 +190,28 @@ describe('staff enquiry permissions', () => {
   });
 });
 
+describe('managing staff', () => {
+  const ORGANIZATION_ROLES = Object.values(OrganizationRole);
+  const EVENT_ROLES = Object.values(EventRole);
+
+  it('is held by ADMIN alone among platform roles', () => {
+    expect(Object.values(PlatformRole).filter((role) => can(staff(role), 'staff:manage'))).toEqual([PlatformRole.ADMIN]);
+  });
+
+  it('is never reached through any organization and event role, however combined', () => {
+    for (const organizationRole of [null, ...ORGANIZATION_ROLES]) {
+      for (const eventRole of [null, ...EVENT_ROLES]) {
+        expect(can({ kind: 'member', organizationRole, eventRole }, 'staff:manage')).toBe(false);
+      }
+    }
+  });
+
+  it('is never held by a guest or a vendor with any scope', () => {
+    expect(can(guest(), 'staff:manage')).toBe(false);
+    expect(can(vendor(['staff:manage', '*']), 'staff:manage')).toBe(false);
+  });
+});
+
 describe('platform-only template permissions', () => {
   it.each(['OWNER', 'MANAGER', 'MEMBER', 'VIEWER'] as OrganizationRole[])('never grants template authoring through organization %s', (role) => {
     for (const permission of ['template:author', 'template:publish', 'template:assign'] as const) {

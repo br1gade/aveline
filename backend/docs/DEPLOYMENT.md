@@ -127,6 +127,21 @@ through its archived source and matching operations CLI. The database schema
 stays at its current revision. A stale lock is not
 automatically removed: verify its recorded process before operator removal.
 
+**The first admin.** A fresh installation has no staff. Have the person
+register and verify their address in the app, then, on the host:
+
+```bash
+node scripts/ops.mjs staff-grant --directory PROFILE --email ani@aveline.am --role ADMIN
+```
+
+It runs the role tool once in a throwaway API container and prints what it
+did. `staff-revoke --email EMAIL` removes a role and `staff-list` shows who has
+one. A refusal (an unregistered or unverified address, a mistyped command) is
+printed with its reason. Every change made here or in the app is kept in
+`staff_role_changes`, marked `OPS` or `API`; after the first admin, grant
+further staff from the app (`POST /staff`), so each change names the admin who
+made it.
+
 ## Privacy journal and restore boundary
 
 The signed enquiry privacy journal is an **independent external Docker volume**.

@@ -39,6 +39,7 @@ src/
     guest-contributions/ versioned acknowledgements and moderated private gallery
     devices/        push registration tokens
     development/    development-only shortcuts for the client's end-to-end suite; 404 in production
+    staff/          Aveline staff roles: the admin API and the ops command that makes the first admin
   prisma/           PrismaService
 ```
 

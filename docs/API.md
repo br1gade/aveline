@@ -178,8 +178,7 @@ filename across approved origins.
 anyone else per address. Exceeding either returns `429`.
 
 Guest-page reads have a wider allowance — 50/second and 3,000/minute — because
-a whole room opens them at once on one Wi-Fi, and a server renderer reads them
-for every guest from one address: `GET /invitations/:slug`,
+a whole room opens them at once on one Wi-Fi: `GET /invitations/:slug`,
 `GET /invitations/:slug/g/:guestToken`, the guest's own
 `GET /invitations/:slug/g/:guestToken/rsvp`, and the acknowledgement, signature and
 gallery file reads, both gallery/acknowledgement lists, invitation design-artwork files,
@@ -187,6 +186,16 @@ the public event listing, detail and section availability, and the price list
 (`GET /plans`). The door roster has the same allowance, counted per account, so
 reading a large roster whole does not spend the budget check-ins need. Each route
 has its own count. Every write keeps the default.
+
+**A server that renders pages for visitors** must say whose page it is: send
+the visitor's address in `X-Forwarded-For` on each read it makes for them.
+In production the API trusts exactly one hop in front of it
+(`TRUST_PROXY_HOPS=1`), so it counts that address instead of the server's own;
+a local stack trusts none and counts the renderer. Take only the last entry of the
+`X-Forwarded-For` the proxy gave you (anything before it is what the visitor
+claimed), and send nothing when there is none. Without it every visitor
+shares one allowance per route, and anyone requesting pages fast enough puts
+every guest page into `429`s.
 
 ### Dates
 
@@ -1369,6 +1378,40 @@ unrelated selection with `403 ORGANIZATION_ACCESS_DENIED`. Reuse returns
 invitation stays pending. With no match and no explicit selection, the new
 organization, owner invitation and email commit together. That response has
 `isExisting: false`.
+
+### Aveline staff accounts (admins)
+
+```http
+GET    /api/v1/staff
+POST   /api/v1/staff            { "email": "ani@aveline.am", "role": "SUPPORT" }
+DELETE /api/v1/staff/:userId
+```
+
+For an Aveline staff console: every route needs `staff:manage`, which only an
+`ADMIN` holds; anyone else gets `403`. The first admin is made on the server
+with `node scripts/ops.mjs staff-grant` (backend/docs/DEPLOYMENT.md).
+
+```json
+{ "items": [{ "userId": "clz...", "email": "ani@aveline.am", "name": "Ani Petrosyan", "role": "SUPPORT" }] }
+```
+
+- **`GET`** lists every active staff account, at most 200, ordered by address.
+- **`POST`** makes a registered account `ADMIN` or `SUPPORT`, or changes its
+  role, and answers `200` with that one row. It is idempotent. `role` may only
+  be `ADMIN` or `SUPPORT`, and `email` is matched in any case; anything else is
+  a `400` naming the field. No active account with that address is `404`
+  `STAFF_ACCOUNT_NOT_FOUND` (ask the person to register first); an address the
+  account never verified is `409` `STAFF_EMAIL_UNVERIFIED`.
+- **`DELETE`** returns a staff account to an ordinary one and answers `204`. It
+  is idempotent: an account that is not staff is left as it is, also `204`. No
+  active account with that id is `404` `STAFF_ACCOUNT_NOT_FOUND`.
+- An admin cannot change or revoke their own role: `409` `STAFF_SELF_CHANGE`.
+  Another admin has to. An admin whose own role was removed while the request
+  waited is refused with `403`, so two admins cannot remove each other at once.
+- Each error names the field it is about (`email` or `userId`) in `message`.
+
+A change applies on the account's next request; its session stays open and
+its next access token carries the new role.
 
 ### Archiving and deleting an event
 

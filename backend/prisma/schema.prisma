@@ -92,6 +92,8 @@ model User {
   acceptedEventInvites EventInvite[] @relation("AcceptedEventInvites")
   organizationChangesActed OrganizationAccessChange[] @relation("OrganizationChangeActor")
   organizationChangesReceived OrganizationAccessChange[] @relation("OrganizationChangeSubject")
+  staffChangesActed StaffRoleChange[] @relation("StaffChangeActor")
+  staffChangesReceived StaffRoleChange[] @relation("StaffChangeSubject")
 
   assignedEnquiries SalesEnquiry[]
   consultations Consultation[]
@@ -3105,6 +3107,31 @@ model InvitationTemplateAsset {
 }
 
 /// Minimal transactional authority evidence. No emails, notes or capabilities.
+/// Every change to an account's platform role, kept in Postgres rather than the
+/// Mongo audit trail: who made whom staff is the most powerful grant there is,
+/// and it must survive a Mongo outage. Written in the same transaction as the
+/// role itself (`StaffService`).
+model StaffRoleChange {
+  id String @id @default(cuid())
+  /// Null when the change was made with the ops command on the host.
+  actorUserId String?
+  subjectUserId String?
+  previousRole PlatformRole
+  role PlatformRole
+  source StaffRoleChangeSource
+  createdAt DateTime @default(now())
+  actor User? @relation("StaffChangeActor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "staff_role_changes_actorUserId_fkey")
+  subject User? @relation("StaffChangeSubject", fields: [subjectUserId], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "staff_role_changes_subjectUserId_fkey")
+  @@index([subjectUserId, createdAt], map: "staff_role_changes_subjectUserId_createdAt_idx")
+  @@map("staff_role_changes")
+}
+
+/// `API` is an admin acting in the app; `OPS` is the host command that makes the first admin.
+enum StaffRoleChangeSource {
+  API
+  OPS
+}
+
 model OrganizationAccessChange {
   id String @id @default(cuid())
   organizationId String

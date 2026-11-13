@@ -161,3 +161,42 @@ esac
     await assert.rejects(readFile(join(profile, 'release-state.json')), /ENOENT/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+/** Runs ops.mjs against a local profile with `docker` replaced by `script`, which sees each call in $OPS_COMMAND_LOG. */
+async function withFakeDocker(project, script, use) {
+  const { execFile } = await import('node:child_process'); const { promisify } = await import('node:util'); const { mkdir } = await import('node:fs/promises');
+  const execute = promisify(execFile);
+  const childEnv = { ...process.env }; delete childEnv.NODE_TEST_CONTEXT;
+  const root = await mkdtemp(join(tmpdir(), `${project}-`));
+  try {
+    const profile = join(root, 'profile'); await writeProfile(profile, buildConfiguration({ mode: 'local', project }));
+    await mkdir(join(root, 'bin'));
+    await writeFile(join(root, 'bin/docker'), `#!/bin/sh\nprintf '%s\\n' "$*" >> "$OPS_COMMAND_LOG"\n${script}\n`, { mode: 0o700 });
+    const ops = (...args) => execute(process.execPath, [new URL('ops.mjs', import.meta.url).pathname, ...args, '--directory', profile], { env: { ...childEnv, PATH: `${root}/bin:${process.env.PATH}`, OPS_COMMAND_LOG: join(root, 'commands') } });
+    const commands = async () => (await readFile(join(root, 'commands'), 'utf8')).trim().split('\n');
+    return await use({ ops, commands });
+  } finally { await rm(root, { recursive: true, force: true }); }
+}
+
+test('staff commands run the role tool once each in a throwaway API container and print what it did', async () => {
+  await withFakeDocker('aveline-staff', `case "$*" in *staff-roles.js*) printf 'ani@aveline.am is now ADMIN\\n';; esac`, async ({ ops, commands }) => {
+    const { stdout } = await ops('staff-grant', '--email', 'ani@aveline.am', '--role', 'ADMIN');
+    await ops('staff-revoke', '--email', 'ani@aveline.am');
+    await ops('staff-list');
+    assert.match(stdout, /ani@aveline\.am is now ADMIN/);
+    assert.deepEqual((await commands()).map((args) => args.slice(args.indexOf('run '))), [
+      'run --rm --no-deps --entrypoint node migrate dist/staff-roles.js grant ani@aveline.am ADMIN',
+      'run --rm --no-deps --entrypoint node migrate dist/staff-roles.js revoke ani@aveline.am',
+      'run --rm --no-deps --entrypoint node migrate dist/staff-roles.js list',
+    ]);
+  });
+});
+
+test('a refused staff change tells the operator why instead of withholding it', async () => {
+  const refusal = 'email: this account has not verified its address';
+  await withFakeDocker('aveline-staff-refused', `printf 'Creating container\\n${refusal}\\n' >&2; exit 1`, async ({ ops }) => {
+    const failure = await ops('staff-grant', '--email', 'ani@aveline.am', '--role', 'ADMIN').then(() => null, (error) => error);
+    assert.ok(failure, 'expected the command to fail');
+    assert.match(failure.stderr, new RegExp(`Operation failed: change staff roles: ${refusal}`));
+  });
+});

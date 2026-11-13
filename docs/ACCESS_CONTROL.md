@@ -84,6 +84,18 @@ what each individually allows.
 operator needs to build invitations and manage guests; they do not need to
 destroy a customer's event or see what they were charged.
 
+**How someone becomes staff.** Every account starts as `NONE`. The person
+registers and verifies their address like anyone else; then an `ADMIN` grants
+the role through `POST /staff` (`staff:manage`, which `SUPPORT` does not
+hold). The first admin, who has nobody to grant it, is made on the server with
+`node scripts/ops.mjs staff-grant` ([deployment](../backend/docs/DEPLOYMENT.md)). An
+unverified address is refused, because staff can erase people's data. An admin
+cannot change their own role, so a slip cannot demote the last one. The role
+is read from the database on every request, so a grant or a revocation
+applies on the account's next request. Every change, from the app or the
+host, is kept in `staff_role_changes`: who changed whose role, from what to
+what, and whether it came from the app (`API`) or the host (`OPS`).
+
 ### Organization role — the customer account
 
 | Role | Purpose |
@@ -150,6 +162,7 @@ owner.
 | `privacy:manage` | Handle data-subject requests, including erasure |
 | `directory:manage` | Add, correct and retire halls in the shared venue directory |
 | `concierge:manage` | Open an organization and its events for a customer, and invite them as owner |
+| `staff:manage` | Make an account Aveline staff, change its platform role or revoke it (`ADMIN` only) |
 
 Only organization-scoped `vendor:write` allows corrections, removal, or
 reading private notes for that organization's vendor entries. Event access
@@ -305,7 +318,8 @@ matching subject ownership. See [API.md](API.md) for the exact route contract.
    the effective limit until they move to Redis.
 3. **Email verification is not enforced.** Anyone can register any address.
    Invitations guard against it — accepting for an existing account needs
-   that account's password — but nothing else does.
+   that account's password — and a staff role is granted only to a verified
+   address, but nothing else does.
 
 Attendance policy preview/confirmation requires `event:write`. Attendance
 history requires `guest:read` and is event/person scoped; designers cannot

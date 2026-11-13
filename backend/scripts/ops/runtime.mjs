@@ -18,7 +18,12 @@ export function context(profile, images, options = {}) {
 }
 export async function run(command, args, options = {}) {
   try { return (await execute(command, args, { cwd: backend, timeout: options.timeout ?? 180000, maxBuffer: 8 * 1024 * 1024, env: options.env ?? process.env })).stdout; }
-  catch (error) { if (options.profile) await record(options.profile, 'last-error.json', { stage: options.stage, stdout: error.stdout ?? '', stderr: error.stderr ?? '' }); throw new Error(`Operation failed: ${options.stage ?? command}. Inspect protected host logs; command output was withheld.`); }
+  catch (error) {
+    if (options.profile) await record(options.profile, 'last-error.json', { stage: options.stage, stdout: error.stdout ?? '', stderr: error.stderr ?? '' });
+    // Output is withheld because it can hold secrets. A tool whose last error line cannot (the staff tool prints a usage line or a refusal) opts in.
+    const reason = options.revealsReason ? String(error.stderr ?? '').trim().split('\n').at(-1) : '';
+    throw new Error(reason ? `Operation failed: ${options.stage ?? command}: ${reason}` : `Operation failed: ${options.stage ?? command}. Inspect protected host logs; command output was withheld.`);
+  }
 }
 export function docker(ctx, args, stage, timeout) { return run('docker', args, { env: ctx.env, stage, timeout, profile: ctx.profile }); }
 export function compose(ctx, args, stage, timeout) { return docker(ctx, [...ctx.compose, ...args], stage, timeout); }

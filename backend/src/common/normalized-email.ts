@@ -9,5 +9,10 @@ import { Transform } from 'class-transformer';
  * with a unique index on lower(email).
  */
 export function NormalizedEmail(): PropertyDecorator {
-  return Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value));
+  return Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? normalizeEmail(value) : value));
+}
+
+/** The same rule, for an address that does not arrive through a DTO (the staff ops command). */
+export function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
 }

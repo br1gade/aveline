@@ -40,6 +40,7 @@ export const ALL_PERMISSIONS = [
   'template:author',
   'template:publish',
   'template:assign',
+  'staff:manage',
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -96,7 +97,7 @@ const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission[]> = {
  * customer, so one customer writing to it would be writing to all of them.
  * And a concierge opens organizations for other people.
  */
-const PLATFORM_ONLY: readonly Permission[] = ['privacy:manage', 'directory:manage', 'concierge:manage', 'enquiry:manage', 'enquiry:assign', 'template:author', 'template:publish', 'template:assign'];
+const PLATFORM_ONLY: readonly Permission[] = ['privacy:manage', 'directory:manage', 'concierge:manage', 'enquiry:manage', 'enquiry:assign', 'template:author', 'template:publish', 'template:assign', 'staff:manage'];
 
 const CUSTOMER_OWNED = ALL_PERMISSIONS.filter((permission) => !PLATFORM_ONLY.includes(permission));
 

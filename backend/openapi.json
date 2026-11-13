@@ -10824,6 +10824,129 @@
         ]
       }
     },
+    "/api/v1/staff": {
+      "get": {
+        "operationId": "StaffController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffController_listResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every active staff account (admins only)",
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "description": "Idempotent. Applies on the account's next request. An admin cannot change their own role.",
+        "operationId": "StaffController_grant",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantStaffRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffController_grantResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Make a registered, verified account staff, or change its role (admins only)",
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/staff/{userId}": {
+      "delete": {
+        "description": "Applies on the account's next request. An admin cannot revoke their own role.",
+        "operationId": "StaffController_revoke",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Return a staff account to an ordinary one (admins only)",
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/vendors": {
       "get": {
         "description": "Private notes are returned only for organization-owned entries to callers with organization vendor:write.",
@@ -18795,6 +18918,27 @@
           "address"
         ]
       },
+      "GrantStaffRoleDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The address the person registered with",
+            "example": "ani@aveline.am"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "SUPPORT"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ]
+      },
       "CreateVendorDto": {
         "type": "object",
         "properties": {
@@ -20648,6 +20792,9 @@
               "CONSULTATION_CONFLICT",
               "IDEMPOTENCY_CONFLICT",
               "SUBJECT_ERASED",
+              "STAFF_ACCOUNT_NOT_FOUND",
+              "STAFF_EMAIL_UNVERIFIED",
+              "STAFF_SELF_CHANGE",
               "NO_CHANGE",
               "TEMPLATE_REVISION_CONFLICT",
               "TEMPLATE_OPEN_DRAFT_EXISTS",
@@ -20846,6 +20993,9 @@
               "CONSULTATION_CONFLICT",
               "IDEMPOTENCY_CONFLICT",
               "SUBJECT_ERASED",
+              "STAFF_ACCOUNT_NOT_FOUND",
+              "STAFF_EMAIL_UNVERIFIED",
+              "STAFF_SELF_CHANGE",
               "NO_CHANGE",
               "TEMPLATE_REVISION_CONFLICT",
               "TEMPLATE_OPEN_DRAFT_EXISTS",
@@ -21629,7 +21779,8 @@
                 "enquiry:assign",
                 "template:author",
                 "template:publish",
-                "template:assign"
+                "template:assign",
+                "staff:manage"
               ]
             }
           }
@@ -45758,6 +45909,71 @@
           "ok"
         ]
       },
+      "StaffController_listResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "SUPPORT",
+                    "ADMIN"
+                  ]
+                }
+              },
+              "required": [
+                "userId",
+                "email",
+                "name",
+                "role"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "StaffController_grantResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPPORT",
+              "ADMIN"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "name",
+          "role"
+        ]
+      },
       "VendorsController_listVendorsResponse": {
         "type": "array",
         "items": {
@@ -46944,7 +47160,8 @@
                 "enquiry:assign",
                 "template:author",
                 "template:publish",
-                "template:assign"
+                "template:assign",
+                "staff:manage"
               ]
             }
           }

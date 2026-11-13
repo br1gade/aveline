@@ -38,6 +38,7 @@ import { VendorsModule } from './modules/vendors/vendors.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { SeatingModule } from './modules/seating/seating.module';
 import { DevelopmentModule } from './modules/development/development.module';
+import { StaffModule } from './modules/staff/staff.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { DevelopmentModule } from './modules/development/development.module';
     DevicesModule,
     SeatingModule,
     DevelopmentModule,
+    StaffModule,
     BillingModule,
     VendorsModule,
     OrganizationsModule,
