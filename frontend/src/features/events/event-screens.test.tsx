@@ -127,6 +127,13 @@ describe('CreateEvent', () => {
     expect(screen.getByRole('radio', { name: 'Հայերեն' })).toBeChecked();
   });
 
+  it('says the title is what guests and ticket buyers see', async () => {
+    at();
+    expect(await screen.findByLabelText('Title')).toHaveAccessibleDescription(
+      expect.stringContaining('Guests and ticket buyers see it'),
+    );
+  });
+
   it('checks the fields before sending anything', async () => {
     const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
     const user = at();

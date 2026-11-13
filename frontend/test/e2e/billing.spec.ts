@@ -1,16 +1,29 @@
 import { apiAs, must } from './support/api';
 import { expect, test } from './support/fixtures';
+import { isDevelopmentStack, NOT_DEVELOPMENT } from './support/stack';
 
-/** The first plan on offer with a price, if this stack sells one (BACKEND_REQUESTS FR-154). */
-async function paidPlanName(): Promise<string | undefined> {
+/** The plan the suite puts on sale: the production seed leaves every paid plan off (FR-154). */
+const PLAN = { key: 'planner-monthly', priceMinor: '25000' } as const;
+
+/** Puts the plan on sale through the development route, and names it as the price list does. */
+async function planOnSale(): Promise<string> {
+  await must(
+    apiAs().POST('/api/v1/development/plans/{planKey}/offer', {
+      params: { path: { planKey: PLAN.key } },
+      body: { priceMinor: PLAN.priceMinor },
+    }),
+    'put a plan on sale',
+  );
   const plans = await must(apiAs().GET('/api/v1/plans'), 'read the price list');
-  return plans.find((plan) => plan.priceMinor !== '0')?.name;
+  const plan = plans.find(({ key }) => key === PLAN.key);
+  if (!plan) throw new Error('The plan put on sale is not on the price list');
+  return plan.name;
 }
 
 /**
  * A host choosing a paid plan (docs/API.md §6, "Plans and subscriptions"; design PD-128, PD-130):
  * the bank's page, its return, and the bank's answer, paid and declined, given at the FAKE bank
- * (FR-151) and read by the return page's check.
+ * (FR-151) and read by the return page's check. The plan is put on sale first (FR-154).
  */
 test.describe('a paid plan', () => {
   for (const [outcome, words] of [
@@ -23,11 +36,11 @@ test.describe('a paid plan', () => {
       signedIn,
       seen,
     }) => {
-      const name = await paidPlanName();
-      test.skip(!name, 'This stack offers no paid plan (seed:production leaves them off; FR-154)');
+      test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
+      const name = await planOnSale();
       await signedIn(host.email);
       await page.goto('/app/billing');
-      const plan = page.getByRole('listitem').filter({ hasText: name ?? '' });
+      const plan = page.getByRole('listitem').filter({ hasText: name });
       await plan.getByRole('button', { name: 'Choose this plan' }).click();
       await page.getByRole('alertdialog').getByRole('button', { name: 'Go to the bank' }).click();
 

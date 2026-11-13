@@ -187,7 +187,10 @@
     "ended": "réservation annulée, se réserve à nouveau",
     "scopesHelp": "L’ensemble habituel pour ce type de prestataire est coché au départ. Le prestataire lit exactement ce qui est coché.",
     "submit": "Réserver le prestataire",
-    "booking": "Réservation…"
+    "booking": "Réservation…",
+    "none": "Votre organisation n’a pas encore de prestataire, et la liste d’Aveline est vide elle aussi. Ajoutez-en un d’abord.",
+    "addFirst": "Ajouter un prestataire à votre organisation",
+    "notListed": "Absent de la liste ? Ajoutez un prestataire à votre organisation"
   },
   "link": {
     "title": "Le lien du brief",

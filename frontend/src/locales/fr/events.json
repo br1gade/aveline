@@ -12,7 +12,7 @@
   "fields": {
     "type": "Type d’événement",
     "title": "Titre",
-    "titleHelp": "Pour vous et votre équipe, par exemple « Le mariage d’Anna et Davit ».",
+    "titleHelp": "Les invités et les acheteurs de billets le voient dans les e-mails, sur leur commande et sur leurs billets, par exemple « Le mariage d’Anna et Davit ».",
     "hostsLabel": "Hôtes",
     "hostsHelpNew": "Affiché sur l’invitation, par exemple « Anna & Davit ». Laissez vide pour utiliser le titre.",
     "hostsHelp": "Affiché sur l’invitation.",

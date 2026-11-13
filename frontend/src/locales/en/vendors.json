@@ -187,7 +187,10 @@
     "ended": "booking ended, books again",
     "scopesHelp": "The usual set for this kind of vendor is ticked to start with. The vendor reads exactly what is ticked.",
     "submit": "Book the vendor",
-    "booking": "Booking…"
+    "booking": "Booking…",
+    "none": "Your organization has no vendors yet, and Aveline’s list is empty too. Add one first.",
+    "addFirst": "Add a vendor to your organization",
+    "notListed": "Not listed? Add a vendor to your organization"
   },
   "link": {
     "title": "The brief link",

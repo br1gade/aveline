@@ -591,6 +591,26 @@ describe('booking a vendor', () => {
     expect(offsets).toEqual(['100@0', '100@100']);
   });
 
+  it('says when there is no vendor to choose, and leads to adding one, rather than an empty list', async () => {
+    serve({ choices: () => HttpResponse.json(optionsWire([])) });
+    renderAt('/app/events/e1/vendors/new');
+    expect(await screen.findByText(/Your organization has no vendors yet/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add a vendor to your organization' })).toHaveAttribute(
+      'href',
+      '/app/vendors',
+    );
+    expect(screen.queryByLabelText('Vendor')).not.toBeInTheDocument();
+  });
+
+  it('leads to adding a vendor not on the list', async () => {
+    serve();
+    renderAt('/app/events/e1/vendors/new');
+    expect(await screen.findByLabelText('Vendor')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Not listed? Add a vendor to your organization' }),
+    ).toHaveAttribute('href', '/app/vendors');
+  });
+
   it('words a role refused the event’s vendors, with nothing to choose', async () => {
     serve({ choices: refused(403, 'FORBIDDEN') });
     renderAt('/app/events/e1/vendors/new');

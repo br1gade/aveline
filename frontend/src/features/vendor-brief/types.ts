@@ -73,10 +73,7 @@ export interface BriefSides {
   b: string | null;
 }
 
-/**
- * Checked against the schema at the call but for the title and each venue's name and address,
- * which the schema allows to be `null` and docs/API.md and the database never do (FR-149).
- */
+/** Checked against the schema at the call (FR-1); since `ef1023a` the schema types it whole (FR-149). */
 export interface BriefWire {
   vendor: { name: string; category: string };
   status: string;

@@ -1,6 +1,6 @@
 import { addHousehold, addVenue, newEvent, publish, testAddress } from './support/factories';
 import { expect, test } from './support/fixtures';
-import { appLink, forgetMail, hasMailpit, waitForMail } from './support/mailpit';
+import { appLink, forgetMail, hasMailpit, isMailSlow, waitForMail } from './support/mailpit';
 
 /**
  * Sending the invitation by email and what follows (docs/API.md §6, "Sending the invitation"):
@@ -17,7 +17,7 @@ test.describe('sending the invitation', () => {
     host,
     signedIn,
   }) => {
-    test.slow();
+    test.slow(await isMailSlow(), 'The outbox sends once a minute on this stack');
     const email = testAddress('guest');
     await forgetMail(email);
     const event = await newEvent(host, { title: 'Anna & Davit' });
@@ -53,7 +53,7 @@ test.describe('sending the invitation', () => {
     host,
     signedIn,
   }) => {
-    test.slow();
+    test.slow(await isMailSlow(), 'The outbox sends once a minute on this stack');
     const email = testAddress('guest');
     const event = await newEvent(host);
     await addVenue(host, event);

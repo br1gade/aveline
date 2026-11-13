@@ -1,4 +1,4 @@
-import { appLink, forgetMail, hasMailpit, waitForMail } from './support/mailpit';
+import { appLink, forgetMail, hasMailpit, isMailSlow, waitForMail } from './support/mailpit';
 import { newHost, PASSWORD, testAddress } from './support/factories';
 import { expect, test } from './support/fixtures';
 
@@ -45,7 +45,7 @@ test.describe('an account', () => {
 
   test('chooses a new password from the emailed link', async ({ page }) => {
     test.skip(!(await hasMailpit()), 'No Mailpit on this stack to read the link from');
-    test.slow();
+    test.slow(await isMailSlow(), 'The outbox sends once a minute on this stack');
     const host = await newHost();
     await forgetMail(host.email);
 

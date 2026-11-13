@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test';
 import { apiAs, must } from './support/api';
 import { newHost, testAddress, ticketedEvent, type TicketedEvent } from './support/factories';
 import { expect, test } from './support/fixtures';
+import { E2E } from './support/env';
+import { isDevelopmentStack, NOT_DEVELOPMENT } from './support/stack';
 
 /** From the event's own page, the tickets chosen, to checkout with the buyer as the one person. */
 async function checkout(page: Page, event: TicketedEvent, ticket: string): Promise<void> {
@@ -64,6 +66,17 @@ test.describe('tickets', () => {
 
     const refused = page.getByText(/Paid tickets can’t be bought yet/u);
     const waiting = page.getByRole('heading', { name: 'Waiting for your bank' });
+    if (!(await isDevelopmentStack())) {
+      // A real bank's test page is somewhere else: refused here, or gone there.
+      const ours = new URL(E2E.baseUrl).origin;
+      await expect
+        .poll(async () => (await refused.isVisible()) || new URL(page.url()).origin !== ours, {
+          timeout: 20_000,
+        })
+        .toBe(true);
+      test.skip(!(await refused.isVisible()), NOT_DEVELOPMENT);
+      return;
+    }
     await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
     if (await waiting.isVisible()) {
       // The FAKE bank returns at once and the payment waits, until the payer answers at the bank.
@@ -79,6 +92,8 @@ test.describe('tickets', () => {
       page,
       seen,
     }) => {
+      // The bank's answer is given at the FAKE bank, which only a development stack has.
+      test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
       const event = await ticketedEvent(await newHost());
       await checkout(page, event, 'General');
       await page.getByRole('button', { name: 'Continue to payment' }).click();

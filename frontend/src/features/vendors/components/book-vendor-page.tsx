@@ -2,10 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useRevalidator } from 'react-router';
+import { Link, useNavigate, useRevalidator } from 'react-router';
 
 import { browserSession } from '@/api/session';
 import { bookingPath, eventVendorsPath } from '@/features/events';
+import { APP_PATHS } from '@/route-paths';
 import {
   AppForm,
   SelectField,
@@ -127,6 +128,29 @@ function useBook(eventId: string, { choices, usualSections }: VendorChoices) {
   return { form, refusal, onSubmit, presetSections };
 }
 
+const ADD_LINK =
+  'text-action inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3';
+
+/** Where a vendor not on the list is added: the organization's own vendors (design PD-121). */
+function AddVendorLink({ children }: { children: string }) {
+  return (
+    <Link to={APP_PATHS.vendors} className={ADD_LINK}>
+      {children}
+    </Link>
+  );
+}
+
+/** Nothing to choose from: no vendor of the organization's own and none on Aveline's list. */
+function NothingToChoose() {
+  const { t } = useTranslation('vendors');
+  return (
+    <div className="flex max-w-[34rem] flex-col gap-2">
+      <p className="m-0">{t('book.none')}</p>
+      <AddVendorLink>{t('book.addFirst')}</AddVendorLink>
+    </div>
+  );
+}
+
 function BookForm({
   eventId,
   choices,
@@ -155,6 +179,7 @@ function BookForm({
         >
           <VendorOptions vendors={choices.choices} booked={booked} />
         </SelectField>
+        <AddVendorLink>{t('book.notListed')}</AddVendorLink>
         <ScopeFields control={form.control} name="scopes" help={t('book.scopesHelp')} />
         <TextInputField
           label={t('fee.label')}
@@ -200,11 +225,11 @@ export function BookVendorPage({ data }: { data: NewBookingData }) {
         subtitle={event.title}
       />
       <p className="m-0 max-w-[40rem]">{t('book.lead')}</p>
-      {choices.kind === 'ready' ? (
+      {choices.kind === 'ready' && choices.value.choices.length === 0 ? <NothingToChoose /> : null}
+      {choices.kind === 'ready' && choices.value.choices.length > 0 ? (
         <BookForm eventId={event.id} choices={choices.value} booked={booked} />
-      ) : (
-        <VendorProblem refusal={choices.refusal} />
-      )}
+      ) : null}
+      {choices.kind === 'ready' ? null : <VendorProblem refusal={choices.refusal} />}
     </section>
   );
 }

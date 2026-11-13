@@ -1,12 +1,19 @@
 import { E2E } from './env';
+import { isDevelopmentStack, sendMailNow } from './stack';
 
 /**
  * Mail as a person receives it, read from the stack's Mailpit (setup proposal R20); `devLink` is
- * never used. The backend sends its outbox once a minute, so a message can take that long to
- * arrive (BACKEND_REQUESTS FR-152): a test reading mail calls `test.slow()`.
+ * never used. The backend sends its outbox once a minute. On a development stack the wait asks it
+ * to send now (`/development/outbox/send`, FR-152) and is short; anywhere else it waits for the
+ * minute, and a test reading mail marks itself slow there (`isMailSlow`).
  */
-const WAIT_MS = 90_000;
-const POLL_MS = 2_000;
+const WAIT_MS = { development: 15_000, other: 90_000 } as const;
+const POLL_MS = 1_000;
+
+/** Whether reading mail waits for the outbox's minute on this stack. */
+export async function isMailSlow(): Promise<boolean> {
+  return !(await isDevelopmentStack());
+}
 
 interface Summary {
   ID: string;
@@ -33,10 +40,16 @@ async function newest(to: string, subject?: RegExp): Promise<Summary | undefined
   return messages.find((message) => !subject || subject.test(message.Subject));
 }
 
-/** The text of the newest message to `to`, waiting for it to arrive. */
+/**
+ * The text of the newest message to `to`, waiting for it to arrive. A send that answers 204 has
+ * only started (docs/API.md), so the outbox is asked again on each poll until the message is there.
+ */
 export async function waitForMail(to: string, subject?: RegExp): Promise<string> {
-  const until = Date.now() + WAIT_MS;
+  const isDevelopment = await isDevelopmentStack();
+  const waitMs = WAIT_MS[isDevelopment ? 'development' : 'other'];
+  const until = Date.now() + waitMs;
   while (Date.now() < until) {
+    if (isDevelopment) await sendMailNow();
     const found = await newest(to, subject);
     if (found) {
       const message = (await (await mailpit(`message/${found.ID}`)).json()) as { Text: string };
@@ -44,7 +57,7 @@ export async function waitForMail(to: string, subject?: RegExp): Promise<string>
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
-  throw new Error(`No mail reached the test address within ${WAIT_MS / 1000} s`);
+  throw new Error(`No mail reached the test address within ${waitMs / 1000} s`);
 }
 
 /** The first link in `text` on the client's own origin with this path, without its origin. */
