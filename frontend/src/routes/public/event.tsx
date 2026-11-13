@@ -16,7 +16,7 @@ import type { Route } from './+types/event';
 /** A public event's announcement, at the address its `metadata.canonicalPath` names. */
 export async function loader({ params, request }: Route.LoaderArgs) {
   const locale = new URL(request.url).searchParams.get('locale') ?? undefined;
-  const page = await loadPublicEvent({ slug: params.slug, locale });
+  const page = await loadPublicEvent({ slug: params.slug, locale }, request);
   return data(page, { status: page.state === 'found' ? 200 : 404 });
 }
 

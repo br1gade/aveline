@@ -1,5 +1,4 @@
-import { createPublicApi } from '@/api/client';
-import { readServerEnv } from '@/config/env.server';
+import { createVisitorApi } from '@/api/visitor.server';
 
 import { fetchReply, type ReplyLink } from './api';
 import type { ReplyRecord } from './types';
@@ -9,8 +8,8 @@ import type { ReplyRecord } from './types';
  * cannot be read: the page then says so rather than offering a form that might overwrite a
  * household's answers it never saw.
  */
-export async function loadReply(link: ReplyLink): Promise<ReplyRecord | null> {
-  const api = createPublicApi(readServerEnv().API_INTERNAL_URL);
+export async function loadReply(link: ReplyLink, incoming: Request): Promise<ReplyRecord | null> {
+  const api = createVisitorApi(incoming);
   try {
     return await fetchReply(api, link);
   } catch {

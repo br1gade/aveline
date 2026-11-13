@@ -37,8 +37,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const link = { slug: params.slug, guestToken: params.guestToken };
   const locale = new URL(request.url).searchParams.get('locale') ?? undefined;
   const [page, record] = await Promise.all([
-    loadInvitationPage({ ...link, locale }),
-    loadReply(link),
+    loadInvitationPage({ ...link, locale }, request),
+    loadReply(link, request),
   ]);
   return data({ ...page, record }, { status: page.state === 'found' ? 200 : 404 });
 }

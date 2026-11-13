@@ -17,7 +17,7 @@ import type { Route } from './+types/invitation';
 /** The generic link: no guest, so no personal card and no form (spec §4). */
 export async function loader({ params, request }: Route.LoaderArgs) {
   const locale = new URL(request.url).searchParams.get('locale') ?? undefined;
-  const page = await loadInvitationPage({ slug: params.slug, locale });
+  const page = await loadInvitationPage({ slug: params.slug, locale }, request);
   return data(page, { status: page.state === 'found' ? 200 : 404 });
 }
 

@@ -24,7 +24,7 @@ export type PublicApiClient = ReturnType<typeof createClient<PublicPaths>>;
 /** No credentials: guest, ticket, brief and public-event calls. */
 export function createPublicApi(
   baseUrl: string,
-  options: Pick<ApiFetchOptions, 'getLanguage'> = {},
+  options: Pick<ApiFetchOptions, 'getLanguage' | 'forwardedFor'> = {},
 ): PublicApiClient {
   return createClient<PublicPaths>({ baseUrl, fetch: createApiFetch(options) });
 }

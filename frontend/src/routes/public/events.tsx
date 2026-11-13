@@ -17,7 +17,7 @@ import type { Route } from './+types/events';
 export async function loader({ request }: Route.LoaderArgs) {
   const { language, setCookie } = negotiateLanguage(request);
   const query = readListingQuery(new URL(request.url).searchParams);
-  const listing = await loadPublicListing({ ...query, locale: language });
+  const listing = await loadPublicListing({ ...query, locale: language }, request);
   return data(
     { language, query, listing },
     { headers: { ...publicListingHeaders(), ...(setCookie ? { 'Set-Cookie': setCookie } : {}) } },

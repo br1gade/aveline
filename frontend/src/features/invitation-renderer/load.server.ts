@@ -1,7 +1,6 @@
-import { createPublicApi } from '@/api/client';
+import { createVisitorApi } from '@/api/visitor.server';
 import { isApiError } from '@/api/errors';
 import { retryOnConflict } from '@/api/retry';
-import { readServerEnv } from '@/config/env.server';
 import { createI18n, isLanguage, SOURCE_LANGUAGE } from '@/lib/i18n';
 
 import { fetchInvitation, type InvitationRequest } from './api';
@@ -22,8 +21,11 @@ export function previewMeta(invitation: Invitation): PreviewMeta {
  * (the invitation changed while it was read) is tried again; anything else goes to the error
  * boundary with its request id.
  */
-export async function loadInvitationPage(request: InvitationRequest): Promise<InvitationPageData> {
-  const api = createPublicApi(readServerEnv().API_INTERNAL_URL);
+export async function loadInvitationPage(
+  request: InvitationRequest,
+  incoming: Request,
+): Promise<InvitationPageData> {
+  const api = createVisitorApi(incoming);
   try {
     // Before anything keeps it: a private picture's address on a personal page holds the token.
     const invitation = withPrivateArtwork(

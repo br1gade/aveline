@@ -18,6 +18,11 @@ export interface ApiFetchOptions {
   getLanguage?: () => string | undefined;
   /** The organization this tab chose, for the calls that take one (`organization-scope.ts`). */
   getOrganizationId?: () => string | undefined;
+  /**
+   * The visitor's address, when this server reads the API for a page it renders, so the API
+   * limits each visitor rather than this server (`visitor.server.ts`).
+   */
+  forwardedFor?: string | undefined;
 }
 
 export type ApiFetch = (request: Request) => Promise<Response>;
@@ -40,9 +45,12 @@ export function createApiFetch(options: ApiFetchOptions = {}): ApiFetch {
   };
 
   return async (incoming) => {
-    const request = withOrganization(
-      withLanguage(withRequestId(incoming), options.getLanguage?.()),
-      options.getOrganizationId?.(),
+    const request = withForwardedFor(
+      withOrganization(
+        withLanguage(withRequestId(incoming), options.getLanguage?.()),
+        options.getOrganizationId?.(),
+      ),
+      options.forwardedFor,
     );
     const retry = request.clone();
     const response = await send(request);
@@ -86,5 +94,14 @@ function withLanguage(request: Request, language: string | undefined): Request {
   }
   const headers = new Headers(request.headers);
   headers.set('accept-language', language);
+  return new Request(request, { headers });
+}
+
+function withForwardedFor(request: Request, address: string | undefined): Request {
+  if (!address) {
+    return request;
+  }
+  const headers = new Headers(request.headers);
+  headers.set('x-forwarded-for', address);
   return new Request(request, { headers });
 }

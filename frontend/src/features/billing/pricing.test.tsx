@@ -63,7 +63,7 @@ describe('the price list', () => {
         return HttpResponse.json([{ ...managed, extra: 'dropped' }]);
       }),
     );
-    const { plans } = await loadPricing();
+    const { plans } = await loadPricing(new Request('https://aveline.test/pricing'));
     expect(authorization).toBeNull();
     expect(plans).toEqual([managed]);
     expect(typeof plans[0]?.priceMinor).toBe('string');

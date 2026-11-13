@@ -1,6 +1,5 @@
-import { createPublicApi } from '@/api/client';
+import { createVisitorApi } from '@/api/visitor.server';
 import { isApiError } from '@/api/errors';
-import { readServerEnv } from '@/config/env.server';
 
 import { fetchPublicEvent, fetchPublicListing, type PublicEventRequest } from './api';
 import type { ListingQuery } from './listing';
@@ -21,8 +20,11 @@ export type PublicEventPageData =
  * private, archived, never existed) is the not-found page; anything else goes to the error
  * boundary with its request id.
  */
-export async function loadPublicEvent(request: PublicEventRequest): Promise<PublicEventPageData> {
-  const api = createPublicApi(readServerEnv().API_INTERNAL_URL);
+export async function loadPublicEvent(
+  request: PublicEventRequest,
+  incoming: Request,
+): Promise<PublicEventPageData> {
+  const api = createVisitorApi(incoming);
   try {
     const event = await fetchPublicEvent(api, request);
     return { state: 'found', event, isSalesClosed: Date.parse(event.startsAt) <= Date.now() };
@@ -36,11 +38,12 @@ export async function loadPublicEvent(request: PublicEventRequest): Promise<Publ
 
 /**
  * Browsing public events on the server, through the internal API address. A failure goes to the
- * error boundary with its request id. Every visitor counts against one address, within the
- * guest-page allowance the backend gave these reads (FR-73).
+ * error boundary with its request id. Each visitor counts against their own address, within
+ * the guest-page allowance the backend gave these reads (FR-73).
  */
 export function loadPublicListing(
   query: ListingQuery & { locale: string },
+  incoming: Request,
 ): Promise<PublicListing> {
-  return fetchPublicListing(createPublicApi(readServerEnv().API_INTERNAL_URL), query);
+  return fetchPublicListing(createVisitorApi(incoming), query);
 }

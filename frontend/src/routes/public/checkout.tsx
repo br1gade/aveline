@@ -16,10 +16,10 @@ import type { Route } from './+types/checkout';
  */
 export async function loader({ params, request }: Route.LoaderArgs) {
   const search = new URL(request.url).searchParams;
-  const page = await loadPublicEvent({
-    slug: params.slug,
-    locale: search.get('locale') ?? undefined,
-  });
+  const page = await loadPublicEvent(
+    { slug: params.slug, locale: search.get('locale') ?? undefined },
+    request,
+  );
   const provider = readServerEnv().TICKET_PAYMENT_PROVIDER;
   return data(
     { ...page, tickets: search.get('tickets'), provider },
