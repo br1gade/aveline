@@ -9,6 +9,7 @@ import { heroContent, photos } from '../schemas';
 import { occasionOf, type BlockMedia, type InvitationBlock } from '../types';
 import { ArchFrame } from './arch-frame';
 import { InvitationImage } from './invitation-image';
+import { capsSafe } from '@/lib/text';
 
 /**
  * The names step down as they lengthen, so a long pair still fits in about three lines (spec §5,
@@ -109,11 +110,11 @@ export function Cover({ block, action, className, isOverPhoto = false }: CoverPr
       {/* One line where it fits: full-width tablets, and the open card from 1280 px. */}
       <p className="text-text m-0 text-[13px] leading-5 font-medium tracking-[0.14em] uppercase [&:lang(ru)]:tracking-normal [&:lang(ru)]:normal-case">
         <span className="block md:inline lg:block xl:inline">
-          {displayDate(event.startsAt, zone)}
+          {capsSafe(displayDate(event.startsAt, zone))}
         </span>
         <span className="hidden md:inline lg:hidden xl:inline"> · </span>
         <span className="block md:inline lg:block xl:inline">
-          {displayTime(event.startsAt, zone)} · {zoneLabel}
+          {displayTime(event.startsAt, zone)} · {capsSafe(zoneLabel)}
         </span>
       </p>
       {action ? <div className="mt-8 w-full max-w-[320px]">{action}</div> : null}

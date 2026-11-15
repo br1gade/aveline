@@ -5,6 +5,7 @@ import { timeLeftUntil, type TimeLeft } from '@/lib/time';
 
 import { useInvitation } from '../context';
 import { displayDate } from '../format';
+import { capsSafe } from '@/lib/text';
 
 const MINUTE = 60_000;
 
@@ -53,7 +54,7 @@ function Numerals({ left }: { left: TimeLeft }) {
         >
           <span className="type-numeral-l text-heading">{unit.value}</span>
           <span className="text-label text-[11px] leading-4 font-medium tracking-[0.14em] uppercase">
-            {unit.label}
+            {capsSafe(unit.label)}
           </span>
         </div>
       ))}

@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { cx, Icon } from '@/ui';
 
 import { rememberedMusic, rememberMusic } from './music-choice';
+import { capsSafe } from '@/lib/text';
 
 /**
  * The invitation's one audio track (design R-20): off until the guest presses play, paused when
@@ -96,7 +97,7 @@ export function MusicControl({ className }: { className?: string }) {
       )}
     >
       <Icon name={music.isPlaying ? 'volume-2' : 'volume-x'} />
-      {music.isPlaying ? t('music.on') : t('music.off')}
+      {capsSafe(music.isPlaying ? t('music.on') : t('music.off'))}
     </button>
   );
 }

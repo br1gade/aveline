@@ -4,6 +4,7 @@ import { displayDate, displayTime } from '@/features/invitation-renderer';
 
 import type { PublicEvent } from '../types';
 import { useZoneLabel } from './use-zone-label';
+import { capsSafe } from '@/lib/text';
 
 /** When, in the event's zone with its name, and where: every venue guests see (docs/API.md §5). */
 export function EventFacts({ event }: { event: PublicEvent }) {
@@ -13,7 +14,7 @@ export function EventFacts({ event }: { event: PublicEvent }) {
   return (
     <dl className="m-0 grid gap-4">
       <div className="grid gap-1">
-        <dt className="type-eyebrow text-label uppercase">{t('facts.when')}</dt>
+        <dt className="type-eyebrow text-label uppercase">{capsSafe(t('facts.when'))}</dt>
         <dd className="m-0">
           {displayDate(event.startsAt, zone)}
           <br />
@@ -22,7 +23,7 @@ export function EventFacts({ event }: { event: PublicEvent }) {
       </div>
       {event.venues.length > 0 ? (
         <div className="grid gap-1">
-          <dt className="type-eyebrow text-label uppercase">{t('facts.where')}</dt>
+          <dt className="type-eyebrow text-label uppercase">{capsSafe(t('facts.where'))}</dt>
           {event.venues.map((venue) => (
             <dd key={venue.id} className="m-0">
               <span className="font-medium">{venue.name}</span>

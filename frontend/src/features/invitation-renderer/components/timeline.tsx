@@ -2,6 +2,7 @@ import { useInvitation } from '../context';
 import { dayKey, displayDay, displayTime } from '../format';
 import { venueNames, type TimelineEntry } from '../schemas';
 import { cx, Lozenge } from '@/ui';
+import { capsSafe } from '@/lib/text';
 
 interface Day {
   key: string;
@@ -76,7 +77,7 @@ export function Timeline({ entries, isCompact }: { entries: TimelineEntry[]; isC
       {days.map((day) => (
         <div key={day.key} className="flex flex-col gap-4">
           <h3 className="type-eyebrow text-label m-0 uppercase [&:lang(ru)]:normal-case">
-            {displayDay(day.entries[0]?.occursAt ?? day.key, zone)}
+            {capsSafe(displayDay(day.entries[0]?.occursAt ?? day.key, zone))}
           </h3>
           <Entries entries={day.entries} isCompact={isCompact} />
         </div>

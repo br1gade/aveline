@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { cx } from './cx';
+import { inCapitals } from './caps';
 
 export type ReplyStatus = 'ATTENDING' | 'DECLINED' | 'UNDECIDED';
 
@@ -31,7 +32,7 @@ export function StatusChip({
       )}
     >
       <span aria-hidden="true" className={cx('flex-none', MARKS[status])} />
-      <span>{children}</span>
+      <span>{inCapitals(children)}</span>
     </span>
   );
 }

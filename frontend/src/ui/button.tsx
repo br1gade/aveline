@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react';
 
 import { cx } from './cx';
+import { inCapitals } from './caps';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet';
 
@@ -43,8 +44,19 @@ export function buttonClass({ variant = 'primary', isBlock = false, className }:
 
 type ButtonProps = ComponentProps<'button'> & ButtonLook;
 
-export function Button({ variant, isBlock, className, type = 'button', ...props }: ButtonProps) {
-  return <button type={type} className={buttonClass({ variant, isBlock, className })} {...props} />;
+export function Button({
+  variant,
+  isBlock,
+  className,
+  type = 'button',
+  children,
+  ...props
+}: ButtonProps) {
+  return (
+    <button type={type} className={buttonClass({ variant, isBlock, className })} {...props}>
+      {inCapitals(children)}
+    </button>
+  );
 }
 
 type ButtonLinkProps = ComponentProps<'a'> & ButtonLook;
@@ -53,7 +65,7 @@ type ButtonLinkProps = ComponentProps<'a'> & ButtonLook;
 export function ButtonLink({ variant, isBlock, className, children, ...props }: ButtonLinkProps) {
   return (
     <a className={buttonClass({ variant, isBlock, className })} {...props}>
-      {children}
+      {inCapitals(children)}
     </a>
   );
 }

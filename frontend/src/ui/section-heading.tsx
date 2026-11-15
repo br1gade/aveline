@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { cx } from './cx';
+import { inCapitals } from './caps';
 
 interface SectionHeadingProps {
   /** What the section is, in small capitals. Never a decorative number. */
@@ -31,14 +32,14 @@ export function SectionHeading({
     <div className={cx('flex flex-col gap-3', isCentred && 'items-center text-center', className)}>
       {heading ? (
         <>
-          {label ? <p className={EYEBROW}>{label}</p> : null}
+          {label ? <p className={EYEBROW}>{inCapitals(label)}</p> : null}
           <h2 {...focusTarget} className="type-heading-1 text-heading m-0 scroll-mt-6">
             {heading}
           </h2>
         </>
       ) : (
         <h2 {...focusTarget} className={cx(EYEBROW, 'scroll-mt-6')}>
-          {label}
+          {inCapitals(label)}
         </h2>
       )}
     </div>
@@ -47,5 +48,5 @@ export function SectionHeading({
 
 /** An eyebrow on its own, where a heading is not wanted. */
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cx(EYEBROW, className)}>{children}</p>;
+  return <p className={cx(EYEBROW, className)}>{inCapitals(children)}</p>;
 }
