@@ -10,9 +10,10 @@ const LANGUAGES = ['en', 'fr', 'hy', 'ru'];
 
 const source = (path: string) => readFileSync(path, 'utf8');
 
+/** A group's namespaces in a language: what its bundle, `bundles/<group>.<language>.ts`, imports. */
 function namespacesIn(bundle: string, language: string): string[] {
-  const named = source(join(LOCALES, `${bundle}.ts`)).matchAll(
-    new RegExp(`\\./${language}/([\\w-]+)\\.json`, 'g'),
+  const named = source(join(LOCALES, 'bundles', `${bundle}.${language}.ts`)).matchAll(
+    new RegExp(`\\.\\./${language}/([\\w-]+)\\.json`, 'g'),
   );
   return [...named].map((match) => match[1] ?? '').sort();
 }
@@ -32,6 +33,11 @@ describe('the bundles of strings', () => {
   it.each(LANGUAGES)('%s: every namespace is in exactly one', (language) => {
     const bundled = ['guest', 'public', 'app'].flatMap((name) => namespacesIn(name, language));
     expect(bundled.sort()).toEqual(allNamespaces(language));
+  });
+
+  it.each(['guest', 'public', 'app'])('%s holds the same namespaces in every language', (name) => {
+    const english = namespacesIn(name, 'en');
+    for (const language of LANGUAGES) expect(namespacesIn(name, language)).toEqual(english);
   });
 });
 

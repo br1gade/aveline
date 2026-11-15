@@ -13,6 +13,9 @@ export async function clientLoader({ request, params }: Route.ClientLoaderArgs) 
 }
 
 /** A search or a filter changes what is shown, never what is loaded. */
+/** A long list, read on a desktop too: the app's wide frame from `lg` (design PD-199). */
+export const handle = { shell: 'wide' } as const;
+
 export const shouldRevalidate = revalidateUnlessQueryOnly;
 
 export function meta({ matches }: Route.MetaArgs) {

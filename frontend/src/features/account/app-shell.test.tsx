@@ -12,7 +12,7 @@ import { createI18n } from '@/lib/i18n';
 import { useLeaveGuard } from '@/ui/app-form';
 import { guardedRoutes } from '@/ui/app-form/guarded-routes';
 
-import { AppShell } from './components/app-shell';
+import { AppShell, type ShellFrame } from './components/app-shell';
 
 const current = vi.hoisted(() => ({ session: undefined as BrowserSession | undefined }));
 vi.mock('@/api/session', async (importOriginal) => ({
@@ -55,12 +55,12 @@ beforeEach(() => {
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-function renderShell(unverifiedEmail: string | null = null, isCompact = false) {
+function renderShell(unverifiedEmail: string | null = null, frame?: ShellFrame) {
   const Stub = createRoutesStub([
     {
       path: '/app',
       Component: () => (
-        <AppShell unverifiedEmail={unverifiedEmail} isCompact={isCompact}>
+        <AppShell unverifiedEmail={unverifiedEmail} frame={frame}>
           {<p>Your events</p>}
         </AppShell>
       ),
@@ -244,9 +244,18 @@ describe('an address not yet confirmed (FR-5)', () => {
     expect(screen.queryByText(/Confirm your email address/)).not.toBeInTheDocument();
   });
 
+  it('lets a keyboard skip the header to the page (design PD-199)', () => {
+    renderShell(null, 'wide');
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute(
+      'href',
+      '#content',
+    );
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'content');
+  });
+
   describe('the compact frame, for the door (design PD-90)', () => {
     it('keeps the language and signing out in one menu, and leaves out the address notice', async () => {
-      const user = renderShell('anna@example.am', true);
+      const user = renderShell('anna@example.am', 'compact');
       expect(screen.queryByText(/Confirm your email address/)).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Sign out' })).not.toBeVisible();
       await user.click(screen.getByText('Menu'));

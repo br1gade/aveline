@@ -8,11 +8,18 @@ const manifest = {
   routes: {
     root: { module: '/assets/root.js', imports: ['/assets/runtime.js'], css: ['/assets/root.css'] },
     'routes/public/invitation': {
+      parentId: 'root',
       module: '/assets/invitation.js',
       imports: ['/assets/shared.js'],
       css: [],
     },
-    'routes/app/home': { module: '/assets/home.js', imports: ['/assets/app-only.js'], css: [] },
+    'routes/app/route': { parentId: 'root', module: '/assets/app.js', imports: [], css: [] },
+    'routes/app/door': {
+      parentId: 'routes/app/route',
+      module: '/assets/door.js',
+      imports: ['/assets/app-only.js'],
+      css: [],
+    },
   },
 };
 
@@ -29,6 +36,12 @@ describe('what a guest route loads first', () => {
       ].toSorted(),
     );
     expect(css).toEqual(['/assets/root.css']);
+  });
+
+  it('counts the routes above it too, as the door needs the app’s frame (audit F-23)', () => {
+    expect(initialFiles(manifest, 'routes/app/door').js).toEqual(
+      expect.arrayContaining(['/assets/door.js', '/assets/app.js', '/assets/root.js']),
+    );
   });
 
   it('counts nothing of another route', () => {

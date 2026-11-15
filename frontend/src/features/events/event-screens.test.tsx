@@ -448,6 +448,52 @@ describe('EventOverview', () => {
     expect(await screen.findByText('Reference: req-7')).toBeInTheDocument();
   });
 
+  it('groups the pages by stage, and leaves tickets out of a private event (PD-198)', async () => {
+    overview({ event: { ...EVENT, visibility: 'PRIVATE' } });
+    const pages = await screen.findByRole('navigation', { name: 'This event’s pages' });
+    for (const stage of ['Getting ready', 'Inviting and following up', 'On the day']) {
+      expect(within(pages).getByRole('heading', { name: stage })).toBeInTheDocument();
+    }
+    expect(within(pages).queryByRole('heading', { name: 'Tickets' })).not.toBeInTheDocument();
+    const day = within(pages).getByRole('region', { name: 'On the day' });
+    expect(within(day).getByRole('link', { name: 'Seating' })).toBeInTheDocument();
+  });
+
+  it.each([
+    [[], 412, 'Next: add a venue', '/app/events/e1/venues'],
+    [[{ id: 'v1', role: 'CEREMONY' }], 0, 'Next: add your guests', '/app/events/e1/guests'],
+    [
+      [{ id: 'v1', role: 'CEREMONY' }],
+      412,
+      'Next: publish the invitation',
+      '/app/events/e1/invitation',
+    ],
+  ])('names one next step for a draft (PD-198): %#', async (venues, invited, name, href) => {
+    const headcount = {
+      invited,
+      households: 0,
+      attending: 0,
+      declined: 0,
+      undecided: 0,
+      pending: 0,
+      responseRate: 0,
+    };
+    overview({ event: { ...EVENT, venues }, headcount: { kind: 'ready', headcount } });
+    expect(await screen.findByRole('link', { name })).toHaveAttribute('href', href);
+  });
+
+  it('names no next step once the invitation is published, or to a reader', async () => {
+    overview({
+      event: { ...EVENT, invitation: { slug: 'anna-davit-3f8a1c20', status: 'PUBLISHED' } },
+    });
+    await screen.findByRole('heading', { name: EVENT.title });
+    expect(screen.queryByRole('link', { name: /^Next:/u })).not.toBeInTheDocument();
+    cleanup();
+    overview({}, ['event:read']);
+    await screen.findByRole('heading', { name: EVENT.title });
+    expect(screen.queryByRole('link', { name: /^Next:/u })).not.toBeInTheDocument();
+  });
+
   it('says when the event has no invitation yet', async () => {
     overview({ event: { ...EVENT, invitation: null } });
     expect(await screen.findByText('No invitation yet.')).toBeInTheDocument();

@@ -66,7 +66,8 @@
     "released": "A decline freed their seat at {{table}}, {{when}}",
     "releasedAt": "A decline freed their seat at {{table}} ({{venue}}), {{when}}",
     "releasedNoTable": "A decline freed their seat, {{when}}",
-    "recordAnswer": "Record an answer"
+    "recordAnswer": "Record an answer",
+    "more": "More"
   },
   "fields": {
     "firstName": "First name",

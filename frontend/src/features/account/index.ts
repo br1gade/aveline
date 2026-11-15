@@ -1,7 +1,7 @@
 export { readAccountOnce } from './account-read';
 export { ownOrganization } from './api';
 export { AcceptInvite } from './components/accept-invite';
-export { AppLoading, AppShell } from './components/app-shell';
+export { AppLoading, AppShell, type ShellFrame } from './components/app-shell';
 export { ChooseOrganization } from './components/choose-organization';
 export { CreateOrganization } from './components/create-organization';
 export { Register } from './components/register';

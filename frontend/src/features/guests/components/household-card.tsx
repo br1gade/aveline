@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 
 import { recordAnswerPath, recordHouseholdPath } from '@/features/events';
 import { DeliveryLine, type DeliveryText } from '@/features/sending';
-import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { MoreActions, WRAPPING_BUTTON } from '@/ui/app-form';
 import { cn } from '@/ui/cn';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
@@ -134,25 +134,44 @@ function GuestRow(props: RowProps) {
       <div className={ROW_ACTIONS}>
         {props.canChange ? (
           <RowChanges {...props} onEdit={open('edit')} onRemove={open('remove')} />
-        ) : null}
-        <Button
-          variant="ghost"
-          className={ROW_ACTION}
-          aria-label={t('actionFor', { action: t('row.history'), name: guest.name })}
-          onClick={(event) => onOpen({ kind: 'history', guest }, event.currentTarget)}
-        >
-          {t('row.history')}
-        </Button>
+        ) : (
+          <HistoryButton {...props} />
+        )}
       </div>
     </li>
   );
 }
 
-/** Correcting, recording and removing; an erased guest is only removed. */
+/** The answers a guest gave over time, in a dialog. */
+function HistoryButton({ guest, t, onOpen }: Pick<RowProps, 'guest' | 't' | 'onOpen'>) {
+  return (
+    <Button
+      variant="ghost"
+      className={ROW_ACTION}
+      aria-label={t('actionFor', { action: t('row.history'), name: guest.name })}
+      onClick={(event) => onOpen({ kind: 'history', guest }, event.currentTarget)}
+    >
+      {t('row.history')}
+    </Button>
+  );
+}
+
+/**
+ * Under "More" on a phone the panel opens in the row's flow, two to a line; from `sm` it drops
+ * below the button, as the row has the width beside it.
+ */
+const MORE_PANEL =
+  'col-span-2 mt-2 grid-cols-2 p-2 group-open:grid sm:absolute sm:top-full sm:right-0 sm:z-10 sm:mt-1 sm:w-max sm:group-open:flex sm:max-w-[20rem] sm:p-3 sm:shadow-sm';
+
+/**
+ * Correcting and recording in the row; removing and the answer history, used less, under "More"
+ * (design PD-199, audit F-14, F-18). An erased guest is only removed.
+ */
 function RowChanges({
   eventId,
   guest,
   t,
+  onOpen,
   onEdit,
   onRemove,
 }: RowProps & {
@@ -172,14 +191,22 @@ function RowChanges({
         </Button>
       )}
       {guest.isErased ? null : <RecordAnswerLink eventId={eventId} guest={guest} t={t} />}
-      <Button
-        variant="ghost"
-        className={ROW_ACTION}
-        aria-label={t('actionFor', { action: t('row.remove'), name: guest.name })}
-        onClick={onRemove}
+      <MoreActions
+        label={t('row.more')}
+        name={t('actionFor', { action: t('row.more'), name: guest.name })}
+        className="col-span-2 sm:col-span-1"
+        panelClassName={MORE_PANEL}
       >
-        {t('row.remove')}
-      </Button>
+        <Button
+          variant="ghost"
+          className={ROW_ACTION}
+          aria-label={t('actionFor', { action: t('row.remove'), name: guest.name })}
+          onClick={onRemove}
+        >
+          {t('row.remove')}
+        </Button>
+        <HistoryButton guest={guest} t={t} onOpen={onOpen} />
+      </MoreActions>
     </>
   );
 }

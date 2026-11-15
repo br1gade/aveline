@@ -15,5 +15,6 @@ export { useDialogAction, type DialogContext } from './use-dialog-action';
 export { useDialogOpener } from './use-dialog-opener';
 export { WordedRefusal } from './worded-refusal';
 export { WRAPPING_BUTTON } from './wrapping';
+export { MoreActions } from './more-actions';
 export { MoreButton } from './more-button';
 export { useMore, type OffsetPage } from './use-more';

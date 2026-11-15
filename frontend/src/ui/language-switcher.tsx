@@ -1,8 +1,9 @@
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { isLanguage, type Language } from '@/lib/i18n';
+import { hasLanguage, loadLanguage } from '@/locales/load';
 import { cx } from './cx';
 import { Icon } from './icon';
 
@@ -83,8 +84,46 @@ interface LanguageLinkProps {
   children: string;
 }
 
+/** What both kinds of link carry. */
+interface SharedLinkProps {
+  lang: Language;
+  hrefLang: Language;
+  'aria-current': 'true' | undefined;
+  className: string;
+}
+
 const LINK_CLASS =
   'text-ink hover:bg-linen aria-[current=true]:text-brand-burgundy flex min-h-(--target-min) items-center justify-between gap-3 px-4 text-[15px] leading-[22px] no-underline aria-[current=true]:font-semibold';
+
+/**
+ * A switch inside the page. The page has only its own language's words and English
+ * (`locales/load.ts`): another's are fetched before the page turns to it, so it never shows half in
+ * English meanwhile.
+ */
+function ClientLanguageLink({
+  href,
+  language,
+  shared,
+  children,
+}: {
+  href: string;
+  language: Language;
+  shared: SharedLinkProps;
+  children: ReactNode;
+}) {
+  const navigate = useNavigate();
+  const choose = (event: MouseEvent<HTMLAnchorElement>) => {
+    closeList(event);
+    if (hasLanguage(language)) return;
+    event.preventDefault();
+    void loadLanguage(language).then(() => navigate(href, { preventScrollReset: true }));
+  };
+  return (
+    <Link to={href} onClick={choose} preventScrollReset {...shared}>
+      {children}
+    </Link>
+  );
+}
 
 function LanguageLink({
   href,
@@ -93,7 +132,7 @@ function LanguageLink({
   isClientNavigation,
   children,
 }: LanguageLinkProps) {
-  const shared = {
+  const shared: SharedLinkProps = {
     lang: language,
     hrefLang: language,
     'aria-current': isCurrent ? ('true' as const) : undefined,
@@ -106,9 +145,9 @@ function LanguageLink({
     </>
   );
   return isClientNavigation ? (
-    <Link to={href} onClick={closeList} preventScrollReset {...shared}>
+    <ClientLanguageLink href={href} language={language} shared={shared}>
       {content}
-    </Link>
+    </ClientLanguageLink>
   ) : (
     <a href={href} {...shared}>
       {content}

@@ -152,18 +152,39 @@ function usePlanTables(tables: readonly SeatingTable[], arrangementId: string) {
   );
 }
 
+/**
+ * On a desktop the tables and the people still to seat side by side, as seating moves between them
+ * (design PD-199).
+ */
+const SIDE_BY_SIDE =
+  'flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start';
+
+/** What one plan's view is drawn from: its tables, its room, and who is still to seat. */
+function usePlanFacts(data: SeatingData, plan: Plan, tables: readonly SeatingTable[]) {
+  const planTables = usePlanTables(tables, plan.arrangement.id);
+  const mode = data.event.attendanceMode ?? 'EVENT_WIDE';
+  const households = data.households.kind === 'ready' ? data.households.value : [];
+  return {
+    planTables,
+    room: venueRoom(plan.arrangement, planTables),
+    mode,
+    households,
+    toSeat: householdsToSeat(households, plan.arrangement, mode, planTables),
+    isComingHere: isAnyoneComing(households, plan, mode),
+  };
+}
+
 function PlanView({ data, plan, tables, host, dialog, plans }: PlanViewProps) {
   const [params] = useSearchParams();
   const isDrawing = params.get('view') === 'plan';
   const { event } = data;
-  const planTables = usePlanTables(tables, plan.arrangement.id);
-  const room = venueRoom(plan.arrangement, planTables);
-  const mode = event.attendanceMode ?? 'EVENT_WIDE';
-  const households = data.households.kind === 'ready' ? data.households.value : [];
-  const toSeat = householdsToSeat(households, plan.arrangement, mode, planTables);
+  const { planTables, room, mode, households, toSeat, isComingHere } = usePlanFacts(
+    data,
+    plan,
+    tables,
+  );
   const toSeatCount = countToSeat(data, toSeat);
   const latest = latestOf(data, plan);
-  const isComingHere = isAnyoneComing(households, plan, mode);
   const summary = <PlanSummary plan={plan} tables={planTables} toSeat={toSeatCount} mode={mode} />;
   if (isDrawing) {
     return (
@@ -189,14 +210,16 @@ function PlanView({ data, plan, tables, host, dialog, plans }: PlanViewProps) {
         timeZone={event.timezone}
         host={host}
       />
-      <TableList tables={planTables} host={host} timeZone={event.timezone} venueRoom={room} />
-      <ToSeat
-        households={data.households}
-        toSeat={toSeat}
-        tables={planTables}
-        host={host}
-        isAnyoneComing={isComingHere}
-      />
+      <div className={SIDE_BY_SIDE}>
+        <TableList tables={planTables} host={host} timeZone={event.timezone} venueRoom={room} />
+        <ToSeat
+          households={data.households}
+          toSeat={toSeat}
+          tables={planTables}
+          host={host}
+          isAnyoneComing={isComingHere}
+        />
+      </div>
       {dialog ? (
         <OpenDialog
           dialog={dialog}

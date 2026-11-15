@@ -318,11 +318,19 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   `reply`, `gallery`, `guest-agreements`), and `public.ts` and `app.ts` are imported by their routes
   alone, adding to the one object every i18next instance reads (`registry.ts`). Before this the guest
   page carried every feature's words in four languages: 187 KB of its 451 KB gzipped JavaScript.
-  `locales/index.ts` still holds them all, for the types and the parity tests, and nothing at run time
-  imports it. A new namespace goes in the file of who needs it.
-- **Budgets:** `npm run check:budgets`, in `verify`, sums the gzipped JavaScript and CSS a guest route
-  loads first, from the build's own route manifest. A personal page is at most 300 KB of JavaScript
-  and a generic one 205 KB, measured on 4 November 2026 with a small margin. The largest pieces left are
+  **Since 14 November 2026 each group is split by language too** (`locales/bundles/<group>.<language>.ts`,
+  loaded by `locales/load.ts`): the group module awaits, at its top, the page's language (read from
+  `<html lang>`) and English, so the words are there before the route renders; the server and the
+  tests load all four. A switch to another language fetches its words first (`ui/language-switcher.tsx`),
+  and the root fetches any still missing after another navigation (`useWordsOf` in `root.tsx`). This
+  took the personal page from 299 to 277 KB, and an app page's words from 216 KB in four languages
+  to about 100 KB in two (audit F-23). `locales/index.ts` still holds them all, for the types and the parity tests, and
+  nothing at run time imports it. A new namespace goes in the bundles of who needs it, in all four
+  languages.
+- **Budgets:** `npm run check:budgets`, in `verify`, sums the gzipped JavaScript and CSS a route and
+  the routes above it load first, from the build's own route manifest. A personal page is at most 300
+  KB of JavaScript and a generic one 205 KB, measured on 4 November 2026 with a small margin; the
+  public event, checkout, the buyer's order and the door have their own since 14 November 2026. The largest pieces left are
   the router and React (`entry.client`), and on a personal page `features/gallery`'s hosts' side, which
   `events` comes with through its one `index.ts`. Raising a limit means saying why here.
 - **The invitation keeps its palette** whatever the device's dark mode (`color-scheme: light`).
@@ -965,6 +973,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 14 Nov 2026 | **The production image is not built without a way to reach Aveline:** the `Dockerfile` refuses when all four `VITE_SUPPORT_*` arguments are empty | Without one, the Help page and the two payment errors name nobody (C-54, audit F-04). Local builds and `npm run verify` stay free of it; a malformed value is still refused when a page is rendered, not at build, as the 6 November entry had said |
 | 14 Nov 2026 | **The kit draws the design system's focus ring and its colours from the tokens:** its own `ring-[3px] ring-ring/50` is gone from the button, input, textarea, native select, checkbox and radio, so the global `:focus-visible` 2 px `focus` line shows; dialogs' scrims are `ink` and the destructive button's words `ivory`, through `app-kit.css`, not `black` and `white` | One focus style in one product, at the contrast the design system states (DESIGN_SYSTEM §10). No new token was added, so `tokens.json` stays the design system's own copy (audit F-34) |
 | 14 Nov 2026 | **The end-to-end suite runs on WebKit too,** a third project, `iphone` (390 px), beside the Chrome phone and desktop; and a dialog that sends the browser to a bank's page no longer reads its page again (`useDialogAction`'s `null` message) | The pre-launch audit found an iPhone's quantity menu 27 px high and React's "script tag" error as WebKit cancelled that read on the way to the bank (F-17, F-30), neither visible in Chrome. WebKit is a download, once per machine (`test/e2e/README.md`) |
+| 14 Nov 2026 | **Strings load in the page's language and English only,** one module per group and language, awaited at the top of the group's module | All four languages of every word were in each page's script: 216 KB gzipped of the app's alone, on a door opened over a phone's signal (audit F-23). Top-level await keeps the strings there before the route renders, so no loading state was added; the server and the tests still load all four |
+| 14 Nov 2026 | **A page under the app names its frame in its route `handle`** (`shell: 'compact'` for the door, `'wide'` for the guests and the seating), read by the app layout with `useMatches` | The door needed less header on a phone (PD-90) and the long lists more width on a desktop (PD-199); a handle keeps that beside the route, with no second layout route to keep in step |
 
 ## 12. Not yet built
 

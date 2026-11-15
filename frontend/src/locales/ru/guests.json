@@ -74,7 +74,8 @@
     "released": "После отказа освободилось место: {{table}}, {{when}}",
     "releasedAt": "После отказа освободилось место: {{table}} ({{venue}}), {{when}}",
     "releasedNoTable": "После отказа освободилось место, {{when}}",
-    "recordAnswer": "Записать ответ"
+    "recordAnswer": "Записать ответ",
+    "more": "Ещё"
   },
   "fields": {
     "firstName": "Имя",

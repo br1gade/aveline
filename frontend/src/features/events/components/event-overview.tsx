@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
@@ -10,7 +10,7 @@ import { StatusLine, useDialogOpener, usePageStatus } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { intlZoneName, zoneLabelKey } from '@/features/invitation-renderer';
 
-import type { EventOverviewData } from '../load';
+import type { EventOverviewData, HeadcountResult } from '../load';
 import {
   activityPath,
   agreementsPath,
@@ -119,35 +119,101 @@ function EventLink({ to, children }: { to: string; children: ReactNode }) {
   );
 }
 
+/** One stage's pages, under its name. */
+function LinkGroup({ title, children }: { title: string; children: ReactNode }) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className="flex flex-col gap-2">
+      <h2 id={headingId} className="text-muted-foreground m-0 text-sm font-medium">
+        {title}
+      </h2>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * The event's pages by stage of the work, rather than eighteen buttons in one row (design PD-198,
+ * audit F-13): getting ready, inviting and following up, the day itself, and tickets for an event
+ * anyone can find.
+ */
 function EventLinks({ event }: { event: EventDetail }) {
   const { t } = useTranslation('events');
+  const hasInvitation = event.invitation !== null;
   return (
-    <div className="flex flex-wrap gap-2">
-      <EventLink to={guestListPath(event.id)}>{t('overview.guests')}</EventLink>
-      <EventLink to={venuesPath(event.id)}>{t('overview.venues')}</EventLink>
-      <EventLink to={runningOrderPath(event.id)}>{t('overview.runningOrder')}</EventLink>
-      <EventLink to={seatingPath(event.id)}>{t('overview.seating')}</EventLink>
-      <EventLink to={exportsPath(event.id)}>{t('overview.exports')}</EventLink>
-      <EventLink to={ticketSalesPath(event.id)}>{t('overview.ticketSales')}</EventLink>
-      <EventLink to={ordersPath(event.id)}>{t('overview.orders')}</EventLink>
-      <EventLink to={doorPath(event.id)}>{t('overview.door')}</EventLink>
-      <EventLink to={sheetsPath(event.id)}>{t('overview.sheets')}</EventLink>
-      <EventLink to={designPath(event.id)}>{t('overview.design')}</EventLink>
-      <EventLink to={teamPath(event.id)}>{t('overview.team')}</EventLink>
-      <EventLink to={activityPath(event.id)}>{t('overview.activity')}</EventLink>
-      <EventLink to={eventVendorsPath(event.id)}>{t('overview.vendors')}</EventLink>
-      {event.invitation ? (
-        <>
+    <nav aria-label={t('overview.pages')} className="flex flex-col gap-4">
+      <LinkGroup title={t('overview.groups.ready')}>
+        <Permitted to="event:write">
+          <EventLink to={editEventPath(event.id)}>{t('overview.edit')}</EventLink>
+        </Permitted>
+        <EventLink to={venuesPath(event.id)}>{t('overview.venues')}</EventLink>
+        <EventLink to={designPath(event.id)}>{t('overview.design')}</EventLink>
+        <EventLink to={guestListPath(event.id)}>{t('overview.guests')}</EventLink>
+        <EventLink to={teamPath(event.id)}>{t('overview.team')}</EventLink>
+        <EventLink to={eventVendorsPath(event.id)}>{t('overview.vendors')}</EventLink>
+      </LinkGroup>
+      <LinkGroup title={t('overview.groups.invite')}>
+        {hasInvitation ? (
           <EventLink to={invitationPath(event.id)}>{t('overview.publishSend')}</EventLink>
+        ) : null}
+        {hasInvitation ? (
           <EventLink to={followUpsPath(event.id)}>{t('overview.followUps')}</EventLink>
-          <EventLink to={photosPath(event.id)}>{t('overview.photos')}</EventLink>
+        ) : null}
+        <EventLink to={sheetsPath(event.id)}>{t('overview.sheets')}</EventLink>
+        {hasInvitation ? (
           <EventLink to={agreementsPath(event.id)}>{t('overview.agreements')}</EventLink>
-        </>
-      ) : null}
-      <Permitted to="event:write">
-        <EventLink to={editEventPath(event.id)}>{t('overview.edit')}</EventLink>
-      </Permitted>
-    </div>
+        ) : null}
+        {hasInvitation ? (
+          <EventLink to={photosPath(event.id)}>{t('overview.photos')}</EventLink>
+        ) : null}
+      </LinkGroup>
+      <LinkGroup title={t('overview.groups.day')}>
+        <EventLink to={runningOrderPath(event.id)}>{t('overview.runningOrder')}</EventLink>
+        <EventLink to={seatingPath(event.id)}>{t('overview.seating')}</EventLink>
+        <EventLink to={doorPath(event.id)}>{t('overview.door')}</EventLink>
+        <EventLink to={exportsPath(event.id)}>{t('overview.exports')}</EventLink>
+        <EventLink to={activityPath(event.id)}>{t('overview.activity')}</EventLink>
+      </LinkGroup>
+      {event.visibility === 'PRIVATE' ? null : (
+        <LinkGroup title={t('overview.groups.tickets')}>
+          <EventLink to={ticketSalesPath(event.id)}>{t('overview.ticketSales')}</EventLink>
+          <EventLink to={ordersPath(event.id)}>{t('overview.orders')}</EventLink>
+        </LinkGroup>
+      )}
+    </nav>
+  );
+}
+
+type NextStep = 'venue' | 'guests' | 'publish';
+
+/**
+ * The one thing to do next, from what the page already read: a venue, then guests, then
+ * publishing (design PD-198). Nothing once the invitation is published, or when the page can't
+ * tell, as a guess would mislead.
+ */
+function nextStepOf(event: EventDetail, headcount: HeadcountResult): NextStep | null {
+  if (event.invitation?.status !== 'DRAFT') return null;
+  if (event.venues?.length === 0) return 'venue';
+  if (headcount.kind === 'ready' && headcount.headcount.invited === 0) return 'guests';
+  return 'publish';
+}
+
+const NEXT_PATH: Record<NextStep, (eventId: string) => string> = {
+  venue: venuesPath,
+  guests: guestListPath,
+  publish: invitationPath,
+};
+
+function NextStepLink({ event, headcount }: { event: EventDetail; headcount: HeadcountResult }) {
+  const { t } = useTranslation('events');
+  const step = nextStepOf(event, headcount);
+  if (!step) return null;
+  return (
+    <Permitted to="event:write">
+      <Button asChild className="self-start">
+        <Link to={NEXT_PATH[step](event.id)}>{t(`overview.next.${step}`)}</Link>
+      </Button>
+    </Permitted>
   );
 }
 
@@ -176,10 +242,11 @@ export function EventOverview({ data }: { data: EventOverviewData }) {
       >
         {t('overview.back')}
       </Link>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{event.title}</h1>
-        <EventLinks event={event} />
-      </div>
+      <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal break-words">
+        {event.title}
+      </h1>
+      <NextStepLink event={event} headcount={data.headcount} />
+      <EventLinks event={event} />
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       <ArchivedNotice event={event} where="overview" />
       <EventDetails event={event} />

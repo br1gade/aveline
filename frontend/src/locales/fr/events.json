@@ -71,6 +71,18 @@
   },
   "overview": {
     "back": "Vos événements",
+    "pages": "Les pages de l’événement",
+    "groups": {
+      "ready": "Préparer",
+      "invite": "Inviter et suivre",
+      "day": "Le jour J",
+      "tickets": "Billets"
+    },
+    "next": {
+      "venue": "Ensuite : ajouter un lieu",
+      "guests": "Ensuite : ajouter vos invités",
+      "publish": "Ensuite : publier l’invitation"
+    },
     "edit": "Modifier les informations",
     "guests": "Liste des invités",
     "type": "Type",

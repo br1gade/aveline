@@ -724,6 +724,20 @@ describe('GuestList: editing a guest', () => {
     expect(screen.getByRole('button', { name: 'Remove: Armen Petrosyan' })).toBeInTheDocument();
   });
 
+  it('keeps removing and the answer history under “More” (design PD-199)', async () => {
+    serve();
+    const user = renderList();
+    const remove = await screen.findByRole('button', { name: 'Remove: Armen Petrosyan' });
+    const history = screen.getByRole('button', { name: 'Answer history: Armen Petrosyan' });
+    expect(remove).not.toBeVisible();
+    expect(screen.getByRole('button', { name: 'Edit: Armen Petrosyan' })).toBeVisible();
+    await user.click(
+      screen.getByText('More', { selector: '[aria-label="More: Armen Petrosyan"]' }),
+    );
+    expect(remove).toBeVisible();
+    expect(history).toBeVisible();
+  });
+
   it('puts a refused email under its field', async () => {
     serve();
     answer(

@@ -7,6 +7,7 @@ import {
   readAccountOnce,
   requireOrganizationChosen,
   requireSignedIn,
+  type ShellFrame,
 } from '@/features/account';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
 import { APP_PATHS } from '@/route-paths';
@@ -46,19 +47,24 @@ export function HydrateFallback() {
   return <AppLoading />;
 }
 
-/** A page under the app that asks for the compact frame in its `handle`, as the door does. */
-function isCompactHandle(handle: unknown): boolean {
-  return (
-    typeof handle === 'object' && handle !== null && 'shell' in handle && handle.shell === 'compact'
-  );
+function isShellFrame(value: unknown): value is ShellFrame {
+  return value === 'compact' || value === 'wide';
+}
+
+/** The frame a page under the app asks for in its `handle`, as the door and the guests do. */
+function frameOf(handle: unknown): ShellFrame | undefined {
+  if (typeof handle !== 'object' || handle === null || !('shell' in handle)) return undefined;
+  return isShellFrame(handle.shell) ? handle.shell : undefined;
 }
 
 export default function AppLayout() {
   const { organization, unverifiedEmail } = useLoaderData<typeof clientLoader>();
-  const isCompact = useMatches().some((match) => isCompactHandle(match.handle));
+  const frame = useMatches()
+    .map((match) => frameOf(match.handle))
+    .findLast(Boolean);
   return (
     <LeaveGuard>
-      <AppShell organization={organization} unverifiedEmail={unverifiedEmail} isCompact={isCompact}>
+      <AppShell organization={organization} unverifiedEmail={unverifiedEmail} frame={frame}>
         <Outlet />
       </AppShell>
     </LeaveGuard>

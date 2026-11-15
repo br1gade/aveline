@@ -71,6 +71,18 @@
   },
   "overview": {
     "back": "Your events",
+    "pages": "This event’s pages",
+    "groups": {
+      "ready": "Getting ready",
+      "invite": "Inviting and following up",
+      "day": "On the day",
+      "tickets": "Tickets"
+    },
+    "next": {
+      "venue": "Next: add a venue",
+      "guests": "Next: add your guests",
+      "publish": "Next: publish the invitation"
+    },
     "edit": "Edit details",
     "guests": "Guest list",
     "type": "Kind",

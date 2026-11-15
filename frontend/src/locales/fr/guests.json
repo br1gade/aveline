@@ -70,7 +70,8 @@
     "released": "Un refus a libéré sa place à {{table}}, le {{when}}",
     "releasedAt": "Un refus a libéré sa place à {{table}} ({{venue}}), le {{when}}",
     "releasedNoTable": "Un refus a libéré sa place, le {{when}}",
-    "recordAnswer": "Enregistrer une réponse"
+    "recordAnswer": "Enregistrer une réponse",
+    "more": "Plus"
   },
   "fields": {
     "firstName": "Prénom",

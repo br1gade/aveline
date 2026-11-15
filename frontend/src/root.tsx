@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import {
   isRouteErrorResponse,
@@ -14,6 +14,7 @@ import { isApiError } from '@/api/errors';
 import { createI18n, usePageLanguage } from '@/lib/i18n';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
 import { createNonce } from '@/lib/security/headers';
+import { hasLanguage, loadLanguage } from '@/locales/load';
 import { buttonClass } from '@/ui';
 
 import type { Route } from './+types/root';
@@ -36,10 +37,30 @@ export function loader() {
 /** A search or a filter typed on a page needs no new nonce, which only a document response uses. */
 export const shouldRevalidate = revalidateUnlessQueryOnly;
 
+/**
+ * The page's language's words, when a navigation turned to a language whose words were not loaded
+ * (`locales/load.ts`): fetched, then the page drawn again. Until then it reads in English, the
+ * fallback. The language switcher fetches them first, so this is the rare path.
+ */
+function useWordsOf(language: string): void {
+  const [, setLoads] = useState(0);
+  useEffect(() => {
+    if (hasLanguage(language)) return undefined;
+    let isCurrent = true;
+    void loadLanguage(language).then(() => {
+      if (isCurrent) setLoads((count) => count + 1);
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [language]);
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const data = useRouteLoaderData<typeof loader>('root');
   const language = usePageLanguage();
   const i18n = useMemo(() => createI18n(language), [language]);
+  useWordsOf(language);
 
   return (
     <html lang={language}>
