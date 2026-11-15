@@ -218,6 +218,7 @@ test/
 | `GET` | `/api/v1/staff` | Every active staff account (admins only) |
 | `POST` | `/api/v1/staff` | Make a verified account staff, or change its role (admins only) |
 | `DELETE` | `/api/v1/staff/:userId` | Return a staff account to an ordinary one (admins only) |
+| `GET` | `/api/v1/staff/pilot-stats` | Pilot totals across every customer (admins only) |
 | `POST` | `/api/v1/events/:eventId/media` | Upload an image or audio file (multipart) |
 | `GET` | `/api/v1/events/:eventId/media` | The event's uploads, with the blocks that show each |
 | `PATCH` | `/api/v1/events/:eventId/media/:assetId` | Set alt text, one language at a time |

@@ -1,7 +1,9 @@
 import { INestApplication } from '@nestjs/common';
-import { PlatformRole, PrismaClient, VerificationPurpose } from '@prisma/client';
+import { MessageStatus, PlatformRole, PrismaClient, RsvpStatus, VerificationPurpose } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { authenticateAs } from '../../fixtures/auth.fixture';
 import { accountsApp, http as httpOf } from '../../fixtures/areas/auth-accounts.fixture';
+import { seedEvent } from '../../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
 const AT = new Date('2026-11-01T09:00:00.000Z');
@@ -242,6 +244,57 @@ describe('Staff accounts (e2e)', () => {
 
       expect(body).toMatchObject({ code: 'STAFF_SELF_CHANGE' });
       expect(await roleOf(userId)).toBe(PlatformRole.ADMIN);
+    });
+  });
+
+  describe('pilot totals', () => {
+    const stats = (authorization: string) => http().get('/api/v1/staff/pilot-stats').set('Authorization', authorization);
+
+    /** An event whose organization is owned by an account with `ownerRole`, with guests in these states. */
+    const eventOwnedBy = async (ownerRole: PlatformRole, guests: { rsvp: RsvpStatus; isCheckedIn?: boolean }[]) => {
+      const { eventId, householdId } = await seedEvent(prisma);
+      const { organizationId } = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+      const owner = await registered(`${randomUUID()}@example.am`, ownerRole);
+      await prisma.organizationMembership.create({ data: { userId: owner.id, organizationId, role: 'OWNER' } });
+      await prisma.guest.deleteMany({ where: { eventId } });
+      for (const [index, guest] of guests.entries()) {
+        await prisma.guest.create({ data: {
+          eventId, householdId, firstName: `Guest ${index}`, token: randomUUID(),
+          rsvp: { create: { status: guest.rsvp } }, ...(guest.isCheckedIn ? { checkIn: { create: {} } } : {}),
+        } });
+      }
+      return eventId;
+    };
+    const invitation = (eventId: string, status: MessageStatus) => prisma.message.create({
+      data: { eventId, channel: 'EMAIL', templateKey: 'invitation.send', toAddress: `${randomUUID()}@example.am`, body: 'x', status },
+    });
+
+    it('counts hosts, invitations that went out, and guests who replied, said yes and arrived', async () => {
+      const { authorization } = await signedIn(PlatformRole.ADMIN);
+      const wedding = await eventOwnedBy(PlatformRole.NONE, [
+        { rsvp: RsvpStatus.ATTENDING, isCheckedIn: true }, { rsvp: RsvpStatus.ATTENDING }, { rsvp: RsvpStatus.DECLINED }, { rsvp: RsvpStatus.PENDING },
+      ]);
+      await eventOwnedBy(PlatformRole.NONE, [{ rsvp: RsvpStatus.UNDECIDED }]);
+      await Promise.all([MessageStatus.SENT, MessageStatus.DELIVERED, MessageStatus.FAILED, MessageStatus.QUEUED].map((status) => invitation(wedding, status)));
+
+      const { body } = await stats(authorization).expect(200);
+
+      expect(body).toEqual({ hosts: 2, invitationsSent: 2, guests: 5, guestsReplied: 4, guestsAttending: 2, guestsCheckedIn: 1 });
+    });
+
+    it('leaves out organizations that Aveline staff own', async () => {
+      const { authorization } = await signedIn(PlatformRole.ADMIN);
+      const rehearsal = await eventOwnedBy(PlatformRole.SUPPORT, [{ rsvp: RsvpStatus.ATTENDING, isCheckedIn: true }]);
+      await invitation(rehearsal, MessageStatus.SENT);
+
+      const { body } = await stats(authorization).expect(200);
+
+      expect(body).toEqual({ hosts: 0, invitationsSent: 0, guests: 0, guestsReplied: 0, guestsAttending: 0, guestsCheckedIn: 0 });
+    });
+
+    it.each([PlatformRole.SUPPORT, PlatformRole.NONE])('refuses %s', async (role) => {
+      const { authorization } = await signedIn(role);
+      await stats(authorization).expect(403);
     });
   });
 });

@@ -162,7 +162,7 @@ owner.
 | `privacy:manage` | Handle data-subject requests, including erasure |
 | `directory:manage` | Add, correct and retire halls in the shared venue directory |
 | `concierge:manage` | Open an organization and its events for a customer, and invite them as owner |
-| `staff:manage` | Make an account Aveline staff, change its platform role or revoke it (`ADMIN` only) |
+| `staff:manage` | Make an account Aveline staff, change its platform role or revoke it, and read the pilot totals across every customer (`ADMIN` only) |
 
 Only organization-scoped `vendor:write` allows corrections, removal, or
 reading private notes for that organization's vendor entries. Event access

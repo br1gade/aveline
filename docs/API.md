@@ -1445,6 +1445,36 @@ with `node scripts/ops.mjs staff-grant` (backend/docs/DEPLOYMENT.md).
 A change applies on the account's next request; its session stays open and
 its next access token carries the new role.
 
+### Pilot totals (admins)
+
+```http
+GET /api/v1/staff/pilot-stats
+```
+
+For the staff page the pilot's success is read from (decided 16 November
+2026). `staff:manage`, so `ADMIN` only; anyone else gets `403`. Totals across
+every customer, counted now; there is no date range.
+
+```json
+{ "hosts": 3, "invitationsSent": 120, "guests": 140, "guestsReplied": 96, "guestsAttending": 81, "guestsCheckedIn": 70 }
+```
+
+| Field | Counts |
+|---|---|
+| `hosts` | Organizations that created at least one event |
+| `invitationsSent` | Invitations a provider accepted or delivered, on any channel. Queued, failed, bounced and suppressed ones are not counted |
+| `guests` | Every guest on those events |
+| `guestsReplied` | Guests who gave any answer: attending, declined or undecided |
+| `guestsAttending` | Guests whose answer is attending |
+| `guestsCheckedIn` | Guests checked in at the door, whatever they answered |
+
+Every field is a non-negative integer, and `0` when nothing has happened yet.
+The share who replied is `guestsReplied / guests`, and the share checked in is
+`guestsCheckedIn / guestsAttending`; show a dash when the denominator is `0`.
+The second can exceed 100% if the door admits guests who never said yes.
+Organizations owned by Aveline staff (rehearsals, concierge setups not yet
+handed over) and deleted organizations are left out.
+
 ### Archiving and deleting an event
 
 ```http

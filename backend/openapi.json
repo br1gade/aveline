@@ -221,7 +221,7 @@
     },
     "/api/v1/auth/password-reset/confirm": {
       "post": {
-        "description": "Revokes every existing session, since a reset is what someone does when they believe an account is compromised.",
+        "description": "Revokes every existing session, since a reset is what someone does when they believe an account is compromised, then signs the owner in with a new token pair, even while failed sign-ins make the account wait.",
         "operationId": "AuthController_confirmPasswordReset",
         "parameters": [],
         "requestBody": {
@@ -10984,6 +10984,43 @@
         ]
       }
     },
+    "/api/v1/staff/pilot-stats": {
+      "get": {
+        "operationId": "StaffController_stats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffController_statsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Pilot totals across every customer: hosts, invitations sent, guests who replied, said yes and arrived (admins only)",
+        "tags": [
+          "staff"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/staff/{userId}": {
       "delete": {
         "description": "Applies on the account's next request. An admin cannot revoke their own role.",
@@ -21310,6 +21347,18 @@
       "AuthController_confirmPasswordResetResponse": {
         "type": "object",
         "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "number"
+          },
           "ok": {
             "type": "boolean"
           },
@@ -21318,6 +21367,10 @@
           }
         },
         "required": [
+          "accessToken",
+          "refreshToken",
+          "tokenType",
+          "expiresIn",
           "ok",
           "sessionsRevoked"
         ]
@@ -46104,6 +46157,37 @@
           "email",
           "name",
           "role"
+        ]
+      },
+      "StaffController_statsResponse": {
+        "type": "object",
+        "properties": {
+          "hosts": {
+            "type": "number"
+          },
+          "invitationsSent": {
+            "type": "number"
+          },
+          "guests": {
+            "type": "number"
+          },
+          "guestsReplied": {
+            "type": "number"
+          },
+          "guestsAttending": {
+            "type": "number"
+          },
+          "guestsCheckedIn": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "hosts",
+          "invitationsSent",
+          "guests",
+          "guestsReplied",
+          "guestsAttending",
+          "guestsCheckedIn"
         ]
       },
       "VendorsController_listVendorsResponse": {

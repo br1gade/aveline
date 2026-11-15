@@ -2,19 +2,31 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { GrantStaffRoleDto } from './dto/staff.dto';
+import { PilotStatsService } from './pilot-stats.service';
 import { StaffService } from './staff.service';
 
 /** Aveline's own staff, managed by an admin. The first admin is made with the ops command. */
 @ApiTags('staff')
 @Controller('staff')
 export class StaffController {
-  constructor(private readonly staff: StaffService) {}
+  constructor(
+    private readonly staff: StaffService,
+    private readonly pilotStats: PilotStatsService,
+  ) {}
 
   @RequirePermission('staff:manage')
   @Get()
   @ApiOperation({ summary: 'Every active staff account (admins only)' })
   list() {
     return this.staff.list();
+  }
+
+  // Totals across every customer, so admins only.
+  @RequirePermission('staff:manage')
+  @Get('pilot-stats')
+  @ApiOperation({ summary: 'Pilot totals across every customer: hosts, invitations sent, guests who replied, said yes and arrived (admins only)' })
+  stats() {
+    return this.pilotStats.totals();
   }
 
   @RequirePermission('staff:manage')
