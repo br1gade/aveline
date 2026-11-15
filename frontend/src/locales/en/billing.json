@@ -81,7 +81,6 @@
   },
   "status": {
     "activated": "{{name}} is your plan now.",
-    "leaving": "Going to the bank’s page…",
     "cancelled": "The plan ends on {{date}}.",
     "resumed": "The plan carries on.",
     "scheduled": "{{name}} starts when your paid period ends. Until then, nothing changes."

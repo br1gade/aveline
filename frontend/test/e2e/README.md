@@ -22,8 +22,11 @@ makes its own data through the API as a host would (setup proposal §12): a fres
 | `a11y.spec.ts` | Twenty guest, public and app pages in hy, ru, en and fr: axe (WCAG 2.2 AA; serious and critical fail), 44 px targets on a phone, no sideways scroll, `<html lang>`, no raw translation key |
 | `ssr.spec.ts` | An event page's title, Open Graph and robots rule in its server HTML; the capability links' `no-referrer`, `private, no-store` and `noindex` headers, and no token in their HTML |
 
-Each test runs twice: on a 360 px touch phone and at 1280 px. A test also fails on any console
-error, apart from the browser's own line for a request the test expects to be refused.
+Each test runs three times: on a 360 px touch phone in Chrome, on a 390 px iPhone in WebKit
+(Safari's engine), and at 1280 px in Chrome. WebKit is downloaded once per machine with
+`npx playwright install webkit`; one project alone runs with `--project=phone`, `iphone` or
+`desktop`. A test also fails on any console error, apart from the browser's own line for a request
+the test expects to be refused.
 
 ## The stack it needs
 
@@ -56,7 +59,7 @@ bank's return address from it.
 
 ```bash
 E2E_BASE_URL=http://localhost:5199 npm run test:e2e          # everything, both widths
-npx playwright test door.spec.ts --project=phone              # one file, one width
+npx playwright test door.spec.ts --project=phone              # one file, one project
 ```
 
 ## What is skipped, and why

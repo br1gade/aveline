@@ -5,7 +5,9 @@ import { E2E } from './test/e2e/support/env';
 /**
  * End-to-end and accessibility tests against a real, running backend (setup proposal §12;
  * `test/e2e/README.md`). The backend must be running; the client's dev server is started here
- * when `E2E_BASE_URL` names none. The installed Google Chrome is used, so nothing is downloaded.
+ * when `E2E_BASE_URL` names none. The installed Google Chrome runs the phone and desktop projects;
+ * the `iphone` project runs Playwright's WebKit, installed once with `npx playwright install webkit`,
+ * as iPhones draw native controls their own way (audit F-17, F-30).
  *
  * One worker: the suite shares one stack and its rate limits. No trace or screenshot unless
  * `E2E_TRACE=1`, as either would hold the capability tokens the journeys use (frontend/CLAUDE.md
@@ -24,7 +26,6 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: E2E.baseUrl,
-    channel: 'chrome',
     trace: shouldKeep ? 'retain-on-failure' : 'off',
     screenshot: shouldKeep ? 'only-on-failure' : 'off',
     video: 'off',
@@ -38,6 +39,13 @@ export default defineConfig({
         viewport: { width: 360, height: 780 },
         hasTouch: true,
         isMobile: true,
+      },
+    },
+    {
+      name: 'iphone',
+      use: {
+        ...devices['iPhone 14'],
+        viewport: { width: 390, height: 844 },
       },
     },
     {

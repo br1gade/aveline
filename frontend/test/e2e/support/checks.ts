@@ -30,6 +30,9 @@ async function axeOn(page: Page) {
   await page.waitForFunction(() =>
     document.getAnimations().every((animation) => animation.playState !== 'running'),
   );
+  // Long lists draw only what is on screen (`content-visibility: auto`, the guest list's cards).
+  // WebKit leaves what is off screen unlaid, and axe would measure those boxes as they never are.
+  await page.addStyleTag({ content: '* { content-visibility: visible !important; }' });
   try {
     return await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
   } catch (error) {

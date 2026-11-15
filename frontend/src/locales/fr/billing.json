@@ -85,7 +85,6 @@
   },
   "status": {
     "activated": "{{name}} est maintenant votre formule.",
-    "leaving": "Passage à la page de la banque…",
     "cancelled": "La formule se termine le {{date}}.",
     "resumed": "La formule continue.",
     "scheduled": "{{name}} commence à la fin de votre période payée. D’ici là, rien ne change."

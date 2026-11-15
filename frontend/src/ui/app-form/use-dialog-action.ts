@@ -32,13 +32,20 @@ export function useDialogAction<Refusal extends DialogRefusal>(
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen && !isBusy) onClose();
   };
-  /** `message` may be decided by what the action answered, as a function read once it has. */
-  const run = async (action: () => Promise<void>, message: string | (() => string)) => {
+  /**
+   * `message` may be decided by what the action answered, as a function read once it has. `null`
+   * means the action has sent the browser elsewhere, to a bank's page: nothing is said, nothing is
+   * read again and the dialog stays busy, as reading the page again while the browser leaves is
+   * what WebKit cancels into the error page (audit F-30).
+   */
+  const run = async (action: () => Promise<void>, message: string | (() => string | null)) => {
     setRefusal(null);
     setIsBusy(true);
     try {
       await action();
-      await page.done(typeof message === 'function' ? message() : message);
+      const said = typeof message === 'function' ? message() : message;
+      if (said === null) return;
+      await page.done(said);
       isDone.current = true;
       onClose();
     } catch (error) {

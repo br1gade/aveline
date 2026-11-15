@@ -60,7 +60,8 @@ export function ChooseDialog({ choice, onPilot, ...context }: ChooseDialogProps)
         if (!address) throw NO_BANK_PAGE;
         leaveForBank(address);
       },
-      () => t(`status.${made.kind === 'bank' ? 'leaving' : made.kind}`, { name: choice.name }),
+      // On the way to the bank, the page is left as it is (audit F-30).
+      () => (made.kind === 'bank' ? null : t(`status.${made.kind}`, { name: choice.name })),
     );
   };
   return (

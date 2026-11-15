@@ -47,6 +47,36 @@ async function formReady(page: Page): Promise<void> {
  * and the hosts' statement, changing the reply, the closed invitation, and the token kept to itself.
  */
 test.describe('a guest', () => {
+  test('replies by keyboard alone, passing the optional questions on the way', async ({
+    page,
+    host,
+  }) => {
+    // Audit F-06: Tab passes through "Who invited you? · Optional" to Send, which then refused.
+    test.skip(test.info().project.name !== 'desktop', 'A keyboard is the desktop project’s');
+    const { event, household } = await publishedWedding(host);
+    const [armen] = household;
+    if (!armen) throw new Error('No guest');
+    await page.goto(await guestLink(host, event, armen.id));
+    await formReady(page);
+    for (let step = 0; step < 40; step += 1) {
+      await page.keyboard.press('Tab');
+      if (
+        await page.evaluate(
+          () => (document.activeElement as HTMLInputElement | null)?.type === 'radio',
+        )
+      )
+        break;
+    }
+    await page.keyboard.press('Space');
+    for (let step = 0; step < 60; step += 1) {
+      await page.keyboard.press('Tab');
+      if (await page.evaluate(() => document.activeElement?.textContent?.trim() === 'Send reply'))
+        break;
+    }
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('heading', { name: 'Thank you' })).toBeVisible();
+  });
+
   test('replies for the household, changes it, and finds replies closed', async ({
     page,
     host,
