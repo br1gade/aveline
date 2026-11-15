@@ -186,8 +186,9 @@ anyone else per address. Exceeding either returns `429`.
 address within 15 minutes, `POST /auth/login` for that address answers `429`
 with code `LOGIN_TOO_MANY_ATTEMPTS` and action `WAIT` — even with the right
 password — until 15 minutes after the first failure. A successful sign-in
-clears the count. Password reset is not limited this way, so offer it beside
-the message: it is how the owner gets in while someone else is guessing.
+clears the count. Offer password reset beside the message: confirming a reset
+signs the owner in even while the account waits, so it is how the owner gets
+in while someone else is guessing.
 
 Guest-page reads have a wider allowance — 50/second and 3,000/minute — because
 a whole room opens them at once on one Wi-Fi: `GET /invitations/:slug`,
@@ -328,8 +329,11 @@ an account-enumeration oracle, and the person who genuinely forgot checks
 their inbox either way.
 
 Confirming a reset **revokes every session**, since a reset is what someone
-does when they believe an account is compromised. Expect to sign the user in
-again afterwards.
+does when they believe an account is compromised, and then **signs the owner
+in**: the reply is `{ ok: true, sessionsRevoked: true }` plus the same token
+pair as `POST /auth/login` (`accessToken`, `refreshToken`, `tokenType`,
+`expiresIn`). Store it and go straight in. It works while failed sign-ins make
+the account wait (`LOGIN_TOO_MANY_ATTEMPTS`), and it starts that count again.
 
 A link is single-use and asking for a new one invalidates the previous one, so
 a user who clicks an older email gets a 400. Say so plainly rather than

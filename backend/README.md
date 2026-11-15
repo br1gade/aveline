@@ -203,7 +203,7 @@ test/
 | `POST` | `/api/v1/auth/logout` | Revoke one session |
 | `POST` | `/api/v1/auth/logout-everywhere` | Revoke every session |
 | `POST` | `/api/v1/auth/password-reset` | Request a reset link (always reports success) |
-| `POST` | `/api/v1/auth/password-reset/confirm` | Set a new password; revokes every session |
+| `POST` | `/api/v1/auth/password-reset/confirm` | Set a new password; revokes every session, then signs the owner in |
 | `POST` | `/api/v1/auth/verify-email` | Send a verification link to the signed-in account |
 | `POST` | `/api/v1/auth/verify-email/confirm` | Confirm an email address |
 | `GET` | `/api/v1/organization/invites` | Pending invitations |

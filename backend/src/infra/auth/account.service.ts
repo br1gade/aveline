@@ -206,17 +206,19 @@ export class AccountService {
   }
 
   /** Completes a reset and revokes every session, because a reset is what
-   *  someone does when they believe an account is compromised. */
+   *  someone does when they believe an account is compromised. Returns the
+   *  account at its new generation, for the caller to sign in. */
   async confirmPasswordReset(token: string, password: string) {
     const record = await this.consumeToken(token, VerificationPurpose.PASSWORD_RESET);
 
-    await this.prisma.$transaction([
+    const [user] = await this.prisma.$transaction([
       // The generation moves on with the password: every session and access
       // token from before is refused at once, including one a concurrent
       // login or refresh is minting right now.
       this.prisma.user.update({
         where: { id: record.userId },
         data: { passwordHash: await hash(password, BCRYPT_ROUNDS), sessionGeneration: { increment: 1 } },
+        select: { id: true, email: true, platformRole: true, sessionGeneration: true, isActive: true },
       }),
       this.prisma.session.updateMany({
         where: { userId: record.userId, revokedAt: null },
@@ -224,7 +226,7 @@ export class AccountService {
       }),
     ]);
 
-    return { ok: true as const, sessionsRevoked: true as const };
+    return user;
   }
 
   async requestEmailVerification(userId: string, locale: string) {

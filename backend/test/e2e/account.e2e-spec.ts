@@ -199,8 +199,9 @@ describe('Account lifecycle (e2e)', () => {
         .send({ token, password: 'a-brand-new-password' })
         .expect(201);
 
-      const live = await prisma.session.count({ where: { userId: user.id, revokedAt: null } });
-      expect(live).toBe(0);
+      const live = await prisma.session.findMany({ where: { userId: user.id, revokedAt: null } });
+      // Only the session the reset itself signed in.
+      expect(live).toEqual([expect.objectContaining({ generation: 1 })]);
     });
 
     it('refuses to spend the same link twice', async () => {

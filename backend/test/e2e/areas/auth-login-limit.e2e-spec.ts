@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../../../src/app.module';
 import { LOGIN_FAILURE_LIMIT, LoginAttempts } from '../../../src/infra/auth/login-attempts';
 import { PrismaService } from '../../../src/prisma/prisma.service';
+import { tokenFrom } from '../../fixtures/areas/auth-accounts.fixture';
 import { UNTHROTTLED } from '../../fixtures/unthrottled.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
 
@@ -57,6 +58,20 @@ describe('Repeated failed sign-ins', () => {
 
     const { body } = await signIn(credentials.password).expect(429);
     expect(body).toMatchObject({ code: 'LOGIN_TOO_MANY_ATTEMPTS', action: 'WAIT' });
+  });
+
+  // The owner's way in while someone else is guessing: the reset proves the mailbox.
+  it('signs the owner in on a reset, and lets the new password sign in again, while the account is waiting', async () => {
+    await failTimes(LOGIN_FAILURE_LIMIT);
+    const requested = await http().post('/api/v1/auth/password-reset').send({ email: credentials.email }).expect(201);
+
+    const confirmed = await http().post('/api/v1/auth/password-reset/confirm')
+      .send({ token: tokenFrom(requested.body), password: 'a-brand-new-password' }).expect(201);
+    const session = confirmed.body as { accessToken: string };
+
+    expect(session).toMatchObject({ ok: true, sessionsRevoked: true, tokenType: 'Bearer' });
+    await http().get('/api/v1/me').set('Authorization', `Bearer ${session.accessToken}`).expect(200);
+    await signIn('a-brand-new-password').expect(201);
   });
 
   it('starts counting again after a successful sign-in', async () => {

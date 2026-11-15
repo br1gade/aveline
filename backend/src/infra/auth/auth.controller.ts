@@ -73,10 +73,13 @@ export class AuthController {
   @Post('password-reset/confirm')
   @ApiOperation({
     summary: 'Set a new password using a reset link',
-    description: 'Revokes every existing session, since a reset is what someone does when they believe an account is compromised.',
+    description:
+      'Revokes every existing session, since a reset is what someone does when they believe an account is compromised, ' +
+      'then signs the owner in with a new token pair, even while failed sign-ins make the account wait.',
   })
-  confirmPasswordReset(@Body() dto: ConfirmPasswordResetDto) {
-    return this.accounts.confirmPasswordReset(dto.token, dto.password);
+  async confirmPasswordReset(@Body() dto: ConfirmPasswordResetDto, @ClientContext() client: SessionContext) {
+    const user = await this.accounts.confirmPasswordReset(dto.token, dto.password);
+    return { ok: true as const, sessionsRevoked: true as const, ...(await this.auth.signInAfterReset(user, client)) };
   }
 
   @Post('verify-email')

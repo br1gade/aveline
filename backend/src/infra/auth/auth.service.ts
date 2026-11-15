@@ -78,6 +78,20 @@ export class AuthService {
   }
 
   /**
+   * Signs the owner in once a reset is confirmed. The reset proved the
+   * mailbox, so it is the way in while someone else's guesses have made
+   * sign-in wait; the count starts again too.
+   */
+  async signInAfterReset(
+    user: { id: string; email: string; platformRole: string; sessionGeneration: number; isActive: boolean },
+    context: SessionContext,
+  ) {
+    if (!user.isActive) throw new UnauthorizedException('Account is not active');
+    await this.attempts.recordSuccess(user.email);
+    return this.issueTokens(user, context);
+  }
+
+  /**
    * Exchanges a refresh token for a new pair and **rotates** it: the old
    * token is revoked in the same breath. A stolen token is therefore usable
    * at most once, and its use invalidates the victim's session, which is how
