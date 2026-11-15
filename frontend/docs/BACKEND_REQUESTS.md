@@ -1,6 +1,7 @@
 # Backend requests
 
-> **Status: open register, not yet triaged.** Created on 18 October 2026 from the setup proposal
+> **Status: open register.** Most rows carry their answer and adoption in their own first line; the
+> notes below record each round. Created on 18 October 2026 from the setup proposal
 > §16 and the design questions in [design/DESIGN_DECISIONS.md](design/DESIGN_DECISIONS.md) §5.
 >
 > How it works (setup proposal §3.6): the frontend records a need here. The backend developer
@@ -8,8 +9,9 @@
 > by that link. The client never works around a missing endpoint permanently (root `CLAUDE.md`
 > §2). A temporary stand-in is listed here with its exit.
 >
-> The backend developer could not answer when this file was created. Every entry is therefore
-> **not triaged**, and the frontend proceeds on the provisional defaults named in each row.
+> The backend developer could not answer when this file was created, so every entry began **not
+> triaged**, the frontend proceeding on the provisional defaults named in each row. A row without an
+> answer in its first line is still in that state.
 >
 > **Re-checked on 23 October 2026** against the backend's audit fixes: BQ-4 and BQ-9 are answered,
 > FR-7 partly; FR-21 and BQ-11 are new. The rest of that pull (to `d23ff2d`) was checked the same

@@ -109,9 +109,9 @@
     "addSubmit": "Add the guest",
     "adding": "Adding…",
     "editTitle": "Edit {{name}}",
-    "editSubmit": "Save changes",
+    "editSubmit": "Save",
     "householdTitle": "Edit {{name}}",
-    "householdSubmit": "Save changes",
+    "householdSubmit": "Save",
     "saving": "Saving…",
     "cancel": "Cancel"
   },

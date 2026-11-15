@@ -20,7 +20,7 @@
     "events_other": "{{count, number}} событий",
     "setUp": "Создать событие",
     "setUpFor": "Создать событие: {{name}}",
-    "events_few": "{{count, number}} событий",
+    "events_few": "{{count, number}} события",
     "events_many": "{{count, number}} событий"
   },
   "open": {

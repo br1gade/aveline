@@ -339,7 +339,7 @@ describe('add to calendar (C-32, PD-178)', () => {
     renderPage({ invitation });
     fireEvent.click(screen.getByRole('button', { name: 'Add to calendar' }));
     const [blob, name] = vi.mocked(saveFile).mock.calls[0] ?? [];
-    expect(name).toBe('event.ics');
+    expect(name).toBe(`${invitation.slug}.ics`);
     expect(blob?.type).toBe('text/calendar;charset=utf-8');
     const file = (await blob?.text()) ?? '';
     expect(file).toContain('SUMMARY:Anna & Davit\r\n');

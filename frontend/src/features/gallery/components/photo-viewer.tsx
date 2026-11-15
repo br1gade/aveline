@@ -35,7 +35,7 @@ export function PhotoViewer({ label, onClose, children }: PhotoViewerProps) {
       ref={ref}
       aria-label={label}
       onClose={onClose}
-      className="bg-surface text-text m-auto max-h-[94svh] w-[min(94vw,64rem)] border-0 p-0 backdrop:bg-black/80"
+      className="bg-surface text-text backdrop:bg-scrim/80 m-auto max-h-[94svh] w-[min(94vw,64rem)] border-0 p-0"
     >
       <div className="flex flex-col gap-3 p-3 sm:p-4">
         <div className="flex justify-end">

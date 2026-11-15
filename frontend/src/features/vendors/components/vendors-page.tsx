@@ -15,7 +15,7 @@ import { CorrectVendorDialog, RemoveVendorDialog } from './vendor-dialogs';
 import { Fact, PageHeading, useCategoryText, VendorProblem } from './shared';
 
 const FILTER_LINK =
-  'border-border inline-flex min-h-11 items-center border px-3 text-sm aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground';
+  'border-border inline-flex min-h-11 min-w-11 justify-center items-center border px-3 text-sm aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground';
 
 /** The category in the address, so a reload or a shared link keeps it; anything else is all. */
 function useCategoryFilter(): VendorCategory | null {

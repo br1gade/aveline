@@ -59,7 +59,7 @@
   "code": {
     "label": "Ticket code",
     "help": "Capitals and spaces don’t matter.",
-    "admit": "Admit",
+    "admit": "Check in",
     "admitting": "Admitting…",
     "empty": "Type the code from their ticket.",
     "notLatin": "That isn’t Latin letters. Switch the keyboard to English and type the code again."

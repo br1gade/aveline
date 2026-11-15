@@ -59,7 +59,7 @@
   "code": {
     "label": "Code du billet",
     "help": "Majuscules et espaces n’ont pas d’importance.",
-    "admit": "Admettre",
+    "admit": "Enregistrer l’arrivée",
     "admitting": "Admission…",
     "empty": "Saisissez le code du billet.",
     "notLatin": "Ce ne sont pas des lettres latines. Passez le clavier en anglais et saisissez à nouveau le code."

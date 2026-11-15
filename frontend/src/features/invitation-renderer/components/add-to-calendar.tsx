@@ -20,7 +20,8 @@ export function AddToCalendar({ venues }: { venues: readonly Venue[] }) {
       { slug, title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, venues },
       new Date(),
     );
-    saveFile(new Blob([file], { type: 'text/calendar;charset=utf-8' }), 'event.ics');
+    // Named after the event, so a phone's downloads tell two invitations apart (audit F-35).
+    saveFile(new Blob([file], { type: 'text/calendar;charset=utf-8' }), `${slug}.ics`);
   };
   return (
     <Button variant="secondary" onClick={save} className="self-start">

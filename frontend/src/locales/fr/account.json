@@ -39,7 +39,7 @@
   "register": {
     "title": "Créez votre compte",
     "lead": "Configurez ensuite votre organisation et votre premier événement.",
-    "submit": "Créer le compte",
+    "submit": "Créer un compte",
     "submitting": "Création de votre compte…",
     "checkEmail": {
       "title": "Consultez vos e-mails",

@@ -529,7 +529,8 @@ this, in code since 23 October 2026 (`src/styles/app-kit.css`, square corners pe
 | `--secondary` / `--secondary-foreground` | `linen` / `ink` |
 | `--muted` / `--muted-foreground` | `linen` / `ink-muted` |
 | `--accent` / `--accent-foreground` | `selected-tint` / `brand-burgundy` |
-| `--destructive` | `error-ink` |
+| `--destructive` / `--destructive-foreground` | `error-ink` / `ivory` |
+| `--scrim`, behind a dialog, at the kit's opacity | `ink` |
 | `--border` | `sand` (decorative separators) |
 | `--input` | `line` (control edges, at least 3:1) |
 | `--ring` | `brand-burgundy` |
@@ -538,6 +539,7 @@ this, in code since 23 October 2026 (`src/styles/app-kit.css`, square corners pe
 **Differences in the app:**
 
 - **Denser:** body 14–15 px, `space-4` gaps, 40 px controls (still 44 px targets on touch).
+- **The same focus ring as everywhere** (§10): the kit's own fainter ring is removed, so `:focus-visible` draws the `focus` token's 2 px line (14 November 2026, audit F-34).
 - **Serif only for page titles.** Gold is used sparingly.
 - **A dark mode** can later build on the Bordeaux theme; it is not designed yet.
 - **Charts** follow the `dataviz` skill when they arrive.

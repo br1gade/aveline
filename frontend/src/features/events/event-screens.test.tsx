@@ -339,10 +339,10 @@ describe('EventOverview', () => {
     },
   );
 
-  it('dates the event in its own zone, and names the zone', async () => {
+  it('dates the event in its own zone, and names the zone as guests read it (audit F-35)', async () => {
     overview();
     expect(
-      await screen.findByText('Saturday, 12 June 2027, 04:00 (America/Los Angeles)'),
+      await screen.findByText('Saturday, 12 June 2027, 04:00 · Pacific Time'),
     ).toBeInTheDocument();
   });
 
@@ -643,7 +643,7 @@ describe('EditEvent', () => {
   const at = () =>
     renderAt('/app/events/e1/edit', '/app/events/:eventId/edit', () => <EditEvent event={EVENT} />);
   const save = (user: ReturnType<typeof userEvent.setup>) =>
-    user.click(screen.getByRole('button', { name: 'Save changes' }));
+    user.click(screen.getByRole('button', { name: 'Save' }));
   const saved = (notice: object) => () =>
     HttpResponse.json({
       ...EVENT,

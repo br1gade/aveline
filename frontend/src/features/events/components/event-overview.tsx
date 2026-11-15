@@ -8,6 +8,7 @@ import { APP_PATHS } from '@/route-paths';
 import { Permitted } from '@/features/permissions';
 import { StatusLine, useDialogOpener, usePageStatus } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
+import { intlZoneName, zoneLabelKey } from '@/features/invitation-renderer';
 
 import type { EventOverviewData } from '../load';
 import {
@@ -62,14 +63,19 @@ function useLanguages(event: EventDetail): string {
     .join(', ');
 }
 
-/** The start in the event's own zone, never the device's, with the zone named (R-22). */
+/**
+ * The start in the event's own zone, never the device's, with the zone named as guests read it:
+ * "Yerevan time", not "Asia/Yerevan" (R-22, audit F-35).
+ */
 function useWhen(event: EventDetail): string {
   const { t, i18n } = useTranslation('events');
+  const { t: invitation } = useTranslation('invitation');
   const zone = { timeZone: event.timezone, locale: i18n.language };
+  const key = zoneLabelKey(event.timezone);
   return t('overview.whenValue', {
     date: formatEventDate(event.startsAt, zone),
     time: formatEventTime(event.startsAt, zone),
-    timeZone: event.timezone.replaceAll('_', ' '),
+    timeZone: key ? invitation(key) : intlZoneName(event.startsAt, zone),
   });
 }
 

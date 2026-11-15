@@ -115,9 +115,9 @@
     "addSubmit": "Ajouter l’invité",
     "adding": "Ajout…",
     "editTitle": "Modifier {{name}}",
-    "editSubmit": "Enregistrer les modifications",
+    "editSubmit": "Enregistrer",
     "householdTitle": "Modifier {{name}}",
-    "householdSubmit": "Enregistrer les modifications",
+    "householdSubmit": "Enregistrer",
     "saving": "Enregistrement…",
     "cancel": "Annuler"
   },

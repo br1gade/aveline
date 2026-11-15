@@ -198,9 +198,9 @@ async function searchFor(user: ReturnType<typeof userEvent.setup>, name: string)
 
 async function typeCode(user: ReturnType<typeof userEvent.setup>, code: string) {
   const field = await screen.findByRole('textbox', { name: 'Ticket code' });
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Admit' })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Check in' })).toBeEnabled());
   await user.type(field, code);
-  await user.click(screen.getByRole('button', { name: 'Admit' }));
+  await user.click(screen.getByRole('button', { name: 'Check in' }));
 }
 
 const outcome = () => screen.getByRole('status');
@@ -570,7 +570,7 @@ describe('a ticket scanned at the door (PD-173)', () => {
     const user = await scan();
     expect(await screen.findByText(/No answer came/)).toBeInTheDocument();
     await waitFor(() => expect(field()).toHaveValue(SCANNED));
-    await user.click(screen.getByRole('button', { name: 'Admit' }));
+    await user.click(screen.getByRole('button', { name: 'Check in' }));
     expect(await screen.findByText('Anna')).toBeInTheDocument();
     expect(field()).toHaveValue('');
   });
@@ -695,7 +695,7 @@ describe('the door, by code (PD-91)', () => {
     await within(outcome()).findByText(/isn’t recognised/);
     expect(screen.getByRole('textbox', { name: 'Ticket code' })).toHaveValue(CODE);
     answerCode(() => refusal(400, 'Ticket already used'));
-    await user.click(screen.getByRole('button', { name: 'Admit' }));
+    await user.click(screen.getByRole('button', { name: 'Check in' }));
     await within(outcome()).findByText(/already been admitted/);
     expect(screen.getByRole('textbox', { name: 'Ticket code' })).toHaveValue('');
   });
@@ -705,7 +705,7 @@ describe('the door, by code (PD-91)', () => {
     await typeCode(user, 'АБВГ');
     expect(await screen.findByText(/isn’t Latin letters/)).toBeInTheDocument();
     await user.clear(screen.getByRole('textbox', { name: 'Ticket code' }));
-    await user.click(screen.getByRole('button', { name: 'Admit' }));
+    await user.click(screen.getByRole('button', { name: 'Check in' }));
     expect(screen.getByText('Type the code from their ticket.')).toBeInTheDocument();
     expect(writes()).toEqual([]);
   });

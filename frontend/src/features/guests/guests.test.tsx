@@ -266,7 +266,7 @@ async function openEdit(user: ReturnType<typeof userEvent.setup>, name: string) 
 }
 
 const save = (user: ReturnType<typeof userEvent.setup>) =>
-  user.click(screen.getByRole('button', { name: 'Save changes' }));
+  user.click(screen.getByRole('button', { name: 'Save' }));
 
 describe('GuestList: reading', () => {
   it('offers a role that may only read no change, and still each guest’s history (FR-6)', async () => {
@@ -785,10 +785,7 @@ describe('GuestList: editing a guest', () => {
     const dialog = await openEdit(user, 'Armen Petrosyan');
     const form = dialog.querySelector('form');
     expect(form).toHaveAttribute('method', 'post');
-    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toHaveAttribute(
-      'type',
-      'submit',
-    );
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toHaveAttribute('type', 'submit');
   });
 });
 

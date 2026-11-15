@@ -12,7 +12,7 @@ test.describe('an account', () => {
     await page.getByLabel('Your name').fill('Ani Hakobyan');
     await page.getByLabel('Email').fill(testAddress());
     await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Create account' }).click();
+    await page.getByRole('button', { name: 'Create an account' }).click();
 
     await expect(page.getByRole('heading', { name: 'Set up your organization' })).toBeVisible();
     await page.getByLabel('Name', { exact: true }).fill('Ani and Aram');

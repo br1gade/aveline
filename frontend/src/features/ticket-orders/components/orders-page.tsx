@@ -44,7 +44,7 @@ function Tabs({ current }: { current: OrderTab }) {
               preventScrollReset
               replace
               className={cn(
-                'border-border inline-flex min-h-11 items-center border px-3 text-sm',
+                'border-border inline-flex min-h-11 min-w-11 items-center justify-center border px-3 text-sm',
                 tab === current && 'bg-primary text-primary-foreground',
               )}
             >

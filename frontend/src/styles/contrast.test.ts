@@ -94,6 +94,10 @@ describe('token contrast', () => {
     expect(
       contrast(resolve('success-ink', 'ivory'), resolve('success-tint', 'ivory')),
     ).toBeGreaterThanOrEqual(4.5);
+    // The kit's destructive button: ivory words on an error-ink fill (app-kit.css).
+    expect(
+      contrast(resolve('ivory', 'ivory'), resolve('error-ink', 'ivory')),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   it('keeps gold and taupe out of text on light grounds', () => {

@@ -39,7 +39,7 @@
   "register": {
     "title": "Create your account",
     "lead": "Then set up your organization and your first event.",
-    "submit": "Create account",
+    "submit": "Create an account",
     "submitting": "Creating your account…",
     "checkEmail": {
       "title": "Check your email",

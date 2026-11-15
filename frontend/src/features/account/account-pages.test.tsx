@@ -195,7 +195,7 @@ describe('Register', () => {
     await user.type(screen.getByLabelText('Your name'), 'Ani Grigoryan');
     await user.type(screen.getByLabelText('Email'), 'ani@example.am');
     await user.type(screen.getByLabelText('Password'), 'correct horse');
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.click(screen.getByRole('button', { name: 'Create an account' }));
   }
 
   it('signs a new account in and sends it to set up its organization', async () => {

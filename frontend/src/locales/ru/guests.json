@@ -121,9 +121,9 @@
     "addSubmit": "Добавить гостя",
     "adding": "Добавляем…",
     "editTitle": "Изменить: {{name}}",
-    "editSubmit": "Сохранить изменения",
+    "editSubmit": "Сохранить",
     "householdTitle": "Изменить: {{name}}",
-    "householdSubmit": "Сохранить изменения",
+    "householdSubmit": "Сохранить",
     "saving": "Сохраняем…",
     "cancel": "Отмена"
   },

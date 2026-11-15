@@ -76,7 +76,7 @@
     "type": "Kind",
     "hosts": "Hosts",
     "when": "When",
-    "whenValue": "{{date}}, {{time}} ({{timeZone}})",
+    "whenValue": "{{date}}, {{time}} · {{timeZone}}",
     "languages": "Languages",
     "defaultMark": "{{language}} (default)",
     "invitation": "Invitation",
@@ -125,7 +125,7 @@
     "title": "Edit the details",
     "lead": "Guests who open the invitation see a change at once.",
     "readOnly": "Your role on this event can see its details but not change them. The event’s owner can change your role.",
-    "submit": "Save changes",
+    "submit": "Save",
     "submitting": "Saving…",
     "cancel": "Cancel"
   },

@@ -45,11 +45,11 @@ test.describe('the door', () => {
       .replace(/(.{4})/gu, '$1 ')
       .trim();
     await page.getByLabel('Ticket code').fill(spaced);
-    await page.getByRole('button', { name: 'Admit' }).click();
+    await page.getByRole('button', { name: 'Check in', exact: true }).click();
     // A ticket bought through checkout is linked to its holder's guest: they arrive as a guest.
     await expect(outcome(page)).toContainText(/Narek\s*In, at \d{2}:\d{2}\./u);
     await page.getByLabel('Ticket code').fill(code);
-    await page.getByRole('button', { name: 'Admit' }).click();
+    await page.getByRole('button', { name: 'Check in', exact: true }).click();
     await expect(outcome(page)).toContainText(
       /This ticket was admitted at \d{2}:\d{2}\. A code admits once\./u,
     );

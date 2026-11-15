@@ -37,7 +37,7 @@ test.describe('setting up an event', () => {
     await page.getByLabel('Title in Русский').fill('Свадьба Анны и Давита');
     await page.getByLabel('First side in Русский').fill('Семья Анны');
     await page.getByLabel('Second side in Русский').fill('Семья Давита');
-    await page.getByRole('button', { name: 'Save changes' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Anna and Davit’s wedding' })).toBeVisible();
 
     const saved = await must(

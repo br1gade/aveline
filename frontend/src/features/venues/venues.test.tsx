@@ -394,7 +394,7 @@ describe('Correcting a venue', () => {
     const address = await screen.findByLabelText('Address');
     await user.clear(address);
     await user.type(address, '1 Church Square, Vagharshapat');
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('heading', { name: 'Venues' })).toBeInTheDocument();
     expect(patched).toEqual([{ address: '1 Church Square, Vagharshapat' }]);
   });
@@ -410,7 +410,7 @@ describe('Correcting a venue', () => {
     expect(name).toHaveAttribute('lang', 'en');
     await user.clear(name);
     await user.type(name, 'Saint Hripsime Church');
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByRole('heading', { name: 'Venues' });
     expect(patched).toEqual([
       { translations: { en: { name: 'Saint Hripsime Church', address: 'Mashtots St' } } },
@@ -423,7 +423,7 @@ describe('Correcting a venue', () => {
     const user = renderAt('/app/events/e1/venues/v1/edit');
     await user.clear(await screen.findByLabelText('Map link (optional)'));
     typeArrival('', '');
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByRole('heading', { name: 'Venues' });
     expect(patched).toEqual([{ mapUrl: null, arriveAt: null }]);
   });
@@ -433,7 +433,7 @@ describe('Correcting a venue', () => {
     const patched = answer('patch', '/events/e1/venues/v1', saved());
     const user = renderAt('/app/events/e1/venues/v1/edit');
     await screen.findByLabelText('Name');
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('heading', { name: 'Venues' })).toBeInTheDocument();
     expect(patched).toEqual([]);
   });
@@ -459,7 +459,7 @@ describe('Correcting a venue', () => {
     );
     const user = renderAt('/app/events/e1/venues/v1/edit');
     await user.selectOptions(await screen.findByLabelText('What happens there'), 'PREPARATION');
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('it has to stay shown to guests');
   });
 
@@ -468,7 +468,7 @@ describe('Correcting a venue', () => {
     answer('patch', '/events/e1/venues/v1', refusal(404, 'No such venue on this event'));
     const user = renderAt('/app/events/e1/venues/v1/edit');
     await user.type(await screen.findByLabelText('Name'), ' (old)');
-    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'This venue is no longer on the event.',
     );

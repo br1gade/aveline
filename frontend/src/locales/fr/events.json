@@ -76,7 +76,7 @@
     "type": "Type",
     "hosts": "Hôtes",
     "when": "Quand",
-    "whenValue": "{{date}}, {{time}} ({{timeZone}})",
+    "whenValue": "{{date}}, {{time}} · {{timeZone}}",
     "languages": "Langues",
     "defaultMark": "{{language}} (par défaut)",
     "invitation": "Invitation",
@@ -125,7 +125,7 @@
     "title": "Modifier les informations",
     "lead": "Les invités qui ouvrent l’invitation voient immédiatement le changement.",
     "readOnly": "Votre rôle sur cet événement permet d’en voir les détails, pas de les modifier. Le propriétaire de l’événement peut changer votre rôle.",
-    "submit": "Enregistrer les modifications",
+    "submit": "Enregistrer",
     "submitting": "Enregistrement…",
     "cancel": "Annuler"
   },
