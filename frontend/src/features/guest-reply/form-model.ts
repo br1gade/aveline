@@ -193,6 +193,44 @@ export function carryOver(typed: ReplyFormValues, fresh: ReplyFormValues): Reply
   };
 }
 
+/** What is kept of a reply in progress across a page reload: everything but the agreements. */
+export type DraftValues = Omit<ReplyFormValues, 'signatures'>;
+
+/** The stored answer at each venue still offered, the fresh one where none was stored. */
+function knownVenues(stored: VenueAnswers, fresh: VenueAnswers): VenueAnswers {
+  return Object.fromEntries(
+    Object.entries(fresh).map(([venueId, answer]) => [venueId, stored[venueId] ?? answer]),
+  );
+}
+
+/**
+ * A reply in progress, kept in this tab across a reload of the page (design PD-195), over the
+ * reply as read now. While the way guests answer is unchanged, everything typed comes back, the
+ * answer included; once it has changed, who is coming is asked again, as after a reload the form
+ * asked for itself (`carryOver`). People no longer on the reply are dropped, and agreeing is
+ * always asked anew.
+ */
+export function restoreDraft(
+  stored: DraftValues,
+  fresh: ReplyFormValues,
+  isSameRevision: boolean,
+): ReplyFormValues {
+  const carried = carryOver({ ...stored, signatures: fresh.signatures }, fresh);
+  if (!isSameRevision) return carried;
+  const storedMembers = new Map(stored.members.map((member) => [member.guestId, member]));
+  return {
+    ...carried,
+    status: stored.status,
+    venues: knownVenues(stored.venues, fresh.venues),
+    members: carried.members.map((member) => {
+      const before = storedMembers.get(member.guestId);
+      return before
+        ? { ...member, status: before.status, venues: knownVenues(before.venues, member.venues) }
+        : member;
+    }),
+  };
+}
+
 export function isAnswered(value: AnswerValue | undefined): boolean {
   return Array.isArray(value) ? value.length > 0 : Boolean(value?.trim());
 }
@@ -201,8 +239,22 @@ export function isAnswered(value: AnswerValue | undefined): boolean {
 export type ErrorCode =
   'chooseAnswer' | 'chooseVenue' | 'firstName' | 'tooLong' | 'required' | SignatureCode;
 
+/**
+ * A field a radio group writes. React Hook Form reads a group with nothing chosen as null once one
+ * of its radios has been focused and left, as Tab does: that is still nothing chosen, '' to the
+ * rest of the form, and never a refusal of its own (audit F-06).
+ */
+function chosen<Shape extends z.ZodType>(shape: Shape): z.ZodType<z.output<Shape>, z.input<Shape>> {
+  // The declared input stays the form's own type, which the resolver is typed by: the null only
+  // ever arrives from the browser at run time, never from our code.
+  return z.preprocess((value) => value ?? '', shape) as unknown as z.ZodType<
+    z.output<Shape>,
+    z.input<Shape>
+  >;
+}
+
 const tooLong = (limit: number) => z.string().max(limit, { error: 'tooLong' satisfies ErrorCode });
-const answersShape = z.record(z.string(), z.union([z.string(), z.array(z.string())]));
+const answersShape = z.record(z.string(), chosen(z.union([z.string(), z.array(z.string())])));
 
 function questionLimit(question: RsvpQuestion): number | undefined {
   if (question.type === 'TEXT') return LIMITS.text;
@@ -242,7 +294,7 @@ export interface SchemaContext {
 }
 
 // '' until the guest chooses, so the schema's input and output match the form's values.
-const answerShape = z.enum(['ATTENDING', 'DECLINED', 'UNDECIDED', '']);
+const answerShape = chosen(z.enum(['ATTENDING', 'DECLINED', 'UNDECIDED', '']));
 const venuesShape = z.record(z.string(), answerShape);
 const signaturesShape = z.record(
   z.string(),
@@ -278,15 +330,21 @@ const valuesShape = z.object({
       answers: answersShape,
     }),
   ),
-  attribution: z.enum(['', 'SIDE_A', 'SIDE_B', 'SHARED']),
+  attribution: chosen(z.enum(['', 'SIDE_A', 'SIDE_B', 'SHARED'])),
   dietary: z.array(z.string()),
   dietaryNotes: tooLong(LIMITS.dietaryNotes),
-  drinkPreference: tooLong(LIMITS.drink),
+  // Free text, or a radio group when the hosts offer drinks to choose from.
+  drinkPreference: chosen(tooLong(LIMITS.drink)),
   songRequest: tooLong(LIMITS.song),
   message: tooLong(LIMITS.message),
   answers: answersShape,
   signatures: signaturesShape,
 });
+
+/** Whether a stored value is a reply in progress, as `restoreDraft` takes one. */
+export function isDraftValues(value: unknown): value is DraftValues {
+  return valuesShape.omit({ signatures: true }).safeParse(value).success;
+}
 
 /**
  * Every set of answers on the form: the respondent's, each member's and each added guest's. A

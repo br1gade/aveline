@@ -73,7 +73,9 @@ export function TicketList({ order }: { order: BuyerOrder }) {
       <ul className="m-0 grid list-none gap-4 p-0">
         {holders(order).map((holder) => (
           <li key={holder.key} className="border-line grid gap-2 border p-5">
-            <p className="type-heading-3 text-heading m-0">{holder.name || t('ticket.noName')}</p>
+            <p className="type-heading-3 text-heading m-0 [overflow-wrap:anywhere]">
+              {holder.name || t('ticket.noName')}
+            </p>
             <p className="text-text-muted m-0 text-sm">{typeName(holder.ticketTypeId)}</p>
             <Allocation selection={holder.selection} />
             {holder.ticket ? (

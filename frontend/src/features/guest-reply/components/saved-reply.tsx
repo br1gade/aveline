@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { EventZone } from '@/lib/time';
@@ -150,11 +150,16 @@ export function SentReply({ names, onChange }: { names: readonly string[]; onCha
       {names.length > 0 ? (
         <p className="m-0">
           {t('sent.comingLabel')}{' '}
+          {/* Each name whole, breaking inside only when it alone is wider than the line (PD-29,
+              audit F-16). The space stays outside the box, where a line may break. */}
           {names.map((name, index) => (
-            <span key={`${index}-${name}`} className="whitespace-nowrap">
-              {name}
-              {index < names.length - 1 ? ', ' : ''}
-            </span>
+            <Fragment key={`${index}-${name}`}>
+              <span className="inline-block max-w-full align-top [overflow-wrap:anywhere]">
+                {name}
+                {index < names.length - 1 ? ',' : ''}
+              </span>
+              {index < names.length - 1 ? ' ' : null}
+            </Fragment>
           ))}
         </p>
       ) : null}

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { FormProvider, useForm, useWatch } from 'react-hook-form';
+import { FormProvider, useForm, useWatch, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import type { Invitation } from '@/features/invitation-renderer';
@@ -16,8 +16,11 @@ import {
   fullName,
   initialValues,
   replySchema,
+  restoreDraft,
+  type DraftValues,
   type ReplyFormValues,
 } from '../form-model';
+import { replyDraftStore, type DraftStore } from '../draft-store';
 import type { FieldProblem, SendProblem } from '../server-errors';
 import type { SignatureContext } from '../signatures';
 import type { ReplyRecord } from '../types';
@@ -285,6 +288,43 @@ function useReplyFormSetup({ invitation, record, draft, signatures }: ReplyFormP
   return { venues, initial, form };
 }
 
+/** The form's values without the agreements, which are never kept (design PD-195). */
+function draftOf(values: ReplyFormValues): DraftValues {
+  const { signatures: _agreements, ...draft } = values;
+  return draft;
+}
+
+interface StoredDraftSetup {
+  form: UseFormReturn<ReplyFormValues>;
+  store: DraftStore;
+  revision: number;
+  initial: ReplyFormValues;
+  /** A reply carried over a reload the form asked for itself starts from that instead. */
+  isCarried: boolean;
+}
+
+/**
+ * What the guest typed survives a reload of the page in this tab (design PD-195, audit F-21):
+ * written on every change, brought back once after the page is hydrated, and cleared once the
+ * reply is saved. A brought-back reply differs from the one read, so leaving still asks.
+ */
+function useStoredDraft({ form, store, revision, initial, isCarried }: StoredDraftSetup) {
+  useEffect(() => {
+    if (isCarried) return;
+    const stored = store.read();
+    if (!stored) return;
+    form.reset(restoreDraft(stored.values, initial, stored.revision === revision), {
+      keepDefaultValues: true,
+    });
+  }, [form, store, revision, initial, isCarried]);
+  useEffect(() => {
+    const { unsubscribe } = form.watch(() => {
+      store.write({ revision, values: draftOf(form.getValues()) });
+    });
+    return unsubscribe;
+  }, [form, store, revision]);
+}
+
 /**
  * The reply form (spec §6.1, §6.2). What the guest typed is never lost: a refusal, a failure,
  * closing mid-send and a reload after the invitation changed all keep the entries, and focus moves
@@ -303,6 +343,17 @@ export function ReplyForm(props: ReplyFormProps) {
   // reload is the form's starting point, so its changes count without being dirty.
   useLeaveGuard(form);
   useLeaveGuardWhen(Boolean(props.draft) && !isSending);
+  const store = useMemo(
+    () => replyDraftStore(invitation.slug, record.guest.id),
+    [invitation.slug, record.guest.id],
+  );
+  useStoredDraft({
+    form,
+    store,
+    revision: record.attendance.revision,
+    initial,
+    isCarried: Boolean(props.draft),
+  });
 
   async function onValid(values: ReplyFormValues) {
     if (isSendingRef.current) return;
@@ -312,6 +363,7 @@ export function ReplyForm(props: ReplyFormProps) {
     });
     setProblem(result);
     if (result) setAttempt((count) => count + 1);
+    else store.clear();
   }
   function onInvalid() {
     setProblem(null);

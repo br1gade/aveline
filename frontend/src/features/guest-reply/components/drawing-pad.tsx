@@ -111,16 +111,13 @@ function useDrawingUpload(binding: DrawingBinding, canvasRef: RefObject<HTMLCanv
   const [state, setState] = useState<PadState>('drawing');
   const [hint, setHint] = useState('');
   const abort = useRef<AbortController | null>(null);
+  // Turning the drawing into a file takes a moment before the state says "uploading": a second
+  // press meanwhile must not upload it twice (audit F-41). State would read stale here.
+  const isUsing = useRef(false);
   const pen = usePen(canvasRef, state !== 'drawing');
   useEffect(() => () => abort.current?.abort(), []);
 
-  const use = async () => {
-    const canvas = canvasRef.current;
-    const drawing = canvas && pen.isInked() ? await canvasBlob(canvas) : null;
-    if (!drawing) {
-      setHint(t('pad.empty'));
-      return;
-    }
+  const upload = async (drawing: Blob) => {
     setHint('');
     setState('uploading');
     const controller = new AbortController();
@@ -131,6 +128,18 @@ function useDrawingUpload(binding: DrawingBinding, canvasRef: RefObject<HTMLCanv
     if (controller.signal.aborted) return;
     setState(id ? 'ready' : 'failed');
     if (id) binding.setAssetId(id);
+  };
+  const use = async () => {
+    if (isUsing.current) return;
+    isUsing.current = true;
+    try {
+      const canvas = canvasRef.current;
+      const drawing = canvas && pen.isInked() ? await canvasBlob(canvas) : null;
+      if (drawing) await upload(drawing);
+      else setHint(t('pad.empty'));
+    } finally {
+      isUsing.current = false;
+    }
   };
   const again = () => {
     const previous = binding.currentAssetId();

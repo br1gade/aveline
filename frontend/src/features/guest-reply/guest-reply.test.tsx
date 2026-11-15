@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -95,6 +95,7 @@ beforeEach(() => {
   vi.stubEnv('VITE_API_BASE_URL', ORIGIN);
 });
 afterEach(() => {
+  window.sessionStorage.clear();
   server.resetHandlers();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -206,12 +207,54 @@ describe('GuestReply', () => {
       expect(screen.getByRole('group', { name: /Who invited you\?/ })).toBeInTheDocument();
     });
 
+    // Audit F-06: Tab passes through the optional choice on its way to "Send reply". Focusing a
+    // radio of an unchosen group and leaving it must not stop the reply.
+    it('sends when its choice was passed by the keyboard and left unchosen', async () => {
+      replyWith(() => HttpResponse.json(SENT, { status: 201 }));
+      const { user } = renderReply({ invitation: asking });
+      await user.click(screen.getByLabelText('Joyfully attending'));
+      await chooseMainCourses(user, ['reply-answers-q-main', 'reply-members-0-answers-q-main']);
+      const group = screen.getByRole('group', { name: /Who invited you\?/ });
+      const [firstSide] = within(group).getAllByRole('radio');
+      act(() => firstSide?.focus());
+      await user.tab();
+      await user.click(screen.getByRole('button', { name: 'Send reply' }));
+
+      expect(await screen.findByText('Your reply has been received.')).toBeInTheDocument();
+      expect(screen.queryByText('Please check your reply')).not.toBeInTheDocument();
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).not.toHaveProperty('attribution');
+    });
+
     it('does not ask once it is set: the backend would not record a change', async () => {
       const record = recordWith();
       record.guest.attribution = 'SIDE_A';
       const { user } = renderReply({ invitation: asking, record });
       await user.click(screen.getByLabelText('Joyfully attending'));
       expect(screen.queryByText('Who invited you?')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('a reply in progress across a reload (design PD-195)', () => {
+    it('comes back after the page is opened again in this tab', async () => {
+      const first = renderReply();
+      await first.user.click(screen.getByLabelText('Joyfully attending'));
+      await first.user.type(screen.getByLabelText(/A message for the hosts/), 'See you there');
+      cleanup();
+
+      renderReply();
+      expect(await screen.findByLabelText('Joyfully attending')).toBeChecked();
+      expect(screen.getByLabelText(/A message for the hosts/)).toHaveValue('See you there');
+      expect(JSON.stringify({ ...window.sessionStorage })).not.toContain(LINK.guestToken);
+    });
+
+    it('is forgotten once the reply is saved', async () => {
+      replyWith(() => HttpResponse.json({ ...SENT, status: 'DECLINED' }, { status: 201 }));
+      const { user } = renderReply();
+      await user.click(screen.getByLabelText('Regretfully declining'));
+      await user.click(screen.getByRole('button', { name: 'Send reply' }));
+      expect(await screen.findByText('Your reply has been received.')).toBeInTheDocument();
+      expect(window.sessionStorage.length).toBe(0);
     });
   });
 
@@ -231,7 +274,7 @@ describe('GuestReply', () => {
     await user.click(screen.getByRole('button', { name: 'Send reply' }));
 
     expect(await screen.findByText('Your reply has been received.')).toBeInTheDocument();
-    // Each name is its own unbreakable span (PD-29), so the line is checked as a whole.
+    // Each name is its own span (PD-29), so the line is checked as a whole.
     expect(screen.getByText('Coming:', { exact: false })).toHaveTextContent(
       'Coming: Armen Petrosyan, Lusine Petrosyan, Narek',
     );

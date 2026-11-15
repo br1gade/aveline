@@ -5,6 +5,7 @@ import {
   initialValues,
   newPartyRow,
   replySchema,
+  restoreDraft,
   type ReplyFormValues,
 } from './form-model';
 import { perVenueRecord, QUESTIONS, recordWith } from './test-data';
@@ -91,6 +92,29 @@ describe('replySchema', () => {
     expect(issues(initial)).toContain('status:chooseAnswer');
   });
 
+  // A radio group with nothing chosen reads as null once one of its radios has been focused and
+  // left, as Tab does (audit F-06). It is the same as nothing chosen, never a refusal of its own.
+  it('reads a radio group left unchosen as nothing chosen', () => {
+    const touched = {
+      ...edit(initial, { status: 'DECLINED' }),
+      attribution: null,
+      drinkPreference: null,
+      answers: { ...initial.answers, 'q-main': null, 'q-bus': null },
+      members: initial.members.map((member) => ({ ...member, status: null })),
+    } as unknown as ReplyFormValues;
+    expect(issues(touched)).toEqual([]);
+    const parsed = schema.parse(touched);
+    expect(parsed).toMatchObject({ attribution: '', drinkPreference: '' });
+    expect(parsed.answers).toMatchObject({ 'q-main': '', 'q-bus': '' });
+    expect(parsed.members[0]?.status).toBe('');
+  });
+
+  it('asks for an answer when the answer group itself was left unchosen', () => {
+    expect(issues({ ...initial, status: null } as unknown as ReplyFormValues)).toContain(
+      'status:chooseAnswer',
+    );
+  });
+
   it('binds everyone coming to the host’s required questions, and nobody declining (C-17)', () => {
     expect(issues(edit(initial, { status: 'ATTENDING' }))).toEqual([
       'answers.q-main:required',
@@ -173,6 +197,11 @@ describe('answering per venue', () => {
       : result.error.issues.map((issue) => `${issue.path.join('.')}:${issue.message}`);
   }
 
+  it('asks for a venue whose answer group was left unchosen', () => {
+    const touched = { ...initial, venues: { 'v-church': 'DECLINED', 'v-hall': null } };
+    expect(issues(touched as unknown as ReplyFormValues)).toEqual(['venues.v-hall:chooseVenue']);
+  });
+
   it('starts every venue unanswered, for the respondent and each member', () => {
     expect(initial.venues).toEqual({ 'v-church': '', 'v-hall': '' });
     expect(initial.members[1]?.venues).toEqual({ 'v-church': '', 'v-hall': '' });
@@ -218,5 +247,49 @@ describe('carryOver', () => {
       ['g2', '', 'No nuts'],
       ['g3', '', ''],
     ]);
+  });
+});
+
+describe('restoreDraft (design PD-195)', () => {
+  const fresh = initialValues(recordWith(), QUESTIONS);
+  const typed = edit(fresh, {
+    status: 'ATTENDING',
+    attribution: 'SIDE_B',
+    message: 'See you there',
+    answers: { ...fresh.answers, 'q-main': '1' },
+  });
+  typed.members = [{ ...typed.members[0]!, status: 'DECLINED', dietaryNotes: 'No nuts' }];
+  const { signatures: _left, ...stored } = typed;
+
+  it('brings everything typed back while the way guests answer is unchanged', () => {
+    const kept = restoreDraft(stored, fresh, true);
+    expect(kept).toMatchObject({
+      status: 'ATTENDING',
+      attribution: 'SIDE_B',
+      message: 'See you there',
+    });
+    expect(kept.answers['q-main']).toBe('1');
+    expect(kept.members[0]).toMatchObject({ status: 'DECLINED', dietaryNotes: 'No nuts' });
+    expect(kept.signatures).toBe(fresh.signatures);
+  });
+
+  it('asks again who is coming once the way guests answer has changed', () => {
+    const kept = restoreDraft(stored, fresh, false);
+    expect(kept.status).toBe('');
+    expect(kept.members[0]).toMatchObject({ status: '', dietaryNotes: 'No nuts' });
+    expect(kept.message).toBe('See you there');
+  });
+
+  it('keeps only the venues still offered, and the people still on the reply', () => {
+    const perVenue = initialValues(perVenueRecord(), QUESTIONS);
+    const { signatures: _unused, ...withVenues } = edit(perVenue, {
+      venues: { 'v-church': 'ATTENDING', 'v-gone': 'DECLINED' },
+    });
+    withVenues.members = [{ ...withVenues.members[0]!, guestId: 'g-gone' }];
+    const kept = restoreDraft(withVenues, perVenue, true);
+    expect(kept.venues).toEqual({ 'v-church': 'ATTENDING', 'v-hall': '' });
+    expect(kept.members.map((member) => member.guestId)).toEqual(
+      perVenue.members.map((member) => member.guestId),
+    );
   });
 });

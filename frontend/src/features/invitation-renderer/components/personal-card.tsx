@@ -21,8 +21,9 @@ interface PersonalCardProps {
 }
 
 /**
- * Each name whole, and the unnamed seats as one more item: lines break only between them (PD-29).
- * The separator trails its item, so a wrapped line never starts with one.
+ * Each name whole, and the unnamed seats as one more item: lines break between them (PD-29), and
+ * inside a name only when it alone is wider than the line, as a long double-barrelled one can be
+ * on a phone (audit F-16). The separator trails its item, so a wrapped line never starts with one.
  */
 function HouseholdNames({
   guest,
@@ -38,7 +39,7 @@ function HouseholdNames({
   return (
     <ul className="text-text m-0 flex list-none flex-wrap p-0 text-sm leading-[22px]">
       {items.map((item, index) => (
-        <li key={`${index}-${item}`} className="whitespace-nowrap">
+        <li key={`${index}-${item}`} className="min-w-0 [overflow-wrap:anywhere]">
           {item}
           {index < items.length - 1 ? (
             <span aria-hidden="true" className="text-text-muted px-1.5">
@@ -70,7 +71,7 @@ export function PersonalCard({ guest, reply, replyButtonId, extra, className }: 
       )}
     >
       <Eyebrow>{t('personal.label')}</Eyebrow>
-      <h2 className="type-heading-2 text-heading m-0">
+      <h2 className="type-heading-2 text-heading m-0 [overflow-wrap:anywhere]">
         {t('personal.greeting', { name: guest.name })}
       </h2>
       <p className="m-0">{t('personal.welcome')}</p>
