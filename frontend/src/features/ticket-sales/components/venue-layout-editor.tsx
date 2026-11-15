@@ -212,7 +212,7 @@ export function VenueLayoutEditor({ profileId, existing, onPublish }: EditorProp
           {t('inventory.addSection')}
         </Button>
         {Object.keys(errors).length ? <p role="alert">{t('inventory.errors.summary')}</p> : null}
-        <SubmitButton isSubmitting={form.formState.isSubmitting}>
+        <SubmitButton isSubmitting={form.formState.isSubmitting} saysWorking>
           {t('inventory.publishLayout')}
         </SubmitButton>
       </AppForm>

@@ -40,6 +40,11 @@
     "write": "Rédiger l’annonce",
     "publish": "Publier",
     "unpublish": "La retirer",
+    "takeDown": {
+      "title": "Retirer l’annonce ?",
+      "body": "Sa page publique disparaît aussitôt, et personne ne pourra y acheter de billets tant que vous ne la publierez pas de nouveau. Les billets déjà vendus ne changent pas.",
+      "confirm": "La retirer"
+    },
     "didPublish": "L’annonce est publique.",
     "didUnpublish": "L’annonce n’est plus publique. Les billets déjà vendus ne changent pas."
   },

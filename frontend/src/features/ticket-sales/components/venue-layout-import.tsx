@@ -102,7 +102,7 @@ export function VenueLayoutImport(props: ImportProps) {
           />
         </div>
         {isTooLarge ? <p role="alert">{t('inventory.csvSize')}</p> : null}
-        <SubmitButton isSubmitting={isSubmitting || !file || isTooLarge}>
+        <SubmitButton isSubmitting={isSubmitting} isUnavailable={!file || isTooLarge} saysWorking>
           {t('inventory.publishLayout')}
         </SubmitButton>
       </AppForm>

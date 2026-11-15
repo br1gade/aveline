@@ -7,7 +7,7 @@ import { browserSession } from '@/api/session';
 import type { EventDetail } from '@/features/events';
 import { formatMinor } from '@/lib/money';
 import { formatEventDate, formatEventTime } from '@/lib/time';
-import { ProblemAlert, type PageActions } from '@/ui/app-form';
+import { ErrorLine, ProblemAlert, type PageActions } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { deleteTicketType, updateTicketType } from '../api';
@@ -36,9 +36,9 @@ function RefusalText({ refusal }: { refusal: TypeRefusal }) {
     return <ProblemAlert problem={problemFrom(refusal.error)} refused={() => t('refused')} />;
   }
   return (
-    <p role="alert" className="text-destructive m-0 text-sm">
+    <ErrorLine role="alert">
       {t(`types.refusals.${refusal.kind === 'fields' ? 'capacityTaken' : refusal.kind}`)}
-    </p>
+    </ErrorLine>
   );
 }
 

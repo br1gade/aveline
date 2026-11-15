@@ -9,7 +9,14 @@ import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import type { LibraryItem } from '@/features/invitation-design';
 import { ChangeableWith } from '@/features/permissions';
-import { AppForm, ProblemAlert, SubmitButton, TextInputField, useLeaveGuard } from '@/ui/app-form';
+import {
+  AppForm,
+  ErrorLine,
+  ProblemAlert,
+  SubmitButton,
+  TextInputField,
+  useLeaveGuard,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/ui/kit/field';
@@ -129,7 +136,7 @@ function PictureChoice({
           className="border-border h-24 w-auto self-start border object-cover"
         />
       ) : null}
-      {error ? <p className="text-destructive m-0 text-sm">{error}</p> : null}
+      {error ? <ErrorLine>{error}</ErrorLine> : null}
     </Field>
   );
 }
@@ -214,7 +221,7 @@ function FormFooter({ isSubmitting, eventId }: { isSubmitting: boolean; eventId:
   const { t } = useTranslation('ticket-sales');
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <SubmitButton isSubmitting={isSubmitting} className="w-auto">
+      <SubmitButton isSubmitting={isSubmitting} className="w-auto" saysWorking>
         {t('announcementForm.save')}
       </SubmitButton>
       <Button asChild variant="ghost">

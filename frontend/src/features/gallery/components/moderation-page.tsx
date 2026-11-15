@@ -231,6 +231,7 @@ function Board({ event, every }: { event: EventDetail; every: EveryPage<GalleryP
   const canApproveSeveral = (tab === 'review' || tab === 'hidden') && inTab.length > 1;
   const actions: CardActions = {
     decide: (photo, decision) => void moderation.decide(photo, decision),
+    isDeciding: (photo) => moderation.deciding === photo.id,
     remove: dialogs.setRemoving,
     view: dialogs.setViewing,
   };

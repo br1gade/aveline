@@ -15,6 +15,7 @@ import { GuestPhotos } from './guest-photos';
 import { OwnPhotos } from './own-photos';
 import { SharePhotos } from './share-photos';
 import { useGuestGallery, type ListState } from './use-guest-gallery';
+import { ErrorText } from '@/ui/form';
 
 /** The section's id, so a link can lead to it. */
 const GALLERY_SECTION_ID = 'guest-photos';
@@ -147,9 +148,9 @@ function MorePhotos({ gallery }: { gallery: ReturnType<typeof useGuestGallery> }
         {more === 'loading' ? t('list.loadingMore') : t('list.more')}
       </Button>
       {typeof more === 'object' ? (
-        <p role="alert" className="text-error m-0 text-sm">
+        <ErrorText role="alert">
           {more.code === 'rate-limited' ? t('problems.rate-limited') : t('list.moreFailed')}
-        </p>
+        </ErrorText>
       ) : null}
     </div>
   );

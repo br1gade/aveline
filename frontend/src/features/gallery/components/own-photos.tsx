@@ -9,6 +9,7 @@ import { failureOf, guestState } from '../status';
 import type { GalleryPhoto, PhotoVariant } from '../types';
 import { GalleryPicture } from './gallery-picture';
 import type { RemoveResult } from './use-guest-gallery';
+import { ErrorText } from '@/ui/form';
 
 type Loader = (id: string) => (variant: PhotoVariant, signal: AbortSignal) => Promise<Blob>;
 
@@ -62,7 +63,7 @@ function RemoveControl({ photo, onRemove, onRemoved }: Omit<OwnPhotoProps, 'load
           {t('own.keep')}
         </Button>
       </div>
-      {problem ? <p className="text-error m-0 text-sm">{problemText(problem)}</p> : null}
+      {problem ? <ErrorText>{problemText(problem)}</ErrorText> : null}
     </div>
   );
 }

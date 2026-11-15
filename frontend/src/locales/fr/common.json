@@ -16,6 +16,8 @@
   "error": {
     "title": "Une erreur s’est produite",
     "body": "Veuillez réessayer dans un instant.",
+    "retry": "Réessayer",
+    "home": "Aller à la page d’accueil",
     "reference": "Référence : {{requestId}}"
   },
   "language": {

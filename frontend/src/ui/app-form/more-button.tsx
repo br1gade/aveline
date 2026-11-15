@@ -1,6 +1,7 @@
 import { Button } from '@/ui/kit/button';
 
 import { WRAPPING_BUTTON } from './wrapping';
+import { ErrorLine } from './error-line';
 
 /** "Show more", or the first press of a list read on request, with what went wrong under it. */
 export function MoreButton({
@@ -21,11 +22,7 @@ export function MoreButton({
       <Button variant="outline" className={WRAPPING_BUTTON} disabled={isLoading} onClick={onPress}>
         {label}
       </Button>
-      {hasFailed ? (
-        <p role="alert" className="text-destructive m-0 text-sm">
-          {failed}
-        </p>
-      ) : null}
+      {hasFailed ? <ErrorLine role="alert">{failed}</ErrorLine> : null}
     </div>
   );
 }

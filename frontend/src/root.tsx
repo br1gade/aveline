@@ -14,6 +14,7 @@ import { isApiError } from '@/api/errors';
 import { createI18n, usePageLanguage } from '@/lib/i18n';
 import { revalidateUnlessQueryOnly } from '@/lib/routing';
 import { createNonce } from '@/lib/security/headers';
+import { buttonClass } from '@/ui';
 
 import type { Route } from './+types/root';
 
@@ -82,6 +83,19 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     <main className="mx-auto flex min-h-svh max-w-[34rem] flex-col justify-center gap-4 px-5 py-16">
       <h1 className="text-heading font-serif text-[28px] leading-[34px]">{t('error.title')}</h1>
       <p>{t('error.body')}</p>
+      {/* A way on, not a dead end (audit F-19): plain document loads, as the app may be what broke. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <button
+          type="button"
+          className={buttonClass({ variant: 'secondary' })}
+          onClick={() => window.location.reload()}
+        >
+          {t('error.retry')}
+        </button>
+        <a href="/" className={buttonClass({ variant: 'quiet' })}>
+          {t('error.home')}
+        </a>
+      </div>
       {requestId ? (
         <p className="text-text-muted text-sm">{t('error.reference', { requestId })}</p>
       ) : null}

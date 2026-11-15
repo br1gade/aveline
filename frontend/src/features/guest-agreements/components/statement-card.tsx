@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { DrawingPad, SIGNER_NAME_LIMIT, type ReplyLink, type Signee } from '@/features/guest-reply';
 import { useLeaveGuard } from '@/ui/app-form';
 import { Button, Notice, useIsHydrated } from '@/ui';
-import { ChoiceCard, Chip, Fieldset, TextField } from '@/ui/form';
+import { Chip, ChoiceCard, ErrorText, Fieldset, TextField } from '@/ui/form';
 
 import { signAgreement } from '../api';
 import { isForOthers, type DoorAgreement } from '../door';
@@ -72,7 +72,7 @@ function Signing({ form, door, others, idPrefix }: SigningProps) {
             label={t('signature.onBehalf', { names: names(others) })}
             {...form.register('isOnBehalf')}
           />
-          {onBehalfError ? <p className="text-error m-0 text-sm">{onBehalfError}</p> : null}
+          {onBehalfError ? <ErrorText>{onBehalfError}</ErrorText> : null}
         </div>
       ) : null}
       <Fieldset legend={t('signature.method')}>
@@ -186,7 +186,7 @@ export function StatementCard(props: StatementCardProps) {
           label={reply('signature.agree')}
           {...form.register('isAcknowledged')}
         />
-        {agreeError ? <p className="text-error m-0 text-sm">{agreeError}</p> : null}
+        {agreeError ? <ErrorText>{agreeError}</ErrorText> : null}
       </Fieldset>
       {isAcknowledged ? (
         <Signing form={form} door={door} others={others} idPrefix={idPrefix} />

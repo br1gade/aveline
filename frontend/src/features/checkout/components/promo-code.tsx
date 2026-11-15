@@ -5,7 +5,7 @@ import { isApiError } from '@/api/errors';
 import type { Basket } from '@/features/public-event';
 import { formatMinor } from '@/lib/money';
 import { Button } from '@/ui';
-import { TextField } from '@/ui/form';
+import { ErrorText, TextField } from '@/ui/form';
 
 import { checkPromoCode } from '../api';
 import { promoRefusal } from '../refusals';
@@ -125,9 +125,9 @@ export function PromoCode({ basket, quote, onQuote }: PromoCodeProps) {
         </div>
       )}
       {promo.problem && !quote ? (
-        <p role="alert" className="text-error m-0 text-sm">
+        <ErrorText role="alert">
           <ProblemText problem={promo.problem} />
-        </p>
+        </ErrorText>
       ) : null}
     </section>
   );

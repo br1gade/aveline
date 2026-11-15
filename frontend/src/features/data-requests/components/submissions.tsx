@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { isApiError } from '@/api/errors';
 import { browserSession } from '@/api/session';
-import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { ErrorLine, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { listSubmissions } from '../api';
@@ -75,11 +75,7 @@ export function Submissions({ requestId, who }: { requestId: string; who: string
           {items ? t('submissions.more') : t('submissions.show')}
         </Button>
       ) : null}
-      {reading === 'failed' ? (
-        <p role="alert" className="text-destructive m-0 text-sm">
-          {t('submissions.failed')}
-        </p>
-      ) : null}
+      {reading === 'failed' ? <ErrorLine role="alert">{t('submissions.failed')}</ErrorLine> : null}
     </div>
   );
 }

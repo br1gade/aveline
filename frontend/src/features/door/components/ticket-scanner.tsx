@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { ErrorLine, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { CODE_RUNNING } from '../arrival';
@@ -56,11 +56,7 @@ function ScannerWords({
 }) {
   const { t } = useTranslation('door');
   if (state.kind === 'problem') {
-    return (
-      <p role="alert" className="text-destructive m-0 text-sm">
-        {t(`scan.problem.${state.problem}`)}
-      </p>
-    );
+    return <ErrorLine role="alert">{t(`scan.problem.${state.problem}`)}</ErrorLine>;
   }
   if (state.kind === 'opening') return <StatusWord words={t('scan.opening')} />;
   if (state.kind !== 'on') return null;

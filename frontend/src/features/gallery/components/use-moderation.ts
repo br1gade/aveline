@@ -1,5 +1,12 @@
 import type { TFunction } from 'i18next';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRevalidator } from 'react-router';
 
@@ -38,6 +45,38 @@ function useFocusOnSaid(said: Said | null, statusRef: RefObject<HTMLParagraphEle
   }, [said, statusRef]);
 }
 
+interface DecisionSetup {
+  eventId: string;
+  setPhotos: Dispatch<SetStateAction<GalleryPhoto[]>>;
+  setRefusal: (problem: Problem | null) => void;
+  say: (text: string) => void;
+  failed: (error: unknown) => Promise<void>;
+}
+
+/**
+ * Approving or hiding one photo. The photo a decision is on its way for waits, so a double tap
+ * sends it once (audit F-41).
+ */
+function useDecision({ eventId, setPhotos, setRefusal, say, failed }: DecisionSetup) {
+  const { t } = useTranslation('gallery');
+  const [deciding, setDeciding] = useState<string | null>(null);
+  const decide = async (photo: GalleryPhoto, decision: Decision) => {
+    if (deciding === photo.id) return;
+    setRefusal(null);
+    setDeciding(photo.id);
+    try {
+      const changed = await moderatePhoto(browserSession().api, eventId, photo.id, decision);
+      setPhotos((held) => held.map((item) => (item.id === changed.id ? changed : item)));
+      say(t(decision === 'APPROVED' ? 'host.approved' : 'host.rejected'));
+    } catch (error) {
+      await failed(error);
+    } finally {
+      setDeciding(null);
+    }
+  };
+  return { deciding, decide };
+}
+
 /**
  * The hosts' gallery, changed in place from each answer rather than read whole again (FR-47): a
  * decision returns the photo as it now is, and a removal drops it. A photo changed meanwhile (404,
@@ -66,16 +105,7 @@ export function useModeration(eventId: string, loadedPhotos: readonly GalleryPho
     await revalidate();
     say(t('host.stale'));
   };
-  const decide = async (photo: GalleryPhoto, decision: Decision) => {
-    setRefusal(null);
-    try {
-      const changed = await moderatePhoto(browserSession().api, eventId, photo.id, decision);
-      setPhotos((held) => held.map((item) => (item.id === changed.id ? changed : item)));
-      say(t(decision === 'APPROVED' ? 'host.approved' : 'host.rejected'));
-    } catch (error) {
-      await failed(error);
-    }
-  };
+  const { deciding, decide } = useDecision({ eventId, setPhotos, setRefusal, say, failed });
   /** Resolves `true` once removed; a refusal is said on the page. */
   const remove = async (photo: GalleryPhoto): Promise<boolean> => {
     setRefusal(null);
@@ -105,5 +135,5 @@ export function useModeration(eventId: string, loadedPhotos: readonly GalleryPho
     if (outcome.gone.length > 0) await revalidate();
     return outcome.rest;
   };
-  return { photos, said, refusal, statusRef, progress, decide, remove, approveChosen };
+  return { photos, said, refusal, statusRef, progress, deciding, decide, remove, approveChosen };
 }

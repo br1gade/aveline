@@ -51,6 +51,11 @@
     "closed": "Replies are stopped. Guests can still open the invitation. Taking replies again lets them answer, and lets you send it.",
     "close": "Stop replies",
     "reopen": "Take replies again",
+    "stop": {
+      "title": "Stop replies?",
+      "body": "Guests can still read the invitation, but no one can reply or change a reply until you take replies again.",
+      "confirm": "Stop replies"
+    },
     "expired": "Its time has run out: taking replies again won’t let guests open it."
   },
   "send": {

@@ -95,7 +95,7 @@ export function AddInvitation({ eventId }: { eventId: string }) {
         </SelectField>
       ) : null}
       {hasFailed ? <p className="m-0">{t('add.noList')}</p> : null}
-      <SubmitButton isSubmitting={form.formState.isSubmitting} className="self-start">
+      <SubmitButton isSubmitting={form.formState.isSubmitting} className="self-start" saysWorking>
         {t('add.submit')}
       </SubmitButton>
     </AppForm>

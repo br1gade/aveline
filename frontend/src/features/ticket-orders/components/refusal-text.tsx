@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import type { CancelRefusal, ReconcileRefusal } from '../refusals';
+import { ErrorLine } from '@/ui/app-form';
 
 /** Our words for a refusal we know; `null` for one we do not, which is shown as it came. */
 export function useRefusalWords() {
@@ -27,7 +28,7 @@ export function RefusalText({ refusal, words }: RefusalTextProps) {
       <span className="block">{t('reference', { requestId: refusal.requestId })}</span>
     ) : null;
   return (
-    <p role="alert" className="text-destructive m-0 text-sm">
+    <ErrorLine role="alert">
       {words ?? (
         <>
           {t('refusedWith')}{' '}
@@ -35,6 +36,6 @@ export function RefusalText({ refusal, words }: RefusalTextProps) {
         </>
       )}
       {reference}
-    </p>
+    </ErrorLine>
   );
 }

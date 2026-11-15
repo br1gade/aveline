@@ -216,6 +216,29 @@ describe('the ticket sales page (PD-84)', () => {
     );
   });
 
+  it('takes the announcement down only once asked (audit F-20)', async () => {
+    server.use(
+      http.post(
+        `${API}/events/e1/listing/unpublish`,
+        record(() => HttpResponse.json({ ...LISTING, publishedAt: null })),
+      ),
+    );
+    const { user } = renderAt('/app/events/e1/tickets');
+    await user.click(await screen.findByRole('button', { name: 'Take it down' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Take the announcement down?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(sent).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Take it down' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Take it down' }),
+    );
+    await waitFor(() =>
+      expect(sent).toEqual([
+        { method: 'POST', path: '/api/v1/events/e1/listing/unpublish', body: null },
+      ]),
+    );
+  });
+
   it('lists every reason publishing was refused, each with its fix', async () => {
     server.use(
       http.get(`${API}/events/e1/listing`, () =>

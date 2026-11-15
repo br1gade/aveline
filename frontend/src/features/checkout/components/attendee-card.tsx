@@ -2,7 +2,7 @@ import { useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { useIsHydrated } from '@/ui';
-import { TextField } from '@/ui/form';
+import { ErrorText, TextField } from '@/ui/form';
 
 import { isComing } from '../attendance';
 import { LIMITS } from '../schemas';
@@ -44,7 +44,7 @@ function BuyerToggle({ index }: { index: number }) {
         />
         {t('people.forMe')}
       </label>
-      {error ? <p className="text-error m-0 text-sm">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </div>
   );
 }

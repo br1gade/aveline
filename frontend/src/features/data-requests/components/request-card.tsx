@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
 import { browserSession } from '@/api/session';
-import { useLeaveGuard, WRAPPING_BUTTON, type PageActions } from '@/ui/app-form';
+import { ErrorLine, type PageActions, useLeaveGuard, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Label } from '@/ui/kit/label';
 import { Textarea } from '@/ui/kit/textarea';
@@ -65,9 +65,7 @@ function NotesForm({ form, refusal, save, who }: NotesProps) {
       <Label htmlFor={id}>{t('notes.label')}</Label>
       <Textarea id={id} {...form.register('notes')} />
       {form.formState.errors.notes ? (
-        <p role="alert" className="text-destructive m-0 text-sm">
-          {t('notes.tooLong')}
-        </p>
+        <ErrorLine role="alert">{t('notes.tooLong')}</ErrorLine>
       ) : null}
       {refusal ? <RequestProblem refusal={refusal} /> : null}
       <Button
@@ -174,11 +172,7 @@ export function RequestCard({ request, now, page, onStep }: RequestCardProps) {
           )}
         </>
       )}
-      {isHeldBack && isDraft ? (
-        <p role="alert" className="text-destructive m-0 text-sm">
-          {t('notes.saveFirst')}
-        </p>
-      ) : null}
+      {isHeldBack && isDraft ? <ErrorLine role="alert">{t('notes.saveFirst')}</ErrorLine> : null}
       <Submissions requestId={request.id} who={who} />
       <StepButtons request={request} who={who} onStep={step} />
     </li>

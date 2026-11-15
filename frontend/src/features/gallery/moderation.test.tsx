@@ -310,6 +310,31 @@ describe('moderating guests’ photos (PD-65)', () => {
     expect(reads.gallery).toBe(2);
   });
 
+  it('sends a decision once, however often it is pressed while on its way (audit F-41)', async () => {
+    serveGallery();
+    let answer: () => void = () => undefined;
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${API}/events/e1/gallery/w1`, async ({ request }) => {
+        bodies.push(await request.json());
+        await new Promise<void>((resolve) => {
+          answer = resolve;
+        });
+        return HttpResponse.json(
+          itemWire({ id: 'w1', caption: 'First dance', moderationStatus: 'APPROVED' }),
+        );
+      }),
+    );
+    const user = renderPage();
+    const approve = await screen.findByRole('button', { name: 'Approve' });
+    await user.click(approve);
+    await waitFor(() => expect(approve).toBeDisabled());
+    await user.click(approve);
+    answer();
+    await screen.findByText('Approved. Guests can see it now.');
+    expect(bodies).toHaveLength(1);
+  });
+
   it('removes after asking, and says it was removed', async () => {
     serveGallery();
     const removed: string[] = [];

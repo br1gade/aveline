@@ -349,12 +349,19 @@ describe('InvitationPage: replies', () => {
     ).toHaveAttribute('href', '/app/events/e1/follow-ups');
   });
 
-  it('stops replies and takes them again, each without asking', async () => {
+  it('stops replies once asked, and takes them again without asking (PD-47, audit F-20)', async () => {
     const { move } = serve({ status: 'PUBLISHED' });
     const closed = answer(`/invitations/${SLUG}/close`, move('CLOSED'));
     const reopened = answer(`/invitations/${SLUG}/reopen`, move('PUBLISHED'));
     const user = renderPage();
     await user.click(await screen.findByRole('button', { name: 'Stop replies' }));
+    const asking = await screen.findByRole('alertdialog', { name: 'Stop replies?' });
+    await user.click(within(asking).getByRole('button', { name: 'Cancel' }));
+    expect(closed).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Stop replies' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Stop replies' }),
+    );
     const status = await screen.findByText(
       'Replies are stopped. Guests can still open the invitation.',
     );

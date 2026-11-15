@@ -259,7 +259,7 @@ export function TicketTypeForm({ data }: { data: TicketTypeData }) {
           <SalesEdge form={form} edge="salesEnd" timeZone={event.timezone} />
           <p className="text-muted-foreground m-0 text-sm">{t('typeForm.windowNote')}</p>
           <div className="flex flex-wrap items-center gap-3">
-            <SubmitButton isSubmitting={form.formState.isSubmitting} className="w-auto">
+            <SubmitButton isSubmitting={form.formState.isSubmitting} className="w-auto" saysWorking>
               {t(type ? 'typeForm.save' : 'typeForm.add')}
             </SubmitButton>
             <Button asChild variant="ghost">

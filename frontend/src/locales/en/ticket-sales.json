@@ -40,6 +40,11 @@
     "write": "Write the announcement",
     "publish": "Publish",
     "unpublish": "Take it down",
+    "takeDown": {
+      "title": "Take the announcement down?",
+      "body": "Its public page goes at once, and no one can buy tickets there until you publish it again. Tickets already sold are unaffected.",
+      "confirm": "Take it down"
+    },
     "didPublish": "The announcement is public.",
     "didUnpublish": "The announcement is no longer public. Tickets already sold are unaffected."
   },

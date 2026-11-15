@@ -178,12 +178,15 @@ function CodeList({ codes, ...context }: RowContext & { codes: readonly PromoCod
       <h2 id="promo-codes-list" className="m-0 text-lg font-medium">
         {t('list.title')}
       </h2>
-      {codes.length === 0 ? <p className="m-0">{t('list.empty')}</p> : null}
-      <ul className="m-0 flex list-none flex-col gap-3 p-0">
-        {codes.map((promo) => (
-          <CodeRow key={promo.id} promo={promo} {...context} />
-        ))}
-      </ul>
+      {codes.length === 0 ? (
+        <p className="m-0">{t('list.empty')}</p>
+      ) : (
+        <ul className="m-0 flex list-none flex-col gap-3 p-0">
+          {codes.map((promo) => (
+            <CodeRow key={promo.id} promo={promo} {...context} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { isApiError } from '@/api/errors';
 import { browserSession } from '@/api/session';
-import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { ErrorLine, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { saveFile } from '@/ui/save-file';
 
@@ -45,11 +45,7 @@ function PrivateFiles({ carried }: { carried: ExportResult }) {
           {t('export.saveFile', { position: index + 1, total })}
         </Button>
       ))}
-      {hasFailed ? (
-        <p role="alert" className="text-destructive m-0 text-sm">
-          {t('export.fileFailed')}
-        </p>
-      ) : null}
+      {hasFailed ? <ErrorLine role="alert">{t('export.fileFailed')}</ErrorLine> : null}
     </>
   );
 }

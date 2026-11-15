@@ -21,6 +21,8 @@ export type PhotoLoader = (
 
 export interface CardActions {
   decide: (photo: GalleryPhoto, decision: Decision) => void;
+  /** Whether a decision on this photo is on its way: its buttons wait meanwhile. */
+  isDeciding: (photo: GalleryPhoto) => boolean;
   remove: (photo: GalleryPhoto) => void;
   view: (photo: GalleryPhoto) => void;
 }
@@ -56,10 +58,15 @@ function Decisions({ photo, actions }: Pick<CardProps, 'photo' | 'actions'>) {
   const { t } = useTranslation('gallery');
   const tab = tabOf(photo);
   if (tab === 'other') return null;
+  const isBusy = actions.isDeciding(photo);
   return (
     <>
       {tab === 'approved' ? null : (
-        <Button className={WRAPPING} onClick={() => actions.decide(photo, 'APPROVED')}>
+        <Button
+          className={WRAPPING}
+          disabled={isBusy}
+          onClick={() => actions.decide(photo, 'APPROVED')}
+        >
           {t('host.approve')}
         </Button>
       )}
@@ -67,6 +74,7 @@ function Decisions({ photo, actions }: Pick<CardProps, 'photo' | 'actions'>) {
         <Button
           variant="outline"
           className={WRAPPING}
+          disabled={isBusy}
           onClick={() => actions.decide(photo, 'REJECTED')}
         >
           {t('host.reject')}
@@ -76,6 +84,7 @@ function Decisions({ photo, actions }: Pick<CardProps, 'photo' | 'actions'>) {
         <Button
           variant="outline"
           className={WRAPPING}
+          disabled={isBusy}
           onClick={() => actions.decide(photo, 'REJECTED')}
         >
           {t('host.hide')}

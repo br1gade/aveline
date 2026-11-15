@@ -163,29 +163,35 @@ function TeamLists({
         <h2 id={membersId} className="m-0 text-lg font-medium">
           {t('members.title')}
         </h2>
-        {team.members.length === 0 ? <p className="m-0">{t('members.none')}</p> : null}
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {team.members.map((member) => (
-            <MemberRow key={member.userId} member={member} event={event} onOpen={onOpen} />
-          ))}
-        </ul>
+        {team.members.length === 0 ? (
+          <p className="m-0">{t('members.none')}</p>
+        ) : (
+          <ul className="m-0 flex list-none flex-col gap-3 p-0">
+            {team.members.map((member) => (
+              <MemberRow key={member.userId} member={member} event={event} onOpen={onOpen} />
+            ))}
+          </ul>
+        )}
       </section>
       <section aria-labelledby={invitesId} className="flex max-w-[40rem] flex-col gap-3">
         <h2 id={invitesId} className="m-0 text-lg font-medium">
           {t('invites.title')}
         </h2>
-        {team.invites.length === 0 ? <p className="m-0">{t('invites.none')}</p> : null}
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {team.invites.map((invite) => (
-            <InviteRow
-              key={invite.email}
-              invite={invite}
-              event={event}
-              again={again}
-              onOpen={onOpen}
-            />
-          ))}
-        </ul>
+        {team.invites.length === 0 ? (
+          <p className="m-0">{t('invites.none')}</p>
+        ) : (
+          <ul className="m-0 flex list-none flex-col gap-3 p-0">
+            {team.invites.map((invite) => (
+              <InviteRow
+                key={invite.email}
+                invite={invite}
+                event={event}
+                again={again}
+                onOpen={onOpen}
+              />
+            ))}
+          </ul>
+        )}
       </section>
     </>
   );

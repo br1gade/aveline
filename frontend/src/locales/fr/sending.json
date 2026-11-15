@@ -51,6 +51,11 @@
     "closed": "Les réponses sont arrêtées. Les invités peuvent encore ouvrir l’invitation. Reprendre les réponses leur permet de répondre, et vous permet de l’envoyer.",
     "close": "Arrêter les réponses",
     "reopen": "Reprendre les réponses",
+    "stop": {
+      "title": "Arrêter les réponses ?",
+      "body": "Les invités pourront toujours lire l’invitation, mais personne ne pourra répondre ni modifier sa réponse tant que vous ne les rouvrirez pas.",
+      "confirm": "Arrêter les réponses"
+    },
     "expired": "Son délai est écoulé : reprendre les réponses ne permettra pas aux invités de l’ouvrir."
   },
   "send": {

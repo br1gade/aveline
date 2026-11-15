@@ -100,11 +100,7 @@ function LongText({
         {...form.register(name)}
       />
       {help ? <FieldDescription id={`${id}-help`}>{help}</FieldDescription> : null}
-      {error ? (
-        <p id={`${id}-error`} className="text-destructive m-0 text-sm">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorLine id={`${id}-error`}>{error}</ErrorLine> : null}
     </Field>
   );
 }

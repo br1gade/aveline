@@ -16,6 +16,7 @@ import type { AgreementsData } from '../load';
 import type { AgreementsPage as RecordsPage } from '../types';
 import { StatementBlock } from './statement-group';
 import { StillToAgree } from './still-to-agree';
+import { ErrorLine } from '@/ui/app-form';
 
 const LINK =
   'text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline';
@@ -102,9 +103,7 @@ function Agreements({ data, first }: { data: AgreementsData; first: RecordsPage 
             {older.state === 'loading' ? t('loadingOlder') : t('older')}
           </Button>
           {typeof older.state === 'object' ? (
-            <p role="alert" className="text-destructive m-0 text-sm">
-              {t('olderFailed')}
-            </p>
+            <ErrorLine role="alert">{t('olderFailed')}</ErrorLine>
           ) : null}
         </div>
       ) : null}

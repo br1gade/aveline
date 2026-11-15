@@ -1,7 +1,7 @@
 import { useId, type ComponentProps, type ReactNode } from 'react';
 
 import { cx } from '../cx';
-import { Icon } from '../icon';
+import { ErrorText } from './error-text';
 import { SelectBox } from './select-box';
 
 interface FieldFrameProps {
@@ -56,12 +56,7 @@ function Frame({
           {frame.help}
         </p>
       ) : null}
-      {frame.error ? (
-        <p id={ids.errorId} className="text-error m-0 flex items-start gap-2 text-sm leading-5">
-          <Icon name="circle-alert" size={18} className="mt-px" />
-          {frame.error}
-        </p>
-      ) : null}
+      {frame.error ? <ErrorText id={ids.errorId}>{frame.error}</ErrorText> : null}
       {frame.counter ? (
         <p className="text-ink-muted m-0 text-right text-xs leading-[18px]">{frame.counter}</p>
       ) : null}

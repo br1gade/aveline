@@ -6,7 +6,14 @@ import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import { formatEventDate, formatEventTime } from '@/lib/time';
 import { EXTERNAL_LINK, Icon } from '@/ui';
-import { ProblemAlert, type PageActions } from '@/ui/app-form';
+import {
+  AskFirstDialog,
+  ProblemAlert,
+  useDialogAction,
+  useDialogOpener,
+  type DialogContext,
+  type PageActions,
+} from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { publishListing, unpublishListing } from '../api';
@@ -70,30 +77,65 @@ function useStateLine(data: TicketSalesData): string {
   });
 }
 
-/** Publishing and taking down: a refused publish lists every reason at once (FR-69). */
+/** Publishing: a refused publish lists every reason at once (FR-69). */
 function usePublishing(data: TicketSalesData, page: PageActions) {
   const { t } = useTranslation('ticket-sales');
   const [isBusy, setIsBusy] = useState(false);
   const [blockers, setBlockers] = useState<PublishBlocker[]>([]);
   const [problem, setProblem] = useState<Problem | null>(null);
-  const act = async (isPublishing: boolean) => {
+  const publish = async () => {
     setBlockers([]);
     setProblem(null);
     setIsBusy(true);
     try {
-      const { api } = browserSession();
-      const eventId = data.event.id;
-      await (isPublishing ? publishListing(api, eventId) : unpublishListing(api, eventId));
-      await page.done(t(isPublishing ? 'announcement.didPublish' : 'announcement.didUnpublish'));
+      await publishListing(browserSession().api, data.event.id);
+      await page.done(t('announcement.didPublish'));
     } catch (error) {
-      const found = isPublishing ? publishBlockers(error) : [];
+      const found = publishBlockers(error);
       if (found.length > 0) setBlockers(found);
       else setProblem(problemFrom(error));
     } finally {
       setIsBusy(false);
     }
   };
-  return { isBusy, blockers, problem, act };
+  return { isBusy, blockers, problem, publish };
+}
+
+/**
+ * Taking the announcement down asks first: its public page, where tickets are sold, goes at once
+ * for everyone (audit F-20). Tickets already sold stand.
+ */
+function TakeDownDialog({ eventId, ...context }: DialogContext & { eventId: string }) {
+  const { t } = useTranslation('ticket-sales');
+  const { isBusy, refusal, run, onCloseAutoFocus, onOpenChange } = useDialogAction(
+    context,
+    // Taking down can't go stale: a refusal is only ever worded.
+    (error) => ({ problem: problemFrom(error), isStale: false }),
+  );
+  return (
+    <AskFirstDialog
+      onOpenChange={onOpenChange}
+      onCloseAutoFocus={onCloseAutoFocus}
+      title={t('announcement.takeDown.title')}
+      body={t('announcement.takeDown.body')}
+      confirmLabel={t('announcement.takeDown.confirm')}
+      isBusy={isBusy}
+      problem={
+        refusal ? (
+          <ProblemAlert
+            problem={refusal.problem}
+            refused={(status) => t(status === 403 ? 'forbidden' : 'refused')}
+          />
+        ) : null
+      }
+      onConfirm={() =>
+        void run(
+          () => unpublishListing(browserSession().api, eventId),
+          t('announcement.didUnpublish'),
+        )
+      }
+    />
+  );
 }
 
 function PublicLink({ slug }: { slug: string }) {
@@ -109,13 +151,17 @@ function PublicLink({ slug }: { slug: string }) {
 
 function Actions({
   data,
+  page,
   publishing,
 }: {
   data: TicketSalesData;
+  page: PageActions;
   publishing: ReturnType<typeof usePublishing>;
 }) {
   const { t } = useTranslation('ticket-sales');
   const { listing, event } = data;
+  const [isAsking, setIsAsking] = useState(false);
+  const { remember, restoreFocus } = useDialogOpener();
   return (
     <div className="flex flex-wrap gap-2">
       <Button asChild variant="outline">
@@ -124,7 +170,7 @@ function Actions({
         </Link>
       </Button>
       {listing && !listing.publishedAt ? (
-        <Button disabled={publishing.isBusy} onClick={() => void publishing.act(true)}>
+        <Button disabled={publishing.isBusy} onClick={() => void publishing.publish()}>
           {t('announcement.publish')}
         </Button>
       ) : null}
@@ -132,10 +178,21 @@ function Actions({
         <Button
           variant="outline"
           disabled={publishing.isBusy}
-          onClick={() => void publishing.act(false)}
+          onClick={(click) => {
+            remember(click.currentTarget);
+            setIsAsking(true);
+          }}
         >
           {t('announcement.unpublish')}
         </Button>
+      ) : null}
+      {isAsking ? (
+        <TakeDownDialog
+          eventId={event.id}
+          page={page}
+          onClose={() => setIsAsking(false)}
+          restoreFocus={restoreFocus}
+        />
       ) : null}
     </div>
   );
@@ -171,7 +228,7 @@ export function AnnouncementPanel({ data, page }: { data: TicketSalesData; page:
           refused={(status) => t(status === 403 ? 'forbidden' : 'refused')}
         />
       ) : null}
-      <Actions data={data} publishing={publishing} />
+      <Actions data={data} page={page} publishing={publishing} />
     </section>
   );
 }

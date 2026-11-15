@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { isApiError } from '@/api/errors';
 import { browserSession } from '@/api/session';
-import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { ErrorLine, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { listMembers } from '../api';
@@ -139,9 +139,7 @@ export function MemberList({ first, onOpen }: { first: MembersPage; onOpen: Open
             {state === 'loading' ? t('members.loading') : t('members.more')}
           </Button>
           {state === 'failed' ? (
-            <p role="alert" className="text-destructive m-0 text-sm">
-              {t('members.moreFailed')}
-            </p>
+            <ErrorLine role="alert">{t('members.moreFailed')}</ErrorLine>
           ) : null}
         </div>
       ) : null}

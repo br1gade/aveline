@@ -2,7 +2,7 @@ import { useId, type ComponentProps } from 'react';
 
 import { FieldDescription, FieldLegend, FieldSet } from '@/ui/kit/field';
 
-import { ErrorLine } from './select-field';
+import { ErrorLine } from './error-line';
 import { TextInputField } from './text-input-field';
 
 interface TranslatedField<Field extends string> {
