@@ -6,5 +6,6 @@
   "testEnvironment": "node",
   "globalSetup": "<rootDir>/test/setup/global-setup.ts",
   "maxWorkers": 1,
+  "workerIdleMemoryLimit": "2GB",
   "testTimeout": 30000
 }
