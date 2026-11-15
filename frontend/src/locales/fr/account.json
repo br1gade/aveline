@@ -37,7 +37,7 @@
     "refused": "Cet e-mail et ce mot de passe ne correspondent à aucun compte."
   },
   "register": {
-    "title": "Créez votre compte",
+    "title": "Créer un compte",
     "lead": "Configurez ensuite votre organisation et votre premier événement.",
     "submit": "Créer un compte",
     "submitting": "Création de votre compte…",

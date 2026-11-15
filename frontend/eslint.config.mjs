@@ -34,7 +34,7 @@ export default defineConfig(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
       parserOptions: {
-        projectService: { allowDefaultProject: ['*.mjs', 'scripts/*.mjs'] },
+        projectService: { allowDefaultProject: ['*.mjs', 'scripts/*.mjs', 'public/*.js'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -164,5 +164,12 @@ export default defineConfig(
     // React Router calls the server entry with five arguments; the signature is not ours to change.
     files: ['src/entry.server.tsx'],
     rules: { 'max-params': 'off' },
+  },
+
+  {
+    // A service worker, served as written: no types to check it against, and its own globals.
+    files: ['public/*.js'],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: { globals: globals.serviceworker },
   },
 );

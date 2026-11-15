@@ -164,9 +164,26 @@ export async function expectSoundPage(page: Page, language: string): Promise<voi
   await expectAccessible(page);
 }
 
+/** No cache a service worker keeps (the tickets page's, PD-202) names or holds the token. */
+export async function expectTokenUncached(page: Page, token: string): Promise<void> {
+  const cached = await page.evaluate(async () => {
+    if (!('caches' in window)) return '';
+    const parts: string[] = [];
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      for (const request of await cache.keys()) {
+        const response = await cache.match(request);
+        parts.push(name, request.url, response ? await response.text() : '');
+      }
+    }
+    return parts.join('\n');
+  });
+  expect(cached.includes(token), 'token in a cache').toBe(false);
+}
+
 /**
- * A capability token reached nothing but what is allowed to carry it: not storage, not the
- * console, not another request's address (frontend/CLAUDE.md §4).
+ * A capability token reached nothing but what is allowed to carry it: not storage, not a cache,
+ * not the console, not another request's address (frontend/CLAUDE.md §4).
  */
 export async function expectTokenKept(
   page: Page,
@@ -178,6 +195,7 @@ export async function expectTokenKept(
     JSON.stringify({ local: { ...window.localStorage }, session: { ...window.sessionStorage } }),
   );
   expect(stored.includes(token), 'token in storage').toBe(false);
+  await expectTokenUncached(page, token);
   expect(
     seen.console.some((line) => line.includes(token)),
     'token in the console',

@@ -37,7 +37,7 @@
     "refused": "That email and password don’t match an account."
   },
   "register": {
-    "title": "Create your account",
+    "title": "Create an account",
     "lead": "Then set up your organization and your first event.",
     "submit": "Create an account",
     "submitting": "Creating your account…",

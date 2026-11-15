@@ -15,6 +15,9 @@
     "heading": "This order can’t be found",
     "body": "The link may be wrong. Open it again from the email we sent you."
   },
+  "offline": {
+    "body": "No connection. These are your tickets as this page last showed them. Check again once you have a signal."
+  },
   "outcome": {
     "paid": {
       "heading": "Your tickets",

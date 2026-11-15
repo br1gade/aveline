@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { apiAs, must } from './support/api';
+import { expectTokenUncached } from './support/checks';
 import { newHost, testAddress, ticketedEvent, type TicketedEvent } from './support/factories';
 import { expect, test } from './support/fixtures';
 import { E2E } from './support/env';
@@ -55,6 +56,77 @@ test.describe('tickets', () => {
     await expect(page.getByText('Valid', { exact: true })).toBeVisible();
     // The order's token is the buyer's credential: the page holds it, the address doesn't.
     await expect.poll(() => new URL(page.url()).pathname).toBe('/tickets');
+  });
+
+  test('a reload in the middle of checkout keeps what was typed (PD-152)', async ({ page }) => {
+    const event = await ticketedEvent(await newHost());
+    await checkout(page, event, 'Free entry');
+    // The form asks before the page goes (PD-146); a reload is the buyer's own choice here.
+    page.once('dialog', (dialog) => void dialog.accept());
+    await page.reload();
+    const buyer = page.getByRole('region', { name: 'Your details' });
+    await expect(buyer.getByRole('textbox', { name: 'First name' })).toHaveValue('Ani');
+    await expect(buyer.getByRole('textbox', { name: /^Last name/u })).toHaveValue('Grigoryan');
+    await page.getByRole('button', { name: 'Get tickets' }).click();
+    await expect(page.getByText('Code to show at the door')).toBeVisible();
+    // Placed, so the order as typed is forgotten; the order read is kept, apart (PD-202).
+    const drafts = await page.evaluate(() =>
+      Object.keys(window.sessionStorage).filter((name) =>
+        name.startsWith('aveline-checkout-draft:'),
+      ),
+    );
+    expect(drafts).toEqual([]);
+  });
+
+  test('the tickets page opens with no signal, from what this tab last read (PD-202)', async ({
+    page,
+    context,
+    seen,
+  }) => {
+    const event = await ticketedEvent(await newHost());
+    await checkout(page, event, 'Free entry');
+    await page.getByRole('button', { name: 'Get tickets' }).click();
+    await expect(page.getByText('Code to show at the door')).toBeVisible();
+    const isDevServer = (await page.request.get('/@vite/client')).ok();
+    test.skip(isDevServer, 'Needs a production build: the dev server’s modules are not kept');
+    // Straight from checkout, as a buyer arrives: the worker is told what to keep, and keeps the
+    // frame and every file it names.
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          const frame = await caches.match('/tickets');
+          if (!frame) return false;
+          const named = [...(await frame.text()).matchAll(/["'](\/assets\/[^"'?#\s]+)["']/gu)];
+          const kept = await Promise.all(named.map(async ([, path]) => caches.match(path ?? '')));
+          return named.length > 0 && kept.every(Boolean);
+        }),
+      )
+      .toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByText(/^No connection\./u)).toBeVisible();
+    await expect(page.getByText('Code to show at the door')).toBeVisible();
+    await context.setOffline(false);
+    // With no signal React Router can't fetch the routes a link leads to; it says so and carries on.
+    const unreached = (line: string) => line.startsWith('Failed to fetch manifest patches');
+    seen.errors.splice(0, seen.errors.length, ...seen.errors.filter((line) => !unreached(line)));
+    const token = await page.evaluate(
+      () =>
+        (
+          JSON.parse(window.sessionStorage.getItem('aveline-ticket-order') ?? '{}') as {
+            accessToken?: string;
+          }
+        ).accessToken ?? '',
+    );
+    expect(token).not.toBe('');
+    // The tab holds the token by design (PD-81); no cache, the console or another address may.
+    await expectTokenUncached(page, token);
+    expect(seen.console.some((line) => line.includes(token))).toBe(false);
+    const elsewhere = seen.requests.filter(
+      (address) =>
+        address.includes(token) && !new URL(address).pathname.startsWith('/api/v1/ticket-orders/'),
+    );
+    expect(elsewhere).toEqual([]);
   });
 
   test('a paid ticket is refused while payments are off, or waits at the bank', async ({

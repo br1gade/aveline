@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 
 import { PublicFrame } from '@/features/public-event';
@@ -6,6 +6,7 @@ import { createI18n, isLanguage } from '@/lib/i18n';
 import { Button, Notice } from '@/ui';
 import { SupportContacts } from '@/ui/support-contacts';
 
+import { keepTicketsOffline } from '../tickets-worker';
 import { OrderView } from './order-view';
 import { useOrder, type OrderState } from './use-order';
 
@@ -73,17 +74,38 @@ function InOrderLanguage({ locale, children }: { locale: string | null; children
   );
 }
 
+/** Shown above the order as this tab last read it, when no answer came (design PD-202). */
+function KeptNotice() {
+  const { t } = useTranslation('ticket-order');
+  return (
+    <Notice tone="info" role="status">
+      <p>{t('offline.body')}</p>
+    </Notice>
+  );
+}
+
+/** The tickets page's worker keeps it for a reload with no signal (design PD-202). */
+function useTicketsWorker() {
+  useEffect(() => {
+    void keepTicketsOffline();
+  }, []);
+}
+
 /**
  * The buyer's order, opened from its emailed link or straight after checkout or the bank (design
  * PD-81). `confirmFirst` on the bank's return: the return itself proves nothing.
  */
 export function OrderPage({ confirmFirst = false }: { confirmFirst?: boolean }) {
   const { state, locale, isChecking, check } = useOrder({ confirmFirst });
+  useTicketsWorker();
   return (
     <PublicFrame>
       <InOrderLanguage locale={locale}>
         {state.kind === 'ready' ? (
-          <OrderView read={state.read} isChecking={isChecking} onCheck={check} />
+          <>
+            {state.isKept ? <KeptNotice /> : null}
+            <OrderView read={state.read} isChecking={isChecking} onCheck={check} />
+          </>
         ) : (
           <Problem state={state} onRetry={() => window.location.reload()} />
         )}

@@ -134,6 +134,8 @@
     "seat": "Place",
     "choose": "Choisir",
     "seatName": "Rang {{row}}, place {{seat}}",
+    "row": "Rang {{row}}",
+    "onlyFree": "Seules les places libres sont affichées.",
     "loading": "Chargement des disponibilités…",
     "retry": "Actualiser les disponibilités",
     "soldOut": "Aucune place disponible pour ce billet.",

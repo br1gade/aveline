@@ -14,7 +14,7 @@ makes its own data through the API as a host would (setup proposal §12): a fres
 | `sending.spec.ts` | The invitation by email, its link opening the guest's page, the delivery on the guest list; a reminder held back for three days after an invitation |
 | `seating.spec.ts` | Tables and seating by hand; a table filled meanwhile from a second page (409); automatic seating by the worker |
 | `exports.spec.ts` | The guest list as PDF, XLSX and CSV, made by the worker and downloaded |
-| `tickets.spec.ts` | A listing card's date in the event's zone (FR-92); a free ticket to its order and door code; a paid one waiting at the bank, then answered paid (its tickets) and declined at the FAKE bank (FR-151) |
+| `tickets.spec.ts` | A listing card's date in the event's zone (FR-92); a free ticket to its order and door code; checkout kept across a reload (PD-152); the order page opened with no signal (PD-202), on a production build only; a paid one waiting at the bank, then answered paid (its tickets) and declined at the FAKE bank (FR-151) |
 | `billing.spec.ts` | A paid plan put on sale through the development route (FR-154), chosen, then paid and declined at the FAKE bank (FR-151), each read by the return page |
 | `door.spec.ts` | Checking in by name and undoing it; a ticket code admitted once; a walk-in |
 | `vendors.spec.ts` | A vendor's brief in the vendor's language with the event's words marked in the event's (FR-104), and closed when paused |
@@ -69,6 +69,7 @@ npx playwright test door.spec.ts --project=phone              # one file, one pr
 - **A paid ticket or plan:**
   - under `PILOT_MODE`, the pilot's refusal is checked, and the tests that pay at the bank skip;
   - on a development stack, the FAKE bank's return waits, then its `fake-bank` route answers for the payer, paid or declined (FR-151), and the plan is first put on sale (FR-154).
+- **The dev server:** the tickets page's offline reload skips, as its modules aren't kept; run it against a production build (`npm run build && npm start`, or the image) behind one origin. A production build asks for Ameriabank unless `TICKET_PAYMENT_PROVIDER=FAKE` is set on its server, which a development backend needs.
 - **Staging, or any stack that runs as production:** it has no FAKE bank and no development routes, so the paid ticket and plan tests skip and say so; pay at the bank's own test environment by hand. Mail is read after the outbox's minute, so those tests are marked slow there.
 
 ## Tokens

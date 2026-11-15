@@ -197,8 +197,7 @@ describe('checkout for an event answered once (PD-79)', () => {
     expect(await submit()).toBeDisabled();
     const choices = await screen.findAllByLabelText('Section or zone');
     await user.selectOptions(choices[0] as HTMLElement, 'balcony');
-    await screen.findByRole('option', { name: 'Row B, seat 12' });
-    await user.selectOptions(await screen.findByLabelText('Seat'), 'seat-12');
+    await user.click(await screen.findByRole('radio', { name: 'Row B, seat 12' }));
     await user.selectOptions(choices[1] as HTMLElement, 'floor');
     await fillBuyer(user);
     await user.click(within(await name(user, 1, 'Anna')).getByRole('radio', { name: 'Fish' }));
@@ -244,7 +243,7 @@ describe('checkout for an event answered once (PD-79)', () => {
         await screen.findByRole('combobox', { name: 'Section or zone' }),
         'balcony',
       );
-      await user.selectOptions(await screen.findByRole('combobox', { name: 'Seat' }), 'seat-12');
+      await user.click(await screen.findByRole('radio', { name: 'Row B, seat 12' }));
       await fillBuyer(user);
       await user.click(
         within(await name(user, 1, 'Anna', { total: 1 })).getByRole('radio', { name: 'Fish' }),
@@ -256,7 +255,72 @@ describe('checkout for an event answered once (PD-79)', () => {
       const { user } = renderCheckout('general.1');
       const section = await screen.findByRole('combobox', { name: 'Section or zone' });
       await user.selectOptions(section, 'balcony');
-      expect(await screen.findByRole('combobox', { name: 'Seat' })).toBeInTheDocument();
+      expect(await screen.findByRole('group', { name: 'Seat' })).toBeInTheDocument();
+    });
+
+    it('lays the free seats out by row, in the venue’s order (design PD-201)', async () => {
+      const stock = withInventory();
+      stock.seats = [
+        { id: 'c-2', row: 'C', label: '2' },
+        { id: 'c-1', row: 'C', label: '1' },
+        { id: 'a-7', row: 'A', label: '7' },
+      ];
+      server.use(
+        http.get(`${ORIGIN}/api/v1/public/events/:slug/ticket-inventory/:key`, () =>
+          HttpResponse.json(stock),
+        ),
+      );
+      const { user } = renderCheckout('general.1');
+      await user.selectOptions(
+        await screen.findByRole('combobox', { name: 'Section or zone' }),
+        'balcony',
+      );
+      const seats = within(await screen.findByRole('region', { name: 'Seat' }));
+      expect(seats.getAllByRole('radio').map((seat) => seat.getAttribute('aria-label'))).toEqual([
+        'Row C, seat 2',
+        'Row C, seat 1',
+        'Row A, seat 7',
+      ]);
+      expect(screen.getByText('Only free seats are shown.')).toBeVisible();
+    });
+
+    it('keeps a seat one ticket holds from the order’s other tickets', async () => {
+      const stock = withInventory();
+      stock.seats = [
+        { id: 'seat-12', row: 'B', label: '12' },
+        { id: 'seat-13', row: 'B', label: '13' },
+      ];
+      server.use(
+        http.get(`${ORIGIN}/api/v1/public/events/:slug/ticket-inventory/:key`, () =>
+          HttpResponse.json(stock),
+        ),
+      );
+      const { user } = renderCheckout();
+      const [first, second] = await screen.findAllByRole('combobox', { name: 'Section or zone' });
+      await user.selectOptions(first as HTMLElement, 'balcony');
+      await user.selectOptions(second as HTMLElement, 'balcony');
+      const [one, two] = await screen.findAllByRole('group', { name: 'Seat' });
+      await user.click(within(one as HTMLElement).getByRole('radio', { name: 'Row B, seat 12' }));
+      expect(
+        within(two as HTMLElement).getByRole('radio', { name: 'Row B, seat 12' }),
+      ).toBeDisabled();
+      expect(
+        within(two as HTMLElement).getByRole('radio', { name: 'Row B, seat 13' }),
+      ).toBeEnabled();
+    });
+
+    it('keeps the chosen seat across a reload, reading what is free again (PD-152)', async () => {
+      serveStock();
+      const first = renderCheckout('general.1');
+      await first.user.selectOptions(
+        await screen.findByRole('combobox', { name: 'Section or zone' }),
+        'balcony',
+      );
+      await first.user.click(await screen.findByRole('radio', { name: 'Row B, seat 12' }));
+      first.unmount();
+      renderCheckout('general.1');
+      expect(await screen.findByRole('radio', { name: 'Row B, seat 12' })).toBeChecked();
+      expect(screen.getByRole('combobox', { name: 'Section or zone' })).toHaveValue('balcony');
     });
 
     it('offers to read availability again when it couldn’t be read', async () => {
@@ -274,7 +338,7 @@ describe('checkout for an event answered once (PD-79)', () => {
         'balcony',
       );
       await user.click(await screen.findByRole('button', { name: 'Retry availability' }));
-      expect(await screen.findByRole('combobox', { name: 'Seat' })).toBeInTheDocument();
+      expect(await screen.findByRole('group', { name: 'Seat' })).toBeInTheDocument();
       expect(reads).toBe(2);
     });
 
@@ -525,19 +589,31 @@ describe('refusals and retries (PD-80)', () => {
     expect(posted[2]?.idempotencyKey).not.toBe(posted[0]?.idempotencyKey);
   });
 
-  it('sends the same key after a reload, for the same order, and keeps no names in this tab (PD-152)', async () => {
+  it('brings the order back after a reload, sends it with the same key, then forgets it (PD-152)', async () => {
     serveOrders(() => refusal(502, 'Bad Gateway'), paid);
     const first = renderCheckout('general.1');
     await fillOne(first.user);
     await first.user.click(await submit());
     await screen.findByRole('alert');
-    expect(JSON.stringify({ ...sessionStorage })).not.toContain('Anna');
     first.unmount();
     const { user } = renderCheckout('general.1');
-    await fillOne(user);
+    const card = await ticket(1, 1);
+    expect(await within(card).findByDisplayValue('Anna')).toBeInTheDocument();
+    expect(within(card).getByRole('radio', { name: 'Fish' })).toBeChecked();
     await user.click(await submit());
     await screen.findByText('The order page');
     expect(posted[1]?.idempotencyKey).toBe(posted[0]?.idempotencyKey);
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain('Anna');
+  });
+
+  it('leaves out an order typed for another basket', async () => {
+    const first = renderCheckout('general.1');
+    await fillOne(first.user);
+    first.unmount();
+    renderCheckout('general.2');
+    const buyer = await screen.findByRole('region', { name: 'Your details' });
+    await waitFor(() => expect(JSON.stringify({ ...sessionStorage })).not.toContain('Anna'));
+    expect(within(buyer).getByLabelText('First name')).toHaveValue('');
   });
 
   it('reads the event again when fewer tickets remain, keeping the people typed', async () => {

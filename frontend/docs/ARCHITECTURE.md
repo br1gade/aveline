@@ -676,9 +676,13 @@ A production build on our own server (`npm run start`) was then checked against 
 checks on the headers, the server's HTML, the log, every request's address and referrer, every storage
 and the address after hydration, for each capability page, its `.data` request, and each shape a token
 could be written in (`/tickets//T`, `/tickets%252FT`, `/Tickets/T`, `./`, `%2e`). With the API down, no
-token reached the log either. **The Docker image has never been built**, as this machine has no Docker:
-the Dockerfile's stages were replayed by hand in a scratch folder, whose result answered its health
-check and logged no token, and which refused to start without `API_INTERNAL_URL`.
+token reached the log either. The Docker image was then first built on 15 November 2026, under
+colima, unchanged: 132 s, 462 MB. Run against the local backend behind a one-origin proxy, as Caddy
+would be, it was healthy, rendered `/`, `/events` (through `API_INTERNAL_URL`), `/tickets`, `/app` and
+`/pricing`, refused to start without `API_INTERNAL_URL` (exit 1, in words), and logged guest and order
+links as `[token]`. The tickets, guest-reply and server-page specs passed against it on all three
+projects, the tickets page's offline reload among them, with `TICKET_PAYMENT_PROVIDER=FAKE`, as a
+production build otherwise asks the development backend for Ameriabank.
 
 The tests were checked by breaking the code 120 ways in a copy of the tree, and 116 failed a test at
 once. Three of the rest got tests; the fourth can't be seen, as Node itself drops a `HEAD`'s body, so
@@ -728,8 +732,15 @@ handover has run.**
 `staff_role_changes` row. The administrator's own row offered nothing; an unregistered and an unconfirmed
 address were each refused in words under the field; Support was given, changed to Admin and removed, each
 change asked first. axe, 44 px targets, sideways scroll, the page's language and raw keys passed, the
-removal dialog open too. **English and French were not walked, and no end-to-end test covers the page
-(FR-157).**
+removal dialog open too. The same walk then passed in en and fr, at both widths. **No end-to-end test
+covers the page (FR-157).**
+
+**The seat grid (15 November 2026)** was walked against the local backend in hy and ru at 360 px and
+1280 px, with a hall and a three-row layout published by an administrator made in the local database,
+and one seat blocked: 49 free seats in the layout's order, the blocked one left out, a seat one ticket
+holds disabled for the other, the 30-seat row scrolling in its own box; axe, 44 px targets, sideways
+scroll, the page's language and raw keys passed. **No end-to-end test covers it, as a hall and its
+layout are an administrator's (FR-157).**
 
 **Product's answers (6 November 2026)** were walked on a mock in hy, ru, en and fr, at 360 px with touch
 and at 1280 px, beside billing, the price list, the staff's tools and telling guests about a change:
@@ -984,6 +995,10 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 14 Nov 2026 | **Strings load in the page's language and English only,** one module per group and language, awaited at the top of the group's module | All four languages of every word were in each page's script: 216 KB gzipped of the app's alone, on a door opened over a phone's signal (audit F-23). Top-level await keeps the strings there before the route renders, so no loading state was added; the server and the tests still load all four |
 | 14 Nov 2026 | **A page under the app names its frame in its route `handle`** (`shell: 'compact'` for the door, `'wide'` for the guests and the seating), read by the app layout with `useMatches` | The door needed less header on a phone (PD-90) and the long lists more width on a desktop (PD-199); a handle keeps that beside the route, with no second layout route to keep in step |
 | 15 Nov 2026 | **Staff accounts are a feature of their own,** `features/staff-accounts`, at `/app/staff/accounts`, its refusals read from the API's codes rather than its sentences | The backend's `018e975` gave the routes and three stable codes, so no stand-in like PD-100's is needed; the link shows only for `platformRole` `ADMIN`, read from `GET /me` as PD-165 does |
+| 15 Nov 2026 | **A numbered section's seat is chosen on a grid of radios, one line per row,** `checkout/components/seat-grid.tsx`, in place of a select (PD-201) | A section may hold 1,000 seats, a select's list on a phone; the API's order is the venue's, so `seatRows` groups without sorting, and only free seats come, so taken ones can't show (FR-158) |
+| 15 Nov 2026 | **One `sessionStorage` wrapper, `lib/session-store`,** for the guest's reply, checkout's retry key, checkout's draft and the order's last read | Two stores repeated the same guarded read, write and clear, and two more were coming; the order's token keeps its own store, as it falls back to memory |
+| 15 Nov 2026 | **The order as typed is kept across a reload** (`checkout/draft-store.ts`, `use-checkout-draft.ts`), under the scope the seat picks already used (PD-152 amended) | Audit F-21: a buyer who reloaded typed every ticket again. Restored in an effect, so the server's page and the first render agree |
+| 15 Nov 2026 | **The app's first service worker, `public/tickets-sw.js`, scoped to `/tickets`** (PD-202) | Audit F-22: a reload at a venue with no signal showed the browser's error page. Scoped to the one page that needs it, keeping only the token-free frame and hashed files. A buyer arrives from checkout without loading a document under the worker's scope, so the order page tells the worker what to keep (`ticket-order/tickets-worker.ts`): the frame, the files it loaded, what the frame names (a browser's list of loaded files stops at 250) and the fonts its stylesheets name, 1.1 MB once; an earlier release's files go once nothing names them. `public/*.js` is linted without types, with service-worker globals. Its offline reload is tested only against a production build, as the dev server's modules aren't kept |
 
 ## 12. Not yet built
 
@@ -1000,7 +1015,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
   shown as coming after the pilot still wait for FR-109. The support contacts and the site's address
   are settings nobody has set yet (`VITE_SUPPORT_*`, `VITE_SITE_URL`), and "Add to calendar" has not
   been opened on a real phone.
-- Of seats and zones (built by the backend team, PD-183 to PD-186): a seat map; the inventory once
+- Of seats and zones (built by the backend team, PD-183 to PD-186): a seat map with taken seats and the stage (FR-158;
+  PD-201 draws the free seats by row); the inventory once
   published can't be changed here; the layout CSV's own refusals, and a typed layout's duplicates and
   5,000-seat total, which come back as the backend's sentences, as do the 409s only a code could
   word (FR-137).
@@ -1025,8 +1041,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
   past the newest 50 organizations and the 200 soonest-due requests (FR-127). A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Binding an enquiry, which a request with an address can also need, and which answers the backend's
   words as they came (PD-168). Access reviews' names, read one by one (FR-133). Only a mock has met these: no real
   erasure and no real closure, and no staff page has an end-to-end test, as nothing on a development stack
-  makes an administrator (FR-157). Staff accounts (PD-200) alone were walked against a local backend, once,
-  with an administrator set by hand in its database.
+  makes an administrator (FR-157). Staff accounts (PD-200) alone were walked against a local backend, in all
+  four languages, with an administrator set by hand in its database.
 - Of a ticket's QR code and the door's scanner (C-25, PD-171 to PD-174): **a real camera has never read a code.**
   A fake camera in Chromium has, so an iPhone and an Android phone, in real light at a real door, are still to
   come, as are a real refusal of permission, which the walk's browser can't produce, and a code on a printed
@@ -1118,13 +1134,15 @@ size check in the CSV's send that the disabled button already covers. **None of 
   after no answer (FR-119); checking in a household at once (FR-83); undoing an unlinked ticket
   (FR-81) or from "Just arrived" (FR-80); telling the hosts of someone unexpected, other than the
   staff saying so.
-- The rest of the pilot plan: the four-language walkthroughs against the real backend. Seating jobs (F27's automatic seating) are followed in the
+- The rest of the pilot plan: the four-language walkthroughs against staging or a production-like stack.
+  On the backend's development stack they ran: the pre-launch audit read 64 screens in all four languages
+  at five widths (13 November 2026), and the end-to-end suite runs every pilot journey there. Seating jobs (F27's automatic seating) are followed in the
   browser since 30 October 2026, and so are snapshot exports, in PDF, XLSX and CSV (F20, F49 and
   F27's exports), the same day. Template previews (F28),
   question order (F29) and logo uploads (F48) are built in the designer; name correction (F46),
   the gallery (F19) and the hosts' view of agreements (F25) since 29 October 2026.
-- Deployment (A7, FR-11): `server/` and `Dockerfile` exist, and **the image has never been built**, as
-  the machine they were written on has no Docker; its stages were replayed by hand (§10). No compression
+- Deployment (A7, FR-11): `server/` and `Dockerfile` exist, and the image was built and run locally on
+  15 November 2026 (§10), never on a host or behind the real proxy, nor once per origin. No compression
   or TLS: the proxy's, which isn't chosen. A production build needs
   `VITE_PUBLIC_ORIGIN` set to its public https origin: brief links are built on it, and the booking
   page refuses to copy one on a local or `http` origin from a real `https` page (BACKEND_REQUESTS §4).

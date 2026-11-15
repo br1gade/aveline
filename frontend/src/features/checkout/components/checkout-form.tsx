@@ -24,6 +24,7 @@ import { CheckoutContext } from './checkout-context';
 import { PlaceOrder } from './place-order';
 import { PromoCode } from './promo-code';
 import { useCheckout } from './use-checkout';
+import { useCheckoutDraft } from './use-checkout-draft';
 import { orderSelections, ShowSelections, useShowSelections } from './show-selections';
 
 type Form = UseFormReturn<CheckoutValues>;
@@ -116,7 +117,8 @@ function useCheckoutForm(rules: CheckoutRules, basket: Basket) {
   });
 }
 
-function useCheckoutSelections(event: PublicEvent, basket: Basket) {
+/** The seats chosen, and the order as typed, kept across a reload with them (PD-152). */
+function useCheckoutSelections(event: PublicEvent, basket: Basket, form: Form) {
   const scope = [
     event.slug,
     event.ticketInventory?.layoutVersionId,
@@ -125,7 +127,14 @@ function useCheckoutSelections(event: PublicEvent, basket: Basket) {
   const draft = useShowSelections(event, scope);
   const typeIds = rosterFor(basket).map(({ ticketTypeId }) => ticketTypeId);
   const selections = orderSelections(event, draft, typeIds);
-  return { draft, typeIds, selections };
+  const kept = useCheckoutDraft({
+    slug: event.slug,
+    scope,
+    revision: event.checkout.attendanceRevision,
+    form,
+    selections: draft,
+  });
+  return { draft, typeIds, selections, kept };
 }
 
 export interface CheckoutFormProps {
@@ -142,7 +151,7 @@ export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
   useLeaveGuard(form);
   const checkout = useCheckout({ event, basket, provider });
   const { refusal } = checkout;
-  const { draft, typeIds, selections } = useCheckoutSelections(event, basket);
+  const { draft, typeIds, selections, kept } = useCheckoutSelections(event, basket, form);
   const place = async (values: CheckoutValues) => {
     if (!selections) return;
     const layout = event.ticketInventory
@@ -152,6 +161,7 @@ export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
     if (!refused) {
       // Placed, so nothing is lost: the browser's "Leave site?" mustn't stand before the bank.
       form.reset(values);
+      kept.clear();
       return;
     }
     markRefused(form, rules, refused);

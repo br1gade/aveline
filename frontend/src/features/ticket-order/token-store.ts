@@ -1,3 +1,5 @@
+import { orderSnapshot } from './order-snapshot';
+
 /**
  * The buyer's order link is a credential (root CLAUDE.md §3), and the API asks the client to keep
  * it: the bank sends the buyer back to `/tickets/return`, which carries no token (docs/API.md §5).
@@ -53,8 +55,9 @@ export function heldOrder(): HeldOrder | null {
   return readStored() ?? inMemory;
 }
 
-/** Holds an order, in place of any other. */
+/** Holds an order, in place of any other, whose last read goes with it. */
 export function holdOrder(order: HeldOrder): void {
+  if (heldOrder()?.accessToken !== order.accessToken) orderSnapshot.clear();
   inMemory = order;
   try {
     storage()?.setItem(STORAGE_KEY, JSON.stringify(order));
@@ -65,6 +68,7 @@ export function holdOrder(order: HeldOrder): void {
 
 export function forgetOrder(): void {
   inMemory = null;
+  orderSnapshot.clear();
   try {
     storage()?.removeItem(STORAGE_KEY);
   } catch {

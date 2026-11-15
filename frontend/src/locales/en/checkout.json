@@ -133,6 +133,8 @@
     "seat": "Seat",
     "choose": "Choose",
     "seatName": "Row {{row}}, seat {{seat}}",
+    "row": "Row {{row}}",
+    "onlyFree": "Only free seats are shown.",
     "loading": "Loading availability…",
     "retry": "Retry availability",
     "soldOut": "No places are available for this ticket.",

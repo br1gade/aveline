@@ -9,6 +9,7 @@ import { pollUntil, waitFor } from '@/lib/poll';
 import { useIsHydrated } from '@/ui';
 
 import { confirmOrder, fetchOrder } from '../api';
+import { orderSnapshot } from '../order-snapshot';
 import { orderOutcome } from '../outcome';
 import { heldOrder, type HeldOrder } from '../token-store';
 import type { OrderRead } from '../types';
@@ -22,12 +23,15 @@ export type OrderState =
   | { kind: 'failed'; requestId?: string | undefined }
   /** The bank and our record disagree: contact support, and never pay again (docs/API.md §6). */
   | { kind: 'disagreement'; requestId: string | undefined }
-  | { kind: 'ready'; read: OrderRead };
+  /** `isKept`: no answer came, so this is the order as this tab last read it (design PD-202). */
+  | { kind: 'ready'; read: OrderRead; isKept?: boolean };
 
 /** After the bank's return, confirm is asked again at 2, 5 and 10 seconds while the bank is silent. */
 const RECHECKS = [2_000, 3_000, 5_000] as const;
 
 function failure(error: unknown): OrderState {
+  const kept = isApiError(error) && error.status === 0 ? orderSnapshot.read() : null;
+  if (kept) return { kind: 'ready', read: kept, isKept: true };
   if (isApiError(error) && error.status === 404) return { kind: 'gone' };
   if (isApiError(error) && isPaymentDisagreement(error)) {
     return { kind: 'disagreement', requestId: error.requestId };
@@ -106,7 +110,9 @@ export function useOrder({ confirmFirst }: { confirmFirst: boolean }) {
   const [locale, setLocale] = useState<string | null>(null);
   const show = useCallback((next: OrderState) => {
     setFetched(next);
-    if (next.kind === 'ready') setLocale(next.read.order.locale);
+    if (next.kind !== 'ready') return;
+    setLocale(next.read.order.locale);
+    if (!next.isKept) orderSnapshot.write(next.read);
   }, []);
   const [isChecking, setIsChecking] = useState(false);
 

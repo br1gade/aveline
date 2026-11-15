@@ -8,6 +8,7 @@ import { Button, useIsHydrated } from '@/ui';
 import { SelectField } from '@/ui/form';
 
 import type { TicketSelection } from '../types';
+import { SeatGrid } from './seat-grid';
 import { useCheckoutApi } from './use-checkout-api';
 
 const availabilitySchema = z.object({
@@ -27,11 +28,14 @@ interface Draft {
   availability: Record<string, ReadState>;
 }
 
+/** One empty set of picks, so that "none" keeps its identity from one render to the next. */
+const NO_PICKS: Readonly<Record<number, TicketSelection>> = Object.freeze({});
+
 export function useShowSelections(event: PublicEvent, scope: string) {
   const api = useCheckoutApi(event.locale);
   const [stored, setStored] = useState<Draft | null>(null);
   const current = (draft: Draft | null): Draft =>
-    draft?.scope === scope ? draft : { scope, picks: {}, availability: {} };
+    draft?.scope === scope ? draft : { scope, picks: NO_PICKS, availability: {} };
   const generation = useRef(0);
 
   async function load(key: string) {
@@ -69,7 +73,15 @@ export function useShowSelections(event: PublicEvent, scope: string) {
     setStored(null);
   }
 
-  return { ...current(stored), change, clear, load };
+  /** Picks kept across a reload (design PD-152): each section's availability is read again. */
+  function restore(picks: Record<number, TicketSelection>) {
+    setStored({ scope, picks, availability: {} });
+    for (const key of new Set(Object.values(picks).map(({ sectionKey }) => sectionKey))) {
+      void load(key);
+    }
+  }
+
+  return { ...current(stored), change, clear, load, restore };
 }
 
 type SelectionState = ReturnType<typeof useShowSelections>;
@@ -138,20 +150,7 @@ function SeatChoices({
     return <p role="status">{t('selection.soldOut')}</p>;
   if (section.mode === 'UNNUMBERED')
     return <p>{t('selection.remaining', { count: stock.available })}</p>;
-  return (
-    <SelectField
-      label={t('selection.seat')}
-      value={pick.seatId ?? ''}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      <option value="">{t('selection.choose')}</option>
-      {stock.seats.map(({ id, row, label }) => (
-        <option key={id} value={id} disabled={taken.has(id)}>
-          {t('selection.seatName', { row, seat: label })}
-        </option>
-      ))}
-    </SelectField>
-  );
+  return <SeatGrid seats={stock.seats} value={pick.seatId} taken={taken} onChange={onChange} />;
 }
 
 interface Slot {

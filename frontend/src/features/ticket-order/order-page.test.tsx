@@ -231,6 +231,30 @@ describe("the buyer's order (PD-81)", () => {
     expect(within(alert).getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
+  describe('with no signal (design PD-202, audit F-22)', () => {
+    it('shows the tickets as this tab last read them, and says so', async () => {
+      holdOrder({ accessToken: TOKEN });
+      serveRead(() => HttpResponse.json({ ...orderWire(), accessToken: TOKEN }));
+      const first = renderAt('/tickets');
+      await screen.findByRole('region', { name: 'Tickets' });
+      first.unmount();
+      serveRead(() => HttpResponse.error());
+      renderAt('/tickets');
+      expect(await screen.findByText(/^No connection\./)).toBeVisible();
+      const tickets = await screen.findByRole('region', { name: 'Tickets' });
+      expect(within(tickets).getByText('SAMPLE-CODE-1')).toBeVisible();
+      expect(within(tickets).getAllByRole('img')[0]).toBeVisible();
+      expect(JSON.stringify({ ...sessionStorage }).split(TOKEN)).toHaveLength(2);
+    });
+
+    it('says the order couldn’t be loaded when this tab never read it', async () => {
+      holdOrder({ accessToken: TOKEN });
+      serveRead(() => HttpResponse.error());
+      renderAt('/tickets');
+      expect(await screen.findByRole('alert')).toHaveTextContent('Your order couldn’t be loaded.');
+    });
+  });
+
   it('takes the emailed link’s token out of the address, and opens the order from this tab', async () => {
     serveRead(() => HttpResponse.json({ ...orderWire(), accessToken: TOKEN }));
     renderAt(`/tickets/${TOKEN}`);

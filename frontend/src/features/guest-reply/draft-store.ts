@@ -1,3 +1,5 @@
+import { sessionValue, type SessionValue } from '@/lib/session-store';
+
 import { isDraftValues, type DraftValues } from './form-model';
 
 /**
@@ -15,19 +17,7 @@ export interface StoredDraft {
   values: DraftValues;
 }
 
-export interface DraftStore {
-  read: () => StoredDraft | null;
-  write: (draft: StoredDraft) => void;
-  clear: () => void;
-}
-
-function storage(): Storage | null {
-  try {
-    return typeof window === 'undefined' ? null : window.sessionStorage;
-  } catch {
-    return null;
-  }
-}
+export type DraftStore = SessionValue<StoredDraft>;
 
 function isStoredDraft(value: unknown): value is StoredDraft {
   if (typeof value !== 'object' || value === null) return false;
@@ -36,31 +26,5 @@ function isStoredDraft(value: unknown): value is StoredDraft {
 }
 
 export function replyDraftStore(slug: string, guestId: string): DraftStore {
-  const name = `${PREFIX}${slug}:${guestId}`;
-  return {
-    read: () => {
-      try {
-        const raw = storage()?.getItem(name);
-        if (!raw) return null;
-        const value: unknown = JSON.parse(raw);
-        return isStoredDraft(value) ? value : null;
-      } catch {
-        return null;
-      }
-    },
-    write: (draft) => {
-      try {
-        storage()?.setItem(name, JSON.stringify(draft));
-      } catch {
-        // Storage refused or full: the reply stays in memory, as it was before this store.
-      }
-    },
-    clear: () => {
-      try {
-        storage()?.removeItem(name);
-      } catch {
-        // As above.
-      }
-    },
-  };
+  return sessionValue(`${PREFIX}${slug}:${guestId}`, isStoredDraft);
 }

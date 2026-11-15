@@ -15,6 +15,9 @@
     "heading": "Cette commande est introuvable",
     "body": "Le lien est peut-être erroné. Ouvrez-le à nouveau depuis notre e-mail."
   },
+  "offline": {
+    "body": "Pas de connexion. Voici vos billets tels que cette page les a affichés la dernière fois. Vérifiez à nouveau une fois connecté."
+  },
   "outcome": {
     "paid": {
       "heading": "Vos billets",
