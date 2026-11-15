@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -216,7 +216,7 @@ describe('changing and removing (asked first)', () => {
     await user.click(within(asking).getByRole('button', { name: 'Remove from staff' }));
     expect(await screen.findByText('Ani Petrosyan is no longer on the staff.')).toBeVisible();
     expect(sent).toEqual([{ method: 'DELETE', userId: 'u-ani' }]);
-    expect(screen.queryByText('ani@aveline.am')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('ani@aveline.am')).not.toBeInTheDocument());
   });
 
   it('reads the list again when the one to remove was gone already', async () => {
@@ -233,7 +233,8 @@ describe('changing and removing (asked first)', () => {
         'That account was no longer on the staff. The list is up to date again.',
       ),
     ).toBeVisible();
-    expect(await screen.findByText('aram@aveline.am')).toBeVisible();
-    expect(screen.queryByText('ani@aveline.am')).not.toBeInTheDocument();
+    // The list is read again behind the words: the row goes once that read answers.
+    await waitFor(() => expect(screen.queryByText('ani@aveline.am')).not.toBeInTheDocument());
+    expect(screen.getByText('aram@aveline.am')).toBeVisible();
   });
 });
