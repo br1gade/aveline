@@ -55,6 +55,8 @@ services:
         VITE_PUBLIC_ORIGIN: ${PUBLIC_APP_URL:-http://127.0.0.1:8080}
         VITE_MEDIA_BASE_URL: ${S3_PUBLIC_URL:-http://127.0.0.1:8081}
         VITE_API_BASE_URL: ""
+        # The image refuses to build with no support contact (design C-54); it is the mailbox replies already go to.
+        VITE_SUPPORT_EMAIL: ${MAIL_REPLY_TO:-}
     logging: *logging
     restart: unless-stopped
     environment:
