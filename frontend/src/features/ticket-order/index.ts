@@ -3,5 +3,6 @@
  * link, straight after checkout, or on the bank's return, which is confirmed first. The order's
  * token is held by this tab only (`token-store.ts`).
  */
+export { fetchOrder } from './api';
 export { OrderPage } from './components/order-page';
 export { forgetOrder, heldOrder, holdOrder, type HeldOrder } from './token-store';

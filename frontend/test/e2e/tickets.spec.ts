@@ -84,6 +84,35 @@ test.describe('tickets', () => {
     }
   });
 
+  test('Back after paying shows the order, not a form for a second one', async ({ page, seen }) => {
+    // The bank's answer is given at the FAKE bank, which only a development stack has.
+    test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
+    const event = await ticketedEvent(await newHost());
+    await checkout(page, event, 'General');
+    await page.getByRole('button', { name: 'Continue to payment' }).click();
+    const waiting = page.getByRole('heading', { name: 'Waiting for your bank' });
+    const refused = page.getByText(/Paid tickets can’t be bought yet/u);
+    await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
+    test.skip(await refused.isVisible(), 'Payments are off on this stack (PILOT_MODE)');
+    const returned = seen.requests.find((address) => address.includes('fakePayment=fake_'));
+    const orderNumber =
+      returned && new URL(returned).searchParams.get('fakePayment')?.replace(/^fake_/u, '');
+    await must(
+      apiAs().POST('/api/v1/payments/{orderNumber}/fake-bank', {
+        params: { path: { orderNumber: orderNumber ?? '' } },
+        body: { outcome: 'PAID' },
+      }),
+      'answer PAID at the fake bank',
+    );
+    await page.getByRole('button', { name: 'Check with the bank' }).click();
+    await expect(page.getByText('Code to show at the door')).toBeVisible();
+
+    // Audit F-07: Back used to show the filled form, and pressing it again ordered twice.
+    await page.goBack();
+    await expect(page.getByText('You already have an order for this event.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue to payment' })).toHaveCount(0);
+  });
+
   for (const [outcome, heading] of [
     ['PAID', 'Your tickets'],
     ['DECLINED', 'The payment didn’t go through'],

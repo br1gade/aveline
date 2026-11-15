@@ -8,6 +8,8 @@ import { Notice } from '@/ui';
 
 import type { PaymentProvider } from '../types';
 import { CheckoutForm } from './checkout-form';
+import { HeldOrderNotice, useHeldOrderHere } from './held-order';
+import { useCheckoutApi } from './use-checkout-api';
 
 export interface CheckoutPageProps {
   event: PublicEvent;
@@ -35,6 +37,27 @@ function Body({ event, basket, isSalesClosed, provider }: CheckoutPageProps) {
         {t('empty')}
       </Notice>
     );
+  }
+  return <FormUnlessHeld event={event} basket={basket} provider={provider} />;
+}
+
+/**
+ * The form, unless this tab already holds a live order for the event: Back from the order or the
+ * bank shows that order, and placing another is a choice (design PD-152, audit F-07).
+ */
+function FormUnlessHeld({ event, basket, provider }: Omit<CheckoutPageProps, 'isSalesClosed'>) {
+  const { t } = useTranslation('checkout');
+  const api = useCheckoutApi(event.locale);
+  const { held, startAgain } = useHeldOrderHere(event.slug, api);
+  if (held === 'checking') {
+    return (
+      <p role="status" className="m-0">
+        {t('held.checking')}
+      </p>
+    );
+  }
+  if (held !== 'none') {
+    return <HeldOrderNotice held={held} locale={event.locale} onStartAgain={startAgain} />;
   }
   return <CheckoutForm event={event} basket={basket} provider={provider} />;
 }

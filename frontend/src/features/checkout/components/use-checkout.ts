@@ -72,7 +72,7 @@ export function useCheckout({ event, basket, provider }: CheckoutInput) {
         idempotencyKey: retry.next(await intentDigest(intentOf(body))),
       });
       retry.settle(null);
-      holdOrder({ accessToken: placed.accessToken });
+      holdOrder({ accessToken: placed.accessToken, eventSlug: event.slug });
       const bank =
         placed.status === 'RESERVED'
           ? bankAddress(placed.redirectUrl, window.location.origin)
@@ -82,7 +82,8 @@ export function useCheckout({ event, basket, provider }: CheckoutInput) {
         return null;
       }
       const language = isLanguage(event.locale) ? `?lang=${event.locale}` : '';
-      void navigate(`${APP_PATHS.ticketOrder}${language}`);
+      // In place of checkout: Back from the order goes to the event, not to a form for another.
+      void navigate(`${APP_PATHS.ticketOrder}${language}`, { replace: true });
       return null;
     } catch (error) {
       retry.settle(error);

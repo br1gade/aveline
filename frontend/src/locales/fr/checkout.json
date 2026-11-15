@@ -5,6 +5,14 @@
   "closed": "La vente des billets s’est arrêtée au début de l’événement.",
   "empty": "Vous n’avez pas encore choisi de billets.",
   "chooseTickets": "Choisir des billets",
+  "held": {
+    "title": "Vous avez déjà une commande pour cet événement.",
+    "paid": "Ses billets sont sur la page de votre commande, dont le lien est dans votre e-mail.",
+    "reserved": "Elle attend votre banque. Terminez le paiement ou consultez la réponse de la banque avant de commander à nouveau.",
+    "open": "Ouvrir votre commande",
+    "again": "Commencer une nouvelle commande",
+    "checking": "Recherche d’une commande passée dans cet onglet…"
+  },
   "basket": {
     "heading": "Billets",
     "line_one": "{{count}} × {{name}}",

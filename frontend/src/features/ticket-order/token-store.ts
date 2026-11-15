@@ -7,6 +7,12 @@
  */
 export interface HeldOrder {
   accessToken: string;
+  /**
+   * The event it was placed for, from checkout: a buyer who comes back to that checkout, with the
+   * Back button or from the bank, is shown this order rather than a form that would place a second
+   * (design PD-152, audit F-07). Absent for an order opened from its emailed link.
+   */
+  eventSlug?: string | undefined;
 }
 
 const STORAGE_KEY = 'aveline-ticket-order';
@@ -23,8 +29,12 @@ function storage(): Storage | null {
 
 function isHeldOrder(value: unknown): value is HeldOrder {
   if (typeof value !== 'object' || value === null) return false;
-  const { accessToken } = value as Record<string, unknown>;
-  return typeof accessToken === 'string' && accessToken !== '';
+  const { accessToken, eventSlug } = value as Record<string, unknown>;
+  return (
+    typeof accessToken === 'string' &&
+    accessToken !== '' &&
+    (eventSlug === undefined || typeof eventSlug === 'string')
+  );
 }
 
 function readStored(): HeldOrder | null {

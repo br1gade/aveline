@@ -5,6 +5,7 @@
  * and at the end, once each, and not when the page opens, which says the time itself.
  */
 const MINUTE = 60_000;
+const SECOND = 1_000;
 
 /** The server's clock less this device's, from a response's `Date` header; 0 when unreadable. */
 export function clockOffset(dateHeader: string | null, receivedAtMs: number): number {
@@ -12,10 +13,15 @@ export function clockOffset(dateHeader: string | null, receivedAtMs: number): nu
   return Number.isNaN(serverNow) ? 0 : serverNow - receivedAtMs;
 }
 
-/** Whole minutes left, rounded up so "1 minute" lasts until the hold ends; 0 once it has. */
+/**
+ * Whole minutes left, rounded up so "1 minute" lasts until the hold ends; 0 once it has. The `Date`
+ * header drops the server clock's fraction of a second, so up to a second is allowed before
+ * rounding up: a fresh 15-minute hold reads 15, not 16 (audit F-35).
+ */
 export function holdMinutesLeft(reservesUntil: string, nowMs: number, offsetMs: number): number {
   const left = Date.parse(reservesUntil) - (nowMs + offsetMs);
-  return Number.isNaN(left) || left <= 0 ? 0 : Math.ceil(left / MINUTE);
+  if (Number.isNaN(left) || left <= 0) return 0;
+  return Math.max(1, Math.ceil((left - SECOND) / MINUTE));
 }
 
 export type HoldAnnouncement = 'five' | 'one' | 'over';

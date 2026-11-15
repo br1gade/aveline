@@ -23,6 +23,8 @@ export function TicketQr({ code, holder }: { code: string; holder: string }) {
         <path d={path} fill="currentColor" />
       </svg>
       <p className="text-text-muted m-0 text-sm">{t('ticket.qrHint')}</p>
+      {/* No signal at the door leaves a reloaded page with nothing to show (audit F-22). */}
+      <p className="text-text-muted m-0 text-sm">{t('ticket.keepHint')}</p>
     </div>
   );
 }

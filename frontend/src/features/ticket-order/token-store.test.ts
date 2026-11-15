@@ -44,6 +44,17 @@ describe('the order this tab holds', () => {
     expect(heldOrder()).toBeNull();
   });
 
+  it('keeps the event the order was placed for, and nothing else of it (PD-152)', () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: 'autumn-jazz-night' });
+    expect(heldOrder()).toEqual({ accessToken: TOKEN, eventSlug: 'autumn-jazz-night' });
+    forgetOrder();
+    sessionStorage.setItem(
+      'aveline-ticket-order',
+      JSON.stringify({ accessToken: TOKEN, eventSlug: 7 }),
+    );
+    expect(heldOrder()).toBeNull();
+  });
+
   it('forgets the order', () => {
     holdOrder({ accessToken: TOKEN });
     forgetOrder();

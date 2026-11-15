@@ -26,6 +26,9 @@ describe('the time left on the hold', () => {
     ['2026-10-31T12:20:00.000Z', 0, 0],
     ['2026-10-31T12:00:00.000Z', 120_000, 13],
     ['2026-10-31T12:14:00.000Z', -60_000, 2],
+    // The Date header's lost fraction: a fresh hold is still 15 minutes, not 16 (audit F-35).
+    ['2026-10-31T11:59:59.100Z', 0, 15],
+    ['2026-10-31T12:14:59.900Z', 0, 1],
   ])('at %s with the server %i ms ahead, %i minutes are left', (now, offset, minutes) => {
     expect(holdMinutesLeft(until, Date.parse(now), offset)).toBe(minutes);
   });

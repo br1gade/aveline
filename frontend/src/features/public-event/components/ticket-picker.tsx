@@ -5,6 +5,7 @@ import { generatePath } from 'react-router';
 import { formatMinor } from '@/lib/money';
 import { APP_PATHS } from '@/route-paths';
 import { Button, ButtonLink, useIsHydrated } from '@/ui';
+import { SelectBox } from '@/ui/form';
 
 import {
   basketParam,
@@ -67,18 +68,18 @@ function TicketRow({ event, type, quantity, onChange }: TicketRowProps) {
           <label htmlFor={id} className="text-sm font-medium">
             {t('tickets.quantity', { name: type.name ?? t('tickets.unnamed') })}
           </label>
-          <select
+          <SelectBox
             id={id}
             value={quantity}
             onChange={(change) => onChange(boundedQuantity(type, Number(change.target.value)))}
-            className="border-control-edge bg-porcelain min-h-(--control-height) min-w-24 border px-3"
+            className="border-control-edge bg-porcelain w-full min-w-24 border pr-10 pl-3"
           >
             {quantities(type).map((count) => (
               <option key={count} value={count}>
                 {count}
               </option>
             ))}
-          </select>
+          </SelectBox>
         </div>
       ) : null}
     </li>

@@ -71,6 +71,7 @@
     "cancelled": "Annulé",
     "qrFor": "Code QR du billet de {{holder}}",
     "qrHint": "Augmentez la luminosité de votre écran au moment du scan à l’entrée.",
+    "keepHint": "Si le lieu risque de ne pas avoir de réseau, gardez une capture d’écran de ce code avant de partir.",
     "seat": "{{sectionName}} · Rang {{row}}, place {{seat}}"
   },
   "totals": {

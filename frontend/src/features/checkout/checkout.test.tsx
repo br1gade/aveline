@@ -8,7 +8,7 @@ import { createRoutesStub, useLoaderData } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readBasket, type PublicEvent } from '@/features/public-event';
-import { forgetOrder, heldOrder } from '@/features/ticket-order';
+import { fetchOrder, forgetOrder, heldOrder, holdOrder } from '@/features/ticket-order';
 import { createI18n } from '@/lib/i18n';
 import { APP_PATHS } from '@/route-paths';
 
@@ -17,6 +17,11 @@ import { leaveForBank } from '@/lib/links/bank';
 import { LeaveGuard } from '@/ui/app-form';
 import { EVENT, PER_VENUE_RULES } from './test-data';
 import { isUnloadAsked } from '../../../test/unload';
+
+vi.mock('@/features/ticket-order', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  fetchOrder: vi.fn(),
+}));
 
 vi.mock('@/lib/links/bank', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -67,6 +72,7 @@ beforeEach(() => {
   forgetOrder();
   sessionStorage.clear();
   vi.mocked(leaveForBank).mockClear();
+  vi.mocked(fetchOrder).mockReset();
 });
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
@@ -162,7 +168,7 @@ describe('checkout for an event answered once (PD-79)', () => {
         ],
       },
     ]);
-    expect(heldOrder()).toEqual({ accessToken: TOKEN });
+    expect(heldOrder()).toEqual({ accessToken: TOKEN, eventSlug: EVENT.slug });
     expect(document.body.innerHTML).not.toContain(TOKEN);
   });
 
@@ -329,6 +335,61 @@ describe('checkout for an event answered once (PD-79)', () => {
     const second = await ticket(2);
     expect(within(second).getByLabelText('First name')).toHaveValue('');
     expect(within(second).getByRole('checkbox', { name: 'This ticket is for me' })).toBeDisabled();
+  });
+});
+
+describe('an order this tab already holds for the event (PD-152, audit F-07)', () => {
+  /** What the order's read says of it; only its status matters here. */
+  function readAs(status: string) {
+    vi.mocked(fetchOrder).mockResolvedValue({
+      order: { status },
+      serverDate: null,
+      receivedAt: 0,
+    } as unknown as Awaited<ReturnType<typeof fetchOrder>>);
+  }
+
+  it('shows that order in place of a form that would place a second', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    readAs('PAID');
+    renderCheckout();
+    expect(
+      await screen.findByText('You already have an order for this event.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open your order' })).toHaveAttribute(
+      'href',
+      `${APP_PATHS.ticketOrder}?lang=${EVENT.locale}`,
+    );
+    expect(screen.queryByRole('region', { name: 'Your details' })).not.toBeInTheDocument();
+    expect(vi.mocked(fetchOrder).mock.calls[0]?.[1]).toBe(TOKEN);
+  });
+
+  it('says a reservation waits for the bank', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    readAs('RESERVED');
+    renderCheckout();
+    expect(await screen.findByText(/It is waiting for your bank/)).toBeInTheDocument();
+  });
+
+  it('starts a new order when asked, forgetting the one held', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    readAs('PAID');
+    const { user } = renderCheckout();
+    await user.click(await screen.findByRole('button', { name: 'Start a new order' }));
+    expect(await screen.findByRole('region', { name: 'Your details' })).toBeInTheDocument();
+    expect(heldOrder()).toBeNull();
+  });
+
+  it('shows the form for an order held for another event, or one no longer live', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: 'another-event' });
+    const first = renderCheckout();
+    expect(await screen.findByRole('region', { name: 'Your details' })).toBeInTheDocument();
+    expect(fetchOrder).not.toHaveBeenCalled();
+    first.unmount();
+
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    readAs('EXPIRED');
+    renderCheckout();
+    expect(await screen.findByRole('region', { name: 'Your details' })).toBeInTheDocument();
   });
 });
 
@@ -552,7 +613,7 @@ describe('paying and promo codes (PD-82)', () => {
     expect(screen.getAllByText(/15,000/).length).toBeGreaterThan(0);
     await user.click(await screen.findByRole('button', { name: 'Continue to payment' }));
     await waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.test/pay?id=1'));
-    expect(heldOrder()).toEqual({ accessToken: TOKEN });
+    expect(heldOrder()).toEqual({ accessToken: TOKEN, eventSlug: EVENT.slug });
     // The browser's "Leave site?" would stand between the buyer and the bank.
     await waitFor(() => expect(isUnloadAsked()).toBe(false));
   });

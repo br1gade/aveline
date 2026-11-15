@@ -149,6 +149,8 @@ describe("the buyer's order (PD-81)", () => {
     expect(drawing.tagName.toLowerCase()).toBe('svg');
     expect(drawing.outerHTML).not.toContain('SAMPLE-CODE');
     expect(within(items[0]!).getByText(/brightness/)).toBeVisible();
+    // No signal at the door (audit F-22).
+    expect(within(items[0]!).getByText(/keep a screenshot of this code/)).toBeVisible();
     expect(within(items[0]!).getByText('SAMPLE-CODE-1')).toBeVisible();
     // Admitted already: nothing left to scan, and it still says so.
     expect(within(items[1]!).queryByRole('img')).not.toBeInTheDocument();

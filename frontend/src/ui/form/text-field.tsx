@@ -2,6 +2,7 @@ import { useId, type ComponentProps, type ReactNode } from 'react';
 
 import { cx } from '../cx';
 import { Icon } from '../icon';
+import { SelectBox } from './select-box';
 
 interface FieldFrameProps {
   label: ReactNode;
@@ -13,8 +14,11 @@ interface FieldFrameProps {
   counter?: string | undefined;
 }
 
-const INPUT =
-  'border-control-edge bg-porcelain text-ink placeholder:text-ink-muted hover:border-action focus:outline-focus focus:border-focus disabled:bg-linen disabled:text-ink-muted disabled:border-sand box-border w-full rounded-none border px-4 py-3 text-base leading-6 focus:outline-2 focus:outline-offset-0';
+const BOX =
+  'border-control-edge bg-porcelain text-ink placeholder:text-ink-muted hover:border-action focus:outline-focus focus:border-focus disabled:bg-linen disabled:text-ink-muted disabled:border-sand box-border w-full rounded-none border py-3 text-base leading-6 focus:outline-2 focus:outline-offset-0';
+const INPUT = `${BOX} px-4`;
+/** Room on the right for the chevron `SelectBox` draws. */
+const SELECT = `${BOX} pr-10 pl-4`;
 
 function useFieldIds(id: string | undefined) {
   const generated = useId();
@@ -138,15 +142,15 @@ export function SelectField({
   const frame = { label, optionalText, help, error, counter };
   return (
     <Frame ids={ids} frame={frame}>
-      <select
+      <SelectBox
         id={ids.fieldId}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(ids, frame)}
-        className={cx(INPUT, 'min-h-(--control-height)', error && 'border-error')}
+        className={cx(SELECT, error && 'border-error')}
         {...select}
       >
         {children}
-      </select>
+      </SelectBox>
     </Frame>
   );
 }
