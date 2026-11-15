@@ -20,7 +20,9 @@ export function stepsFor(layer, env = process.env) {
       { command: 'docker', args: ['build', '--file', 'Dockerfile.backup', '--tag', backup, '.'] },
       { command: 'docker', args: ['build', '--tag', web,
         '--build-arg', 'VITE_PUBLIC_ORIGIN=https://aveline.test',
-        '--build-arg', 'VITE_MEDIA_BASE_URL=https://media.aveline.test', '../frontend'] },
+        '--build-arg', 'VITE_MEDIA_BASE_URL=https://media.aveline.test',
+        // The image refuses to build with no support contact (design C-54); a test address, as release.yml passes the real one.
+        '--build-arg', 'VITE_SUPPORT_EMAIL=support@aveline.test', '../frontend'] },
       { command: process.execPath, args: ['scripts/ops-rehearsal.mjs'] },
       { command: process.execPath, args: ['scripts/pilot-rehearsal.mjs'] },
       { command: process.execPath, args: ['scripts/backup-rehearsal.mjs'] },
