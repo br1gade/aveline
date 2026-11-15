@@ -26,7 +26,8 @@ const PRODUCTION = {
   CORS_ORIGINS: 'https://aveline.am, https://admin.aveline.am',
   JWT_SECRET: 'production-test-secret-that-is-long-enough-to-be-real',
   PUBLIC_APP_URL: 'https://aveline.am',
-  PILOT_MODE: 'true',
+  // Payments on, so a paid checkout reaches the gateway lookup and proves FAKE is absent.
+  PILOT_MODE: 'false',
   MAIL_REPLY_TO: 'support@aveline.am',
   LOG_LEVEL: 'silent',
 };
