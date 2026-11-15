@@ -376,7 +376,9 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   mock). The development server's inline styles send the document's address as the referrer of
   font requests; the production build's stylesheet does not.
 - **Not found:** a guest link that opens nothing (wrong, a draft, past its retention date) is a
-  404 with the invitation's own not-found page, in all four languages.
+  404 with the invitation's own not-found page, in all four languages: since 14 November 2026 in
+  the visitor's, negotiated as the account pages' is (PD-40), as there is no invitation to name one
+  (audit F-15).
 - **A guest's token** (their personal link segment) arrives in `GET /events/:eventId/guests` and
   in the answers to adding and correcting a guest (FR-29). It stops where the response arrives:
   `features/guests/read.ts` builds every object by naming its fields, and the write calls resolve
@@ -960,6 +962,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 12 Nov 2026 | **The frontend workflow is written but not enabled**, `/privacy` is a marked placeholder, checkout's "This ticket is for me" waits for hydration, and the suite follows a paid plan through the FAKE bank | The workflow runs by hand only until launch, by the frontend lead's decision; `.github/` was edited once, on their word. The privacy notice is Arthur's to draft and a lawyer's to check (C-50): the placeholder gives the form and Help somewhere to point, and says first not to rely on it (PD-194). The toggle copies through its handler, so before hydration it showed ticked with nothing copied, which the suite found |
 | 13 Nov 2026 | **The backend's `ef1023a` and `874b929` are adopted:** the brief is checked against the schema again (FR-149); the suite asks a development stack to send its mail now (FR-152) and to put a plan on sale (FR-154), and skips the paid journeys, saying why, on any other; the event title's help says guests and buyers see it; the vendor picker with nothing to choose says so and leads to the organization's vendors | The development routes are a 404 on staging, which runs as production, so `test/e2e/support/stack.ts` asks once which kind of stack it is. The title is public in emails, orders and tickets, and an empty picker left the host with no way forward: both were the backend's findings from a manual walk |
 | 13 Nov 2026 | **The rendering server passes each visitor's address to the API.** Its four server loaders (the invitation, the guest's reply, public events and the price list) read through `createVisitorApi` (`src/api/visitor.server.ts`), which sends the last `X-Forwarded-For` entry Caddy recorded, or nothing | The API limits each address and trusts one hop. Without the address every visitor shared this server's one allowance per route, so one fast requester could put every guest page into 429s (`docs/GOING_LIVE.md` 13c). Only the last entry counts, because anything before it is what the visitor claimed |
+| 14 Nov 2026 | **The production image is not built without a way to reach Aveline:** the `Dockerfile` refuses when all four `VITE_SUPPORT_*` arguments are empty | Without one, the Help page and the two payment errors name nobody (C-54, audit F-04). Local builds and `npm run verify` stay free of it; a malformed value is still refused when a page is rendered, not at build, as the 6 November entry had said |
 
 ## 12. Not yet built
 
@@ -1103,7 +1106,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
   `VITE_PUBLIC_ORIGIN` set to its public https origin: brief links are built on it, and the booking
   page refuses to copy one on a local or `http` origin from a real `https` page (BACKEND_REQUESTS §4).
   It also needs the support contacts, `VITE_SUPPORT_*`, a launch gate (C-54), and `VITE_SITE_URL` once
-  the site exists; each is a build argument in the `Dockerfile`.
+  the site exists; each is a build argument in the `Dockerfile`, which since 14 November 2026 refuses
+  to build without at least one way to reach Aveline.
 - CI (BA-3): **`.github/workflows/frontend.yml` is written and not enabled**: it runs `npm run verify`
   only when started by hand, and is switched on before launch by adding its `push` and `pull_request`
   triggers, as its header says. Until then `npm run verify` is the frontend's only gate, as `ci:local`

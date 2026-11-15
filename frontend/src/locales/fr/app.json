@@ -72,10 +72,10 @@
     },
     "signOutFailed": "Impossible de déconnecter vos autres appareils. Veuillez réessayer.",
     "unconfirmed": {
-      "body": "Confirmez votre adresse e-mail : nous avons envoyé un lien à {{email}}.",
-      "send": "Envoyer un nouveau lien",
-      "sent": "Un nouveau lien part vers {{email}}. Les liens envoyés avant lui ne fonctionnent plus.",
-      "failed": "Nous n’avons pas pu envoyer de nouveau lien. Veuillez réessayer."
+      "body": "Confirmez votre adresse e-mail, {{email}} : nous vous enverrons un lien à ouvrir.",
+      "send": "M’envoyer le lien",
+      "sent": "Un lien part vers {{email}}. Les liens envoyés avant lui ne fonctionnent plus.",
+      "failed": "Nous n’avons pas pu envoyer le lien. Veuillez réessayer."
     }
   },
   "home": {

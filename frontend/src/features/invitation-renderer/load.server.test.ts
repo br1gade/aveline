@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { plantedToken } from '../../../test/tokens';
 import { block, invitationFixture } from './fixtures';
 import { loadInvitationPage } from './load.server';
+import { invitationLanguage } from './page-data';
 
 const ORIGIN = 'http://api.internal';
 const token = plantedToken();
@@ -63,10 +64,12 @@ describe('a personal page whose template has private artwork', () => {
         HttpResponse.json({ statusCode: 404, message: 'Not found' }, { status: 404 }),
       ),
     );
-    await expect(
-      loadInvitationPage({ slug: 'anna', guestToken: token }, visitorPage),
-    ).resolves.toEqual({
-      state: 'not-found',
+    const armenian = new Request('https://aveline.test/invitations/anna', {
+      headers: { cookie: 'aveline-lang=hy' },
     });
+    const page = await loadInvitationPage({ slug: 'anna', guestToken: token }, armenian);
+    // In the visitor's language, as the app's other missing pages are (audit F-15).
+    expect(page).toEqual({ state: 'not-found', language: 'hy' });
+    expect(invitationLanguage(page)).toBe('hy');
   });
 });

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -10,7 +10,7 @@ import { HelpPage } from './components/help-page';
 function show(language: 'en' | 'hy' = 'en') {
   render(
     <I18nextProvider i18n={createI18n(language)}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/help']}>
         <HelpPage />
       </MemoryRouter>
     </I18nextProvider>,
@@ -20,12 +20,14 @@ function show(language: 'en' | 'hy' = 'en') {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('the Help page (C-54, PD-180)', () => {
-  it('leads to the privacy notice', () => {
+  it('leads to the privacy notice, and the frame under it does too, but not to itself', () => {
     show();
-    expect(screen.getByRole('link', { name: 'Privacy notice' })).toHaveAttribute(
-      'href',
-      '/privacy',
-    );
+    expect(
+      within(screen.getByRole('main')).getByRole('link', { name: 'Privacy notice' }),
+    ).toHaveAttribute('href', '/privacy');
+    const links = screen.getByRole('navigation', { name: 'Privacy and help' });
+    expect(within(links).getByRole('link', { name: 'Privacy notice' })).toBeInTheDocument();
+    expect(within(links).queryByRole('link', { name: 'Help and contact' })).not.toBeInTheDocument();
   });
 
   it('lists every contact set, each leading where it should, and the languages answered in', () => {

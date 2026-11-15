@@ -16,6 +16,22 @@ import { useFieldText } from '../use-field-text';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
 
+/**
+ * Ways on from creating an account: signing in instead, and the privacy notice and Help, read
+ * before giving an address (audit F-03).
+ */
+function RegisterLinks() {
+  const { t } = useTranslation('account');
+  const { t: common } = useTranslation('common');
+  return (
+    <>
+      <AccountLink to={ROUTE_PATHS.signIn}>{t('links.signIn')}</AccountLink>
+      <AccountLink to={APP_PATHS.privacy}>{common('support.privacy')}</AccountLink>
+      <AccountLink to={APP_PATHS.help}>{common('support.link')}</AccountLink>
+    </>
+  );
+}
+
 function CheckEmail() {
   const { t } = useTranslation('account');
   return (
@@ -55,11 +71,7 @@ export function Register() {
 
   if (isCheckingEmail) return <CheckEmail />;
   return (
-    <AccountLayout
-      title={t('register.title')}
-      lead={t('register.lead')}
-      footer={<AccountLink to={ROUTE_PATHS.signIn}>{t('links.signIn')}</AccountLink>}
-    >
+    <AccountLayout title={t('register.title')} lead={t('register.lead')} footer={<RegisterLinks />}>
       {problem ? <ProblemAlert problem={problem} refused={() => t('problems.check')} /> : null}
       <AppForm onSubmit={form.handleSubmit(onSubmit)}>
         <TextInputField

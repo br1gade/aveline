@@ -31,6 +31,13 @@ export default function Home() {
       </h1>
       <p>{t('home.body')}</p>
       <nav className="flex flex-wrap gap-x-6">
+        {/* Hosts' way in: the front page had none (audit F-26). */}
+        <Link to={ROUTE_PATHS.signIn} className={LINK}>
+          {t('home.signIn')}
+        </Link>
+        <Link to={APP_PATHS.register} className={LINK}>
+          {t('home.register')}
+        </Link>
         <Link to={APP_PATHS.publicEvents} className={LINK}>
           {t('home.browse')}
         </Link>

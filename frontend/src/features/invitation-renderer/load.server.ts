@@ -1,7 +1,7 @@
 import { createVisitorApi } from '@/api/visitor.server';
 import { isApiError } from '@/api/errors';
 import { retryOnConflict } from '@/api/retry';
-import { createI18n, isLanguage, SOURCE_LANGUAGE } from '@/lib/i18n';
+import { createI18n, isLanguage, negotiateLanguage, SOURCE_LANGUAGE } from '@/lib/i18n';
 
 import { fetchInvitation, type InvitationRequest } from './api';
 import type { InvitationPageData, PreviewMeta } from './page-data';
@@ -17,7 +17,8 @@ export function previewMeta(invitation: Invitation): PreviewMeta {
 
 /**
  * Loads an invitation on the server, through the internal API address. A 404 (a wrong link, a
- * draft, one past its retention date, C-22, or past its expiry) becomes the not-found page; a 409
+ * draft, one past its retention date, C-22, or past its expiry) becomes the not-found page, in the
+ * visitor's language as the app's other missing pages are (audit F-15); a 409
  * (the invitation changed while it was read) is tried again; anything else goes to the error
  * boundary with its request id.
  */
@@ -34,7 +35,7 @@ export async function loadInvitationPage(
     return { state: 'found', invitation, preview: previewMeta(invitation) };
   } catch (error) {
     if (isApiError(error) && error.status === 404) {
-      return { state: 'not-found' };
+      return { state: 'not-found', language: negotiateLanguage(incoming).language };
     }
     throw error;
   }

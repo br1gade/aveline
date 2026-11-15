@@ -218,10 +218,10 @@ describe('an address not yet confirmed (FR-5)', () => {
     );
     const user = renderShell('anna@example.am');
     expect(screen.getByText(/Confirm your email address/)).toHaveTextContent('anna@example.am');
-    await user.click(screen.getByRole('button', { name: 'Send a new link' }));
+    await user.click(screen.getByRole('button', { name: 'Send me the link' }));
     expect(
       await screen.findByText(
-        'A new link is on its way to anna@example.am. Links sent before it no longer work.',
+        'A link is on its way to anna@example.am. Any link sent before it no longer works.',
       ),
     ).toBeInTheDocument();
     expect(sent).toBe(1);
@@ -234,9 +234,9 @@ describe('an address not yet confirmed (FR-5)', () => {
       ),
     );
     const user = renderShell('anna@example.am');
-    await user.click(screen.getByRole('button', { name: 'Send a new link' }));
+    await user.click(screen.getByRole('button', { name: 'Send me the link' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Too many attempts.');
-    expect(screen.getByRole('button', { name: 'Send a new link' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Send me the link' })).toBeEnabled();
   });
 
   it('says nothing once the address is confirmed', () => {

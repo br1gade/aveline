@@ -10,13 +10,19 @@ COPY . .
 ARG VITE_PUBLIC_ORIGIN
 ARG VITE_API_BASE_URL=""
 ARG VITE_MEDIA_BASE_URL=""
-# How customers reach Aveline, and its website (design C-54, C-35): each optional, set for production.
+# How customers reach Aveline, and its website (design C-54, C-35). At least one way to reach
+# Aveline must be set: without one, the Help page and the two payment errors name nobody (audit
+# F-04), so the image is not built. The website stays optional.
 ARG VITE_SUPPORT_EMAIL=""
 ARG VITE_SUPPORT_PHONE=""
 ARG VITE_SUPPORT_WHATSAPP=""
 ARG VITE_SUPPORT_TELEGRAM=""
 ARG VITE_SITE_URL=""
-RUN test -n "$VITE_PUBLIC_ORIGIN" && npm run build
+RUN test -n "$VITE_PUBLIC_ORIGIN" || { echo "Set VITE_PUBLIC_ORIGIN, this client's public https origin." >&2; exit 1; }
+RUN test -n "$VITE_SUPPORT_EMAIL$VITE_SUPPORT_PHONE$VITE_SUPPORT_WHATSAPP$VITE_SUPPORT_TELEGRAM" || { \
+      echo "Set at least one of VITE_SUPPORT_EMAIL, VITE_SUPPORT_PHONE, VITE_SUPPORT_WHATSAPP and VITE_SUPPORT_TELEGRAM (design C-54)." >&2; \
+      exit 1; }
+RUN npm run build
 
 FROM node:24-slim AS dependencies
 WORKDIR /app

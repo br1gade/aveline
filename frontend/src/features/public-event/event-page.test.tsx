@@ -82,15 +82,36 @@ describe("a public event's page (PD-78)", () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('says in four languages that an address opens no event', () => {
+  it('says in four languages that an address opens no event', async () => {
+    const Stub = createRoutesStub([{ path: '/events/:slug', Component: EventNotFound }]);
     render(
       <I18nextProvider i18n={createI18n('en')}>
-        <EventNotFound />
+        <Stub initialEntries={['/events/gone']} />
       </I18nextProvider>,
     );
-    expect(screen.getByRole('heading', { name: 'This event isn’t available' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'This event isn’t available' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Այս միջոցառումը հասանելի չէ։')).toHaveAttribute('lang', 'hy');
     expect(screen.getByText('Это мероприятие недоступно.')).toHaveAttribute('lang', 'ru');
     expect(screen.getByText('Cet événement n’est pas disponible.')).toHaveAttribute('lang', 'fr');
+  });
+
+  it('links the privacy notice and Help under the page (audit F-03)', async () => {
+    const Stub = createRoutesStub([{ path: '/events/:slug', Component: EventNotFound }]);
+    render(
+      <I18nextProvider i18n={createI18n('en')}>
+        <Stub initialEntries={['/events/gone']} />
+      </I18nextProvider>,
+    );
+    const links = await screen.findByRole('navigation', { name: 'Privacy and help' });
+    expect(within(links).getByRole('link', { name: 'Privacy notice' })).toHaveAttribute(
+      'href',
+      '/privacy',
+    );
+    expect(within(links).getByRole('link', { name: 'Help and contact' })).toHaveAttribute(
+      'href',
+      '/help',
+    );
   });
 });

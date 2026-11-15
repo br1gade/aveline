@@ -1,5 +1,7 @@
 import type { MetaDescriptor } from 'react-router';
 
+import { languageOf, type Language } from '@/lib/i18n';
+
 import type { Invitation } from './types';
 
 /** What a link preview may show: the hosts, the occasion, the cover. Never the guest (C-18). */
@@ -10,7 +12,8 @@ export interface PreviewMeta {
 
 /** A guest page's loader data. */
 export type InvitationPageData =
-  { state: 'found'; invitation: Invitation; preview: PreviewMeta } | { state: 'not-found' };
+  | { state: 'found'; invitation: Invitation; preview: PreviewMeta }
+  | { state: 'not-found'; language: Language };
 
 const ROBOTS: MetaDescriptor = { name: 'robots', content: 'noindex, nofollow' };
 
@@ -34,9 +37,9 @@ export function invitationMeta(data: InvitationPageData | undefined): MetaDescri
 
 /** The language a guest page is in: the one the response names (API.md §1). */
 export function invitationLanguage(data: unknown): string | undefined {
-  if (typeof data !== 'object' || data === null || !('invitation' in data)) {
-    return undefined;
-  }
+  if (typeof data !== 'object' || data === null) return undefined;
+  // No invitation: the language negotiated for the not-found page.
+  if (!('invitation' in data)) return languageOf(data);
   const { invitation } = data;
   return typeof invitation === 'object' &&
     invitation !== null &&

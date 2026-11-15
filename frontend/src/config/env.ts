@@ -36,7 +36,8 @@ const publicSchema = z.object({
   VITE_MEDIA_BASE_URL: z.string().default(''),
   /**
    * How customers reach Aveline (design C-54): each one shown where it is set, on the Help page, the
-   * price list and the two payment errors. Empty is not shown; a malformed one stops the build.
+   * price list and the two payment errors. Empty is not shown. The production image is not built
+   * with all four empty (`Dockerfile`); a malformed one is refused when the server renders a page.
    */
   VITE_SUPPORT_EMAIL: optional((value) => isEmailShaped(value)),
   /** A phone number in international form, such as `+37410123456`. */

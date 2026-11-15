@@ -5,7 +5,9 @@
     "body": "Des invitations pour les jours qui comptent. Ouvrez le lien personnel que vous avez reçu pour voir votre invitation.",
     "browse": "Parcourir les événements publics",
     "pricing": "Voir les tarifs",
-    "privacy": "Une demande sur vos données"
+    "privacy": "Une demande sur vos données",
+    "signIn": "Se connecter",
+    "register": "Créer un compte"
   },
   "notFound": {
     "title": "Cette page n’est pas disponible",
@@ -50,6 +52,7 @@
       "whatsapp": "WhatsApp",
       "telegram": "Telegram"
     },
-    "privacy": "Notice de confidentialité"
+    "privacy": "Notice de confidentialité",
+    "footerLabel": "Confidentialité et aide"
   }
 }
