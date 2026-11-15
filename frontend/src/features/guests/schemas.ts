@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { SIDES } from './types';
+import { isWorkbookName } from './import-file';
 
 /**
  * The guest forms' checks, with the backend's own limits (`AddGuestDto`, `UpdateGuestDto`,
@@ -17,7 +18,8 @@ export type GuestFieldCode =
   | 'householdFull'
   | 'email'
   | 'phone'
-  | 'refused';
+  | 'refused'
+  | 'notCsv';
 
 const code = (value: GuestFieldCode) => ({ error: value });
 
@@ -97,7 +99,8 @@ export const importFormSchema = z.object({
   files: z
     .custom<FileList>((value) => typeof value === 'object' && value !== null && 'length' in value)
     .refine((files) => files.length > 0, code('required'))
-    .refine((files) => (files[0]?.size ?? 0) <= MAX_IMPORT_BYTES, code('tooLarge')),
+    .refine((files) => (files[0]?.size ?? 0) <= MAX_IMPORT_BYTES, code('tooLarge'))
+    .refine((files) => !isWorkbookName(files[0]?.name ?? ''), code('notCsv')),
 });
 
 export type ImportFormValues = z.output<typeof importFormSchema>;

@@ -100,6 +100,7 @@
       "phone": "This doesn’t look like a phone number.",
       "refused": "This wasn’t accepted. Check it and try again.",
       "chooseFile": "Choose a CSV file.",
+      "notCsv": "This is a spreadsheet file, not CSV. Save it as “CSV UTF-8 (comma delimited)” first, then choose that file.",
       "other": "Check this field."
     }
   },
@@ -161,6 +162,7 @@
     "lead": "Upload a CSV file of up to 2 MB and 2,000 guests. Each row is a guest, and a first name is all a row needs.",
     "columns": "Columns are found by their heading: first name, last name, email, phone, household, seats, side and language. Guests who share a household name are invited together.",
     "excel": "From Excel or Google Sheets, save the file as “CSV UTF-8 (comma delimited)”. A file saved another way may not be read.",
+    "sample": "Download a sample file",
     "again": "Uploading a corrected file again updates the guests already there rather than adding them twice.",
     "submit": "Import",
     "submitAgain": "Import the corrected file",

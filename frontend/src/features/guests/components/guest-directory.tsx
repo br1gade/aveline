@@ -340,7 +340,7 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
       <SendingNotes event={event} delivery={delivery} sender={sender} />
       <div className="flex flex-col gap-3">
         {households.length > 0 ? (
-          <div className="bg-background border-border sticky top-0 z-10 flex flex-col gap-3 border-b py-3">
+          <div className="bg-background border-border flex flex-col gap-3 border-b py-3 md:sticky md:top-0 md:z-10">
             <ListToolbar
               filter={filter}
               onQuery={setQuery}
@@ -354,7 +354,10 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
           {households.length > 0 ? countLine(visible, isFiltered, t) : ''}
         </p>
         <StatusLine statusRef={statusRef}>{status}</StatusLine>
-        {/* In the toolbar's own container, so the toolbar stays in view down the whole list. */}
+        {/*
+          In the toolbar's own container, so from `md` the toolbar stays in view down the whole list.
+          On a phone it scrolls away: with the send bar it is half the screen (design PD-44).
+        */}
         <Results
           eventId={event.id}
           households={households}

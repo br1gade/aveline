@@ -12,6 +12,7 @@ import { importGuests } from '../api';
 import type { GuestImportsData } from '../load';
 import { guestListPath } from '../paths';
 import { refusalOf, useRefusedText, type Refusal } from '../refusals';
+import { isWorkbookFile } from '../import-file';
 import { importFormSchema, type ImportFormValues } from '../schemas';
 import type { ImportResult } from '../types';
 import { useGuestFieldText } from '../use-field-text';
@@ -44,6 +45,10 @@ function ImportForm({ eventId, hasResult, onResult }: ImportFormProps) {
   const onSubmit = async ({ files }: ImportFormValues) => {
     const file = files[0];
     if (!file) return;
+    if (await isWorkbookFile(file)) {
+      form.setError('files', { message: 'notCsv' });
+      return;
+    }
     setRefusal(null);
     try {
       onResult(await importGuests(browserSession().api, eventId, file));
@@ -105,6 +110,14 @@ export function ImportGuests({ data }: { data: GuestImportsData }) {
         <p className="m-0">{t('import.lead')}</p>
         <p className="m-0">{t('import.columns')}</p>
         <p className="m-0">{t('import.excel')}</p>
+        {/* A file with every column the import reads, to start from (audit F-31). */}
+        <a
+          href="/guests-sample.csv"
+          download
+          className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
+        >
+          {t('import.sample')}
+        </a>
         <p className="text-muted-foreground m-0 text-sm">{t('import.again')}</p>
       </div>
       <div className="grid items-start gap-5 md:grid-cols-[1fr_18rem]">

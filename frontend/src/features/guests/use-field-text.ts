@@ -13,6 +13,7 @@ const CODES: readonly string[] = [
   'email',
   'phone',
   'refused',
+  'notCsv',
 ] satisfies GuestFieldCode[];
 
 function isFieldCode(code: string): code is GuestFieldCode {

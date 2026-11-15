@@ -21,6 +21,7 @@ beforeAll(async () => {
   await symlink(join(parent, 'client-evil'), join(root, 'assets', 'beside'));
   await writeFile(join(root, 'assets', 'entry-abc.js'), 'x');
   await writeFile(join(root, 'favicon.svg'), '<svg/>');
+  await writeFile(join(root, 'guests-sample.csv'), 'first name\n');
   await writeFile(join(root, 'data.unknown'), 'x');
   await writeFile(join(root, '.vite', 'manifest.json'), '{}');
   await writeFile(join(parent, 'secret.js'), 'x');
@@ -38,6 +39,12 @@ describe('staticFile', () => {
     expect(await staticFile(root, '/favicon.svg')).toMatchObject({
       contentType: 'image/svg+xml',
       cacheControl: 'public, max-age=3600',
+    });
+  });
+
+  it('serves the guest list sample as CSV text (audit F-31)', async () => {
+    expect(await staticFile(root, '/guests-sample.csv')).toMatchObject({
+      contentType: 'text/csv; charset=utf-8',
     });
   });
 

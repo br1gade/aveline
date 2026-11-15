@@ -115,4 +115,12 @@ describe('importFormSchema', () => {
     ]);
     expect(importFormSchema.safeParse({ files: file(MAX_IMPORT_BYTES) }).success).toBe(true);
   });
+
+  it.each(['guests.xlsx', 'GUESTS.XLS', 'list.ods', 'list.numbers'])(
+    'says a workbook, %s, must be saved as CSV first (audit F-31)',
+    (name) => {
+      const files = [{ name, size: 100 }] as unknown as FileList;
+      expect(codes(importFormSchema.safeParse({ files }))).toEqual([['files', 'notCsv']]);
+    },
+  );
 });

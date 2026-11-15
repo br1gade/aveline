@@ -106,6 +106,7 @@
       "phone": "Cela ne ressemble pas à un numéro de téléphone.",
       "refused": "Cela n’a pas été accepté. Vérifiez et réessayez.",
       "chooseFile": "Choisissez un fichier CSV.",
+      "notCsv": "Ceci est un classeur, pas un fichier CSV. Enregistrez-le d’abord au format « CSV UTF-8 (délimité par des virgules) », puis choisissez ce fichier.",
       "other": "Vérifiez ce champ."
     }
   },
@@ -167,6 +168,7 @@
     "lead": "Téléversez un fichier CSV de 2 Mo et 2 000 invités au plus. Chaque ligne est un invité, et un prénom suffit pour une ligne.",
     "columns": "Les colonnes sont reconnues par leur en-tête : prénom, nom, e-mail, téléphone, foyer, places, côté et langue. Les invités qui partagent un nom de foyer sont invités ensemble.",
     "excel": "Depuis Excel ou Google Sheets, enregistrez le fichier au format « CSV UTF-8 (délimité par des virgules) ». Un fichier enregistré autrement risque de ne pas être lu.",
+    "sample": "Télécharger un fichier d’exemple",
     "again": "Téléverser à nouveau un fichier corrigé met à jour les invités déjà présents au lieu de les ajouter deux fois.",
     "submit": "Importer",
     "submitAgain": "Importer le fichier corrigé",

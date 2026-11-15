@@ -4,6 +4,8 @@ import { Link } from 'react-router';
 
 import { recordAnswerPath, recordHouseholdPath } from '@/features/events';
 import { DeliveryLine, type DeliveryText } from '@/features/sending';
+import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { cn } from '@/ui/cn';
 import { Button } from '@/ui/kit/button';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { Label } from '@/ui/kit/label';
@@ -96,6 +98,13 @@ function ContactLines({ guest }: { guest: Guest }) {
 }
 
 /**
+ * A row's actions: on a phone two to a line, each the line's width and wrapping its words, so a long
+ * name in an Armenian or Russian label never pushes one button over another (audit F-18).
+ */
+const ROW_ACTIONS = 'grid grid-cols-2 items-center gap-2 sm:flex sm:flex-none sm:flex-wrap';
+const ROW_ACTION = cn(WRAPPING_BUTTON, 'w-full sm:w-auto');
+
+/**
  * One guest. No hooks of its own: a list of two thousand renders these, and the card above gives
  * them its words. An erased guest is never edited (the backend refuses it), so has no "Edit".
  */
@@ -122,12 +131,13 @@ function GuestRow(props: RowProps) {
         <Releases guest={guest} t={t} formatDay={formatDay} />
         <ContactLines guest={guest} />
       </div>
-      <div className="flex flex-none flex-wrap gap-2">
+      <div className={ROW_ACTIONS}>
         {props.canChange ? (
           <RowChanges {...props} onEdit={open('edit')} onRemove={open('remove')} />
         ) : null}
         <Button
           variant="ghost"
+          className={ROW_ACTION}
           aria-label={t('actionFor', { action: t('row.history'), name: guest.name })}
           onClick={(event) => onOpen({ kind: 'history', guest }, event.currentTarget)}
         >
@@ -154,6 +164,7 @@ function RowChanges({
       {guest.isErased ? null : (
         <Button
           variant="outline"
+          className={ROW_ACTION}
           aria-label={t('actionFor', { action: t('row.edit'), name: guest.name })}
           onClick={onEdit}
         >
@@ -163,6 +174,7 @@ function RowChanges({
       {guest.isErased ? null : <RecordAnswerLink eventId={eventId} guest={guest} t={t} />}
       <Button
         variant="ghost"
+        className={ROW_ACTION}
         aria-label={t('actionFor', { action: t('row.remove'), name: guest.name })}
         onClick={onRemove}
       >
@@ -186,7 +198,7 @@ function RecordAnswerLink({
   t: TFunction<'guests'>;
 }) {
   return (
-    <Button asChild variant="ghost">
+    <Button asChild variant="ghost" className={ROW_ACTION}>
       <Link
         to={recordAnswerPath(eventId, guest.id)}
         aria-label={t('actionFor', { action: t('row.recordAnswer'), name: guest.name })}
@@ -255,7 +267,7 @@ function RecordHouseholdLink({
   const answerable = household.guests.filter((guest) => !guest.isErased);
   if (answerable.length < 2) return null;
   return (
-    <Button asChild variant="ghost">
+    <Button asChild variant="ghost" className={ROW_ACTION}>
       <Link
         to={recordHouseholdPath(eventId, household.id)}
         aria-label={t('actionFor', { action: t('household.recordAnswers'), name: household.name })}
@@ -283,7 +295,7 @@ function HouseholdActions({
   'eventId' | 'household' | 't' | 'onOpen' | 'isChosen' | 'onChoose' | 'canChange'
 >) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={ROW_ACTIONS}>
       {isChosen === null ? null : (
         <ChooseBox household={household} isChosen={isChosen} onChoose={onChoose} t={t} />
       )}
@@ -305,6 +317,7 @@ function HouseholdChanges({
     <>
       <Button
         variant="ghost"
+        className={ROW_ACTION}
         aria-label={t('actionFor', { action: t('household.edit'), name: household.name })}
         onClick={(event) => onOpen({ kind: 'household', household }, event.currentTarget)}
       >
@@ -314,6 +327,7 @@ function HouseholdChanges({
       {hasFreeSeat(household) ? (
         <Button
           variant="ghost"
+          className={ROW_ACTION}
           aria-label={t('actionFor', { action: t('household.addHere'), name: household.name })}
           onClick={(event) =>
             onOpen({ kind: 'add', householdId: household.id }, event.currentTarget)
