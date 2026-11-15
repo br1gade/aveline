@@ -1,0 +1,68 @@
+{
+  "back": "Retour aux pages du personnel",
+  "title": "Comptes du personnel",
+  "lead": "Qui travaille chez Aveline, et avec quel rôle. Un changement s’applique à la prochaine requête de la personne.",
+  "role": {
+    "SUPPORT": {
+      "name": "Support",
+      "about": "Gère l’événement d’un client à sa place : invitations et invités. Ne peut ni supprimer un événement ni voir la facturation."
+    },
+    "ADMIN": {
+      "name": "Administrateur",
+      "about": "Tout, y compris la facturation, la suppression d’événements et la gestion du personnel."
+    }
+  },
+  "list": {
+    "title": "Personnel",
+    "none": "Aucun compte du personnel pour l’instant.",
+    "you": "Vous",
+    "limit": "Seuls les {{count, number}} premiers, par adresse, sont affichés.",
+    "refused": "Seuls les administrateurs d’Aveline gèrent les comptes du personnel."
+  },
+  "row": {
+    "makeAdmin": "Nommer administrateur",
+    "makeSupport": "Passer au support",
+    "remove": "Retirer du personnel",
+    "actionFor": "{{action}} : {{name}}"
+  },
+  "grant": {
+    "title": "Ajouter quelqu’un au personnel",
+    "lead": "La personne doit avoir un compte Aveline avec une adresse e-mail confirmée. Quelqu’un qui fait déjà partie du personnel reçoit le rôle choisi ici.",
+    "email": "Son adresse e-mail",
+    "role": "Son rôle",
+    "submit": "Attribuer le rôle",
+    "errors": {
+      "required": "Saisissez son adresse e-mail.",
+      "email": "Cela ne ressemble pas à une adresse e-mail.",
+      "tooLong": "Cette adresse est trop longue.",
+      "emailRefused": "Cette adresse n’a pas été acceptée. Vérifiez-la.",
+      "notFound": "Aucun compte Aveline n’utilise cette adresse. Demandez d’abord à la personne d’en créer un.",
+      "unverified": "Ce compte n’a pas encore confirmé son adresse e-mail. Demandez à la personne d’ouvrir le lien envoyé par Aveline."
+    }
+  },
+  "change": {
+    "title": "Donner à {{name}} le rôle {{role}} ?",
+    "ADMIN": "Un administrateur peut tout faire chez Aveline, y compris la facturation, la suppression d’événements et la gestion du personnel. Cela s’applique à sa prochaine requête.",
+    "SUPPORT": "La personne continue de gérer les événements des clients, mais perd ce que seul un administrateur peut faire, comme la facturation, la suppression d’événements et la gestion du personnel. Cela s’applique à sa prochaine requête."
+  },
+  "remove": {
+    "title": "Retirer {{name}} du personnel ?",
+    "body": "Son compte reste, comme un compte ordinaire : à sa prochaine requête, les pages du personnel lui sont fermées.",
+    "confirm": "Retirer du personnel"
+  },
+  "status": {
+    "granted": "{{name}} a maintenant le rôle {{role}}.",
+    "removed": "{{name}} ne fait plus partie du personnel."
+  },
+  "refused": {
+    "forbidden": "Seuls les administrateurs d’Aveline gèrent les comptes du personnel.",
+    "selfChange": "Vous ne pouvez pas modifier votre propre rôle. Demandez à un autre administrateur.",
+    "gone": "Ce compte ne faisait plus partie du personnel. La liste est de nouveau à jour.",
+    "notFound": "Aucun compte Aveline n’utilise cette adresse. Demandez d’abord à la personne d’en créer un.",
+    "unverified": "Ce compte n’a pas encore confirmé son adresse e-mail.",
+    "emailRefused": "Cette adresse n’a pas été acceptée. Vérifiez-la.",
+    "rateLimited": "Trop d’essais. Attendez une minute, puis réessayez.",
+    "noAnswer": "Aucune réponse. L’action a peut-être abouti : vérifiez la liste, puis réessayez.",
+    "other": "Cela n’a pas été accepté. La raison, en anglais :"
+  }
+}

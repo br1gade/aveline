@@ -68,6 +68,7 @@ export default [
       route(underApp(APP_PATHS.staffNewEvent), 'routes/app/staff-new-event.tsx'),
       route(underApp(APP_PATHS.staffDataRequests), 'routes/app/staff-data-requests.tsx'),
       route(underApp(APP_PATHS.staffAccessReviews), 'routes/app/staff-access-reviews.tsx'),
+      route(underApp(APP_PATHS.staffAccounts), 'routes/app/staff-accounts.tsx'),
       route(underApp(APP_PATHS.newEvent), 'routes/app/new-event.tsx'),
       route(underApp(APP_PATHS.archivedEvents), 'routes/app/archived-events.tsx'),
       // An event's pages, with what the caller may do on it (FR-6).

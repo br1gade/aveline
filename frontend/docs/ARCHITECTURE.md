@@ -110,7 +110,7 @@ invitation's publishing and sending, how guests answer, the designer, guests' ph
 agreements and the seating, the exports, ticket sales (`/app/events/:eventId/tickets`, its types
 and announcement), the orders and an event's activity, the organization's own settings
 (`/app/organization`, beside the chooser at `/app/organizations`), Aveline's own staff's tools
-(`/app/staff`, its customers, data requests and access reviews); the public price list,
+(`/app/staff`, its customers, data requests, access reviews and staff accounts); the public price list,
 `/pricing`; the Help page, `/help`; the placeholder privacy notice, `/privacy` (PD-194); checkout, `/events/:slug/checkout`, and the buyer's order once
 its token is out of the address, `/tickets`. The static `/app/events/new` ranks above
 `/app/events/:eventId`; `/venues/new` would rank above a `/venues/:venueId`, and `/guests/import`
@@ -723,6 +723,14 @@ brief and a guest's page, and `camera=(self)` on the app, the door and the bank'
 scanner still read a fake camera's ticket under it. **No real administrator account, closure or
 handover has run.**
 
+**Staff accounts (15 November 2026)** were walked against the local backend, not a mock, in hy and ru at
+360 px and 1280 px, with an administrator made by one `UPDATE` in the local database, which writes no
+`staff_role_changes` row. The administrator's own row offered nothing; an unregistered and an unconfirmed
+address were each refused in words under the field; Support was given, changed to Admin and removed, each
+change asked first. axe, 44 px targets, sideways scroll, the page's language and raw keys passed, the
+removal dialog open too. **English and French were not walked, and no end-to-end test covers the page
+(FR-157).**
+
 **Product's answers (6 November 2026)** were walked on a mock in hy, ru, en and fr, at 360 px with touch
 and at 1280 px, beside billing, the price list, the staff's tools and telling guests about a change:
 1,961 checks passed, axe clean in 330 runs, and 2,761 targets measured were 44 px at the least. The walk
@@ -975,10 +983,11 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 14 Nov 2026 | **The end-to-end suite runs on WebKit too,** a third project, `iphone` (390 px), beside the Chrome phone and desktop; and a dialog that sends the browser to a bank's page no longer reads its page again (`useDialogAction`'s `null` message) | The pre-launch audit found an iPhone's quantity menu 27 px high and React's "script tag" error as WebKit cancelled that read on the way to the bank (F-17, F-30), neither visible in Chrome. WebKit is a download, once per machine (`test/e2e/README.md`) |
 | 14 Nov 2026 | **Strings load in the page's language and English only,** one module per group and language, awaited at the top of the group's module | All four languages of every word were in each page's script: 216 KB gzipped of the app's alone, on a door opened over a phone's signal (audit F-23). Top-level await keeps the strings there before the route renders, so no loading state was added; the server and the tests still load all four |
 | 14 Nov 2026 | **A page under the app names its frame in its route `handle`** (`shell: 'compact'` for the door, `'wide'` for the guests and the seating), read by the app layout with `useMatches` | The door needed less header on a phone (PD-90) and the long lists more width on a desktop (PD-199); a handle keeps that beside the route, with no second layout route to keep in step |
+| 15 Nov 2026 | **Staff accounts are a feature of their own,** `features/staff-accounts`, at `/app/staff/accounts`, its refusals read from the API's codes rather than its sentences | The backend's `018e975` gave the routes and three stable codes, so no stand-in like PD-100's is needed; the link shows only for `platformRole` `ADMIN`, read from `GET /me` as PD-165 does |
 
 ## 12. Not yet built
 
-- Of the backend's deliveries to 13 November (`dev` at `874b929`), what the client is still to
+- Of the backend's deliveries to 13 November (`dev` at `018e975`, checked on 15 November), what the client is still to
   adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, and a
   build per origin (FR-11). The frontend workflow is written and not enabled, and the `ci:local` stage is the
   backend's, after the rehearsal (below, "CI"). Every answered
@@ -1015,7 +1024,9 @@ size check in the CSV's send that the disabled button already covers. **None of 
   publishing until a renderer manifest is registered in its code. Enquiries, which wait until the backend enables them, and with them carrying out a request that has no address; paging
   past the newest 50 organizations and the 200 soonest-due requests (FR-127). A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Binding an enquiry, which a request with an address can also need, and which answers the backend's
   words as they came (PD-168). Access reviews' names, read one by one (FR-133). Only a mock has met these: no real
-  staff account, no real erasure and no real closure.
+  erasure and no real closure, and no staff page has an end-to-end test, as nothing on a development stack
+  makes an administrator (FR-157). Staff accounts (PD-200) alone were walked against a local backend, once,
+  with an administrator set by hand in its database.
 - Of a ticket's QR code and the door's scanner (C-25, PD-171 to PD-174): **a real camera has never read a code.**
   A fake camera in Chromium has, so an iPhone and an Android phone, in real light at a real door, are still to
   come, as are a real refusal of permission, which the walk's browser can't produce, and a code on a printed

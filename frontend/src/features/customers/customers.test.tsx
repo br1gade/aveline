@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -275,9 +275,9 @@ describe('what the API layer keeps', () => {
 });
 
 describe('the staff’s home', () => {
-  function renderHome(access: Parameters<typeof StaffHome>[0]['access']) {
+  function renderHome(access: Parameters<typeof StaffHome>[0]['access'], isAdmin = false) {
     const Stub = createRoutesStub([
-      { path: APP_PATHS.staff, Component: () => <StaffHome access={access} /> },
+      { path: APP_PATHS.staff, Component: () => <StaffHome access={access} isAdmin={isAdmin} /> },
     ]);
     render(
       <I18nextProvider i18n={createI18n('en')}>
@@ -296,6 +296,18 @@ describe('the staff’s home', () => {
       'href',
       APP_PATHS.staffDataRequests,
     );
+  });
+
+  it('leads an administrator, and only one, to the staff accounts (design PD-200)', async () => {
+    renderHome({ kind: 'ready', value: [] }, true);
+    expect(await screen.findByRole('link', { name: 'Staff accounts' })).toHaveAttribute(
+      'href',
+      APP_PATHS.staffAccounts,
+    );
+    cleanup();
+    renderHome({ kind: 'ready', value: [] });
+    await screen.findByRole('link', { name: 'Customers' });
+    expect(screen.queryByRole('link', { name: 'Staff accounts' })).not.toBeInTheDocument();
   });
 
   it('offers a customer nothing, and says whose it is', async () => {

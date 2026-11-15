@@ -13,6 +13,7 @@ type AppPage =
   | 'staffCustomers'
   | 'staffDataRequests'
   | 'staffAccessReviews'
+  | 'staffAccounts'
   | 'newEvent'
   | 'event'
   | 'editEvent'

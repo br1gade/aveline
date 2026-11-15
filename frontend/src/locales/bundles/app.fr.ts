@@ -20,6 +20,7 @@ import runningOrder from '../fr/running-order.json';
 import seating from '../fr/seating.json';
 import sending from '../fr/sending.json';
 import sheets from '../fr/sheets.json';
+import staffAccounts from '../fr/staff-accounts.json';
 import suppressions from '../fr/suppressions.json';
 import team from '../fr/team.json';
 import ticketOrders from '../fr/ticket-orders.json';
@@ -49,6 +50,7 @@ export default {
   seating,
   sending,
   sheets,
+  'staff-accounts': staffAccounts,
   suppressions,
   team,
   'ticket-orders': ticketOrders,

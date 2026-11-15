@@ -1,0 +1,68 @@
+{
+  "back": "Back to the staff pages",
+  "title": "Staff accounts",
+  "lead": "Who works at Aveline, and in which role. A change applies on that person’s next request.",
+  "role": {
+    "SUPPORT": {
+      "name": "Support",
+      "about": "Runs a customer’s event for them: invitations and guests. Can’t delete an event or see billing."
+    },
+    "ADMIN": {
+      "name": "Admin",
+      "about": "Everything, including billing, deleting events and managing staff."
+    }
+  },
+  "list": {
+    "title": "Staff",
+    "none": "No staff accounts yet.",
+    "you": "You",
+    "limit": "Only the first {{count, number}}, by address, are shown.",
+    "refused": "Only Aveline’s administrators manage staff accounts."
+  },
+  "row": {
+    "makeAdmin": "Make admin",
+    "makeSupport": "Make support",
+    "remove": "Remove from staff",
+    "actionFor": "{{action}}: {{name}}"
+  },
+  "grant": {
+    "title": "Add someone to the staff",
+    "lead": "They need an Aveline account with a confirmed email address. Someone already on the staff gets the role chosen here.",
+    "email": "Their email address",
+    "role": "Their role",
+    "submit": "Give the role",
+    "errors": {
+      "required": "Enter their email address.",
+      "email": "That doesn’t look like an email address.",
+      "tooLong": "That address is too long.",
+      "emailRefused": "That address wasn’t accepted. Check it.",
+      "notFound": "No Aveline account uses this address. Ask them to create one first.",
+      "unverified": "This account hasn’t confirmed its email address yet. Ask them to open the link Aveline sent."
+    }
+  },
+  "change": {
+    "title": "Make {{name}} {{role}}?",
+    "ADMIN": "An admin can do everything at Aveline, including billing, deleting events and managing staff. It applies on their next request.",
+    "SUPPORT": "They keep running customers’ events, but lose what only an admin may do, such as billing, deleting events and managing staff. It applies on their next request."
+  },
+  "remove": {
+    "title": "Remove {{name}} from the staff?",
+    "body": "Their account stays, as an ordinary one: on their next request the staff pages close to them.",
+    "confirm": "Remove from staff"
+  },
+  "status": {
+    "granted": "{{name}} is now {{role}}.",
+    "removed": "{{name}} is no longer on the staff."
+  },
+  "refused": {
+    "forbidden": "Only Aveline’s administrators manage staff accounts.",
+    "selfChange": "You can’t change your own role. Ask another administrator.",
+    "gone": "That account was no longer on the staff. The list is up to date again.",
+    "notFound": "No Aveline account uses this address. Ask them to create one first.",
+    "unverified": "This account hasn’t confirmed its email address yet.",
+    "emailRefused": "That address wasn’t accepted. Check it.",
+    "rateLimited": "Too many tries. Wait a minute, then try again.",
+    "noAnswer": "No answer came. It may have gone through, so check the list, then try again.",
+    "other": "This wasn’t accepted. The reason, in English:"
+  }
+}

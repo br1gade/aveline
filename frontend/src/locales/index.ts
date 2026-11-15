@@ -1,7 +1,11 @@
 import ruSheets from './ru/sheets.json';
+import ruStaffAccounts from './ru/staff-accounts.json';
 import hySheets from './hy/sheets.json';
+import hyStaffAccounts from './hy/staff-accounts.json';
 import frSheets from './fr/sheets.json';
+import frStaffAccounts from './fr/staff-accounts.json';
 import enSheets from './en/sheets.json';
+import enStaffAccounts from './en/staff-accounts.json';
 import ruBilling from './ru/billing.json';
 import hyBilling from './hy/billing.json';
 import frBilling from './fr/billing.json';
@@ -155,6 +159,7 @@ import frVendors from './fr/vendors.json';
 export const resources = {
   en: {
     sheets: enSheets,
+    'staff-accounts': enStaffAccounts,
     billing: enBilling,
     organization: enOrganization,
     'promo-codes': enPromoCodes,
@@ -194,6 +199,7 @@ export const resources = {
   },
   fr: {
     sheets: frSheets,
+    'staff-accounts': frStaffAccounts,
     billing: frBilling,
     organization: frOrganization,
     'promo-codes': frPromoCodes,
@@ -233,6 +239,7 @@ export const resources = {
   },
   hy: {
     sheets: hySheets,
+    'staff-accounts': hyStaffAccounts,
     billing: hyBilling,
     organization: hyOrganization,
     'promo-codes': hyPromoCodes,
@@ -272,6 +279,7 @@ export const resources = {
   },
   ru: {
     sheets: ruSheets,
+    'staff-accounts': ruStaffAccounts,
     billing: ruBilling,
     organization: ruOrganization,
     'promo-codes': ruPromoCodes,

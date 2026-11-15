@@ -11,7 +11,7 @@ import { LINK } from './customer-new-event';
  * What Aveline's own staff work from (design PD-164). The customers' list answering is what says this
  * account is staff's; a customer who finds the address is told whose it is, and offered nothing.
  */
-export function StaffHome({ access }: { access: Loaded<unknown> }) {
+export function StaffHome({ access, isAdmin }: { access: Loaded<unknown>; isAdmin: boolean }) {
   const { t } = useTranslation('customers');
   return (
     <section className="flex flex-col gap-4">
@@ -29,6 +29,12 @@ export function StaffHome({ access }: { access: Loaded<unknown> }) {
             <Link to={APP_PATHS.staffAccessReviews} className={LINK}>
               {t('home.accessReviews')}
             </Link>
+            {/* Only an administrator manages the staff; support would find the page refused. */}
+            {isAdmin ? (
+              <Link to={APP_PATHS.staffAccounts} className={LINK}>
+                {t('home.staffAccounts')}
+              </Link>
+            ) : null}
           </nav>
         </>
       ) : (

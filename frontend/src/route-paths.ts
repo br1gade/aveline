@@ -43,6 +43,8 @@ export const APP_PATHS = {
   staffNewEvent: '/app/staff/customers/:organizationId/new-event',
   staffDataRequests: '/app/staff/data-requests',
   staffAccessReviews: '/app/staff/access-reviews',
+  /** Making and removing Aveline's staff: administrators only (design PD-200). */
+  staffAccounts: '/app/staff/accounts',
   /** The organization itself: its name, members and invitations. */
   organization: '/app/organization',
   /** Static, so it ranks above `event`'s `:eventId`. */
