@@ -194,6 +194,11 @@ memory. A signed-in caller is counted per account, anyone else per address
 (10/s, 100/min), and a guest's own invitation page more generously (50/s,
 3,000/min) because a whole room opens it on one Wi-Fi.
 
+**Failed sign-ins per account** are in Redis (`login-failures:<sha256 of the
+address>`, 15 minutes from the first failure), so every instance sees one
+count. Losing them forgets a count, which only resets the wait; with Redis
+down nothing is counted and sign-in proceeds (`login-attempts.ts`).
+
 **Distributed locks.** Each scheduled sweep takes a lock with `SET NX EX`, one
 atomic operation, so two API instances cannot both run it. If Redis is
 unreachable the sweeps are skipped rather than run unguarded: delaying a

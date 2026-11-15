@@ -5,6 +5,7 @@ import { AccountService } from '../../infra/auth/account.service';
 import { CurrentActor, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { InviteToEventDto } from '../../infra/auth/dto/account.dto';
 import { ChangeRoleDto } from './dto/team.dto';
+import { RequestLanguage } from '../../common/request-language';
 import { TeamService } from './team.service';
 
 /** Bringing people onto one event — a coordinator, a designer, someone on the door. */
@@ -30,8 +31,8 @@ export class TeamController {
     summary: 'Invite someone to work on this event',
     description: 'They get this event and nothing else in the organization. Re-inviting replaces the link.',
   })
-  invite(@Param('eventId') eventId: string, @CurrentActor() actor: RequestActor, @Body() dto: InviteToEventDto) {
-    return this.accounts.inviteToEvent(eventId, actor.userId, dto);
+  invite(@Param('eventId') eventId: string, @CurrentActor() actor: RequestActor, @Body() dto: InviteToEventDto, @RequestLanguage() locale: string) {
+    return this.accounts.inviteToEvent(eventId, actor.userId, dto, locale);
   }
 
   @RequirePermission('member:manage')

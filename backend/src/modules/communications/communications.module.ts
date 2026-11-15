@@ -11,13 +11,14 @@ import { GuestChannelsService } from './guest-channels.service';
 import { SuppressionService } from './suppression.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { EmailFeedbackController } from './email-feedback.controller';
+import { EmailUnsubscribeController } from './email-unsubscribe.controller';
 import { EmailFeedbackService } from './email-feedback.service';
 
 export const MESSAGE_TRANSPORTS = Symbol('MESSAGE_TRANSPORTS');
 
 @Global()
 @Module({
-  controllers: [TelegramWebhookController, EmailFeedbackController, WhatsAppWebhookController],
+  controllers: [TelegramWebhookController, EmailFeedbackController, WhatsAppWebhookController, EmailUnsubscribeController],
   providers: [
     {
       provide: MESSAGE_TRANSPORTS,

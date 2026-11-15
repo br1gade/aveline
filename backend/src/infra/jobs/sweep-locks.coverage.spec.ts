@@ -64,8 +64,8 @@ async function runSweep(sweep: SweepClass, method: string, isLockAcquired: boole
 const CASES = SWEEPS.flatMap((sweep) => cronMethods(sweep).map((entry) => ({ label: `${sweep.name}.${entry.method}`, sweep, ...entry })));
 
 describe('scheduled sweep locking', () => {
-  it('finds all ten locked sweeps', () => {
-    expect(CASES).toHaveLength(10);
+  it('finds all eleven locked sweeps', () => {
+    expect(CASES).toHaveLength(11);
   });
 
   it.each(CASES)('$label does no work when another instance holds the lock', async ({ sweep, method }) => {

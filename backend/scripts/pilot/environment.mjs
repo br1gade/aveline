@@ -97,7 +97,7 @@ function createSettings(scope, port) {
     DATABASE_URL: `postgresql://aveline:${password}@${scope}-postgres:5432/aveline_rehearsal_test?schema=public&connection_limit=${DATABASE_CONNECTION_LIMIT}`,
     REDIS_URL: `redis://${scope}-redis:6379`,
     MONGO_URL: `mongodb://aveline:${password}@${scope}-mongo:27017/aveline_rehearsal_test?authSource=admin`,
-    SMTP_HOST: `${scope}-mailpit`, SMTP_PORT: '1025', MAIL_FROM: 'pilot@example.test',
+    SMTP_HOST: `${scope}-mailpit`, SMTP_PORT: '1025', MAIL_FROM: 'pilot@example.test', MAIL_REPLY_TO: 'support@example.test',
     PUBLIC_APP_URL: `http://127.0.0.1:${port}`, CORS_ORIGINS: `http://127.0.0.1:${port}`,
     JWT_SECRET: randomBytes(48).toString('base64'), STORAGE_ROOT: '/app/storage', PRIVATE_STORAGE_ROOT: '/app/private-storage',
     REHEARSAL_STATE_ROOT: '/app/rehearsal-state', REHEARSAL_TRACE_DB: String(process.env.PILOT_TRACE_DB === 'true'),

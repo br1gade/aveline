@@ -9,7 +9,7 @@ import { CommunicationsService, EnqueueParams } from '../../communications/commu
 import { GuestChannelsService } from '../../communications/guest-channels.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { channelsWithCopy, loadSendableHouseholds } from './audience';
-import { eventWording } from './event-wording';
+import { eventWhenAndWhere, eventWording } from './event-wording';
 import { PreviousAttempt, REACHED_STATUSES, hasReachedGuest, isSupersededFailure } from './previous-attempts';
 import { REMINDER_TEMPLATE_KEY } from './reminder-schedule';
 import {
@@ -197,7 +197,7 @@ export class InvitationSenderService implements OnModuleInit {
   }
 
   private messageFor(
-    invitation: { id: string; slug: string; expiresAt: Date | null; eventId: string; organizationId: string; hosts: string; title: string; translations: unknown; defaultLocale: string },
+    invitation: { id: string; slug: string; expiresAt: Date | null; eventId: string; organizationId: string; hosts: string; title: string; translations: unknown; defaultLocale: string } & Parameters<typeof eventWhenAndWhere>[0],
     recipient: Recipient,
     attemptNumber: number,
   ): EnqueueParams & { dedupeKey: string } {
@@ -212,10 +212,12 @@ export class InvitationSenderService implements OnModuleInit {
       templateKey: TEMPLATE_KEY,
       toAddress: recipient.via.address,
       locale: guest.locale ?? invitation.defaultLocale,
+      eventLocale: invitation.defaultLocale,
       telegramOptIn: optIn?.grant,
       variables: {
         guestName: displayName(guest),
         ...eventWording(invitation, guest.locale ?? invitation.defaultLocale),
+        ...eventWhenAndWhere(invitation, guest.locale ?? invitation.defaultLocale),
         link: this.linkFor(invitation.slug, guest.token),
         telegramLink: optIn?.url ?? '',
       },
@@ -267,6 +269,9 @@ export class InvitationSenderService implements OnModuleInit {
             hostsLabel: true,
             translations: true,
             defaultLocale: true,
+            startsAt: true,
+            timezone: true,
+            venues: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: 1, select: { name: true, address: true, translations: true } },
           },
         },
       },
@@ -284,6 +289,9 @@ export class InvitationSenderService implements OnModuleInit {
       hosts: invitation.event.hostsLabel,
       translations: invitation.event.translations,
       defaultLocale: invitation.event.defaultLocale,
+      startsAt: invitation.event.startsAt,
+      timezone: invitation.event.timezone,
+      venues: invitation.event.venues,
     };
   }
 

@@ -44,7 +44,6 @@ const ALREADY_REGISTERED_NOTICE_MS = 60 * 60 * 1000;
 export class AccountService {
   private readonly logger = new Logger(AccountService.name);
   private readonly appUrl: string;
-  private readonly defaultLocale: string;
   private readonly isDevelopmentLinkAllowed: boolean;
 
   constructor(
@@ -53,9 +52,6 @@ export class AccountService {
     config: ConfigService,
   ) {
     this.appUrl = config.get<string>('PUBLIC_APP_URL') ?? 'http://localhost:5173';
-    // Account mail has no event to take a locale from and no stored
-    // preference to read at reset time, so it uses the platform default.
-    this.defaultLocale = config.get<string>('DEFAULT_LOCALE') ?? 'hy';
     this.isDevelopmentLinkAllowed = allowsDevelopmentShortcuts(config.get<string>('NODE_ENV'));
   }
 
@@ -96,6 +92,8 @@ export class AccountService {
     variables: Record<string, string>;
     organizationId?: string;
     dedupeKey?: string;
+    /** The language of the request that caused it: account mail has no event to take one from. */
+    locale: string;
   }): Promise<void> {
     try {
       await this.communications.enqueue({
@@ -103,7 +101,7 @@ export class AccountService {
         channel: MessageChannel.EMAIL,
         templateKey: params.templateKey,
         toAddress: params.toAddress,
-        locale: this.defaultLocale,
+        locale: params.locale,
         variables: params.variables,
         dedupeKey: params.dedupeKey,
       });
@@ -142,7 +140,7 @@ export class AccountService {
    * anyone in: the client logs in next, which is also what proves the
    * password belongs to whoever is at the keyboard.
    */
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, locale: string) {
     const passwordHash = await hash(dto.password, BCRYPT_ROUNDS);
     try {
       await this.prisma.user.create({ data: { email: dto.email, name: dto.name, passwordHash } });
@@ -150,14 +148,14 @@ export class AccountService {
       if (!isUniqueViolation(error)) throw error;
       // Not awaited: the extra queries would make this path measurably
       // slower than a real sign-up, which is the same leak by a clock.
-      void this.noticeRegistrationAttempt(dto.email).catch((noticeError: unknown) =>
+      void this.noticeRegistrationAttempt(dto.email, locale).catch((noticeError: unknown) =>
         this.logger.error(`could not notice a repeat registration: ${describeError(noticeError)}`),
       );
     }
     return { accepted: true as const };
   }
 
-  private async noticeRegistrationAttempt(email: string): Promise<void> {
+  private async noticeRegistrationAttempt(email: string, locale: string): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: { id: true, name: true, email: true, isActive: true, deletedAt: true },
@@ -175,6 +173,7 @@ export class AccountService {
         resetLink: `${this.appUrl}/reset-password`,
       },
       dedupeKey: `account.already-registered:${user.id}:${window}`,
+      locale,
     });
   }
 
@@ -186,7 +185,7 @@ export class AccountService {
    * person who legitimately forgot their password learns nothing from it
    * either — they check their inbox regardless.
    */
-  async requestPasswordReset(email: string) {
+  async requestPasswordReset(email: string, locale: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user?.isActive || user.deletedAt !== null) return { sent: true as const };
 
@@ -199,6 +198,7 @@ export class AccountService {
       templateKey: 'account.password-reset',
       toAddress: user.email,
       variables: { name: user.name ?? user.email, link: this.linkFor('/reset-password', token) },
+      locale,
     });
 
     this.logger.log(`password reset issued for ${user.id}`);
@@ -227,7 +227,7 @@ export class AccountService {
     return { ok: true as const, sessionsRevoked: true as const };
   }
 
-  async requestEmailVerification(userId: string) {
+  async requestEmailVerification(userId: string, locale: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { email: true, name: true },
@@ -242,6 +242,7 @@ export class AccountService {
       templateKey: 'account.verify-email',
       toAddress: user.email,
       variables: { name: user.name ?? user.email, link: this.linkFor('/verify-email', token) },
+      locale,
     });
 
     return { sent: true as const, ...this.devLink('/verify-email', token) };
@@ -261,14 +262,14 @@ export class AccountService {
    * so the most recent link is the only one that works — which is what a
    * person expects after asking for the email again.
    */
-  async inviteMember(organizationId: string, invitedByUserId: string, dto: InviteMemberDto) {
+  async inviteMember(organizationId: string, invitedByUserId: string, dto: InviteMemberDto, locale: string) {
     return this.prisma.$transaction(async (tx) => {
       if (dto.role === 'OWNER') await lockOwnerAddress(tx, dto.email);
-      return this.inviteMemberInTransaction(tx, { organizationId, invitedByUserId, dto });
+      return this.inviteMemberInTransaction(tx, { organizationId, invitedByUserId, dto, locale });
     }, { timeout: 10_000, maxWait: 5000 });
   }
 
-  async inviteMemberInTransaction(tx: Prisma.TransactionClient, input: { organizationId: string; invitedByUserId: string; dto: InviteMemberDto; reusePendingOwner?: boolean; isConcierge?: boolean }) {
+  async inviteMemberInTransaction(tx: Prisma.TransactionClient, input: { organizationId: string; invitedByUserId: string; dto: InviteMemberDto; reusePendingOwner?: boolean; isConcierge?: boolean; locale: string }) {
     const { organizationId, invitedByUserId, dto } = input;
     const email = dto.email.trim().toLowerCase();
     await lockOrganizationStanding(tx, { organizationId, mode: 'update' });
@@ -288,7 +289,7 @@ export class AccountService {
       update: { ...fresh, acceptedAt: null, acceptedByUserId: null, revokedAt: null },
     });
     const message = await this.communications.enqueueInTransaction(tx, { organizationId, channel: MessageChannel.EMAIL,
-      templateKey: 'organization.invite', toAddress: email, locale: this.defaultLocale,
+      templateKey: 'organization.invite', toAddress: email, locale: input.locale,
       variables: { organizationName: organization.name, role: dto.role, link: this.linkFor('/accept-invite', token) },
       dedupeKey: `organization.invite:${fresh.tokenHash}`,
     });
@@ -355,7 +356,7 @@ export class AccountService {
    * staff. Accepting grants an event role and nothing in the organization, so
    * they see this event and no other. Re-inviting replaces the earlier link.
    */
-  async inviteToEvent(eventId: string, invitedByUserId: string, dto: InviteToEventDto) {
+  async inviteToEvent(eventId: string, invitedByUserId: string, dto: InviteToEventDto, locale: string) {
     const email = dto.email.trim().toLowerCase();
     const token = newRefreshToken();
     await this.prisma.$transaction(async (tx) => {
@@ -369,7 +370,7 @@ export class AccountService {
       const fresh = { role: dto.role, invitedByUserId, tokenHash: hashRefreshToken(token), expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS) };
       await tx.eventInvite.upsert({ where: { eventId_email: { eventId, email } }, create: { eventId, email, ...fresh }, update: { ...fresh, acceptedAt: null, acceptedByUserId: null, revokedAt: null } });
       await this.communications.enqueueInTransaction(tx, { organizationId, eventId, channel: MessageChannel.EMAIL,
-        templateKey: 'event.invite', toAddress: email, locale: this.defaultLocale,
+        templateKey: 'event.invite', toAddress: email, locale,
         variables: { eventTitle: event.title, role: dto.role, link: this.linkFor('/accept-event-invite', token) }, dedupeKey: `event.invite:${fresh.tokenHash}` });
     }, { timeout: 10_000, maxWait: 5000 });
     return { sent: true as const, email, role: dto.role, ...this.devLink('/accept-event-invite', token) };

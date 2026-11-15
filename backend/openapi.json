@@ -4929,6 +4929,39 @@
         ]
       }
     },
+    "/api/v1/payment-options": {
+      "get": {
+        "operationId": "PaymentOptionsController_options",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentOptionsController_optionsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether payments are on, and the banks a paid order or plan may name",
+        "tags": [
+          "payments"
+        ],
+        "security": []
+      }
+    },
     "/api/v1/public/events/{slug}/orders": {
       "post": {
         "description": "Inventory is held before payment, never after — charging for a seat that no longer exists is the worst outcome available. Idempotent by key.",
@@ -7650,6 +7683,50 @@
           }
         },
         "summary": "Durably accept scoped Meta WhatsApp message status receipts",
+        "tags": [
+          "communications"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/email-unsubscribe/{messageId}/{signature}": {
+      "post": {
+        "description": "Stops that organization’s mail to the address the message went to. Idempotent. 404 for a link that is not genuine.",
+        "operationId": "EmailUnsubscribeController_unsubscribe",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "signature",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One-click unsubscribe from a host’s guest mail",
         "tags": [
           "communications"
         ],
@@ -20795,6 +20872,9 @@
               "STAFF_ACCOUNT_NOT_FOUND",
               "STAFF_EMAIL_UNVERIFIED",
               "STAFF_SELF_CHANGE",
+              "PAYMENTS_DISABLED",
+              "PAID_TICKETS_DISABLED",
+              "LOGIN_TOO_MANY_ATTEMPTS",
               "NO_CHANGE",
               "TEMPLATE_REVISION_CONFLICT",
               "TEMPLATE_OPEN_DRAFT_EXISTS",
@@ -20996,6 +21076,9 @@
               "STAFF_ACCOUNT_NOT_FOUND",
               "STAFF_EMAIL_UNVERIFIED",
               "STAFF_SELF_CHANGE",
+              "PAYMENTS_DISABLED",
+              "PAID_TICKETS_DISABLED",
+              "LOGIN_TOO_MANY_ATTEMPTS",
               "NO_CHANGE",
               "TEMPLATE_REVISION_CONFLICT",
               "TEMPLATE_OPEN_DRAFT_EXISTS",
@@ -33631,6 +33714,30 @@
           "changed"
         ]
       },
+      "PaymentOptionsController_optionsResponse": {
+        "type": "object",
+        "properties": {
+          "isPaymentAvailable": {
+            "type": "boolean"
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "AMERIABANK",
+                "INECOBANK",
+                "IDBANK",
+                "FAKE"
+              ]
+            }
+          }
+        },
+        "required": [
+          "isPaymentAvailable",
+          "providers"
+        ]
+      },
       "TicketingController_createOrderResponse": {
         "type": "object",
         "properties": {
@@ -39906,6 +40013,30 @@
           "checkout": {
             "type": "object",
             "properties": {
+              "payment": {
+                "type": "object",
+                "properties": {
+                  "isPaymentAvailable": {
+                    "type": "boolean"
+                  },
+                  "providers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "AMERIABANK",
+                        "INECOBANK",
+                        "IDBANK",
+                        "FAKE"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "isPaymentAvailable",
+                  "providers"
+                ]
+              },
               "buyerTicketLimit": {
                 "type": "number",
                 "nullable": true
@@ -40064,6 +40195,7 @@
               }
             },
             "required": [
+              "payment",
               "buyerTicketLimit",
               "venues",
               "attendanceMode",

@@ -2,6 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentProvider } from '@prisma/client';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
+import { PaymentOptionsController } from './payment-options.controller';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { AmeriabankGateway } from './providers/ameriabank.gateway';
@@ -79,7 +80,7 @@ function buildGateways(config: ConfigService): PaymentGateway[] {
 }
 
 @Module({
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, PaymentOptionsController],
   providers: [
     {
       provide: PaymentGatewayRegistry,

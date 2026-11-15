@@ -32,7 +32,7 @@ function configureEndpoints(env, input) {
     Object.assign(env, { LOCAL_API_PORT: String(input.apiPort ?? 8080), LOCAL_MEDIA_PORT: String(input.mediaPort ?? 8081), LOCAL_MAIL_PORT: String(input.mailPort ?? 8026),
       API_DOMAIN: 'http://:8080', MEDIA_DOMAIN: 'http://:8081', PUBLIC_APP_URL: `http://127.0.0.1:${input.apiPort ?? 8080}`,
       CORS_ORIGINS: `http://127.0.0.1:${input.apiPort ?? 8080}`, ACME_EMAIL: 'ops@example.test',
-      S3_PUBLIC_URL: `http://127.0.0.1:${input.mediaPort ?? 8081}`, SMTP_HOST: 'mailpit', SMTP_PORT: '1025', SMTP_USER: '', SMTP_PASSWORD: '', MAIL_FROM: 'pilot@example.test' });
+      S3_PUBLIC_URL: `http://127.0.0.1:${input.mediaPort ?? 8081}`, SMTP_HOST: 'mailpit', SMTP_PORT: '1025', SMTP_USER: '', SMTP_PASSWORD: '', MAIL_FROM: 'pilot@example.test', MAIL_REPLY_TO: 'support@example.test' });
     for (const key of ['LOCAL_API_PORT', 'LOCAL_MEDIA_PORT', 'LOCAL_MAIL_PORT']) if (!/^\d+$/.test(env[key]) || Number(env[key]) < 1024 || Number(env[key]) > 65535) throw new Error('Local ports must be 1024–65535');
     if (new Set([env.LOCAL_API_PORT, env.LOCAL_MEDIA_PORT, env.LOCAL_MAIL_PORT]).size !== 3) throw new Error('Local ports must be distinct');
     return;
@@ -41,10 +41,10 @@ function configureEndpoints(env, input) {
   assertProductionOrigins(input.appUrl, `https://${input.mediaDomain}`);
   const app = new URL(input.appUrl);
   if (input.apiDomain !== undefined && input.apiDomain !== app.hostname) throw new Error('API must use the public app hostname');
-  for (const key of ['acmeEmail', 'mailFrom']) if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input[key] ?? '')) throw new Error(`Invalid ${key}`);
+  for (const key of ['acmeEmail', 'mailFrom', 'replyTo']) if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input[key] ?? '')) throw new Error(`Invalid ${key}`);
   Object.assign(env, { API_DOMAIN: app.hostname, MEDIA_DOMAIN: input.mediaDomain, PUBLIC_APP_URL: app.origin, CORS_ORIGINS: app.origin,
     ACME_EMAIL: input.acmeEmail, S3_PUBLIC_URL: `https://${input.mediaDomain}`, SMTP_HOST: input.smtpHost,
-    SMTP_PORT: String(input.smtpPort ?? 587), SMTP_USER: input.smtpUser ?? '', SMTP_PASSWORD: input.smtpPassword ?? '', MAIL_FROM: input.mailFrom });
+    SMTP_PORT: String(input.smtpPort ?? 587), SMTP_USER: input.smtpUser ?? '', SMTP_PASSWORD: input.smtpPassword ?? '', MAIL_FROM: input.mailFrom, MAIL_REPLY_TO: input.replyTo });
 }
 export function encodeEnvironment(values) {
   return Object.entries(values).map(([key, value]) => {

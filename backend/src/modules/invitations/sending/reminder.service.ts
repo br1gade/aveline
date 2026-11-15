@@ -324,6 +324,7 @@ export class ReminderService implements OnModuleInit {
         templateKey,
         toAddress: recipient.via.address,
         locale: recipient.guest.locale ?? invitation.defaultLocale,
+        eventLocale: invitation.defaultLocale,
         variables: {
           guestName: displayName(recipient.guest),
           ...eventWording(invitation, recipient.guest.locale ?? invitation.defaultLocale),

@@ -14,6 +14,7 @@ import {
   UpdateTicketTypeDto,
   UpsertListingDto,
 } from './dto/ticket-setup.dto';
+import { assertTicketPriceAllowed } from '../payments/pilot-payments';
 import { canDeleteTicketType, ticketTypeChangeProblems } from './ticket-type-rules';
 import { isUniqueViolation } from '../../common/prisma-errors';
 
@@ -44,6 +45,7 @@ export class TicketSetupService {
     await this.assertEventExists(eventId);
     assertNamed(dto.name, 'name');
 
+    assertTicketPriceAllowed(BigInt(dto.priceMinor));
     const limits = withDefaults(dto);
     const problems = ticketTypeChangeProblems(
       { ...limits, quantitySold: 0, quantityReserved: 0 },
@@ -91,6 +93,7 @@ export class TicketSetupService {
       salesEndAt: dto.salesEndAt ? new Date(dto.salesEndAt) : undefined,
       priceMinor: dto.priceMinor === undefined ? undefined : BigInt(dto.priceMinor),
     };
+    assertTicketPriceAllowed(change.priceMinor);
     const problems = ticketTypeChangeProblems(current, change);
     if (problems.length > 0) throw new BadRequestException(problems);
 

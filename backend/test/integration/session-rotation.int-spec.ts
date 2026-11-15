@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaClient } from '@prisma/client';
 import { AuthService } from '../../src/infra/auth/auth.service';
+import { LoginAttempts } from '../../src/infra/auth/login-attempts';
 import { hashRefreshToken } from '../../src/infra/auth/token.util';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/test-database';
@@ -19,7 +20,7 @@ describe('refresh rotation evidence and atomic replacement', () => {
   afterAll(() => disconnectTestDatabase());
 
   const service = (client: unknown = prisma, jwt = new JwtService({ secret: JWT_SECRET })) =>
-    new AuthService(client as PrismaService, jwt, new ConfigService());
+    new AuthService(client as PrismaService, jwt, new ConfigService(), {} as LoginAttempts);
 
   const sessions = async () => {
     const user = await prisma.user.create({ data: { email: 'rotation@example.test', name: 'Session regression' } });

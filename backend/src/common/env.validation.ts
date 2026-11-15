@@ -19,8 +19,13 @@ export interface ValidatedEnv extends Record<string, unknown> {
 /** Required everywhere. */
 const ALWAYS_REQUIRED = ['DATABASE_URL'] as const;
 
-/** Required only in production, where a development default is dangerous. */
-const PRODUCTION_REQUIRED = ['JWT_SECRET', 'CORS_ORIGINS', 'PUBLIC_APP_URL'] as const;
+/**
+ * Required only in production, where a development default is dangerous.
+ * PILOT_MODE included: charges are refused only when it says `true`, so a
+ * deployment that dropped it would have charged for real. MAIL_REPLY_TO
+ * included: without it replies go to the sending address, which nobody reads.
+ */
+const PRODUCTION_REQUIRED = ['JWT_SECRET', 'CORS_ORIGINS', 'PUBLIC_APP_URL', 'PILOT_MODE', 'MAIL_REPLY_TO'] as const;
 
 /** Environment values arrive as unknown; anything not a primitive is absent
  *  rather than stringified into "[object Object]". */

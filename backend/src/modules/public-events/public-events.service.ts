@@ -1,4 +1,5 @@
 import { ListingImageMap, listingImage, loadListingImages } from './listing-images';
+import { PaymentGatewayRegistry } from '../payments/payment-gateway.registry';
 import { checkoutMetadata } from '../ticketing/checkout-metadata';
 import { GUEST_FACING_VENUES } from '../design/guest-facing-venues';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -18,7 +19,10 @@ const listingInclude = {
 
 @Injectable()
 export class PublicEventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateways: PaymentGatewayRegistry,
+  ) {}
 
   /**
    * Browseable announcements. Only PUBLIC events appear — UNLISTED ones are
@@ -82,7 +86,7 @@ export class PublicEventsService {
 
     return {
       slug: listing.slug,
-      checkout: { ...await checkoutMetadata(this.prisma, event.id, locale), buyerTicketLimit: listing.buyerTicketLimit, venues: event.venues.map((venue) => ({ id: venue.id, name: venue.name })) },
+      checkout: { ...await checkoutMetadata(this.prisma, event.id, locale), payment: this.gateways.options(), buyerTicketLimit: listing.buyerTicketLimit, venues: event.venues.map((venue) => ({ id: venue.id, name: venue.name })) },
       ticketInventory: event.ticketInventory && {
         layoutVersionId: event.ticketInventory.layoutVersionId,
         sections: event.ticketInventory.sections.map(({ key, name, capacity, offers }) => ({

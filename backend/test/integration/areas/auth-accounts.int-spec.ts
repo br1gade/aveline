@@ -17,7 +17,7 @@ const reviews = new OrganizationReviewsService(database);
 const DAY_MS = 86_400_000;
 
 function accountsIn(nodeEnv: string | undefined): AccountService {
-  const values: Record<string, string | undefined> = { NODE_ENV: nodeEnv, PUBLIC_APP_URL: 'https://aveline.test', DEFAULT_LOCALE: 'hy' };
+  const values: Record<string, string | undefined> = { NODE_ENV: nodeEnv, PUBLIC_APP_URL: 'https://aveline.test' };
   const transports = new Map<MessageChannel, MessageTransport>(
     Object.values(MessageChannel).map((channel) => [channel, new ConsoleTransport(channel)]),
   );
@@ -72,10 +72,10 @@ describe('auth and accounts (integration coverage)', () => {
       const event = await eventIn(organization.id);
       await prisma.eventMembership.create({ data: { eventId: event.id, userId: owner.id, role: 'OWNER' } });
       return {
-        reset: await accounts.requestPasswordReset(owner.email),
-        verify: await accounts.requestEmailVerification(owner.id),
-        invite: await accounts.inviteMember(organization.id, owner.id, { email: 'planner@test.local', role: 'MANAGER' }),
-        eventInvite: await accounts.inviteToEvent(event.id, owner.id, { email: 'door@test.local', role: 'COORDINATOR' }),
+        reset: await accounts.requestPasswordReset(owner.email, 'hy'),
+        verify: await accounts.requestEmailVerification(owner.id, 'hy'),
+        invite: await accounts.inviteMember(organization.id, owner.id, { email: 'planner@test.local', role: 'MANAGER' }, 'hy'),
+        eventInvite: await accounts.inviteToEvent(event.id, owner.id, { email: 'door@test.local', role: 'COORDINATOR' }, 'hy'),
       };
     };
 
@@ -108,7 +108,7 @@ describe('auth and accounts (integration coverage)', () => {
     it.each([['staging'], ['Production'], ['']])('is absent for an unrecognised NODE_ENV %p', async (nodeEnv) => {
       const { owner } = await tenant();
 
-      const result = await accountsIn(nodeEnv).requestPasswordReset(owner.email);
+      const result = await accountsIn(nodeEnv).requestPasswordReset(owner.email, 'hy');
 
       expect(result).toEqual({ sent: true });
     });

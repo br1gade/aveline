@@ -6,8 +6,14 @@ Armenian card acquiring through Ameriabank, Inecobank and IDBank.
 and refuses paid ticket checkout and paid subscription selection with `403`.
 No payable order, invoice or payment is committed by those refused requests;
 ticket reservations are released. Free ticket orders and free subscriptions
-remain available. Production Compose enables the policy by default. This does
-not undo historical payments or disable refunds/confirmation of existing ones.
+remain available. Production Compose enables the policy by default, and since
+14 November 2026 a production server refuses to start without `PILOT_MODE`
+set. This does not undo historical payments or disable refunds/confirmation of
+existing ones. The refusal carries the code `PAYMENTS_DISABLED`;
+`GET /payment-options` says beforehand that nothing can be paid for; and a
+host cannot price a ticket type above zero (`PAID_TICKETS_DISABLED`, decided
+14 November 2026). Who sells a ticket and how a host is paid is still open
+(GOING_LIVE 5b).
 
 > **Status:** the provider-agnostic core and all three adapters are built and
 > tested. No bank has issued credentials yet, so no adapter has been exercised

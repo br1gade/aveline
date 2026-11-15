@@ -5,6 +5,8 @@ export interface OutboundMessage {
   messageId?: string;
   toAddress: string;
   subject?: string;
+  /** A one-click unsubscribe link, on mail a guest may stop (email-unsubscribe.ts). */
+  unsubscribeUrl?: string;
   body: string;
   locale: string;
   /**

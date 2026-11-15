@@ -9,6 +9,7 @@ import { AccountService } from '../../infra/auth/account.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from '../events/dto/create-event.dto';
 import { EventsService } from '../events/events.service';
+import { MAIL_FALLBACK_LOCALE } from '../../common/locale';
 import { OpenForCustomerDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
 
 /**
@@ -44,7 +45,7 @@ export class ConciergeService {
         return { organization, invite: null, isExisting: true, relationship };
       }
       const organization = await tx.organization.create({ data: { name: dto.name, kind: dto.kind ?? OrgKind.HOST }, select: { id: true, name: true, kind: true, createdAt: true } });
-      const invite = await this.accounts.inviteMemberInTransaction(tx, { organizationId: organization.id, invitedByUserId: staffUserId, dto: { email, role: OrganizationRole.OWNER }, isConcierge: true });
+      const invite = await this.accounts.inviteMemberInTransaction(tx, { organizationId: organization.id, invitedByUserId: staffUserId, dto: { email, role: OrganizationRole.OWNER }, isConcierge: true, locale: MAIL_FALLBACK_LOCALE });
       return { organization, invite, isExisting: false };
     }, { timeout: 10_000, maxWait: 5000 });
   }

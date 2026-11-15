@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessageChannel } from '@prisma/client';
 import { CommunicationsService } from '../communications/communications.service';
+import { eventWhenAndWhere } from '../invitations/sending/event-wording';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -50,7 +51,11 @@ export class TicketNotifierService {
           buyerName: true,
           buyerEmail: true,
           locale: true,
-          event: { select: { organizationId: true, id: true, title: true } },
+          totalMinor: true,
+          currency: true,
+          _count: { select: { tickets: true } },
+          event: { select: { organizationId: true, id: true, title: true, defaultLocale: true, startsAt: true, timezone: true,
+            venues: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: 1, select: { name: true, address: true, translations: true } } } },
         },
       });
 
@@ -61,9 +66,14 @@ export class TicketNotifierService {
         templateKey: 'ticket.issued',
         toAddress: order.buyerEmail,
         locale: order.locale,
+        eventLocale: order.event.defaultLocale,
         variables: {
           buyerName: order.buyerName,
           eventTitle: order.event.title,
+          // What was bought and for when: a bare link reads as phishing (audit F-10).
+          ...eventWhenAndWhere(order.event, order.locale),
+          ticketCount: String(order._count.tickets),
+          amount: `${order.totalMinor.toString()} ${order.currency}`,
           link: `${this.appUrl}/tickets/${order.accessToken}`,
         },
         // One confirmation per order, whatever retries the bank's callback and
@@ -133,7 +143,7 @@ export class TicketNotifierService {
           locale: true,
           totalMinor: true,
           currency: true,
-          event: { select: { organizationId: true, id: true, title: true } },
+          event: { select: { organizationId: true, id: true, title: true, defaultLocale: true } },
         },
       });
 
@@ -144,6 +154,7 @@ export class TicketNotifierService {
         templateKey: 'ticket.cancelled',
         toAddress: order.buyerEmail,
         locale: order.locale,
+        eventLocale: order.event.defaultLocale,
         variables: {
           buyerName: order.buyerName,
           eventTitle: order.event.title,

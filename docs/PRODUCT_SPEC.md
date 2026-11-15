@@ -188,6 +188,8 @@ Each guest receives their own invitation link. The page addresses them by name, 
 
 Armenian, Russian and English at minimum, extensible. Language is a property of content, not of the template: a block carries a translation per active language. Diaspora events frequently need all three simultaneously.
 
+**Decided (14 November 2026), for the pilot:** French is not offered. Aveline's own mail is written in Armenian, English and Russian; a message falls back to the event's language, then English. Account mail follows the language of the request that caused it. Replies to any Aveline mail go to Aveline's support address, never to a host's, so guests never see a host's address.
+
 ---
 
 ## 6. Operations
@@ -299,7 +301,7 @@ Tiers gate **capability**, never artificial scarcity. Revisions, languages and s
 | Post-event gallery & thank-yous | — | ✓ | ✓ |
 | Invitation stays live | 3 months | indefinitely | indefinitely |
 
-Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and other entitlements are published but not enforced until real events show what to charge and which limits matter. Invitation lifetime is enforced independently; paid billing remains inactive.
+Entry pricing sits at the premium end of the single-artifact band, because we are not selling that artifact. The Managed tier is priced against **the planner's time saved**, not against the cost of printing. Specific price points are open (§12). **Decided (8 October 2026):** the pilot runs free — paid tiers stay inactive and other entitlements are published but not enforced until real events show what to charge and which limits matter. **Decided (14 November 2026):** pilot hosts cannot price tickets above zero while payments are off; who sells a ticket and how a host is paid is decided before paid launch. Invitation lifetime is enforced independently; paid billing remains inactive.
 
 An organizer switching from a paid subscription to Free keeps the paid period.
 The organization owner can withdraw the change before it takes effect.

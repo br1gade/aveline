@@ -25,47 +25,52 @@ export const MESSAGE_COPY = [
   {
     key: 'invitation.send',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}' },
+    subject: { hy: 'Հրավեր {{hosts}}-ից', en: 'An invitation from {{hosts}}', ru: 'Приглашение от {{hosts}}' },
     body: {
-      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\n{{link}}{{#telegramLink}}\n\nՆախընտրում եք Telegram։ Սեղմեք այստեղ, և հիշեցումներն ու նորությունները կստանաք այնտեղ՝ {{telegramLink}}{{/telegramLink}}',
-      en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\n{{link}}{{#telegramLink}}\n\nPrefer Telegram? Tap here and we will send reminders and updates there instead: {{telegramLink}}{{/telegramLink}}',
+      hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\nԵրբ՝ {{eventDate}}{{#place}}\nՈրտեղ՝ {{place}}{{/place}}\n\nՁեր հրավերը՝ բոլոր մանրամասներով և պատասխանելու հնարավորությամբ․\n{{link}}\n\nԱյս նամակը ստանում եք, որովհետև {{hosts}}-ը Ձեզ ավելացրել է հյուրերի ցանկում։{{#telegramLink}}\n\nՆախընտրում եք Telegram։ Սեղմեք այստեղ, և հիշեցումներն ու նորությունները կստանաք այնտեղ՝ {{telegramLink}}{{/telegramLink}}',
+      en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\nWhen: {{eventDate}}{{#place}}\nWhere: {{place}}{{/place}}\n\nYour invitation, with every detail and the place to reply:\n{{link}}\n\nYou are receiving this because {{hosts}} added you to their guest list.{{#telegramLink}}\n\nPrefer Telegram? Tap here and we will send reminders and updates there instead: {{telegramLink}}{{/telegramLink}}',
+      ru: 'Здравствуйте, {{guestName}}! Сердечно приглашаем вас на «{{eventTitle}}».\n\nКогда: {{eventDate}}{{#place}}\nГде: {{place}}{{/place}}\n\nВаше приглашение со всеми подробностями и формой ответа:\n{{link}}\n\nВы получили это письмо, потому что {{hosts}} добавили вас в список гостей.{{#telegramLink}}\n\nУдобнее в Telegram? Нажмите здесь, и напоминания и новости будут приходить туда: {{telegramLink}}{{/telegramLink}}',
     },
   },
   {
     key: 'rsvp.reminder',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Հիշեցում՝ {{eventTitle}}', en: 'A gentle reminder: {{eventTitle}}' },
+    subject: { hy: 'Հիշեցում՝ {{eventTitle}}', en: 'A gentle reminder: {{eventTitle}}', ru: 'Напоминание: {{eventTitle}}' },
     body: {
       hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։\n\n{{link}}',
       en: '{{guestName}}, we are still hoping to hear from you.\n\n{{link}}',
+      ru: '{{guestName}}, мы всё ещё ждём вашего ответа.\n\n{{link}}',
     },
   },
   {
     // Sent only when the host chooses to, after moving the date or a venue.
     key: 'event.details-changed',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Փոփոխություն՝ {{eventTitle}}', en: 'An update to {{eventTitle}}' },
+    subject: { hy: 'Փոփոխություն՝ {{eventTitle}}', en: 'An update to {{eventTitle}}', ru: 'Изменения: {{eventTitle}}' },
     body: {
       hy: '{{guestName}}, {{hosts}}-ի միջոցառման մանրամասները փոխվել են։ {{note}}\n\nԹարմ տեղեկությունը՝ Ձեր հրավերում․\n{{link}}',
       en: '{{guestName}}, the details of {{hosts}}’s event have changed. {{note}}\n\nThe latest is always on your invitation:\n{{link}}',
+      ru: '{{guestName}}, изменились подробности «{{eventTitle}}». {{note}}\n\nАктуальная информация всегда в вашем приглашении:\n{{link}}',
     },
   },
   {
     key: 'thankyou.send',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Շնորհակալություն', en: 'Thank you' },
+    subject: { hy: 'Շնորհակալություն', en: 'Thank you', ru: 'Спасибо' },
     body: {
       hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։\n\n{{link}}',
       en: '{{guestName}}, thank you for being with us.\n\n{{link}}',
+      ru: '{{guestName}}, спасибо, что были с нами.\n\n{{link}}',
     },
   },
   {
     key: 'account.password-reset',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Գաղտնաբառի վերականգնում', en: 'Reset your password' },
+    subject: { hy: 'Գաղտնաբառի վերականգնում', en: 'Reset your password', ru: 'Сброс пароля' },
     body: {
       hy: '{{name}}, սեղմեք հղումը գաղտնաբառը փոխելու համար։ Հղումը գործում է մեկ ժամ։\n\n{{link}}\n\nԵթե Դուք չեք խնդրել, անտեսեք այս նամակը։',
       en: '{{name}}, use this link to set a new password. It is valid for one hour.\n\n{{link}}\n\nIf you did not ask for this, ignore this email.',
+      ru: '{{name}}, перейдите по ссылке, чтобы задать новый пароль. Ссылка действует один час.\n\n{{link}}\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.',
     },
   },
   {
@@ -74,19 +79,21 @@ export const MESSAGE_COPY = [
     // any differently, so this email is how they find out.
     key: 'account.already-registered',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Դուք արդեն ունեք Aveline հաշիվ', en: 'You already have an Aveline account' },
+    subject: { hy: 'Դուք արդեն ունեք Aveline հաշիվ', en: 'You already have an Aveline account', ru: 'У вас уже есть аккаунт Aveline' },
     body: {
       hy: '{{name}}, ինչ-որ մեկը փորձեց գրանցվել այս հասցեով, բայց Դուք արդեն ունեք հաշիվ։ Մուտք գործեք՝\n\n{{link}}\n\nՄոռացե՞լ եք գաղտնաբառը՝ {{resetLink}}\n\nԵթե Դուք չէիք, անտեսեք այս նամակը։ Ձեր հաշիվը չի փոխվել։',
       en: '{{name}}, someone tried to register with this address, but you already have an account. Sign in here:\n\n{{link}}\n\nForgot your password? {{resetLink}}\n\nIf this was not you, ignore this email — nothing about your account has changed.',
+      ru: '{{name}}, кто-то попытался зарегистрироваться с этим адресом, но у вас уже есть аккаунт. Войдите здесь:\n\n{{link}}\n\nЗабыли пароль? {{resetLink}}\n\nЕсли это были не вы, проигнорируйте это письмо — с вашим аккаунтом ничего не изменилось.',
     },
   },
   {
     key: 'account.verify-email',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Հաստատեք Ձեր էլ. հասցեն', en: 'Confirm your email address' },
+    subject: { hy: 'Հաստատեք Ձեր էլ. հասցեն', en: 'Confirm your email address', ru: 'Подтвердите адрес электронной почты' },
     body: {
       hy: '{{name}}, հաստատեք Ձեր էլ. հասցեն՝\n\n{{link}}',
       en: '{{name}}, please confirm your email address:\n\n{{link}}',
+      ru: '{{name}}, подтвердите, пожалуйста, ваш адрес электронной почты:\n\n{{link}}',
     },
   },
   {
@@ -95,10 +102,12 @@ export const MESSAGE_COPY = [
     subject: {
       hy: 'Հրավեր՝ աշխատելու «{{eventTitle}}»-ի վրա',
       en: 'You have been invited to work on {{eventTitle}}',
+      ru: 'Вас пригласили работать над «{{eventTitle}}»',
     },
     body: {
       hy: 'Ձեզ հրավիրել են միանալ «{{eventTitle}}»-ի թիմին որպես {{role}}։\n\n{{link}}',
       en: 'You have been invited to join the team for {{eventTitle}} as {{role}}.\n\n{{link}}',
+      ru: 'Вас пригласили в команду «{{eventTitle}}» с ролью {{role}}.\n\n{{link}}',
     },
   },
   {
@@ -107,46 +116,52 @@ export const MESSAGE_COPY = [
     subject: {
       hy: '{{organizationName}}-ը հրավիրում է Ձեզ',
       en: 'You have been invited to {{organizationName}}',
+      ru: 'Приглашение в {{organizationName}}',
     },
     body: {
       hy: 'Ձեզ հրավիրել են միանալ {{organizationName}}-ին որպես {{role}}։\n\n{{link}}',
       en: 'You have been invited to join {{organizationName}} as {{role}}.\n\n{{link}}',
+      ru: 'Вас пригласили в {{organizationName}} с ролью {{role}}.\n\n{{link}}',
     },
   },
   {
     key: 'rsvp.confirmation.attending',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Սպասում ենք Ձեզ', en: 'We look forward to seeing you' },
+    subject: { hy: 'Սպասում ենք Ձեզ', en: 'We look forward to seeing you', ru: 'Ждём вас' },
     body: {
       hy: '{{guestName}}, շնորհակալություն պատասխանի համար։ Սպասում ենք Ձեզ {{eventTitle}}-ին։\n\nՊատասխանը փոխելու համար՝ {{link}}',
       en: '{{guestName}}, thank you for your reply. We look forward to seeing you at {{eventTitle}}.\n\nTo change your answer: {{link}}',
+      ru: '{{guestName}}, спасибо за ответ. Будем рады видеть вас на «{{eventTitle}}».\n\nЧтобы изменить ответ: {{link}}',
     },
   },
   {
     key: 'rsvp.confirmation.declined',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Ստացանք Ձեր պատասխանը', en: 'We received your reply' },
+    subject: { hy: 'Ստացանք Ձեր պատասխանը', en: 'We received your reply', ru: 'Мы получили ваш ответ' },
     body: {
       hy: '{{guestName}}, շնորհակալություն տեղեկացնելու համար։ Կկարոտենք Ձեզ։\n\nԵթե պլանները փոխվեն՝ {{link}}',
       en: '{{guestName}}, thank you for letting us know. You will be missed.\n\nIf your plans change: {{link}}',
+      ru: '{{guestName}}, спасибо, что сообщили. Нам будет вас не хватать.\n\nЕсли планы изменятся: {{link}}',
     },
   },
   {
     key: 'rsvp.confirmation.undecided',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Ստացանք Ձեր պատասխանը', en: 'We received your reply' },
+    subject: { hy: 'Ստացանք Ձեր պատասխանը', en: 'We received your reply', ru: 'Мы получили ваш ответ' },
     body: {
       hy: '{{guestName}}, շնորհակալություն։ Երբ որոշեք, խնդրում ենք թարմացնել պատասխանը՝\n\n{{link}}',
       en: '{{guestName}}, thank you. When you know, please update your answer:\n\n{{link}}',
+      ru: '{{guestName}}, спасибо. Когда решите, пожалуйста, обновите ответ:\n\n{{link}}',
     },
   },
   {
     key: 'ticket.cancelled',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Ձեր պատվերը չեղարկվել է', en: 'Your order has been cancelled' },
+    subject: { hy: 'Ձեր պատվերը չեղարկվել է', en: 'Your order has been cancelled', ru: 'Ваш заказ отменён' },
     body: {
       hy: '{{buyerName}}, Ձեր տոմսերը {{eventTitle}}-ին չեղարկվել են, և {{amount}} վերադարձվել է։ Տոմսերն այլևս վավեր չեն։',
       en: '{{buyerName}}, your tickets for {{eventTitle}} have been cancelled and {{amount}} refunded. The tickets are no longer valid.',
+      ru: '{{buyerName}}, ваши билеты на «{{eventTitle}}» отменены, сумма {{amount}} возвращена. Билеты больше не действительны.',
     },
   },
   {
@@ -158,10 +173,11 @@ export const MESSAGE_COPY = [
   {
     key: 'ticket.issued',
     channel: MessageChannel.EMAIL,
-    subject: { hy: 'Ձեր տոմսերը', en: 'Your tickets' },
+    subject: { hy: 'Ձեր տոմսերը՝ {{eventTitle}}', en: 'Your tickets for {{eventTitle}}', ru: 'Ваши билеты на «{{eventTitle}}»' },
     body: {
-      hy: 'Շնորհակալություն, {{buyerName}}։ Ձեր տոմսերը՝\n\n{{link}}',
-      en: 'Thank you, {{buyerName}}. Your tickets:\n\n{{link}}',
+      hy: 'Շնորհակալություն, {{buyerName}}։ Ձեր տոմսերը {{eventTitle}}-ին պատրաստ են։\n\nԵրբ՝ {{eventDate}}{{#place}}\nՈրտեղ՝ {{place}}{{/place}}\nՏոմսեր՝ {{ticketCount}}, ընդամենը՝ {{amount}}\n\n{{link}}\n\nԱյս հղումը պահեք գաղտնի․ այն բացում է Ձեր տոմսերը։',
+      en: 'Thank you, {{buyerName}}. Your tickets for {{eventTitle}} are ready.\n\nWhen: {{eventDate}}{{#place}}\nWhere: {{place}}{{/place}}\nTickets: {{ticketCount}}, total {{amount}}\n\n{{link}}\n\nKeep this link private: anyone who has it can open your tickets.',
+      ru: 'Спасибо, {{buyerName}}! Ваши билеты на «{{eventTitle}}» готовы.\n\nКогда: {{eventDate}}{{#place}}\nГде: {{place}}{{/place}}\nБилетов: {{ticketCount}}, сумма {{amount}}\n\n{{link}}\n\nНе передавайте эту ссылку другим: по ней открываются ваши билеты.',
     },
   },
   // ── SMS ────────────────────────────────────────────────────────────
@@ -173,6 +189,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։ {{link}}',
       en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}. {{link}}',
+      ru: 'Здравствуйте, {{guestName}}! Приглашаем вас на «{{eventTitle}}». {{link}}',
     },
   },
   {
@@ -181,6 +198,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին։ {{link}}',
       en: '{{guestName}}, we are still hoping to hear from you. {{link}}',
+      ru: '{{guestName}}, мы всё ещё ждём вашего ответа. {{link}}',
     },
   },
   {
@@ -189,6 +207,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, {{hosts}}-ի միջոցառման մանրամասները փոխվել են։ {{note}} Թարմ տեղեկությունը՝ Ձեր հրավերում․ {{link}}',
       en: '{{guestName}}, the details of {{hosts}}’s event have changed. {{note}} The latest is always on your invitation: {{link}}',
+      ru: '{{guestName}}, изменились подробности «{{eventTitle}}». {{note}} Актуально в приглашении: {{link}}',
     },
   },
   {
@@ -197,6 +216,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։ {{link}}',
       en: '{{guestName}}, thank you for being with us. {{link}}',
+      ru: '{{guestName}}, спасибо, что были с нами. {{link}}',
     },
   },
   {
@@ -205,6 +225,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն պատասխանի համար։ Սպասում ենք Ձեզ {{eventTitle}}-ին։ Պատասխանը փոխելու համար՝ {{link}}',
       en: '{{guestName}}, thank you for your reply. We look forward to seeing you at {{eventTitle}}. To change your answer: {{link}}',
+      ru: '{{guestName}}, спасибо за ответ. Ждём вас на «{{eventTitle}}». Изменить ответ: {{link}}',
     },
   },
   {
@@ -213,6 +234,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն տեղեկացնելու համար։ Կկարոտենք Ձեզ։ Եթե պլանները փոխվեն՝ {{link}}',
       en: '{{guestName}}, thank you for letting us know. You will be missed. If your plans change: {{link}}',
+      ru: '{{guestName}}, спасибо, что сообщили. Будем скучать. Если планы изменятся: {{link}}',
     },
   },
   {
@@ -221,6 +243,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն։ Երբ որոշեք, խնդրում ենք թարմացնել պատասխանը՝ {{link}}',
       en: '{{guestName}}, thank you. When you know, please update your answer: {{link}}',
+      ru: '{{guestName}}, спасибо. Когда решите, обновите ответ: {{link}}',
     },
   },
 
@@ -235,6 +258,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: 'Հարգելի {{guestName}}, սիրով հրավիրում ենք Ձեզ {{eventTitle}}։\n\nՁեր հրավերը՝ {{link}}',
       en: 'Dear {{guestName}}, you are warmly invited to {{eventTitle}}.\n\nYour invitation: {{link}}',
+      ru: 'Здравствуйте, {{guestName}}! Сердечно приглашаем вас на «{{eventTitle}}».\n\nВаше приглашение: {{link}}',
     },
   },
   {
@@ -243,6 +267,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, դեռ սպասում ենք Ձեր պատասխանին {{eventTitle}}-ի համար։ Պատասխանել՝ {{link}}',
       en: '{{guestName}}, we are still hoping to hear from you about {{eventTitle}}. Reply here: {{link}}',
+      ru: '{{guestName}}, мы всё ещё ждём вашего ответа о «{{eventTitle}}». Ответить: {{link}}',
     },
   },
   {
@@ -251,6 +276,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, {{hosts}}-ի միջոցառման մանրամասները փոխվել են։ {{note}}\n\nԹարմ տեղեկությունը՝ Ձեր հրավերում․ {{link}}',
       en: '{{guestName}}, the details of {{hosts}}’s event have changed. {{note}}\n\nThe latest is always on your invitation: {{link}}',
+      ru: '{{guestName}}, изменились подробности «{{eventTitle}}». {{note}}\n\nАктуальная информация в вашем приглашении: {{link}}',
     },
   },
   {
@@ -259,6 +285,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն, որ մեզ հետ էիք։ {{link}}',
       en: '{{guestName}}, thank you for being with us. {{link}}',
+      ru: '{{guestName}}, спасибо, что были с нами. {{link}}',
     },
   },
   {
@@ -267,6 +294,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն պատասխանի համար։ Սպասում ենք Ձեզ {{eventTitle}}-ին։ Պատասխանը փոխելու համար՝ {{link}}',
       en: '{{guestName}}, thank you for your reply. We look forward to seeing you at {{eventTitle}}. To change your answer: {{link}}',
+      ru: '{{guestName}}, спасибо за ответ. Ждём вас на «{{eventTitle}}». Изменить ответ: {{link}}',
     },
   },
   {
@@ -275,6 +303,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն տեղեկացնելու համար։ Կկարոտենք Ձեզ։ Եթե պլանները փոխվեն՝ {{link}}',
       en: '{{guestName}}, thank you for letting us know. You will be missed. If your plans change: {{link}}',
+      ru: '{{guestName}}, спасибо, что сообщили. Будем скучать. Если планы изменятся: {{link}}',
     },
   },
   {
@@ -283,6 +312,7 @@ export const MESSAGE_COPY = [
     body: {
       hy: '{{guestName}}, շնորհակալություն։ Երբ որոշեք, խնդրում ենք թարմացնել պատասխանը՝ {{link}}',
       en: '{{guestName}}, thank you. When you know, please update your answer: {{link}}',
+      ru: '{{guestName}}, спасибо. Когда решите, обновите ответ: {{link}}',
     },
   },
 ];

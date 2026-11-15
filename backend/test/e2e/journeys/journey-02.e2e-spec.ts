@@ -246,10 +246,12 @@ describe('Journey 2: ticketed public event, from setup to refund (e2e)', () => {
     expect((paid.tickets as { status: string }[]).every((ticket) => ticket.status === 'VALID')).toBe(true);
     await http().post(`/api/v1/ticket-orders/${order.accessToken}/confirm`).expect(201);
 
-    // One ticket email, carrying the buyer's own way back to the order.
+    // One ticket email, carrying the buyer's own way back to the order, and
+    // naming what was bought: a bare link reads as phishing (audit F-10).
     const issued = await outbox('ticket.issued', 'ani@test.local');
-    expect(issued).toEqual([expect.objectContaining({ subject: 'Your tickets', eventId: sale.eventId })]);
+    expect(issued).toEqual([expect.objectContaining({ subject: 'Your tickets for Autumn Jazz Night', eventId: sale.eventId })]);
     expect(issued[0].body).toContain('Ani Grigoryan');
+    expect(issued[0].body).toContain('Tickets: 2, total 15000 AMD');
     expect(issued[0].body).toContain(`${APP_URL}/tickets/${order.accessToken}`);
 
     // The host sees the sale, the promo use and the attendees as guests with their own venue answers.

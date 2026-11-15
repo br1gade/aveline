@@ -13,6 +13,7 @@ import { GuestMediaService } from '../../../src/modules/guest-contributions/gues
 import { PrivateMediaRunner } from '../../../src/modules/guest-contributions/private-media-runner';
 import { versionStatement } from '../../../src/modules/guest-contributions/statements';
 import { PublicEventsService } from '../../../src/modules/public-events/public-events.service';
+import { PaymentGatewayRegistry } from '../../../src/modules/payments/payment-gateway.registry';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { seedEvent } from '../../fixtures/event.fixture';
 import { ticketEvent } from '../../fixtures/tickets.fixture';
@@ -82,7 +83,7 @@ describe('Private guest contributions (integration coverage)', () => {
       const required = await prisma.rsvpQuestion.create({ data: { invitationId: invitation.id, type: 'SIGNATURE', required: true, sortOrder: 0, prompt: { en: 'Rules', fr: 'Règles' } } });
       await prisma.rsvpQuestion.create({ data: { invitationId: invitation.id, type: 'SIGNATURE', required: false, sortOrder: 1, prompt: { en: 'Optional', fr: 'Facultatif' } } });
       const text = await prisma.rsvpQuestion.create({ data: { invitationId: invitation.id, type: 'TEXT', sortOrder: 2, prompt: { en: 'Meal?', fr: 'Repas?' } } });
-      const page = await new PublicEventsService(database).findBySlug(event.slug, 'fr');
+      const page = await new PublicEventsService(database, new PaymentGatewayRegistry([])).findBySlug(event.slug, 'fr');
       expect(page.checkout.acknowledgementsRequiredBeforeCheckIn).toEqual([{ questionId: required.id, prompt: 'Règles' }]);
       expect(page.checkout.questions.map((question: { id: string }) => question.id)).toEqual([text.id]);
     });

@@ -9,10 +9,13 @@ describe('redactUrl', () => {
     ['/api/v1/tickets/ABCDEF123/admit', '/api/v1/tickets/[token]/admit'],
     ['/api/v1/briefs/brief-token-1', '/api/v1/briefs/[token]'],
     ['/api/v1/devices/push-token', '/api/v1/devices/[token]'],
+    ['/api/v1/email-unsubscribe/clz123/AbC-_9', '/api/v1/email-unsubscribe/[token]'],
     ['/api/v1/payments/AV-20261010-1234', '/api/v1/payments/[order]'],
     ['/api/v1/payments/AV-20261010-1234/confirm', '/api/v1/payments/[order]/confirm'],
     ['/api/v1/organization/invites/anna%40example.am', '/api/v1/organization/invites/[email]'],
     ['/api/v1/events/clz123/team/invites/anna@example.am', '/api/v1/events/clz123/team/invites/[email]'],
+    // Telegram's Bot API takes the bot's token in the path of every call.
+    ['https://api.telegram.org/bot123456:AAH-x_9Zk/sendMessage', 'https://api.telegram.org/bot[token]/sendMessage'],
   ])('removes the credential from %s', (url, expected) => {
     expect(redactUrl(url)).toBe(expected);
   });
@@ -25,6 +28,7 @@ describe('redactUrl', () => {
     '/api/v1/organization/invites',
     '/api/v1/events/clz123/ticket-orders',
     '/api/v1/events/clz123/guests/clz456',
+    '/api/v1/telegram/bot-webhook',
   ])('leaves %s alone — no credential in it', (url) => {
     expect(redactUrl(url)).toBe(url);
   });

@@ -7,7 +7,7 @@ import { buildConfiguration, encodeEnvironment, decodeEnvironment, writeProfile,
 import { releasePlan, validateManifest } from './ops/plan.mjs';
 const digest = 'sha256:' + 'a'.repeat(64);
 const images = { api: `ghcr.io/example/aveline/api@${digest}`, backup: `ghcr.io/example/aveline/backup@${digest}`, web: `ghcr.io/example/aveline/web@${digest}` };
-const production = { mode: 'production', project: 'aveline-production', mediaDomain: 'media.example.test', appUrl: 'https://example.test', acmeEmail: 'ops@example.test', smtpHost: 'smtp.example.test', mailFrom: 'hello@example.test' };
+const production = { mode: 'production', project: 'aveline-production', mediaDomain: 'media.example.test', appUrl: 'https://example.test', acmeEmail: 'ops@example.test', smtpHost: 'smtp.example.test', mailFrom: 'hello@example.test', replyTo: 'support@example.test' };
 
 test('wizard generates separate secrets and closed commercial/feature gates', () => {
   const config = buildConfiguration(production);

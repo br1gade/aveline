@@ -12,7 +12,7 @@ import {
   Venue,
   VenueRole,
 } from '@prisma/client';
-import { MESSAGE_COPY } from '../src/seed/message-copy';
+import { syncPlatformCopy } from '../src/seed/message-copy-sync';
 import { customAlphabet } from 'nanoid';
 
 const prisma = new PrismaClient();
@@ -307,20 +307,6 @@ async function seedPublicEvent(organizationId: string) {
   return event;
 }
 
-/** Default message copy, so the outbox has something to render. */
-
-async function seedMessageTemplates() {
-
-  // Not an upsert: Prisma cannot address a compound unique whose component is
-  // null. The partial index added in 20261004170000 is what guarantees
-  // uniqueness here; this only avoids re-inserting on a repeat seed.
-  for (const template of MESSAGE_COPY) {
-    const existing = await prisma.messageTemplate.findFirst({
-      where: { organizationId: null, key: template.key, channel: template.channel },
-    });
-    if (!existing) await prisma.messageTemplate.create({ data: template });
-  }
-}
 
 async function main() {
   // Orders first. An order line refuses deletion of the ticket type it points
@@ -357,7 +343,8 @@ async function main() {
 
   const links = await seedGuests(event.id, invitation.slug);
   const publicEvent = await seedPublicEvent(organization.id);
-  await seedMessageTemplates();
+  // Default message copy, so the outbox has something to render.
+  await syncPlatformCopy(prisma, 'refresh');
 
   console.log('\nSeeded event:', event.id);
   console.log('Invitation:   /api/invitations/' + invitation.slug);

@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { MeController } from './me.controller';
 import { InvitesController } from './invites.controller';
 import { AuthGuard } from './auth.guard';
+import { LoginAttempts } from './login-attempts';
 import { AuthService } from './auth.service';
 import { jwtSecret } from './jwt-secret';
 
@@ -20,7 +21,7 @@ import { jwtSecret } from './jwt-secret';
     }),
   ],
   controllers: [AuthController, InvitesController, MeController],
-  providers: [AuthService, AccountService, AuthGuard],
+  providers: [AuthService, AccountService, AuthGuard, LoginAttempts],
   exports: [AuthService, AccountService, AuthGuard, JwtModule],
 })
 export class AuthModule {}

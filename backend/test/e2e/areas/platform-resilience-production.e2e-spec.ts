@@ -26,6 +26,8 @@ const PRODUCTION = {
   CORS_ORIGINS: 'https://aveline.am, https://admin.aveline.am',
   JWT_SECRET: 'production-test-secret-that-is-long-enough-to-be-real',
   PUBLIC_APP_URL: 'https://aveline.am',
+  PILOT_MODE: 'true',
+  MAIL_REPLY_TO: 'support@aveline.am',
   LOG_LEVEL: 'silent',
 };
 

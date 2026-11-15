@@ -19,10 +19,13 @@ const CAPABILITY_SEGMENTS: [RegExp, string][] = [
   [/(\/tickets\/)[^/?#]+/g, '$1[token]'],
   [/(\/briefs\/)[^/?#]+/g, '$1[token]'],
   [/(\/devices\/)[^/?#]+/g, '$1[token]'],
+  [/(\/email-unsubscribe\/)[^/?#]+\/[^/?#]+/g, '$1[token]'],
   // Not credentials, but an order number opens its payment's state to anyone,
   // and an invitee's address is personal data.
   [/(\/payments\/)(?!reconcile(?:[/?#]|$))[^/?#]+/g, '$1[order]'],
   [/(\/invites\/)(?!accept(?:[/?#]|$))[^/?#]+/g, '$1[email]'],
+  // An outgoing Telegram call: the Bot API takes the bot's token in the path.
+  [/(\/bot)\d+:[\w-]+/g, '$1[token]'],
 ];
 
 /** Query parameters that identify nobody and unlock nothing. */

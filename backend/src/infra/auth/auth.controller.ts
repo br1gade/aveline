@@ -8,6 +8,7 @@ import {
   RequestPasswordResetDto,
   VerifyEmailDto,
 } from './dto/account.dto';
+import { RequestLanguage } from '../../common/request-language';
 import { LoginDto, RefreshDto, RegisterDto } from './dto/auth.dto';
 
 @ApiTags('auth')
@@ -27,8 +28,8 @@ export class AuthController {
       'Answers 202 the same way whether or not the address already has an account; the owner of ' +
       'an existing one is emailed a way in. Does not sign in — log in next.',
   })
-  register(@Body() dto: RegisterDto) {
-    return this.accounts.register(dto);
+  register(@Body() dto: RegisterDto, @RequestLanguage() locale: string) {
+    return this.accounts.register(dto, locale);
   }
 
   @Public()
@@ -64,8 +65,8 @@ export class AuthController {
       'Always reports success, whether or not the address has an account — ' +
       'answering otherwise is an account-enumeration oracle.',
   })
-  requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
-    return this.accounts.requestPasswordReset(dto.email);
+  requestPasswordReset(@Body() dto: RequestPasswordResetDto, @RequestLanguage() locale: string) {
+    return this.accounts.requestPasswordReset(dto.email, locale);
   }
 
   @Public()
@@ -80,8 +81,8 @@ export class AuthController {
 
   @Post('verify-email')
   @ApiOperation({ summary: 'Send a verification link to the signed-in account' })
-  requestEmailVerification(@CurrentActor() actor: RequestActor) {
-    return this.accounts.requestEmailVerification(actor.userId);
+  requestEmailVerification(@CurrentActor() actor: RequestActor, @RequestLanguage() locale: string) {
+    return this.accounts.requestEmailVerification(actor.userId, locale);
   }
 
   @Public()

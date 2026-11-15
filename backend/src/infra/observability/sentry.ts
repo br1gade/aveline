@@ -31,6 +31,7 @@ export function initialiseSentry(env: NodeJS.ProcessEnv): boolean {
     maxValueLength: 2000,
 
     beforeSend: scrubEvent,
+    beforeBreadcrumb: scrubBreadcrumb,
   });
 
   return true;
@@ -67,5 +68,19 @@ export function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
   return event;
 }
 
+/** Breadcrumbs that are log lines; what a log line says is not filtered. */
+const LOG_CATEGORIES = new Set(['console']);
+
+/**
+ * Strips what breadcrumbs would carry off-site. The SDK records outgoing
+ * calls and log lines on its own, and neither passes through `scrubEvent`:
+ * an outgoing Telegram call's URL carries the bot's token.
+ */
+export function scrubBreadcrumb(breadcrumb: Sentry.Breadcrumb): Sentry.Breadcrumb | null {
+  if (LOG_CATEGORIES.has(breadcrumb.category ?? '')) return null;
+  const url: unknown = breadcrumb.data?.url;
+  if (typeof url !== 'string') return breadcrumb;
+  return { ...breadcrumb, data: { ...breadcrumb.data, url: redactUrl(url) } };
+}
 
 export { Sentry };

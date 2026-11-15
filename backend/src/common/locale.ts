@@ -5,6 +5,12 @@
  */
 export type Translated = Record<string, unknown>;
 
+/**
+ * The language mail falls back to when its copy has none in the reader's
+ * language and no event's language applies (decided 14 November 2026).
+ */
+export const MAIL_FALLBACK_LOCALE = 'en';
+
 export function resolveTranslation<T = unknown>(
   content: unknown,
   locale: string,

@@ -14,7 +14,7 @@ const communications = new CommunicationsService(database, new Map(), new Suppre
 const accounts = new AccountService(
   database,
   communications,
-  new ConfigService({ NODE_ENV: 'test', DEFAULT_LOCALE: 'en', APP_URL: 'http://localhost' }),
+  new ConfigService({ NODE_ENV: 'test', APP_URL: 'http://localhost' }),
 );
 // Opening an organization never creates an event, so the events service is not reached.
 const concierge = new ConciergeService(database, {} as EventsService, accounts);

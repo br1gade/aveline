@@ -437,6 +437,7 @@ its records are references to regenerate, never historical snapshots.
 | `GET` | `/api/v1/admin/organization-access-reviews` | ADMIN review queue |
 | `POST` | `/api/v1/admin/organization-access-reviews/:reviewId/resolve` | ADMIN reviewed recovery or soft closure |
 | `GET` | `/api/v1/plans` | The price list with entitlements (**public**) |
+| `GET` | `/api/v1/payment-options` | Whether anything can be paid for now, and with which banks (**public**) |
 | `GET` | `/api/v1/subscription` | Your subscription, or `{ "subscription": null }` |
 | `POST` | `/api/v1/subscription` | Start or change a plan |
 | `POST` | `/api/v1/subscription/cancel` | Cancel at the end of the paid period |
@@ -523,6 +524,7 @@ registration, not bank certification or credentials.
 | `GET` | `/api/v1/communications/whatsapp-webhook` | Meta subscription challenge; configured verification token required |
 | `POST` | `/api/v1/communications/whatsapp-webhook` | Native WhatsApp statuses; exact-byte app-secret HMAC and durable receipt acceptance |
 | `POST` | `/api/v1/communications/email-feedback` | Normalized email delivery feedback; public route requiring a trusted HMAC signature |
+| `POST` | `/api/v1/email-unsubscribe/:messageId/:signature` | One-click unsubscribe from a host's guest mail (RFC 8058); public, signed link |
 
 ## Three design decisions worth knowing
 

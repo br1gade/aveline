@@ -14,10 +14,15 @@ with the code, so the committed file is current.
 ## 1. Conventions that apply everywhere
 
 **Free-pilot deployments:** `PILOT_MODE=true` refuses paid ticket checkout and
-paid subscription selection with `403` and the message "Payments are disabled
-for the free pilot". No payable order/invoice is committed. Free ticket orders
-and free subscriptions continue to work. Treat this as an unavailable paid
-capability, not a retryable payment failure.
+paid subscription selection with `403`, code `PAYMENTS_DISABLED` (action
+`WAIT`) and the message "Payments are disabled for the free pilot". No payable
+order/invoice is committed. Free ticket orders and free subscriptions continue
+to work. Treat this as an unavailable paid capability, not a retryable payment
+failure. **Read it before anyone types:** `GET /payment-options` (see Plans and
+subscriptions) and the public event's `checkout.payment` say whether anything
+can be paid for, and with which banks. While payments are off a host cannot
+give a ticket type a price above `"0"` either (`400 PAID_TICKETS_DISABLED`,
+decided 14 November 2026).
 
 Learn these once and every endpoint behaves predictably.
 
@@ -177,6 +182,13 @@ filename across approved origins.
 10 requests/second and 100/minute. A signed-in caller is counted per account,
 anyone else per address. Exceeding either returns `429`.
 
+**Sign-in is also counted per account.** After 10 failed sign-ins to one
+address within 15 minutes, `POST /auth/login` for that address answers `429`
+with code `LOGIN_TOO_MANY_ATTEMPTS` and action `WAIT` — even with the right
+password — until 15 minutes after the first failure. A successful sign-in
+clears the count. Password reset is not limited this way, so offer it beside
+the message: it is how the owner gets in while someone else is guessing.
+
 Guest-page reads have a wider allowance — 50/second and 3,000/minute — because
 a whole room opens them at once on one Wi-Fi: `GET /invitations/:slug`,
 `GET /invitations/:slug/g/:guestToken`, the guest's own
@@ -302,6 +314,13 @@ POST /api/v1/auth/password-reset/confirm   { token, password }    # public
 POST /api/v1/auth/verify-email                                    # authenticated
 POST /api/v1/auth/verify-email/confirm     { token }              # public
 ```
+
+**Account mail is written in the language of the request that caused it**:
+`?locale=`, else `Accept-Language`, else English. That covers registration
+(the "you already have an account" notice), a reset, a verification, and
+organization and event team invitations, which are written in the inviter's
+language. Send the interface language on these calls. Copy exists in
+Armenian, English and Russian; another language gets English.
 
 Requesting a reset **always reports `{ sent: true }`**, for a known address or
 an unknown one. Do not try to tell the user which — answering differently is
@@ -856,6 +875,12 @@ DELETE /api/v1/events/:eventId/ticket-types/:typeId
 `priceMinor` is a string, and `"0"` is a free ticket. The list returns `sold`,
 `held` (seats in someone's checkout right now) and `available`.
 
+While payments are off (`GET /payment-options` says `isPaymentAvailable:
+false`), creating or changing a type with a price above `"0"` is `400` with
+code `PAID_TICKETS_DISABLED`, naming `priceMinor`; free types and changes that
+leave the price alone still work. A type priced before payments were turned
+off stays as it is, and its checkout is refused with `403 PAYMENTS_DISABLED`.
+
 **The price can change at any time, and only affects future buyers** — every
 order captures its unit price when it is placed, so early-bird pricing on one
 ticket type works. Two buyers of the same type can therefore have paid
@@ -1127,7 +1152,10 @@ can still be retried using its original payload. A shared buyer, name or email
 never merges attendees.
 
 Load the public event detail first. Its `checkout` object supplies
-`attendanceMode`, `attendanceRevision`, `venues: [{id, name}]`, `rsvpFields`
+`payment: { isPaymentAvailable, providers }` (the same as
+`GET /payment-options`: when it is `false`, say before the form that paid
+tickets cannot be bought), `attendanceMode`, `attendanceRevision`,
+`venues: [{id, name}]`, `rsvpFields`
 and localized `questions: [{id, type, required, prompt, options}]`. The checkout
 built-in fields are `dietary` and `drinkPreference`, the fields accepted per
 attendee.
@@ -2172,6 +2200,25 @@ a number is how long after the event a free-tier page remains reachable.
 **Nothing enforces these entitlements yet** — they are published so you can
 build the pricing page and gate the UI, but the server will not refuse a
 fourth event today.
+
+```http
+GET /api/v1/payment-options
+```
+
+Public, with the guest-page read allowance. Whether anything can be paid for
+now, and the banks a paid plan or order may name as its `provider`:
+
+```json
+{ "isPaymentAvailable": false, "providers": [] }
+```
+
+While payments are off (the free pilot) it is always the above. Otherwise
+`providers` lists the configured banks (`AMERIABANK`; `FAKE` only on a
+development stack) and `isPaymentAvailable` is `true` when there is at least
+one. Show paid plans as not yet available when it is `false`, rather than
+letting a host choose one and meet `403 PAYMENTS_DISABLED`. The same object is
+on the public event as `checkout.payment`, and the host's ticket form can read
+it here before offering a price.
 
 ```http
 GET /api/v1/subscription
@@ -3853,6 +3900,22 @@ production, including an explicitly selected API version. See
 external approval and real provider acceptance gates. No Meta account/test
 number is available yet; local payload tests do not close the launch gate.
 
+### Not for the browser: one-click unsubscribe
+
+```http
+POST /api/v1/email-unsubscribe/:messageId/:signature
+```
+
+The target of the `List-Unsubscribe` header on a host's guest mail
+(invitations, reminders, change notices, thank-yous), which mail clients show
+as an "Unsubscribe" button and POST to (RFC 8058). It suppresses that address
+for that organization only — it then appears in the host's suppression list
+with reason `UNSUBSCRIBED` — and answers `204`, again if pressed twice. A link
+that is not genuine, or one on mail nobody may opt out of (account mail,
+tickets, reply confirmations), is `404`. The link is a capability: keep it out
+of logs like the others. Replies to any Aveline mail go to Aveline's support
+address (`Reply-To`), never to the host.
+
 ### Not for the browser: normalized email feedback
 
 ```http
@@ -4012,6 +4075,13 @@ So you can plan around them rather than discover them:
   the subscription, but the server will not refuse a fourth event on a
   three-event plan.
 - **No tax on invoices.** `taxMinor` is always `"0"`.
+- **No receipt for a paid plan.** No email follows a plan payment and the
+  invoice cannot be printed; what a paying host receives is still to be
+  decided (audit F-38).
+- **No French mail copy.** French was dropped for the pilot on 14 November
+  2026: a French reader gets the event's language, then English.
+- **No unsubscribe line in the mail body.** Guest mail carries the one-click
+  `List-Unsubscribe` header; a visible link needs a client page to land on.
 - **No renewal or dunning.** A subscription's period lapses and nothing
   charges again or moves it to `PAST_DUE`.
 - Additional memberships require the controlled schema/runtime cutover and shared write gate. See organization selection.

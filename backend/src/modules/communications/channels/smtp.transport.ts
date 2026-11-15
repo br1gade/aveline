@@ -26,6 +26,8 @@ export interface SmtpSettings {
   password?: string;
   /** What recipients see, e.g. "Aveline <hello@aveline.am>". */
   from: string;
+  /** Where a reply goes: Aveline's support mailbox, never a host's (decided 14 November 2026). */
+  replyTo?: string;
 }
 
 /**
@@ -74,10 +76,11 @@ export class SmtpTransport implements MessageTransport {
   async send(message: OutboundMessage): Promise<DeliveryResult> {
     const info = (await this.transporter.sendMail({
       from: this.settings.from,
+      replyTo: this.settings.replyTo,
       to: message.toAddress,
       subject: message.subject ?? '',
       text: message.body,
-      headers: message.messageId ? { 'X-Aveline-Message-Id': message.messageId } : undefined,
+      headers: headersFor(message),
       // Templates are authored as text, so the HTML part is the same content
       // with line breaks preserved rather than a second thing to keep in sync.
       html: asHtml(message.body),
@@ -114,6 +117,19 @@ export class SmtpTransport implements MessageTransport {
  * guest's own name — typed by a host into a template variable — able to inject
  * markup into every other guest's email.
  */
+/**
+ * Our own id, so a provider's feedback names the message; and for mail a
+ * guest may stop, RFC 8058 one-click unsubscribe, which mail clients show as
+ * an "Unsubscribe" button beside the sender.
+ */
+function headersFor(message: OutboundMessage): Record<string, string> | undefined {
+  const headers: Record<string, string> = {
+    ...(message.messageId ? { 'X-Aveline-Message-Id': message.messageId } : {}),
+    ...(message.unsubscribeUrl ? { 'List-Unsubscribe': `<${message.unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : {}),
+  };
+  return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
 export function asHtml(text: string): string {
   const escaped = text
     .replace(/&/g, '&amp;')

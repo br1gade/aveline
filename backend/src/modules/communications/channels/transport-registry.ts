@@ -139,6 +139,7 @@ export function smtpSettingsFrom(config: ConfigService): SmtpSettings | null {
     user: config.get<string>('SMTP_USER'),
     password: config.get<string>('SMTP_PASSWORD'),
     from,
+    replyTo: config.get<string>('MAIL_REPLY_TO') || undefined,
   };
 }
 

@@ -1,6 +1,7 @@
 import { CronExpression } from '@nestjs/schedule';
 import { SCHEDULE_CRON_OPTIONS } from '@nestjs/schedule/dist/schedule.constants';
 import { PrivacyService } from '../../modules/privacy/privacy.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { JobLockService, SCHEDULES } from './job-lock.service';
 import { PrivacySweepService } from './privacy-sweep.service';
 
@@ -12,6 +13,7 @@ describe('the daily GDPR deadline sweep', () => {
     const sweep = new PrivacySweepService(
       { runExclusively } as unknown as JobLockService,
       privacy as unknown as PrivacyService,
+      {} as PrismaService,
     );
     return { sweep, privacy };
   };

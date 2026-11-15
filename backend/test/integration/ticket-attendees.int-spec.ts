@@ -7,6 +7,7 @@ import { CacheService } from '../../src/infra/cache/cache.service';
 import { AttendancePolicyService } from '../../src/modules/events/attendance-policy.service';
 import { VenuesService } from '../../src/modules/design/venues.service';
 import { PublicEventsService } from '../../src/modules/public-events/public-events.service';
+import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { eraseSubject } from '../../src/modules/privacy/erasure';
 import { exportAttendees } from '../../src/modules/ticketing/attendee-privacy';
@@ -43,7 +44,7 @@ describe('Named ticket attendees (integration)', () => {
     await prisma.venue.create({ data: { eventId: event.eventId, role: 'PREPARATION', name: 'Internal', address: 'Private' } });
     const invitation = await prisma.invitation.findUniqueOrThrow({ where: { eventId: event.eventId } });
     await prisma.rsvpQuestion.create({ data: { invitationId: invitation.id, type: 'TEXT', prompt: { en: 'Meal?', ru: 'Меню?', fr: 'Repas?', hy: 'Ճա՞շ' } } });
-    const service = new PublicEventsService(prisma as unknown as PrismaService);
+    const service = new PublicEventsService(prisma as unknown as PrismaService, new PaymentGatewayRegistry([]));
     const page = await service.findBySlug(event.slug, 'fr');
     expect(page).toMatchObject({ checkout: { attendanceMode: 'EVENT_WIDE', attendanceRevision: 1,
       questions: [{ prompt: 'Repas?' }], venues: [{ name: 'Fixture Hall', id: expect.any(String) as string }] } });

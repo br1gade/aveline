@@ -367,7 +367,7 @@ describe('Payments and billing over HTTP (e2e)', () => {
           .set('Authorization', authorization)
           .send({ planKey: 'managed', provider: 'AMERIABANK' })
           .expect(403);
-        expect(body.message).toBe('Payments are disabled for the free pilot');
+        expect(body).toMatchObject({ message: 'Payments are disabled for the free pilot', code: 'PAYMENTS_DISABLED', action: 'WAIT' });
       });
 
       expect(await prisma.invoice.count({ where: { organizationId } })).toBe(0);
@@ -385,6 +385,43 @@ describe('Payments and billing over HTTP (e2e)', () => {
       });
 
       expect(await prisma.invoice.count()).toBe(0);
+    });
+
+    // FR-64, FR-109, audit F-09: a buyer or a host learns before typing anything.
+    it('says payments are off, the same on its own read and on the public event', async () => {
+      const { slug } = await ticketEvent(prisma);
+
+      await withPilotMode(async () => {
+        await http().get('/api/v1/payment-options').expect(200, { isPaymentAvailable: false, providers: [] });
+        const { body } = await http().get(`/api/v1/public/events/${slug}`).expect(200);
+        expect(body.checkout.payment).toEqual({ isPaymentAvailable: false, providers: [] });
+      });
+    });
+
+    it('names the banks that can take a payment once payments are on', async () => {
+      const { body } = await http().get('/api/v1/payment-options').expect(200);
+      expect(body).toMatchObject({ isPaymentAvailable: true });
+      expect(body.providers).toContain(PaymentProvider.FAKE);
+    });
+
+    // Decided 14 November 2026: no paid tickets while payments are off.
+    it('refuses a priced ticket type while payments are off, and takes a free one', async () => {
+      const { authorization } = await owner();
+      const host = (method: 'post' | 'patch', path: string, body: object) =>
+        http()[method](`/api/v1${path}`).set('Authorization', authorization).send(body);
+      const { body: event } = await host('post', '/events', { type: 'OTHER', title: 'Pilot night', startsAt: '2027-10-01T18:00:00.000Z' }).expect(201);
+      const types = `/events/${event.id as string}/ticket-types`;
+
+      await withPilotMode(async () => {
+        const { body: refused } = await host('post', types, { name: { en: 'Paid' }, priceMinor: '1', quantityTotal: 10 }).expect(400);
+        expect(refused).toMatchObject({ code: 'PAID_TICKETS_DISABLED', details: [expect.objectContaining({ field: 'priceMinor' })] });
+
+        const { body: free } = await host('post', types, { name: { en: 'Free' }, priceMinor: '0', quantityTotal: 10 }).expect(201);
+        await host('patch', `${types}/${free.id as string}`, { priceMinor: '5000' }).expect(400);
+        await host('patch', `${types}/${free.id as string}`, { quantityTotal: 20 }).expect(200);
+      });
+
+      expect(await prisma.ticketType.findMany({ select: { priceMinor: true, quantityTotal: true } })).toEqual([{ priceMinor: 0n, quantityTotal: 20 }]);
     });
 
     it('still serves the price list and activates a free plan', async () => {
@@ -417,7 +454,7 @@ describe('Payments and billing over HTTP (e2e)', () => {
             provider: 'FAKE',
           })
           .expect(403);
-        expect(body.message).toBe('Payments are disabled for the free pilot');
+        expect(body).toMatchObject({ message: 'Payments are disabled for the free pilot', code: 'PAYMENTS_DISABLED' });
       });
 
       expect(await prisma.ticketOrder.count()).toBe(0);

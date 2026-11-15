@@ -20,6 +20,9 @@ import { resolveTranslation } from '../../common/locale';
 import { DeliveryResult, MessageTransport } from './channels/message-channel';
 import { priorityFor } from './message-priority';
 import { renderTemplate } from './message-renderer';
+import { mailLocale } from './mail-locale';
+import { appPage } from '../../common/app-url';
+import { unsubscribeSecret, unsubscribeUrlFor } from './email-unsubscribe';
 import { EmailQuotaService, EmailQuotaWaitError } from './email-quota.service';
 
 export interface EnqueueParams {
@@ -30,7 +33,10 @@ export interface EnqueueParams {
   channel: MessageChannel;
   templateKey: string;
   toAddress: string;
+  /** The reader's language; the message is written in it when its copy has it. */
   locale: string;
+  /** The event's default language, the first fallback (decided 14 November 2026). */
+  eventLocale?: string;
   variables: Record<string, string>;
   scheduledFor?: Date;
   /** Same logical message is only ever enqueued once. */
@@ -413,6 +419,7 @@ export class CommunicationsService {
         messageId: message.id,
         toAddress: message.toAddress,
         ...messageCopyForDelivery(message),
+        unsubscribeUrl: unsubscribeUrlFor(message, appPage(''), unsubscribeSecret()),
         locale: message.locale,
         template: message.providerTemplate
           ? {
@@ -587,8 +594,9 @@ function messageData(
   template: { subject: Prisma.JsonValue; body: Prisma.JsonValue; providerTemplate: string | null; providerParams: string[] },
   isSuppressed: boolean,
 ): Prisma.MessageUncheckedCreateInput {
-  const subject = resolveTranslation<string>(template.subject, params.locale, 'hy');
-  const body = resolveTranslation<string>(template.body, params.locale, 'hy');
+  const locale = mailLocale(template.body, params.locale, params.eventLocale);
+  const subject = resolveTranslation<string>(template.subject, locale, locale);
+  const body = resolveTranslation<string>(template.body, locale, locale);
   if (body === null) throw new NotFoundException(`Template "${params.templateKey}" has no body for any locale`);
 
   return {
@@ -598,9 +606,9 @@ function messageData(
     channel: params.channel,
     templateKey: params.templateKey,
     toAddress: params.toAddress,
-    locale: params.locale,
+    locale,
     subject: subject === null ? null : renderTemplate(subject, params.variables),
-    body: renderTemplate(body, params.variables) + invitationEmailFooter(params),
+    body: renderTemplate(body, params.variables) + invitationEmailFooter({ ...params, locale }),
     scheduledFor: params.scheduledFor ?? new Date(),
     priority: priorityFor(params.templateKey),
     dedupeKey: params.dedupeKey ?? null,

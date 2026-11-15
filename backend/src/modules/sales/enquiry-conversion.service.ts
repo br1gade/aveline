@@ -15,6 +15,7 @@ import { ConversionTarget, resolveConversionTarget, validateConversionTarget } f
 import { intentFingerprint, sameIntent, validateIdempotencyKey } from './enquiry-intent';
 import { lockEnquiry, lockIntake } from './enquiry-lock';
 import { projectEnquiry } from './enquiry-projection';
+import { MAIL_FALLBACK_LOCALE } from '../../common/locale';
 import { runEnquiryTransaction } from './enquiry-transaction';
 
 @Injectable()
@@ -83,7 +84,7 @@ export class EnquiryConversionService {
     if (await tx.organizationMembership.count({ where: { organizationId: input.organizationId, user: { email: { equals: email, mode: 'insensitive' }, isActive: true } } })) return null;
     const contact = await tx.enquiryContact.findUniqueOrThrow({ where: { enquiryId: input.root.id }, select: { id: true, email: true } });
     if (setup.ownerEmailSource === 'PRIMARY_CONTACT' && contact.email !== email) throw new BadRequestException('organization.create.ownerEmail must match the explicitly selected primary contact');
-    const invite = await this.accounts.inviteMemberInTransaction(tx, { organizationId: input.organizationId, invitedByUserId: input.userId, dto: { email, role: 'OWNER' }, reusePendingOwner: true, isConcierge: true });
+    const invite = await this.accounts.inviteMemberInTransaction(tx, { organizationId: input.organizationId, invitedByUserId: input.userId, dto: { email, role: 'OWNER' }, reusePendingOwner: true, isConcierge: true, locale: MAIL_FALLBACK_LOCALE });
     await tx.ownerInviteDelivery.upsert({ where: { organizationInviteId: invite.invitationId }, create: { organizationInviteId: invite.invitationId, enquiryId: input.root.id, privacyRevision: input.root.privacyRevision, sourceContactId: setup.ownerEmailSource === 'PRIMARY_CONTACT' ? contact.id : null, state: invite.messageId ? 'QUEUED' : 'NEEDS_REVIEW', messageId: invite.messageId }, update: {} });
     return invite.invitationId;
   }

@@ -19,7 +19,7 @@ export class TicketAcknowledgementInviter implements OnModuleInit {
   }
   async sendMissing(limit = 50) {
     const rows = await this.prisma.$queryRaw<AttendeeLink[]>`SELECT t.id AS "ticketId", g.id AS "guestId", g."firstName", g."lastName", g.email,
-      COALESCE(g.locale, e."defaultLocale") AS locale, g.token, i.slug, e.id AS "eventId", e."organizationId", e.title
+      COALESCE(g.locale, e."defaultLocale") AS locale, e."defaultLocale" AS "eventLocale", g.token, i.slug, e.id AS "eventId", e."organizationId", e.title
       FROM tickets t JOIN ticket_orders o ON o.id = t."orderId" JOIN guests g ON g.id = t."guestId"
       JOIN events e ON e.id = g."eventId" JOIN invitations i ON i."eventId" = e.id
       WHERE t.status = 'VALID' AND o.status = 'PAID' AND g."anonymizedAt" IS NULL AND g.email IS NOT NULL
@@ -29,13 +29,13 @@ export class TicketAcknowledgementInviter implements OnModuleInit {
       ORDER BY o."createdAt", t.id LIMIT ${Math.max(1, Math.min(100, limit))}`;
     if (!rows.length) return { queued: 0 };
     await this.communications.enqueueMany(rows.map((row) => ({ organizationId: row.organizationId, eventId: row.eventId, guestId: row.guestId,
-      channel: 'EMAIL', templateKey: 'ticket.acknowledgement', toAddress: row.email, locale: row.locale,
+      channel: 'EMAIL', templateKey: 'ticket.acknowledgement', toAddress: row.email, locale: row.locale, eventLocale: row.eventLocale,
       variables: { guestName: [row.firstName, row.lastName].filter(Boolean).join(' '), eventTitle: row.title,
         link: `${this.appUrl}/invitations/${row.slug}/g/${row.token}` }, dedupeKey: `ticket-ack:${row.ticketId}:${row.guestId}` })));
     return { queued: rows.length };
   }
 }
 interface AttendeeLink {
-  ticketId: string; guestId: string; firstName: string; lastName: string | null; email: string; locale: string; token: string; slug: string;
+  ticketId: string; guestId: string; firstName: string; lastName: string | null; email: string; locale: string; eventLocale: string; token: string; slug: string;
   eventId: string; organizationId: string; title: string;
 }

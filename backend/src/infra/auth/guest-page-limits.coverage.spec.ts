@@ -72,6 +72,7 @@ describe('guest-page rate limits', () => {
       'invitations/:slug/g/:guestToken/gallery/:mediaId/file',
       'invitations/:slug/g/:guestToken/rsvp',
       'invitations/:slug/g/:guestToken/signature-uploads/:mediaId/file',
+      'payment-options',
       'plans',
       'public/events',
       'public/events/:slug',

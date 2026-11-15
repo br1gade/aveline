@@ -1,5 +1,6 @@
 import type { ErrorEvent } from '@sentry/nestjs';
-import { initialiseSentry, scrubEvent } from './sentry';
+import type { Breadcrumb } from '@sentry/nestjs';
+import { initialiseSentry, scrubBreadcrumb, scrubEvent } from './sentry';
 
 /**
  * Error reports leave the building, so what they carry matters more than
@@ -71,6 +72,27 @@ describe('Sentry', () => {
 
     it('survives an event with no request at all', () => {
       expect(scrubEvent({} as ErrorEvent)).toEqual({});
+    });
+  });
+
+  /**
+   * Breadcrumbs ride along with every report. The SDK records outgoing calls
+   * and log lines as breadcrumbs on its own, so they carry what the request
+   * scrubber never sees: a Telegram call's URL holds the bot's token.
+   */
+  describe('scrubBreadcrumb', () => {
+    it.each(['http', 'fetch'])('removes the credential from an outgoing %s call', (category) => {
+      const crumb: Breadcrumb = { category, data: { url: 'https://api.telegram.org/bot123456:AAH-x_9Zk/sendMessage?chat_id=42', method: 'POST' } };
+      expect(scrubBreadcrumb(crumb)).toEqual({ category, data: { url: 'https://api.telegram.org/bot[token]/sendMessage?chat_id=[redacted]', method: 'POST' } });
+    });
+
+    it('drops log lines, which can name a guest or an address', () => {
+      expect(scrubBreadcrumb({ category: 'console', message: 'could not queue invitation.send to ani@aveline.am' })).toBeNull();
+    });
+
+    it('keeps a breadcrumb that carries no URL', () => {
+      const crumb: Breadcrumb = { category: 'navigation', message: 'started' };
+      expect(scrubBreadcrumb(crumb)).toBe(crumb);
     });
   });
 });

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
+import { PaymentOptions, paymentOptions } from './pilot-payments';
 import { PaymentGateway } from './providers/payment-provider';
 
 /**
@@ -26,5 +27,10 @@ export class PaymentGatewayRegistry {
 
   configured(): PaymentProvider[] {
     return [...this.gateways.keys()];
+  }
+
+  /** What a buyer or a host may pay with now: nothing while payments are off. */
+  options(): PaymentOptions {
+    return paymentOptions(this.configured());
   }
 }

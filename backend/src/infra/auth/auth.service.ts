@@ -5,6 +5,7 @@ import { compare } from 'bcrypt';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/auth.dto';
+import { LoginAttempts } from './login-attempts';
 import { hashRefreshToken, isExpired, newRefreshToken } from './token.util';
 
 /** A replaced refresh token resent this soon is a retry, not theft. */
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     config: ConfigService,
+    private readonly attempts: LoginAttempts,
   ) {
     // Seconds rather than a duration string: one less format to get wrong,
     // and it is the unit the response reports anyway.
@@ -50,6 +52,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, context: SessionContext) {
+    await this.attempts.assertAllowed(dto.email);
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
 
     // Compare against a dummy hash when the user is unknown, so a missing
@@ -61,8 +64,10 @@ export class AuthService {
     const isCorrect = await compare(dto.password, storedHash);
 
     if (!user || !user.passwordHash || !isCorrect || !user.isActive) {
+      await this.attempts.recordFailure(dto.email);
       throw new UnauthorizedException('Invalid email or password');
     }
+    await this.attempts.recordSuccess(dto.email);
 
     await this.prisma.user.update({
       where: { id: user.id },

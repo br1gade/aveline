@@ -110,6 +110,34 @@ describe('SmtpTransport', () => {
   });
 });
 
+/**
+ * A reply must reach someone who reads it, and a guest must be able to stop
+ * a host's mail from the mail client itself (audit F-10).
+ */
+describe('SmtpTransport headers', () => {
+  const sent = async (overrides: Partial<SmtpSettings>, message: { unsubscribeUrl?: string } = {}) => {
+    const { transporter, calls } = fakeTransporter({ accepted: ['ani@test.local'] });
+    await new SmtpTransport({ ...settings, ...overrides }, transporter).send({ toAddress: 'ani@test.local', body: 'Բարև', locale: 'hy', ...message });
+    return calls[0];
+  };
+
+  it('sends replies to the support address', async () => {
+    expect(await sent({ replyTo: 'support@aveline.test' })).toMatchObject({ replyTo: 'support@aveline.test' });
+  });
+
+  it('offers one-click unsubscribe when the message carries a link', async () => {
+    const url = 'https://aveline.test/api/v1/email-unsubscribe/m1/sig';
+    expect((await sent({}, { unsubscribeUrl: url })).headers).toEqual({
+      'List-Unsubscribe': `<${url}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    });
+  });
+
+  it('adds no unsubscribe header to mail a person cannot opt out of, such as a password reset', async () => {
+    expect((await sent({})).headers).toBeUndefined();
+  });
+});
+
 describe('asHtml', () => {
   it('keeps line breaks', () => {
     expect(asHtml('one\ntwo')).toContain('one<br>two');

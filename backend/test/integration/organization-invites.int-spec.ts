@@ -10,12 +10,12 @@ import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../setup/
 const prisma = testPrisma();
 const database = prisma as PrismaService;
 const communications = new CommunicationsService(database, new Map(), new SuppressionService(database));
-const accounts = new AccountService(database, communications, new ConfigService({ NODE_ENV: 'test', DEFAULT_LOCALE: 'en', APP_URL: 'http://localhost' }));
+const accounts = new AccountService(database, communications, new ConfigService({ NODE_ENV: 'test', APP_URL: 'http://localhost' }));
 async function fixture() {
   const owner = await prisma.user.create({ data: { email: 'owner@example.test', name: 'Owner', platformRole: 'ADMIN' } });
   const organization = await prisma.organization.create({ data: { name: 'Family' } });
   await prisma.messageTemplate.create({ data: { key: 'organization.invite', channel: 'EMAIL', body: { en: '{{link}}' } } });
-  const invite = await accounts.inviteMember(organization.id, owner.id, { email: 'member@example.test', role: 'MEMBER' });
+  const invite = await accounts.inviteMember(organization.id, owner.id, { email: 'member@example.test', role: 'MEMBER' }, 'hy');
   return { organization, owner, invite, token: new URL(invite.devLink!).searchParams.get('token')! };
 }
 
@@ -28,7 +28,7 @@ describe('organization invite lifecycle', () => {
       await lockOwnerAddress(tx, 'rollback@test.local');
       const organization = await tx.organization.create({ data: { name: 'Must roll back' } });
       const invitation = await accounts.inviteMemberInTransaction(tx, { organizationId: organization.id, invitedByUserId: owner.id,
-        dto: { email: 'rollback@test.local', role: 'OWNER' }, isConcierge: true });
+        dto: { email: 'rollback@test.local', role: 'OWNER' }, isConcierge: true, locale: 'hy' });
       expect(invitation.messageId).toEqual(expect.any(String));
       throw new Error('forced rollback');
     })).rejects.toThrow('forced rollback');

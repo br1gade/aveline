@@ -92,6 +92,34 @@ describe('Account lifecycle (e2e)', () => {
     });
   });
 
+  /**
+   * Account mail has no event to take a language from, so it is written in the
+   * language of the request that caused it, and in English when that says
+   * none (audit F-08; decided 14 November 2026).
+   */
+  describe('the language of account mail', () => {
+    const resetIn = async (acceptLanguage?: string) => {
+      await prisma.messageTemplate.create({
+        data: {
+          organizationId: null, key: 'account.password-reset', channel: MessageChannel.EMAIL,
+          subject: { hy: 'Վերականգնում', en: 'Reset', ru: 'Сброс' }, body: { hy: '{{link}}', en: '{{link}}', ru: '{{link}}' },
+        },
+      });
+      await register();
+      const call = http().post('/api/v1/auth/password-reset');
+      await (acceptLanguage ? call.set('Accept-Language', acceptLanguage) : call).send({ email: owner.email }).expect(201);
+      return prisma.message.findFirstOrThrow({ where: { templateKey: 'account.password-reset' }, select: { locale: true, subject: true } });
+    };
+
+    it('writes the reset in the language the request asked for', async () => {
+      await expect(resetIn('ru-RU,ru;q=0.9,en;q=0.5')).resolves.toEqual({ locale: 'ru', subject: 'Сброс' });
+    });
+
+    it('writes it in English when the request names no language', async () => {
+      await expect(resetIn()).resolves.toEqual({ locale: 'en', subject: 'Reset' });
+    });
+  });
+
   describe('password reset', () => {
     // Answering differently for a known and an unknown address is a free
     // account-enumeration oracle.

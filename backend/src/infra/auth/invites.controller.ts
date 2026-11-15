@@ -8,6 +8,7 @@ import {
   RequestActor,
   RequirePermission,
 } from './actor';
+import { RequestLanguage } from '../../common/request-language';
 import { AcceptInviteDto, InviteMemberDto } from './dto/account.dto';
 
 @ApiTags('invites')
@@ -30,8 +31,8 @@ export class InvitesController {
     summary: 'Invite someone to your organization',
     description: 'Re-inviting replaces the previous link rather than adding a second.',
   })
-  invite(@CurrentActor() actor: RequestActor, @Body() dto: InviteMemberDto) {
-    return this.accounts.inviteMember(actor.organizationId ?? '', actor.userId, dto);
+  invite(@CurrentActor() actor: RequestActor, @Body() dto: InviteMemberDto, @RequestLanguage() locale: string) {
+    return this.accounts.inviteMember(actor.organizationId ?? '', actor.userId, dto, locale);
   }
 
   @RequirePermission('member:manage')

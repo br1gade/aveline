@@ -31,7 +31,7 @@
  *   node dist/seed-production.js            # on a deployment
  */
 import { BlockType, BillingInterval, PlanTier, PrismaClient } from '@prisma/client';
-import { MESSAGE_COPY } from './seed/message-copy';
+import { syncPlatformCopy } from './seed/message-copy-sync';
 
 const prisma = new PrismaClient();
 
@@ -106,28 +106,6 @@ async function seedDesignTemplates() {
   return DESIGN_TEMPLATES.length;
 }
 
-/**
- * Aveline's own copy, which every organization falls back to.
- *
- * `organizationId` is null, and Prisma cannot address a compound unique whose
- * component is null — the partial index from migration 20261004170000 is what
- * makes it unique. So this checks before inserting rather than upserting.
- */
-
-async function seedMessageTemplates() {
-  let created = 0;
-  for (const template of MESSAGE_COPY) {
-    const existing = await prisma.messageTemplate.findFirst({
-      where: { organizationId: null, key: template.key, channel: template.channel },
-    });
-    if (existing) continue;
-
-    await prisma.messageTemplate.create({ data: { ...template, organizationId: null } });
-    created += 1;
-  }
-
-  return created;
-}
 
 /**
  * Plans, with the entitlements from PRODUCT_SPEC §8.
@@ -250,12 +228,13 @@ async function seedInvoiceCounter() {
 
 async function main() {
   const templates = await seedDesignTemplates();
-  const copy = await seedMessageTemplates();
+  // Fills in only: copy edited in production is an operator's decision.
+  const copy = await syncPlatformCopy(prisma, 'fill');
   const plans = await seedPlans();
   const series = await seedInvoiceCounter();
 
   console.log(`design templates: ${templates} ensured`);
-  console.log(`message copy:     ${copy} created (existing left alone)`);
+  console.log(`message copy:     ${copy.created} created (existing left alone)`);
   console.log(`plans:            ${plans} ensured — only "invitation-free" is active`);
   console.log(`invoice series:   ${series}`);
   console.log('');

@@ -73,7 +73,9 @@ node backend/scripts/ops.mjs check --directory /etc/aveline/production
 ```
 
 The wizard generates separate database/JWT/Garage/privacy secrets. It defaults
-`PILOT_MODE=true` and keeps enquiry/template feature flags off. It does not
+`PILOT_MODE=true` and keeps enquiry/template feature flags off. It asks for the
+support address replies go to (`MAIL_REPLY_TO`); the API refuses to start in
+production without it or without `PILOT_MODE`. It does not
 select a bank, tax treatment, prices or turn on paid features. Follow the
 feature-specific operational acceptance gates before changing those flags.
 Never initialize over a populated installation or rotate restored keys by rerunning

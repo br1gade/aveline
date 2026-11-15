@@ -136,6 +136,9 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
+  /// The retention sweep's two filters (session-retention.ts).
+  @@index([expiresAt])
+  @@index([revokedAt])
   @@map("sessions")
 }
 

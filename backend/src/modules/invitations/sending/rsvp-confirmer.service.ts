@@ -104,6 +104,7 @@ export class RsvpConfirmerService {
       templateKey,
       toAddress: recipient.via.address,
       locale: recipient.guest.locale ?? event.defaultLocale,
+      eventLocale: event.defaultLocale,
       variables: {
         guestName: displayName(recipient.guest),
         ...eventWording({ title: event.title, hosts: event.hostsLabel, translations: event.translations }, recipient.guest.locale ?? event.defaultLocale),

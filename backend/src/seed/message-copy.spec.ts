@@ -68,9 +68,18 @@ describe('message copy', () => {
     for (const template of confirmations) expect(Object.keys(template.body).sort()).toEqual(['en', 'fr', 'hy', 'ru']);
   });
 
-  it('gives every template a body in Armenian and English', () => {
-    for (const template of MESSAGE_COPY) {
-      expect(Object.keys(template.body)).toEqual(expect.arrayContaining(['en', 'hy']));
-    }
+  // The pilot's languages: French was dropped for the pilot on 14 November 2026
+  // and falls back to the event's language, then English (audit F-02).
+  const PILOT_LANGUAGES = ['en', 'hy', 'ru'];
+  const named = (template: (typeof MESSAGE_COPY)[number]) => [`${template.key} by ${template.channel}`, template] as const;
+
+  it.each(MESSAGE_COPY.map(named))('writes the body of %s in Armenian, English and Russian', (_name, template) => {
+    expect(Object.keys(template.body)).toEqual(expect.arrayContaining(PILOT_LANGUAGES));
   });
+
+  it.each(MESSAGE_COPY.filter((template) => 'subject' in template && template.subject).map(named))(
+    'writes the subject of %s in Armenian, English and Russian', (_name, template) => {
+      expect(Object.keys((template as { subject: object }).subject)).toEqual(expect.arrayContaining(PILOT_LANGUAGES));
+    },
+  );
 });

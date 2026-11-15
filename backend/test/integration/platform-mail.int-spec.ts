@@ -43,7 +43,7 @@ describe('platform mail (integration)', () => {
     accounts = new AccountService(
       service,
       communications,
-      configOf({ PUBLIC_APP_URL: 'https://aveline.test', DEFAULT_LOCALE: 'hy' }),
+      configOf({ PUBLIC_APP_URL: 'https://aveline.test' }),
     );
   });
 
@@ -78,7 +78,7 @@ describe('platform mail (integration)', () => {
     it('queues an email carrying the reset link', async () => {
       const user = await aUser();
 
-      const result = await accounts.requestPasswordReset(user.email);
+      const result = await accounts.requestPasswordReset(user.email, 'hy');
 
       expect(result.sent).toBe(true);
       const message = await mailTo(user.email);
@@ -95,14 +95,14 @@ describe('platform mail (integration)', () => {
     it('records it against no organization', async () => {
       const user = await aUser();
 
-      await accounts.requestPasswordReset(user.email);
+      await accounts.requestPasswordReset(user.email, 'hy');
 
       expect((await mailTo(user.email))?.organizationId).toBeNull();
     });
 
     it('goes out through the same outbox as everything else', async () => {
       const user = await aUser();
-      await accounts.requestPasswordReset(user.email);
+      await accounts.requestPasswordReset(user.email, 'hy');
 
       await communications.dispatchDue();
 
@@ -115,7 +115,7 @@ describe('platform mail (integration)', () => {
      * has none.
      */
     it('answers the same for an unknown address, and queues nothing', async () => {
-      const result = await accounts.requestPasswordReset('nobody@test.local');
+      const result = await accounts.requestPasswordReset('nobody@test.local', 'hy');
 
       expect(result).toEqual({ sent: true });
       expect(await mailTo('nobody@test.local')).toBeNull();
@@ -135,7 +135,7 @@ describe('platform mail (integration)', () => {
         },
       });
 
-      await accounts.requestPasswordReset(user.email);
+      await accounts.requestPasswordReset(user.email, 'hy');
 
       expect((await mailTo(user.email))?.status).toBe(MessageStatus.QUEUED);
     });
@@ -152,7 +152,7 @@ describe('platform mail (integration)', () => {
         },
       });
 
-      await accounts.requestPasswordReset(user.email);
+      await accounts.requestPasswordReset(user.email, 'hy');
 
       expect((await mailTo(user.email))?.status).toBe(MessageStatus.SUPPRESSED);
     });
@@ -162,7 +162,7 @@ describe('platform mail (integration)', () => {
     it('queues an email to the account being verified', async () => {
       const user = await aUser();
 
-      await accounts.requestEmailVerification(user.id);
+      await accounts.requestEmailVerification(user.id, 'hy');
 
       const message = await mailTo(user.email);
       expect(message?.templateKey).toBe('account.verify-email');
@@ -179,7 +179,7 @@ describe('platform mail (integration)', () => {
       await accounts.inviteMember(organization.id, user.id, {
         email: 'planner@test.local',
         role: 'MANAGER',
-      });
+      }, 'hy');
 
       const message = await mailTo('planner@test.local');
       expect(message?.templateKey).toBe('organization.invite');
@@ -195,7 +195,7 @@ describe('platform mail (integration)', () => {
       await accounts.inviteMember(organization.id, user.id, {
         email: 'planner@test.local',
         role: 'MANAGER',
-      });
+      }, 'hy');
 
       expect((await mailTo('planner@test.local'))?.organizationId).toBe(organization.id);
     });
@@ -210,7 +210,7 @@ describe('platform mail (integration)', () => {
     await prisma.messageTemplate.deleteMany({ where: { key: 'account.password-reset' } });
     const user = await aUser();
 
-    await expect(accounts.requestPasswordReset(user.email)).resolves.toMatchObject({ sent: true });
+    await expect(accounts.requestPasswordReset(user.email, 'hy')).resolves.toMatchObject({ sent: true });
     expect(await mailTo(user.email)).toBeNull();
   });
 });

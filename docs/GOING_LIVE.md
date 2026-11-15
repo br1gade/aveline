@@ -23,8 +23,9 @@ expanded [implementation plan](PILOT_IMPLEMENTATION_PLAN.md) a release gate:
 17 requested feature items, including all export formats, both attendance modes
 and explicit reconfirmation when changing modes, multiple directory venues per
 vendor, gallery, acknowledgements and final rehearsal. Native F22 is the one
-explicit exception. Repeat the complete host/guest walkthrough in English, Russian,
-French and Armenian after frontend integration. The tentative 25 October 2026
+explicit exception. Repeat the complete host/guest walkthrough in English, Russian
+and Armenian after frontend integration. French was dropped for the pilot on
+14 November 2026 (see the frontend row below). The tentative 25 October 2026
 date can move; full scope takes priority.
 
 The 24 October disposable backend rehearsal passed functional workflows, real
@@ -55,6 +56,7 @@ frontend-facing gates are:
 | **FR-42 / FR-9** What the guest page draws | Hosts choose layouts, fonts and palettes that the preview and guest page ignore. Decide which the renderer supports before the designer's sign-off |
 | **Frontend CI and the client's suite on staging** | `ci:local` does not run the client's tests, and `.github/workflows/frontend.yml` runs only by hand. Enable the workflow, and pass `frontend/test/e2e/` against staging at both widths. Staging runs as production, so the fake bank and the `development/` routes are absent there: the paid ticket and plan journeys either skip, saying so, or pay at the real bank's test environment. Decide which before the run |
 | **Public build settings and privacy copy** | Set the support contacts and website address as release inputs (C-54). Then verify the public web origin, support links, token-safe server logs and approved privacy notice and form. Confirm the invitation email footer reaches the public form from a signed-out browser |
+| **Pre-launch audit, client parts** (`frontend/docs/audits/PRE_LAUNCH_AUDIT_2026-11-13.md`) | Decided 14 November 2026: hide French from the language choice for the pilot. Show that paid tickets and plans are unavailable from `GET /payment-options` and `checkout.payment` before any form (F-09). Keep a checkout's idempotency key until the basket or the buyer's details change, so Back after paying returns the existing order instead of placing a second one; the API already does that for a repeated key (F-07). Send the interface language on account and invitation requests (F-08) |
 | **Aveline's own photographs (C-34)** | Every placeholder photograph is third-party and not licensed to Aveline. The design launch gate stays until they are replaced ([design README](../frontend/docs/design/README.md)) |
 
 ### Money
@@ -70,6 +72,8 @@ These gates apply to paid launch. The free pilot keeps `PILOT_MODE=true` and liv
 | 4b | **Three suspected field mismatches** | Ameriabank's `OrderID` may need to be an integer; ArCa may expect AMD in luma (× 100); Ameriabank's `OrderStatus` is read with ArCa's codes. Each must be confirmed against the bank's own specification — see PAYMENTS.md §6 |
 | 4c | **The bank's order lifetime is not tied to ours** | We expire an unpaid order after an hour, but `registerOrder` sends the bank no session timeout, so its form may stay payable longer. A payment the bank captures after we wrote it off is never asked about again (`EXPIRED` is final), and a retried paid subscribe now starts a fresh payment for the invoice — two charges for one invoice. Send the bank a lifetime no longer than `ORDER_LIFETIME_MS`, or keep asking about recently expired orders |
 | 5 | **Refunds never executed for real** | The claim-then-call ordering is tested against a fake gateway. It has never moved actual money |
+| 5b | **Who sells a ticket, and how the host is paid** | Audit F-37, deferred by the user on 14 November 2026. Paid tickets settle into whichever account holds the merchant agreement; there is no payout or settlement model. Decide the seller, Aveline's fee, the payout schedule and the refund rule a buyer reads, then build or document it |
+| 5c | **What a paying host receives** | Audit F-38. No email follows a plan payment and the invoice cannot be printed or downloaded. Decide whether it is a tax document, then add a receipt email and a printable invoice. Renewal is manual (§2) |
 
 ### Communication
 
@@ -78,6 +82,8 @@ These gates apply to paid launch. The free pilot keeps `PILOT_MODE=true` and liv
 | 6 | **A sending domain and its DNS** | Email is implemented over SMTP and refuses to boot in production without it, but no mail account, sending domain or SPF/DKIM/DMARC records exist. Without them mail is sent and then filed as spam, which looks like delivery and is not |
 | 7 | **Real delivery feedback is not connected** | Persistent quotas and signed provider-neutral delivery/bounce/complaint handling are built. A native provider bridge is deferred by the user; sending, authentication and internal message correlation must still be proven against the chosen provider |
 | 7b | **Telegram opt-in needs a staging bot rehearsal before activation** | Verify that an eligible invitation email carries a working single-use code, that reuse is refused, and that existing subscriptions still receive messages. [Telegram cutover plan](CLIENT_REMAINING_PRIORITY_PLAN.md#1-protect-guest-credentials-and-contact-preferences) |
+| 6b | **Mail copy read by native readers** | Built 14 November 2026 (audit F-02, F-10): every template has Armenian, English and Russian, a message falls back to the event's language and then English, and the invitation and ticket emails say when and where. The Armenian and Russian are drafts; a native reader checks them before real guests. French has no mail copy |
+| 6c | **A support mailbox that someone reads** | Every mail's `Reply-To` is `MAIL_REPLY_TO`, required at boot in production (decided 14 November 2026: Aveline support, never a host). Create the mailbox and name who answers it |
 | 7c | **Nothing registers the Telegram webhook** | The bot only reaches `POST /api/v1/webhooks/telegram` once Telegram is told to call it: run `setWebhook` with that public URL and `secret_token` set to `TELEGRAM_WEBHOOK_SECRET`, for the staging bot and again for the live one. No script or deployment step does it today; add one before 7b's rehearsal |
 
 ### Security and data
@@ -86,6 +92,7 @@ These gates apply to paid launch. The free pilot keeps `PILOT_MODE=true` and liv
 |---|---|---|
 | 8 | **`JWT_SECRET` must be real** | The app refuses to boot in production without it, which is the guard — but it must be generated, stored in a secret manager, and rotatable |
 | 9 | **`CORS_ORIGINS` must be set** | Also enforced at boot. An open CORS policy lets any site call the API with a user's credentials |
+| 9a | **`PILOT_MODE` must be set** | Enforced at boot since 14 November 2026 (audit F-28): charges are refused only when it is `true`, so a deployment that dropped it would have charged. Set it to `false` only for the paid launch |
 | 9b | **`PUBLIC_APP_URL` must be the client's real origin** | Enforced at boot. Guest links, account emails and the bank's return page are all built from it, and a payment `returnUrl` on any other origin is refused — so a wrong value breaks checkout rather than opening a redirect |
 | 10 | **A verified off-host recovery destination** | Quiesced paired database/media capture, encrypted Restic upload and complete restoration tooling are built. An isolated round trip preserved a guest credential and original/variant media. Configure a real separate destination, install the timer/boot recovery units, verify remote restoration and missed-backup alerts |
 | 11 | **A host and a domain** | The Docker/Compose profile wizard and release/promotion jobs are implemented. Local stack/worker/migration/backup rehearsals exist. Provision a real host, API/media DNS, public TLS and SMTP; configure GitHub environments, reviewers and verified SSH. See [release setup](../backend/docs/RELEASES.md). No live deployment has been performed |
@@ -95,6 +102,7 @@ These gates apply to paid launch. The free pilot keeps `PILOT_MODE=true` and liv
 | 13b | **Name the first staff** | Built 13 November 2026: an admin grants and revokes `ADMIN` and `SUPPORT` through `/staff`, and the first admin is made on the host with `node scripts/ops.mjs staff-grant` ([deployment](../backend/docs/DEPLOYMENT.md)). Data requests (13), concierge work and access reviews are staff-only, so decide who the first admin and support staff are, have them register and verify, and grant them before the pilot. The admin screen in the client is not built yet |
 | 13c | **Load-test guest pages through the proxy and the renderer** | Fixed 13 November 2026: the client's rendering server now passes each visitor's address on (`X-Forwarded-For`), so the API limits each visitor rather than the server (docs/API.md, "Rate limits"). It has not run behind the real proxy, and the pilot load script calls the API directly. Run the load test through Caddy and the renderer, and confirm one address hitting its limit leaves other visitors' pages working |
 | 13d | **No terms of service, and no consent at registration** | Only the privacy notice exists, as a marked placeholder. Decide with the lawyer whether the pilot needs terms and an accepted-at-registration record; if so, the text first, then a client page and a backend field |
+| 13e | **Request logs keep addresses and browsers** | Audit F-29. Built 14 November 2026: sessions are deleted 30 days after they expire and forget their address and browser 30 days after sign-out; ten failed sign-ins in 15 minutes make an account wait; Sentry breadcrumbs are filtered, so the Telegram bot token never leaves. Still open: how long the host keeps request logs, which carry the same address and browser, and the client's refresh token in `localStorage` (FR-12) |
 
 ### Operations
 

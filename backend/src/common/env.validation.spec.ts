@@ -15,9 +15,10 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ NODE_ENV: 'development' })).toThrow(/DATABASE_URL/);
   });
 
-  // A development default secret in production means anyone can mint a token.
-  it.each(['JWT_SECRET', 'CORS_ORIGINS', 'PUBLIC_APP_URL'])('requires %s in production', (key) => {
-    const env = { ...base, NODE_ENV: 'production', JWT_SECRET: 'x', CORS_ORIGINS: 'y', PUBLIC_APP_URL: 'https://aveline.am' };
+  // A development default secret in production means anyone can mint a token,
+  // and a missing PILOT_MODE meant live charges (audit F-28).
+  it.each(['JWT_SECRET', 'CORS_ORIGINS', 'PUBLIC_APP_URL', 'PILOT_MODE', 'MAIL_REPLY_TO'])('requires %s in production', (key) => {
+    const env = { ...base, NODE_ENV: 'production', JWT_SECRET: 'x', CORS_ORIGINS: 'y', PUBLIC_APP_URL: 'https://aveline.am', PILOT_MODE: 'true', MAIL_REPLY_TO: 'support@aveline.am' };
     delete (env as Record<string, unknown>)[key];
 
     expect(() => validateEnv(env)).toThrow(new RegExp(key));
