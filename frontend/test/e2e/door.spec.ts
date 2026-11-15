@@ -25,6 +25,11 @@ test.describe('the door', () => {
     await signedIn(host.email);
     await page.goto(`/app/events/${event.id}/door`);
     await expect(page.getByRole('heading', { name: 'The door' })).toBeVisible();
+    if (page.viewportSize()?.width === 360) {
+      // Audit F-11: the search started 676 px down a 360×800 phone, below the fold.
+      const search = await page.getByLabel('Their name').boundingBox();
+      expect(search?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(400);
+    }
 
     await page.getByLabel('Their name').fill('armen');
     await page.getByRole('button', { name: 'Check in Armen Petrosyan' }).click();

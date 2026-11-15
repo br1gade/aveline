@@ -1,4 +1,4 @@
-import { Outlet, useLoaderData, type ShouldRevalidateFunctionArgs } from 'react-router';
+import { Outlet, useLoaderData, useMatches, type ShouldRevalidateFunctionArgs } from 'react-router';
 
 import { loaded } from '@/api/loaded';
 import {
@@ -46,11 +46,19 @@ export function HydrateFallback() {
   return <AppLoading />;
 }
 
+/** A page under the app that asks for the compact frame in its `handle`, as the door does. */
+function isCompactHandle(handle: unknown): boolean {
+  return (
+    typeof handle === 'object' && handle !== null && 'shell' in handle && handle.shell === 'compact'
+  );
+}
+
 export default function AppLayout() {
   const { organization, unverifiedEmail } = useLoaderData<typeof clientLoader>();
+  const isCompact = useMatches().some((match) => isCompactHandle(match.handle));
   return (
     <LeaveGuard>
-      <AppShell organization={organization} unverifiedEmail={unverifiedEmail}>
+      <AppShell organization={organization} unverifiedEmail={unverifiedEmail} isCompact={isCompact}>
         <Outlet />
       </AppShell>
     </LeaveGuard>

@@ -3,11 +3,16 @@ import { useTranslation } from 'react-i18next';
 import type { ArrivalsRead } from './use-arrivals';
 import { useEventTime } from './shared';
 
+/** The number above its label on a phone, so all four fit one row (design PD-90). */
 function Count({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-baseline gap-2">
-      <dt className="text-muted-foreground order-last min-w-0 text-sm leading-tight">{label}</dt>
-      <dd className="m-0 font-serif text-[22px] leading-[28px]">{value}</dd>
+    <div className="flex min-w-0 flex-col min-[480px]:flex-row min-[480px]:items-baseline min-[480px]:gap-2">
+      <dt className="text-muted-foreground order-last min-w-0 text-xs leading-tight break-words min-[480px]:text-sm">
+        {label}
+      </dt>
+      <dd className="m-0 font-serif text-[20px] leading-[26px] min-[480px]:text-[22px] min-[480px]:leading-[28px]">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -31,7 +36,7 @@ export function ArrivalCounts({ read, timeZone }: { read: ArrivalsRead; timeZone
   }
   return (
     <section aria-label={t('counts.label')} className="flex flex-col gap-1">
-      <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-1 min-[480px]:grid-cols-4">
+      <dl className="m-0 grid grid-cols-4 gap-x-2 gap-y-1 min-[480px]:gap-x-4">
         <Count label={t('counts.arrived')} value={counts.arrived} />
         <Count label={t('counts.stillToCome')} value={counts.stillToCome} />
         <Count label={t('counts.expected')} value={counts.expected} />

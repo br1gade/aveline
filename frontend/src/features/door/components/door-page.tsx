@@ -72,12 +72,14 @@ export function DoorPage({ data }: { data: DoorData }) {
   const isNotTheirs = door.guests.read.kind === 'refused' && door.arrivals.problem === 'refused';
   const { counts } = door.arrivals;
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-3">
       <Link to={eventPath(event.id)} className={LINK}>
         {t('back')}
       </Link>
       <div className="flex flex-col gap-1">
-        <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('title')}</h1>
+        <h1 className="m-0 font-serif text-[24px] leading-[30px] font-normal sm:text-[28px] sm:leading-[34px]">
+          {t('title')}
+        </h1>
         <p className="text-muted-foreground m-0 break-words">{event.title}</p>
       </div>
       {isNotTheirs ? (

@@ -62,6 +62,7 @@
   "shell": {
     "loading": "Chargement…",
     "signOut": "Se déconnecter",
+    "menu": "Menu",
     "signOutEverywhere": "Se déconnecter sur tous les appareils",
     "confirm": {
       "title": "Se déconnecter sur tous les appareils ?",

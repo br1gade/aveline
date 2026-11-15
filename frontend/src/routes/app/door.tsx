@@ -12,6 +12,9 @@ export async function clientLoader({ request, params }: Route.ClientLoaderArgs) 
   return loadDoor(api, params.eventId);
 }
 
+/** One-handed on a phone: the app's compact frame, with the search near the top (design PD-90). */
+export const handle = { shell: 'compact' } as const;
+
 /** Choosing by name or by code changes what is shown, never what is loaded. */
 export const shouldRevalidate = revalidateUnlessQueryOnly;
 

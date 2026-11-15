@@ -62,6 +62,7 @@
   "shell": {
     "loading": "Загрузка…",
     "signOut": "Выйти",
+    "menu": "Меню",
     "signOutEverywhere": "Выйти на всех устройствах",
     "confirm": {
       "title": "Выйти на всех устройствах?",

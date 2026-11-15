@@ -62,6 +62,7 @@
   "shell": {
     "loading": "Loading…",
     "signOut": "Sign out",
+    "menu": "Menu",
     "signOutEverywhere": "Sign out on every device",
     "confirm": {
       "title": "Sign out on every device?",

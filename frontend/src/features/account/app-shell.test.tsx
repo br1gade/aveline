@@ -55,11 +55,15 @@ beforeEach(() => {
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-function renderShell(unverifiedEmail: string | null = null) {
+function renderShell(unverifiedEmail: string | null = null, isCompact = false) {
   const Stub = createRoutesStub([
     {
       path: '/app',
-      Component: () => <AppShell unverifiedEmail={unverifiedEmail}>{<p>Your events</p>}</AppShell>,
+      Component: () => (
+        <AppShell unverifiedEmail={unverifiedEmail} isCompact={isCompact}>
+          {<p>Your events</p>}
+        </AppShell>
+      ),
     },
     { path: '/sign-in', Component: () => <p>Sign-in page</p> },
   ]);
@@ -238,5 +242,16 @@ describe('an address not yet confirmed (FR-5)', () => {
   it('says nothing once the address is confirmed', () => {
     renderShell(null);
     expect(screen.queryByText(/Confirm your email address/)).not.toBeInTheDocument();
+  });
+
+  describe('the compact frame, for the door (design PD-90)', () => {
+    it('keeps the language and signing out in one menu, and leaves out the address notice', async () => {
+      const user = renderShell('anna@example.am', true);
+      expect(screen.queryByText(/Confirm your email address/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Sign out' })).not.toBeVisible();
+      await user.click(screen.getByText('Menu'));
+      expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Sign out on every device' })).toBeVisible();
+    });
   });
 });

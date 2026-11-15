@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate, useNavigation } from 'react-router';
 import { browserSession } from '@/api/session';
 import { LANGUAGES, type Language } from '@/lib/i18n';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
-import { Icon, LanguageSwitcher } from '@/ui';
+import { cx, Icon, LanguageSwitcher } from '@/ui';
 import { LEAVE_UNASKED } from '@/ui/app-form';
 import { Alert, AlertDescription } from '@/ui/kit/alert';
 import {
@@ -102,52 +102,100 @@ interface AppShellProps {
   organization?: { name: string | null } | undefined;
   /** The account's address while it is not confirmed (FR-5); nothing once it is. */
   unverifiedEmail?: string | null | undefined;
+  /**
+   * A page used one-handed on a phone, the door: one row of header with everything but the
+   * wordmark in a menu, no address notice, and less space above the page (design PD-90).
+   */
+  isCompact?: boolean | undefined;
 }
 
-/** The signed-in app's frame: the wordmark, the language, and signing out (design PD-39). */
-export function AppShell({ children, organization, unverifiedEmail }: AppShellProps) {
+/** The language, the organization and signing out: in the header, or in the compact menu. */
+function AccountControls({ organization }: Pick<AppShellProps, 'organization'>) {
   const { t, i18n } = useTranslation('app');
-  const { t: common } = useTranslation('common');
   const location = useLocation();
   const [hasSignOutFailed, setHasSignOutFailed] = useState(false);
-  useSignInWhenSignedOut();
   // The rest of the query stays, so a language switch keeps the guest list's search and filter.
   const hrefFor = (language: Language) => {
     const query = new URLSearchParams(location.search);
     query.set('lang', language);
     return `${location.pathname}?${query.toString()}`;
   };
+  return (
+    <>
+      {organization ? <CurrentOrganization name={organization.name} /> : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <LanguageSwitcher
+          current={i18n.language}
+          available={LANGUAGES}
+          hrefFor={hrefFor}
+          isClientNavigation
+          align="end"
+        />
+        <SignOutEverywhere onFailed={() => setHasSignOutFailed(true)} />
+        <Button variant="outline" onClick={() => void browserSession().signOut()}>
+          {t('shell.signOut')}
+        </Button>
+      </div>
+      {hasSignOutFailed ? (
+        <Alert variant="destructive" className="basis-full">
+          <Icon name="circle-alert" size={16} />
+          <AlertDescription>{t('shell.signOutFailed')}</AlertDescription>
+        </Alert>
+      ) : null}
+    </>
+  );
+}
+
+/** The compact header's menu: a native disclosure, as the kit has no menu (design PD-90). */
+function CompactMenu({ organization }: Pick<AppShellProps, 'organization'>) {
+  const { t } = useTranslation('app');
+  return (
+    <details className="group relative">
+      <summary className="border-border inline-flex min-h-11 cursor-pointer list-none items-center gap-2 border px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        {t('shell.menu')}
+        <Icon
+          name="chevron-down"
+          size={16}
+          className="transition-transform group-open:rotate-180"
+        />
+      </summary>
+      <div className="bg-background border-border absolute top-full right-0 z-20 mt-2 flex w-max max-w-[calc(100vw-2rem)] flex-col items-start gap-3 border p-4 shadow-sm">
+        <AccountControls organization={organization} />
+      </div>
+    </details>
+  );
+}
+
+/** The signed-in app's frame: the wordmark, the language, and signing out (design PD-39). */
+export function AppShell({ children, organization, unverifiedEmail, isCompact }: AppShellProps) {
+  const { t: common } = useTranslation('common');
+  useSignInWhenSignedOut();
 
   return (
     <div className="bg-background text-foreground min-h-svh text-[15px] leading-[22px]">
-      <header className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-8">
+      <header
+        className={cx(
+          'border-border flex items-center justify-between gap-3 border-b px-4 sm:px-8',
+          isCompact ? 'py-2' : 'flex-wrap py-3',
+        )}
+      >
         <p className="text-primary m-0 font-serif text-lg tracking-[0.24em] uppercase">
           {common('appName')}
         </p>
-        {organization ? <CurrentOrganization name={organization.name} /> : null}
-        <div className="flex flex-wrap items-center gap-2">
-          <LanguageSwitcher
-            current={i18n.language}
-            available={LANGUAGES}
-            hrefFor={hrefFor}
-            isClientNavigation
-            align="end"
-          />
-          <SignOutEverywhere onFailed={() => setHasSignOutFailed(true)} />
-          <Button variant="outline" onClick={() => void browserSession().signOut()}>
-            {t('shell.signOut')}
-          </Button>
-        </div>
+        {isCompact ? (
+          <CompactMenu organization={organization} />
+        ) : (
+          <AccountControls organization={organization} />
+        )}
       </header>
-      <main className="relative mx-auto flex w-full max-w-[56rem] flex-col gap-6 px-4 py-8 sm:px-8">
+      <main
+        className={cx(
+          'relative mx-auto flex w-full max-w-[56rem] flex-col px-4 sm:px-8',
+          isCompact ? 'gap-4 py-4' : 'gap-6 py-8',
+        )}
+      >
         <NavigationStatus />
-        {hasSignOutFailed ? (
-          <Alert variant="destructive">
-            <Icon name="circle-alert" size={16} />
-            <AlertDescription>{t('shell.signOutFailed')}</AlertDescription>
-          </Alert>
-        ) : null}
-        {unverifiedEmail ? <EmailConfirmationNotice email={unverifiedEmail} /> : null}
+        {unverifiedEmail && !isCompact ? <EmailConfirmationNotice email={unverifiedEmail} /> : null}
         {children}
       </main>
     </div>
