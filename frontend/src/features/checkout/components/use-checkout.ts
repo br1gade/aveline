@@ -12,7 +12,7 @@ import { placeOrder } from '../api';
 import { checkoutKeyStore, intentDigest } from '../key-store';
 import { intentOf, orderBody } from '../payload';
 import { checkoutRefusal, type CheckoutRefusal } from '../refusals';
-import type { CheckoutValues, OrderBody, PaymentProvider } from '../types';
+import type { CheckoutValues, OrderBody } from '../types';
 import { useCheckoutApi } from './use-checkout-api';
 
 /** Refusals that mean the page's copy of the event is out of date: it is read again. */
@@ -30,7 +30,6 @@ const READ_AGAIN: ReadonlySet<CheckoutRefusal['kind']> = new Set([
 interface CheckoutInput {
   event: PublicEvent;
   basket: Basket;
-  provider: PaymentProvider;
 }
 
 /**
@@ -40,7 +39,7 @@ interface CheckoutInput {
  * outlives a reload in this tab, so the same order asked for again sends it too (PD-152). A retry
  * is always the buyer's own press, never automatic.
  */
-export function useCheckout({ event, basket, provider }: CheckoutInput) {
+export function useCheckout({ event, basket }: CheckoutInput) {
   const api = useCheckoutApi(event.locale);
   const navigate = useNavigate();
   const revalidator = useRevalidator();
@@ -59,7 +58,6 @@ export function useCheckout({ event, basket, provider }: CheckoutInput) {
       rules: event.checkout,
       basket,
       locale: event.locale,
-      provider,
       promoCode,
       layout,
     };

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
-import { LANGUAGES, type Language } from '@/lib/i18n';
+import { OFFERED_LANGUAGES, type Language } from '@/lib/i18n';
 import { LanguageSwitcher } from '@/ui';
 import { Card, CardContent, CardFooter, CardHeader } from '@/ui/kit/card';
 
@@ -42,7 +42,7 @@ export function AccountLayout({ title, lead, children, footer }: AccountLayoutPr
           </p>
           <LanguageSwitcher
             current={i18n.language}
-            available={LANGUAGES}
+            available={OFFERED_LANGUAGES}
             hrefFor={hrefFor}
             isClientNavigation
             align="end"

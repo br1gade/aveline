@@ -34,7 +34,9 @@
     "title": "Sign in",
     "submit": "Sign in",
     "submitting": "Signing in…",
-    "refused": "That email and password don’t match an account."
+    "refused": "That email and password don’t match an account.",
+    "tooManyAttempts": "Too many failed sign-ins to this account. Wait 15 minutes and try again. If you think someone else is trying your password, reset it.",
+    "resetInstead": "Reset your password"
   },
   "register": {
     "title": "Create an account",

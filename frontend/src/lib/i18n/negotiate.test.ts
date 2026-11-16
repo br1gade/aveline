@@ -13,8 +13,8 @@ describe('fromAcceptLanguage', () => {
     ['en-GB,en;q=0.9', 'en'],
     ['de-DE,ru;q=0.7,en;q=0.5', 'ru'],
     ['en;q=0.4,ru;q=0.9', 'ru'],
-    ['fr,de', 'fr'],
-    ['fr-CA,fr;q=0.9,en;q=0.8', 'fr'],
+    ['fr,de', 'en'],
+    ['fr-CA,fr;q=0.9,ru;q=0.8', 'ru'],
     ['de,es', 'en'],
     ['hy;q=0,ru', 'ru'],
     ['', 'en'],
@@ -39,11 +39,12 @@ describe('negotiateLanguage', () => {
     expect(result.setCookie).toBe(`${LANGUAGE_COOKIE}=hy; Path=/; Max-Age=31536000; SameSite=Lax`);
   });
 
-  it('takes French from ?lang like any other language', () => {
-    expect(negotiateLanguage(request('http://app/sign-in?lang=fr'))).toEqual({
-      language: 'fr',
-      setCookie: `${LANGUAGE_COOKIE}=fr; Path=/; Max-Age=31536000; SameSite=Lax`,
+  it('takes no French, from ?lang or a cookie kept from before the pilot', () => {
+    expect(negotiateLanguage(request('http://app/sign-in?lang=fr'))).toEqual({ language: 'en' });
+    const kept = new Request('http://app/sign-in', {
+      headers: { cookie: `${LANGUAGE_COOKIE}=fr`, 'accept-language': 'ru' },
     });
+    expect(negotiateLanguage(kept)).toEqual({ language: 'ru' });
   });
 
   it('marks the cookie Secure over https', () => {

@@ -11,6 +11,10 @@ export const CREDENTIAL_SEGMENTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/(\/tickets\/)[^/?#]+/g, '$1[token]'],
   [/(\/briefs\/)[^/?#]+/g, '$1[token]'],
   [/(\/devices\/)[^/?#]+/g, '$1[token]'],
+  // A guest mail's one-click unsubscribe: the message and its signature together open it.
+  [/(\/email-unsubscribe\/)[^/?#]+\/[^/?#]+/g, '$1[token]'],
+  // The backend's own Telegram calls carry the bot's token; kept so the two lists stay one.
+  [/(\/bot)\d+:[\w-]+/g, '$1[token]'],
 ];
 
 /**

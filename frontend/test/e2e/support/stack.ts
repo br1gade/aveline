@@ -25,3 +25,27 @@ export function isDevelopmentStack(): Promise<boolean> {
 /** What a skipped test says on a stack without the FAKE bank and the development routes. */
 export const NOT_DEVELOPMENT =
   'Not a development stack: no FAKE bank or development routes here (staging pays at the bank’s own test environment, by hand)';
+
+let arePaymentsAvailable: Promise<boolean> | undefined;
+
+/**
+ * Whether anything can be paid for on this stack (`GET /payment-options`), asked once per run.
+ * In pilot mode nothing can: a paid ticket type can't even be made (`PAID_TICKETS_DISABLED`).
+ */
+export function arePaymentsOn(): Promise<boolean> {
+  arePaymentsAvailable ??= readPaymentOptions();
+  return arePaymentsAvailable;
+}
+
+/** A stack that can't say is broken, not "payments off": the run fails rather than skip. */
+async function readPaymentOptions(): Promise<boolean> {
+  const response = await fetch(`${E2E.apiOrigin}/api/v1/payment-options`);
+  if (!response.ok) throw new Error(`GET /payment-options answered ${response.status}`);
+  const { isPaymentAvailable } = (await response.json()) as { isPaymentAvailable?: unknown };
+  if (typeof isPaymentAvailable !== 'boolean')
+    throw new Error('No isPaymentAvailable in the answer');
+  return isPaymentAvailable;
+}
+
+/** What a skipped paid journey says where payments are off. */
+export const PAYMENTS_OFF = 'Payments are off on this stack (PILOT_MODE): nothing paid can be sold';

@@ -59,6 +59,7 @@ export function publicEventWire(overrides: Record<string, unknown> = {}): Record
         drinkPreference: { isEnabled: false, options: null },
       },
       acknowledgementsRequiredBeforeCheckIn: [],
+      payment: { isPaymentAvailable: true, providers: ['FAKE'] },
       questions: [
         {
           id: 'q-meal',

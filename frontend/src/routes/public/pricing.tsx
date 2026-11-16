@@ -18,9 +18,9 @@ import type { Route } from './+types/pricing';
 /** The price list, public (docs/API.md §6): the page's language negotiated, as browsing's is. */
 export async function loader({ request }: Route.LoaderArgs) {
   const { language, setCookie } = negotiateLanguage(request);
-  const { plans } = await loadPricing(request);
+  const { plans, payment } = await loadPricing(request);
   return data(
-    { language, plans },
+    { language, plans, payment },
     { headers: { ...publicListingHeaders(), ...(setCookie ? { 'Set-Cookie': setCookie } : {}) } },
   );
 }
@@ -33,5 +33,5 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export default function Pricing({ loaderData }: Route.ComponentProps) {
-  return <PricingPage plans={loaderData.plans} />;
+  return <PricingPage plans={loaderData.plans} payment={loaderData.payment} />;
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { LANGUAGES } from '@/lib/i18n';
+import { OFFERED_LANGUAGES } from '@/lib/i18n';
 
 import { EXPORT_FORMATS, EXPORT_KINDS } from './types';
 
@@ -11,7 +11,7 @@ import { EXPORT_FORMATS, EXPORT_KINDS } from './types';
 export const exportSchema = z.object({
   kind: z.enum(EXPORT_KINDS),
   format: z.enum(EXPORT_FORMATS),
-  locale: z.enum(LANGUAGES),
+  locale: z.enum(OFFERED_LANGUAGES),
   withContacts: z.boolean(),
 });
 

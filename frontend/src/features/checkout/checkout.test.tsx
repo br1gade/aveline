@@ -98,7 +98,6 @@ function renderCheckout(tickets = 'general.2') {
               event={event}
               basket={readBasket(param, event.ticketTypes)}
               isSalesClosed={false}
-              provider="FAKE"
             />
           </LeaveGuard>
         );
@@ -468,7 +467,6 @@ describe('before hydration', () => {
               event={EVENT}
               basket={readBasket('general.1', EVENT.ticketTypes)}
               isSalesClosed={false}
-              provider="FAKE"
             />
           </LeaveGuard>
         ),
@@ -631,8 +629,30 @@ describe('refusals and retries (PD-80)', () => {
     expect(within(await ticket(1, 1)).getByLabelText('First name')).toHaveValue('Anna');
   });
 
+  it('says before the form that paid tickets cannot be bought while payments are off', async () => {
+    const off = { isPaymentAvailable: false, providers: [] };
+    current.event = { ...EVENT, checkout: { ...EVENT.checkout, payment: off } };
+    renderCheckout('table.1');
+    expect(await screen.findByText(/Paid tickets can’t be bought yet/u)).toBeInTheDocument();
+    expect(await screen.findAllByLabelText('First name')).not.toHaveLength(0);
+  });
+
+  it('says nothing of the pilot for a free basket, and names no bank', async () => {
+    const off = { isPaymentAvailable: false, providers: [] };
+    current.event = { ...EVENT, checkout: { ...EVENT.checkout, payment: off } };
+    serveOrders(() => refusal(500, 'stop here'));
+    const { user } = renderCheckout('general.1');
+    await fillOne(user);
+    expect(screen.queryByText(/Paid tickets can’t be bought yet/u)).not.toBeInTheDocument();
+    await user.click(await submit());
+    await screen.findByRole('alert');
+    expect(posted[0]).not.toHaveProperty('provider');
+  });
+
   it('keeps everything typed when paid tickets cannot be bought during the pilot', async () => {
-    serveOrders(() => refusal(403, 'Payments are disabled for the free pilot'));
+    serveOrders(() =>
+      refusal(403, 'Payments are disabled for the free pilot', { code: 'PAYMENTS_DISABLED' }),
+    );
     const { user } = renderCheckout('general.1');
     await fillOne(user);
     await user.click(await submit());

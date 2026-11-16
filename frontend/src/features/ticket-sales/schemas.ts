@@ -14,6 +14,7 @@ export type SalesFieldCode =
   | 'required'
   | 'nameRequired'
   | 'price'
+  | 'freeInPilot'
   | 'quantityRange'
   | 'belowTaken'
   | 'perOrderRange'
@@ -35,6 +36,9 @@ interface TypeRules {
   /** A window once set cannot be cleared through the API (FR-67). */
   startWasSet: boolean;
   endWasSet: boolean;
+  /** While payments are off, only a free price, or the one already stored, may be sent (F-09). */
+  isPaymentAvailable: boolean;
+  storedPriceMinor: string | null;
 }
 
 type Issue = [keyof TicketTypeFormValues, SalesFieldCode];
@@ -45,13 +49,17 @@ function wholeIn(text: string, low: number, high: number): number | null {
   return value >= low && value <= high ? value : null;
 }
 
-function priceIssue(price: string, currency: string): SalesFieldCode | null {
+function priceIssue(price: string, rules: TypeRules): SalesFieldCode | null {
   if (price.trim() === '') return 'required';
+  let minor: string;
   try {
-    return toMinor(price, currency).length > 15 ? 'price' : null;
+    minor = toMinor(price, rules.currency);
   } catch {
     return 'price';
   }
+  if (minor.length > 15) return 'price';
+  const isNewPaidPrice = minor !== '0' && minor !== rules.storedPriceMinor;
+  return isNewPaidPrice && !rules.isPaymentAvailable ? 'freeInPilot' : null;
 }
 
 function quantityIssues(values: TicketTypeFormValues, rules: TypeRules): Issue[] {
@@ -109,7 +117,7 @@ export function ticketTypeSchema(rules: TypeRules) {
         context.addIssue({ code: 'custom', path: [path], message });
       if (!Object.values(values.names).some((name) => name.trim() !== ''))
         add(['names', 'nameRequired']);
-      const price = priceIssue(values.price, rules.currency);
+      const price = priceIssue(values.price, rules);
       if (price) add(['price', price]);
       quantityIssues(values, rules).forEach(add);
       windowIssues(values, rules).forEach(add);

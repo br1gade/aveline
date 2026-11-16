@@ -29,7 +29,7 @@ import type { TicketTypeData } from '../load';
 import { ticketSalesPath } from '../paths';
 import { createTicketTypeBody, updateTicketTypeBody } from '../payload';
 import { inLanguage } from '../read';
-import { typeRefusal } from '../refusals';
+import { isPaidTicketRefusal, typeRefusal } from '../refusals';
 import { ticketTypeSchema } from '../schemas';
 import type { TicketType } from '../types';
 import { LINK } from './shared';
@@ -105,14 +105,39 @@ function SalesEdge({
   );
 }
 
+/** The price; while payments are off, the help says a ticket is free (audit F-09). */
+function PriceField({
+  form,
+  currency,
+  isPaymentAvailable,
+}: {
+  form: Form;
+  currency: string;
+  isPaymentAvailable: boolean;
+}) {
+  const { t } = useTranslation('ticket-sales');
+  const text = useFormText();
+  return (
+    <TextInputField
+      inputMode="decimal"
+      label={t('typeForm.price', { currency })}
+      help={t(isPaymentAvailable ? 'typeForm.priceHelp' : 'typeForm.priceHelpPilot')}
+      error={text(form.formState.errors.price?.message)}
+      {...form.register('price')}
+    />
+  );
+}
+
 function Limits({
   form,
   type,
   currency,
+  isPaymentAvailable,
 }: {
   form: Form;
   type: TicketType | null;
   currency: string;
+  isPaymentAvailable: boolean;
 }) {
   const { t } = useTranslation('ticket-sales');
   const text = useFormText();
@@ -122,13 +147,7 @@ function Limits({
   const taken = sold + held;
   return (
     <>
-      <TextInputField
-        inputMode="decimal"
-        label={t('typeForm.price', { currency })}
-        help={t('typeForm.priceHelp')}
-        error={text(errors.price?.message)}
-        {...form.register('price')}
-      />
+      <PriceField form={form} currency={currency} isPaymentAvailable={isPaymentAvailable} />
       <TextInputField
         inputMode="numeric"
         label={t('typeForm.quantity')}
@@ -174,7 +193,7 @@ function refusedWords(status: number): 'forbidden' | 'types.refusals.capacityTak
   return status === 409 ? 'types.refusals.capacityTaken' : 'refused';
 }
 
-function useTypeForm({ event, type }: TicketTypeData) {
+function useTypeForm({ event, type, payment }: TicketTypeData) {
   const navigate = useNavigate();
   const context = useMemo(
     () => ({
@@ -188,7 +207,11 @@ function useTypeForm({ event, type }: TicketTypeData) {
     }),
     [event, type],
   );
-  const [baseline] = useState(() => ticketTypeFormValues(type, context));
+  // While payments are off, a new ticket starts free, the only price the API takes (F-09).
+  const [baseline] = useState(() => {
+    const values = ticketTypeFormValues(type, context);
+    return type || payment.isPaymentAvailable ? values : { ...values, price: '0' };
+  });
   const schema = useMemo(
     () =>
       ticketTypeSchema({
@@ -196,8 +219,10 @@ function useTypeForm({ event, type }: TicketTypeData) {
         taken: type ? type.sold + type.held : 0,
         startWasSet: Boolean(type?.salesStartAt),
         endWasSet: Boolean(type?.salesEndAt),
+        isPaymentAvailable: payment.isPaymentAvailable,
+        storedPriceMinor: type?.priceMinor ?? null,
       }),
-    [context, type],
+    [context, type, payment],
   );
   const form = useForm<TicketTypeFormValues>({
     resolver: zodResolver(schema),
@@ -211,6 +236,7 @@ function useTypeForm({ event, type }: TicketTypeData) {
       await save(values, { eventId: event.id, type, baseline, context });
       await navigate(ticketSalesPath(event.id));
     } catch (error) {
+      if (isPaidTicketRefusal(error)) return form.setError('price', { message: 'freeInPilot' });
       const refusal = typeRefusal(error);
       if (refusal.kind !== 'fields') setProblem(problemFrom(error));
       else refusal.paths.forEach((path) => form.setError(path as 'price', { message: 'refused' }));
@@ -254,7 +280,12 @@ export function TicketTypeForm({ data }: { data: TicketTypeData }) {
             languages={context.languages}
             labelOf={labelOf}
           />
-          <Limits form={form} type={type} currency={context.currency} />
+          <Limits
+            form={form}
+            type={type}
+            currency={context.currency}
+            isPaymentAvailable={data.payment.isPaymentAvailable}
+          />
           <SalesEdge form={form} edge="salesStart" timeZone={event.timezone} />
           <SalesEdge form={form} edge="salesEnd" timeZone={event.timezone} />
           <p className="text-muted-foreground m-0 text-sm">{t('typeForm.windowNote')}</p>

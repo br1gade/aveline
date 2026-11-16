@@ -1,3 +1,4 @@
+import type { PaymentOptions } from '@/api/payment-options';
 import type { BlockMedia, QuestionType, RsvpFieldConfig } from '@/features/invitation-renderer';
 
 import type { SaleLimits } from './basket';
@@ -50,6 +51,8 @@ export interface CheckoutRules {
   /** The host's questions, SIGNATURE left out by the backend. */
   questions: CheckoutQuestion[];
   agreementsBeforeDoor: AgreementBeforeDoor[];
+  /** Whether a paid ticket can be bought now, and with which bank: said before the form (F-09). */
+  payment: PaymentOptions;
 }
 
 /** For `<head>`, used verbatim (docs/API.md §5). */

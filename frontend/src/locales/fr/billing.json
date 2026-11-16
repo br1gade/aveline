@@ -31,6 +31,7 @@
     "none": "Aucune formule n’est proposée pour le moment.",
     "current": "Votre formule actuelle",
     "choose": "Choisir cette formule",
+    "afterPilot": "Après le pilote gratuit",
     "pending": "Commence à la fin de votre période payée"
   },
   "price": {

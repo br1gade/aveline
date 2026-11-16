@@ -1,7 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { negotiatedLanguageData, negotiatedLanguageHandle, passLoaderHeaders } from '@/lib/i18n';
+import {
+  createI18n,
+  languageOf,
+  negotiatedLanguageData,
+  negotiatedLanguageHandle,
+  passLoaderHeaders,
+} from '@/lib/i18n';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 
 import type { Route } from './+types/home';
@@ -17,8 +23,11 @@ export const handle = negotiatedLanguageHandle;
 const LINK =
   'text-action inline-flex min-h-11 items-center underline decoration-1 underline-offset-3 hover:decoration-2';
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: 'Aveline' }, { name: 'robots', content: 'noindex' }];
+/** Search engines may list it (provisional, PD-204), with a description in the page's language. */
+export function meta({ loaderData }: Route.MetaArgs) {
+  const language = languageOf(loaderData) ?? 'en';
+  const t = createI18n(language).getFixedT(language, 'common');
+  return [{ title: 'Aveline' }, { name: 'description', content: t('home.body') }];
 }
 
 /** A placeholder until the public site exists. Guests arrive on their personal links. */

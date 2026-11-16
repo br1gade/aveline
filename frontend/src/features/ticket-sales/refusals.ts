@@ -56,6 +56,11 @@ const IN_USE = [
   /has checkout history or someone started buying it/,
 ];
 
+/** A price above nothing while payments are off: worded on the price itself (F-09). */
+export function isPaidTicketRefusal(error: unknown): boolean {
+  return isApiError(error) && error.code === 'PAID_TICKETS_DISABLED';
+}
+
 export function typeRefusal(error: unknown): TypeRefusal {
   if (!isApiError(error)) return { kind: 'other', error };
   const sentence = error.messages[0] ?? '';

@@ -59,7 +59,7 @@ function PayAgain({ invoice, provider }: { invoice: Invoice; provider: PaymentPr
       >
         {t('return.payAgain')}
       </Button>
-      {refusal?.kind === 'pilot' ? <PilotNotice /> : null}
+      {refusal?.kind === 'pilot' ? <PilotNotice isRefused /> : null}
       {refusal && refusal.kind !== 'pilot' ? <BillingProblem refusal={refusal} /> : null}
     </>
   );

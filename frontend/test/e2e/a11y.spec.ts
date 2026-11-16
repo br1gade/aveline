@@ -28,7 +28,7 @@ let pages: Pages;
 
 test.beforeAll(async () => {
   const host = await newHost();
-  const { event, household } = await publishedWedding(host, { locales: ['hy', 'ru', 'en', 'fr'] });
+  const { event, household } = await publishedWedding(host, { locales: ['hy', 'ru', 'en'] });
   // Long double-barrelled names, as Armenian and Russian families have: a name that can't break
   // pushed the guest page sideways on a phone, and the guest list's buttons over each other (audit
   // F-16, F-18). The guest page is this household's.
@@ -37,8 +37,8 @@ test.beforeAll(async () => {
     { firstName: 'Константин', lastName: 'Константинопольский-Преображенский' },
   ]);
   if (!household[0] || !anna) throw new Error('No guest');
-  // The event's own page speaks the event's languages: this one offers all four.
-  const concert = await ticketedEvent(await newHost(), { locales: ['hy', 'ru', 'en', 'fr'] });
+  // The event's own page speaks the event's languages: this one offers all three.
+  const concert = await ticketedEvent(await newHost(), { locales: ['hy', 'ru', 'en'] });
   const order = await buyFreeTicket(concert, 'Narek');
   const brief = await bookVendor(host, event, ['headcount', 'timeline']);
   pages = {

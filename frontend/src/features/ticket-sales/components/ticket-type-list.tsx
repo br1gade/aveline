@@ -46,6 +46,8 @@ interface CardProps {
   type: TicketType;
   event: EventDetail;
   page: PageActions;
+  /** Payments are off: a type priced before can't be bought, so it says so (F-09). */
+  isPaymentUnavailable: boolean;
   onRemove: (type: TicketType) => void;
 }
 
@@ -105,7 +107,7 @@ function CardActions({
 }
 
 function TypeCard(props: CardProps) {
-  const { type, event } = props;
+  const { type, event, isPaymentUnavailable } = props;
   const { t, i18n } = useTranslation('ticket-sales');
   const name = inLanguage(type.name, i18n.language, event.defaultLocale) ?? t('types.unnamed');
   const window = useWindow(type, event);
@@ -127,6 +129,9 @@ function TypeCard(props: CardProps) {
         <p className="text-muted-foreground m-0 text-sm font-medium">{t('types.inactive')}</p>
       )}
       <p className="m-0">{price}</p>
+      {isPaymentUnavailable && type.priceMinor !== '0' ? (
+        <p className="m-0 text-sm font-medium">{t('types.paidOff')}</p>
+      ) : null}
       <p className="m-0 text-sm">{t('types.counts', counts)}</p>
       <p className="m-0 text-sm">
         {t('types.perOrder', { min: type.minPerOrder, max: type.maxPerOrder })}
@@ -186,18 +191,27 @@ export function TicketTypesPanel({ data, page }: { data: TicketSalesData; page: 
   const { t } = useTranslation('ticket-sales');
   const [removing, setRemoving] = useState<TicketType | null>(null);
   const { event, types } = data;
+  const isPaymentUnavailable = !data.payment.isPaymentAvailable;
   return (
     <section aria-labelledby="types-heading" className={PANEL}>
       <h2 id="types-heading" className={HEADING}>
         {t('types.heading')}
       </h2>
       <p className="m-0 text-sm">{t('types.lead')}</p>
+      {isPaymentUnavailable ? <p className="m-0 text-sm">{t('types.pilot')}</p> : null}
       {types.length === 0 ? (
         <p className="text-muted-foreground m-0">{t('types.empty')}</p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {types.map((type) => (
-            <TypeCard key={type.id} type={type} event={event} page={page} onRemove={setRemoving} />
+            <TypeCard
+              key={type.id}
+              type={type}
+              event={event}
+              page={page}
+              isPaymentUnavailable={isPaymentUnavailable}
+              onRemove={setRemoving}
+            />
           ))}
         </ul>
       )}

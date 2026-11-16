@@ -1,3 +1,4 @@
+import { paymentProviderOf } from '@/api/payment-options';
 import type { Basket, CheckoutQuestion, CheckoutRules } from '@/features/public-event';
 
 import { attendanceBody, isComing } from './attendance';
@@ -7,7 +8,6 @@ import type {
   CheckoutValues,
   CustomAnswerBody,
   OrderBody,
-  PaymentProvider,
   PersonValues,
   TicketSelection,
 } from './types';
@@ -18,7 +18,6 @@ export interface OrderContext {
   basket: Basket;
   /** The page's language, the one the response named: the buyer's emails follow it. */
   locale: string;
-  provider: PaymentProvider;
   /** A code the promo check accepted; `null` when none was applied. */
   promoCode: string | null;
   layout?: { layoutVersionId: string; selections: TicketSelection[] } | undefined;
@@ -94,6 +93,7 @@ export function attendeeBody(rules: CheckoutRules, person: PersonValues): Attend
  * default is this client's `/tickets/return`, which the route contract pins.
  */
 export function orderBody(values: CheckoutValues, context: OrderContext): OrderBody {
+  const provider = paymentProviderOf(context.rules.payment);
   const buyerName = `${values.buyerFirstName.trim()} ${values.buyerLastName.trim()}`.trim();
   return {
     ...context.layout,
@@ -104,7 +104,8 @@ export function orderBody(values: CheckoutValues, context: OrderContext): OrderB
     locale: context.locale,
     attendanceRevision: context.rules.attendanceRevision,
     attendees: values.people.map((person) => attendeeBody(context.rules, person)),
-    provider: context.provider,
+    // The first bank the API offers; none while payments are off (FR-64).
+    ...(provider ? { provider } : {}),
     ...(context.promoCode ? { promoCode: context.promoCode } : {}),
   };
 }

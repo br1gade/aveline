@@ -5,7 +5,7 @@ import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { useCan } from '@/features/permissions';
 
-import { offerFor } from '../plans';
+import { isFree, offerFor } from '../plans';
 import type { Entitlements, Plan, Subscription } from '../types';
 import { usePrice } from './shared';
 
@@ -83,7 +83,15 @@ interface PlanListProps {
   plans: readonly Plan[];
   current: Subscription | null;
   now: number;
+  /** While payments are off, a paid plan is shown with its price but not offered (C-47). */
+  isPaymentAvailable: boolean;
   onChoose: (plan: Plan, opener: MouseEvent<HTMLElement>) => void;
+}
+
+/** "After the free pilot": a paid plan nobody can buy while payments are off (design C-47). */
+export function AfterPilot() {
+  const { t } = useTranslation('billing');
+  return <p className="m-0 mt-auto font-medium">{t('plans.afterPilot')}</p>;
 }
 
 /**
@@ -91,7 +99,7 @@ interface PlanListProps {
  * one running now, as choosing it would start a new period, and a free one already scheduled for the
  * period's end (FR-135).
  */
-export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
+export function PlanList({ plans, current, now, isPaymentAvailable, onChoose }: PlanListProps) {
   const { t } = useTranslation('billing');
   const canChoose = useCan('billing:write');
   return (
@@ -106,6 +114,7 @@ export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
           if (offer !== 'choose') {
             return <p className="m-0 mt-auto font-medium">{t(`plans.${offer}`)}</p>;
           }
+          if (!isPaymentAvailable && !isFree(plan.priceMinor)) return <AfterPilot />;
           return canChoose ? (
             <Button
               variant="outline"

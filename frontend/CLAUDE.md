@@ -78,8 +78,8 @@ From the template; getting them wrong breaks users.
   and tabs in the URL.
 - **Forms:** React Hook Form with Zod. The server stays the authority; a `400` maps onto fields.
 - **No hard-coded user-facing strings.** i18next namespaces in `src/locales/<hy|ru|en|fr>/`.
-  Armenian and Russian strings are drafts until a native reader checks them (PD-9); French ships
-  as translated, without a native reading (C-23).
+  Armenian and Russian strings are drafts until a native reader checks them (PD-9). French is kept
+  but not offered for the pilot (C-58): `OFFERED_LANGUAGES` decides what a menu or negotiation offers.
 - **No browser globals at module scope**; every module must be safe to render on the server.
 - **Lint limits** match the backend: complexity 10, depth 3, 60 lines per function, 4 parameters,
   zero warnings. Extract rather than disable.

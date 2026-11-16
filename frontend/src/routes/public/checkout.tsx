@@ -1,7 +1,6 @@
 import '@/locales/public';
 import { data } from 'react-router';
 
-import { readServerEnv } from '@/config/env.server';
 import { CheckoutPage } from '@/features/checkout';
 import { EventNotFound, publicEventLanguage, readBasket } from '@/features/public-event';
 import { loadPublicEvent } from '@/features/public-event/index.server';
@@ -12,7 +11,7 @@ import type { Route } from './+types/checkout';
 
 /**
  * Checkout, with the tickets chosen in the address (`?tickets=general.2`) and the event's language
- * (`?locale=`). The bank a paid order goes to is a server setting (design PD-82, FR-64).
+ * (`?locale=`). The bank a paid order goes to is the event's `checkout.payment` (FR-64).
  */
 export async function loader({ params, request }: Route.LoaderArgs) {
   const search = new URL(request.url).searchParams;
@@ -20,9 +19,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     { slug: params.slug, locale: search.get('locale') ?? undefined },
     request,
   );
-  const provider = readServerEnv().TICKET_PAYMENT_PROVIDER;
   return data(
-    { ...page, tickets: search.get('tickets'), provider },
+    { ...page, tickets: search.get('tickets') },
     { status: page.state === 'found' ? 200 : 404 },
   );
 }
@@ -49,7 +47,6 @@ export default function Checkout({ loaderData }: Route.ComponentProps) {
         event={event}
         basket={readBasket(loaderData.tickets, event.ticketTypes)}
         isSalesClosed={loaderData.isSalesClosed}
-        provider={loaderData.provider}
       />
     </LeaveGuard>
   );

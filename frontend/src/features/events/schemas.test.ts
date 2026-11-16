@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { NEW_EVENT_VALUES } from './form-model';
+import { newEventValues } from './form-model';
 import { eventFormSchema } from './schemas';
 
 function problems(mode: 'create' | 'edit', values: Record<string, unknown>) {
-  const result = eventFormSchema(mode).safeParse({ ...NEW_EVENT_VALUES, ...values });
+  const result = eventFormSchema(mode).safeParse({ ...newEventValues('hy'), ...values });
   return result.success
     ? {}
     : Object.fromEntries(result.error.issues.map((issue) => [issue.path.join('.'), issue.message]));
@@ -71,7 +71,7 @@ describe('the event form', () => {
 
   it('trims the title and the hosts', () => {
     const parsed = eventFormSchema('create').parse({
-      ...NEW_EVENT_VALUES,
+      ...newEventValues('hy'),
       ...valid,
       title: '  Anna & Davit ',
       hostsLabel: ' Anna ',

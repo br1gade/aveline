@@ -26,7 +26,6 @@ const CONTEXT: OrderContext = {
   rules: EVENT_WIDE_RULES,
   basket: [{ ticketTypeId: 'general', quantity: 2 }],
   locale: 'hy',
-  provider: 'FAKE',
   promoCode: null,
 };
 
@@ -45,6 +44,12 @@ describe('the order body', () => {
         { ticketTypeId: 'general', firstName: 'Davit' },
       ],
     });
+  });
+
+  it('names no bank while payments are off', () => {
+    const off = { ...EVENT_WIDE_RULES, payment: { isPaymentAvailable: false, providers: [] } };
+    const body = orderBody(values([person()]), { ...CONTEXT, rules: off });
+    expect(body).not.toHaveProperty('provider');
   });
 
   it("never fills a person's contacts from the buyer's", () => {
@@ -149,7 +154,16 @@ describe('one idempotency key per attempt', () => {
     ['the basket', { ...CONTEXT, basket: [{ ticketTypeId: 'general', quantity: 3 }] }],
     ['the promo code', { ...CONTEXT, promoCode: 'AUTUMN' }],
     ['the revision', { ...CONTEXT, rules: { ...EVENT_WIDE_RULES, attendanceRevision: 2 } }],
-    ['the provider', { ...CONTEXT, provider: 'AMERIABANK' as const }],
+    [
+      'the bank',
+      {
+        ...CONTEXT,
+        rules: {
+          ...EVENT_WIDE_RULES,
+          payment: { isPaymentAvailable: true, providers: ['AMERIABANK' as const] },
+        },
+      },
+    ],
   ])('is another intent when %s changes', (_, context) => {
     expect(intentOf(orderBody(values(people), context))).not.toBe(
       intentOf(orderBody(values(people), CONTEXT)),

@@ -19,7 +19,7 @@ makes its own data through the API as a host would (setup proposal §12): a fres
 | `door.spec.ts` | Checking in by name and undoing it; a ticket code admitted once; a walk-in |
 | `vendors.spec.ts` | A vendor's brief in the vendor's language with the event's words marked in the event's (FR-104), and closed when paused |
 | `suppressions.spec.ts` | A spaced phone stored compact, and the same number typed another way known as listed (FR-99) |
-| `a11y.spec.ts` | Twenty guest, public and app pages in hy, ru, en and fr: axe (WCAG 2.2 AA; serious and critical fail), 44 px targets on a phone, no sideways scroll, `<html lang>`, no raw translation key |
+| `a11y.spec.ts` | Twenty guest, public and app pages in hy, ru and en (French is not offered for the pilot): axe (WCAG 2.2 AA; serious and critical fail), 44 px targets on a phone, no sideways scroll, `<html lang>`, no raw translation key |
 | `ssr.spec.ts` | An event page's title, Open Graph and robots rule in its server HTML; the capability links' `no-referrer`, `private, no-store` and `noindex` headers, and no token in their HTML |
 
 Each test runs three times: on a 360 px touch phone in Chrome, on a 390 px iPhone in WebKit
@@ -67,9 +67,9 @@ npx playwright test door.spec.ts --project=phone              # one file, one pr
 - **No Mailpit:** the tests that read mail say so and skip.
 - **The worker isn't running:** automatic seating and exports wait 60 s and fail, rather than pass without it.
 - **A paid ticket or plan:**
-  - under `PILOT_MODE`, the pilot's refusal is checked, and the tests that pay at the bank skip;
+  - under `PILOT_MODE` (`GET /payment-options` says no) no paid ticket can be made, so the tests that pay skip, and the ticket form's free-only price and billing's "After the free pilot" are checked instead;
   - on a development stack, the FAKE bank's return waits, then its `fake-bank` route answers for the payer, paid or declined (FR-151), and the plan is first put on sale (FR-154).
-- **The dev server:** the tickets page's offline reload skips, as its modules aren't kept; run it against a production build (`npm run build && npm start`, or the image) behind one origin. A production build asks for Ameriabank unless `TICKET_PAYMENT_PROVIDER=FAKE` is set on its server, which a development backend needs.
+- **The dev server:** the tickets page's offline reload skips, as its modules aren't kept; run it against a production build (`npm run build && npm start`, or the image) behind one origin. The bank comes from the API's `/payment-options`, so a production build pays where the backend says.
 - **Staging, or any stack that runs as production:** it has no FAKE bank and no development routes, so the paid ticket and plan tests skip and say so; pay at the bank's own test environment by hand. Mail is read after the outbox's minute, so those tests are marked slow there.
 
 ## Tokens

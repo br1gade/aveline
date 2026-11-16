@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { LANGUAGES, type Language } from '@/lib/i18n';
+import { OFFERED_LANGUAGES, type Language } from '@/lib/i18n';
 import { LanguageSwitcher, Notice, TextLink } from '@/ui';
 
 import { listingHref, type ListingQuery } from '../listing';
@@ -82,7 +82,7 @@ export function ListingPage({ listing, language, query }: ListingPageProps) {
         <div className="flex justify-end">
           <LanguageSwitcher
             current={language}
-            available={LANGUAGES}
+            available={OFFERED_LANGUAGES}
             hrefFor={(next) => listingHref({ ...query, language: next })}
             align="end"
           />

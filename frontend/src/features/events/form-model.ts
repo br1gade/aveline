@@ -1,24 +1,31 @@
-import { LANGUAGES, translationValues } from '@/lib/i18n';
+import { isOfferedLanguage, OFFERED_LANGUAGES, translationValues } from '@/lib/i18n';
 import { DEFAULT_TIME_ZONE, wallTimeOf } from '@/lib/time';
 
 import type { EventFormInput, EventFormValues } from './schemas';
 import type { EventDetail } from './types';
 
-export const NEW_EVENT_VALUES: EventFormInput = {
-  type: '',
-  title: '',
-  hostsLabel: '',
-  date: '',
-  time: '',
-  timezone: DEFAULT_TIME_ZONE,
-  locales: ['hy'],
-  defaultLocale: 'hy',
-  endDate: '',
-  endTime: '',
-  sideALabel: '',
-  sideBLabel: '',
-  translations: {},
-};
+/**
+ * A new event, in the language the host reads the app in (provisional, PD-203): an English-speaking
+ * host starts in English. Armenian when that language isn't one an event is offered in.
+ */
+export function newEventValues(interfaceLanguage: string): EventFormInput {
+  const language = isOfferedLanguage(interfaceLanguage) ? interfaceLanguage : 'hy';
+  return {
+    type: '',
+    title: '',
+    hostsLabel: '',
+    date: '',
+    time: '',
+    timezone: DEFAULT_TIME_ZONE,
+    locales: [language],
+    defaultLocale: language,
+    endDate: '',
+    endTime: '',
+    sideALabel: '',
+    sideBLabel: '',
+    translations: {},
+  };
+}
 
 /** What an event's title, hosts and side labels are called in `translations` (FR-96). */
 export const EVENT_TRANSLATED = ['title', 'hostsLabel', 'sideALabel', 'sideBLabel'] as const;
@@ -51,11 +58,11 @@ export function formValuesOf(event: EventDetail): EventFormValues {
 }
 
 /**
- * The languages a host may tick: Aveline's three (C-5) and French (C-23), and any other the event
- * already has, so an edit never drops one it cannot show.
+ * The languages a host may tick: Aveline's three (C-5), not French during the pilot, and any other
+ * the event already has, so an edit never drops one it cannot show.
  */
 export function languageOptions(eventLocales: readonly string[] = []): string[] {
-  const offered: readonly string[] = LANGUAGES;
+  const offered: readonly string[] = OFFERED_LANGUAGES;
   return [...offered, ...eventLocales.filter((locale) => !offered.includes(locale))];
 }
 

@@ -1,4 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -187,6 +190,40 @@ describe('SignIn', () => {
     await user.type(screen.getByLabelText('Password'), 'correct horse');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Wait a minute');
+  });
+
+  it('says an account that failed too often must wait, and offers a reset beside it', async () => {
+    answer('post', '/auth/login', () =>
+      HttpResponse.json(
+        { statusCode: 429, code: 'LOGIN_TOO_MANY_ATTEMPTS', message: 'email: too many' },
+        { status: 429 },
+      ),
+    );
+    const user = renderAt('/sign-in', SignIn);
+    await user.type(screen.getByLabelText('Email'), 'ani@example.am');
+    await user.type(screen.getByLabelText('Password'), 'correct horse');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Too many failed sign-ins');
+    expect(alert).toHaveFocus();
+    expect(within(alert).getByRole('link', { name: 'Reset your password' })).toHaveAttribute(
+      'href',
+      '/reset-password',
+    );
+  });
+
+  it('reads the backend’s own code for the account’s wait', () => {
+    const codes = readFileSync(
+      join(import.meta.dirname, '../../../../backend/src/common/domain-http.exception.ts'),
+      'utf8',
+    );
+    expect(codes).toContain('LOGIN_TOO_MANY_ATTEMPTS: {');
+  });
+
+  it('offers no French in the language menu (C-58)', () => {
+    renderAt('/sign-in', SignIn);
+    expect(screen.queryByRole('link', { name: 'Français', hidden: true })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Русский', hidden: true })).toBeInTheDocument();
   });
 });
 

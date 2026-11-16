@@ -2,13 +2,14 @@ import { useCallback, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { paymentProviderOf } from '@/api/payment-options';
 import { formatMinor } from '@/lib/money';
 import { APP_PATHS } from '@/route-paths';
 import { StatusLine, useDialogOpener, usePageStatus } from '@/ui/app-form';
 
 import type { BillingData } from '../load';
 import { choiceKind, isFree } from '../plans';
-import type { Invoice, PaymentProvider, Plan, Subscription } from '../types';
+import type { Invoice, Plan, Subscription } from '../types';
 import { ChooseDialog, type Choice } from './choose-dialog';
 import { CancelDialog, CurrentPlan } from './current-plan';
 import { InvoiceList } from './invoice-list';
@@ -21,8 +22,6 @@ type OpenDialog =
 
 interface BillingPageProps {
   data: BillingData;
-  /** The bank a paid plan is sent to, until the API says which are set up (FR-109). */
-  provider: PaymentProvider;
 }
 
 function useOpenDialog() {
@@ -37,8 +36,9 @@ function useOpenDialog() {
 }
 
 /** What the question before choosing or paying needs (design PD-128). */
-function useChoices(data: BillingData, provider: PaymentProvider) {
+function useChoices(data: BillingData) {
   const { i18n } = useTranslation('billing');
+  const provider = paymentProviderOf(data.payment);
   const price = usePrice();
   const current = data.subscription.kind === 'ready' ? data.subscription.value : null;
   const ofPlan = (plan: Plan): Choice => ({
@@ -61,15 +61,16 @@ function useChoices(data: BillingData, provider: PaymentProvider) {
 /**
  * The organization's plan and invoices (docs/API.md §6; design PD-126 to PD-129). The plans show to
  * everyone, as the price list is public; the rest is the owner's, and says so. While payments are
- * off, a paid plan is refused only on the press, as nothing says so beforehand (FR-109).
+ * off, that is said first and a paid plan is not offered (C-47, FR-109); a refused press says so too.
  */
-export function BillingPage({ data, provider }: BillingPageProps) {
+export function BillingPage({ data }: BillingPageProps) {
   const { t } = useTranslation('billing');
   const { page, status, statusRef } = usePageStatus(data);
   const { dialog, open, close, restoreFocus } = useOpenDialog();
   const [isPilot, setIsPilot] = useState(false);
   const onPilot = useCallback(() => setIsPilot(true), []);
-  const { current, ofPlan, ofInvoice } = useChoices(data, provider);
+  const { current, ofPlan, ofInvoice } = useChoices(data);
+  const { isPaymentAvailable } = data.payment;
   const context = { page, onClose: close, restoreFocus };
   return (
     <section className="flex flex-col gap-6">
@@ -81,7 +82,7 @@ export function BillingPage({ data, provider }: BillingPageProps) {
       </Link>
       <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('title')}</h1>
       {status ? <StatusLine statusRef={statusRef}>{status}</StatusLine> : null}
-      {isPilot ? <PilotNotice /> : null}
+      {isPilot || !isPaymentAvailable ? <PilotNotice isRefused={isPilot} /> : null}
       <CurrentPlan
         read={data.subscription}
         now={data.now}
@@ -92,6 +93,7 @@ export function BillingPage({ data, provider }: BillingPageProps) {
         plans={data.plans}
         current={current}
         now={data.now}
+        isPaymentAvailable={isPaymentAvailable}
         onChoose={(plan, opener) => open({ kind: 'choose', choice: ofPlan(plan) }, opener)}
       />
       <InvoiceList

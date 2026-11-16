@@ -31,6 +31,7 @@
     "none": "No plans are on offer just now.",
     "current": "Your current plan",
     "choose": "Choose this plan",
+    "afterPilot": "After the free pilot",
     "pending": "Starts when your paid period ends"
   },
   "price": {

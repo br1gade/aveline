@@ -1,6 +1,6 @@
 import { apiAs, must } from './support/api';
 import { expect, test } from './support/fixtures';
-import { isDevelopmentStack, NOT_DEVELOPMENT } from './support/stack';
+import { arePaymentsOn, isDevelopmentStack, NOT_DEVELOPMENT, PAYMENTS_OFF } from './support/stack';
 
 /** The plan the suite puts on sale: the production seed leaves every paid plan off (FR-154). */
 const PLAN = { key: 'planner-monthly', priceMinor: '25000' } as const;
@@ -26,6 +26,24 @@ async function planOnSale(): Promise<string> {
  * (FR-151) and read by the return page's check. The plan is put on sale first (FR-154).
  */
 test.describe('a paid plan', () => {
+  test('waits for the pilot’s end while payments are off, said before any press', async ({
+    page,
+    host,
+    signedIn,
+  }) => {
+    test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
+    test.skip(await arePaymentsOn(), 'Payments are on on this stack');
+    const name = await planOnSale();
+    await signedIn(host.email);
+    await page.goto('/app/billing');
+    await expect(
+      page.getByText('Paid plans aren’t available during the free pilot.'),
+    ).toBeVisible();
+    const plan = page.getByRole('listitem').filter({ hasText: name });
+    await expect(plan.getByText('After the free pilot')).toBeVisible();
+    await expect(plan.getByRole('button', { name: 'Choose this plan' })).toHaveCount(0);
+  });
+
   for (const [outcome, words] of [
     ['PAID', 'Your payment is confirmed, and your plan is active.'],
     ['DECLINED', 'This payment didn’t go through, and no money moved. Your plan is as it was.'],
@@ -37,6 +55,7 @@ test.describe('a paid plan', () => {
       seen,
     }) => {
       test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
+      test.skip(!(await arePaymentsOn()), PAYMENTS_OFF);
       const name = await planOnSale();
       await signedIn(host.email);
       await page.goto('/app/billing');
@@ -44,10 +63,9 @@ test.describe('a paid plan', () => {
       await plan.getByRole('button', { name: 'Choose this plan' }).click();
       await page.getByRole('alertdialog').getByRole('button', { name: 'Go to the bank' }).click();
 
-      const refused = page.getByText('Paid plans aren’t available during the free pilot.').first();
-      const waiting = page.getByText(/^The bank hasn’t confirmed this payment yet\./u);
-      await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
-      test.skip(await refused.isVisible(), 'Payments are off on this stack (PILOT_MODE)');
+      await expect(page.getByText(/^The bank hasn’t confirmed this payment yet\./u)).toBeVisible({
+        timeout: 20_000,
+      });
 
       // What the payer does at the FAKE bank: its order number is on the return address.
       const returned = seen.requests.find((address) => address.includes('fakePayment=fake_'));
