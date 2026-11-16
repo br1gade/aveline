@@ -125,9 +125,14 @@ function ChosenFiles({ files }: { files: readonly File[] }) {
         return (
           <li key={`${index}-${file.name}`} className="flex flex-wrap gap-x-2">
             <bdi className="break-all">{file.name}</bdi>
-            <span className={problem ? 'text-error' : 'text-ink-muted'}>
-              {problem ? t(`share.problems.${problem}`) : t('share.ready')}
-            </span>
+            {problem ? (
+              <span className="text-error inline-flex items-start gap-1">
+                <Icon name="circle-alert" size={16} className="mt-0.5 shrink-0" />
+                {t(`share.problems.${problem}`)}
+              </span>
+            ) : (
+              <span className="text-ink-muted">{t('share.ready')}</span>
+            )}
           </li>
         );
       })}

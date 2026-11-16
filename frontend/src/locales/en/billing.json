@@ -144,5 +144,14 @@
     "lead": "What each Aveline plan costs and what it includes.",
     "start": "Create an account",
     "metaTitle": "Prices · Aveline"
+  },
+  "features": {
+    "seating": "Seating plan",
+    "check-in": "Check-in at the door",
+    "operations": "Running order and the day itself",
+    "vendor-briefs": "Briefs for vendors",
+    "thank-yous": "Thank-you messages",
+    "custom-design": "A design of your own",
+    "coordinator": "A coordinator"
   }
 }

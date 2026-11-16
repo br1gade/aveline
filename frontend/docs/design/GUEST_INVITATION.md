@@ -638,7 +638,8 @@ comment changes the design, update this file in the same change.
 
 ## 15. Not yet built
 
-- **In code since 22 October 2026, not yet against the real backend:** the renderer with all
+- **In code since 22 October 2026, and walked against the backend's development stack by the
+  end-to-end suite since 13 November (not yet against staging):** the renderer with all
   fourteen blocks, both guest routes and the reply flow, on the provisional defaults
   ([DESIGN_DECISIONS §6](DESIGN_DECISIONS.md#6-provisional-defaults)). They were checked in a
   browser against a mock of the API; the end-to-end tests wait for the local backend to run. Since

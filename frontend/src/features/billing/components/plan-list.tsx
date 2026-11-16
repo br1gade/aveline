@@ -9,6 +9,35 @@ import { isFree, offerFor } from '../plans';
 import type { Entitlements, Plan, Subscription } from '../types';
 import { usePrice } from './shared';
 
+/**
+ * The features the backend's plans name, worded here until it sends plan copy per language
+ * (FR-110; design PD-212). A key not listed is shown as it came, marked English.
+ */
+const KNOWN_FEATURES = [
+  'seating',
+  'check-in',
+  'operations',
+  'vendor-briefs',
+  'thank-yous',
+  'custom-design',
+  'coordinator',
+] as const;
+
+type KnownFeature = (typeof KNOWN_FEATURES)[number];
+
+function isKnownFeature(feature: string): feature is KnownFeature {
+  return (KNOWN_FEATURES as readonly string[]).includes(feature);
+}
+
+function Feature({ feature }: { feature: string }) {
+  const { t } = useTranslation('billing');
+  return isKnownFeature(feature) ? (
+    <li>{t(`features.${feature}`)}</li>
+  ) : (
+    <li lang="en">{feature}</li>
+  );
+}
+
 function Limits({ entitlements }: { entitlements: Entitlements }) {
   const { t } = useTranslation('billing');
   const { maxEventsPerPeriod, maxGuestsPerEvent, maxLocales, invitationLifetimeDays, features } =
@@ -32,9 +61,7 @@ function Limits({ entitlements }: { entitlements: Entitlements }) {
           : t('limits.lifetime', { count: invitationLifetimeDays })}
       </li>
       {features.map((feature) => (
-        <li key={feature} lang="en">
-          {feature}
-        </li>
+        <Feature key={feature} feature={feature} />
       ))}
     </ul>
   );

@@ -53,9 +53,7 @@ function Numerals({ left }: { left: TimeLeft }) {
           }
         >
           <span className="type-numeral-l text-heading">{unit.value}</span>
-          <span className="text-label text-[11px] leading-4 font-medium tracking-[0.14em] uppercase">
-            {capsSafe(unit.label)}
-          </span>
+          <span className="type-eyebrow text-label uppercase">{capsSafe(unit.label)}</span>
         </div>
       ))}
     </div>

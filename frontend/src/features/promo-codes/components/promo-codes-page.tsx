@@ -235,7 +235,9 @@ export function PromoCodesPage({ data }: { data: PromoCodesData }) {
       </Link>
       <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('title')}</h1>
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
-      <p className="border-border m-0 max-w-[40rem] border-l-2 pl-3">{t('pilot')}</p>
+      {data.payment?.isPaymentAvailable ? null : (
+        <p className="border-border m-0 max-w-[40rem] border-l-2 pl-3">{t('pilot')}</p>
+      )}
       {data.events ? null : <p className="m-0">{t('eventsUnread')}</p>}
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {again.refusal ? <PromoProblem refusal={again.refusal} /> : null}

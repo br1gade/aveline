@@ -6,6 +6,7 @@ import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, useLoaderData } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { NO_PAYMENTS, type PaymentOptions } from '@/api/payment-options';
 import { createBrowserSession, type BrowserSession } from '@/api/session';
 import { createI18n } from '@/lib/i18n';
 import { guardedRoutes, isLeavingAsked } from '@/ui/app-form/guarded-routes';
@@ -83,9 +84,13 @@ function codes(): PromoCodeWire[] {
   ];
 }
 
-function serve(read: () => Response = () => HttpResponse.json(codes())) {
+function serve(
+  read: () => Response = () => HttpResponse.json(codes()),
+  payment: PaymentOptions = NO_PAYMENTS,
+) {
   const reads = { codes: 0 };
   server.use(
+    http.get(`${API}/payment-options`, () => HttpResponse.json(payment)),
     http.get(`${API}/promo-codes`, () => {
       reads.codes += 1;
       return read();
@@ -215,12 +220,29 @@ describe('the codes, as shown', () => {
     expect(choices).toEqual(['Every event']);
   });
 
-  it('says what the pilot lets through', async () => {
+  it('says what the pilot lets through while payments are off', async () => {
     serve();
     renderPage();
     expect(
       await screen.findByText(/takes a code only when it makes the order free/),
     ).toBeInTheDocument();
+  });
+
+  it('says the pilot line, and still lists the codes, when payments can’t be read', async () => {
+    serve();
+    server.use(http.get(`${API}/payment-options`, () => HttpResponse.json({}, { status: 500 })));
+    renderPage();
+    expect(
+      await screen.findByText(/takes a code only when it makes the order free/),
+    ).toBeInTheDocument();
+    expect(await screen.findByText('FRIENDS')).toBeInTheDocument();
+  });
+
+  it('says nothing of the pilot once payments are on (PD-118)', async () => {
+    serve(undefined, { isPaymentAvailable: true, providers: ['AMERIABANK'] });
+    renderPage();
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText(/takes a code only when it makes the order free/)).toBeNull();
   });
 
   it('tells anyone but the owner who can see them, and keeps the form', async () => {

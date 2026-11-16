@@ -114,10 +114,33 @@ describe('the price list', () => {
     );
   });
 
-  it('marks the plan’s English words as English on a page in Armenian', () => {
+  it('words a known feature in the page’s language (PD-212)', () => {
     show([managed], 'hy');
+    expect(screen.getByText('Նստատեղերի պլան')).not.toHaveAttribute('lang');
+  });
+
+  // The names the backend's plans use (`backend/src/seed-production.ts`), written out here so a
+  // name the client stops wording shows up as a failure, not as raw English on the price list.
+  it.each([
+    'seating',
+    'check-in',
+    'operations',
+    'vendor-briefs',
+    'thank-yous',
+    'custom-design',
+    'coordinator',
+  ])('words the backend’s feature %s rather than showing its key', (feature) => {
+    show([{ ...managed, entitlements: { ...managed.entitlements, features: [feature] } }], 'hy');
+    expect(screen.queryByText(feature)).toBeNull();
+  });
+
+  it('marks the plan’s English words as English on a page in Armenian', () => {
+    show(
+      [{ ...managed, entitlements: { ...managed.entitlements, features: ['live-stream'] } }],
+      'hy',
+    );
     expect(screen.getByText('Managed')).toHaveAttribute('lang', 'en');
-    expect(screen.getByText('seating')).toHaveAttribute('lang', 'en');
+    expect(screen.getByText('live-stream')).toHaveAttribute('lang', 'en');
   });
 
   it('lets search engines list the page, with a title in the page’s language (PD-204)', () => {

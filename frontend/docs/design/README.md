@@ -164,8 +164,8 @@ A waiver for the designer's gate is the product owner's to sign; PD-208 is not o
 - **Fourteen review fixes are not applied:** the ones owned by the designer, product or a native
   reader.
 - **The published review page is not corrected.** It stays a snapshot.
-- **The backend questions are not yet sent.** They are listed in
-  [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-154, BQ-1 to BQ-11), and
+- **Some backend requests are still open.** They are sent and answered in rounds, each recorded
+  in [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) (FR-1 to FR-161, BQ-1 to BQ-11);
   [DESIGN_DECISIONS §5](DESIGN_DECISIONS.md#5-unresolved-questions) still holds their reasoning.
 - **The launch gates are not yet in `docs/GOING_LIVE.md`** (§6).
 - **The pages have met the real backend only in development,** since 12 November 2026: the

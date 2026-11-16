@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
@@ -29,12 +29,19 @@ function useWindow(type: TicketType, event: EventDetail): string | null {
   return null;
 }
 
+/** An action refused for a reason we have no words for, worded by its status. */
+function UnknownRefusal({ error }: { error: unknown }) {
+  const { t } = useTranslation('ticket-sales');
+  // One problem per refusal, so the alert neither takes the focus again nor forgets the
+  // connection came back on each render.
+  const problem = useMemo(() => problemFrom(error), [error]);
+  return <ProblemAlert problem={problem} refused={() => t('refused')} />;
+}
+
 /** A refusal of one card's action, in our words; anything unknown by its status. */
 function RefusalText({ refusal }: { refusal: TypeRefusal }) {
   const { t } = useTranslation('ticket-sales');
-  if (refusal.kind === 'other') {
-    return <ProblemAlert problem={problemFrom(refusal.error)} refused={() => t('refused')} />;
-  }
+  if (refusal.kind === 'other') return <UnknownRefusal error={refusal.error} />;
   return (
     <ErrorLine role="alert">
       {t(`types.refusals.${refusal.kind === 'fields' ? 'capacityTaken' : refusal.kind}`)}

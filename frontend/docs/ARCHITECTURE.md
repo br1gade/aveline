@@ -1001,14 +1001,19 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 15 Nov 2026 | **The app's first service worker, `public/tickets-sw.js`, scoped to `/tickets`** (PD-202) | Audit F-22: a reload at a venue with no signal showed the browser's error page. Scoped to the one page that needs it, keeping only the token-free frame and hashed files. A buyer arrives from checkout without loading a document under the worker's scope, so the order page tells the worker what to keep (`ticket-order/tickets-worker.ts`): the frame, the files it loaded, what the frame names (a browser's list of loaded files stops at 250) and the fonts its stylesheets name, 1.1 MB once; an earlier release's files go once nothing names them. `public/*.js` is linted without types, with service-worker globals. Its offline reload is tested only against a production build, as the dev server's modules aren't kept |
 | 16 Nov 2026 | **Whether anything can be paid for is read from the API** (`api/payment-options.ts`: `GET /payment-options`, and `checkout.payment` on the public event), and `TICKET_PAYMENT_PROVIDER` is gone | The backend's `dc9f4c2` answered FR-64 and FR-109, so the 31 October stand-in has its exit: the bank is the first the API offers, none while payments are off, and the event page, checkout, the price list, billing and the ticket form say so before anyone types (audit F-09) |
 | 16 Nov 2026 | **French is kept, not offered** (`OFFERED_LANGUAGES` beside `LANGUAGES` in `lib/i18n`) | Decided for the pilot on 14 November (design C-58). `LANGUAGES` still decides what has strings, so an event that already has French shows it; menus, negotiation, the event form, exports and the not-found pages offer hy, ru and en |
+| 16 Nov 2026 | **The readiness check's client leftovers:** an error's icon on the signature pad, the agreements read and the publish blockers; "couldn't reach Aveline" turns into "connected again" once the browser is online (`ProblemAlert`); a calendar entry with no end lasts three hours (PD-211); plan features worded (PD-212, a stand-in for FR-110); the promo codes' pilot line follows `GET /payment-options` (PD-118) | All the client could do without anyone else before the pilot demo goes to QA |
 
 ## 12. Not yet built
 
 - Of the 16 November answers (design PD-203 to PD-210): the staff page of the pilot's counts, which waits for a
   backend read (FR-159, PD-205); the page a visible unsubscribe line would land on, wanted after the pilot (PD-210);
-  the promo codes' pilot line shown only while payments are off (PD-118); the sign-in wait's reset, which only lets
-  the owner in once the backend ends the wait on a reset (FR-160). The pilot-mode journeys in `test/e2e/` (a free-only
-  ticket form, plans after the pilot) have not yet run against a stack with `PILOT_MODE=true`.
+  the sign-in wait's reset, which only lets the owner in once the backend ends the wait on a reset (FR-160). The
+  pilot-mode journeys in `test/e2e/` passed on 16 November against a development stack with `PILOT_MODE=true`; the
+  production-mode local install (`ops apply`) has not run, as its web image needs a support contact (FR-161).
+- Of the audit's small inconsistencies (F-35): a venue the host typed has no map link, as the guest invitation spec
+  shows "Get directions" only with a `mapUrl` (GUEST_INVITATION §5, R-19); and the app's headings keep the design
+  system's pixel sizes, which a change to rem would be the designer's (DESIGN_SYSTEM). The countdown's 11 px label
+  now uses the eyebrow style.
 
 - Of the backend's deliveries to 13 November (`dev` at `018e975`, checked on 15 November), what the client is still to
   adopt (BACKEND_REQUESTS §1): for the pilot, a rehearsal of the door on a phone against the real API, and a
@@ -1081,8 +1086,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
   international form, which the backend leaves local; and an address already listed on a page not
   yet shown, which is posted again, harmlessly.
 - Of promo codes: a currency other than AMD; removing a limit or an end once set, and changing the
-  start; when a code was made; and knowing whether payments are off, so the pilot's line shows always
-  (FR-100; every kind of code is offered meanwhile, C-42).
+  start; and when a code was made (FR-100; every kind of code is offered meanwhile, C-42). The pilot's
+  line follows `GET /payment-options` since 16 November (PD-118).
 - Of reminders and thanks: the exact lists before pressing (FR-84; the page estimates them), who was
   suppressed (FR-85), who was thanked once the page is left, and receipts for either message (FR-87);
   sending to chosen households (the API takes none).

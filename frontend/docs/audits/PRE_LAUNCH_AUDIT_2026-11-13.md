@@ -334,11 +334,29 @@ them (design DESIGN_DECISIONS §1.1).
 | Item | What became of it | Where |
 |---|---|---|
 | F-02, F-10 | Mail in hy, en and ru, falling back to the event's language then English; the invitation and ticket mail say when and where; replies go to Aveline support; one-click unsubscribe. Built by the backend | Backend `dc9f4c2`; C-59, C-62 |
+| F-06 | Fixed by the client: an untouched choice reads as unanswered, so a keyboard reply sends; walked by keyboard in `guest-reply.spec.ts` | `features/guest-reply/form-model.ts` |
 | F-07 | Fixed by the client on 14 November, differently from GOING_LIVE's wording: the tab keeps the order it placed, and checkout for that event shows it | `0693133`; design PD-152 |
 | F-08 | Account mail follows the request's language. The client already sent the page's as `Accept-Language` | Backend `dc9f4c2`; C-59 |
 | F-09 | Said before any form: the event page, checkout, the price list and billing; the ticket form offers free tickets only | Backend `dc9f4c2`; client 16 November; C-47, C-61; FR-64, FR-109 |
+| F-11 | Fixed by the client: the door has a compact frame on a phone | `routes/app/door.tsx`; design PD-90 |
+| F-12 | Fixed by the client: the line asks to confirm the address, with "Send me the link"; sending at sign-up waits for the backend | Design PD-191; FR-155 |
+| F-13 | Fixed by the client: the event's pages in four headed groups, the next step first | `features/events/components/event-overview.tsx`; PD-198 |
+| F-14 | Fixed by the client: the guest list and seating widen on a desktop; a skip link; row actions under "More" | `features/account/components/app-shell.tsx`; PD-199 |
+| F-15 | Fixed by the client: a missing page or invitation speaks the visitor's language | `routes/not-found.tsx`; PD-40 |
+| F-16, F-17 | Fixed by the client: long names wrap; the quantity menu has one height in every engine | `invitation-renderer/components/personal-card.tsx`; `ui/form/select-box.tsx` |
+| F-19 | Every error the client words has an icon, the last five added on 16 November (the signature pad, the agreements read, the publish blockers, two photo-upload lines). The backend's sentences under generic codes stay in English, marked, until FR-20, FR-28, FR-32, FR-58 and FR-137; the door's last fallback until FR-76 (PD-92) | `ui/form/error-text.tsx`, `ui/app-form/error-line.tsx` |
+| F-20 | Fixed by the client: stopping replies and unpublishing ask first | `sending/components/replies-panel.tsx`; `ticket-sales/components/announcement-panel.tsx` |
+| F-21, F-22 | Fixed by the client: a reply and an order survive a reload; the tickets open with no signal | Design PD-195, PD-152, PD-202 |
+| F-23 | The client's part: strings per language, budgets, the scanner loaded only on the door. Not measured behind the real proxy (hosting) | `scripts/check-budgets.mjs` |
+| F-25 | The seven feature keys worded by the client meanwhile. Plan names, and "99 languages" for the backend's `maxLocales: 99` (no limit meant), wait for plan copy per language (FR-110) | Design PD-212 |
+| F-26 | The client's part: the home page links sign-in and registration; home and the price list may be indexed. A default share image waits for the designer | PD-196, PD-204 |
 | F-28 | Production refuses to start without `PILOT_MODE` | Backend `dc9f4c2` |
 | F-29 | Sessions forgotten after 30 days; ten failed sign-ins make an account wait, with its own message and a reset beside it. A reset doesn't end the wait yet | Backend `dc9f4c2`; client 16 November; FR-160 |
+| F-30 | Fixed for billing: leaving for the bank no longer reloads the page; WebKit runs in the suite | `billing/components/choose-dialog.tsx` |
+| F-31 | The client's part: a sample file, and a spreadsheet caught before import. French headings withdrawn with French (FR-156) | `public/guests-sample.csv` |
+| F-32, F-34, F-40, F-41 | Fixed by the client: "և" in capitals; kit colours from tokens; one name per action; "Working…" on a press and no double moderation | Design PD-197 |
+| F-33 | Waits for a native reader to pick one Russian word for "event" | PD-9 |
+| F-35 | Zone label, hold minutes, filter width, file name: fixed. On 16 November: the unreachable notice turns to "connected again", an endless event lasts three hours in a calendar (PD-211), the countdown's label uses the eyebrow style. A typed venue's map link and pixel sizes elsewhere follow the design specs, so they are the designer's | `ui/app-form/problem-alert.tsx`; ARCHITECTURE §12 |
 | F-37, F-38 | Deferred to the paid launch | GOING_LIVE 5b, 5c; C-60, PD-209 |
 | Q1 | French is not a pilot language: kept, not offered | C-58 |
 | Q2 | The event's language, then English | C-59 |

@@ -442,7 +442,6 @@ describe('the billing page', () => {
   it('marks what the backend holds only in English', async () => {
     answerReads();
     await openPage('hy');
-    expect(screen.getAllByText('seating')[0]).toHaveAttribute('lang', 'en');
     expect(screen.getByText('Managed (monthly)')).toHaveAttribute('lang', 'en');
   });
 });

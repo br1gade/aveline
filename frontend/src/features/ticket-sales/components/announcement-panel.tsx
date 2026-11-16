@@ -8,6 +8,7 @@ import { formatEventDate, formatEventTime } from '@/lib/time';
 import { EXTERNAL_LINK, Icon } from '@/ui';
 import {
   AskFirstDialog,
+  ErrorLine,
   ProblemAlert,
   useDialogAction,
   useDialogOpener,
@@ -47,7 +48,7 @@ function Blockers({ blockers, eventId }: { blockers: PublishBlocker[]; eventId: 
   const { t } = useTranslation('ticket-sales');
   return (
     <div role="alert" className="text-destructive flex flex-col gap-1 text-sm">
-      <p className="m-0 font-medium">{t('blockers.heading')}</p>
+      <ErrorLine className="font-medium">{t('blockers.heading')}</ErrorLine>
       <ul className="m-0 pl-5">
         {blockers.map((blocker, index) => (
           <li key={index}>
