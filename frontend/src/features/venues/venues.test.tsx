@@ -214,9 +214,7 @@ describe('VenueList', () => {
     const church = card('Saint Hripsime Church');
     expect(church).toHaveTextContent('Ceremony');
     expect(church).toHaveTextContent('Mesrop Mashtots St, Vagharshapat');
-    expect(church).toHaveTextContent(
-      'Guests arrive at 14:30, Saturday, 12 June 2027 (Asia/Yerevan)',
-    );
+    expect(church).toHaveTextContent('Guests arrive at 14:30, Saturday, 12 June 2027 (Yerevan)');
   });
 
   it('gives directions only through a web link, in a new tab, as the guest page does', async () => {

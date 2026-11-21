@@ -67,7 +67,13 @@
     "releasedAt": "A decline freed their seat at {{table}} ({{venue}}), {{when}}",
     "releasedNoTable": "A decline freed their seat, {{when}}",
     "recordAnswer": "Record an answer",
-    "more": "More"
+    "more": "More",
+    "copyLink": "Copy personal link"
+  },
+  "link": {
+    "copied": "{{name}}’s personal link was copied. Send it to them yourself: whoever has it can answer as them.",
+    "refused": "Your browser didn’t allow copying. Try again, or use another browser.",
+    "unsendable": "This copy of Aveline doesn’t know its public address, so the link wouldn’t open for the guest. Nothing was copied. Tell whoever runs Aveline."
   },
   "fields": {
     "firstName": "First name",

@@ -107,7 +107,7 @@
     "unreachableTitle_one": "Injoignable : {{count, number}} foyer",
     "unreachableTitle_many": "Injoignables : {{count, number}} foyers",
     "unreachableTitle_other": "Injoignables : {{count, number}} foyers",
-    "unreachableHelp": "Il n’y a aucune adresse utilisable pour eux. Ajoutez-en ou corrigez-en une sur la liste des invités, puis renvoyez.",
+    "unreachableHelp": "Il n’y a aucune adresse utilisable pour eux. Ajoutez-en ou corrigez-en une sur la liste des invités, puis renvoyez ; ou copiez-y le lien personnel d’un invité, sous « Plus », et donnez-le-lui vous-même.",
     "inEnglish": "Les raisons sont en anglais pour l’instant.",
     "fixOnList": "Les afficher sur la liste des invités",
     "nobody": "Il n’y avait personne à qui envoyer."

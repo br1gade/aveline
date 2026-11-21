@@ -103,14 +103,17 @@ describe('importGuests', () => {
 });
 
 describe('the token stops at the API module', () => {
-  it('reads the list without any guest’s token', async () => {
+  it('reads a guest’s token into their personal link and nowhere else (design PD-213)', async () => {
     const token = crypto.randomUUID();
     server.use(
       http.get(`${API}/events/e1/guests`, () =>
         HttpResponse.json([householdWire({ guests: [guestWire({ token })] })]),
       ),
     );
-    expect(JSON.stringify(await listGuests(api, 'e1'))).not.toContain(token);
+    const [household] = await listGuests(api, 'e1');
+    const { link, ...rest } = household?.guests[0] ?? { link: null };
+    expect(link).toEqual({ isShown: true, token });
+    expect(JSON.stringify(rest)).not.toContain(token);
   });
 
   it('gives back only the new guest’s id from adding, and nothing from editing, whose answers carry the token', async () => {

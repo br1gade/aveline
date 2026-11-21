@@ -1002,9 +1002,25 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 16 Nov 2026 | **Whether anything can be paid for is read from the API** (`api/payment-options.ts`: `GET /payment-options`, and `checkout.payment` on the public event), and `TICKET_PAYMENT_PROVIDER` is gone | The backend's `dc9f4c2` answered FR-64 and FR-109, so the 31 October stand-in has its exit: the bank is the first the API offers, none while payments are off, and the event page, checkout, the price list, billing and the ticket form say so before anyone types (audit F-09) |
 | 16 Nov 2026 | **French is kept, not offered** (`OFFERED_LANGUAGES` beside `LANGUAGES` in `lib/i18n`) | Decided for the pilot on 14 November (design C-58). `LANGUAGES` still decides what has strings, so an event that already has French shows it; menus, negotiation, the event form, exports and the not-found pages offer hy, ru and en |
 | 16 Nov 2026 | **The readiness check's client leftovers:** an error's icon on the signature pad, the agreements read and the publish blockers; "couldn't reach Aveline" turns into "connected again" once the browser is online (`ProblemAlert`); a calendar entry with no end lasts three hours (PD-211); plan features worded (PD-212, a stand-in for FR-110); the promo codes' pilot line follows `GET /payment-options` (PD-118) | All the client could do without anyone else before the pilot demo goes to QA |
+| 21 Nov 2026 | **A host copies a guest's personal link** (design PD-213): the guest list keeps the token as `Guest.link`, never rendered, and copying a capability link moved to `lib/links` (`copyCapabilityLink`, `isSendableOrigin`), shared with the brief link | PD-206 leaves a phone-only guest to the host, who had no way to give them their link (audit 20 Nov, A2-02). The guests were the second caller of the brief's copy |
+| 21 Nov 2026 | **A stale refusal keeps its dialog busy until the page is read again** (`reloadAndWait` beside `reload` in `PageActions`) | A second press went with the revision that had just been refused, and was refused again (audit 20 Nov, A2-07). `reload` stays for the many callers that need not wait |
+| 21 Nov 2026 | **Zone names in sentences come from `useZoneName` in `lib/i18n`** (design PD-215), not from lifting the renderer's `intlZoneName` as the plan proposed | The renderer's labels are adverbial ("по ереванскому времени") and don't fit the host's sentences, written for a zone's name; a city name does, and needs no Intl data |
 
 ## 12. Not yet built
 
+- From the audit of 20 November ([audits/PRE_LAUNCH_AUDIT_2026-11-20.md](audits/PRE_LAUNCH_AUDIT_2026-11-20.md)),
+  planned on 21 November. Each line leaves this list when it is built.
+  - **The client's own work:**
+    - the suite on staging, where the mail tests still skip without Mailpit (A4-02; needs B1-01);
+  - **Waiting for an input:**
+    - the privacy notice's text (A2-01, lawyer), from the inventory in [BROWSER_STORAGE.md](BROWSER_STORAGE.md);
+    - a terms page (A2-11, if decided);
+    - the staff counts page (A2-04, FR-159);
+    - the renderer's layouts and palettes (A2-05);
+    - the design review's open fixes (A2-06, designer);
+    - a default share image and the seat map (A2-09).
+  - **For the paid launch:** checkout's seller and refund terms and a printable invoice (A2-12), and plan names per language (A2-13).
+  - **Outside `frontend/`:** a release that waits for the client's checks needs a root session (A4-01).
 - Of the 16 November answers (design PD-203 to PD-210): the staff page of the pilot's counts, which waits for a
   backend read (FR-159, PD-205); the page a visible unsubscribe line would land on, wanted after the pilot (PD-210);
   the sign-in wait's reset, which only lets the owner in once the backend ends the wait on a reset (FR-160). The

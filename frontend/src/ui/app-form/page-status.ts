@@ -7,6 +7,8 @@ export interface PageActions {
   done: (message: string) => Promise<void>;
   /** The invitation changed underneath: reload the page behind the message. */
   reload: () => void;
+  /** The same, for a press that must wait until the page has been read again. */
+  reloadAndWait: () => Promise<void>;
   /** Radix's `onCloseAutoFocus` for a dialog whose action went through: to the status line. */
   focusStatus: (closing: Event) => void;
 }
@@ -40,10 +42,11 @@ export function usePageStatus(data: unknown) {
     [revalidate, data],
   );
   const reload = useCallback(() => void revalidate(), [revalidate]);
+  const reloadAndWait = useCallback(() => revalidate(), [revalidate]);
   const focusStatus = useCallback((closing: Event) => {
     closing.preventDefault();
     statusRef.current?.focus();
   }, []);
-  const page: PageActions = { done: announce, reload, focusStatus };
+  const page: PageActions = { done: announce, reload, reloadAndWait, focusStatus };
   return { page, status, statusRef };
 }

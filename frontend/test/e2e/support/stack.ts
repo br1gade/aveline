@@ -8,18 +8,31 @@ import { E2E } from './env';
  */
 let isDevelopment: Promise<boolean> | undefined;
 
-/** Asks the backend to send its queued mail now; whether it could, which only development can. */
-export async function sendMailNow(): Promise<boolean> {
-  const response = await fetch(`${E2E.apiOrigin}/api/v1/development/outbox/send`, {
-    method: 'POST',
-  });
-  return response.status === 204;
+/** Asks the backend to send its queued mail now, which only a development stack does (204). */
+function postOutboxSend(): Promise<Response> {
+  return fetch(`${E2E.apiOrigin}/api/v1/development/outbox/send`, { method: 'POST' });
 }
 
-/** Whether this is a development stack, asked once per run. */
+/** Whether the backend could send its queued mail now. */
+export async function sendMailNow(): Promise<boolean> {
+  return (await postOutboxSend()).status === 204;
+}
+
+/**
+ * Whether this is a development stack, asked once per run. Only a 404 means "not development": any
+ * other answer, or none, is a broken stack, and the run fails rather than skip the tests that need
+ * it as if it were staging (audit 20 Nov, A4-02).
+ */
 export function isDevelopmentStack(): Promise<boolean> {
-  isDevelopment ??= sendMailNow().catch(() => false);
+  isDevelopment ??= probeDevelopment();
   return isDevelopment;
+}
+
+async function probeDevelopment(): Promise<boolean> {
+  const response = await postOutboxSend();
+  if (response.status === 204) return true;
+  if (response.status === 404) return false;
+  throw new Error(`POST /development/outbox/send answered ${response.status}: the stack is broken`);
 }
 
 /** What a skipped test says on a stack without the FAKE bank and the development routes. */

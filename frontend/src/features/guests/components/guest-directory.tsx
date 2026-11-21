@@ -40,6 +40,7 @@ import { ListToolbar } from './list-toolbar';
 import { RemoveGuestDialog } from './remove-guest-dialog';
 import { SendBar } from './send-bar';
 import { SendingNotes } from './sending-notes';
+import { useCopyGuestLink, type OnCopyLink } from './use-copy-guest-link';
 import { useGuestFilter } from './use-guest-filter';
 import { useSideNames } from './use-guest-options';
 import { useListDialogs, type DialogHostActions } from './use-list-dialogs';
@@ -131,6 +132,7 @@ interface ResultsProps {
   onOpen: OpenDialog;
   onClear: () => void;
   formatDay: FormatDay;
+  onCopyLink: OnCopyLink | null;
 }
 
 function Results({
@@ -142,6 +144,7 @@ function Results({
   onOpen,
   onClear,
   formatDay,
+  onCopyLink,
 }: ResultsProps) {
   const { t } = useTranslation('guests');
   // Read once here: each of two thousand rows is memoized and takes it as a prop.
@@ -174,6 +177,7 @@ function Results({
           onChoose={sending.onChoose}
           formatDay={formatDay}
           canChange={canChange}
+          onCopyLink={onCopyLink}
         />
       ))}
     </div>
@@ -309,6 +313,14 @@ interface GuestDirectoryProps {
   delivery: Loaded<DeliveryReport> | null;
 }
 
+/** Whether this role was sent any guest without their contact details (docs/API.md §6). */
+function useIsContactHidden(households: readonly Household[]): boolean {
+  return useMemo(
+    () => households.some(({ guests }) => guests.some((guest) => !guest.contact.isShown)),
+    [households],
+  );
+}
+
 /**
  * The guest list itself (design PD-44): the actions, the search and the filters, the households,
  * and one dialog at a time; with the invitation's delivery report on each household, and choosing
@@ -322,14 +334,12 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
   const report = delivery?.kind === 'ready' ? delivery.value : null;
   const groupOf = useGroupOf(report);
   const { visible, isFiltered } = useVisibleHouseholds(households, filter, groupOf);
-  const isContactHidden = useMemo(
-    () => households.some(({ guests }) => guests.some((guest) => !guest.contact.isShown)),
-    [households],
-  );
+  const isContactHidden = useIsContactHidden(households);
   const sides = useSideNames(event);
   const formatDay = useFormatDay(event);
-  const { target, open, host, status, statusRef } = useListDialogs(households);
+  const { target, open, host, status, statusRef, say } = useListDialogs(households);
   const { sender, sending, isSendable } = useSending(event, households, report);
+  const onCopyLink = useCopyGuestLink(event, say);
 
   return (
     <>
@@ -367,6 +377,7 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
           onOpen={open}
           onClear={clear}
           formatDay={formatDay}
+          onCopyLink={onCopyLink}
         />
       </div>
       <DialogHost

@@ -129,6 +129,15 @@ describe('CreateEvent', () => {
     expect(screen.queryByRole('checkbox', { name: 'Français' })).not.toBeInTheDocument();
   });
 
+  it('names a city Aveline knows beside its zone, and marks each language name in its own language (audit 20 Nov, A2-14)', async () => {
+    at();
+    await screen.findByLabelText('Time zone');
+    expect(screen.getByRole('option', { name: 'Yerevan (Asia/Yerevan)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Europe/London' })).toBeInTheDocument();
+    for (const name of screen.getAllByText('Հայերեն')) expect(name).toHaveAttribute('lang', 'hy');
+    for (const name of screen.getAllByText('Русский')) expect(name).toHaveAttribute('lang', 'ru');
+  });
+
   it('says the title is what guests and ticket buyers see', async () => {
     at();
     expect(await screen.findByLabelText('Title')).toHaveAccessibleDescription(

@@ -4,6 +4,7 @@ import { useForm, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
+import { useZoneName } from '@/lib/i18n';
 import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
 import {
@@ -79,6 +80,7 @@ function SalesEdge({
   timeZone: string;
 }) {
   const { t } = useTranslation('ticket-sales');
+  const zoneName = useZoneName();
   const text = useFormText();
   const { errors } = form.formState;
   return (
@@ -99,7 +101,7 @@ function SalesEdge({
         />
       </div>
       <p className="text-muted-foreground m-0 text-sm">
-        {t('typeForm.zone', { timeZone: timeZone.replaceAll('_', ' ') })}
+        {t('typeForm.zone', { timeZone: zoneName(timeZone) })}
       </p>
     </FieldSet>
   );

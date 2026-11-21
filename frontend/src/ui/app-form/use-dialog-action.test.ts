@@ -3,8 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { useDialogAction } from './use-dialog-action';
 
-function setup() {
-  const page = { done: vi.fn(() => Promise.resolve()), reload: vi.fn(), focusStatus: vi.fn() };
+function setup(reloadAndWait = vi.fn(() => Promise.resolve())) {
+  const page = {
+    done: vi.fn(() => Promise.resolve()),
+    reload: vi.fn(),
+    reloadAndWait,
+    focusStatus: vi.fn(),
+  };
   const onClose = vi.fn();
   const refusalOf = (error: unknown) => {
     if (!(error instanceof RangeError)) throw error;
@@ -41,7 +46,25 @@ describe('useDialogAction', () => {
     await act(() => running);
     expect(hook.result.current.isBusy).toBe(false);
     expect(hook.result.current.refusal).toEqual({ kind: 'refused', isStale: true });
-    expect(page.reload).toHaveBeenCalledOnce();
+    expect(page.reloadAndWait).toHaveBeenCalledOnce();
+  });
+
+  it('stays busy after a stale refusal until the page is read again, so a second press goes with what was read (audit 20 Nov A2-07)', async () => {
+    let finishReading = () => undefined as void;
+    const reading = new Promise<void>((resolve) => {
+      finishReading = resolve;
+    });
+    const { hook } = setup(vi.fn(() => reading));
+    let running: Promise<void> = Promise.resolve();
+    act(() => {
+      running = hook.result.current.run(() => Promise.reject(new RangeError('stale')), 'Done.');
+    });
+    await act(() => Promise.resolve());
+    expect(hook.result.current.refusal).toEqual({ kind: 'refused', isStale: true });
+    expect(hook.result.current.isBusy).toBe(true);
+    finishReading();
+    await act(() => running);
+    expect(hook.result.current.isBusy).toBe(false);
   });
 
   it('is free again after an error that isn’t the API’s, which it throws on', async () => {

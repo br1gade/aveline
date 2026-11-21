@@ -18,6 +18,7 @@ const shouldKeep = process.env.E2E_TRACE === '1';
 export default defineConfig({
   testDir: 'test/e2e',
   testMatch: '**/*.spec.ts',
+  globalSetup: './test/e2e/support/global-setup.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,

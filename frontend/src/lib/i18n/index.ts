@@ -27,3 +27,4 @@ export {
   wordsIn,
 } from './translation-edits';
 export { useLanguageName } from './use-language-name';
+export { useZoneName } from './use-zone-name';

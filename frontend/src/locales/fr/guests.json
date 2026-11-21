@@ -71,7 +71,13 @@
     "releasedAt": "Un refus a libéré sa place à {{table}} ({{venue}}), le {{when}}",
     "releasedNoTable": "Un refus a libéré sa place, le {{when}}",
     "recordAnswer": "Enregistrer une réponse",
-    "more": "Plus"
+    "more": "Plus",
+    "copyLink": "Copier le lien personnel"
+  },
+  "link": {
+    "copied": "Le lien personnel de {{name}} a été copié. Envoyez-le vous-même : quiconque l’a peut répondre à sa place.",
+    "refused": "Votre navigateur n’a pas autorisé la copie. Réessayez, ou utilisez un autre navigateur.",
+    "unsendable": "Cette copie d’Aveline ne connaît pas son adresse publique : le lien ne s’ouvrirait pas pour l’invité. Rien n’a été copié. Prévenez la personne qui gère Aveline."
   },
   "fields": {
     "firstName": "Prénom",

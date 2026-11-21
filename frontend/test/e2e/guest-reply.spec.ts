@@ -77,6 +77,23 @@ test.describe('a guest', () => {
     await expect(page.getByRole('heading', { name: 'Thank you' })).toBeVisible();
   });
 
+  test('keeps a reply in progress across a real reload, through server rendering and hydration (audit F-21, design PD-195)', async ({
+    page,
+    host,
+  }) => {
+    const { event, household } = await publishedWedding(host);
+    const [armen] = household;
+    if (!armen) throw new Error('No guest');
+    await page.goto(await guestLink(host, event, armen.id));
+    await formReady(page);
+    await choose(page, 'Joyfully attending');
+    await choose(page, 'Anna’s family');
+    await page.reload();
+    await formReady(page);
+    await expect(page.getByRole('radio', { name: 'Joyfully attending' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Anna’s family' })).toBeChecked();
+  });
+
   test('replies for the household, changes it, and finds replies closed', async ({
     page,
     host,

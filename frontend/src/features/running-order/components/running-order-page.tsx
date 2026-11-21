@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { useZoneName } from '@/lib/i18n';
 import { eventPath, type EventDetail } from '@/features/events';
 import { LoadedProblem } from '@/features/sending';
 import { ChangeableWith } from '@/features/permissions';
@@ -170,6 +171,7 @@ function CurrentDialog({
  */
 export function RunningOrderPage({ data }: { data: RunningOrderData }) {
   const { t } = useTranslation('running-order');
+  const zoneName = useZoneName();
   const { event } = data;
   const { page, status, statusRef } = usePageStatus(data);
   const [dialog, setDialog] = useState<OpenDialog | null>(null);
@@ -193,7 +195,7 @@ export function RunningOrderPage({ data }: { data: RunningOrderData }) {
       </div>
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
       <p className="text-muted-foreground m-0 max-w-[40rem] text-sm">
-        {t('zone', { timeZone: event.timezone.replaceAll('_', ' ') })}
+        {t('zone', { timeZone: zoneName(event.timezone) })}
       </p>
       {/* Adding needs the list: where an entry goes, and what guests stop seeing, are read from it. */}
       <StatusLine statusRef={statusRef}>{status}</StatusLine>

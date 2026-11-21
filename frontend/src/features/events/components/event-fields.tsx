@@ -1,6 +1,7 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
+import { useZoneName } from '@/lib/i18n';
 import { SelectField, TextInputField } from '@/ui/app-form';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
@@ -49,6 +50,13 @@ function TypeField({ form }: { form: EventForm }) {
  */
 function WhenFields({ form, zones }: { form: EventForm; zones: readonly string[] }) {
   const { t } = useTranslation('events');
+  const zoneName = useZoneName();
+  // A city Aveline names in the page's language leads, with its IANA name beside it to find it by.
+  const zoneOption = (zone: string) => {
+    const plain = zone.replaceAll('_', ' ');
+    const name = zoneName(zone);
+    return name === plain ? plain : `${name} (${plain})`;
+  };
   const fieldText = useEventFieldText();
   const { errors } = form.formState;
   return (
@@ -76,7 +84,7 @@ function WhenFields({ form, zones }: { form: EventForm; zones: readonly string[]
       >
         {zones.map((zone) => (
           <NativeSelectOption key={zone} value={zone}>
-            {zone.replaceAll('_', ' ')}
+            {zoneOption(zone)}
           </NativeSelectOption>
         ))}
       </SelectField>

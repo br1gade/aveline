@@ -572,6 +572,134 @@ describe('GuestList: contact details this role cannot see', () => {
   });
 });
 
+describe('GuestList: a guest’s personal link (design PD-213)', () => {
+  const COPY = 'Copy personal link: Armen Petrosyan';
+
+  beforeEach(() => vi.stubEnv('VITE_PUBLIC_ORIGIN', 'https://aveline.test'));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('copies it to the clipboard, says so, and puts it nowhere else', async () => {
+    const logged = [
+      vi.spyOn(console, 'log'),
+      vi.spyOn(console, 'warn'),
+      vi.spyOn(console, 'error'),
+    ];
+    serve();
+    const user = renderList();
+    await user.click(await screen.findByRole('button', { name: COPY }));
+    expect(
+      await screen.findByText(/Armen Petrosyan’s personal link was copied/),
+    ).toBeInTheDocument();
+    expect(await navigator.clipboard.readText()).toBe(
+      `https://aveline.test/invitations/anna-davit-3f8a1c20/g/${token}`,
+    );
+    expect(document.body.innerHTML).not.toContain(token);
+    expect(screen.getByTestId('where').textContent).not.toContain(token);
+    for (const spy of logged) {
+      expect(JSON.stringify(spy.mock.calls)).not.toContain(token);
+    }
+  });
+
+  it('says so when the browser refuses the clipboard, and shows the link nowhere', async () => {
+    serve();
+    const user = renderList();
+    const copy = await screen.findByRole('button', { name: COPY });
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
+    await user.click(copy);
+    expect(await screen.findByText(/Your browser didn’t allow copying/)).toBeInTheDocument();
+    expect(document.body.innerHTML).not.toContain(token);
+  });
+
+  it('says a refused copy even after a save, so no other link is pasted by mistake', async () => {
+    serve();
+    answer('patch', '/events/e1/guests/g1', () => HttpResponse.json({}));
+    const user = renderList();
+    const dialog = await openEdit(user, 'Armen Petrosyan');
+    await user.clear(within(dialog).getByLabelText('Last name'));
+    await user.type(within(dialog).getByLabelText('Last name'), 'Petrosyants');
+    await save(user);
+    expect(await screen.findByText('Changes to Armen Petrosyan were saved.')).toBeInTheDocument();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
+    await user.click(await screen.findByRole('button', { name: COPY }));
+    expect(await screen.findByText(/Your browser didn’t allow copying/)).toBeInTheDocument();
+    expect(screen.queryByText('Changes to Armen Petrosyan were saved.')).not.toBeInTheDocument();
+  });
+
+  it('is offered to a role that may read contacts but not change the list', async () => {
+    serve();
+    renderList('/app/events/e1/guests', ['event:read', 'guest:read', 'guest:contact:read']);
+    expect(await screen.findByRole('button', { name: COPY })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Edit: / })).not.toBeInTheDocument();
+  });
+
+  it('isn’t offered when the token isn’t this role’s to see', async () => {
+    serve([householdWire({ id: 'h1', guests: [guestWithoutContact({ id: 'g1' })] })]);
+    renderList();
+    await screen.findByText('1 guest in 1 household');
+    expect(screen.queryByRole('button', { name: /^Copy personal link/ })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['a draft', { slug: 'anna-davit-3f8a1c20', status: 'DRAFT' }],
+    [
+      'an expired invitation',
+      { slug: 'anna-davit-3f8a1c20', status: 'PUBLISHED', isExpired: true },
+    ],
+    ['no invitation', null],
+  ] as const)('isn’t offered for %s: the link would open nothing', async (_case, invitation) => {
+    serve(guestList(), { event: { ...EVENT, invitation } });
+    renderList();
+    await screen.findByText('3 guests in 2 households');
+    expect(screen.queryByRole('button', { name: /^Copy personal link/ })).not.toBeInTheDocument();
+  });
+
+  it('copies each guest’s own link, never a household member’s', async () => {
+    serve([
+      householdWire({
+        id: 'h1',
+        guests: [
+          guestWire({ id: 'g1', token: `${token}-a` }),
+          guestWire({
+            id: 'g2',
+            firstName: 'Ani',
+            name: 'Ani Petrosyan',
+            isPrimary: false,
+            token: `${token}-b`,
+          }),
+        ],
+      }),
+    ]);
+    const user = renderList();
+    await user.click(
+      await screen.findByRole('button', { name: 'Copy personal link: Ani Petrosyan' }),
+    );
+    await screen.findByText(/Ani Petrosyan’s personal link was copied/);
+    expect(await navigator.clipboard.readText()).toBe(
+      `https://aveline.test/invitations/anna-davit-3f8a1c20/g/${token}-b`,
+    );
+  });
+
+  it('stops saying a link was copied once a dialog opens', async () => {
+    serve();
+    const user = renderList();
+    await user.click(await screen.findByRole('button', { name: COPY }));
+    const note = /Armen Petrosyan’s personal link was copied/;
+    expect(await screen.findByText(note)).toBeInTheDocument();
+    await openEdit(user, 'Armen Petrosyan');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText(note)).not.toBeInTheDocument();
+  });
+
+  it('isn’t offered for a guest erased at their request', async () => {
+    serve([
+      householdWire({ id: 'h1', guests: [guestWire({ id: 'g1', token, isAnonymized: true })] }),
+    ]);
+    renderList();
+    await screen.findByText('1 guest in 1 household');
+    expect(screen.queryByRole('button', { name: /^Copy personal link/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('GuestList: a guest’s language', () => {
   it('can be set back to none (FR-31)', async () => {
     serve();

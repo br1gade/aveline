@@ -31,14 +31,16 @@ test.describe('a paid plan', () => {
     host,
     signedIn,
   }) => {
-    test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
     test.skip(await arePaymentsOn(), 'Payments are on on this stack');
-    const name = await planOnSale();
+    // A paid plan on the price list needs the development route (FR-154). Elsewhere, as on
+    // staging, the pilot's own line is still checked (audit 20 Nov, A4-02).
+    const name = (await isDevelopmentStack()) ? await planOnSale() : null;
     await signedIn(host.email);
     await page.goto('/app/billing');
     await expect(
       page.getByText('Paid plans aren’t available during the free pilot.'),
     ).toBeVisible();
+    if (name === null) return;
     const plan = page.getByRole('listitem').filter({ hasText: name });
     await expect(plan.getByText('After the free pilot')).toBeVisible();
     await expect(plan.getByRole('button', { name: 'Choose this plan' })).toHaveCount(0);

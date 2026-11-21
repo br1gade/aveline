@@ -2,9 +2,9 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { PublicFrame } from '@/features/public-event';
-import { useLanguageName } from '@/lib/i18n';
+import { useLanguageName, useZoneName } from '@/lib/i18n';
 import { formatEventDate, formatEventTime } from '@/lib/time';
-import { Button, Notice } from '@/ui';
+import { Button, EXTERNAL_LINK, Notice } from '@/ui';
 
 import { known } from '../known';
 import type { Brief, BriefVenue, GrantedSection } from '../types';
@@ -51,8 +51,7 @@ function VenueItem({
         <a
           className="text-action inline-flex min-h-11 items-center self-start underline underline-offset-3"
           href={venue.mapUrl}
-          target="_blank"
-          rel="noreferrer noopener"
+          {...EXTERNAL_LINK}
         >
           {t('venues.map', { name: venue.name })}
         </a>
@@ -101,6 +100,7 @@ function GrantedSections({ brief }: { brief: Brief }) {
 
 function BriefView({ brief }: { brief: Brief }) {
   const { t } = useTranslation('brief');
+  const zoneName = useZoneName();
   const moment = useMoment(brief.event.timezone);
   const languageName = useLanguageName();
   const venuesId = useId();
@@ -114,7 +114,7 @@ function BriefView({ brief }: { brief: Brief }) {
         </h1>
         <p className="type-lead m-0">{moment(event.startsAt)}</p>
         {event.endsAt ? <p className="m-0">{t('until', { when: moment(event.endsAt) })}</p> : null}
-        <p className="m-0">{t('zone', { timeZone: event.timezone.replaceAll('_', ' ') })}</p>
+        <p className="m-0">{t('zone', { timeZone: zoneName(event.timezone) })}</p>
         <p className="m-0">
           {t('status', { status: t(`statuses.${known(STATUSES, brief.status, 'ENQUIRED')}`) })}
         </p>

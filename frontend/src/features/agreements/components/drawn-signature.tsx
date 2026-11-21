@@ -41,7 +41,7 @@ export function DrawnSignature({ eventId, acknowledgementId, signerName }: Drawn
               agreementFile(browserSession().api, eventId, acknowledgementId, signal)
             }
             alt={t('row.drawingAlt', { name: signerName })}
-            className="border-border h-auto max-h-40 w-full max-w-sm border bg-white object-contain"
+            className="border-border bg-card h-auto max-h-40 w-full max-w-sm border object-contain"
             renderFailed={(retry) => (
               <span className="text-muted-foreground flex flex-col items-start gap-1 text-sm">
                 {t('row.drawingFailed')}

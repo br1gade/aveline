@@ -3,6 +3,7 @@ import { useId, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
+import { useZoneName } from '@/lib/i18n';
 import { browserSession } from '@/api/session';
 import type { EventSummary } from '@/features/events';
 import {
@@ -103,6 +104,7 @@ function MomentFields({
   zone: string;
 }) {
   const { t } = useTranslation('promo-codes');
+  const zoneName = useZoneName();
   const fieldText = useFieldText();
   const { errors } = form.formState;
   const [date, time] =
@@ -111,7 +113,7 @@ function MomentFields({
     <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
       <legend className="mb-1 p-0 text-sm font-medium">{t(`create.${which}`)}</legend>
       <p className="text-muted-foreground m-0 text-sm">
-        {t('create.zoneHelp', { timeZone: zone.replaceAll('_', ' ') })}
+        {t('create.zoneHelp', { timeZone: zoneName(zone) })}
       </p>
       <div className="grid gap-5 min-[480px]:grid-cols-2">
         <TextInputField

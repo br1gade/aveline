@@ -10,7 +10,7 @@ makes its own data through the API as a host would (setup proposal §12): a fres
 |---|---|
 | `account.spec.ts` | Registering and setting up the organization; signing out and back in; a new password from the emailed link; two tabs refreshing one rotating session at once |
 | `event-setup.spec.ts` | Creating an event, correcting it with a second language and its own side names (FR-96), a venue, publishing; a CSV import that names its refused rows |
-| `guest-reply.spec.ts` | A guest's personal link: replying for the household with a side, a meal and the hosts' statement, changing it, replies closed, the token kept to its own page; the generic link's HTML names no guest |
+| `guest-reply.spec.ts` | A guest's personal link: replying for the household with a side, a meal and the hosts' statement, changing it, a reply in progress kept across a reload (PD-195), replies closed, the token kept to its own page; the generic link's HTML names no guest |
 | `sending.spec.ts` | The invitation by email, its link opening the guest's page, the delivery on the guest list; a reminder held back for three days after an invitation |
 | `seating.spec.ts` | Tables and seating by hand; a table filled meanwhile from a second page (409); automatic seating by the worker |
 | `exports.spec.ts` | The guest list as PDF, XLSX and CSV, made by the worker and downloaded |
@@ -47,6 +47,10 @@ The client is either:
 - the dev server, which the config starts itself on 5173 when `E2E_BASE_URL` is unset; or
 - any client already running, named by `E2E_BASE_URL`.
 
+Whatever already answers on that address is reused, so before any test the suite checks that it is
+Aveline (`support/global-setup.ts`): another project's dev server on 5173 fails the run at once,
+rather than every test (audit 20 Nov, A4-10).
+
 The backend's `PUBLIC_APP_URL` must name the same client, as it builds every emailed link and the
 bank's return address from it.
 
@@ -70,7 +74,8 @@ npx playwright test door.spec.ts --project=phone              # one file, one pr
   - under `PILOT_MODE` (`GET /payment-options` says no) no paid ticket can be made, so the tests that pay skip, and the ticket form's free-only price and billing's "After the free pilot" are checked instead;
   - on a development stack, the FAKE bank's return waits, then its `fake-bank` route answers for the payer, paid or declined (FR-151), and the plan is first put on sale (FR-154).
 - **The dev server:** the tickets page's offline reload skips, as its modules aren't kept; run it against a production build (`npm run build && npm start`, or the image) behind one origin. The bank comes from the API's `/payment-options`, so a production build pays where the backend says.
-- **Staging, or any stack that runs as production:** it has no FAKE bank and no development routes, so the paid ticket and plan tests skip and say so; pay at the bank's own test environment by hand. Mail is read after the outbox's minute, so those tests are marked slow there.
+- **Staging, or any stack that runs as production:** it has no FAKE bank and no development routes, so the paid ticket and plan tests skip and say so; pay at the bank's own test environment by hand. Billing's pilot line is still checked there; only the plan's own "After the free pilot" needs a plan put on sale. Mail is read after the outbox's minute, so those tests are marked slow there.
+- **How "development" is told:** only a 404 from the outbox route means a stack without development routes. Any other answer, or none, fails the run as a broken stack instead of skipping as if it were staging.
 
 ## Tokens
 

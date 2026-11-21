@@ -7,6 +7,7 @@ import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, useLoaderData } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError, networkError } from '@/api/errors';
 import { readBasket, type PublicEvent } from '@/features/public-event';
 import { fetchOrder, forgetOrder, heldOrder, holdOrder } from '@/features/ticket-order';
 import { createI18n } from '@/lib/i18n';
@@ -451,6 +452,66 @@ describe('an order this tab already holds for the event (PD-152, audit F-07)', (
 
     holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
     readAs('EXPIRED');
+    renderCheckout();
+    expect(await screen.findByRole('region', { name: 'Your details' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['no connection', networkError()],
+    ['too many requests', new ApiError({ status: 429, messages: [] })],
+    ['a server error', new ApiError({ status: 503, messages: [] })],
+    ['an unexpected failure', new TypeError('bad body')],
+  ])(
+    'keeps the form away when the order can’t be read: %s (design PD-214)',
+    async (_case, failure) => {
+      holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+      vi.mocked(fetchOrder).mockRejectedValue(failure);
+      renderCheckout();
+      expect(
+        await screen.findByText('We couldn’t check the order made in this tab.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Your details' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start a new order' })).toBeInTheDocument();
+    },
+  );
+
+  it('reads it again on asking, waiting with the notice in place, then says what it found', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    let answer = (_value: Awaited<ReturnType<typeof fetchOrder>>) => undefined as void;
+    vi.mocked(fetchOrder)
+      .mockRejectedValueOnce(networkError())
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+    const { user } = renderCheckout();
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    const waiting = screen.getByRole('button', { name: 'Looking for an order made in this tab…' });
+    expect(waiting).toHaveAttribute('aria-disabled', 'true');
+    await user.click(waiting);
+    expect(fetchOrder).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('region', { name: 'Your details' })).not.toBeInTheDocument();
+    answer({ order: { status: 'PAID' } } as unknown as Awaited<ReturnType<typeof fetchOrder>>);
+    expect(await screen.findByText(/Its tickets are on your order page/)).toBeInTheDocument();
+    // The button pressed is gone: the focus is on what the notice now says (WCAG 2.4.3).
+    expect(screen.getByText('You already have an order for this event.')).toHaveFocus();
+  });
+
+  it('shows the form, with the focus, when reading again finds no order', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    vi.mocked(fetchOrder)
+      .mockRejectedValueOnce(networkError())
+      .mockRejectedValueOnce(new ApiError({ status: 404, messages: [] }));
+    const { user } = renderCheckout();
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    const details = await screen.findByRole('region', { name: 'Your details' });
+    expect(document.activeElement).toBe(details.closest('[tabindex="-1"]'));
+  });
+
+  it('shows the form when the order is gone (404): there is nothing to pay twice', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    vi.mocked(fetchOrder).mockRejectedValue(new ApiError({ status: 404, messages: [] }));
     renderCheckout();
     expect(await screen.findByRole('region', { name: 'Your details' })).toBeInTheDocument();
   });

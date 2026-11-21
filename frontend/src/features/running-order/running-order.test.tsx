@@ -148,7 +148,7 @@ describe('the running order, as shown', () => {
     expect(screen.getByText('00:30')).toBeInTheDocument();
     expect(screen.getByText('At Saint Gayane')).toBeInTheDocument();
     expect(screen.getByText(/For the team only/)).toBeInTheDocument();
-    expect(screen.getByText(/Asia\/Yerevan/)).toBeInTheDocument();
+    expect(screen.getByText(/time zone, Yerevan\./)).toBeInTheDocument();
   });
 
   it('marks a name shown in another language than the page’s', async () => {

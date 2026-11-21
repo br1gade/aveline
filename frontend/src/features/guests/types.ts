@@ -6,7 +6,8 @@ import type { ImportField, ImportReason } from './import-reasons';
  * typed.
  *
  * The `…Wire` types say what arrives and are read by `read.ts` alone. It builds the client's own
- * objects field by field, so a guest's `token`, a credential to their invitation, goes no further.
+ * objects field by field, so a guest's `token`, a credential to their invitation, goes no further
+ * than their `link`: copied for the host, never rendered, stored or logged (design PD-213).
  */
 
 export const ANSWERS = ['ATTENDING', 'DECLINED', 'UNDECIDED', 'PENDING'] as const;
@@ -23,6 +24,12 @@ export type Side = (typeof SIDES)[number];
  */
 export type Contact =
   { isShown: false } | { isShown: true; email: string | null; phone: string | null };
+
+/**
+ * The guest's personal link segment, sent with the contact details (`guest:contact:read`): whoever
+ * holds it answers as the guest. Only ever copied to the clipboard (design PD-213).
+ */
+export type PersonalLink = { isShown: false } | { isShown: true; token: string };
 
 export interface Guest {
   id: string;
@@ -54,6 +61,7 @@ export interface Guest {
   /** When they arrived; `null` while they have not. */
   arrivedAt: string | null;
   contact: Contact;
+  link: PersonalLink;
 }
 
 export interface Seat {
@@ -132,7 +140,7 @@ export interface GuestWire {
   name: string;
   email?: string | null;
   phone?: string | null;
-  /** The guest's personal link segment. Never read. */
+  /** The guest's personal link segment. Read into `Guest.link` alone. */
   token?: string;
   locale: string | null;
   attribution: Side;

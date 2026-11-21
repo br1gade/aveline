@@ -98,7 +98,7 @@
     "suppressedHelp": "They asked not to be contacted, or an earlier message to them bounced. For a bounce, correct the address on the guest list and send again. If they asked not to be contacted, talk to them.",
     "unreachableTitle_one": "Can’t be reached: {{count, number}} household",
     "unreachableTitle_other": "Can’t be reached: {{count, number}} households",
-    "unreachableHelp": "There’s no usable address for them. Add or correct one on the guest list, then send again.",
+    "unreachableHelp": "There’s no usable address for them. Add or correct one on the guest list, then send again; or copy a guest’s personal link there, under “More”, and give it to them yourself.",
     "inEnglish": "The reasons are in English for now.",
     "fixOnList": "Show them on the guest list",
     "nobody": "There was nobody to send to."

@@ -35,6 +35,8 @@ export function useListDialogs(households: readonly Household[]) {
   const { revalidate } = useRevalidator();
   const [target, setTarget] = useState<DialogTarget | null>(null);
   const [done, setDone] = useState<Done | null>(null);
+  /** Something said without a write, such as a link copied: replaces whatever the line said. */
+  const [said, setSaid] = useState('');
   const openerRef = useRef<HTMLElement | null>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
 
@@ -43,6 +45,7 @@ export function useListDialogs(households: readonly Household[]) {
   const open = useCallback((next: DialogTarget, opener: HTMLElement) => {
     openerRef.current = opener;
     setDone(null);
+    setSaid('');
     setTarget(next);
   }, []);
   const close = useCallback(() => setTarget(null), []);
@@ -55,6 +58,10 @@ export function useListDialogs(households: readonly Household[]) {
     [revalidate, households],
   );
   const reload = useCallback(() => void revalidate(), [revalidate]);
+  const say = useCallback((message: string) => {
+    setDone(null);
+    setSaid(message);
+  }, []);
   // Radix puts the focus back on its own trigger, which these dialogs, opened from a row, lack.
   const restoreFocus = useCallback((event: Event) => {
     event.preventDefault();
@@ -68,7 +75,8 @@ export function useListDialogs(households: readonly Household[]) {
     target: isDone ? null : target,
     open,
     host,
-    status: isDone ? done.message : '',
+    status: isDone ? done.message : said,
     statusRef,
+    say,
   };
 }

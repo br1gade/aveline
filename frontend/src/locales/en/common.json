@@ -58,5 +58,9 @@
     "privacy": "Privacy notice",
     "footerLabel": "Privacy and help"
   },
-  "skipToContent": "Skip to content"
+  "skipToContent": "Skip to content",
+  "zoneCity": {
+    "yerevan": "Yerevan",
+    "moscow": "Moscow"
+  }
 }

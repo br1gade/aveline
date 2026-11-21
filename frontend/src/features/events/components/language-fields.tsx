@@ -53,7 +53,7 @@ function LanguageChecks({ id, choice, options }: PartProps & { options: readonly
             aria-invalid={error ? true : undefined}
           />
           <Label htmlFor={`${id}-${language}`} className="font-normal">
-            {languageName(language)}
+            <span lang={language}>{languageName(language)}</span>
           </Label>
         </div>
       ))}
@@ -81,7 +81,7 @@ function DefaultLanguage({ id, choice }: PartProps) {
           <div key={language} className="flex min-h-11 items-center gap-3">
             <RadioGroupItem value={language} id={`${id}-default-${language}`} />
             <Label htmlFor={`${id}-default-${language}`} className="font-normal">
-              {languageName(language)}
+              <span lang={language}>{languageName(language)}</span>
             </Label>
           </div>
         ))}

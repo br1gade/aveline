@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { useZoneName } from '@/lib/i18n';
 import { browserSession } from '@/api/session';
 import { Permitted } from '@/features/permissions';
 import { formatMinor } from '@/lib/money';
@@ -51,6 +52,7 @@ function CodeFacts({
   now: number;
 }) {
   const { t, i18n } = useTranslation('promo-codes');
+  const zoneName = useZoneName();
   const zone = zoneFor(promo.eventId, zones);
   const moment = useMoment(zone);
   const lines = [
@@ -72,7 +74,7 @@ function CodeFacts({
       : '',
     promo.validFrom ? t('code.from', { when: moment(promo.validFrom) }) : '',
     promo.validUntil
-      ? t('code.until', { when: moment(promo.validUntil), timeZone: zone.replaceAll('_', ' ') })
+      ? t('code.until', { when: moment(promo.validUntil), timeZone: zoneName(zone) })
       : '',
   ].filter(Boolean);
   return (

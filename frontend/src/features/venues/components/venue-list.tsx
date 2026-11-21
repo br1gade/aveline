@@ -9,6 +9,7 @@ import {
   type EventNotice,
   type NotifyOffer,
 } from '@/features/events';
+import { useZoneName } from '@/lib/i18n';
 import { ChangeableWith, Permitted } from '@/features/permissions';
 import { safeExternalUrl } from '@/lib/links';
 import { formatEventDate, formatEventTime } from '@/lib/time';
@@ -23,12 +24,13 @@ import { RemoveVenueDialog } from './remove-venue-dialog';
 /** The arrival in the event's own zone, never the device's, with the zone named (R-22). */
 function useArrival(venue: Venue, event: EventDetail): string | null {
   const { t, i18n } = useTranslation('venues');
+  const zoneName = useZoneName();
   if (!venue.arriveAt) return null;
   const zone = { timeZone: event.timezone, locale: i18n.language };
   return t('list.arrival', {
     time: formatEventTime(venue.arriveAt, zone),
     date: formatEventDate(venue.arriveAt, zone),
-    timeZone: event.timezone.replaceAll('_', ' '),
+    timeZone: zoneName(event.timezone),
   });
 }
 

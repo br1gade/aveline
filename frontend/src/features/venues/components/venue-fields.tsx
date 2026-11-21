@@ -1,7 +1,7 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-import { useLanguageName } from '@/lib/i18n';
+import { useLanguageName, useZoneName } from '@/lib/i18n';
 import { SelectField, TextInputField, TranslationFields } from '@/ui/app-form';
 import { NativeSelectOption } from '@/ui/kit/native-select';
 
@@ -17,13 +17,14 @@ export type VenueForm = UseFormReturn<VenueFormInput, unknown, VenueFormValues>;
  */
 function ArrivalFields({ form, timeZone }: { form: VenueForm; timeZone: string }) {
   const { t } = useTranslation('venues');
+  const zoneName = useZoneName();
   const fieldText = useVenueFieldText();
   const { errors } = form.formState;
   return (
     <fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
       <legend className="mb-1 p-0 text-sm font-medium">{t('fields.arrival')}</legend>
       <p className="text-muted-foreground m-0 text-sm">
-        {t('fields.arrivalHelp', { timeZone: timeZone.replaceAll('_', ' ') })}
+        {t('fields.arrivalHelp', { timeZone: zoneName(timeZone) })}
       </p>
       <div className="grid gap-5 min-[480px]:grid-cols-2">
         <TextInputField

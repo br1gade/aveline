@@ -42,6 +42,7 @@ export function listedGuest(id: string, name: string, overrides: Partial<Guest> 
     isCheckedIn: false,
     arrivedAt: null,
     contact: { isShown: false },
+    link: { isShown: false },
     ...overrides,
   };
 }

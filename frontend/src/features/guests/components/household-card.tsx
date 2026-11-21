@@ -14,6 +14,7 @@ import { hasFreeSeat } from '../form-model';
 import type { Guest, Household, Release, Seat, Side } from '../types';
 import { AnswerChip } from './answer-chip';
 import type { DialogTarget } from './dialog-target';
+import type { OnCopyLink } from './use-copy-guest-link';
 
 /** Each side as this event names it; `UNKNOWN` is shown as nothing. */
 export type SideNames = Readonly<Record<Side, string>>;
@@ -33,6 +34,8 @@ interface RowProps {
   formatDay: FormatDay;
   /** With `guest:write` (FR-6, PD-190): correcting, recording and removing are offered. */
   canChange: boolean;
+  /** `null` until the invitation is published (design PD-213). */
+  onCopyLink: OnCopyLink | null;
 }
 
 function notesOf(guest: Guest, t: TFunction<'guests'>): string[] {
@@ -135,10 +138,31 @@ function GuestRow(props: RowProps) {
         {props.canChange ? (
           <RowChanges {...props} onEdit={open('edit')} onRemove={open('remove')} />
         ) : (
-          <HistoryButton {...props} />
+          <>
+            <HistoryButton {...props} />
+            <CopyLinkButton {...props} />
+          </>
         )}
       </div>
     </li>
+  );
+}
+
+/**
+ * The guest's personal link, copied for a host to give by hand (design PD-206, PD-213): only where
+ * this role was sent it, the invitation is published, and the guest was not erased. Never shown.
+ */
+function CopyLinkButton({ guest, t, onCopyLink }: Pick<RowProps, 'guest' | 't' | 'onCopyLink'>) {
+  if (!onCopyLink || !guest.link.isShown || guest.isErased) return null;
+  return (
+    <Button
+      variant="ghost"
+      className={ROW_ACTION}
+      aria-label={t('actionFor', { action: t('row.copyLink'), name: guest.name })}
+      onClick={() => onCopyLink(guest)}
+    >
+      {t('row.copyLink')}
+    </Button>
   );
 }
 
@@ -164,14 +188,16 @@ const MORE_PANEL =
   'col-span-2 mt-2 grid-cols-2 p-2 group-open:grid sm:absolute sm:top-full sm:right-0 sm:z-10 sm:mt-1 sm:w-max sm:group-open:flex sm:max-w-[20rem] sm:p-3 sm:shadow-sm';
 
 /**
- * Correcting and recording in the row; removing and the answer history, used less, under "More"
- * (design PD-199, audit F-14, F-18). An erased guest is only removed.
+ * Correcting and recording in the row; removing, the answer history and copying the personal link,
+ * used less, under "More" (design PD-199, PD-213, audit F-14, F-18). An erased guest is only
+ * removed.
  */
 function RowChanges({
   eventId,
   guest,
   t,
   onOpen,
+  onCopyLink,
   onEdit,
   onRemove,
 }: RowProps & {
@@ -206,6 +232,7 @@ function RowChanges({
           {t('row.remove')}
         </Button>
         <HistoryButton guest={guest} t={t} onOpen={onOpen} />
+        <CopyLinkButton guest={guest} t={t} onCopyLink={onCopyLink} />
       </MoreActions>
     </>
   );
@@ -254,6 +281,7 @@ interface HouseholdCardProps {
   onChoose: OnChoose;
   formatDay: FormatDay;
   canChange: boolean;
+  onCopyLink: OnCopyLink | null;
 }
 
 /**
@@ -384,6 +412,7 @@ export const HouseholdCard = memo(function HouseholdCard({
   onChoose,
   formatDay,
   canChange,
+  onCopyLink,
 }: HouseholdCardProps) {
   const titleId = useId();
   return (
@@ -423,6 +452,7 @@ export const HouseholdCard = memo(function HouseholdCard({
             onOpen={onOpen}
             formatDay={formatDay}
             canChange={canChange}
+            onCopyLink={onCopyLink}
           />
         ))}
       </ul>

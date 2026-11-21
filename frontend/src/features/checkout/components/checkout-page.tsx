@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { generatePath, Link } from 'react-router';
 
@@ -7,7 +8,7 @@ import { ROUTE_PATHS } from '@/route-paths';
 import { Notice } from '@/ui';
 
 import { CheckoutForm } from './checkout-form';
-import { HeldOrderNotice, useHeldOrderHere } from './held-order';
+import { HeldOrderNotice, useHeldOrderHere, type HeldHere } from './held-order';
 import { useCheckoutApi } from './use-checkout-api';
 
 export interface CheckoutPageProps {
@@ -61,7 +62,8 @@ function Body({ event, basket, isSalesClosed }: CheckoutPageProps) {
 function FormUnlessHeld({ event, basket }: Omit<CheckoutPageProps, 'isSalesClosed'>) {
   const { t } = useTranslation('checkout');
   const api = useCheckoutApi(event.locale);
-  const { held, startAgain } = useHeldOrderHere(event.slug, api);
+  const { held, isChecking, startAgain, tryAgain } = useHeldOrderHere(event.slug, api);
+  const formRef = useFocusOnFound(held);
   if (held === 'checking') {
     return (
       <p role="status" className="m-0">
@@ -70,9 +72,35 @@ function FormUnlessHeld({ event, basket }: Omit<CheckoutPageProps, 'isSalesClose
     );
   }
   if (held !== 'none') {
-    return <HeldOrderNotice held={held} locale={event.locale} onStartAgain={startAgain} />;
+    return (
+      <HeldOrderNotice
+        held={held}
+        isChecking={isChecking}
+        locale={event.locale}
+        onStartAgain={startAgain}
+        onTryAgain={tryAgain}
+      />
+    );
   }
-  return <CheckoutForm event={event} basket={basket} />;
+  return (
+    <div ref={formRef} tabIndex={-1} className="outline-none">
+      <CheckoutForm event={event} basket={basket} />
+    </div>
+  );
+}
+
+/**
+ * An order that couldn't be read, read again and found gone, gives way to the form: the focus goes
+ * to it, as the "Try again" it was on is gone (WCAG 2.4.3, design PD-214).
+ */
+function useFocusOnFound(held: HeldHere) {
+  const formRef = useRef<HTMLDivElement>(null);
+  const wasUnreadable = useRef(false);
+  useEffect(() => {
+    if (held === 'none' && wasUnreadable.current) formRef.current?.focus();
+    if (held !== 'checking') wasUnreadable.current = held === 'unreadable';
+  }, [held]);
+  return formRef;
 }
 
 /**
