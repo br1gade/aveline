@@ -762,6 +762,32 @@ on a mock in hy, ru, en and fr at 360 px and desktop (publishing an inventory, a
 deliberate breaks were tried: eight fail a test (one only after a test was added for it), and the survivor is a
 size check in the CSV's send that the disabled button already covers. **None of it has run against the real backend.**
 
+**The audit's client work (21 and 22 November 2026)** ran against the local backend, not a mock.
+- **Development server, all three projects:** the whole suite passed in pilot mode, 133 runs, then 136 once
+  `guest-list.spec.ts` was added. The paid
+  ticket and plan journeys passed with payments on, 27 runs.
+- **Production build on our own server** (built with `VITE_API_BASE_URL=http://localhost:3000`, served by
+  `node server/index.ts`, `E2E_API_ORIGIN` set): 136 passed in pilot mode and 30 with payments on. That
+  includes the tickets page opened with no signal (PD-202), the first time that test has run.
+- **Walk on 22 November**, Russian and Armenian at 360 and 1280 px:
+  - "Copy personal link" (PD-213): offered for every guest with contact details, the phone-only one
+    included, and not before publishing. The link copied was the guest's own; no token appeared on the
+    page or in the address.
+  - **What it found:** the confirmation was said only on the list's status line, above the screen on a
+    phone and under the sticky toolbar on a desktop, so it now also shows beside the button. Language names
+    inside the venue form's labels and the event page's list had no `lang`; they now have (PD-215).
+  - **The re-check found worse:** from 640 px the guest row's whole "More" panel was cut off at its household
+    card's edge. The card's `content-visibility: auto` clips its painting, so nothing under "More" could be
+    pressed with a mouse, Remove and Answer history included; this predates the audit. A card whose "More"
+    is open is now drawn whole, and `guest-list.spec.ts` presses an action over the next household on
+    every project. It failed on the desktop before the fix.
+  - Also walked: the Armenian host's 19 screens at 1280 px; a Russian guest's reply, which survived a
+    reload; check-in and its undo at the door. All clean.
+  - **Mail:** a Russian guest's invitation came in Armenian, because the local mail copy predates its
+    Russian (FR-164).
+
+**Not run:** staging, real phones, or a production build behind Caddy.
+
 ## 11. Decision log
 
 | Date | Decision | Why |
@@ -1005,6 +1031,8 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 21 Nov 2026 | **A host copies a guest's personal link** (design PD-213): the guest list keeps the token as `Guest.link`, never rendered, and copying a capability link moved to `lib/links` (`copyCapabilityLink`, `isSendableOrigin`), shared with the brief link | PD-206 leaves a phone-only guest to the host, who had no way to give them their link (audit 20 Nov, A2-02). The guests were the second caller of the brief's copy |
 | 21 Nov 2026 | **A stale refusal keeps its dialog busy until the page is read again** (`reloadAndWait` beside `reload` in `PageActions`) | A second press went with the revision that had just been refused, and was refused again (audit 20 Nov, A2-07). `reload` stays for the many callers that need not wait |
 | 21 Nov 2026 | **Zone names in sentences come from `useZoneName` in `lib/i18n`** (design PD-215), not from lifting the renderer's `intlZoneName` as the plan proposed | The renderer's labels are adverbial ("по ереванскому времени") and don't fit the host's sentences, written for a zone's name; a city name does, and needs no Intl data |
+| 22 Nov 2026 | **Frontend checks run on push and pull request** (`.github/workflows/frontend.yml`, with `workflow_call` for a release to wait on), on Arthur's go in a root session; `release.yml` and `docs/GOING_LIVE.md` left to the backend | A web image could be released that no client check had run on (audit 20 Nov, A4-01). The release gate is the backend's workflow, so it is proposed, not made |
+| 22 Nov 2026 | **`TextInputField`'s label takes any node**, so `TranslationFields` can mark the language named in "Name in Русский" (`LanguageMarked` in `ui/`) | A language's name inside a translated label was read in the page's language (WCAG 3.1.2, design PD-215). The sentence stays translated whole; the name is found in it as it was put in |
 
 ## 12. Not yet built
 
@@ -1020,7 +1048,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
     - the design review's open fixes (A2-06, designer);
     - a default share image and the seat map (A2-09).
   - **For the paid launch:** checkout's seller and refund terms and a printable invoice (A2-12), and plan names per language (A2-13).
-  - **Outside `frontend/`:** a release that waits for the client's checks needs a root session (A4-01).
+  - **Outside `frontend/`:** a release that waits for the client's checks is `release.yml`'s, the backend's (A4-01; BACKEND_REQUESTS §4).
 - Of the 16 November answers (design PD-203 to PD-210): the staff page of the pilot's counts, which waits for a
   backend read (FR-159, PD-205); the page a visible unsubscribe line would land on, wanted after the pilot (PD-210);
   the sign-in wait's reset, which only lets the owner in once the backend ends the wait on a reset (FR-160). The
@@ -1176,10 +1204,11 @@ size check in the CSV's send that the disabled button already covers. **None of 
   It also needs the support contacts, `VITE_SUPPORT_*`, a launch gate (C-54), and `VITE_SITE_URL` once
   the site exists; each is a build argument in the `Dockerfile`, which since 14 November 2026 refuses
   to build without at least one way to reach Aveline.
-- CI (BA-3): **`.github/workflows/frontend.yml` is written and not enabled**: it runs `npm run verify`
-  only when started by hand, and is switched on before launch by adding its `push` and `pull_request`
-  triggers, as its header says. Until then `npm run verify` is the frontend's only gate, as `ci:local`
-  checks only the backend; its frontend stage is the backend team's, after the rehearsal (BACKEND_REQUESTS §4). Sentry and Storybook aren't wanted for now, to be looked at again before going live (C-27).
+- CI (BA-3): **`.github/workflows/frontend.yml` runs on every push and pull request** that touches `frontend/`,
+  `backend/openapi.json` or the workflow (since 22 November 2026, audit A4-01): `npm run verify`, and the boundary
+  check on a pull request from a `frontend/` branch (a backend one may change `openapi.json` and its own files). It can be called by another workflow, but the release doesn't wait for it yet: that is
+  `release.yml`, the backend's, proposed in BACKEND_REQUESTS §4. `ci:local` checks only the backend; its frontend
+  stage is the backend team's, after the rehearsal (BACKEND_REQUESTS §4). Sentry and Storybook aren't wanted for now, to be looked at again before going live (C-27).
 - Of the end-to-end tests (§10): running them in CI (BA-3, above); the paid ticket and plan on staging,
   which runs as production with no FAKE bank, so they skip there and are paid at the bank's own test
   environment by hand; real phones,

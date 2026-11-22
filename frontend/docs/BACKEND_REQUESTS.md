@@ -657,7 +657,9 @@ same day the support contacts' gate was found made at `aade8fe` (`docs/GOING_LIV
 client's build) and its row removed. On 13 November 2026 five more were found made in `docs/GOING_LIVE.md` at
 `874b929` and their rows removed: the client's screens and the door's rehearsal (FR-76, FR-79); "Public build settings
 and privacy copy" (the public origin, token-safe server logs and an approved privacy notice); and "Frontend CI and
-the client's suite on staging" (the suite on staging at both widths, the workflow enabled).
+the client's suite on staging" (the suite on staging at both widths, the workflow enabled). On 22 November 2026
+`.github/workflows/frontend.yml` was enabled on push and pull request, in a root session on Arthur's go; the rows
+below ask for what it can't do alone.
 
 | Change | Why | Proposal reference |
 |---|---|---|
@@ -668,6 +670,8 @@ the client's suite on staging" (the suite on staging at both widths, the workflo
 | Add the audit's new items to `docs/GOING_LIVE.md`:<br>• for the pilot: FR-162, FR-163, FR-164, FR-165, the release gate on the client's checks, an uptime monitor;<br>• for the paid launch: FR-186 to FR-195, the banks' production endpoints. | Release requirements no shared doc lists | Audit §7 |
 | Bring `docs/CLIENT_BACKEND_REQUESTS.md` up to date (A3-03):<br>• it has no FR-155 to FR-161;<br>• it still shows FR-64 and FR-109 as "Audit and implement";<br>• it still shows FR-62, FR-76 and FR-79 as awaiting adoption. | The backend's tracker disagrees with this register | Audit §3 A3-03 |
 | Doc drift (A3-07, A3-08, A3-09):<br>• "Not yet built" lines for client work that is built: `docs/INVITATION_DESIGN.md:247-249`, `docs/VENUES_AND_SEATING.md:226`, `docs/API.md:4090`, `backend/docs/EXPORT_WORKER.md:89`, `EXPORT_RENDERERS.md:105`.<br>• Session retention: `DATA_MODEL.md:325`.<br>• "Separate branch": `docs/BACKLOG.md:29,34,103` and `docs/TODO.md:3,45-47`.<br>• `docs/API.md`'s list-envelope claim (`:152-160`), its money example (`:147-150`), the undocumented `GET /events/:eventId/listing`, and the incomplete `devLink` list (`:4029`).<br>• `PRODUCT_SPEC.md:304` (§12 should be §14).<br>• `DEPLOYMENT.md:51-54` (`replyTo`) and `:222` (the Garage version check).<br>• `RELEASES.md:92` (support inputs are required).<br>• The unused `STORAGE_DRIVER` and `PUBLIC_BASE_URL`, and `LOCAL_CI.md:100`. | Each is believed by a reader | Audit §3 A3-07 to A3-09 |
+| **A release waits for the client's checks** (audit A4-01). In `.github/workflows/release.yml`:<br>• add a `frontend` job, `uses: ./.github/workflows/frontend.yml`, with the same default-branch `if` as `checks`;<br>• set `publish.needs: [checks, frontend]`. The workflow takes `workflow_call` since 22 November.<br>• The four support-contact inputs stop saying "(optional)": `frontend/Dockerfile:22-24` refuses to build without one (C-54, A3-09). | Today `publish` needs only the backend's checks, so a web image no client check ran on can be attested and released | Audit §3 A4-01 |
+| Since the workflow runs on push:<br>• `docs/GOING_LIVE.md:57` no longer "runs only by hand"; what remains there is the suite on staging and the release gate above;<br>• `backend/docs/LOCAL_CI.md:100` lists frontend CI as not yet implemented. | Both describe the 12 November state | Audit §3 A3-02, A3-09 |
 | A frontend stage in `ci:local` (`backend/scripts/local-ci/`), so the local gate covers both sides | Asked by the backend on 11 November 2026: `ci:local` checks only the backend (§3). Not drafted yet; it is backend code, and needs Docker, which the Mac this is written on lacks. *13 November 2026: the backend builds it after the rehearsal.* | §13 |
 
 ## 5. The pull of `eb77cd4`

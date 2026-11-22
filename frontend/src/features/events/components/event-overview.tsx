@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { Fragment, useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
@@ -7,6 +7,7 @@ import { formatEventDate, formatEventTime } from '@/lib/time';
 import { APP_PATHS } from '@/route-paths';
 import { Permitted } from '@/features/permissions';
 import { StatusLine, useDialogOpener, usePageStatus } from '@/ui/app-form';
+import { LanguageMarked } from '@/ui';
 import { Button } from '@/ui/kit/button';
 import { intlZoneName, zoneLabelKey } from '@/features/invitation-renderer';
 
@@ -52,15 +53,21 @@ function Detail({ term, children }: { term: string; children: ReactNode }) {
 }
 
 /** The event's languages in their own names, its default marked. */
-function useLanguages(event: EventDetail): string {
+function useLanguages(event: EventDetail): ReactNode {
   const { t } = useTranslation('events');
   const { t: common } = useTranslation('common');
-  return event.locales
-    .map((code) => {
-      const name = isLanguage(code) ? common(`language.${code}`) : code;
-      return code === event.defaultLocale ? t('overview.defaultMark', { language: name }) : name;
-    })
-    .join(', ');
+  return event.locales.map((code, position) => {
+    const name = isLanguage(code) ? common(`language.${code}`) : code;
+    const text =
+      code === event.defaultLocale ? t('overview.defaultMark', { language: name }) : name;
+    // Each name in its own language, inside a list in the page's (WCAG 3.1.2, design PD-215).
+    return (
+      <Fragment key={code}>
+        {position > 0 ? ', ' : null}
+        <LanguageMarked text={text} name={name} lang={code} />
+      </Fragment>
+    );
+  });
 }
 
 /**

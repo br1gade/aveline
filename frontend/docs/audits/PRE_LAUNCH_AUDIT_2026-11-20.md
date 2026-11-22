@@ -300,9 +300,10 @@ items are requests).
 | A2-14 | Built: a city in the page's language in sentences, the zone menu's city beside its IANA name, `lang` on language names | Design PD-215 |
 | A3-09 (client part) | The `Dockerfile`'s comment corrected | `frontend/Dockerfile` |
 | A4-02, A4-10 (client parts) | Built: only a 404 means "not development"; billing's pilot line checked on any stack; a check that the base URL serves Aveline; a 3 s wait in unit tests; a real-reload test of the guest's reply. The suite on staging waits for B1-01 | `test/e2e/support/`, `test/setup.ts` |
+| Found 22 Nov, not in the audit | From 640 px the guest row's "More" panel was cut off at its household card's edge (`content-visibility: auto`), so nothing in it could be pressed with a mouse. Fixed, with an end-to-end test on every project | `features/guests/components/household-card.tsx`; `test/e2e/guest-list.spec.ts` |
 | B3-01 (input to it) | The browser-storage inventory for the lawyer | [BROWSER_STORAGE.md](../BROWSER_STORAGE.md) |
 | A1, A3 and A4 backend items | Sent to the backend as FR-162 to FR-198, and §4 rows for the shared docs | [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) |
-| A4-01 | Waits for a root session on Arthur's go: `.github/` is shared | |
+| A4-01 | The client's half done on 22 November, on Arthur's go in a root session: `frontend.yml` runs on push and pull request, and can be called by a release. The release waiting for it is `release.yml`'s, the backend's, requested | `.github/workflows/frontend.yml`; [BACKEND_REQUESTS.md](../BACKEND_REQUESTS.md) §4 |
 | Everything in Part B | An owner checklist, kept by Arthur | |
 
 The rest of Part A waits on an input: the lawyer's text (A2-01, A2-11), FR-159 (A2-04), the designer (A2-05, A2-06,

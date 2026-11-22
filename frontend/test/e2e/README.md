@@ -10,6 +10,7 @@ makes its own data through the API as a host would (setup proposal §12): a fres
 |---|---|
 | `account.spec.ts` | Registering and setting up the organization; signing out and back in; a new password from the emailed link; two tabs refreshing one rotating session at once |
 | `event-setup.spec.ts` | Creating an event, correcting it with a second language and its own side names (FR-96), a venue, publishing; a CSV import that names its refused rows |
+| `guest-list.spec.ts` | A guest's actions under "More" pressed with the panel over the next household, and copying the personal link said beside the button (PD-213): the desktop panel was once cut off at its card's edge |
 | `guest-reply.spec.ts` | A guest's personal link: replying for the household with a side, a meal and the hosts' statement, changing it, a reply in progress kept across a reload (PD-195), replies closed, the token kept to its own page; the generic link's HTML names no guest |
 | `sending.spec.ts` | The invitation by email, its link opening the guest's page, the delivery on the guest list; a reminder held back for three days after an invitation |
 | `seating.spec.ts` | Tables and seating by hand; a table filled meanwhile from a second page (409); automatic seating by the worker |

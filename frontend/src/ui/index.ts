@@ -2,6 +2,7 @@ export { Button, ButtonLink, buttonClass, type ButtonVariant } from './button';
 export { cx } from './cx';
 export { Divider, Lozenge } from './divider';
 export { Icon, type IconName } from './icon';
+export { LanguageMarked } from './language-marked';
 export { LanguageSwitcher } from './language-switcher';
 export { Notice, type NoticeTone } from './notice';
 export { Eyebrow, SectionHeading } from './section-heading';

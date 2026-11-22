@@ -587,9 +587,12 @@ describe('GuestList: a guest’s personal link (design PD-213)', () => {
     serve();
     const user = renderList();
     await user.click(await screen.findByRole('button', { name: COPY }));
+    // Said on the status line, for a screen reader, and beside the button, where the host looks.
+    const said = await screen.findAllByText(/Armen Petrosyan’s personal link was copied/);
+    expect(said.some((line) => line.getAttribute('role') === 'status')).toBe(true);
     expect(
-      await screen.findByText(/Armen Petrosyan’s personal link was copied/),
-    ).toBeInTheDocument();
+      within(household('Petrosyan family')).getByText(/Armen Petrosyan’s personal link was copied/),
+    ).toHaveAttribute('aria-hidden', 'true');
     expect(await navigator.clipboard.readText()).toBe(
       `https://aveline.test/invitations/anna-davit-3f8a1c20/g/${token}`,
     );
@@ -606,7 +609,7 @@ describe('GuestList: a guest’s personal link (design PD-213)', () => {
     const copy = await screen.findByRole('button', { name: COPY });
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
     await user.click(copy);
-    expect(await screen.findByText(/Your browser didn’t allow copying/)).toBeInTheDocument();
+    expect(await screen.findAllByText(/Your browser didn’t allow copying/)).toHaveLength(2);
     expect(document.body.innerHTML).not.toContain(token);
   });
 
@@ -621,7 +624,7 @@ describe('GuestList: a guest’s personal link (design PD-213)', () => {
     expect(await screen.findByText('Changes to Armen Petrosyan were saved.')).toBeInTheDocument();
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
     await user.click(await screen.findByRole('button', { name: COPY }));
-    expect(await screen.findByText(/Your browser didn’t allow copying/)).toBeInTheDocument();
+    expect(await screen.findAllByText(/Your browser didn’t allow copying/)).toHaveLength(2);
     expect(screen.queryByText('Changes to Armen Petrosyan were saved.')).not.toBeInTheDocument();
   });
 
@@ -673,7 +676,7 @@ describe('GuestList: a guest’s personal link (design PD-213)', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Copy personal link: Ani Petrosyan' }),
     );
-    await screen.findByText(/Ani Petrosyan’s personal link was copied/);
+    await screen.findAllByText(/Ani Petrosyan’s personal link was copied/);
     expect(await navigator.clipboard.readText()).toBe(
       `https://aveline.test/invitations/anna-davit-3f8a1c20/g/${token}-b`,
     );
@@ -684,10 +687,10 @@ describe('GuestList: a guest’s personal link (design PD-213)', () => {
     const user = renderList();
     await user.click(await screen.findByRole('button', { name: COPY }));
     const note = /Armen Petrosyan’s personal link was copied/;
-    expect(await screen.findByText(note)).toBeInTheDocument();
+    expect(await screen.findAllByText(note)).toHaveLength(2);
     await openEdit(user, 'Armen Petrosyan');
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByText(note)).not.toBeInTheDocument();
+    expect(screen.queryAllByText(note)).toHaveLength(0);
   });
 
   it('isn’t offered for a guest erased at their request', async () => {

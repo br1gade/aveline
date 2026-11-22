@@ -43,7 +43,7 @@ import { SendingNotes } from './sending-notes';
 import { useCopyGuestLink, type OnCopyLink } from './use-copy-guest-link';
 import { useGuestFilter } from './use-guest-filter';
 import { useSideNames } from './use-guest-options';
-import { useListDialogs, type DialogHostActions } from './use-list-dialogs';
+import { useListDialogs, type DialogHostActions, type RowNote } from './use-list-dialogs';
 import { useSendFromList } from './use-send-from-list';
 
 function countLine(
@@ -133,6 +133,8 @@ interface ResultsProps {
   onClear: () => void;
   formatDay: FormatDay;
   onCopyLink: OnCopyLink | null;
+  /** What the last copy did, for the household it was copied in. */
+  copied: RowNote | null;
 }
 
 function Results({
@@ -145,6 +147,7 @@ function Results({
   onClear,
   formatDay,
   onCopyLink,
+  copied,
 }: ResultsProps) {
   const { t } = useTranslation('guests');
   // Read once here: each of two thousand rows is memoized and takes it as a prop.
@@ -178,6 +181,7 @@ function Results({
           formatDay={formatDay}
           canChange={canChange}
           onCopyLink={onCopyLink}
+          copied={copied?.householdId === household.id ? copied : null}
         />
       ))}
     </div>
@@ -337,20 +341,21 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
   const isContactHidden = useIsContactHidden(households);
   const sides = useSideNames(event);
   const formatDay = useFormatDay(event);
-  const { target, open, host, status, statusRef, say } = useListDialogs(households);
+  const dialogs = useListDialogs(households);
   const { sender, sending, isSendable } = useSending(event, households, report);
-  const onCopyLink = useCopyGuestLink(event, say);
+  const onCopyLink = useCopyGuestLink(event, dialogs.say);
 
   return (
     <>
-      <ListActions eventId={event.id} onOpen={open} />
+      <ListActions eventId={event.id} onOpen={dialogs.open} />
       {isContactHidden ? (
         <p className="text-muted-foreground m-0 text-sm">{t('list.contactHidden')}</p>
       ) : null}
       <SendingNotes event={event} delivery={delivery} sender={sender} />
       <div className="flex flex-col gap-3">
         {households.length > 0 ? (
-          <div className="bg-background border-border flex flex-col gap-3 border-b py-3 md:sticky md:top-0 md:z-10">
+          // Above a row's open "More" (z-10), which scrolls under it once its card draws it whole.
+          <div className="bg-background border-border flex flex-col gap-3 border-b py-3 md:sticky md:top-0 md:z-20">
             <ListToolbar
               filter={filter}
               onQuery={setQuery}
@@ -363,7 +368,7 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
         <p aria-live="polite" className="text-muted-foreground m-0 text-sm">
           {households.length > 0 ? countLine(visible, isFiltered, t) : ''}
         </p>
-        <StatusLine statusRef={statusRef}>{status}</StatusLine>
+        <StatusLine statusRef={dialogs.statusRef}>{dialogs.status}</StatusLine>
         {/*
           In the toolbar's own container, so from `md` the toolbar stays in view down the whole list.
           On a phone it scrolls away: with the send bar it is half the screen (design PD-44).
@@ -374,18 +379,19 @@ export function GuestDirectory({ event, households, delivery }: GuestDirectoryPr
           visible={visible}
           sides={sides}
           sending={sending}
-          onOpen={open}
+          onOpen={dialogs.open}
           onClear={clear}
           formatDay={formatDay}
           onCopyLink={onCopyLink}
+          copied={dialogs.note}
         />
       </div>
       <DialogHost
         event={event}
         households={households}
-        target={target}
+        target={dialogs.target}
         isListContactShown={!isContactHidden}
-        host={host}
+        host={dialogs.host}
       />
     </>
   );

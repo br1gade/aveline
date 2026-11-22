@@ -406,6 +406,10 @@ describe('Correcting a venue', () => {
     const name = await screen.findByLabelText('Name in English');
     expect(name).toHaveValue('Saint Hripsime');
     expect(name).toHaveAttribute('lang', 'en');
+    // The language's name in the label is marked as such too (WCAG 3.1.2, design PD-215).
+    const marked = screen.getAllByText('English', { selector: 'label span' });
+    expect(marked).toHaveLength(2);
+    for (const span of marked) expect(span).toHaveAttribute('lang', 'en');
     await user.clear(name);
     await user.type(name, 'Saint Hripsime Church');
     await user.click(screen.getByRole('button', { name: 'Save' }));

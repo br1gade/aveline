@@ -1,11 +1,12 @@
-import { useId, type ComponentProps } from 'react';
+import { useId, type ComponentProps, type ReactNode } from 'react';
 
 import { Icon } from '@/ui';
 import { Field, FieldDescription, FieldLabel } from '@/ui/kit/field';
 import { Input } from '@/ui/kit/input';
 
 interface TextInputFieldProps extends Omit<ComponentProps<typeof Input>, 'id'> {
-  label: string;
+  /** Words, or words with a part marked in another language (`LanguageMarked`). */
+  label: ReactNode;
   /** The label's language, when it isn't the page's: a host's question, say. */
   labelLang?: string | undefined;
   help?: string | undefined;

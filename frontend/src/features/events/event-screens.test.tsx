@@ -69,6 +69,10 @@ function EventPage() {
   return <p>{`Event page ${useParams().eventId ?? ''}`}</p>;
 }
 
+/** The overview's list of languages, whose names are marked each in its own (design PD-215). */
+const languageList = (_: string, element: Element | null) =>
+  element?.tagName === 'DD' && element.textContent === 'English, Հայերեն (default)';
+
 function renderAt(path: string, pattern: string, Page: ComponentType) {
   const Stub = createRoutesStub(
     guardedRoutes([
@@ -342,7 +346,7 @@ describe('EventOverview', () => {
     async (permission, isCorrectable, isPutAway) => {
       const event = { ...EVENT, attendanceMode: 'EVENT_WIDE' as const, attendanceRevision: 1 };
       overview({ event }, ['event:read', permission]);
-      expect(await screen.findByText('English, Հայերեն (default)')).toBeInTheDocument();
+      expect(await screen.findByText(languageList)).toBeInTheDocument();
       const shown = (query: HTMLElement | null) => query !== null;
       expect(shown(screen.queryByRole('link', { name: 'Edit details' }))).toBe(isCorrectable);
       expect(shown(screen.queryByRole('link', { name: 'Change' }))).toBe(isCorrectable);
@@ -357,9 +361,11 @@ describe('EventOverview', () => {
     ).toBeInTheDocument();
   });
 
-  it('lists the languages with the default marked, and the invitation', async () => {
+  it('lists the languages with the default marked, each name in its own language, and the invitation', async () => {
     overview();
-    expect(await screen.findByText('English, Հայերեն (default)')).toBeInTheDocument();
+    const languages = await screen.findByText(languageList);
+    expect(languages.querySelector('span[lang="hy"]')?.textContent).toBe('Հայերեն');
+    expect(languages.querySelector('span[lang="en"]')?.textContent).toBe('English');
     expect(screen.getByText('Draft: guests can’t open it yet')).toBeInTheDocument();
     expect(screen.getByText('anna-davit-3f8a1c20')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Edit details' })).toHaveAttribute(
