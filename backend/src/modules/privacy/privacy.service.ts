@@ -4,6 +4,7 @@ import { lockIntake } from '../sales/enquiry-lock';
 import { EnquiryPrivacyService } from '../sales/enquiry-privacy.service';
 import { EnquiryPrivacySubject } from '../sales/enquiry-privacy';
 import { exportTemplateAuthorship } from '../design/templates/template-privacy';
+import { exportBillingContext } from '../billing/billing-privacy';
 import { reconcileInactiveOwnerReviews } from '../organizations/organization-reviews.service';
 import { exportContributions } from '../guest-contributions/contribution-privacy';
 import { attendeeSubject, exportAttendees } from '../ticketing/attendee-privacy';
@@ -218,37 +219,19 @@ export class PrivacyService {
   private async assembleExport(subject: EnquiryPrivacySubject, requestId: string, tx: Prisma.TransactionClient) {
     const legacy = subject.email ? await this.assembleEmailExport(subject.email, requestId, tx) : {
       subjectEmail: null, assembledAt: new Date().toISOString(), account: null, guestRecords: [],
-      contributions: [], templateAuthorship: null, ticketAttendees: [], ticketOrders: [], messagesSent: [], suppressions: [],
+      contributions: [], templateAuthorship: null, billingInvoices: [], ticketAttendees: [], ticketOrders: [], messagesSent: [], suppressions: [],
     };
     const enquiries = this.enquiryPrivacy ? await this.enquiryPrivacy.exportSubject(subject, tx) : [];
     return { ...legacy, enquiries };
   }
 
   private async assembleEmailExport(subjectEmail: string, requestId: string, tx: Prisma.TransactionClient) {
-    const [user, guests, ticketOrders, messages, suppressions, ticketAttendees, contributions, templateAuthorship] = await Promise.all([
+    const [user, guests, ticketOrders, messages, suppressions, ticketAttendees, contributions, templateAuthorship, billingInvoices] = await Promise.all([
       tx.user.findFirst({
         where: { email: sameAddress(subjectEmail) },
         select: { email: true, name: true, createdAt: true, lastLoginAt: true },
       }),
-      tx.guest.findMany({
-        where: { OR: [{ email: sameAddress(subjectEmail) }, { ticket: { attendee: attendeeSubject(subjectEmail) } }] },
-        select: {
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          locale: true,
-          attribution: true,
-          consentAt: true,
-          consentSource: true,
-          event: { select: { title: true, startsAt: true } },
-          household: { select: { name: true } },
-          rsvp: { include: { answers: { select: { value: true, question: { select: { prompt: true } } } } } },
-          attendanceResponses: { select: { revision: true, venueId: true, status: true, respondedAt: true, policy: { select: { mode: true } } } },
-          channels: { select: { channel: true, address: true, optedInAt: true } },
-          checkIn: { select: { arrivedAt: true } },
-        },
-      }),
+      this.exportGuestRecords(tx, subjectEmail),
       tx.ticketOrder.findMany({
         where: { buyerEmail: sameAddress(subjectEmail) },
         select: {
@@ -271,6 +254,7 @@ export class PrivacyService {
       exportAttendees(tx, subjectEmail),
       exportContributions(tx, subjectEmail, requestId),
       exportTemplateAuthorship(tx, subjectEmail),
+      exportBillingContext(tx, subjectEmail),
     ]);
 
     return {
@@ -278,12 +262,34 @@ export class PrivacyService {
       assembledAt: new Date().toISOString(),
       account: user,
       guestRecords: guests,
-      contributions, templateAuthorship,
+      contributions, templateAuthorship, billingInvoices,
       ticketAttendees,
       ticketOrders: ticketOrders.map((order) => ({ ...order, totalMinor: order.totalMinor.toString() })),
       messagesSent: messages,
       suppressions,
     };
+  }
+
+  private exportGuestRecords(tx: Prisma.TransactionClient, subjectEmail: string) {
+    return tx.guest.findMany({
+      where: { OR: [{ email: sameAddress(subjectEmail) }, { ticket: { attendee: attendeeSubject(subjectEmail) } }] },
+      select: {
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        locale: true,
+        attribution: true,
+        consentAt: true,
+        consentSource: true,
+        event: { select: { title: true, startsAt: true } },
+        household: { select: { name: true } },
+        rsvp: { include: { answers: { select: { value: true, question: { select: { prompt: true } } } } } },
+        attendanceResponses: { select: { revision: true, venueId: true, status: true, respondedAt: true, policy: { select: { mode: true } } } },
+        channels: { select: { channel: true, address: true, optedInAt: true } },
+        checkIn: { select: { arrivedAt: true } },
+      },
+    });
   }
 
   /** Their do-not-contact records, including those an earlier erasure left hashed. */

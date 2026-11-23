@@ -213,10 +213,18 @@ invite the customer as `OWNER`; the customer sets their own password, so staff
 never hold their credential. Staff design and run the event through
 `SUPPORT`'s platform permissions, which the audit trail records.
 
+The concierge organization page retains `concierge:manage`; both ADMIN and
+SUPPORT may search open customer organizations and see owners and live pending
+owner invitations. Privacy request pages remain `privacy:manage`, held only by
+ADMIN. Their OPEN/CLOSED filters do not change that authority.
+
 `billing:read` and `billing:write` are granted by organization `OWNER` and
 platform `ADMIN` only — they are not part of `RUN_EVENT`. A planner running
 someone's event can do everything operational without being able to change the
 plan or issue a discount, because a discount is revenue.
+Invoice pages use the same `billing:read` permission and selected-organization
+scope as invoice history. A continuation cursor is bound to that organization
+and never grants access to it.
 
 ---
 
@@ -384,6 +392,10 @@ not blanket-cancelled by customer departure; each worker rechecks its current
 operation/contact rights. Reviewed tenant closure cancels all tenant jobs. ADMIN alone resolves closure
 or inactive-owner recovery. Verified erasure deactivates across all organizations,
 retains tombstone roles/history, revokes pending work and opens recovery reviews.
+Only ADMIN may read the access-review queue or resolve a review. Queue items
+include the organization's name and kind. Resolution checks the review's own
+revision; a conflict retains `REVISION_CHANGED` and asks the administrator to
+reload that review.
 
 Not yet activated: second-membership writes await the operator-controlled runtime,
 reader/writer, migration, restore and frontend acceptance gates.

@@ -3,6 +3,7 @@ import { MessageChannel } from '@prisma/client';
 import { createTransport } from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { DeliveryResult, MessageTransport, OutboundMessage } from './message-channel';
+import { isUsableEmailAddress } from '../../../common/address';
 
 /**
  * The part of a send result this transport reads.
@@ -74,6 +75,10 @@ export class SmtpTransport implements MessageTransport {
   }
 
   async send(message: OutboundMessage): Promise<DeliveryResult> {
+    // Recheck persisted legacy outbox rows at the external protocol boundary.
+    if (!isUsableEmailAddress(message.toAddress)) {
+      throw Object.assign(new Error('Email recipient must be one mailbox'), { code: 'ECONFIG' });
+    }
     const info = (await this.transporter.sendMail({
       from: this.settings.from,
       replyTo: this.settings.replyTo,

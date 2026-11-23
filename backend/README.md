@@ -215,6 +215,7 @@ test/
 | `POST` | `/api/v1/concierge/organizations/:organizationId/events` | Create an event for that customer (Aveline staff) |
 | `POST` | `/api/v1/concierge/organizations/resolve-customer` | Paginated owner memberships and live owner invitations without invite tokens |
 | `GET` | `/api/v1/concierge/organizations` | Find a customer's organization by name (Aveline staff) |
+| `GET` | `/api/v1/concierge/organizations/page` | Cursor page of open customer organizations, newest first; optional name search |
 | `GET` | `/api/v1/staff` | Every active staff account (admins only) |
 | `POST` | `/api/v1/staff` | Make a verified account staff, or change its role (admins only) |
 | `DELETE` | `/api/v1/staff/:userId` | Return a staff account to an ordinary one (admins only) |
@@ -445,6 +446,7 @@ its records are references to regenerate, never historical snapshots.
 | `POST` | `/api/v1/subscription/resume` | Undo a cancellation |
 | `DELETE` | `/api/v1/subscription/pending-free` | Withdraw the scheduled switch to Free before its effective date |
 | `GET` | `/api/v1/invoices` | Your invoices, newest first |
+| `GET` | `/api/v1/invoices/page` | Cursor page of this organization's invoices, newest first |
 | `GET` | `/api/v1/invoices/:number` | One invoice with its captured line items |
 | `POST` | `/api/v1/invoices/:number/confirm` | Settle after the bank |
 | `GET` | `/api/v1/promo-codes` | Your promo codes and how much of each is left |
@@ -464,6 +466,7 @@ registration, not bank certification or credentials.
 |---|---|---|
 | `POST` | `/api/v1/privacy/requests` | Ask what is held, or for erasure (**public**) |
 | `GET` | `/api/v1/privacy/requests` | Open requests, soonest due first |
+| `GET` | `/api/v1/privacy/requests/page` | ADMIN cursor page: open requests by deadline or closed requests by completion |
 | `GET` | `/api/v1/privacy/requests/:requestId/submissions` | Paged, separately stored unverified public text; privacy:manage |
 | `PATCH` | `/api/v1/privacy/requests/:requestId` | Move one through verification or edit staff notes. Applied erasures cannot be rejected. |
 | `POST` | `/api/v1/privacy/requests/:requestId/fulfil` | Carry out a verified request |
@@ -744,11 +747,20 @@ the off-host destination remains an operator gate.
 Scoped calls accept `X-Aveline-Organization-Id`; one membership defaults as before,
 multiple require explicit selection. Additional writes are off by default in
 `runtime_compatibility`, checked under a transaction lock for create/join. API and
-standalone workers check the shared reader floor at startup; revision 3 supports
-floors 2/3 and refuses missing or newer floors. Exclude already-running older
-replicas before any F39/F44 activation, even with extra memberships disabled. The migration
+standalone workers check the shared reader floor at startup; the launch payment
+safety migration raises it to revision **4** and current readers refuse missing
+or newer floors. Exclude already-running older APIs, schedulers, workers and
+maintenance writers before applying it, even with extra memberships disabled.
+Rollback keeps the database floor and requires a compatible image. The migration
 retains the user-only unique index; automatic deploy never drops it. See
 [organization cutover](docs/ORGANIZATION_CUTOVER.md) for the explicit operator command.
+
+Payment registration recovery is a separate host-only ADMIN tool, documented in
+[Payments](../docs/PAYMENTS.md#registration-recovery). It records bank evidence;
+ordinary bank confirmation remains authoritative. New paid subscription invoices
+queue a non-tax payment confirmation for their initiating account; email failure
+never undoes settlement. See [API billing](../docs/API.md#plans-and-subscriptions)
+for localized display, captured receipt context and client adoption details.
 
 Not yet accepted: deployed-process exclusion, restore/performance evidence and
 four-language multi-tab frontend acceptance. No production cutover was run.

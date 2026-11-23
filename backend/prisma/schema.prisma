@@ -45,6 +45,8 @@ model Organization {
   accessReviews OrganizationAccessReview[]
   accessChanges OrganizationAccessChange[]
 
+  @@index([deletedAt, createdAt(sort: Desc), id(sort: Desc)])
+
   enquiries SalesEnquiry[]
   enquiryConversions EnquiryConversion[]
 
@@ -94,6 +96,7 @@ model User {
   organizationChangesReceived OrganizationAccessChange[] @relation("OrganizationChangeSubject")
   staffChangesActed StaffRoleChange[] @relation("StaffChangeActor")
   staffChangesReceived StaffRoleChange[] @relation("StaffChangeSubject")
+  requestedInvoices Invoice[] @relation("InvoiceRequestedBy")
 
   assignedEnquiries SalesEnquiry[]
   consultations Consultation[]
@@ -1057,9 +1060,16 @@ model Payment {
   description    String?
   failureReason  String?
 
+  /// Committed before provider I/O; an interrupted call may still have registered.
+  registrationStartedAt DateTime?
+  /// Uncertainty blocks another attempt until the bank or audited recovery resolves it.
+  outcomeUnknownAt DateTime?
+  invoiceId String?
+  ticketOrderId String?
+
   authorizedAt DateTime?
   capturedAt   DateTime?
-  /// Registered orders do not stay payable forever; reconciliation expires them.
+  /// Local operational deadline, not evidence that the bank can no longer charge.
   expiresAt    DateTime?
   /// When reconciliation last asked the bank. The sweep takes the longest
   /// unasked first, so payments that never settle cannot fill every batch.
@@ -1072,11 +1082,16 @@ model Payment {
   event        Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   events       PaymentEvent[]
   refunds      Refund[]
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  ticketOrder TicketOrder? @relation(fields: [ticketOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
+  @@unique([provider, providerRef], map: "payments_provider_providerRef_key")
   @@index([organizationId])
   @@index([eventId])
   /// Reconciliation sweeps unresolved payments, longest unasked first.
   @@index([status, lastCheckedAt])
+  @@index([invoiceId, status])
+  @@index([ticketOrderId, status])
   @@map("payments")
 }
 
@@ -1324,6 +1339,7 @@ model TicketOrder {
   claimedSeats ShowTicketSeat[]
   tickets   Ticket[]
   attendees OrderAttendee[]
+  paymentAttempts Payment[]
 
   @@unique([id, eventId])
   @@index([eventId, status])
@@ -1745,6 +1761,8 @@ model DataSubjectRequest {
 
   @@index([status, dueAt])
   @@index([subjectEmail])
+  @@index([dueAt, id])
+  @@index([completedAt(sort: Desc), id(sort: Desc)])
   @@map("data_subject_requests")
 }
 
@@ -1999,6 +2017,8 @@ model Plan {
   id   String   @id @default(cuid())
   key  String   @unique
   name String
+  /// Presentation names keyed by locale; canonical names and entitlements remain stable.
+  translations Json @default("{}")
   tier PlanTier
 
   priceMinor BigInt
@@ -2122,18 +2142,26 @@ model Invoice {
   /// Links to the Payment that settled it, when one did.
   paymentOrderNumber String?
 
+  /// Original purchase initiator, never inferred for historical invoices.
+  requestedByUserId String?
+  paymentNoticeLocale String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
+  requestedBy User? @relation("InvoiceRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  paymentAttempts Payment[]
 
   @@index([organizationId, status])
   /// Settlement and refunds find an invoice by its payment.
   @@index([paymentOrderNumber])
   /// Settlement reads ISSUED and VOID invoices across organizations.
   @@index([status])
+  @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([requestedByUserId])
   @@map("invoices")
 }
 
@@ -2806,7 +2834,7 @@ model DataSubjectRequestEnquirySubject {
 
 model RuntimeCompatibility {
   id String @id
-  minimumRevision Int @default(3)
+  minimumRevision Int @default(4)
   multiOrganizationWrites Boolean @default(false)
   @@map("runtime_compatibility")
 }

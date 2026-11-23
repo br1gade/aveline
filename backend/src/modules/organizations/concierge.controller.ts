@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, OrganizationScope, RequestActor, RequirePermission } from '../../infra/auth/actor';
 import { CreateEventDto } from '../events/dto/create-event.dto';
 import { ConciergeService } from './concierge.service';
-import { ConciergeCustomerPageDto, FindOrganizationsQuery, OpenForCustomerDto, OpenForCustomerResponseDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
+import { ConciergeCustomerPageDto, ConciergeOrganizationsPageDto, FindOrganizationsPageQuery, FindOrganizationsQuery, OpenForCustomerDto, OpenForCustomerResponseDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
 
 /** Aveline staff setting events up for customers, then handing them over. */
 @ApiTags('concierge')
@@ -43,6 +43,14 @@ export class ConciergeController {
     @Body() dto: CreateEventDto,
   ) {
     return this.concierge.createEvent(organizationId, actor.userId, dto);
+  }
+
+  @RequirePermission('concierge:manage')
+  @Get('page')
+  @ApiOkResponse({ type: ConciergeOrganizationsPageDto })
+  @ApiOperation({ summary: 'Page customer organizations by name; newest first' })
+  page(@Query() query: FindOrganizationsPageQuery) {
+    return this.concierge.findPage(query);
   }
 
   @RequirePermission('concierge:manage')

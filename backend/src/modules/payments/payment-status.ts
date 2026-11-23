@@ -37,6 +37,9 @@ const ALLOWED: Record<PaymentStatus, readonly PaymentStatus[]> = {
   [PaymentStatus.EXPIRED]: [],
 };
 
+const RECOVERABLE_OUTCOMES: readonly PaymentStatus[] = [PaymentStatus.PENDING, PaymentStatus.AUTHORIZED,
+  PaymentStatus.CAPTURED, PaymentStatus.FAILED, PaymentStatus.CANCELLED];
+
 /** States nothing may leave. Reconciliation skips them entirely. */
 export const TERMINAL_STATUSES: readonly PaymentStatus[] = Object.values(PaymentStatus).filter(
   (status) => ALLOWED[status].length === 0,
@@ -46,7 +49,9 @@ export function canTransition(from: PaymentStatus, to: PaymentStatus): boolean {
   return ALLOWED[from].includes(to);
 }
 
-export function assertTransition(from: PaymentStatus, to: PaymentStatus): void {
+export function assertTransition(from: PaymentStatus, to: PaymentStatus, canRecover = false): void {
+  if (canRecover && (from === PaymentStatus.EXPIRED || from === PaymentStatus.FAILED) &&
+      RECOVERABLE_OUTCOMES.includes(to)) return;
   if (!canTransition(from, to)) {
     throw new ConflictException(`Cannot move a payment from ${from} to ${to}`);
   }
@@ -54,7 +59,7 @@ export function assertTransition(from: PaymentStatus, to: PaymentStatus): void {
 
 /** True once the money has stopped moving and no polling is warranted. */
 export function isSettled(status: PaymentStatus): boolean {
-  return status === PaymentStatus.CAPTURED || TERMINAL_STATUSES.includes(status);
+  return status === PaymentStatus.CAPTURED || status === PaymentStatus.PARTIALLY_REFUNDED || TERMINAL_STATUSES.includes(status);
 }
 
 /**

@@ -22,7 +22,8 @@ describe('MoneySweepService', () => {
       releaseExpiredReservations: jest.fn().mockResolvedValue({ released: 3 }),
       sendMissingNotices: jest.fn().mockResolvedValue(undefined),
     };
-    const subscriptions = { settleCapturedInvoices: jest.fn().mockResolvedValue({ settled: 1 }) };
+    const subscriptions = { settleCapturedInvoices: jest.fn().mockResolvedValue({ settled: 1 }),
+      sendMissingPaymentNotices: jest.fn().mockResolvedValue({ queued: 1 }) };
     const sweep = new MoneySweepService(
       lock as unknown as JobLockService,
       payments as unknown as PaymentsService,
@@ -80,7 +81,7 @@ describe('MoneySweepService', () => {
   });
 
   it('releases expired holds and then sends missing notices, under the tickets.release lock', async () => {
-    const { sweep, lock, ticketing } = sweepWith({ isLockAcquired: true });
+    const { sweep, lock, ticketing, subscriptions } = sweepWith({ isLockAcquired: true });
 
     await sweep.releaseExpiredReservations();
 
@@ -88,16 +89,18 @@ describe('MoneySweepService', () => {
     expect(lock.runExclusively.mock.calls[0][0]).toMatchObject({ name: 'tickets.release' });
     expect(ticketing.releaseExpiredReservations).toHaveBeenCalledTimes(1);
     expect(ticketing.sendMissingNotices).toHaveBeenCalledTimes(1);
+    expect(subscriptions.sendMissingPaymentNotices).toHaveBeenCalledTimes(1);
     expect(ticketing.releaseExpiredReservations.mock.invocationCallOrder[0])
       .toBeLessThan(ticketing.sendMissingNotices.mock.invocationCallOrder[0]);
   });
 
   it('releases nothing when another instance holds the release lock', async () => {
-    const { sweep, ticketing } = sweepWith({ isLockAcquired: false });
+    const { sweep, ticketing, subscriptions } = sweepWith({ isLockAcquired: false });
 
     await sweep.releaseExpiredReservations();
 
     expect(ticketing.releaseExpiredReservations).not.toHaveBeenCalled();
     expect(ticketing.sendMissingNotices).not.toHaveBeenCalled();
+    expect(subscriptions.sendMissingPaymentNotices).not.toHaveBeenCalled();
   });
 });

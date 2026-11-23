@@ -65,7 +65,7 @@ export class TelegramTransport implements MessageTransport {
     const reply = (await response.json()) as TelegramReply;
     if (!reply.ok) throw telegramError(reply, response.status);
 
-    this.logger.log(`telegram → ${message.toAddress} (${reply.result?.message_id ?? '?'})`);
+    this.logger.log(`telegram message ${message.messageId ?? 'untracked'} accepted (${reply.result?.message_id ?? '?'})`);
 
     // The Bot API accepting a message means it was delivered to Telegram's
     // servers and will reach the device; there is no later bounce.

@@ -139,7 +139,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Audit and implement |
-| FR-110 | Billing's data | S4 ticketing/vendors/billing | Scheduled Free transition implemented under FR-135. Client adoption open. |
+| FR-110 | Billing's data | S4 ticketing/vendors/billing | (a–c) backend implemented 23 November: localized display, captured line fields and invoice pages; client adoption open. (f) scheduled Free implemented under FR-135. Return-page correlation and renewal remain separate work. |
 | FR-111 | Tell "analytics is off" from "no views", and count songs per venue | S3 host/guest operations | Audit and implement |
 | FR-112 | Approve several photos in one request | S3 host/guest operations | Audit and implement |
 | FR-113 | The drawn plan's writes | S3 host/guest operations | Audit and implement |
@@ -261,7 +261,24 @@ and search). FR-11 is the deployment layout decision.
 The frontend register adds FR-127 through FR-136. FR-131 is addressed in this
 follow-up. An applied erasure stays in recovery and cannot be rejected.
 FR-135 is the period-end free-plan change already decided under FR-110.
-The other new rows remain open.
+FR-127 staff pages and FR-133 review organization context/revision wording are
+implemented in the backend as of 23 November 2026. Their client adoption and
+staging acceptance remain open. Other new rows retain their individual status.
+
+### Backend launch-safety handoff, 23 November 2026
+
+The additive page routes are `GET /api/v1/concierge/organizations/page`,
+`GET /api/v1/privacy/requests/page` and `GET /api/v1/invoices/page`. Legacy arrays
+remain available. Access reviews include `organization: { name, kind }`.
+Plans and invoice lines expose localized `display` metadata while canonical
+fields and historical amounts/wording remain stable. See [API.md](API.md) for
+filters, cursor bounds, locale fallback and response examples.
+
+Durable payment associations and registration recovery, late/duplicate capture
+settlement, and original-initiator non-tax payment confirmation email are built.
+These backend changes do not complete client adoption, invoice printing, fiscal
+invoices, provider certification or production configuration. Their launch gates
+remain in [GOING_LIVE.md](GOING_LIVE.md) and [PAYMENTS.md](PAYMENTS.md).
 
 A6 was superseded. Frontend and backend ticketing merged through `dev` to
 `main` at `2fe4df0`. The real-backend ticketing rehearsal covered seat and

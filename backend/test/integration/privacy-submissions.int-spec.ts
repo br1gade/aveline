@@ -11,6 +11,7 @@ describe('unverified public privacy submissions', () => {
   it('keeps every submission separate without modifying staff notes, standing or the original deadline', async () => {
     const request = await prisma.dataSubjectRequest.create({ data: {
       kind: 'ERASURE', subjectEmail: 'person@example.am', status: 'IN_PROGRESS',
+      requestedAt: new Date('2026-11-01T12:00:00Z'),
       notes: 'Staff verified identity separately', dueAt: new Date('2026-11-20T12:00:00Z'),
     } });
     const { service } = privacyService(prisma);

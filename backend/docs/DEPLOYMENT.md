@@ -147,6 +147,40 @@ made it.
 
 ## Privacy journal and restore boundary
 
+### Payment safety migration and recovery
+
+The 23 November launch migrations require shared reader revision **4**. Stop and
+exclude every older API, scheduler, worker and maintenance writer before applying
+them; a higher database floor does not terminate a process that already passed
+startup. Candidate startup/preflight refuses a newer or missing floor. After
+these migrations, rollback must use a compatible revision-4 image; lowering the
+floor or restarting an old writer is not a rollback strategy.
+
+Legacy backfill accepts only exact financially matching invoice/order links and
+unambiguous retry chains. It records conservative registration/uncertainty
+markers without changing historical financial statuses. Review unresolved
+attempts privately against bank evidence. The provider-reference uniqueness
+migration aborts if non-null `(provider, providerRef)` pairs are duplicated;
+resolve the affected records from bank evidence before retrying. It never
+merges or deletes financial/audit rows. Run `node dist/payment-recovery.js`
+inside the compatible API release environment with an active verified ADMIN,
+the original order reference and concise evidence reference. The tool can
+attach a bank-verified reference/purchase or record proof that no registration
+exists; it cannot declare a new capture or refund. Then use normal bank
+confirmation/reconciliation and check purchase settlement. Arguments and exact
+guards are documented in [Payments](../../docs/PAYMENTS.md#registration-recovery).
+
+Apply the production seed before relying on `subscription.paid` mail. It adds
+the new platform template and fills missing stock-plan display names without
+replacing existing copy. Verify the initiating account's captured language,
+delivery, refund-before-dispatch cancellation and privacy erasure on the release
+environment. Keep provider dispatch disabled during a restore until bank and
+outbox state has been reviewed: restoring Postgres cannot undo a bank charge or
+email already accepted externally. Neither the migration nor the seed infers
+historical payment-email recipients.
+
+### Enquiry journal
+
 The signed enquiry privacy journal is an **independent external Docker volume**.
 Ordinary database/media backups exclude it. Normal Compose volume teardown cannot
 delete it. Independently preserve the latest journal, its key/identity and

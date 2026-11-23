@@ -1,8 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { CURRENT_READER_REVISION: READER_REVISION } = require('../dist/prisma/reader-compatibility.js');
 
 // This explicit operator command is deliberately absent from automatic migrations.
-const READER_REVISION = 3;
 const action = process.argv[2];
 if (!['inspect', 'drop-single-membership-index', 'enable-writes', 'disable-writes'].includes(action)) throw new Error('Choose inspect, drop-single-membership-index, enable-writes or disable-writes');
 const prisma = new PrismaClient();

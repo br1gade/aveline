@@ -23,6 +23,14 @@ function fakeTransporter(result: Record<string, unknown>) {
 }
 
 describe('SmtpTransport', () => {
+  it('refuses legacy recipient lists before handing anything to SMTP', async () => {
+    const { transporter, calls } = fakeTransporter({ accepted: ['ani@test.local'] });
+    await expect(new SmtpTransport(settings, transporter).send({
+      toAddress: 'ani@test.local,armen@test.local', body: 'Private invitation', locale: 'en',
+    })).rejects.toMatchObject({ code: 'ECONFIG' });
+    expect(calls).toHaveLength(0);
+  });
+
   it('sends from the configured address to the recipient', async () => {
     const { transporter, calls } = fakeTransporter({
       accepted: ['ani@test.local'],

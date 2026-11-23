@@ -2,7 +2,7 @@ import { pageOf, parseOrganizationCursor } from './organization-pagination';
 import { lockOwnerAddress, lockCurrentUsers, lockOrganizationStanding } from '../../infra/auth/access-locks';
 import { validateOrganizationId, selectionRequired, accessDenied } from '../../infra/auth/organization-context';
 import { actorCan } from '../../infra/auth/actor';
-import { conciergeRelationshipQuery, describeConciergeMatch, liveOwnerInvites } from './concierge-relationship';
+import { conciergeRelationshipQuery, describeConciergeMatch } from './concierge-relationship';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrganizationRole, OrgKind, Prisma } from '@prisma/client';
 import { AccountService } from '../../infra/auth/account.service';
@@ -11,6 +11,8 @@ import { CreateEventDto } from '../events/dto/create-event.dto';
 import { EventsService } from '../events/events.service';
 import { MAIL_FALLBACK_LOCALE } from '../../common/locale';
 import { OpenForCustomerDto, ResolveCustomerOrganizationsDto } from './dto/concierge.dto';
+import { FindOrganizationsPageQuery } from './dto/concierge.dto';
+import { customerOrganizationSelect, describeCustomerOrganization, findOrganizationsPage } from './concierge-pages';
 
 /**
  * Aveline staff setting an event up for a customer, then handing it over
@@ -99,25 +101,13 @@ export class ConciergeService {
       where: { deletedAt: null, name: search ? { contains: search, mode: 'insensitive' } : undefined },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      select: {
-        id: true,
-        name: true,
-        kind: true,
-        createdAt: true,
-        memberships: { where: { role: OrganizationRole.OWNER }, select: { user: { select: { email: true } } } },
-        invites: {
-          where: liveOwnerInvites(),
-          select: { email: true },
-        },
-        _count: { select: { events: true } },
-      },
+      select: customerOrganizationSelect(),
     });
 
-    return organizations.map(({ memberships, invites, _count, ...organization }) => ({
-      ...organization,
-      events: _count.events,
-      owners: memberships.map((membership) => membership.user.email),
-      pendingOwnerInvites: invites.map((invite) => invite.email),
-    }));
+    return organizations.map(describeCustomerOrganization);
+  }
+
+  findPage(query: FindOrganizationsPageQuery) {
+    return findOrganizationsPage(this.prisma, query);
   }
 }

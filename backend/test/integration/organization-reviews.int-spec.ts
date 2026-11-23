@@ -22,6 +22,18 @@ function barrier() {
 describe('organization administrator reviews', () => {
   beforeEach(resetTestDatabase);
   afterAll(disconnectTestDatabase);
+  it('includes the organization context with every open review', async () => {
+    const { organization, actor, adminActor } = await fixture();
+    await reviews.request(organization.id, actor, { expectedRevision: 0 });
+    const page = await reviews.list(adminActor, { limit: 50 });
+    expect(page.items[0]).toMatchObject({ organizationId: organization.id, organization: { name: 'Family', kind: 'HOST' } });
+  });
+  it('names a stale review revision without changing its conflict code', async () => {
+    const { organization, actor, adminActor } = await fixture();
+    const review = await reviews.request(organization.id, actor, { expectedRevision: 0 });
+    await expect(reviews.resolve(adminActor, review.reviewId, { decision: 'DECLINE', expectedRevision: 1 }))
+      .rejects.toMatchObject({ code: 'REVISION_CHANGED', message: 'expectedRevision: review revision changed' });
+  });
   it('only ADMIN may close; closure preserves the event while revoking its customer roles', async () => {
     const { organization, owner, actor, adminActor } = await fixture();
     const event = await prisma.event.create({ data: { organizationId: organization.id, title: 'Family', type: 'WEDDING', hostsLabel: 'Family', startsAt: new Date() } });

@@ -1,3 +1,5 @@
+import { isEmail } from 'class-validator';
+
 /**
  * What a recipient address may contain.
  *
@@ -61,7 +63,7 @@ export function isUsableEmailAddress(email: string | null | undefined): boolean 
   if (!isSafeAddress(email)) return false;
 
   const trimmed = (email ?? '').trim();
-  return trimmed.length > 2 && trimmed.includes('@') && !/\s/.test(trimmed);
+  return isEmail(trimmed, { allow_display_name: false, require_tld: false });
 }
 
 /**

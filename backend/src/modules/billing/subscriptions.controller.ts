@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   CurrentActor,
@@ -11,6 +11,8 @@ import {
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
 import { SubscribeDto } from './dto/subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
+import { RequestLanguage } from '../../common/request-language';
+import { InvoiceResponseDto } from './dto/billing-response.dto';
 
 @ApiTags('billing')
 @Controller()
@@ -22,8 +24,9 @@ export class SubscriptionsController {
   // Our renderer reads it for every visitor to the price page, from one address (FR-147).
   @Throttle(GUEST_PAGE_LIMITS)
   @ApiOperation({ summary: 'The price list, with each plan’s entitlements' })
-  listPlans() {
-    return this.subscriptions.listPlans();
+  @ApiQuery({ name: 'locale', required: false })
+  listPlans(@RequestLanguage() locale: string) {
+    return this.subscriptions.listPlans(locale);
   }
 
   @RequirePermission('billing:read')
@@ -33,8 +36,9 @@ export class SubscriptionsController {
     summary: 'Your current subscription',
     description: 'Null when the organization has never subscribed — not an error.',
   })
-  current(@CurrentActor() actor: RequestActor) {
-    return this.subscriptions.current(actor.organizationId ?? '');
+  @ApiQuery({ name: 'locale', required: false })
+  current(@CurrentActor() actor: RequestActor, @RequestLanguage() locale: string) {
+    return this.subscriptions.current(actor.organizationId ?? '', locale);
   }
 
   @RequirePermission('billing:write')
@@ -47,16 +51,17 @@ export class SubscriptionsController {
       'returns a bank form URL; access begins when that payment confirms. ' +
       'An unconfigured provider returns 404 before billing records change.',
   })
-  subscribe(@CurrentActor() actor: RequestActor, @Body() dto: SubscribeDto) {
-    return this.subscriptions.subscribe(actor.organizationId ?? '', dto);
+  @ApiQuery({ name: 'locale', required: false })
+  subscribe(@CurrentActor() actor: RequestActor, @Body() dto: SubscribeDto, @RequestLanguage() locale: string) {
+    return this.subscriptions.subscribe(actor.organizationId ?? '', dto, { actor, locale });
   }
 
   @RequirePermission('billing:write')
   @OrganizationScope()
   @Delete('subscription/pending-free')
   @ApiOperation({ summary: 'Withdraw a scheduled Free change before it takes effect' })
-  withdrawFreeChange(@CurrentActor() actor: RequestActor) {
-    return this.subscriptions.withdrawFreeChange(actor.organizationId ?? '');
+  withdrawFreeChange(@CurrentActor() actor: RequestActor, @RequestLanguage() locale: string) {
+    return this.subscriptions.withdrawFreeChange(actor.organizationId ?? '', locale);
   }
 
   @RequirePermission('billing:write')
@@ -66,32 +71,36 @@ export class SubscriptionsController {
     summary: 'Cancel at the end of the paid period',
     description: 'Access continues until currentPeriodEnd. Reversible until then.',
   })
-  cancel(@CurrentActor() actor: RequestActor) {
-    return this.subscriptions.cancel(actor.organizationId ?? '');
+  cancel(@CurrentActor() actor: RequestActor, @RequestLanguage() locale: string) {
+    return this.subscriptions.cancel(actor.organizationId ?? '', locale);
   }
 
   @RequirePermission('billing:write')
   @OrganizationScope()
   @Post('subscription/resume')
   @ApiOperation({ summary: 'Undo a cancellation before the period ends' })
-  resume(@CurrentActor() actor: RequestActor) {
-    return this.subscriptions.resume(actor.organizationId ?? '');
+  resume(@CurrentActor() actor: RequestActor, @RequestLanguage() locale: string) {
+    return this.subscriptions.resume(actor.organizationId ?? '', locale);
   }
 
   @RequirePermission('billing:read')
   @OrganizationScope()
   @Get('invoices')
   @ApiOperation({ summary: 'Your invoices, newest first' })
-  listInvoices(@CurrentActor() actor: RequestActor) {
-    return this.subscriptions.listInvoices(actor.organizationId ?? '');
+  @ApiOkResponse({ type: InvoiceResponseDto, isArray: true })
+  @ApiQuery({ name: 'locale', required: false })
+  listInvoices(@CurrentActor() actor: RequestActor, @RequestLanguage() locale: string) {
+    return this.subscriptions.listInvoices(actor.organizationId ?? '', locale);
   }
 
   @RequirePermission('billing:read')
   @OrganizationScope()
   @Get('invoices/:number')
   @ApiOperation({ summary: 'One invoice, with the line items captured at issue' })
-  findInvoice(@CurrentActor() actor: RequestActor, @Param('number') number: string) {
-    return this.subscriptions.findInvoice(actor.organizationId ?? '', number);
+  @ApiOkResponse({ type: InvoiceResponseDto })
+  @ApiQuery({ name: 'locale', required: false })
+  findInvoice(@CurrentActor() actor: RequestActor, @Param('number') number: string, @RequestLanguage() locale: string) {
+    return this.subscriptions.findInvoice(actor.organizationId ?? '', number, locale);
   }
 
   @RequirePermission('billing:write')
@@ -101,7 +110,8 @@ export class SubscriptionsController {
     summary: 'Settle an invoice after the payer returns from the bank',
     description: 'Server-to-server check. A retried call never activates twice.',
   })
-  confirm(@CurrentActor() actor: RequestActor, @Param('number') number: string) {
-    return this.subscriptions.confirmPayment(actor.organizationId ?? '', number);
+  @ApiQuery({ name: 'locale', required: false })
+  confirm(@CurrentActor() actor: RequestActor, @Param('number') number: string, @RequestLanguage() locale: string) {
+    return this.subscriptions.confirmPayment(actor.organizationId ?? '', number, locale);
   }
 }

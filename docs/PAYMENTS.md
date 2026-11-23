@@ -59,6 +59,8 @@ card data and PCI scope stays minimal. Do not break that by proxying a form.
 | Inecobank + IDBank (ArCa) adapter | [`providers/arca.gateway.ts`](../backend/src/modules/payments/providers/arca.gateway.ts) |
 | In-process fake, for tests and local dev | [`providers/fake.gateway.ts`](../backend/src/modules/payments/providers/fake.gateway.ts) |
 | Orchestration, idempotency, reconciliation | [`payments.service.ts`](../backend/src/modules/payments/payments.service.ts) |
+| Durable purchase/attempt claim | [`payment-claim.ts`](../backend/src/modules/payments/payment-claim.ts) |
+| Audited registration recovery | [`payment-recovery.ts`](../backend/src/modules/payments/payment-recovery.ts), host entry point [`payment-recovery.ts`](../backend/src/payment-recovery.ts) |
 
 `Refund` records each refund individually; `Payment.refundedMinor` is the
 running total used to decide whether another one fits.
@@ -104,34 +106,50 @@ unique on the table. A read-then-create would still double-charge under genuine
 concurrency; the constraint is what holds. Tested with three concurrent
 identical requests resulting in exactly one payment.
 
+**The purchase is linked before a provider call.** Payment creation, its
+`invoiceId` or `ticketOrderId` and the purchase's active-attempt pointer commit
+in one transaction. A separate conditional write records `registrationStartedAt`
+before calling the bank. A timeout or lost response records `outcomeUnknownAt`;
+it does not establish that registration failed. Retrying storage of a known bank
+result reuses that result and never repeats registration. An unstarted claim can
+expire only if it wins the same conditional fence as registration.
+
+**Local expiry cannot make a bank form safe to replace.** Registered expired
+attempts remain in confirmation/reconciliation; an authoritative late bank
+answer can recover their state. Replacement is blocked while registration is
+unknown or an earlier attempt is still payable. A definite bank refusal or
+cancellation permits a new attempt. An expiry permits replacement only when
+neither registration nor a bank reference ever existed. The adapters still need
+their actual bank-lifetime behavior accepted against the selected provider.
+
 **Status only moves forwards.** The transition table makes a captured payment
 reverting to pending inexpressible. Transitions are a compare-and-set on the
 status we read, so two concurrent callbacks cannot both apply. The one that
 loses answers with what the winner recorded, whichever side of its read the
 winner committed on — a win before the read used to surface as a `409`. The
 exception is a disagreement rather than a race: the bank reports `AUTHORIZED`
-or `CAPTURED` for a payment recorded `FAILED`, `CANCELLED` or `EXPIRED`
-meanwhile. That stays a `409` and is logged, because answering "expired" for
-money the bank took would invite the payer to pay again.
+or `CAPTURED` for an authoritatively failed/cancelled payment meanwhile. That
+stays a `409` and is logged. A local expiry or failed attempt explicitly marked
+unknown is recoverable from the bank's actual outcome; it is not treated as
+proof that money could not move.
 
 **Reconciliation is not optional.** Callbacks get lost — an abandoned redirect,
 a timed-out webhook. Without the sweep, a customer the bank charged has an
 order that never completed, which is the worst failure this system has. It
-asks the bank first and only then expires what the bank still calls unpaid —
-expiring first wrote off payments the bank had captured, because `EXPIRED` is
-final.
+asks the bank about registered expired attempts as well as pending/authorized
+ones. The local clock alone cannot close a payable bank form.
 
 The sweep takes the payments **longest unasked first** (`lastCheckedAt`), not
 the oldest: holds the bank kept calling authorised used to fill every batch,
-so nothing newer was ever asked about. A `CREATED` row past its lifetime —
-the process died between claiming the key and reaching the bank — is swept
-and expired too.
+so nothing newer was ever asked about. An overdue `CREATED` claim with no
+registration marker/reference can expire atomically. One whose registration
+may have started stays unresolved for bank or operator recovery.
 
-**A status the adapter cannot read is pending, never failed.** `FAILED` is
-final. An unknown orderStatus, a bank error instead of a status, or a payment
+**A status the adapter cannot read is pending, never failed.** Only a definite
+bank decline resolves a failed attempt. An unknown orderStatus, a bank error instead of a status, or a payment
 still being paid used to be written off for good; now only an explicit
 decline (orderStatus 6) fails a payment, and anything unread is asked again
-next sweep and expires on its own clock if it truly went nowhere.
+next sweep. Local expiry cannot make an unread bank outcome safe to replace.
 
 Every transition writes a `PaymentEvent` with the verbatim provider payload.
 That table is append-only and is how a disagreement with the bank gets settled.
@@ -198,10 +216,12 @@ seats still free (`sellLate`), or — when they were sold meanwhile — refunded
 in full, claim-first, and the buyer told (decided 9 October 2026). A refused
 refund reopens the claim for the next sweep. Invoices follow the same rule:
 captured pays them, unless a newer plan change had voided them, in which case
-the payment is refunded. An invoice whose payment ended without money moving
-(`FAILED`, `CANCELLED`, `EXPIRED`) is still owed: a retry starts its next
-payment under a key derived from the spent one, and the invoice is linked even
-to an attempt the bank refused, so concurrent retries share one new payment.
+the payment is refunded. Settlement examines all purchase-associated captured
+attempts, including one a newer active pointer replaced. One capture wins the
+purchase; additional captures are compensated with claim-first refunds. An
+invoice remains owed after a definite failed/cancelled payment; concurrent
+retries share one replacement under a key derived from that resolved attempt.
+Expiry or an ambiguous registration alone never authorizes a fresh charge.
 
 **Every reconciliation is followed by settlement.** `MoneySweepService`
 reconciles, then settles captured ticket orders and invoices — the customers
@@ -240,10 +260,12 @@ its period ending at that moment. A partial refund changes nothing. Billing
 learns of it through a refund listener on `PaymentsService`, since billing
 depends on payments and not the reverse.
 
-**A checkout that fails after its order exists expires the order**,
-claim-first, which returns its seats once. Releasing them beside a `RESERVED`
-order let the sweep return them again, and a later buyer's payment failed to
-commit.
+**A checkout failure does not discard an uncertain payment.** Once a durable
+attempt exists, the order/attempt association remains available for recovery;
+an ambiguous registration does not release its purchase merely because the
+request failed. Ordinary hold expiry still uses the claim-first release and
+late-fulfilment/refund policy above. Releasing seats beside an unchanged
+`RESERVED` order would let a later sweep return them twice.
 
 **Confirmation emails cannot be lost.** They are queued after settlement with
 a dedupe key; a retried settlement queues again (a no-op if it exists), and a
@@ -253,9 +275,71 @@ stays eligible all week, so the sweep does not start from the top each run: it
 takes the batch after the last one and starts over when it reaches the end. A
 full batch of failing orders cannot keep every other buyer waiting.
 
+**Subscription confirmation is a non-tax message.** A paid invoice retains
+the initiating account ID and request language captured at issue. Aveline sends
+`subscription.paid` only to that account while active and email-verified,
+including when the initiator is a platform administrator. There is no
+current-owner fallback and no historical-recipient backfill. The message uses
+captured invoice descriptions/amounts, states that it is not a tax invoice and
+links to the authenticated billing page; it contains no provider reference,
+payment order number or capability link. English, Armenian and Russian copy is
+seeded; French requests use English.
+
+Settlement commits independently of mail. Transactional outbox enqueue uses
+`subscription-paid:<invoiceId>`; a bounded rotating sweep recovers missing
+messages. Dispatch checks that the invoice is still paid and the original
+recipient context/address is valid. Account erasure shares the recipient lock,
+clears that context and redacts/stops the mail while preserving financial
+totals. Dedupe prevents another logical message; SMTP remains at-least-once if
+the process dies after provider acceptance. A database restore does not roll
+back messages already accepted externally.
+
 These are covered by `test/integration/transaction-safety.int-spec.ts` and
 `ticket-settlement.int-spec.ts`, which run the concurrent cases rather than
 reasoning about them.
+
+### Registration recovery
+
+This is a host-only operator action, not a public or staff HTTP endpoint. First
+obtain authoritative bank evidence for the original order reference. An active
+email-verified `ADMIN` must be named. Run the built release's tool with its
+protected application environment; from a source checkout the equivalent entry
+point is `npx ts-node src/payment-recovery.ts`.
+
+```bash
+node dist/payment-recovery.js --actor-user-id ADMIN_ID --order-number ORIGINAL_ORDER --action attach-reference --provider-ref BANK_REFERENCE --reason 'Bank reference recovered' --evidence-ref BANK_CASE_REFERENCE
+```
+
+If a legacy purchase association is absent, also supply exactly one of
+`--invoice-id VERIFIED_INVOICE_ID` or `--ticket-order-id VERIFIED_ORDER_ID`.
+Purpose, organization, amount, currency and ticket event must match; an existing
+association cannot be changed to a different purchase. Reference attachment
+keeps an already captured legacy payment captured; otherwise it returns the
+attempt to pending for ordinary bank confirmation. It never declares a new
+capture, grants access or refunds money by itself.
+
+Only when bank evidence proves that **no payable registration exists**, use
+`--action no-registration` without `--provider-ref` or purchase flags. That
+records a definite failure and makes the original claim eligible for retry.
+It is refused when a bank reference or capture already exists. Both actions
+require an uncertainty marker and append a transactional `MANUAL` PaymentEvent
+with actor, reason and evidence reference. Keep evidence references concise;
+never put credentials, callback URLs or raw bank payloads in them. The command
+does not contact the bank. Run ordinary confirmation/reconciliation and verify
+purchase settlement after recovering a reference.
+
+The launch migrations backfill only exact, financially matching legacy
+associations, including unambiguous invoice retry chains. Ambiguous/orphaned
+attempts retain uncertainty for review; historical financial statuses are not
+rewritten just to permit retries. A unique `(provider, providerRef)` constraint
+prevents one bank order belonging to two attempts. Its forward migration aborts
+on duplicate non-null legacy references: reconcile against bank evidence before
+retrying, without deleting or guessing which financial record should survive.
+Reader floor **4** excludes earlier writers:
+stop all APIs, schedulers, workers and maintenance writers before migration,
+then start only compatible images. A pre-floor process that already started
+does not stop merely because the floor was raised. See
+[Deployment](../backend/docs/DEPLOYMENT.md) for the maintenance/rollback boundary.
 
 ## 4. Sandboxes
 

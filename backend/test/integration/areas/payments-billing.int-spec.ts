@@ -13,7 +13,7 @@ import { SubscriptionsService } from '../../../src/modules/billing/subscriptions
 import { PaymentGatewayRegistry } from '../../../src/modules/payments/payment-gateway.registry';
 import { PaymentsService } from '../../../src/modules/payments/payments.service';
 import { FakeGateway } from '../../../src/modules/payments/providers/fake.gateway';
-import type { ProviderStatus } from '../../../src/modules/payments/providers/payment-provider';
+import { BankDeclinedError, ProviderStatus } from '../../../src/modules/payments/providers/payment-provider';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { seedEvent } from '../../fixtures/event.fixture';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma } from '../../setup/test-database';
@@ -94,13 +94,13 @@ describe('payments and billing, the remaining properties (integration)', () => {
 
   describe('a registration the bank refuses', () => {
     it('rejects, and records the payment FAILED with the reason', async () => {
-      jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new Error('bank unreachable'));
+      jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new BankDeclinedError('bank refused registration'));
       const dto = startDto({ idempotencyKey: 'refused-once' });
 
-      await expect(payments.start(dto)).rejects.toThrow('bank unreachable');
+      await expect(payments.start(dto)).rejects.toThrow('bank refused registration');
 
       const payment = await prisma.payment.findUniqueOrThrow({ where: { idempotencyKey: 'refused-once' } });
-      expect(payment).toMatchObject({ status: PaymentStatus.FAILED, failureReason: 'bank unreachable', redirectUrl: null, providerRef: null });
+      expect(payment).toMatchObject({ status: PaymentStatus.FAILED, failureReason: 'bank refused registration', redirectUrl: null, providerRef: null });
       const events = await eventsOf(payment.id);
       expect(events.map((event) => [event.fromStatus, event.toStatus, event.source])).toEqual([
         [PaymentStatus.CREATED, PaymentStatus.FAILED, PaymentEventSource.API],
@@ -109,11 +109,11 @@ describe('payments and billing, the remaining properties (integration)', () => {
 
     it('rejects a paid subscribe whose registration fails', async () => {
       await plan('managed', 25_000n);
-      jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new Error('bank unreachable'));
+      jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new BankDeclinedError('bank refused registration'));
 
       await expect(
         subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE }),
-      ).rejects.toThrow('bank unreachable');
+      ).rejects.toThrow('bank refused registration');
 
       const payment = await prisma.payment.findFirstOrThrow({ where: { organizationId } });
       expect(payment).toMatchObject({ purpose: PaymentPurpose.SUBSCRIPTION, status: PaymentStatus.FAILED });
@@ -122,10 +122,10 @@ describe('payments and billing, the remaining properties (integration)', () => {
 
     it('answers a retried paid subscribe with a payable payment after the bank refused registration', async () => {
       await plan('managed', 25_000n);
-      jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new Error('bank unreachable'));
+      jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new BankDeclinedError('bank refused registration'));
       await expect(
         subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE }),
-      ).rejects.toThrow('bank unreachable');
+      ).rejects.toThrow('bank refused registration');
 
       const retried = await subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
 
@@ -137,10 +137,10 @@ describe('payments and billing, the remaining properties (integration)', () => {
       await plan('managed', 25_000n);
       const subscribe = () => subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
       jest.spyOn(fake, 'registerOrder')
-        .mockRejectedValueOnce(new Error('bank unreachable'))
-        .mockRejectedValueOnce(new Error('bank unreachable'));
-      await expect(subscribe()).rejects.toThrow('bank unreachable');
-      await expect(subscribe()).rejects.toThrow('bank unreachable');
+        .mockRejectedValueOnce(new BankDeclinedError('bank refused registration'))
+        .mockRejectedValueOnce(new BankDeclinedError('bank refused registration'));
+      await expect(subscribe()).rejects.toThrow('bank refused registration');
+      await expect(subscribe()).rejects.toThrow('bank refused registration');
 
       const retried = await subscribe();
       const again = await subscribe();
@@ -151,7 +151,7 @@ describe('payments and billing, the remaining properties (integration)', () => {
       expect(await prisma.payment.count({ where: { organizationId } })).toBe(3);
     });
 
-    it('starts a fresh payment for the open invoice once its payment expired at the bank', async () => {
+    it('retains the same bank payment for an open invoice beyond its local deadline', async () => {
       await plan('managed', 25_000n);
       const first = await subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
       await prisma.payment.update({ where: { orderNumber: first.payment!.orderNumber }, data: { expiresAt: new Date(Date.now() - 1000) } });
@@ -161,15 +161,16 @@ describe('payments and billing, the remaining properties (integration)', () => {
 
       expect(retried.invoice!.number).toBe(first.invoice!.number);
       expect(retried.payment).toMatchObject({ status: PaymentStatus.PENDING, redirectUrl: expect.any(String) });
-      expect(retried.payment!.orderNumber).not.toBe(first.payment!.orderNumber);
+      expect(retried.payment!.orderNumber).toBe(first.payment!.orderNumber);
     });
 
-    it('gives concurrent retries after a spent payment one new payment between them', async () => {
+    it('gives concurrent retries after a definite bank refusal one new payment between them', async () => {
       await plan('managed', 25_000n);
       const subscribe = () => subscriptions.subscribe(organizationId, { planKey: 'managed', provider: PaymentProvider.FAKE });
       const first = await subscribe();
-      await prisma.payment.update({ where: { orderNumber: first.payment!.orderNumber }, data: { expiresAt: new Date(Date.now() - 1000) } });
-      await payments.reconcile();
+      const original = await prisma.payment.findUniqueOrThrow({ where: { orderNumber: first.payment!.orderNumber } });
+      fake.simulate(original.providerRef!, { kind: 'failed', reason: 'declined at the bank' });
+      await payments.confirm(original.orderNumber, PaymentEventSource.RECONCILIATION);
 
       const retries = await Promise.all([subscribe(), subscribe(), subscribe()]);
 
@@ -283,17 +284,18 @@ describe('payments and billing, the remaining properties (integration)', () => {
       await expect(slow).resolves.toMatchObject({ orderNumber: row.orderNumber, status: PaymentStatus.CAPTURED });
     });
 
-    it('still refuses when the bank reports a capture for a payment expired meanwhile', async () => {
+    it('recovers a legacy local expiry when the bank reports capture meanwhile', async () => {
       const row = await paidAtTheBank();
       const held = holdNextStatusCall();
 
       const slow = payments.confirm(row.orderNumber, PaymentEventSource.API);
       await held.isReached;
-      // The sweep asked a moment earlier, heard "unpaid", and wrote it off on the clock.
+      // A legacy writer expired the registered order while confirmation was in flight.
       await prisma.payment.update({ where: { id: row.id }, data: { status: PaymentStatus.EXPIRED } });
       held.release();
 
-      await expect(slow).rejects.toThrow('Cannot move a payment from EXPIRED to CAPTURED');
+      await expect(slow).resolves.toMatchObject({ status: PaymentStatus.CAPTURED });
+      expect(await prisma.paymentEvent.count({ where: { paymentId: row.id, fromStatus: PaymentStatus.EXPIRED, toStatus: PaymentStatus.CAPTURED } })).toBe(1);
     });
 
     /**

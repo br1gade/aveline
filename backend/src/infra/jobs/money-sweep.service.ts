@@ -53,6 +53,7 @@ export class MoneySweepService {
         if (result.released > 0) this.logger.log(`tickets: released ${result.released} holds`);
         // A confirmation that failed to queue when the order settled.
         await this.ticketing.sendMissingNotices();
+        await this.subscriptions.sendMissingPaymentNotices();
       },
     );
   }

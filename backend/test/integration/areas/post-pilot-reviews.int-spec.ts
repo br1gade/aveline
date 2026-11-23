@@ -117,7 +117,7 @@ describe('organization closure reviews (integration coverage)', () => {
     it('refuses a stale review revision and changes nothing', async () => {
       const { organizationId, admin, reviewId } = await openReview();
       const before = await roles(organizationId);
-      await expect(reviews.resolve(admin, reviewId, { decision: 'CLOSE', expectedRevision: 99 })).rejects.toMatchObject({ status: 409, message: 'expectedRevision: organization revision changed' });
+      await expect(reviews.resolve(admin, reviewId, { decision: 'CLOSE', expectedRevision: 99 })).rejects.toMatchObject({ status: 409, message: 'expectedRevision: review revision changed' });
       expect((await prisma.organizationAccessReview.findUniqueOrThrow({ where: { id: reviewId } })).status).toBe('OPEN');
       expect(await roles(organizationId)).toEqual(before);
       expect((await prisma.organization.findUniqueOrThrow({ where: { id: organizationId } })).deletedAt).toBeNull();

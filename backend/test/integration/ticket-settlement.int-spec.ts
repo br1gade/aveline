@@ -97,6 +97,18 @@ describe('ticket settlement (integration)', () => {
     return { sold: type.quantitySold, reserved: type.quantityReserved };
   };
 
+  it('quarantines a captured legacy pointer without a durable ticket-order association', async () => {
+    const { slug, ticketTypeId } = await onSale(2);
+    const created = await buy(slug, ticketTypeId, 1);
+    const { payment } = await paysAtTheBank(created.orderId);
+    await prisma.payment.update({ where: { id: payment.id }, data: { ticketOrderId: null } });
+    await payments.confirm(payment.orderNumber, 'RECONCILIATION');
+    await expect(ticketing.confirmOrder(created.accessToken)).rejects.toThrow('verified purchase association');
+    await ticketing.settleCapturedPayments();
+    expect(await prisma.ticket.count({ where: { orderId: created.orderId } })).toBe(0);
+    expect((await prisma.ticketOrder.findUniqueOrThrow({ where: { id: created.orderId } })).status).toBe(TicketOrderStatus.RESERVED);
+  });
+
   it('rejects a pilot charge without consuming inventory or creating an order', async () => {
     const { slug, ticketTypeId } = await onSale(10);
     const previous = process.env.PILOT_MODE;
@@ -297,7 +309,7 @@ describe('ticket settlement (integration)', () => {
       const { slug, ticketTypeId } = await onSale(2);
       jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new Error('bank unreachable'));
 
-      await expect(buy(slug, ticketTypeId, 2)).rejects.toThrow(/bank unreachable/);
+      await expect(buy(slug, ticketTypeId, 2)).rejects.toThrow('outcome is unknown');
       await ticketing.releaseExpiredReservations();
 
       expect(await sold(ticketTypeId)).toEqual({ sold: 0, reserved: 0 });

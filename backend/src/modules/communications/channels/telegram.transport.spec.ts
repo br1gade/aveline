@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { TelegramSettings, TelegramTransport } from './telegram.transport';
 
 const settings: TelegramSettings = { botToken: 'test-token', apiBaseUrl: 'https://api.test' };
@@ -32,6 +33,17 @@ function fakeFetch(reply: Record<string, unknown>, status = 200) {
 const message = { toAddress: '123456789', body: 'Բարև', locale: 'hy' };
 
 describe('TelegramTransport', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('logs delivery without the recipient, bot credential or message text', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const { impl } = fakeFetch({ ok: true, result: { message_id: 42 } });
+    await new TelegramTransport(settings, impl).send({ ...message, messageId: 'message-1' });
+    const output = JSON.stringify(log.mock.calls);
+    expect(output).toContain('message-1');
+    for (const privateValue of [message.toAddress, settings.botToken, message.body]) expect(output).not.toContain(privateValue);
+  });
+
   it('posts the text to the chat id', async () => {
     const { impl, calls } = fakeFetch({ ok: true, result: { message_id: 42 } });
 

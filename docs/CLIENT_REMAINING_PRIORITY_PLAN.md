@@ -58,7 +58,7 @@ Verify boundary-size cases, localized recovery, retries and exhaustion, access r
 
 The backend changes include focused regressions, the shared API and access contract, gallery/export runbooks and generated OpenAPI. Arthur owns the gallery toggle UI and disabled state. Carry `galleryUploadsEnabled` through the personal invitation reader and preserve photo reads and removal. Handle `GALLERY_UPLOADS_DISABLED` if the host turns uploads off while a guest has the page open. The export history should use `failureReason` and localized `recovery`, including removing the unchanged retry action for permanent size or access failures. Run the full local CI gate before promotion and rehearse both flows with Arthur against the same staging release before sign-off.
 
-Paid launch stays on its separate [acceptance track](TODO.md#pp1--paid-launch-readiness-and-invoice-tax-f35). Late-payment reconciliation can be designed separately around the original payment attempt, duplicate-charge prevention and verified bank status. Provider behavior and fiscal invoice implementation depend on the selected bank and approved accounting rules.
+Paid launch stays on its separate [acceptance track](TODO.md#pp1--paid-launch-readiness-and-invoice-tax-f35). The backend now retains every verified payment attempt, blocks replacement while registration is uncertain, and settles late captures or refunds duplicates through verified bank status. Provider acceptance and fiscal invoice implementation depend on the selected bank and approved accounting rules.
 
 ## 3. Localized invitation and brief data
 
@@ -95,5 +95,8 @@ filters are in place before pagination. FR-46 and FR-59 are implemented in the
 backend and await client adoption and staging acceptance. FR-92's listing card
 fields are implemented and await client adoption, as are FR-96's translated side
 labels and FR-104's brief language. FR-99 is implemented in full, its paged list
-included. Payment metadata, staff pagination and access
-review context remain open. Frontend adoption follows the handoff for each slice.
+included. FR-127 staff pagination and FR-133 access-review context are implemented
+in the backend as of 23 November 2026; client adoption and staging acceptance
+remain open. FR-110(a–c) now has localized display metadata, documented captured
+line fields and paged invoice history. Payment availability metadata (FR-64 and
+FR-109) remains open. Frontend adoption follows the handoff for each slice.

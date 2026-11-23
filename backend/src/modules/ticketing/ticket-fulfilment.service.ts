@@ -55,7 +55,7 @@ export class TicketFulfilmentService {
     }
   }
 
-  async markPaid(orderId: string) {
+  async markPaid(orderId: string, orderNumber?: string) {
     const order = await this.prisma.ticketOrder.findUniqueOrThrow({
       where: { id: orderId },
       include: SETTLED_ORDER,
@@ -87,7 +87,7 @@ export class TicketFulfilmentService {
       await lockAttendancePolicy(tx, order.eventId);
       const claimed = await tx.ticketOrder.updateMany({
         where: { id: orderId, status: TicketOrderStatus.RESERVED },
-        data: { status: TicketOrderStatus.PAID, reservesUntil: null },
+        data: { status: TicketOrderStatus.PAID, reservesUntil: null, paymentOrderNumber: orderNumber },
       });
       if (claimed.count === 0) return;
 
@@ -189,7 +189,7 @@ export class TicketFulfilmentService {
    * if not). One transaction, claim first: the claim matches only an EXPIRED
    * order, so two settlements of one late payment issue one set.
    */
-  async issueLate(orderId: string): Promise<'ISSUED' | 'SOLD_OUT' | 'BUYER_LIMIT' | 'NOT_EXPIRED'> {
+  async issueLate(orderId: string, orderNumber?: string): Promise<'ISSUED' | 'SOLD_OUT' | 'BUYER_LIMIT' | 'NOT_EXPIRED'> {
     const order = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, include: SETTLED_ORDER });
 
     try {
@@ -197,7 +197,7 @@ export class TicketFulfilmentService {
         await lockAttendancePolicy(tx, order.eventId);
         const claimed = await tx.ticketOrder.updateMany({
           where: { id: orderId, status: TicketOrderStatus.EXPIRED },
-          data: { status: TicketOrderStatus.PAID },
+          data: { status: TicketOrderStatus.PAID, paymentOrderNumber: orderNumber },
         });
         if (claimed.count === 0) return 'NOT_EXPIRED' as const;
         const buyer = await tx.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, select: { buyerEmail: true } });
@@ -229,10 +229,10 @@ export class TicketFulfilmentService {
    * Claims a late, sold-out order for refunding: EXPIRED to REFUNDED, once.
    * Returns false if another settlement got there first.
    */
-  async claimLateRefund(orderId: string): Promise<boolean> {
+  async claimLateRefund(orderId: string, orderNumber?: string): Promise<boolean> {
     const claimed = await this.prisma.ticketOrder.updateMany({
       where: { id: orderId, status: TicketOrderStatus.EXPIRED },
-      data: { status: TicketOrderStatus.REFUNDED },
+      data: { status: TicketOrderStatus.REFUNDED, paymentOrderNumber: orderNumber },
     });
     return claimed.count === 1;
   }

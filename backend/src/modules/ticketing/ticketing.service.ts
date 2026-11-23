@@ -11,6 +11,7 @@ import {
   EventStatus,
   PaymentPurpose,
   Prisma,
+  TicketOrder,
   TicketOrderStatus,
   TicketStatus,
 } from '@prisma/client';
@@ -173,7 +174,7 @@ export class TicketingService {
       return { ...this.describeBuyerOrder(order), payment };
     }
 
-    await this.settleCaptured(order.id);
+    await this.settleCaptured(order.id, order.paymentOrderNumber);
     return this.findByAccessToken(accessToken);
   }
 
@@ -183,46 +184,68 @@ export class TicketingService {
    * back to tell us. Run after each reconciliation sweep.
    */
   async settleCapturedPayments(limit = 50): Promise<{ settled: number }> {
-    const orders = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT o.id FROM ticket_orders o
-        JOIN payments p ON p."orderNumber" = o."paymentOrderNumber"
-       WHERE o.status IN ('RESERVED', 'EXPIRED') AND p.status = 'CAPTURED'
-       ORDER BY o."createdAt" ASC
+    const attempts = await this.prisma.$queryRaw<{ id: string; orderId: string; orderNumber: string }[]>`
+      SELECT p.id, o.id AS "orderId", p."orderNumber" FROM payments p
+        JOIN ticket_orders o ON p."ticketOrderId" = o.id
+        JOIN events e ON e.id = o."eventId"
+       WHERE p.status = 'CAPTURED' AND p."outcomeUnknownAt" IS NULL
+         AND p.purpose = 'TICKET' AND p."organizationId" = e."organizationId"
+         AND p."eventId" = o."eventId" AND p."amountMinor" = o."totalMinor" AND p.currency = o.currency AND
+         (o.status IN ('RESERVED', 'EXPIRED') OR o."paymentOrderNumber" IS DISTINCT FROM p."orderNumber")
+       ORDER BY p."lastCheckedAt" ASC NULLS FIRST, p."createdAt" ASC, p.id ASC
        LIMIT ${limit}`;
-
+    await this.prisma.payment.updateMany({ where: { id: { in: attempts.map((attempt) => attempt.id) } }, data: { lastCheckedAt: new Date() } });
     let settled = 0;
-    for (const order of orders) {
+    for (const attempt of attempts) {
       try {
-        await this.settleCaptured(order.id);
+        await this.settleCaptured(attempt.orderId, attempt.orderNumber);
         settled += 1;
       } catch (error) {
-        this.logger.warn(`could not settle order ${order.id}: ${describeError(error)}`);
+        this.logger.warn(`could not settle order ${attempt.orderId}: ${describeError(error)}`);
       }
     }
     return { settled };
   }
 
-  /**
-   * Turns a captured payment into tickets — or, when its hold had lapsed and
-   * the seats were sold meanwhile, into a full refund the buyer is told about.
-   */
-  private async settleCaptured(orderId: string): Promise<void> {
-    const order = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
+  /** A captured attempt wins one order, or is compensated without reissuing tickets. */
+  private async settleCaptured(orderId: string, orderNumber: string): Promise<void> {
+    let order: TicketOrder = await this.loadCapturedOrder(orderId, orderNumber);
     if (order.status === TicketOrderStatus.RESERVED) {
-      await this.fulfilment.markPaid(orderId);
+      await this.fulfilment.markPaid(orderId, orderNumber);
+      order = await this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId } });
+    }
+    if (order.status === TicketOrderStatus.PAID && order.paymentOrderNumber === orderNumber) return;
+    if (order.status !== TicketOrderStatus.EXPIRED) {
+      await this.payments.refundRemaining(orderNumber, 'Additional capture for an already-settled ticket order');
       return;
     }
-    if (order.status !== TicketOrderStatus.EXPIRED) return;
-
-    const outcome = await this.fulfilment.issueLate(orderId);
+    const outcome = await this.fulfilment.issueLate(orderId, orderNumber);
     if (outcome === 'SOLD_OUT' || outcome === 'BUYER_LIMIT') {
-      await this.refundLate(order, outcome === 'BUYER_LIMIT' ? 'buyer ticket limit reached' : 'sold out meanwhile');
+      await this.refundLate({ ...order, paymentOrderNumber: orderNumber }, outcome === 'BUYER_LIMIT' ? 'buyer ticket limit reached' : 'sold out meanwhile');
+    } else if (outcome === 'NOT_EXPIRED') {
+      await this.settleCaptured(orderId, orderNumber);
     }
+  }
+
+  private async loadCapturedOrder(orderId: string, orderNumber: string) {
+    const [order, payment] = await Promise.all([
+      this.prisma.ticketOrder.findUniqueOrThrow({ where: { id: orderId }, include: { event: { select: { organizationId: true } } } }),
+      this.prisma.payment.findUnique({ where: { orderNumber } }),
+    ]);
+    const message = 'Captured payment needs a verified purchase association';
+    if (!payment || payment.status !== 'CAPTURED' || payment.outcomeUnknownAt || payment.ticketOrderId !== order.id) {
+      throw new ConflictException(message);
+    }
+    if (payment.purpose !== PaymentPurpose.TICKET || payment.organizationId !== order.event.organizationId ||
+        payment.eventId !== order.eventId || payment.amountMinor !== order.totalMinor || payment.currency !== order.currency) {
+      throw new ConflictException(message);
+    }
+    return order;
   }
 
   /** Claim first, then the bank; a refused refund reopens the claim for the next sweep. */
   private async refundLate(order: { id: string; paymentOrderNumber: string | null; totalMinor: bigint }, reason: string): Promise<void> {
-    if (!order.paymentOrderNumber || !(await this.fulfilment.claimLateRefund(order.id))) return;
+    if (!order.paymentOrderNumber || !(await this.fulfilment.claimLateRefund(order.id, order.paymentOrderNumber))) return;
 
     try {
       await this.payments.refund(order.paymentOrderNumber, order.totalMinor, `Paid after the hold lapsed; ${reason}`);
@@ -272,7 +295,7 @@ export class TicketingService {
   private async settleIfPaid(order: { id: string; paymentOrderNumber: string | null }): Promise<boolean> {
     try {
       const payment = await this.payments.confirm(order.paymentOrderNumber!, 'RECONCILIATION');
-      if (payment.status === 'CAPTURED') await this.fulfilment.markPaid(order.id);
+      if (payment.status === 'CAPTURED') await this.settleCaptured(order.id, order.paymentOrderNumber!);
       return true;
     } catch (error) {
       this.logger.warn(`could not settle lapsed order ${order.id}: ${describeError(error)}`);
@@ -392,12 +415,7 @@ export class TicketingService {
       description: `Tickets for ${event.id}`,
       locale: order.locale,
       idempotencyKey: `order-${order.id}`,
-    });
-
-    await this.prisma.ticketOrder.update({
-      where: { id: order.id },
-      data: { paymentOrderNumber: payment.orderNumber },
-    });
+    }, { ticketOrderId: order.id });
 
     return { ...this.describe(order), payment };
   }

@@ -239,6 +239,13 @@ The other commercial/resource/logistics features remain planned.
 - [x] Validate local provider registration before issuing/replacing subscription
   invoices; preserve payable invoices and numbering on refusal. Verified 25 October;
   this does not certify a bank or implement tax. See the delivery plan for evidence.
+- [x] Retain durable payment attempts before bank I/O, quarantine uncertain
+  registrations, reconcile late captures, refund duplicate captures and provide
+  audited administrator recovery. Preserve paid-plan behavior across refund and
+  settlement races, including partial refunds. Backend implemented 23 November.
+- [x] Add original-initiator non-tax payment confirmation email with outbox
+  recovery and privacy fencing; localized billing display and paged invoice
+  history are built. Client adoption and printing remain separate acceptance.
 - [ ] Choose the bank/provider; obtain the actual integration specification,
   merchant/sandbox access and required certification before enabling live charges.
 - [ ] Verify amounts/status mappings, payment/refund/reconciliation behavior and

@@ -1,6 +1,7 @@
 # Dependencies
 
-What is current, what is held back, and why. Checked 8 October 2026.
+What is current, what is held back, and why. Baseline reviewed 8 October 2026;
+payment/mail launch dependency updates recorded 23 November 2026.
 
 A pin with no stated reason gets removed by the next person who runs
 `npm outdated`, discovers the breakage themselves, and reverts. So each one
@@ -18,9 +19,10 @@ below says what blocks it and what would unblock it.
 | Prisma | 6.19.3 | Runtime dependency: the release image runs its own pinned migration CLI; see §2 |
 | ESLint | 10.12.0 | Needed `@eslint/js` as a direct dependency; 10 no longer provides it transitively |
 | Jest | 30.5.2 | |
-| nodemailer | 10.0.16 | Upgraded for two high-severity advisories, one of them SMTP command injection |
+| nodemailer | 10.1.4 | Launch mail update; recipients are validated before transport and send errors retain the existing controlled retry path |
+| body-parser | 2.4.0 | Lockfile resolution through the existing Express dependency; no application parser override or module-system migration |
 | sharp | 0.35.5 | Photo resizing. Ships prebuilt binaries for the Alpine image (`@img/sharp-linuxmusl-*`), so no build tools are needed in Docker |
-| everything else | latest | |
+| Other packages | See `package-lock.json` | Check the release tree; the older baseline is not a claim that every package is current |
 
 ## 2. Held back, with reasons
 
@@ -78,17 +80,26 @@ version the test runner supports.
 **To unblock:** a ts-jest release that supports TypeScript 7, or moving the
 test runner to `@swc/jest` or Vitest.
 
-## 3. Advisories accepted, not fixed
+## 3. Current advisory review
 
-`npm audit --omit=dev` reports five, all reached through two packages:
+The 23 November launch-tree `npm audit --omit=dev` reports **14 affected package
+entries: six high and eight moderate, none critical**. This counts dependency
+paths as well as their underlying advisories, not fourteen proven application
+exploits. The earlier five-entry acceptance list is historical, not a blanket
+acceptance of this result. Nodemailer and body-parser are absent from this
+remaining report after the updates above.
 
-| Advisory | Why it is accepted |
+| Remaining dependency path | Current reachability / work |
 |---|---|
-| `prisma` → `@prisma/config` → `deepmerge-ts` (high, stack exhaustion) | Reached only when parsing a Prisma config file, which is ours and not user input. Fixed by Prisma 7 — see §2 |
-| `@nestjs/swagger` → `js-yaml` (moderate, CPU) | Swagger is disabled in production (`main.ts`), so the code is unreachable there |
+| Prisma → `@prisma/config` → `deepmerge-ts`, `effect` (high) | Configuration tooling remains in the release for migrations; repository-owned configuration is not HTTP input. Prisma 7 is the offered major-version remedy and still needs the separate adapter migration in §2 |
+| Nest Express → `multer` (high) | Upload middleware is used by the application. The reported condition involves pending asynchronous `fileFilter` work; no asynchronous application `fileFilter` is configured. The dependency remains reported and needs a scoped compatibility/reachability decision; it is not silently accepted here |
+| Nest Swagger → `js-yaml` (moderate) | Swagger setup is disabled in production by `application.ts`; documentation/build paths remain separately relevant |
+| Sentry → bundler plugins → `glob` / `minimatch` (moderate) | Bundler/tooling paths are present in the production dependency tree. No claim of HTTP exploitability or completed upgrade is made |
+| `fast-uri` (moderate) | Reached through AJV/schema tooling; review the exact production import/input path before deciding acceptance or a compatible dependency update |
 
-Both should be re-checked when either migration in §2 is taken on. Neither is
-reachable by a request.
+Re-run the audit on the final release lockfile. Remaining entries are dependency
+review work, separate from hosting credentials and provider acceptance; a clean
+mail/parser update does not make this full report clean.
 
 ## 4. What changing TypeScript majors cost here
 

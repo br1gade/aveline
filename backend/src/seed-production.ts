@@ -32,6 +32,7 @@
  */
 import { BlockType, BillingInterval, PlanTier, PrismaClient } from '@prisma/client';
 import { syncPlatformCopy } from './seed/message-copy-sync';
+import { seedBillingDisplay } from './seed/billing-display-sync';
 
 const prisma = new PrismaClient();
 
@@ -231,6 +232,7 @@ async function main() {
   // Fills in only: copy edited in production is an operator's decision.
   const copy = await syncPlatformCopy(prisma, 'fill');
   const plans = await seedPlans();
+  await seedBillingDisplay(prisma);
   const series = await seedInvoiceCounter();
 
   console.log(`design templates: ${templates} ensured`);

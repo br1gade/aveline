@@ -578,7 +578,9 @@ describe('Payments and billing over HTTP (e2e)', () => {
       const { authorization } = await owner();
       await plan('managed', 25_000n);
       await http().post('/api/v1/subscription').set('Authorization', authorization).send({ planKey: 'managed', provider: 'FAKE' }).expect(201);
-      const expectedLines = [{ description: 'Plan managed (monthly)', planKey: 'managed', quantity: 1, unitPriceMinor: '25000', totalMinor: '25000' }];
+      const expectedLines = [{ description: 'Plan managed (monthly)', descriptionTranslations: {},
+        display: { description: 'Plan managed (monthly)', locale: null },
+        planKey: 'managed', quantity: 1, unitPriceMinor: '25000', totalMinor: '25000' }];
 
       const { body: listed } = await http().get('/api/v1/invoices').set('Authorization', authorization).expect(200);
       expect(listed[0]).toMatchObject({ subtotalMinor: '25000', taxMinor: '0', totalMinor: '25000', currency: 'AMD' });

@@ -22,13 +22,9 @@ import { StartPaymentDto } from './dto/start-payment.dto';
 import { FakeBankOutcome } from './dto/fake-bank-answer.dto';
 import { FakeGateway } from './providers/fake.gateway';
 import { assertChargesEnabled } from './pilot-payments';
-import { isRecordNotFound, isUniqueViolation } from '../../common/prisma-errors';
-
-/** How long a registered-but-unpaid order stays payable before expiry. */
-const ORDER_LIFETIME_MS = 60 * 60 * 1000;
-
-/** States in which an overdue payment is written off: the bank holds no money for it. */
-const UNPAID_STATUSES: readonly string[] = [PaymentStatus.CREATED, PaymentStatus.PENDING];
+import { isRecordNotFound } from '../../common/prisma-errors';
+import { canRecoverPayment, claimPayment, PaymentAssociation } from './payment-claim';
+import { hasMissingPurchase } from './payment-association';
 
 /** What the bank reports when it holds the payer's money. */
 const MONEY_HELD_STATUSES: readonly PaymentStatus[] = [PaymentStatus.AUTHORIZED, PaymentStatus.CAPTURED];
@@ -79,82 +75,60 @@ export class PaymentsService {
    * than registering a second order. Networks retry and payers double-tap, so
    * this is the difference between one charge and two.
    */
-  async start(dto: StartPaymentDto) {
+  async start(dto: StartPaymentDto, association: PaymentAssociation = {}) {
     assertChargesEnabled();
-    const existing = await this.prisma.payment.findUnique({
-      where: { idempotencyKey: dto.idempotencyKey },
-    });
-    if (existing) return this.describe(await this.awaitRegistration(dto.idempotencyKey));
-
-    const gateway = this.gateways.get(dto.provider);
-    const orderNumber = `AVL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
-    const amountMinor = BigInt(dto.amountMinor);
-
-    const claim = await this.claimIdempotencyKey({
-        organizationId: dto.organizationId,
-        eventId: dto.eventId ?? null,
-        purpose: dto.purpose,
-        provider: dto.provider,
-        orderNumber,
-        amountMinor,
-        currency: dto.currency,
-        returnUrl: dto.returnUrl,
-        description: dto.description ?? null,
-        idempotencyKey: dto.idempotencyKey,
-        expiresAt: new Date(Date.now() + ORDER_LIFETIME_MS),
-    });
-
-    // Lost the race to an identical concurrent request. The winner is
-    // registering with the bank right now, so wait briefly for its result
-    // rather than registering a second order for the same key.
-    if (!claim.wasCreated) {
-      return this.describe(await this.awaitRegistration(dto.idempotencyKey));
+    if (!association.invoiceId && !association.ticketOrderId) {
+      const existing = await this.prisma.payment.findUnique({ where: { idempotencyKey: dto.idempotencyKey } });
+      if (existing) return this.describe(await this.awaitRegistration(dto.idempotencyKey));
     }
-
+    const gateway = this.gateways.get(dto.provider);
+    const claim = await claimPayment(this.prisma, dto, association);
+    if (!claim.wasCreated) return this.describe(await this.awaitRegistration(claim.payment.idempotencyKey));
     const payment = claim.payment;
-
+    const marked = await this.prisma.payment.updateMany({
+      where: { id: payment.id, status: PaymentStatus.CREATED, registrationStartedAt: null,
+        outcomeUnknownAt: null, expiresAt: { gt: new Date() } },
+      data: { registrationStartedAt: new Date() },
+    });
+    if (marked.count === 0) return this.findByOrderNumber(payment.orderNumber);
     try {
       const registered = await gateway.registerOrder({
-        orderNumber,
-        amountMinor,
-        currency: dto.currency,
-        returnUrl: dto.returnUrl,
-        description: dto.description,
-        locale: dto.locale,
+        orderNumber: payment.orderNumber, amountMinor: payment.amountMinor, currency: payment.currency,
+        returnUrl: payment.returnUrl ?? dto.returnUrl, description: dto.description, locale: dto.locale,
       });
-
-      return this.describe(
-        await this.applyTransition(payment.id, PaymentStatus.PENDING, PaymentEventSource.API, {
-          providerRef: registered.providerRef,
-          redirectUrl: registered.redirectUrl,
-        }),
-      );
+      return this.describe(await this.saveRegistration(payment.id, registered));
     } catch (error) {
-      await this.applyTransition(payment.id, PaymentStatus.FAILED, PaymentEventSource.API, {
-        failureReason: describeError(error),
-      });
-      throw error;
+      if (error instanceof BankDeclinedError) {
+        await this.applyTransition(payment.id, PaymentStatus.FAILED, PaymentEventSource.API, { failureReason: describeError(error) });
+        throw error;
+      }
+      await this.markUnknown(payment.id);
+      throw new BadGatewayException('Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment');
     }
   }
 
-  /**
-   * Inserts the payment, and reports whether this caller is the one that did.
-   *
-   * The insert IS the claim. The unique constraint on idempotencyKey is what
-   * holds under concurrency — a prior read cannot, because two callers can
-   * both read nothing. Whoever's insert succeeds owns the right to register
-   * with the bank; everyone else must not.
-   */
-  private async claimIdempotencyKey(data: Prisma.PaymentUncheckedCreateInput) {
-    try {
-      return { payment: await this.prisma.payment.create({ data }), wasCreated: true };
-    } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
-      const payment = await this.prisma.payment.findUniqueOrThrow({
-        where: { idempotencyKey: data.idempotencyKey },
-      });
-      return { payment, wasCreated: false };
+  /** A storage retry persists the same bank result; it never registers another order. */
+  private async saveRegistration(paymentId: string, registered: { providerRef: string; redirectUrl: string }) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const current = await this.prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
+        if (current.providerRef === registered.providerRef) return current;
+        return await this.applyTransition(paymentId, PaymentStatus.PENDING, PaymentEventSource.API, registered);
+      } catch (error) {
+        if (attempt === 1) throw error;
+      }
     }
+    throw new Error('Registration reference could not be stored');
+  }
+
+  private async markUnknown(paymentId: string): Promise<void> {
+    try {
+      await this.prisma.payment.updateMany({ where: { id: paymentId, status: { in: [PaymentStatus.CREATED, PaymentStatus.FAILED, PaymentStatus.EXPIRED] } },
+        data: { outcomeUnknownAt: new Date(), failureReason: 'Registration outcome unknown; operator reconciliation required' } });
+    } catch {
+      // The committed registration marker prevents another attempt even when storage is unavailable.
+    }
+    this.logger.error(`payment ${paymentId} registration outcome unknown; operator reconciliation required`);
   }
 
   /**
@@ -186,11 +160,12 @@ export class PaymentsService {
   async confirm(orderNumber: string, source: PaymentEventSource) {
     const payment = await this.prisma.payment.findUnique({ where: { orderNumber } });
     if (!payment) throw new NotFoundException(`No payment ${orderNumber}`);
-    if (isSettled(payment.status) || !payment.providerRef) return this.describe(payment);
+    if ((isSettled(payment.status) && !canRecoverPayment(payment)) || !payment.providerRef) return this.describe(payment);
 
     const status = await this.gateways.get(payment.provider).getStatus(payment.providerRef);
+    this.assertBankAmount(payment, status.outcome);
     const target = statusFor(status.outcome);
-    if (target === payment.status) return this.describe(payment);
+    if (target === payment.status && !canRecoverPayment(payment)) return this.describe(payment);
 
     try {
       return this.describe(
@@ -206,6 +181,13 @@ export class PaymentsService {
       const overtaken = await this.paymentThatOvertook(payment, target, error);
       if (!overtaken) throw error;
       return this.describe(overtaken);
+    }
+  }
+
+  private assertBankAmount(payment: { id: string; amountMinor: bigint }, outcome: ProviderOutcome): void {
+    if ((outcome.kind === 'captured' || outcome.kind === 'authorized') && outcome.amountMinor !== payment.amountMinor) {
+      this.logger.error(`payment ${payment.id}: bank amount does not match the purchase; operator reconciliation required`);
+      throw new BadGatewayException('Bank amount does not match this payment; operator reconciliation required');
     }
   }
 
@@ -249,6 +231,21 @@ export class PaymentsService {
       );
     }
     return this.refund(orderNumber, amountMinor, reason);
+  }
+
+  /** Compensation may be repeated by several sweep/callback callers, but its bank claim may not. */
+  async refundRemaining(orderNumber: string, reason: string) {
+    const payment = await this.prisma.payment.findUniqueOrThrow({ where: { orderNumber } });
+    const remaining = payment.amountMinor - payment.refundedMinor;
+    if (remaining === 0n) return this.describe(payment);
+    try {
+      return await this.refund(orderNumber, remaining, reason);
+    } catch (error) {
+      if (!(error instanceof ConflictException)) throw error;
+      const current = await this.prisma.payment.findUniqueOrThrow({ where: { orderNumber } });
+      if (current.refundedMinor !== current.amountMinor) throw error;
+      return this.describe(current);
+    }
   }
 
   /**
@@ -410,7 +407,6 @@ export class PaymentsService {
    * never completed, which is the worst failure this system has.
    */
   async reconcile(limit = 50): Promise<{ checked: number; changed: number }> {
-    const now = new Date();
     // Longest unasked first: oldest-first let fifty holds the bank kept
     // calling authorised fill every batch, so nothing newer was ever asked.
     // A CREATED row past its lifetime never reached the bank — a crash
@@ -419,18 +415,20 @@ export class PaymentsService {
       where: {
         OR: [
           { status: { in: [PaymentStatus.PENDING, PaymentStatus.AUTHORIZED] } },
-          { status: PaymentStatus.CREATED, expiresAt: { lt: now } },
+          { status: PaymentStatus.CREATED, expiresAt: { lt: new Date() } },
+          { status: PaymentStatus.EXPIRED, providerRef: { not: null } },
+          { outcomeUnknownAt: { not: null }, status: { in: [PaymentStatus.CREATED, PaymentStatus.FAILED] } },
         ],
       },
       orderBy: [{ lastCheckedAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }],
       take: limit,
-      select: { id: true, orderNumber: true, status: true, expiresAt: true },
+      select: { id: true, orderNumber: true, status: true, expiresAt: true, registrationStartedAt: true, providerRef: true },
     });
     // Stamped before asking, so a sweep that dies part-way does not start
     // with the same batch next time.
     await this.prisma.payment.updateMany({
       where: { id: { in: stale.map((payment) => payment.id) } },
-      data: { lastCheckedAt: now },
+      data: { lastCheckedAt: new Date() },
     });
 
     let changed = 0;
@@ -473,19 +471,33 @@ export class PaymentsService {
    * the bank still calls unpaid is expired; an authorised hold is money, and
    * waits for the bank to settle it.
    */
-  private async reconcileOne(payment: { id: string; orderNumber: string; status: PaymentStatus; expiresAt: Date | null }) {
+  private async reconcileOne(payment: { id: string; orderNumber: string; status: PaymentStatus; expiresAt: Date | null; registrationStartedAt: Date | null; providerRef: string | null }) {
     try {
       const result = await this.confirm(payment.orderNumber, PaymentEventSource.RECONCILIATION);
       const isOverdue = payment.expiresAt !== null && payment.expiresAt < new Date();
-      if (!isOverdue || !UNPAID_STATUSES.includes(result.status)) return result.status;
-
-      await this.applyTransition(payment.id, PaymentStatus.EXPIRED, PaymentEventSource.RECONCILIATION, {});
-      return PaymentStatus.EXPIRED;
+      if (!isOverdue || result.status !== PaymentStatus.CREATED) return result.status;
+      if (payment.registrationStartedAt || payment.providerRef) {
+        await this.markUnknown(payment.id);
+        return result.status;
+      }
+      return (await this.expireUnstarted(payment.id)).status;
     } catch (error) {
       // One unreachable bank must not stop the sweep for every other payment.
       this.logger.warn(`reconciliation failed for ${payment.orderNumber}: ${describeError(error)}`);
       return payment.status;
     }
+  }
+
+  /** Competes with the pre-call marker, so a suspended request cannot register an expired claim. */
+  private async expireUnstarted(paymentId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.payment.updateMany({ where: { id: paymentId, status: PaymentStatus.CREATED,
+        providerRef: null, registrationStartedAt: null, outcomeUnknownAt: null, expiresAt: { lt: new Date() } },
+      data: { status: PaymentStatus.EXPIRED } });
+      if (claimed.count > 0) await tx.paymentEvent.create({ data: { paymentId,
+        fromStatus: PaymentStatus.CREATED, toStatus: PaymentStatus.EXPIRED, source: PaymentEventSource.RECONCILIATION } });
+      return tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+    });
   }
 
   /**
@@ -502,7 +514,9 @@ export class PaymentsService {
   ) {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
-      assertTransition(current.status, to);
+      const isLateRegistration = Boolean(extra.providerRef && current.registrationStartedAt);
+      assertTransition(current.status, to, canRecoverPayment(current) || isLateRegistration);
+      const isUnmatchedCapture = to === PaymentStatus.CAPTURED && hasMissingPurchase(current);
 
       const updated = await tx.payment.update({
         // Conditioning on the status we read makes this a compare-and-set:
@@ -510,12 +524,9 @@ export class PaymentsService {
         where: { id: paymentId, status: current.status },
         data: {
           status: to,
-          ...(extra.providerRef ? { providerRef: extra.providerRef } : {}),
-          ...(extra.redirectUrl ? { redirectUrl: extra.redirectUrl } : {}),
-          ...(extra.failureReason ? { failureReason: extra.failureReason } : {}),
-          ...(extra.refundedMinor === undefined ? {} : { refundedMinor: extra.refundedMinor }),
-          ...(to === PaymentStatus.AUTHORIZED ? { authorizedAt: new Date() } : {}),
-          ...(to === PaymentStatus.CAPTURED ? { capturedAt: new Date() } : {}),
+          outcomeUnknownAt: isUnmatchedCapture ? new Date() : null,
+          failureReason: isUnmatchedCapture ? 'Captured payment needs a verified purchase association' : extra.failureReason ?? null,
+          ...bankFields(to, extra),
         },
       });
 
@@ -528,7 +539,7 @@ export class PaymentsService {
           payload: toJson(extra.raw),
         },
       });
-
+      if (isUnmatchedCapture) this.logger.error(`payment ${paymentId} captured without a verified purchase association; operator recovery required`);
       return updated;
     });
   }
@@ -555,6 +566,14 @@ export class PaymentsService {
       failureReason: payment.failureReason,
     };
   }
+}
+
+function bankFields(to: PaymentStatus, extra: { providerRef?: string; redirectUrl?: string; refundedMinor?: bigint }) {
+  return { ...(extra.providerRef ? { providerRef: extra.providerRef } : {}),
+    ...(extra.redirectUrl ? { redirectUrl: extra.redirectUrl } : {}),
+    ...(extra.refundedMinor === undefined ? {} : { refundedMinor: extra.refundedMinor }),
+    ...(to === PaymentStatus.AUTHORIZED ? { authorizedAt: new Date() } : {}),
+    ...(to === PaymentStatus.CAPTURED ? { capturedAt: new Date() } : {}) };
 }
 
 function delay(ms: number): Promise<void> {

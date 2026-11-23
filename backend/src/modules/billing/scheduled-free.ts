@@ -6,7 +6,7 @@ export const CLEAR_SCHEDULED_FREE = {
 } as const;
 
 type FreeTerms = Pick<Plan, 'key' | 'name' | 'tier' | 'currency' | 'interval' | 'features' |
-  'maxEventsPerPeriod' | 'maxGuestsPerEvent' | 'maxLocales' | 'invitationLifetimeDays'> & { priceMinor: '0' };
+  'maxEventsPerPeriod' | 'maxGuestsPerEvent' | 'maxLocales' | 'invitationLifetimeDays'> & { priceMinor: '0'; translations?: Prisma.JsonValue };
 
 export function captureFreeTerms(plan: Plan): FreeTerms {
   return {
@@ -14,6 +14,7 @@ export function captureFreeTerms(plan: Plan): FreeTerms {
     priceMinor: '0', features: plan.features, maxEventsPerPeriod: plan.maxEventsPerPeriod,
     maxGuestsPerEvent: plan.maxGuestsPerEvent, maxLocales: plan.maxLocales,
     invitationLifetimeDays: plan.invitationLifetimeDays,
+    translations: plan.translations,
   };
 }
 

@@ -64,6 +64,7 @@ describe('payment status machine', () => {
 
     it('treats a captured payment as settled and a pending one as not', () => {
       expect(isSettled(PaymentStatus.CAPTURED)).toBe(true);
+      expect(isSettled(PaymentStatus.PARTIALLY_REFUNDED)).toBe(true);
       expect(isSettled(PaymentStatus.REFUNDED)).toBe(true);
       expect(isSettled(PaymentStatus.PENDING)).toBe(false);
       expect(isSettled(PaymentStatus.AUTHORIZED)).toBe(false);

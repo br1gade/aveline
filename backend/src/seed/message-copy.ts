@@ -17,6 +17,15 @@ const VENUE_RESPONSE_COPY = {
 };
 
 export const MESSAGE_COPY = [
+  {
+    key: 'subscription.paid', channel: MessageChannel.EMAIL,
+    subject: { en: 'Payment received — {{number}}', hy: 'Վճարումը ստացվել է — {{number}}', ru: 'Оплата получена — {{number}}' },
+    body: {
+      en: 'Aveline received {{amount}} on {{paidAt}} for {{description}}. Reference: {{number}}.\n\nThis is a payment confirmation, not a tax invoice. Sign in to see the current billing status:\n{{link}}',
+      hy: 'Aveline-ը {{paidAt}}-ին ստացել է {{amount}}՝ {{description}}-ի համար։ Հղման համարը՝ {{number}}։\n\nՍա վճարման հաստատում է, ոչ թե հարկային հաշիվ։ Ընթացիկ վճարային կարգավիճակը տեսնելու համար մուտք գործեք՝\n{{link}}',
+      ru: 'Aveline получила {{amount}} {{paidAt}} за {{description}}. Номер: {{number}}.\n\nЭто подтверждение оплаты, а не налоговый счёт. Войдите, чтобы посмотреть актуальный статус оплаты:\n{{link}}',
+    },
+  },
   ...[MessageChannel.EMAIL, MessageChannel.TELEGRAM, MessageChannel.WHATSAPP].map((channel) => ({
     key: 'rsvp.confirmation.venues', channel,
     subject: { hy: 'Պատասխանը պահպանվել է', en: 'Your answers are saved', ru: 'Ваши ответы сохранены', fr: 'Vos réponses sont enregistrées' },

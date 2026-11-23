@@ -309,6 +309,13 @@ A replacement paid checkout supersedes the scheduled change only once payment
 is confirmed. Automatic renewal requires separate consent. Invitation lifetime
 captured at first publication remains in force.
 
+**Decided (23 November 2026):** a successful paid subscription sends a payment
+confirmation to the account that started the invoice, in its captured interface
+language. This includes an administrator purchasing on behalf of a customer;
+no other recipient is inferred. The message is explicitly **not a tax invoice**.
+Historical invoices without recipient context are not mass-emailed. Fiscal
+document/tax requirements and client printing/download remain separate work.
+
 ---
 
 ## 9. Revenue model

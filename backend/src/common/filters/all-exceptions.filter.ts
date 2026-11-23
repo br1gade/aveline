@@ -71,6 +71,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return this.describePrisma(exception);
     }
 
+    // Decompression errors retain zlib's code after body-parser marks them 400.
+    // Nest only maps SyntaxError/URIError, so these otherwise become incidents.
+    if (isInvalidCompressedBody(exception)) return { status: 400, message: 'Invalid compressed request body' };
+
     // Anything unrecognised is reported without detail: an internal message
     // may name tables, columns or configuration.
     return { status: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Internal server error' };
@@ -91,4 +95,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     );
   }
+}
+
+function isInvalidCompressedBody(error: unknown): boolean {
+  return error instanceof Error && 'status' in error && error.status === 400 &&
+    'code' in error && (error.code === 'Z_DATA_ERROR' || error.code === 'Z_BUF_ERROR');
 }

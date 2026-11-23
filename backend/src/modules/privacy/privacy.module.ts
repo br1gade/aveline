@@ -2,6 +2,7 @@ import { SalesPrivacyModule } from '../sales/sales-privacy.module';
 import { Module } from '@nestjs/common';
 import { PrivacyController } from './privacy.controller';
 import { PrivacyService } from './privacy.service';
+import { PrivacyPagesService } from './privacy-pages.service';
 import { SuppressionsController } from './suppressions.controller';
 
 /**
@@ -12,7 +13,7 @@ import { SuppressionsController } from './suppressions.controller';
 @Module({
   imports: [SalesPrivacyModule],
   controllers: [PrivacyController, SuppressionsController],
-  providers: [PrivacyService],
+  providers: [PrivacyService, PrivacyPagesService],
   exports: [PrivacyService],
 })
 export class PrivacyModule {}

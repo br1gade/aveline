@@ -112,6 +112,23 @@ describe('Billing (e2e)', () => {
   });
 
   describe('plans and subscriptions', () => {
+    it('negotiates billing display language and captures the initiating account on a new invoice', async () => {
+      const { authorization } = await owner();
+      await plan('managed', 25_000n);
+      await prisma.plan.update({ where: { key: 'managed' }, data: { translations: { ru: { name: 'Тариф' } } } });
+      const plans = await http().get('/api/v1/plans?locale=ru').expect(200);
+      expect(plans.body[0]).toMatchObject({ name: 'Plan managed', display: { locale: 'ru', name: 'Тариф',
+        features: expect.arrayContaining([{ key: 'seating', label: 'Рассадка' }]) } });
+      const selected = await http().post('/api/v1/subscription?locale=ru').set('Authorization', authorization)
+        .set('Accept-Language', 'fr').send({ planKey: 'managed', provider: 'FAKE' }).expect(201);
+      expect(selected.body.invoice.lines[0]).toMatchObject({ description: 'Plan managed (monthly)',
+        display: { locale: 'ru', description: 'Тариф (ежемесячно)' } });
+      expect(selected.body.invoice).not.toHaveProperty('requestedByUserId');
+      const invoice = await prisma.invoice.findFirstOrThrow({ include: { requestedBy: true } });
+      expect(invoice.paymentNoticeLocale).toBe('ru');
+      expect(invoice.requestedBy?.email).toMatch(/^test-.*@aveline.test$/);
+    });
+
     it('returns 404 for an unconfigured provider without creating billing records', async () => {
       const { authorization, organizationId } = await owner();
       await plan('managed', 25_000n);

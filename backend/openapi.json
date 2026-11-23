@@ -6947,10 +6947,97 @@
         ]
       }
     },
+    "/api/v1/invoices/page": {
+      "get": {
+        "operationId": "InvoicePagesController_page",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Display language; otherwise Accept-Language, then English",
+            "schema": {
+              "example": "hy",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePageDto"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Page this organization’s invoices, newest first",
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/plans": {
       "get": {
         "operationId": "SubscriptionsController_listPlans",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -6985,6 +7072,12 @@
         "description": "Null when the organization has never subscribed — not an error.",
         "operationId": "SubscriptionsController_current",
         "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
           {
             "name": "X-Aveline-Organization-Id",
             "in": "header",
@@ -7034,6 +7127,12 @@
         "description": "Free takes effect after a current paid period. A paid plan issues an invoice and returns a bank form URL; access begins when that payment confirms. An unconfigured provider returns 404 before billing records change.",
         "operationId": "SubscriptionsController_subscribe",
         "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
           {
             "name": "X-Aveline-Organization-Id",
             "in": "header",
@@ -7246,6 +7345,12 @@
         "operationId": "SubscriptionsController_listInvoices",
         "parameters": [
           {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
             "name": "X-Aveline-Organization-Id",
             "in": "header",
             "required": false,
@@ -7264,7 +7369,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionsController_listInvoicesResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvoiceResponseDto"
+                  }
                 }
               }
             }
@@ -7304,6 +7412,12 @@
             }
           },
           {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
             "name": "X-Aveline-Organization-Id",
             "in": "header",
             "required": false,
@@ -7322,7 +7436,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionsController_findInvoiceResponse"
+                  "$ref": "#/components/schemas/InvoiceResponseDto"
                 }
               }
             }
@@ -7361,6 +7475,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {}
           },
           {
             "name": "X-Aveline-Organization-Id",
@@ -10484,6 +10604,93 @@
         ]
       }
     },
+    "/api/v1/privacy/requests/page": {
+      "get": {
+        "operationId": "PrivacyController_page",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          },
+          {
+            "name": "queue",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "OPEN",
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "CLOSED"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Narrows the selected queue",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RECEIVED",
+                "VERIFYING",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "REJECTED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyPageDto"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Page open privacy requests by deadline, or closed requests by closure time",
+        "tags": [
+          "privacy"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/privacy/requests/{requestId}/submissions": {
       "get": {
         "operationId": "PrivacyController_submissions",
@@ -12731,6 +12938,73 @@
           }
         },
         "summary": "Create an event in a customer's organization (Aveline staff)",
+        "tags": [
+          "concierge"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/concierge/organizations/page": {
+      "get": {
+        "operationId": "ConciergeController_page",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Part of the name, any case",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConciergeOrganizationsPageDto"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Page customer organizations by name; newest first",
         "tags": [
           "concierge"
         ],
@@ -18548,6 +18822,167 @@
           }
         }
       },
+      "InvoiceLineDisplayDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "description"
+        ]
+      },
+      "InvoiceLineDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "planKey": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unitPriceMinor": {
+            "type": "string"
+          },
+          "totalMinor": {
+            "type": "string"
+          },
+          "descriptionTranslations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "display": {
+            "$ref": "#/components/schemas/InvoiceLineDisplayDto"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "totalMinor",
+          "display"
+        ]
+      },
+      "InvoiceResponseDto": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ISSUED",
+              "PAID",
+              "VOID",
+              "UNCOLLECTIBLE"
+            ]
+          },
+          "subtotalMinor": {
+            "type": "string"
+          },
+          "taxMinor": {
+            "type": "string"
+          },
+          "totalMinor": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "lines": {
+            "description": "New invoice lines include display; historical JSON is retained unchanged.",
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/InvoiceLineDto"
+                }
+              },
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "object",
+                "nullable": true,
+                "additionalProperties": true
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "issuedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "paidAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "paymentOrderNumber": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "number",
+          "status",
+          "subtotalMinor",
+          "taxMinor",
+          "totalMinor",
+          "currency",
+          "lines",
+          "issuedAt",
+          "dueAt",
+          "paidAt",
+          "paymentOrderNumber"
+        ]
+      },
+      "InvoicePageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceResponseDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "SubscribeDto": {
         "type": "object",
         "properties": {
@@ -18965,6 +19400,188 @@
         "required": [
           "kind",
           "subjectEmail"
+        ]
+      },
+      "PrivacyRequestRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "EXPORT",
+              "ERASURE",
+              "RECTIFICATION"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RECEIVED",
+              "VERIFYING",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "REJECTED"
+            ]
+          },
+          "subjectEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "subjectSource": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "STAFF_ENQUIRY"
+            ]
+          },
+          "enquirySubjectsVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "verifiedOwnerUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownerAccountVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "erasureAppliedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "erasureCheckpointId": {
+            "type": "string",
+            "nullable": true
+          },
+          "erasureResult": {
+            "oneOf": [
+              {
+                "type": "object",
+                "nullable": true,
+                "additionalProperties": true
+              },
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "organizationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "guestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resultAssetId": {
+            "type": "string",
+            "nullable": true
+          },
+          "handledByUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportGenerationId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "exportGeneratedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "exportGeneratedByUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportDeliveredByUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "subjectEmail",
+          "subjectSource",
+          "enquirySubjectsVerifiedAt",
+          "verifiedOwnerUserId",
+          "ownerAccountVerifiedAt",
+          "erasureAppliedAt",
+          "erasureCheckpointId",
+          "erasureResult",
+          "organizationId",
+          "guestId",
+          "userId",
+          "requestedAt",
+          "dueAt",
+          "completedAt",
+          "resultAssetId",
+          "handledByUserId",
+          "exportGenerationId",
+          "exportGeneratedAt",
+          "exportGeneratedByUserId",
+          "exportDeliveredByUserId",
+          "notes"
+        ]
+      },
+      "PrivacyPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrivacyRequestRowDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ]
       },
       "UpdateDataSubjectRequestDto": {
@@ -19724,6 +20341,72 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ConciergeCustomerMatchDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "ConciergeOrganizationRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "PLANNER",
+              "CORPORATE"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pendingOwnerInvites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "createdAt",
+          "owners",
+          "pendingOwnerInvites",
+          "events"
+        ]
+      },
+      "ConciergeOrganizationsPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConciergeOrganizationRowDto"
             }
           },
           "nextCursor": {
@@ -38252,6 +38935,52 @@
                 "PER_EVENT"
               ]
             },
+            "display": {
+              "type": "object",
+              "properties": {
+                "locale": {
+                  "type": "string",
+                  "enum": [
+                    "hy",
+                    "en",
+                    "ru",
+                    "fr",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "name": {
+                  "type": "string"
+                },
+                "interval": {
+                  "type": "string"
+                },
+                "features": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "label"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "locale",
+                "name",
+                "interval",
+                "features"
+              ]
+            },
             "entitlements": {
               "type": "object",
               "properties": {
@@ -38293,6 +39022,7 @@
             "priceMinor",
             "currency",
             "interval",
+            "display",
             "entitlements"
           ]
         }
@@ -38355,6 +39085,52 @@
                       "YEARLY",
                       "PER_EVENT"
                     ]
+                  },
+                  "display": {
+                    "type": "object",
+                    "properties": {
+                      "locale": {
+                        "type": "string",
+                        "enum": [
+                          "hy",
+                          "en",
+                          "ru",
+                          "fr",
+                          null
+                        ],
+                        "nullable": true
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "interval": {
+                        "type": "string"
+                      },
+                      "features": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "label"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "locale",
+                      "name",
+                      "interval",
+                      "features"
+                    ]
                   }
                 },
                 "required": [
@@ -38363,7 +39139,8 @@
                   "tier",
                   "priceMinor",
                   "currency",
-                  "interval"
+                  "interval",
+                  "display"
                 ]
               },
               "entitlements": {
@@ -38499,6 +39276,52 @@
                           "YEARLY",
                           "PER_EVENT"
                         ]
+                      },
+                      "display": {
+                        "type": "object",
+                        "properties": {
+                          "locale": {
+                            "type": "string",
+                            "enum": [
+                              "hy",
+                              "en",
+                              "ru",
+                              "fr",
+                              null
+                            ],
+                            "nullable": true
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "interval": {
+                            "type": "string"
+                          },
+                          "features": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "locale",
+                          "name",
+                          "interval",
+                          "features"
+                        ]
                       }
                     },
                     "required": [
@@ -38507,7 +39330,8 @@
                       "tier",
                       "priceMinor",
                       "currency",
-                      "interval"
+                      "interval",
+                      "display"
                     ]
                   },
                   "entitlements": {
@@ -38656,6 +39480,52 @@
                           "YEARLY",
                           "PER_EVENT"
                         ]
+                      },
+                      "display": {
+                        "type": "object",
+                        "properties": {
+                          "locale": {
+                            "type": "string",
+                            "enum": [
+                              "hy",
+                              "en",
+                              "ru",
+                              "fr",
+                              null
+                            ],
+                            "nullable": true
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "interval": {
+                            "type": "string"
+                          },
+                          "features": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "locale",
+                          "name",
+                          "interval",
+                          "features"
+                        ]
                       }
                     },
                     "required": [
@@ -38664,7 +39534,8 @@
                       "tier",
                       "priceMinor",
                       "currency",
-                      "interval"
+                      "interval",
+                      "display"
                     ]
                   },
                   "entitlements": {
@@ -38974,6 +39845,52 @@
                   "YEARLY",
                   "PER_EVENT"
                 ]
+              },
+              "display": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "hy",
+                      "en",
+                      "ru",
+                      "fr",
+                      null
+                    ],
+                    "nullable": true
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "interval": {
+                    "type": "string"
+                  },
+                  "features": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "locale",
+                  "name",
+                  "interval",
+                  "features"
+                ]
               }
             },
             "required": [
@@ -38982,7 +39899,8 @@
               "tier",
               "priceMinor",
               "currency",
-              "interval"
+              "interval",
+              "display"
             ]
           },
           "entitlements": {
@@ -39107,6 +40025,52 @@
                   "YEARLY",
                   "PER_EVENT"
                 ]
+              },
+              "display": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "hy",
+                      "en",
+                      "ru",
+                      "fr",
+                      null
+                    ],
+                    "nullable": true
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "interval": {
+                    "type": "string"
+                  },
+                  "features": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "locale",
+                  "name",
+                  "interval",
+                  "features"
+                ]
               }
             },
             "required": [
@@ -39115,7 +40079,8 @@
               "tier",
               "priceMinor",
               "currency",
-              "interval"
+              "interval",
+              "display"
             ]
           },
           "entitlements": {
@@ -39240,6 +40205,52 @@
                   "YEARLY",
                   "PER_EVENT"
                 ]
+              },
+              "display": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "hy",
+                      "en",
+                      "ru",
+                      "fr",
+                      null
+                    ],
+                    "nullable": true
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "interval": {
+                    "type": "string"
+                  },
+                  "features": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "locale",
+                  "name",
+                  "interval",
+                  "features"
+                ]
               }
             },
             "required": [
@@ -39248,7 +40259,8 @@
               "tier",
               "priceMinor",
               "currency",
-              "interval"
+              "interval",
+              "display"
             ]
           },
           "entitlements": {
@@ -39316,255 +40328,6 @@
           "cancelAtPeriodEnd",
           "cancelledAt",
           "trialEndsAt"
-        ]
-      },
-      "SubscriptionsController_listInvoicesResponse": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "number": {
-              "type": "string"
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                "DRAFT",
-                "ISSUED",
-                "PAID",
-                "VOID",
-                "UNCOLLECTIBLE"
-              ]
-            },
-            "subtotalMinor": {
-              "type": "string"
-            },
-            "taxMinor": {
-              "type": "string"
-            },
-            "totalMinor": {
-              "type": "string"
-            },
-            "currency": {
-              "type": "string"
-            },
-            "lines": {
-              "anyOf": [
-                {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "boolean"
-                              },
-                              {},
-                              {
-                                "type": "array",
-                                "items": {}
-                              }
-                            ]
-                          },
-                          {
-                            "type": "string",
-                            "nullable": true,
-                            "enum": [
-                              null
-                            ]
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {}
-                    }
-                  ]
-                },
-                {
-                  "type": "string",
-                  "nullable": true,
-                  "enum": [
-                    null
-                  ]
-                }
-              ]
-            },
-            "issuedAt": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            },
-            "dueAt": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            },
-            "paidAt": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            },
-            "paymentOrderNumber": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          "required": [
-            "number",
-            "status",
-            "subtotalMinor",
-            "taxMinor",
-            "totalMinor",
-            "currency",
-            "lines",
-            "issuedAt",
-            "dueAt",
-            "paidAt",
-            "paymentOrderNumber"
-          ]
-        }
-      },
-      "SubscriptionsController_findInvoiceResponse": {
-        "type": "object",
-        "properties": {
-          "number": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "DRAFT",
-              "ISSUED",
-              "PAID",
-              "VOID",
-              "UNCOLLECTIBLE"
-            ]
-          },
-          "subtotalMinor": {
-            "type": "string"
-          },
-          "taxMinor": {
-            "type": "string"
-          },
-          "totalMinor": {
-            "type": "string"
-          },
-          "currency": {
-            "type": "string"
-          },
-          "lines": {
-            "anyOf": [
-              {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "boolean"
-                  },
-                  {
-                    "type": "object",
-                    "properties": {},
-                    "additionalProperties": {
-                      "anyOf": [
-                        {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "number"
-                            },
-                            {
-                              "type": "boolean"
-                            },
-                            {},
-                            {
-                              "type": "array",
-                              "items": {}
-                            }
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "nullable": true,
-                          "enum": [
-                            null
-                          ]
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "type": "array",
-                    "items": {}
-                  }
-                ]
-              },
-              {
-                "type": "string",
-                "nullable": true,
-                "enum": [
-                  null
-                ]
-              }
-            ]
-          },
-          "issuedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "dueAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "paidAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "paymentOrderNumber": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "number",
-          "status",
-          "subtotalMinor",
-          "taxMinor",
-          "totalMinor",
-          "currency",
-          "lines",
-          "issuedAt",
-          "dueAt",
-          "paidAt",
-          "paymentOrderNumber"
         ]
       },
       "SubscriptionsController_confirmResponse": {
@@ -44861,6 +45624,132 @@
                 ],
                 "nullable": true
               },
+              "billingInvoices": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "subtotalMinor": {
+                      "type": "string"
+                    },
+                    "taxMinor": {
+                      "type": "string"
+                    },
+                    "totalMinor": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "ISSUED",
+                        "PAID",
+                        "VOID",
+                        "UNCOLLECTIBLE"
+                      ]
+                    },
+                    "dueAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "lines": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {},
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {},
+                                      {
+                                        "type": "array",
+                                        "items": {}
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "enum": [
+                                      null
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "array",
+                              "items": {}
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            null
+                          ]
+                        }
+                      ]
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paymentNoticeLocale": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "subtotalMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "number",
+                    "status",
+                    "dueAt",
+                    "currency",
+                    "lines",
+                    "issuedAt",
+                    "paidAt",
+                    "paymentNoticeLocale"
+                  ]
+                }
+              },
               "ticketAttendees": {
                 "type": "array",
                 "items": {
@@ -45308,6 +46197,7 @@
               "guestRecords",
               "contributions",
               "templateAuthorship",
+              "billingInvoices",
               "ticketAttendees",
               "ticketOrders",
               "messagesSent",
@@ -45824,6 +46714,10 @@
                   null
                 ]
               },
+              "billingInvoices": {
+                "type": "array",
+                "items": {}
+              },
               "ticketAttendees": {
                 "type": "array",
                 "items": {}
@@ -45860,6 +46754,7 @@
               "guestRecords",
               "contributions",
               "templateAuthorship",
+              "billingInvoices",
               "ticketAttendees",
               "ticketOrders",
               "messagesSent",
@@ -47261,6 +48156,26 @@
             "items": {
               "type": "object",
               "properties": {
+                "organization": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "CORPORATE",
+                        "HOST",
+                        "PLANNER"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind"
+                  ]
+                },
                 "id": {
                   "type": "string"
                 },
@@ -47291,6 +48206,7 @@
                 }
               },
               "required": [
+                "organization",
                 "id",
                 "organizationId",
                 "status",

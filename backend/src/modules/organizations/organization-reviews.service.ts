@@ -4,8 +4,9 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RequestActor } from '../../infra/auth/actor';
+import { DomainHttpException } from '../../common/domain-http.exception';
 import { lockCurrentUsers, lockOrganizationStanding, requireCurrentOrganizationPermission } from '../../infra/auth/access-locks';
-import { assertOrganizationRevision, incrementOrganizationRevision, lockAddressedInvites, lockOrganizationMutation, requireActiveMember, revokeAddressedInvites, revokeOrganizationJobs } from './organization-membership';
+import { incrementOrganizationRevision, lockAddressedInvites, lockOrganizationMutation, requireActiveMember, revokeAddressedInvites, revokeOrganizationJobs } from './organization-membership';
 import { MembershipPageQuery, OrganizationRevisionDto } from './dto/organization.dto';
 
 @Injectable()
@@ -27,7 +28,9 @@ export class OrganizationReviewsService {
     await this.prisma.$transaction((tx) => requireAdmin(tx, actor));
     const cursor = parseOrganizationCursor(query.cursor);
     const after = cursor ? { OR: [{ openedAt: { gt: cursor.createdAt } }, { openedAt: cursor.createdAt, id: { gt: cursor.id } }] } : {};
-    const rows = await this.prisma.organizationAccessReview.findMany({ where: { status: 'OPEN', ...after }, orderBy: [{ openedAt: 'asc' }, { id: 'asc' }], take: query.limit + 1 });
+    const rows = await this.prisma.organizationAccessReview.findMany({ where: { status: 'OPEN', ...after },
+      orderBy: [{ openedAt: 'asc' }, { id: 'asc' }], take: query.limit + 1,
+      include: { organization: { select: { name: true, kind: true } } } });
     const page = pageOf(rows.map((row) => ({ ...row, createdAt: row.openedAt })), query.limit);
     return { ...page, items: page.items.map(({ createdAt: _createdAt, ...row }) => row) };
   }
@@ -42,7 +45,7 @@ export class OrganizationReviewsService {
       await lockAddressedInvites(tx, review.organizationId);
       await requireAdmin(tx, actor);
       const current = await tx.organizationAccessReview.findUniqueOrThrow({ where: { id: reviewId } });
-      assertOrganizationRevision(current.revision, input.expectedRevision);
+      if (current.revision !== input.expectedRevision) throw new DomainHttpException('REVISION_CHANGED', 'expectedRevision: review revision changed');
       if (current.status !== 'OPEN') throw new ForbiddenException('Review is already resolved');
       await resolveDecision(tx, review.organizationId, input);
       await tx.organizationAccessReview.update({ where: { id: reviewId }, data: { status: input.decision, revision: { increment: 1 }, resolvedAt: new Date(), resolvedByUserId: actor.userId } });

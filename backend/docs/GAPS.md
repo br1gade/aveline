@@ -28,6 +28,8 @@ human retyping something another human already typed.
 | Public announcements and ticketing | Phone bookings and paper tickets |
 | Concurrency-safe ticket inventory | Overselling discovered at the door |
 | Messaging outbox with templates | Copy-pasting a message 400 times |
+| Durable payment-attempt claims, late-outcome recovery and audited ADMIN repair | Losing a payable attempt after a timeout or local expiry |
+| Localized billing display and non-tax subscription payment confirmation | English-only plan/line labels and a paid host receiving no confirmation |
 | Authentication, sessions, the guard | — |
 | Scheduled sweeps behind a distributed lock | — |
 | Health, request correlation, one error shape | — |
@@ -82,7 +84,7 @@ Per [PRODUCT_SPEC.md](../../docs/PRODUCT_SPEC.md) §9.
 | 14 | **Plan and entitlement enforcement** | §8 — entitlements are published on `/plans` and on the subscription; nothing refuses an action that exceeds them. **Decided (8 October 2026): deferred until after the pilot** — paid plans stay inactive and limits stay unenforced until real events show which limits matter and what to charge |
 | 15 | **Vendor referral accounting** | §9.3 — `feeMinor` records what is owed; no payout |
 | 16 | **Corporate contracts** | §9.5 — multi-event, branded |
-| 17 | **Tax on invoices** | Invoices are issued with gap-free numbers and captured line items; `taxMinor` is always zero, so an invoice is not yet a tax document |
+| 17 | **Tax on invoices** | Invoices have gap-free numbers and captured canonical/translated line items; `taxMinor` is always zero. The approved subscription email is explicitly non-tax and does not settle fiscal-document requirements. Client printing/download remains client work against existing invoice JSON |
 
 ## 5. Operations and trust
 

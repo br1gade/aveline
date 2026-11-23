@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Header, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DataSubjectRequestStatus } from '@prisma/client';
 import { IsEnum, IsOptional } from 'class-validator';
 import {
@@ -15,6 +15,8 @@ import {
 } from './dto/privacy.dto';
 import { PrivacyService } from './privacy.service';
 import { PaginationQuery } from '../../common/dto/pagination.dto';
+import { PrivacyPagesService } from './privacy-pages.service';
+import { PrivacyPageDto, PrivacyPageQuery } from './dto/privacy-pages.dto';
 
 class ListRequestsQuery {
   @IsOptional()
@@ -25,7 +27,7 @@ class ListRequestsQuery {
 @ApiTags('privacy')
 @Controller('privacy/requests')
 export class PrivacyController {
-  constructor(private readonly privacy: PrivacyService) {}
+  constructor(private readonly privacy: PrivacyService, private readonly pages: PrivacyPagesService) {}
 
   // Anyone may ask. A data subject is usually a guest with no account, so
   // requiring one would make the right unexercisable.
@@ -46,6 +48,14 @@ export class PrivacyController {
   @ApiOperation({ summary: 'Open requests, soonest due first' })
   list(@Query() query: ListRequestsQuery) {
     return this.privacy.list(query.status);
+  }
+
+  @RequirePermission('privacy:manage')
+  @Get('page')
+  @ApiOkResponse({ type: PrivacyPageDto })
+  @ApiOperation({ summary: 'Page open privacy requests by deadline, or closed requests by closure time' })
+  page(@Query() query: PrivacyPageQuery) {
+    return this.pages.page(query);
   }
 
   @RequirePermission('privacy:manage')

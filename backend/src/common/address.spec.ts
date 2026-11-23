@@ -50,6 +50,16 @@ describe('isSafeAddress', () => {
 });
 
 describe('isUsableEmailAddress', () => {
+  it.each(['ani@example.am,armen@example.am', 'Ani<ani@example.am>', 'team:ani@example.am;', 'ani(comment)@example.am'])(
+    'rejects recipient-list and header syntax in a single mailbox: %s',
+    (email) => expect(isUsableEmailAddress(email)).toBe(false),
+  );
+
+  it.each(['ani+invitation@example.am', 'անուն@example.am', 'ani@localhost'])(
+    'keeps a single supported mailbox: %s',
+    (email) => expect(isUsableEmailAddress(email)).toBe(true),
+  );
+
   it.each(['armen@example.am', '  armen@example.am  ', 'Ani@Example.AM'])(
     'accepts %s',
     (email) => {

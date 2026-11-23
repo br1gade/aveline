@@ -1,10 +1,11 @@
 import { MessageStatus, OrganizationRole, OrgKind } from '@prisma/client';
 import { ConciergeRelationship } from '../concierge-relationship';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, MaxLength, Matches, IsInt, Min, Max } from 'class-validator';
 import { CreateOrganizationDto } from './organization.dto';
 import { NormalizedEmail } from '../../../common/normalized-email';
+import { CursorPageQuery } from '../../../common/cursor-pagination.dto';
 
 export class OpenForCustomerDto extends CreateOrganizationDto {
   @ApiProperty({ description: 'The customer, invited as owner; they set their own password' })
@@ -26,6 +27,8 @@ export class FindOrganizationsQuery {
   @MaxLength(160)
   search?: string;
 }
+
+export class FindOrganizationsPageQuery extends IntersectionType(FindOrganizationsQuery, CursorPageQuery) {}
 
 export class ResolveCustomerOrganizationsDto {
   @ApiProperty({ description: 'Customer email; staff-only resolution' })
@@ -56,6 +59,22 @@ export class ConciergeOrganizationDto {
   kind!: OrgKind;
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: Date;
+}
+
+export class ConciergeOrganizationRowDto extends ConciergeOrganizationDto {
+  @ApiProperty({ type: [String] })
+  owners!: string[];
+  @ApiProperty({ type: [String] })
+  pendingOwnerInvites!: string[];
+  @ApiProperty()
+  events!: number;
+}
+
+export class ConciergeOrganizationsPageDto {
+  @ApiProperty({ type: [ConciergeOrganizationRowDto] })
+  items!: ConciergeOrganizationRowDto[];
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
 }
 
 export class ConciergeCustomerMatchDto extends ConciergeOrganizationDto {

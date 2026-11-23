@@ -255,7 +255,7 @@ describe('PaymentsService (integration)', () => {
       expect(after.status).toBe(PaymentStatus.CAPTURED);
     });
 
-    it('expires an order that was registered and never paid', async () => {
+    it('keeps a registered unpaid order pending beyond the local operational deadline', async () => {
       const started = await service.start(startDto());
       await prisma.payment.update({
         where: { orderNumber: started.orderNumber },
@@ -267,7 +267,7 @@ describe('PaymentsService (integration)', () => {
       const after = await prisma.payment.findUniqueOrThrow({
         where: { orderNumber: started.orderNumber },
       });
-      expect(after.status).toBe(PaymentStatus.EXPIRED);
+      expect(after.status).toBe(PaymentStatus.PENDING);
     });
 
     // B38: it marked the payment EXPIRED before asking the bank, and EXPIRED

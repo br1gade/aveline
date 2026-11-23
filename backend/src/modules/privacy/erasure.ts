@@ -2,6 +2,7 @@ import { EnquiryPrivacySubject, eraseEnquirySubjects } from '../sales/enquiry-pr
 import { revokeTemplateAuthorship } from '../design/templates/template-privacy';
 import { eraseContributions } from '../guest-contributions/contribution-privacy';
 import { revokeSubjectExports } from '../exports/export-privacy';
+import { eraseBillingContext } from '../billing/billing-privacy';
 import { attendeeSubject, eraseAttendees, lockSubjectOrders } from '../ticketing/attendee-privacy';
 import { MessageChannel, MessageStatus, Prisma, SuppressionReason } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
@@ -58,6 +59,7 @@ interface KnownAddress {
 }
 
 export async function eraseSubject(tx: Tx, email: string, now: Date, enquirySubject?: EnquiryPrivacySubject) {
+  const invoiceContextsCleared = await eraseBillingContext(tx, email);
   await revokeSubjectExports(tx, email, now);
   const enquiryCounts = await eraseEnquirySubjects(tx, { subject: enquirySubject ?? { email, verifiedContactIds: [] }, now });
   await lockSubjectOrders(tx, email);
@@ -87,6 +89,7 @@ export async function eraseSubject(tx: Tx, email: string, now: Date, enquirySubj
       householdsRenamed,
       ticketOrdersAnonymised,
       messagesRedacted,
+      invoiceContextsCleared,
       suppressionsHashed,
       invitesWithdrawn,
       accountsClosed: closedUserId ? 1 : 0,

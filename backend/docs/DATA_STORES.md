@@ -41,6 +41,35 @@ nothing and costs consistency.
 
 ### Email delivery correctness
 
+**Subscription notice intent is domain state.** A new paid invoice captures
+`requestedByUserId` and `paymentNoticeLocale` from its initiating account and
+request; legacy invoices retain null context. The paid invoice survives a failed
+enqueue, and a bounded rotating sweep recovers missing `subscription.paid`
+messages. Each Message has unique `subscription-paid:<invoiceId>` dedupe state;
+its creation is transactional, and provider I/O happens afterwards. The
+notification transaction and subject erasure lock the same User row before
+reading/clearing context, so erasure cannot be followed by recreated recipient
+mail. Dispatch checks the paid invoice and active verified account/address again.
+Financial totals stay; notification context and personal message contents are
+erased. SMTP acceptance and a later database restore cannot provide exactly-once
+delivery across an external provider.
+
+**Invoice wording is captured data.** Plan `translations` holds locale-keyed
+names. New invoice lines capture `descriptionTranslations`; localized display
+never rewrites canonical descriptions or integer money. Scheduled/active Free
+terms capture translations too. Production seed fills absent stock-plan names
+without overwriting operator wording or renaming a custom plan.
+
+**Payment attempts are durable before bank I/O.** Payment/purchase association
+and the active pointer commit together; `registrationStartedAt` fences the
+external call and `outcomeUnknownAt` blocks unsafe replacement. Expired
+registered attempts remain reconcilable. `invoiceId`/`ticketOrderId` preserve
+all attempts, so settlement and refund compensation do not depend on a mutable
+latest pointer. Unknown legacy associations require financial-term checks or
+audited operator recovery. A `MANUAL` PaymentEvent stores actor/reason/evidence
+reference; no bank credential is retained there. Reader floor 4 prevents old
+writers from reintroducing the earlier expiry/retry behavior.
+
 **Email provider budgets live in Postgres.** `EmailSendQuota` is a shared token
 bucket with integer credits plus a UTC daily budget. Reservations serialize on
 one sender-budget row and persist across API/Redis restarts. Production defaults

@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { createHmac } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -35,6 +36,27 @@ describe('Meta webhook HTTP boundary', () => {
 
   it('parses ordinary JSON authentication requests alongside the larger webhook parser', async () => {
     await http().post('/api/v1/auth/login').send({ email: 'unknown@example.test', password: 'Synthetic-password' }).expect(401);
+  });
+
+  it('parses compressed ordinary JSON and rejects malformed compressed bodies without breaking later requests', async () => {
+    const login = JSON.stringify({ email: 'unknown@example.test', password: 'Synthetic-password' });
+    const send = (payload: Buffer) => http().post('/api/v1/auth/login')
+      .set('Content-Type', 'application/json').set('Content-Encoding', 'gzip')
+      // Superagent accepts wire buffers, but its serializer typings only declare strings.
+      .serialize(() => payload as unknown as string)
+      .send(payload);
+    await send(gzipSync(login)).expect(401);
+    await send(gzipSync('{invalid')).expect(400);
+    await send(Buffer.from('invalid gzip stream')).expect(400);
+    await send(gzipSync(login)).expect(401);
+    expect(await prisma.session.count()).toBe(0);
+  });
+
+  it('refuses compression on the signed webhook without inserting a receipt', async () => {
+    const raw = JSON.stringify(body());
+    await http().post(path).set('Content-Type', 'application/json').set('Content-Encoding', 'gzip')
+      .set('X-Hub-Signature-256', signature(raw)).send(gzipSync(raw)).expect(415);
+    expect(await prisma.whatsAppReceipt.count()).toBe(0);
   });
 
   it('echoes a verified subscription challenge verbatim with no session or cache', async () => {

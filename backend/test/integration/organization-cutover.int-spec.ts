@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve } from 'node:path';
+import { CURRENT_READER_REVISION } from '../../src/prisma/reader-compatibility';
 import { disconnectTestDatabase, resetTestDatabase, testPrisma, TEST_DATABASE_URL } from '../setup/test-database';
 
 const execute = promisify(execFile);
@@ -19,19 +20,19 @@ describe('organization cutover operator controls', () => {
     await execute(process.execPath, [script, 'disable-writes'], { env });
     expect((await prisma.runtimeCompatibility.findUniqueOrThrow({ where: { id: 'organization-context' } })).multiOrganizationWrites).toBe(false);
   });
-  it('requires revision-3 evidence for controlled index cutover and write activation', async () => {
+  it('requires current-reader evidence for controlled index cutover and write activation', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'aveline-reader-floor-'));
     const proofPath = join(directory, 'test-evidence.json');
-    const proof = { revision: 2, readerWriterInventory: true, raceTests: true, populatedMigration: true,
+    const proof = { revision: CURRENT_READER_REVISION - 1, readerWriterInventory: true, raceTests: true, populatedMigration: true,
       restoreRehearsal: true, fourLanguageTabAcceptance: true, oldRuntimeExclusion: true };
     const cutoverEnvironment = { ...env, ORGANIZATION_CUTOVER_EVIDENCE_FILE: proofPath, ORGANIZATION_CUTOVER_MAINTENANCE: 'confirmed' };
     try {
       await writeFile(proofPath, JSON.stringify(proof));
-      await expect(execute(process.execPath, [script, 'drop-single-membership-index'], { env: cutoverEnvironment })).rejects.toThrow('revision-3 activation evidence');
-      await writeFile(proofPath, JSON.stringify({ ...proof, revision: 3 }));
+      await expect(execute(process.execPath, [script, 'drop-single-membership-index'], { env: cutoverEnvironment })).rejects.toThrow(`revision-${CURRENT_READER_REVISION} activation evidence`);
+      await writeFile(proofPath, JSON.stringify({ ...proof, revision: CURRENT_READER_REVISION }));
       await execute(process.execPath, [script, 'drop-single-membership-index'], { env: cutoverEnvironment });
       await execute(process.execPath, [script, 'enable-writes'], { env: cutoverEnvironment });
-      expect(await prisma.runtimeCompatibility.findUniqueOrThrow({ where: { id: 'organization-context' } })).toMatchObject({ minimumRevision: 3, multiOrganizationWrites: true });
+      expect(await prisma.runtimeCompatibility.findUniqueOrThrow({ where: { id: 'organization-context' } })).toMatchObject({ minimumRevision: CURRENT_READER_REVISION, multiOrganizationWrites: true });
     } finally {
       await prisma.runtimeCompatibility.update({ where: { id: 'organization-context' }, data: { multiOrganizationWrites: false } });
       await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS "organization_memberships_userId_key" ON organization_memberships("userId")`;

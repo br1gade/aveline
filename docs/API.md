@@ -1381,6 +1381,7 @@ POST /api/v1/concierge/organizations                       { "name": "Petrosyan 
 POST /api/v1/concierge/organizations/resolve-customer        { "ownerEmail":"anna@example.am", "limit":50 }
 POST /api/v1/concierge/organizations/:organizationId/events  { ...as POST /events }
 GET  /api/v1/concierge/organizations?search=petrosyan
+GET  /api/v1/concierge/organizations/page?search=petrosyan&limit=50&cursor=<opaque>
 ```
 
 For an Aveline staff console, not the host app: they need `concierge:manage`,
@@ -1393,6 +1394,15 @@ the customer accepts at `/accept-invite`, choosing their own password, they
 own the organization and its events. The search lists open organizations with
 their `owners`, live `pendingOwnerInvites` and number of `events`. Expired,
 revoked and accepted owner invitations are excluded from the pending list.
+
+The `/page` search returns `{items,nextCursor}` with the same organization
+fields, ordered by `createdAt` descending and then ID descending. It accepts
+`limit` 1–100 (default 50) and a cursor of at most 256 characters. Continue with
+the returned cursor and the same case-insensitive search; `nextCursor: null`
+means the list is exhausted. A cursor from another search or collection returns
+`400` naming `cursor`. The boundary row may be deleted between pages without
+breaking continuation. The original search route retains its array response
+and 50-row limit.
 
 Concierge setup matches an active `OWNER` membership or a live, unaccepted,
 unrevoked `OWNER` invitation for an open organization. Active ownership takes
@@ -2190,6 +2200,12 @@ and pending invite in this tenant and revokes customer-authorized unfinished sea
 unrelated organizations, direct event grants and independently authorized active
 staff work remain. Every worker still rechecks current operation/contact permission.
 Closure reviews remove nothing until an ADMIN resolves HANDOVER, CLOSE or DECLINE.
+The ADMIN review queue returns `{items,nextCursor}`; each review includes
+`organization: {name,kind}` alongside its organization ID and review `revision`.
+Resolution's `expectedRevision` is this review revision, rather than the
+organization's `accessRevision`. A stale review returns `409 REVISION_CHANGED`
+with `expectedRevision: review revision changed`; reload the review before
+resolving it again. SUPPORT and customers cannot read the review queue.
 CLOSE preserves events and financial history, soft-closes the tenant and revokes its
 customer memberships/invites/jobs. Authenticated event routes deny closed tenants
 for every platform role, including ADMIN/SUPPORT; published guest capability
@@ -2221,6 +2237,8 @@ Public — this is the pricing page. It has the guest-page read allowance (see R
   {
     "key": "managed-monthly", "name": "Managed", "tier": "MANAGED",
     "priceMinor": "25000", "currency": "AMD", "interval": "MONTHLY",
+    "display": { "locale": "ru", "name": "С организацией", "interval": "ежемесячно",
+      "features": [{ "key": "seating", "label": "Рассадка" }, { "key": "check-in", "label": "Регистрация гостей" }] },
     "entitlements": {
       "maxEventsPerPeriod": 3, "maxGuestsPerEvent": 400, "maxLocales": 3,
       "invitationLifetimeDays": null, "features": ["seating", "check-in"]
@@ -2228,6 +2246,16 @@ Public — this is the pricing page. It has the guest-page read allowance (see R
   }
 ]
 ```
+
+`display` is additive on price-list plans and `subscription.plan`. Send
+`Accept-Language` or `?locale=` to request English, Armenian, Russian or French.
+Canonical `name`, `interval` and feature keys remain unchanged; use the display
+labels for UI text and keep each feature's `key` for capability decisions.
+`display.locale: null` means no stored translation exists for that plan name:
+the exact canonical name is retained. Unknown/custom feature keys are retained
+as their own labels. Stock-name seed updates fill missing translations only;
+they do not replace operator wording or rename a custom plan sharing a stock key.
+Scheduled and active Free terms retain the names captured when selected.
 
 `invitationLifetimeDays: null` means the invitation stays up indefinitely;
 a number is how long after the event a free-tier page remains reachable.
@@ -2313,17 +2341,20 @@ POST /api/v1/invoices/:number/confirm
 which asks the bank server-to-server and activates the subscription. Safe to
 call twice, at once too: a call overtaken by another one answers with the
 payment as recorded, not a `409`; a second call never double-activates or
-double-counts. The one `409` left is a real disagreement: the bank reports the
-money taken for a payment already recorded as ended without it (expired by our
-clock, say). It is logged for staff, and the client should show it as an
-error to contact support about, not offer a fresh payment.
+double-counts. Local expiry does not establish a bank outcome: registered
+expired attempts are still confirmed and reconciled. A real conflicting bank
+outcome or amount mismatch requires support; keep the purchase and do not offer
+a replacement payment based on that error.
 
 Changing plan is the same call with a different `planKey`. Asking for the
 same plan again while its invoice is open — a double click, a retry — returns
-that invoice and its payment, never a second one. If that payment ended
-without money moving — the bank refused to register it, declined the card, or
-it expired — the retry answers the same invoice with a fresh payment and a new
-`redirectUrl` rather than the dead one, so a retry is always payable. **Nothing changes
+that invoice and its active attempt, never a second registration. A replacement
+attempt is allowed after an authoritative bank refusal/cancellation, or after a
+local expiry proved never to have started registration. A timeout, interrupted
+registration or expiry with a bank reference keeps the existing attempt; its
+bank page may still be payable. An uncertain registration can answer `502`;
+retain the purchase and contact support rather than submitting a new purchase.
+**Nothing changes
 until the new invoice is paid**: the current plan and status stay as they are,
 and paying applies the invoice's plan with a period starting then. A paid
 change abandoned at the bank leaves the customer exactly where they were. A
@@ -2353,6 +2384,7 @@ after which it returns `400` and the answer is to subscribe again. Both need
 
 ```http
 GET /api/v1/invoices
+GET /api/v1/invoices/page?limit=50&cursor=<opaque>
 GET /api/v1/invoices/:number
 ```
 
@@ -2361,7 +2393,8 @@ GET /api/v1/invoices/:number
   "number": "AV-2026-000001", "status": "ISSUED",
   "subtotalMinor": "25000", "taxMinor": "0", "totalMinor": "25000",
   "currency": "AMD",
-  "lines": [{ "description": "Managed (monthly)", "quantity": 1, "totalMinor": "25000" }],
+  "lines": [{ "description": "Managed (monthly)", "quantity": 1, "totalMinor": "25000",
+    "display": { "locale": "ru", "description": "С организацией (ежемесячно)" } }],
   "issuedAt": "2026-10-05T...", "dueAt": "2026-10-12T...", "paidAt": null,
   "paymentOrderNumber": "..."
 }
@@ -2371,6 +2404,40 @@ Numbers are gap-free within a year and sort as plain text in issue order.
 `lines` is captured at issue, so a later price change never rewrites a document
 a customer has filed. **`taxMinor` is always `"0"` — tax is not computed yet.**
 Do not present an invoice as a tax document.
+
+Each line adds `display: {locale, description}` without changing its canonical
+description, amounts or other keys. New lines capture `descriptionTranslations`
+at issue; later plan/copy edits cannot rewrite them. Legacy lines retain their
+exact description with `display.locale: null`. Invoice reads and confirmation
+use the request language for these display fields.
+
+After a paid subscription invoice settles, Aveline queues a **non-tax payment
+confirmation** to the account that originally started that invoice, in its
+captured interface language. An administrator purchasing on behalf of someone
+else receives their own confirmation; recipients are not inferred from current
+ownership. Only an active account with a verified address is eligible. Replays
+of the same open invoice preserve its original recipient context. Historical
+invoices without that context are not mass-emailed.
+
+The outbox deduplicates by invoice, retries delivery and recovers missed enqueue
+attempts after settlement; email failure never reverses payment or activation.
+Before dispatch it rechecks the paid invoice, recipient context and address.
+Erasure clears the context and stops queued personal mail while retaining
+financial totals. Copy exists in English, Armenian and Russian; French requests
+fall back to English. The message includes the amount, invoice number and an
+authenticated billing-page link, without bank references or capability tokens.
+Printable/downloadable client presentation and tax-document requirements remain
+separate; the backend continues to expose the captured invoice JSON.
+
+The `/page` route requires `billing:read` for the selected organization and
+returns `{items,nextCursor}` using the same invoice fields. It sorts by
+`createdAt` descending, then ID descending. `limit` is 1–100 (default 50), and
+`cursor` is at most 256 characters. Continue until `nextCursor` is null. The
+cursor is bound to this organization and collection; reusing it with another
+organization returns `400` naming `cursor`, and it grants no organization
+access. Deleting a boundary invoice does not invalidate continuation. Optional
+`locale` selects display language, with the usual `Accept-Language` fallback.
+The original invoice history route continues to return an array.
 
 ### Promo codes
 
@@ -2850,6 +2917,7 @@ deadline; `reference` is gone. Staff find a request in the list.
 
 ```http
 GET   /api/v1/privacy/requests?status=RECEIVED
+GET   /api/v1/privacy/requests/page?queue=OPEN&limit=50&cursor=<opaque>
 GET   /api/v1/privacy/requests/:requestId/submissions?limit=20&offset=0
 PATCH /api/v1/privacy/requests/:requestId   { "status": "IN_PROGRESS", "notes": "..." }
 POST  /api/v1/privacy/requests/:requestId/fulfil
@@ -2861,6 +2929,20 @@ holds. **No customer account can call these**, an organization owner included
 — a request is matched across every customer, so acting on one reaches other
 tenants' data. Do not build a host-facing screen for them. The list is a
 deadline queue, soonest `dueAt` first.
+
+The `/page` route returns `{items,nextCursor}` and accepts `limit` 1–100
+(default 50), a cursor of at most 256 characters, and `queue=OPEN|CLOSED`.
+`OPEN` is the default: `RECEIVED`, `VERIFYING` and `IN_PROGRESS` are interleaved
+by `dueAt` ascending, then ID ascending. `CLOSED` includes `COMPLETED` and
+`REJECTED`, ordered by `completedAt` descending, then ID descending. Historical
+closed rows without `completedAt` follow all dated rows, ordered by ID
+descending; their missing dates remain null. Optional `status` narrows the
+selected queue, and a status belonging to the other queue returns `400`
+naming `status`. Continue using the same queue and status until `nextCursor`
+is null. A cursor from another queue, status or collection returns `400`
+naming `cursor`. Continuation still works after the boundary request is
+deleted. This route has the same ADMIN-only authority as the original array
+route, which retains its behavior.
 
 Each public submission is a separate stored record, including submissions
 without notes. The submissions route returns a standard bounded page
@@ -3855,8 +3937,17 @@ return redirect is not proof of payment.** Call confirm, which checks
 server-to-server. Statuses are `CREATED`, `PENDING`, `AUTHORIZED`, `CAPTURED`,
 `FAILED`, `CANCELLED`, `REFUNDED`, `PARTIALLY_REFUNDED`, `EXPIRED`.
 
+The backend commits a payment's purchase association and active-attempt pointer
+before bank registration, then records that registration has started before
+calling the provider. Unknown outcomes block replacement attempts. Expired
+registered attempts remain eligible for bank confirmation, and settlement finds
+all verified attempts for the purchase rather than trusting only its latest
+pointer. One capture fulfils the purchase; additional captures are refunded with
+durable refund claims. Manual registration recovery is an audited host command,
+not a browser endpoint; see [Payments](PAYMENTS.md#registration-recovery).
+
 `reconcile` is an operations action — a sweep that re-asks the bank about
-anything unresolved, and expires only what the bank still calls unpaid. A scheduled job already runs it; the endpoint exists for
+anything unresolved. Registered PENDING or AUTHORIZED attempts remain unresolved until the bank gives a definitive outcome; the local expiry time never proves that money did not move. A scheduled job already runs it; the endpoint exists for
 when someone needs it sooner. Not something a user-facing screen should call.
 
 Likewise `POST /api/v1/ticket-orders/release-expired` returns inventory held
@@ -4109,9 +4200,9 @@ So you can plan around them rather than discover them:
   the subscription, but the server will not refuse a fourth event on a
   three-event plan.
 - **No tax on invoices.** `taxMinor` is always `"0"`.
-- **No receipt for a paid plan.** No email follows a plan payment and the
-  invoice cannot be printed; what a paying host receives is still to be
-  decided (audit F-38).
+- **Client invoice printing/download.** Non-tax subscription payment email is
+  built; the client still needs a printable/downloadable presentation of the
+  existing invoice JSON. Fiscal-document requirements remain separate.
 - **No French mail copy.** French was dropped for the pilot on 14 November
   2026: a French reader gets the event's language, then English.
 - **No unsubscribe line in the mail body.** Guest mail carries the one-click
